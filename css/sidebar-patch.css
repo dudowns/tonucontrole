@@ -1,0 +1,589 @@
+/* ============================================
+   SIDEBAR PADRONIZADA - TonuControle
+   Versão: 2.3.0 - BOTÕES COM CLASSE CSS + LOGO
+   ============================================ */
+
+/* ============================================
+   1. SIDEBAR - TAMANHO PADRONIZADO
+   ============================================ */
+.sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 260px !important;
+    height: 100vh !important;
+    background: #ffffff !important;
+    border-right: 1px solid #e9ecef !important;
+    padding: 16px 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 1000 !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transform: translateX(0) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+.sidebar.hidden {
+    transform: translateX(-100%) !important;
+}
+
+/* ============================================
+   2. SIDEBAR BRAND - COM LOGO PNG
+   ============================================ */
+.sidebar-brand {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 14px !important;
+    margin-bottom: 16px !important;
+    background: linear-gradient(135deg, #6C5CE7, #A29BFE) !important;
+    border-radius: 10px !important;
+    color: white !important;
+    flex-shrink: 0 !important;
+    text-decoration: none !important;
+}
+
+/* 🔥 LOGO PNG NO LUGAR DO 💰 */
+.sidebar-brand .brand-icon {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 6px !important;
+    overflow: hidden !important;
+    flex-shrink: 0 !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.sidebar-brand .brand-icon img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    display: block !important;
+}
+
+.sidebar-brand h2 {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
+    color: white !important;
+}
+
+/* ============================================
+   3. SIDEBAR NAV - LINKS PADRONIZADOS
+   ============================================ */
+.sidebar-nav {
+    list-style: none !important;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.sidebar-nav li {
+    list-style: none !important;
+}
+
+.sidebar-nav a {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 14px !important;
+    border-radius: 8px !important;
+    color: #636e72 !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+}
+
+.sidebar-nav a:hover {
+    background: #f0edff !important;
+    color: #6C5CE7 !important;
+}
+
+.sidebar-nav a.active {
+    background: #6C5CE7 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.3) !important;
+}
+
+.sidebar-nav a i {
+    width: 18px !important;
+    text-align: center !important;
+    font-size: 14px !important;
+    color: inherit !important;
+}
+
+.sidebar-nav a.active i {
+    color: #ffffff !important;
+}
+
+/* ============================================
+   4. SIDEBAR USER PROFILE - COM STATUS ATIVO
+   ============================================ */
+.sidebar-footer {
+    margin-top: auto !important;
+    padding-top: 10px !important;
+    border-top: 1px solid #e9ecef !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+}
+
+.sidebar-user-profile {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    text-decoration: none !important;
+    color: inherit !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+}
+
+.sidebar-user-profile:hover {
+    background: #f0edff !important;
+    border-color: #6C5CE7 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(108, 92, 231, 0.12) !important;
+}
+
+.sidebar-user-profile .avatar-circle {
+    width: 40px !important;
+    height: 40px !important;
+    background: linear-gradient(135deg, #6C5CE7, #a29bfe) !important;
+    color: #ffffff !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: 700 !important;
+    font-size: 16px !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
+    box-shadow: 0 2px 6px rgba(108, 92, 231, 0.25) !important;
+}
+
+.sidebar-user-profile .avatar-circle img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+    display: block !important;
+}
+
+.sidebar-user-info {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+}
+
+.sidebar-user-name {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.2 !important;
+}
+
+.sidebar-user-email {
+    font-size: 11px !important;
+    color: #64748b !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    margin-top: 2px !important;
+}
+
+.sidebar-user-status {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    color: #00B894 !important;
+    margin-top: 2px !important;
+}
+
+.sidebar-user-status .status-dot {
+    width: 6px !important;
+    height: 6px !important;
+    border-radius: 50% !important;
+    background: #00B894 !important;
+    display: inline-block !important;
+    animation: pulseStatus 2s ease-in-out infinite !important;
+}
+
+@keyframes pulseStatus {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+    }
+}
+
+.sidebar-user-icon {
+    font-size: 13px !important;
+    color: #94a3b8 !important;
+    transition: transform 0.2s ease, color 0.2s ease !important;
+    flex-shrink: 0 !important;
+}
+
+.sidebar-user-profile:hover .sidebar-user-icon {
+    color: #6C5CE7 !important;
+    transform: rotate(45deg) !important;
+}
+
+/* ============================================
+   5. BOTÃO SAIR - COM CLASSE CSS
+   ============================================ */
+.sidebar-footer .btn-sair {
+    width: 100% !important;
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    font-family: 'Inter', sans-serif !important;
+    border: 1px solid #e2e8f0 !important;
+    background: transparent !important;
+    color: #636e72 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+}
+
+.sidebar-footer .btn-sair:hover {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    border-color: #fca5a5 !important;
+}
+
+.sidebar-footer .btn-sair i {
+    font-size: 13px !important;
+}
+
+/* ============================================
+   6. SIDEBAR OVERLAY
+   ============================================ */
+.sidebar-overlay {
+    display: none !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.4) !important;
+    z-index: 900 !important;
+}
+
+.sidebar-overlay.show {
+    display: block !important;
+}
+
+/* ============================================
+   7. MAIN CONTENT
+   ============================================ */
+.main-content {
+    margin-left: 260px !important;
+    min-height: 100vh !important;
+    transition: margin 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    width: calc(100% - 260px) !important;
+    flex: 1 !important;
+}
+
+.main-content.full {
+    margin-left: 0 !important;
+    width: 100% !important;
+}
+
+/* ============================================
+   8. RESPONSIVO
+   ============================================ */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%) !important;
+        width: 280px !important;
+    }
+
+    .sidebar:not(.hidden) {
+        transform: translateX(0) !important;
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    .sidebar-overlay.show {
+        display: block !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .sidebar {
+        width: 260px !important;
+    }
+}
+
+/* ============================================
+   9. FORÇA SOBREPOSIÇÃO EM TODAS AS PÁGINAS
+   ============================================ */
+.settings-card .sidebar-nav a,
+.dashboard-grid .sidebar-nav a,
+.transactions-grid .sidebar-nav a,
+.bills-grid .sidebar-nav a,
+.goals-grid .sidebar-nav a,
+.investments-grid .sidebar-nav a,
+.content .sidebar-nav a,
+.auth-container .sidebar-nav a,
+.card .sidebar-nav a,
+.page-content .sidebar-nav a {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.settings-card .sidebar-nav a.active,
+.dashboard-grid .sidebar-nav a.active,
+.transactions-grid .sidebar-nav a.active,
+.bills-grid .sidebar-nav a.active,
+.goals-grid .sidebar-nav a.active,
+.investments-grid .sidebar-nav a.active,
+.content .sidebar-nav a.active,
+.auth-container .sidebar-nav a.active,
+.card .sidebar-nav a.active,
+.page-content .sidebar-nav a.active {
+    background: #6C5CE7 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.3) !important;
+}
+
+.settings-card .sidebar-nav a.active i,
+.dashboard-grid .sidebar-nav a.active i,
+.transactions-grid .sidebar-nav a.active i,
+.bills-grid .sidebar-nav a.active i,
+.goals-grid .sidebar-nav a.active i,
+.investments-grid .sidebar-nav a.active i,
+.content .sidebar-nav a.active i,
+.auth-container .sidebar-nav a.active i,
+.card .sidebar-nav a.active i,
+.page-content .sidebar-nav a.active i {
+    color: #ffffff !important;
+}
+
+.settings-card .sidebar-nav a:hover,
+.dashboard-grid .sidebar-nav a:hover,
+.transactions-grid .sidebar-nav a:hover,
+.bills-grid .sidebar-nav a:hover,
+.goals-grid .sidebar-nav a:hover,
+.investments-grid .sidebar-nav a:hover,
+.content .sidebar-nav a:hover,
+.auth-container .sidebar-nav a:hover,
+.card .sidebar-nav a:hover {
+    background: #f0edff !important;
+    color: #6C5CE7 !important;
+}
+
+.settings-card .sidebar-nav a.active:hover,
+.dashboard-grid .sidebar-nav a.active:hover,
+.transactions-grid .sidebar-nav a.active:hover,
+.bills-grid .sidebar-nav a.active:hover,
+.goals-grid .sidebar-nav a.active:hover,
+.investments-grid .sidebar-nav a.active:hover,
+.content .sidebar-nav a.active:hover,
+.auth-container .sidebar-nav a.active:hover,
+.card .sidebar-nav a.active:hover {
+    background: #6C5CE7 !important;
+    color: #ffffff !important;
+}
+
+/* ============================================
+   10. CORREÇÃO DE MODAL
+   ============================================ */
+.modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(3px) !important;
+    z-index: 99999 !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 16px !important;
+}
+
+.modal-overlay.active {
+    display: flex !important;
+}
+
+.modal {
+    background: #ffffff !important;
+    border-radius: 14px !important;
+    width: 100% !important;
+    max-width: 440px !important;
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25) !important;
+    position: relative !important;
+    z-index: 100000 !important;
+    margin: auto !important;
+    animation: modalFadeIn 0.25s ease !important;
+}
+
+.modal-wide {
+    max-width: 540px !important;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal.hidden {
+    display: none !important;
+}
+
+.modal-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 12px 18px !important;
+    border-bottom: 1px solid #e9ecef !important;
+    background: #f8f9fa !important;
+    border-radius: 14px 14px 0 0 !important;
+    flex-shrink: 0 !important;
+}
+
+.modal-header h3 {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #2d3436 !important;
+    margin: 0 !important;
+}
+
+.modal-close {
+    background: none !important;
+    border: none !important;
+    font-size: 16px !important;
+    cursor: pointer !important;
+    color: #636e72 !important;
+    padding: 4px !important;
+    border-radius: 6px !important;
+    transition: all 0.2s !important;
+    width: 30px !important;
+    height: 30px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+
+.modal-close:hover {
+    background: #e9ecef !important;
+    color: #2d3436 !important;
+}
+
+.modal-body {
+    padding: 16px 18px !important;
+    overflow-y: auto !important;
+    flex: 1 !important;
+}
+
+.modal-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    padding: 10px 18px !important;
+    border-top: 1px solid #e9ecef !important;
+    background: #f8f9fa !important;
+    border-radius: 0 0 14px 14px !important;
+    flex-shrink: 0 !important;
+    flex-wrap: wrap !important;
+}
+
+.modal-footer .btn {
+    min-height: 34px !important;
+    padding: 5px 14px !important;
+    font-size: 12px !important;
+}
+
+body.no-scroll {
+    overflow: hidden !important;
+}
+
+/* ============================================
+   11. RESPONSIVO - MODAL
+   ============================================ */
+@media (max-width: 600px) {
+    .modal-overlay {
+        padding: 10px !important;
+    }
+
+    .modal {
+        max-width: 100% !important;
+        max-height: 80vh !important;
+        border-radius: 12px !important;
+    }
+
+    .modal-header {
+        padding: 10px 14px !important;
+    }
+
+    .modal-header h3 {
+        font-size: 14px !important;
+    }
+
+    .modal-body {
+        padding: 12px 14px !important;
+    }
+
+    .modal-footer {
+        padding: 8px 14px !important;
+        flex-direction: column !important;
+    }
+
+    .modal-footer .btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    .modal-footer .btn-danger {
+        margin-right: 0 !important;
+        order: -1 !important;
+    }
+}

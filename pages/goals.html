@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
+
+    <meta name="theme-color" content="#6C5CE7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TonuControle">
+
+    <link rel="manifest" href="../manifest.json">
+    <link rel="apple-touch-icon" href="../icons/icon-192x192.png">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png" type="image/png">
+    <link rel="icon" href="../icons/icon-128x128.png" type="image/png">
+
+    <title>Metas | TonuControle</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/sidebar-patch.css">
+    <link rel="stylesheet" href="../css/goals.css">
+    <link rel="stylesheet" href="../css/notifications.css">
+    <link rel="stylesheet" href="../css/sync.css">
+    <link rel="stylesheet" href="../css/sync-status.css">
+
+    <style>
+        /* ==========================================
+           PREFERS-REDUCED-MOTION
+           ========================================== */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+
+            .spinner {
+                animation: none !important;
+            }
+
+            .goal-card:hover {
+                transform: none !important;
+            }
+        }
+
+        /* ==========================================
+           FOCO VISÍVEL
+           ========================================== */
+        *:focus-visible {
+            outline: 3px solid #6C5CE7 !important;
+            outline-offset: 2px !important;
+        }
+
+        /* ==========================================
+           SKIP LINK - ACESSIBILIDADE
+           ========================================== */
+        .skip-link {
+            position: absolute;
+            top: -100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: #6C5CE7;
+            color: #fff;
+            border-radius: 8px;
+            z-index: 999999;
+            font-weight: 600;
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .skip-link:focus {
+            top: 16px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ==========================================
+    SKIP LINK - ACESSIBILIDADE
+    ========================================== -->
+    <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
+
+    <!-- ==========================================
+    APP SHELL
+    ========================================== -->
+    <div class="app-shell">
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button"
+            aria-label="Fechar menu"></div>
+
+        <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
+            <div class="sidebar-brand">
+                <div class="brand-icon">
+                    <img src="../icons/logo.png" alt="TonuControle">
+                </div>
+                <h2>TonuControle</h2>
+            </div>
+            <ul class="sidebar-nav" role="menubar">
+                <li role="none"><a href="dashboard.html" role="menuitem"><i class="fas fa-chart-pie"
+                            aria-hidden="true"></i> Dashboard</a></li>
+                <li role="none"><a href="transactions.html" role="menuitem"><i class="fas fa-exchange-alt"
+                            aria-hidden="true"></i> Transações</a></li>
+                <li role="none"><a href="bills.html" role="menuitem"><i class="fas fa-file-invoice-dollar"
+                            aria-hidden="true"></i> Contas do Mês</a></li>
+                <li role="none"><a href="goals.html" class="active" role="menuitem" aria-current="page"><i
+                            class="fas fa-bullseye" aria-hidden="true"></i> Metas</a></li>
+                <li role="none"><a href="investments.html" role="menuitem"><i class="fas fa-chart-line"
+                            aria-hidden="true"></i> Investimentos</a></li>
+                <li role="none"><a href="settings.html" role="menuitem"><i class="fas fa-cog" aria-hidden="true"></i>
+                        Configurações</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="settings.html" class="sidebar-user-profile" id="sidebarUserProfile"
+                    title="Abrir Configurações e Perfil">
+                    <div class="avatar-circle" id="sidebarUserAvatar">U</div>
+                    <div class="sidebar-user-info">
+                        <span class="sidebar-user-name" id="sidebarUserName">Usuário</span>
+                        <span class="sidebar-user-email" id="sidebarUserEmail">Configurações</span>
+                        <div class="sidebar-user-status" id="sidebarUserStatus">
+                            <span class="status-dot"></span>
+                            <span>Ativo</span>
+                        </div>
+                    </div>
+                    <i class="fas fa-cog sidebar-user-icon" aria-hidden="true"></i>
+                </a>
+                <button class="btn-sair" onclick="logout()" aria-label="Sair da conta">
+                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content full" id="mainContent" id="main-content">
+            <header class="topbar" role="banner">
+                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu" aria-expanded="false">
+                    <i class="fas fa-bars" aria-hidden="true"></i>
+                </button>
+                <div class="topbar-title">
+                    <div class="sub">Objetivos</div>
+                    <h1>🎯 Metas Financeiras</h1>
+                </div>
+                <div class="topbar-actions">
+                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro"
+                        aria-label="Alternar tema">
+                        <i class="fas fa-moon" aria-hidden="true"></i>
+                    </button>
+                    <button id="notifBellBtn" class="notif-bell-btn" type="button"
+                        onclick="window.toggleNotificationDropdown(event)" title="Lembretes e Notificações de Contas"
+                        aria-label="Notificações">
+                        <i class="fas fa-bell" aria-hidden="true"></i>
+                        <span class="notif-badge hidden" id="notifBadgeCount">0</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="openModal()" aria-label="Nova meta">
+                        <i class="fas fa-plus" aria-hidden="true"></i> Nova Meta
+                    </button>
+                </div>
+            </header>
+
+            <!-- ==========================================
+            CONTEÚDO - COMPLETO
+            ========================================== -->
+            <div class="content" id="main-content">
+                <div class="goals-grid" id="goalsContainer">
+                    <div class="empty-state" style="grid-column:1/-1;padding:40px 16px;">
+                        <span class="empty-icon">🎯</span>
+                        <h3>Nenhuma meta ainda</h3>
+                        <p>Defina seus objetivos financeiros e acompanhe seu progresso!</p>
+                        <button class="btn btn-primary" onclick="openModal()" style="margin-top:10px; font-size:13px;"
+                            aria-label="Criar primeira meta">
+                            <i class="fas fa-plus" aria-hidden="true"></i> Criar primeira meta
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==========================================
+    MODAL PRINCIPAL - NOVA/EDITAR META
+    ========================================== -->
+    <div class="modal-overlay" id="modalOverlay" onclick="if(event.target === this) closeModal()" role="dialog"
+        aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal hidden" id="goalModal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nova Meta</h3>
+                <button class="modal-close" onclick="closeModal()" aria-label="Fechar modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form id="goalForm" onsubmit="saveGoal(event)" novalidate>
+                <input type="hidden" id="editId">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="gTitle">Título da Meta</label>
+                        <input type="text" id="gTitle" class="form-control" placeholder="Ex: Comprar um carro" required
+                            aria-required="true">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="gTarget">Valor Total (R$)</label>
+                            <input type="text" id="gTarget" class="form-control" placeholder="50.000,00" required
+                                aria-required="true">
+                        </div>
+                        <div class="form-group">
+                            <label for="gCurrent">Valor Atual (R$)</label>
+                            <input type="text" id="gCurrent" class="form-control" placeholder="5.000,00">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="gDeadline">Data Limite (opcional)</label>
+                        <input type="date" id="gDeadline" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="gColor">Cor</label>
+                        <select id="gColor" class="form-control">
+                            <option value="#6C5CE7">🟣 Roxo</option>
+                            <option value="#00B894">🟢 Verde</option>
+                            <option value="#0984E3">🔵 Azul</option>
+                            <option value="#FDCB6E">🟡 Amarelo</option>
+                            <option value="#FF7675">🔴 Vermelho</option>
+                            <option value="#E17055">🟠 Laranja</option>
+                            <option value="#A29BFE">🟪 Lilás</option>
+                        </select>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="gCompleted">
+                        <span>Meta já concluída 🏆</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger btn-sm hidden" id="btnDelete" onclick="deleteGoal()"
+                        aria-label="Excluir meta">
+                        <i class="fas fa-trash" aria-hidden="true"></i> Excluir
+                    </button>
+                    <div style="flex:1;"></div>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================
+    MODAL - ADICIONAR VALOR À META
+    ========================================== -->
+    <div class="modal-overlay" id="addValueOverlay" onclick="if(event.target === this) closeAddValue()" role="dialog"
+        aria-modal="true" aria-labelledby="addValueTitle">
+        <div class="modal hidden" id="addValueModal">
+            <div class="modal-header">
+                <h3 id="addValueTitle">💰 Adicionar Valor</h3>
+                <button class="modal-close" onclick="closeAddValue()" aria-label="Fechar modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form id="addValueForm" onsubmit="submitAddValue(event)" novalidate>
+                <input type="hidden" id="addValueGoalId">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Meta: <strong id="addValueGoalTitle"></strong></label>
+                    </div>
+                    <div class="form-group">
+                        <label for="addValueAmount">Valor a adicionar (R$)</label>
+                        <input type="text" id="addValueAmount" class="form-control" placeholder="0,00" required
+                            aria-required="true" autofocus>
+                    </div>
+                    <div class="form-group" style="background:#f8f9fa;padding:10px 14px;border-radius:8px;">
+                        <small>Atual: <strong id="addValueCurrent">R$ 0,00</strong> &nbsp;|&nbsp; Meta: <strong
+                                id="addValueTarget">R$ 0,00</strong></small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddValue()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💰 Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================
+    TOAST
+    ========================================== -->
+    <div id="toast" class="toast hidden" role="alert" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- ==========================================
+    SCRIPTS
+    ========================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/core.js"></script>
+    <script src="../js/security.js"></script>
+    <script src="../js/financial-tools.js"></script>
+    <script src="../js/sync.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/goals.js"></script>
+    <script src="../js/sw-register.js"></script>
+
+    <script>
+        // ==========================================
+        // DOM READY - INICIALIZAR TEMA
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('tonu_theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.querySelector('.theme-toggle-btn i')?.classList.replace('fa-moon', 'fa-sun');
+            }
+            console.log('✅ Goals.html refatorado com acessibilidade e PWA');
+        });
+    </script>
+
+</body>
+
+</html>

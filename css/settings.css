@@ -1,0 +1,227 @@
+/* ============================================
+   SETTINGS.CSS - Estilos específicos de Configurações
+   ============================================ */
+
+@import url('theme.css');
+
+/* ============================================
+   CONTEÚDO
+   ============================================ */
+.settings-content {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+/* ============================================
+   CARDS
+   ============================================ */
+.settings-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-md);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+}
+
+.settings-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.settings-card h3 {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--space-md);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.settings-card p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-md);
+}
+
+.settings-card.danger {
+    border-left: 4px solid var(--color-danger);
+}
+
+.settings-card.danger h3 {
+    color: var(--color-danger);
+}
+
+/* ============================================
+   PERFIL
+   ============================================ */
+.profile-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.avatar-large-container {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    cursor: pointer;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.profile-info .avatar-large {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-2xl);
+    color: white;
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.25);
+    transition: all 0.2s ease;
+}
+
+.avatar-upload-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 18px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.avatar-large-container:hover .avatar-upload-overlay {
+    opacity: 1;
+}
+
+.avatar-large-container:hover .avatar-large {
+    transform: scale(1.03);
+}
+
+.avatar-img-element {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+    display: block !important;
+}
+
+.profile-info .profile-name {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+}
+
+.profile-info .profile-email {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+/* ============================================
+   LINHAS DE CONFIGURAÇÃO
+   ============================================ */
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.setting-row:last-child {
+    border-bottom: none;
+}
+
+.setting-row .setting-label {
+    font-weight: 500;
+}
+
+.setting-row .setting-value {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+/* ============================================
+   AÇÕES
+   ============================================ */
+.settings-actions {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+/* ============================================
+   SOBRE
+   ============================================ */
+.about-info p {
+    margin-bottom: var(--space-xs);
+    font-size: var(--font-size-sm);
+}
+
+.about-info .version {
+    color: var(--color-primary);
+    font-weight: 700;
+}
+
+/* ============================================
+   RESPONSIVIDADE
+   ============================================ */
+@media (max-width: 768px) {
+    .settings-content {
+        max-width: 100%;
+    }
+
+    .settings-card {
+        padding: var(--space-md);
+    }
+
+    .profile-info {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .profile-info .avatar-large {
+        width: 56px;
+        height: 56px;
+        font-size: var(--font-size-xl);
+    }
+
+    .setting-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-xs);
+    }
+
+    .setting-row .setting-value {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-card {
+        padding: var(--space-sm);
+    }
+
+    .settings-card h3 {
+        font-size: var(--font-size-md);
+    }
+
+    .settings-actions {
+        flex-direction: column;
+    }
+
+    .settings-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

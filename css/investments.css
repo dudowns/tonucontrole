@@ -1,0 +1,1127 @@
+/* ============================================
+   INVESTMENTS.CSS - Estilos específicos de Investimentos
+   Versão: 2.1 - REFATORADO E CORRIGIDO
+   ============================================ */
+
+@import url('theme.css');
+
+/* ============================================
+   CARDS DE RESUMO - 4 COLUNAS
+   ============================================ */
+.investments-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.investments-grid .card-stat {
+    padding: 12px 14px !important;
+    min-height: 70px !important;
+    border-radius: 10px !important;
+    gap: 10px !important;
+}
+
+.investments-grid .card-stat .stat-icon {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 14px !important;
+    border-radius: 8px !important;
+}
+
+.investments-grid .card-stat .stat-label {
+    font-size: 9px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    color: var(--color-text-muted) !important;
+}
+
+.investments-grid .card-stat .stat-value {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    color: var(--color-text) !important;
+}
+
+.investments-grid .card-stat .stat-sub {
+    font-size: 10px !important;
+    margin-top: 1px !important;
+    color: var(--color-text-muted) !important;
+}
+
+.investments-grid .card-stat .stat-info {
+    flex: 1 !important;
+    min-width: 0 !important;
+}
+
+/* ============================================
+   ABAS
+   ============================================ */
+.tabs-container {
+    margin-bottom: var(--space-md);
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--color-bg);
+    border-radius: 10px;
+    padding: 4px;
+    border: 1px solid var(--color-border);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.tab-btn:hover {
+    color: var(--color-text);
+    background: rgba(108, 92, 231, 0.05);
+}
+
+.tab-btn.active {
+    background: var(--color-surface);
+    color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.tab-btn i {
+    font-size: 14px;
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   GRÁFICOS
+   ============================================ */
+.charts-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.chart-panel {
+    background: var(--color-surface);
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.chart-panel .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.chart-panel .card-header h3 {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-text);
+}
+
+.chart-panel .card-header .badge {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    background: var(--color-bg);
+    padding: 2px 10px;
+    border-radius: 9999px;
+}
+
+.chart-panel .chart-wrap {
+    height: 200px;
+    padding: 8px;
+    position: relative;
+}
+
+.chart-panel .chart-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.period-filter {
+    display: flex;
+    gap: 4px;
+}
+
+.period-filter .btn {
+    min-height: 26px;
+    padding: 0 10px;
+    font-size: 10px;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.period-filter .btn:hover {
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.period-filter .btn.active {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+/* ============================================
+   PORTFÓLIO
+   ============================================ */
+.portfolio-container {
+    background: var(--color-surface);
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.portfolio-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.portfolio-header h2 {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-text);
+}
+
+.portfolio-header .total-value {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--color-primary);
+}
+
+.portfolio-header .total-value small {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--color-text-muted);
+}
+
+/* ============================================
+   FILTROS DE CLASSE
+   ============================================ */
+.class-filters {
+    display: flex;
+    gap: 4px;
+    padding: 6px 16px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border-light);
+    flex-wrap: wrap;
+}
+
+.class-filters .btn {
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 9999px;
+    min-height: 24px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.class-filters .btn:hover {
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.class-filters .btn.active {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+}
+
+.class-filters .btn .count {
+    display: inline-block;
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.06);
+    font-size: 9px;
+    font-weight: 700;
+    margin-left: 4px;
+    color: var(--color-text-muted);
+}
+
+.class-filters .btn.active .count {
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+}
+
+/* ============================================
+   CARDS DE CLASSE
+   ============================================ */
+.class-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.class-card {
+    background: var(--color-surface);
+    border-radius: 8px;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border-light);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.class-card:hover {
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-2px);
+}
+
+.class-card .class-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.class-card .class-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.class-card .class-icon {
+    font-size: 14px;
+}
+
+.class-card .class-total {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.class-card .class-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--color-text-muted);
+}
+
+/* ============================================
+   LISTA DE ATIVOS
+   ============================================ */
+.asset-list {
+    padding: 0;
+}
+
+.asset-item {
+    display: grid;
+    grid-template-columns: 1.5fr 0.8fr 0.8fr 0.8fr 0.8fr;
+    gap: 6px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--color-border-light);
+    align-items: center;
+    font-size: 12px;
+    transition: background 0.2s;
+}
+
+.asset-item:hover {
+    background: var(--color-bg);
+}
+
+.asset-item .asset-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.asset-item .asset-name .ticker {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--color-text);
+}
+
+.asset-item .asset-name .full-name {
+    font-size: 10px;
+    color: var(--color-text-muted);
+}
+
+.asset-item .asset-price {
+    font-weight: 600;
+    text-align: right;
+    color: var(--color-text);
+}
+
+.asset-item .asset-change {
+    font-weight: 600;
+    text-align: right;
+    padding: 1px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    justify-self: end;
+    font-size: 10px;
+}
+
+.asset-item .asset-change.text-success {
+    color: var(--color-success);
+    background: var(--color-success-bg);
+}
+
+.asset-item .asset-change.text-danger {
+    color: var(--color-danger);
+    background: var(--color-danger-bg);
+}
+
+.asset-item .asset-change.text-muted {
+    color: var(--color-text-muted);
+    background: var(--color-bg);
+}
+
+.asset-item .asset-gain {
+    text-align: right;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.asset-item .asset-gain.text-success {
+    color: var(--color-success);
+}
+
+.asset-item .asset-gain.text-danger {
+    color: var(--color-danger);
+}
+
+.asset-item .asset-weight {
+    text-align: right;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: 10px;
+}
+
+/* ============================================
+   STATUS DE COTAÇÕES
+   ============================================ */
+.quote-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--color-text-muted);
+    padding: 6px 16px;
+    border-top: 1px solid var(--color-border-light);
+}
+
+.quote-status .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-success);
+    display: inline-block;
+}
+
+.quote-status .status-dot.warning {
+    background: var(--color-warning);
+}
+
+/* ============================================
+   PROVENTOS
+   ============================================ */
+.dividends-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.dividends-grid .card-stat {
+    padding: 12px 14px !important;
+    min-height: 70px !important;
+    border-radius: 10px !important;
+    gap: 10px !important;
+}
+
+.dividends-grid .card-stat .stat-icon {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 14px !important;
+    border-radius: 8px !important;
+}
+
+.dividends-grid .card-stat .stat-value {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    color: var(--color-text) !important;
+}
+
+.dividends-grid .card-stat .stat-label {
+    font-size: 9px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    color: var(--color-text-muted) !important;
+}
+
+/* ============================================
+   TABELAS
+   ============================================ */
+.transactions-table-wrap {
+    overflow-x: auto;
+}
+
+.transactions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.transactions-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    font-weight: 700;
+    background: var(--color-bg);
+    border-bottom: 2px solid var(--color-border);
+}
+
+.transactions-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-border-light);
+    color: var(--color-text);
+}
+
+.transactions-table tr:hover td {
+    background: var(--color-bg);
+}
+
+/* ============================================
+   BADGES DE OPERAÇÃO
+   ============================================ */
+.badge-buy {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.badge-sell {
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.badge-dividend {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-dark);
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+/* ============================================
+   AÇÕES
+   ============================================ */
+.actions {
+    display: flex;
+    gap: 4px;
+}
+
+.actions .btn {
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
+}
+
+/* ============================================
+   MODAL
+   ============================================ */
+.modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(3px) !important;
+    z-index: 99999 !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 16px !important;
+}
+
+.modal-overlay.active {
+    display: flex !important;
+}
+
+.modal {
+    background: var(--color-surface) !important;
+    border-radius: 14px !important;
+    width: 100% !important;
+    max-width: 440px !important;
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25) !important;
+    position: relative !important;
+    z-index: 100000 !important;
+    margin: auto !important;
+    animation: modalFadeIn 0.25s ease !important;
+    border: 1px solid var(--color-border);
+}
+
+.modal-wide {
+    max-width: 540px !important;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal.hidden {
+    display: none !important;
+}
+
+.modal-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 12px 18px !important;
+    border-bottom: 1px solid var(--color-border) !important;
+    background: var(--color-bg) !important;
+    border-radius: 14px 14px 0 0 !important;
+    flex-shrink: 0 !important;
+}
+
+.modal-header h3 {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: var(--color-text) !important;
+    margin: 0 !important;
+}
+
+.modal-header .sub {
+    font-size: 10px !important;
+    color: var(--color-text-muted) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+}
+
+.modal-close {
+    background: none !important;
+    border: none !important;
+    font-size: 16px !important;
+    cursor: pointer !important;
+    color: var(--color-text-muted) !important;
+    padding: 4px !important;
+    border-radius: 6px !important;
+    transition: all 0.2s !important;
+    width: 30px !important;
+    height: 30px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+
+.modal-close:hover {
+    background: var(--color-border-light) !important;
+    color: var(--color-text) !important;
+}
+
+.modal-body {
+    padding: 16px 18px !important;
+    overflow-y: auto !important;
+    flex: 1 !important;
+}
+
+.modal-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    padding: 10px 18px !important;
+    border-top: 1px solid var(--color-border) !important;
+    background: var(--color-bg) !important;
+    border-radius: 0 0 14px 14px !important;
+    flex-shrink: 0 !important;
+    flex-wrap: wrap !important;
+}
+
+.modal-footer .btn {
+    min-height: 34px !important;
+    padding: 5px 14px !important;
+    font-size: 12px !important;
+}
+
+body.no-scroll {
+    overflow: hidden !important;
+}
+
+/* ============================================
+   FORMULÁRIO
+   ============================================ */
+.hidden {
+    display: none !important;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.form-grid-2 .full {
+    grid-column: 1 / -1;
+}
+
+.form-group {
+    margin-bottom: 10px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 3px;
+    color: var(--color-text-light);
+}
+
+.form-control {
+    width: 100%;
+    padding: 7px 10px;
+    border: 2px solid var(--color-border);
+    border-radius: 8px;
+    font-size: 13px;
+    transition: all 0.2s;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-family: inherit;
+    min-height: 34px;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+}
+
+.form-control::placeholder {
+    color: var(--color-text-muted);
+}
+
+select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23636E72' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 32px;
+}
+
+.help-text {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    margin-top: 3px;
+    display: block;
+}
+
+.help-text.success {
+    color: var(--color-success);
+}
+
+.help-text.error {
+    color: var(--color-danger);
+}
+
+.input-prefix {
+    display: flex;
+    align-items: center;
+    border: 2px solid var(--color-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--color-surface);
+    transition: all 0.2s;
+}
+
+.input-prefix:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+}
+
+.input-prefix span {
+    padding: 0 0 0 10px;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    font-size: 12px;
+    background: var(--color-bg);
+    height: 100%;
+    display: flex;
+    align-items: center;
+    min-height: 34px;
+    border-right: 1px solid var(--color-border);
+    padding-right: 6px;
+}
+
+.input-prefix input {
+    border: none;
+    padding: 6px 10px;
+    width: 100%;
+    background: transparent;
+    font-size: 13px;
+    outline: none;
+    min-height: 34px;
+    font-family: 'Inter', sans-serif;
+    color: var(--color-text);
+}
+
+.input-prefix.readonly {
+    background: var(--color-bg);
+}
+
+.input-prefix.readonly input {
+    cursor: default;
+}
+
+.form-error {
+    display: none;
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+/* ============================================
+   LOADING OVERLAY
+   ============================================ */
+.loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    background: rgba(255, 255, 255, 0.85);
+    z-index: 2;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    border-radius: var(--radius-lg);
+}
+
+body.dark-theme .loading-overlay {
+    background: rgba(15, 23, 42, 0.85);
+}
+
+.loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--color-text-muted);
+}
+
+.empty-state .empty-icon {
+    font-size: 40px;
+    margin-bottom: 8px;
+    display: block;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    color: var(--color-text);
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.empty-state p {
+    font-size: 13px;
+}
+
+/* ============================================
+   RESPONSIVO
+   ============================================ */
+@media (max-width: 1024px) {
+    .class-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .charts-row {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-panel .chart-wrap {
+        height: 180px;
+    }
+}
+
+@media (max-width: 768px) {
+    .investments-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-xs);
+    }
+
+    .investments-grid .card-stat {
+        padding: 10px 12px !important;
+        min-height: 60px !important;
+    }
+
+    .investments-grid .card-stat .stat-value {
+        font-size: 14px !important;
+    }
+
+    .investments-grid .card-stat .stat-icon {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+    }
+
+    .class-cards {
+        grid-template-columns: 1fr 1fr;
+        padding: 6px 12px;
+        gap: 4px;
+    }
+
+    .class-card .class-total {
+        font-size: 12px;
+    }
+
+    .asset-item {
+        grid-template-columns: 1.2fr 0.8fr 0.8fr;
+        gap: 4px;
+        font-size: 10px;
+        padding: 4px 12px;
+    }
+
+    .asset-item .asset-name .full-name {
+        display: none;
+    }
+
+    .asset-item .asset-gain {
+        display: none;
+    }
+
+    .asset-item .asset-weight {
+        display: none;
+    }
+
+    .portfolio-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .class-filters {
+        padding: 4px 12px;
+        gap: 4px;
+    }
+
+    .class-filters .btn {
+        padding: 2px 8px;
+        font-size: 9px;
+        min-height: 20px;
+    }
+
+    .chart-panel .chart-wrap {
+        height: 150px;
+    }
+
+    .tabs .tab-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+
+    .tabs .tab-btn i {
+        font-size: 12px;
+    }
+
+    .form-grid-2 {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid-2 .full {
+        grid-column: auto;
+    }
+
+    .dividends-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .transactions-table {
+        font-size: 10px;
+    }
+
+    .transactions-table th,
+    .transactions-table td {
+        padding: 4px 8px;
+    }
+
+    .modal {
+        max-width: 95% !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .investments-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-xs);
+    }
+
+    .investments-grid .card-stat {
+        padding: 8px 10px !important;
+        min-height: 55px !important;
+    }
+
+    .investments-grid .card-stat .stat-value {
+        font-size: 12px !important;
+    }
+
+    .investments-grid .card-stat .stat-icon {
+        width: 24px !important;
+        height: 24px !important;
+        font-size: 10px !important;
+    }
+
+    .investments-grid .card-stat .stat-label {
+        font-size: 8px !important;
+    }
+
+    .class-cards {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .class-card .class-total {
+        font-size: 11px;
+    }
+
+    .asset-item {
+        grid-template-columns: 1fr 0.8fr 0.8fr;
+        font-size: 9px;
+        padding: 4px 8px;
+    }
+
+    .asset-item .asset-change {
+        padding: 1px 4px;
+        font-size: 8px;
+    }
+
+    .chart-panel .chart-wrap {
+        height: 120px;
+    }
+
+    .modal-overlay {
+        padding: 10px !important;
+    }
+
+    .modal {
+        max-width: 100% !important;
+        max-height: 80vh !important;
+        border-radius: 12px !important;
+    }
+
+    .modal-header {
+        padding: 10px 14px !important;
+    }
+
+    .modal-header h3 {
+        font-size: 14px !important;
+    }
+
+    .modal-body {
+        padding: 12px 14px !important;
+    }
+
+    .modal-footer {
+        padding: 8px 14px !important;
+        flex-direction: column !important;
+    }
+
+    .modal-footer .btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+
+    .dividends-grid {
+        grid-template-columns: 1fr;
+    }
+}

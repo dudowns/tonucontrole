@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
+
+    <meta name="theme-color" content="#6C5CE7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TonuControle">
+
+    <link rel="manifest" href="../manifest.json">
+    <link rel="apple-touch-icon" href="../icons/icon-192x192.png">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png" type="image/png">
+    <link rel="icon" href="../icons/icon-128x128.png" type="image/png">
+
+    <title>Investimentos | TonuControle</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/sidebar-patch.css">
+    <link rel="stylesheet" href="../css/investments.css">
+    <link rel="stylesheet" href="../css/notifications.css">
+    <link rel="stylesheet" href="../css/sync.css">
+    <link rel="stylesheet" href="../css/sync-status.css">
+
+    <style>
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+
+            .spinner {
+                animation: none !important;
+            }
+
+            .class-card:hover {
+                transform: none !important;
+            }
+
+            .chart-panel .chart-wrap canvas {
+                transition: none !important;
+            }
+        }
+
+        *:focus-visible {
+            outline: 3px solid #6C5CE7 !important;
+            outline-offset: 2px !important;
+        }
+
+        .skip-link {
+            position: absolute;
+            top: -100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: #6C5CE7;
+            color: #fff;
+            border-radius: 8px;
+            z-index: 999999;
+            font-weight: 600;
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .skip-link:focus {
+            top: 16px;
+        }
+
+        /* ============================================
+           ABAS - CANTO DIREITO E MENORES
+           ============================================ */
+        .tabs-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--space-md);
+            padding: 0 4px;
+        }
+
+        .tabs-container .tabs-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--color-text);
+            margin: 0;
+        }
+
+        .tabs-container .tabs-title i {
+            color: var(--color-primary);
+            margin-right: 6px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 3px;
+            background: var(--color-bg);
+            border-radius: 8px;
+            padding: 3px;
+            border: 1px solid var(--color-border);
+        }
+
+        .tab-btn {
+            padding: 4px 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: transparent;
+            color: var(--color-text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 26px;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: var(--color-text);
+            background: rgba(108, 92, 231, 0.05);
+        }
+
+        .tab-btn.active {
+            background: var(--color-surface);
+            color: var(--color-primary);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .tab-btn i {
+            font-size: 11px;
+        }
+
+        @media (max-width: 480px) {
+            .tab-btn .tab-label {
+                display: none;
+            }
+
+            .tab-btn {
+                padding: 4px 8px;
+                min-height: 30px;
+            }
+
+            .tab-btn i {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ==========================================
+    SKIP LINK - ACESSIBILIDADE
+    ========================================== -->
+    <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
+
+    <!-- ==========================================
+    APP SHELL
+    ========================================== -->
+    <div class="app-shell">
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button"
+            aria-label="Fechar menu"></div>
+
+        <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
+            <div class="sidebar-brand">
+                <div class="brand-icon">
+                    <img src="../icons/logo.png" alt="TonuControle">
+                </div>
+                <h2>TonuControle</h2>
+            </div>
+            <ul class="sidebar-nav" role="menubar">
+                <li role="none"><a href="dashboard.html" role="menuitem"><i class="fas fa-chart-pie"
+                            aria-hidden="true"></i> Dashboard</a></li>
+                <li role="none"><a href="transactions.html" role="menuitem"><i class="fas fa-exchange-alt"
+                            aria-hidden="true"></i> Transações</a></li>
+                <li role="none"><a href="bills.html" role="menuitem"><i class="fas fa-file-invoice-dollar"
+                            aria-hidden="true"></i> Contas do Mês</a></li>
+                <li role="none"><a href="goals.html" role="menuitem"><i class="fas fa-bullseye" aria-hidden="true"></i>
+                        Metas</a></li>
+                <li role="none"><a href="investments.html" class="active" role="menuitem" aria-current="page"><i
+                            class="fas fa-chart-line" aria-hidden="true"></i> Investimentos</a></li>
+                <li role="none"><a href="settings.html" role="menuitem"><i class="fas fa-cog" aria-hidden="true"></i>
+                        Configurações</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="settings.html" class="sidebar-user-profile" id="sidebarUserProfile"
+                    title="Abrir Configurações e Perfil">
+                    <div class="avatar-circle" id="sidebarUserAvatar">U</div>
+                    <div class="sidebar-user-info">
+                        <span class="sidebar-user-name" id="sidebarUserName">Usuário</span>
+                        <span class="sidebar-user-email" id="sidebarUserEmail">Configurações</span>
+                        <div class="sidebar-user-status" id="sidebarUserStatus">
+                            <span class="status-dot"></span>
+                            <span>Ativo</span>
+                        </div>
+                    </div>
+                    <i class="fas fa-cog sidebar-user-icon" aria-hidden="true"></i>
+                </a>
+                <button class="btn-sair" onclick="logout()" aria-label="Sair da conta">
+                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content full" id="mainContent" id="main-content">
+            <header class="topbar" role="banner">
+                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu" aria-expanded="false">
+                    <i class="fas fa-bars" aria-hidden="true"></i>
+                </button>
+                <div class="topbar-title">
+                    <div class="sub">Patrimônio</div>
+                    <h1>📈 Investimentos</h1>
+                </div>
+                <div class="topbar-actions">
+                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro"
+                        aria-label="Alternar tema">
+                        <i class="fas fa-moon" aria-hidden="true"></i>
+                    </button>
+                    <button id="notifBellBtn" class="notif-bell-btn" type="button"
+                        onclick="window.toggleNotificationDropdown(event)" title="Lembretes e Notificações de Contas"
+                        aria-label="Notificações">
+                        <i class="fas fa-bell" aria-hidden="true"></i>
+                        <span class="notif-badge hidden" id="notifBadgeCount">0</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="openOperationModal()" aria-label="Nova operação">
+                        <i class="fas fa-plus" aria-hidden="true"></i> Operação
+                    </button>
+                    <button class="btn btn-success" onclick="openDividendModal()" aria-label="Novo provento">
+                        <i class="fas fa-coins" aria-hidden="true"></i> Provento
+                    </button>
+                </div>
+            </header>
+
+            <!-- ==========================================
+            CONTEÚDO - COMPLETO
+            ========================================== -->
+            <div class="content" id="main-content">
+                <div class="investments-grid">
+                    <div class="card-stat primary">
+                        <div class="stat-icon primary"><i class="fas fa-coins" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Patrimônio</div>
+                            <div class="stat-value" id="totalPatrimony">R$ 0,00</div>
+                            <div class="stat-sub" id="patrimonyVariation"></div>
+                        </div>
+                    </div>
+                    <div class="card-stat success">
+                        <div class="stat-icon success"><i class="fas fa-boxes" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Ativos</div>
+                            <div class="stat-value" id="assetCount">0</div>
+                            <div class="stat-sub" id="assetCountSub">0 posições</div>
+                        </div>
+                    </div>
+                    <div class="card-stat info">
+                        <div class="stat-icon info"><i class="fas fa-percent" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Rentabilidade</div>
+                            <div class="stat-value" id="totalReturn">0,00%</div>
+                            <div class="stat-sub" id="totalGain">Ganho de R$ 0,00</div>
+                        </div>
+                    </div>
+                    <div class="card-stat warning">
+                        <div class="stat-icon warning"><i class="fas fa-money-bill-wave" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Proventos</div>
+                            <div class="stat-value" id="totalDividends">R$ 0,00</div>
+                            <div class="stat-sub" id="dividendsCount">0 proventos</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                ABAS - CANTO DIREITO E MENORES
+                ========================================== -->
+                <div class="tabs-container">
+                    <h2 class="tabs-title">
+                        <i class="fas fa-chart-line"></i> Investimentos
+                    </h2>
+                    <div class="tabs" role="tablist">
+                        <button class="tab-btn active" data-tab="carteira" onclick="switchTab('carteira')" role="tab"
+                            aria-selected="true">
+                            <i class="fas fa-briefcase" aria-hidden="true"></i>
+                            <span class="tab-label">Carteira</span>
+                        </button>
+                        <button class="tab-btn" data-tab="lancamentos" onclick="switchTab('lancamentos')" role="tab"
+                            aria-selected="false">
+                            <i class="fas fa-list-ul" aria-hidden="true"></i>
+                            <span class="tab-label">Lançamentos</span>
+                        </button>
+                        <button class="tab-btn" data-tab="proventos" onclick="switchTab('proventos')" role="tab"
+                            aria-selected="false">
+                            <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
+                            <span class="tab-label">Proventos</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                TAB: CARTEIRA
+                ========================================== -->
+                <div class="tab-content active" id="tab-carteira" role="tabpanel" aria-labelledby="tab-carteira">
+                    <div class="charts-row"
+                        style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-md); margin-bottom: var(--space-md);">
+                        <div class="chart-panel" style="grid-column: 1 / 2;">
+                            <div class="card-header">
+                                <h3>📈 Evolução</h3>
+                                <div class="period-filter">
+                                    <button class="btn" data-period="3m" onclick="setPeriod('3m')"
+                                        aria-label="3 meses">3m</button>
+                                    <button class="btn" data-period="6m" onclick="setPeriod('6m')"
+                                        aria-label="6 meses">6m</button>
+                                    <button class="btn btn-primary active" data-period="12m" onclick="setPeriod('12m')"
+                                        aria-label="12 meses">12m</button>
+                                    <button class="btn" data-period="all" onclick="setPeriod('all')"
+                                        aria-label="Todos">All</button>
+                                </div>
+                            </div>
+                            <div class="chart-wrap" style="height: 280px; padding: 12px; position: relative;">
+                                <div id="chartLoading" class="loading-overlay hidden">
+                                    <span class="spinner"></span> Carregando gráfico...
+                                </div>
+                                <canvas id="patrimonyChart" role="img"
+                                    aria-label="Gráfico de evolução do patrimônio"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-panel" style="grid-column: 2 / 3;">
+                            <div class="card-header">
+                                <h3>🍩 Distribuição</h3>
+                                <span class="badge">Por classe</span>
+                            </div>
+                            <div class="chart-wrap"
+                                style="height: 220px; padding: 12px; position: relative; display: flex; align-items: center; justify-content: center;">
+                                <canvas id="pieChart" style="max-width: 200px; max-height: 200px; margin: 0 auto;"
+                                    role="img" aria-label="Gráfico de distribuição da carteira"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="portfolio-container">
+                        <div class="portfolio-header">
+                            <h2>📊 Carteira</h2>
+                            <div class="total-value">
+                                <small>Total:</small> <span id="portfolioTotal">R$ 0,00</span>
+                            </div>
+                        </div>
+                        <div class="class-filters">
+                            <button class="btn active" data-class="Todos" onclick="filterByClass('Todos')"
+                                aria-label="Filtrar todos">Todos <span class="count" id="countTodos">0</span></button>
+                            <button class="btn" data-class="Ações" onclick="filterByClass('Ações')"
+                                aria-label="Filtrar ações">Ações <span class="count" id="countAções">0</span></button>
+                            <button class="btn" data-class="FIIs" onclick="filterByClass('FIIs')"
+                                aria-label="Filtrar FIIs">FIIs <span class="count" id="countFIIs">0</span></button>
+                            <button class="btn" data-class="ETFs" onclick="filterByClass('ETFs')"
+                                aria-label="Filtrar ETFs">ETFs <span class="count" id="countETFs">0</span></button>
+                            <button class="btn" data-class="Tesouro" onclick="filterByClass('Tesouro')"
+                                aria-label="Filtrar Tesouro">Tesouro <span class="count"
+                                    id="countTesouro">0</span></button>
+                        </div>
+                        <div class="class-cards" id="classCards"></div>
+                        <div class="asset-list" id="assetList">
+                            <div class="empty-state">
+                                <span class="empty-icon">📊</span>
+                                <h3>Nenhum investimento</h3>
+                                <p>Registre sua primeira compra para começar.</p>
+                                <button class="btn btn-primary" onclick="openOperationModal()"
+                                    style="margin-top:8px; font-size:13px;" aria-label="Nova operação">
+                                    <i class="fas fa-plus" aria-hidden="true"></i> Nova operação
+                                </button>
+                            </div>
+                        </div>
+                        <div class="quote-status">
+                            <span class="status-dot"></span>
+                            <span id="quoteStatusText">Atualizando...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                TAB: LANÇAMENTOS
+                ========================================== -->
+                <div class="tab-content" id="tab-lancamentos" role="tabpanel" aria-labelledby="tab-lancamentos">
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 style="font-size:14px;">Histórico de Lançamentos</h3>
+                                <p class="text-muted text-sm" style="font-size:11px;color:#b2bec3;">Todas as compras e
+                                    vendas</p>
+                            </div>
+                            <button class="btn btn-primary btn-sm" onclick="openOperationModal()"
+                                style="font-size:11px;" aria-label="Novo lançamento">
+                                <i class="fas fa-plus" aria-hidden="true"></i> Novo
+                            </button>
+                        </div>
+                        <div class="transactions-table-wrap">
+                            <table class="transactions-table" role="table">
+                                <thead role="rowgroup">
+                                    <tr role="row">
+                                        <th role="columnheader">Data</th>
+                                        <th role="columnheader">Ativo</th>
+                                        <th role="columnheader">Classe</th>
+                                        <th role="columnheader">Tipo</th>
+                                        <th role="columnheader">Qtd</th>
+                                        <th role="columnheader">Preço</th>
+                                        <th role="columnheader">Total</th>
+                                        <th role="columnheader">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionsBody" role="rowgroup">
+                                    <tr role="row">
+                                        <td colspan="8"
+                                            style="text-align:center;padding:20px 0;color:#b2bec3;font-size:13px;">
+                                            <span class="spinner"></span> Carregando...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                TAB: PROVENTOS
+                ========================================== -->
+                <div class="tab-content" id="tab-proventos" role="tabpanel" aria-labelledby="tab-proventos">
+                    <div class="dividends-grid">
+                        <div class="card-stat success">
+                            <div class="stat-icon success"><i class="fas fa-money-bill-wave" aria-hidden="true"></i>
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-label">Total Proventos</div>
+                                <div class="stat-value" id="divTotalAmount">R$ 0,00</div>
+                            </div>
+                        </div>
+                        <div class="card-stat info">
+                            <div class="stat-icon info"><i class="fas fa-calendar-alt" aria-hidden="true"></i></div>
+                            <div class="stat-info">
+                                <div class="stat-label">Último mês</div>
+                                <div class="stat-value" id="divLastMonth">R$ 0,00</div>
+                            </div>
+                        </div>
+                        <div class="card-stat warning">
+                            <div class="stat-icon warning"><i class="fas fa-trophy" aria-hidden="true"></i></div>
+                            <div class="stat-info">
+                                <div class="stat-label">Top Proventos</div>
+                                <div class="stat-value" id="divTopTicker" style="font-size:14px;">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="charts-row"
+                        style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-md); margin-bottom: var(--space-md);">
+                        <div class="chart-panel" style="grid-column: 1 / 2;">
+                            <div class="card-header">
+                                <h3>📈 Evolução de Proventos</h3>
+                                <span class="badge">Mensal</span>
+                            </div>
+                            <div class="chart-wrap" style="height: 220px; padding: 12px;">
+                                <canvas id="dividendsChart" role="img"
+                                    aria-label="Gráfico de evolução de proventos"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-panel" style="grid-column: 2 / 3;">
+                            <div class="card-header">
+                                <h3>🍩 Proventos por Ativo</h3>
+                                <span class="badge">Distribuição</span>
+                            </div>
+                            <div class="chart-wrap"
+                                style="height: 200px; padding: 12px; display: flex; align-items: center; justify-content: center;">
+                                <canvas id="dividendsPieChart"
+                                    style="max-width: 180px; max-height: 180px; margin: 0 auto;" role="img"
+                                    aria-label="Gráfico de distribuição de proventos"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 style="font-size:14px;">Histórico de Proventos</h3>
+                                <p class="text-muted text-sm" style="font-size:11px;color:#b2bec3;">Dividendos, JCP e
+                                    rendimentos</p>
+                            </div>
+                            <div style="display:flex;gap:6px;">
+                                <button class="btn btn-ghost btn-sm" onclick="loadDividends()" title="Atualizar"
+                                    style="font-size:11px;" aria-label="Atualizar proventos">
+                                    <i class="fas fa-sync-alt" aria-hidden="true"></i>
+                                </button>
+                                <button class="btn btn-primary btn-sm" onclick="openDividendModal()"
+                                    style="font-size:11px;" aria-label="Registrar provento">
+                                    <i class="fas fa-plus" aria-hidden="true"></i> Registrar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="transactions-table-wrap">
+                            <table class="transactions-table" role="table">
+                                <thead role="rowgroup">
+                                    <tr role="row">
+                                        <th role="columnheader">Data</th>
+                                        <th role="columnheader">Ativo</th>
+                                        <th role="columnheader">Classe</th>
+                                        <th role="columnheader">Tipo</th>
+                                        <th role="columnheader">Qtd</th>
+                                        <th role="columnheader">Valor/Unid</th>
+                                        <th role="columnheader">Total</th>
+                                        <th role="columnheader">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dividendsBody" role="rowgroup">
+                                    <tr role="row">
+                                        <td colspan="8"
+                                            style="text-align:center;padding:20px 0;color:#b2bec3;font-size:13px;">
+                                            <span class="spinner"></span> Carregando...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==========================================
+    MODAL - OPERAÇÃO
+    ========================================== -->
+    <div class="modal-overlay hidden" id="operationModal" onclick="if(event.target === this) closeOperationModal()"
+        role="dialog" aria-modal="true" aria-labelledby="operationModalTitle">
+        <div class="modal" id="operationModalContent">
+            <div class="modal-header">
+                <div>
+                    <div class="sub">Carteira</div>
+                    <h3 id="operationModalTitle">📊 Nova Operação</h3>
+                </div>
+                <button class="modal-close" onclick="closeOperationModal()" aria-label="Fechar modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form id="operationForm" onsubmit="saveOperation(event)" novalidate>
+                <div class="modal-body">
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="opTicker">Ticker *</label>
+                            <input type="text" id="opTicker" class="form-control" placeholder="Ex: RZTR11"
+                                maxlength="20" required aria-required="true">
+                            <small class="help-text" id="tickerHint">Digite o código do ativo.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="opClass">Classe *</label>
+                            <select id="opClass" class="form-control" required aria-required="true">
+                                <option value="Ações">📈 Ações</option>
+                                <option value="FIIs">🏢 FIIs</option>
+                                <option value="ETFs">📊 ETFs</option>
+                                <option value="Tesouro">🏛️ Tesouro Direto</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="opType">Operação *</label>
+                            <select id="opType" class="form-control" required aria-required="true">
+                                <option value="Compra">✅ Compra</option>
+                                <option value="Venda">❌ Venda</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="opQuantity">Quantidade *</label>
+                            <input type="number" id="opQuantity" class="form-control" placeholder="100" step="1" min="0"
+                                required aria-required="true">
+                        </div>
+                        <div class="form-group">
+                            <label for="opUnitPrice">Preço unitário *</label>
+                            <div class="input-prefix">
+                                <span>R$</span>
+                                <input type="text" id="opUnitPrice" placeholder="10,50" required aria-required="true">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Valor total</label>
+                            <div class="input-prefix readonly">
+                                <span>R$</span>
+                                <input type="text" id="opTotalValue" value="0,00" readonly>
+                            </div>
+                        </div>
+                        <div class="form-group full">
+                            <label for="opDate">Data *</label>
+                            <input type="date" id="opDate" class="form-control" required aria-required="true">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="opNote">Observação</label>
+                        <input type="text" id="opNote" class="form-control" placeholder="Opcional">
+                    </div>
+                    <div class="form-error" id="formError"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeOperationModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="saveOperationBtn">💾 Salvar operação</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================
+    MODAL - PROVENTO
+    ========================================== -->
+    <div class="modal-overlay hidden" id="dividendModal" onclick="if(event.target === this) closeDividendModal()"
+        role="dialog" aria-modal="true" aria-labelledby="dividendModalTitle">
+        <div class="modal" id="dividendModalContent">
+            <div class="modal-header">
+                <div>
+                    <div class="sub">Proventos</div>
+                    <h3 id="dividendModalTitle">💰 Registrar Provento</h3>
+                </div>
+                <button class="modal-close" onclick="closeDividendModal()" aria-label="Fechar modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form id="dividendForm" onsubmit="saveDividend(event)" novalidate>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="divTicker">Ativo *</label>
+                        <input type="text" id="divTicker" class="form-control" placeholder="Ex: RZTR11" required
+                            aria-required="true">
+                        <small class="help-text">Digite o ticker do ativo</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="divType">Tipo de Provento *</label>
+                        <select id="divType" class="form-control" required aria-required="true">
+                            <option value="Dividendo">💵 Dividendo</option>
+                            <option value="JCP">📊 JCP</option>
+                            <option value="Rendimento">🏢 Rendimento (FIIs)</option>
+                            <option value="Bonificação">🎁 Bonificação</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="divQuantity">Quantidade *</label>
+                            <input type="number" id="divQuantity" class="form-control" placeholder="100" step="1"
+                                min="0" required aria-required="true">
+                        </div>
+                        <div class="form-group">
+                            <label for="divUnitValue">Valor por unidade *</label>
+                            <input type="text" id="divUnitValue" class="form-control" placeholder="0,50" required
+                                aria-required="true">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Valor total</label>
+                        <div class="input-prefix readonly">
+                            <span>R$</span>
+                            <input type="text" id="divTotalValue" value="0,00" readonly>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="divDate">Data do recebimento *</label>
+                        <input type="date" id="divDate" class="form-control" required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="divNote">Observação</label>
+                        <input type="text" id="divNote" class="form-control" placeholder="Opcional">
+                    </div>
+                    <div class="form-error" id="dividendError"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeDividendModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💾 Salvar provento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================
+    TOAST
+    ========================================== -->
+    <div id="toast" class="toast hidden" role="alert" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- ==========================================
+    SCRIPTS
+    ========================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js" defer></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/core.js"></script>
+    <script src="../js/security.js"></script>
+    <script src="../js/financial-tools.js"></script>
+    <script src="../js/sync.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/investments.js"></script>
+    <script src="../js/sw-register.js"></script>
+
+    <script>
+        // ==========================================
+        // SIDEBAR
+        // ==========================================
+        window.toggleSidebar = function () {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const main = document.getElementById('mainContent');
+            if (!sidebar) return;
+            if (sidebar.classList.contains('hidden')) {
+                sidebar.classList.remove('hidden');
+                if (window.innerWidth <= 768 && overlay) overlay.classList.add('show');
+                if (main && window.innerWidth > 768) main.classList.remove('full');
+            } else {
+                sidebar.classList.add('hidden');
+                if (overlay) overlay.classList.remove('show');
+                if (main && window.innerWidth > 768) main.classList.add('full');
+            }
+        };
+
+        window.closeSidebar = function () {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const main = document.getElementById('mainContent');
+            if (sidebar) sidebar.classList.add('hidden');
+            if (overlay) overlay.classList.remove('show');
+            if (main && window.innerWidth > 768) main.classList.add('full');
+        };
+
+        // ==========================================
+        // LOGOUT
+        // ==========================================
+        window.logout = async function () {
+            if (window.supabaseOffline) await window.supabaseOffline.logout();
+            await supabaseClient.auth.signOut();
+            window.location.href = '../index.html';
+        };
+
+        // ==========================================
+        // DOM READY
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('tonu_theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.querySelector('.theme-toggle-btn i')?.classList.replace('fa-moon', 'fa-sun');
+            }
+
+            const main = document.getElementById('mainContent');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (window.innerWidth <= 768) {
+                if (main) main.classList.add('full');
+                if (sidebar) sidebar.classList.add('hidden');
+                if (overlay) overlay.classList.remove('show');
+            } else {
+                if (main) main.classList.remove('full');
+                if (sidebar) sidebar.classList.remove('hidden');
+            }
+
+            console.log('✅ Investments.html refatorado com abas no canto direito!');
+        });
+
+        // ==========================================
+        // RESPONSIVO
+        // ==========================================
+        window.addEventListener('resize', function () {
+            const main = document.getElementById('mainContent');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (window.innerWidth <= 768) {
+                if (main) main.classList.add('full');
+                if (sidebar) sidebar.classList.add('hidden');
+                if (overlay) overlay.classList.remove('show');
+            } else {
+                if (main) main.classList.remove('full');
+                if (sidebar) sidebar.classList.remove('hidden');
+            }
+        });
+
+        // ==========================================
+        // FECHAR SIDEBAR
+        // ==========================================
+        document.addEventListener('click', function (e) {
+            if (e.target.classList.contains('sidebar-overlay')) closeSidebar();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeSidebar();
+        });
+    </script>
+
+</body>
+
+</html>

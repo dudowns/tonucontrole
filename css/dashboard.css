@@ -1,0 +1,946 @@
+/* ============================================
+   DASHBOARD - ESTILOS COMPLETOS
+   Layout: Gráfico de Rosca 60% | Fluxo Financeiro 40%
+   ============================================ */
+
+/* CARDS PEQUENOS - 5 COLUNAS */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.dashboard-grid .card-stat {
+    padding: 12px 14px !important;
+    min-height: 70px !important;
+    border-radius: 10px !important;
+    gap: 10px !important;
+}
+
+.dashboard-grid .card-stat .stat-icon {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 14px !important;
+    border-radius: 8px !important;
+}
+
+.dashboard-grid .card-stat .stat-label {
+    font-size: 9px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+}
+
+.dashboard-grid .card-stat .stat-value {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+}
+
+.dashboard-grid .card-stat .stat-sub {
+    font-size: 10px !important;
+    margin-top: 1px !important;
+}
+
+.dashboard-grid .card-stat .stat-info {
+    flex: 1 !important;
+    min-width: 0 !important;
+}
+
+.dashboard-grid .card-stat:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+/* BADGES PEQUENOS */
+.dashboard-grid .badge {
+    font-size: var(--font-size-xs);
+    padding: 2px 8px;
+}
+
+/* ============================================
+   GRÁFICOS - LAYOUT 60% / 40%
+   ============================================ */
+.charts-grid {
+    display: grid;
+    grid-template-columns: 60% 40%;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+@media (max-width: 1100px) {
+    .charts-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================
+   CARD DE RESUMO DE DESPESAS - 60%
+   ============================================ */
+.expense-summary-card {
+    background: var(--color-surface, #ffffff);
+    border-radius: 20px;
+    border: 1px solid var(--color-border-light, #f1f5f9);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    position: relative;
+    min-height: 420px;
+}
+
+.expense-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px 6px 20px;
+    border-bottom: none;
+    background: transparent;
+}
+
+.expense-nav-arrow,
+.expense-more-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--color-border, #e2e8f0);
+    background: var(--color-surface, #ffffff);
+    color: var(--color-text-muted, #64748b);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 11px;
+}
+
+.expense-nav-arrow:hover,
+.expense-more-btn:hover {
+    background: var(--color-primary, #6C5CE7);
+    color: #ffffff;
+    border-color: var(--color-primary, #6C5CE7);
+    transform: scale(1.05);
+}
+
+.expense-card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text, #1e293b);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: center;
+    flex: 1;
+    margin: 0 10px;
+}
+
+.expense-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.expense-chart-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 4px 14px 18px 10px;
+    min-height: 340px;
+    position: relative;
+}
+
+.expense-canvas-box {
+    flex: 1;
+    min-width: 0;
+    height: 340px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.expense-canvas-box canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 340px;
+}
+
+/* ============================================
+   LEGENDA FLUTUANTE LATERAL - REDUZIDA
+   ============================================ */
+.expense-floating-legend {
+    width: 155px;
+    flex-shrink: 0;
+    background: var(--color-surface, #ffffff);
+    border-radius: 14px;
+    padding: 10px 12px;
+    box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.06), 0 4px 8px -4px rgba(0, 0, 0, 0.02);
+    border: 1px solid var(--color-border-light, #f1f5f9);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.expense-legend-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 2px 0;
+    font-size: 10px;
+    border-bottom: 1px solid var(--color-border-light, #f1f5f9);
+}
+
+.expense-legend-row:last-child {
+    border-bottom: none;
+}
+
+.expense-legend-row:hover {
+    transform: translateX(2px);
+}
+
+.expense-legend-left {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.expense-legend-shape {
+    font-size: 8px;
+    flex-shrink: 0;
+    width: 14px;
+    text-align: center;
+}
+
+.expense-legend-name {
+    font-weight: 500;
+    color: var(--color-text, #1e293b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 70px;
+    font-size: 10px;
+}
+
+.expense-legend-pct {
+    font-weight: 700;
+    color: var(--color-text, #1e293b);
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
+.expense-legend-empty {
+    text-align: center;
+    color: var(--color-text-muted, #94a3b8);
+    font-size: 11px;
+    padding: 12px 0;
+}
+
+/* ============================================
+   CARD DO FLUXO FINANCEIRO - 40%
+   ============================================ */
+.charts-grid .card:last-child {
+    min-height: 420px;
+}
+
+.charts-grid .card:last-child .card-header {
+    padding: 14px 18px;
+}
+
+.charts-grid .card:last-child .card-header h3 {
+    font-size: 14px;
+}
+
+.charts-grid .card:last-child .chart-wrap {
+    height: 300px;
+    padding: var(--space-sm) var(--space-md) var(--space-md);
+    position: relative;
+}
+
+.charts-grid .card:last-child .chart-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* ============================================
+   CHART WRAP
+   ============================================ */
+.chart-wrap {
+    position: relative;
+}
+
+.chart-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* ============================================
+   TRANSAÇÕES - DESIGN MELHORADO
+   ============================================ */
+
+.transactions-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: all var(--transition-base);
+}
+
+.transactions-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.transactions-card .card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--color-border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--color-bg);
+}
+
+.transactions-card .card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.transactions-card .card-header h3 {
+    font-size: var(--font-size-md);
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-text);
+}
+
+.tx-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-primary-bg, #F0EDFF);
+    color: var(--color-primary, #6C5CE7);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0 8px;
+    height: 20px;
+    border-radius: 9999px;
+    min-width: 20px;
+}
+
+.transactions-card .view-all-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-primary, #6C5CE7);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 6px;
+    transition: all 0.25s ease;
+    background: rgba(108, 92, 231, 0.08);
+}
+
+.transactions-card .view-all-link:hover {
+    background: rgba(108, 92, 231, 0.16);
+    transform: translateX(2px);
+}
+
+.transactions-card .view-all-link i {
+    font-size: 11px;
+    transition: transform 0.25s ease;
+}
+
+.transactions-card .view-all-link:hover i {
+    transform: translateX(3px);
+}
+
+/* ============================================
+   LISTA DE TRANSAÇÕES - DESIGN MELHORADO
+   ============================================ */
+.transactions-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.transaction-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--color-border-light);
+    transition: all 0.2s ease;
+    cursor: default;
+}
+
+.transaction-item:hover {
+    background: var(--color-bg);
+    transform: translateX(4px);
+}
+
+.transaction-item:last-child {
+    border-bottom: none;
+}
+
+.transaction-item .tx-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.transaction-item .tx-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.transaction-item:hover .tx-icon {
+    transform: scale(1.05);
+}
+
+.transaction-item .tx-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.transaction-item .tx-info strong {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.transaction-item .tx-info .tx-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+.transaction-item .tx-info .tx-meta .tx-category {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border-radius: 9999px;
+    font-size: 9px;
+    font-weight: 600;
+    background: var(--color-bg);
+    color: var(--color-text-light);
+}
+
+.transaction-item .tx-info .tx-meta .tx-category i {
+    font-size: 8px;
+}
+
+.transaction-item .tx-amount {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-left: 12px;
+    padding: 2px 10px;
+    border-radius: 6px;
+}
+
+.transaction-item .tx-amount.income {
+    color: var(--color-success, #00B894);
+    background: var(--color-success-bg, #E8F8F5);
+}
+
+.transaction-item .tx-amount.expense {
+    color: var(--color-danger, #FF7675);
+    background: var(--color-danger-bg, #FDEAEA);
+}
+
+/* Loading State */
+.loading-transactions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    gap: 12px;
+    color: var(--color-text-muted);
+}
+
+.loading-transactions .spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.loading-transactions p {
+    font-size: 13px;
+    margin: 0;
+}
+
+/* Empty State */
+.empty-transactions {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--color-text-muted);
+}
+
+.empty-transactions .empty-icon {
+    font-size: 36px;
+    display: block;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+.empty-transactions h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 4px;
+}
+
+.empty-transactions p {
+    font-size: 12px;
+    max-width: 280px;
+    margin: 0 auto;
+}
+
+/* ============================================
+   BOTTOM GRID (Insights + Transações)
+   ============================================ */
+.bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: var(--space-md);
+}
+
+@media (max-width: 768px) {
+    .bottom-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.insights-panel {
+    background: linear-gradient(135deg, #2D3436, #636E72);
+    color: white;
+}
+
+.insights-panel .card-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.insights-panel .card-header h3 {
+    color: white;
+}
+
+.insights-panel .btn-ghost {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.insights-panel .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.insight-item {
+    padding: var(--space-sm) var(--space-md);
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-xs);
+    border-left: 3px solid transparent;
+    font-size: var(--font-size-sm);
+}
+
+.insight-item:last-child {
+    margin-bottom: 0;
+}
+
+.insight-item.success {
+    border-left-color: var(--color-success);
+}
+
+.insight-item.warning {
+    border-left-color: var(--color-warning);
+}
+
+.insight-item.info {
+    border-left-color: var(--color-info);
+}
+
+.insight-item.danger {
+    border-left-color: var(--color-danger);
+}
+
+/* ============================================
+   GREETING E AVATAR
+   ============================================ */
+.greeting-text {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
+.greeting-text strong {
+    color: var(--color-text);
+}
+
+.avatar-circle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: var(--font-size-md);
+    flex-shrink: 0;
+}
+
+/* ============================================
+   MONTH SELECTOR
+   ============================================ */
+.month-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--space-md);
+}
+
+.month-selector .month-nav {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    font-size: var(--font-size-sm);
+}
+
+.month-selector .month-nav:hover {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.month-selector .month-label {
+    font-size: var(--font-size-md);
+    font-weight: 700;
+    min-width: 120px;
+    text-align: center;
+}
+
+.month-selector .btn-today {
+    padding: 4px 14px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    min-height: 30px;
+}
+
+.month-selector .btn-today:hover {
+    background: var(--color-primary-dark);
+}
+
+/* ============================================
+   CARDS DE TRANSAÇÕES (LEGADO)
+   ============================================ */
+.transactions-card .card-body {
+    padding: 0;
+}
+
+/* ============================================
+   ESTADO VAZIO (GERAL)
+   ============================================ */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--color-text-muted);
+}
+
+.empty-state .empty-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 12px;
+}
+
+.empty-state h3 {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 6px;
+}
+
+.empty-state p {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
+/* ============================================
+   RESPONSIVIDADE
+   ============================================ */
+@media (max-width: 1024px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-xs);
+    }
+
+    .dashboard-grid .card-stat {
+        padding: 10px 12px !important;
+        min-height: 60px !important;
+    }
+
+    .dashboard-grid .card-stat .stat-value {
+        font-size: 14px !important;
+    }
+
+    .dashboard-grid .card-stat .stat-icon {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .bottom-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .month-selector .month-label {
+        font-size: var(--font-size-sm);
+        min-width: 90px;
+    }
+
+    .transaction-item {
+        padding: 8px 12px;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .transaction-item .tx-left {
+        gap: 8px;
+    }
+
+    .transaction-item .tx-icon {
+        width: 30px;
+        height: 30px;
+        font-size: 12px;
+    }
+
+    .transaction-item .tx-info strong {
+        font-size: var(--font-size-xs);
+    }
+
+    .transaction-item .tx-info .tx-meta {
+        font-size: 9px;
+        flex-wrap: wrap;
+    }
+
+    .transaction-item .tx-amount {
+        font-size: var(--font-size-xs);
+        margin-left: 8px;
+        padding: 1px 8px;
+    }
+
+    .transactions-card .view-all-link {
+        font-size: 11px;
+        padding: 3px 10px;
+    }
+
+    .expense-chart-body {
+        flex-direction: column;
+        padding: 4px 10px 16px;
+        min-height: 300px;
+    }
+
+    .expense-floating-legend {
+        width: 100%;
+        max-height: 180px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 8px 12px;
+        gap: 2px;
+        border-radius: 10px;
+    }
+
+    .expense-legend-row {
+        flex: 1 1 45%;
+        min-width: 80px;
+        border-bottom: none;
+        padding: 2px 4px;
+    }
+
+    .expense-legend-name {
+        max-width: 60px;
+        font-size: 9px;
+    }
+
+    .expense-legend-pct {
+        font-size: 9px;
+    }
+
+    .expense-canvas-box {
+        height: 260px;
+        width: 100%;
+    }
+
+    .charts-grid .card:last-child .chart-wrap {
+        height: 220px;
+    }
+
+    .charts-grid .card:last-child {
+        min-height: 320px;
+    }
+
+    .expense-summary-card {
+        min-height: 360px;
+    }
+
+    .transactions-card .card-header {
+        padding: 10px 14px;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .transactions-card .card-header h3 {
+        font-size: var(--font-size-sm);
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-xs);
+    }
+
+    .dashboard-grid .card-stat {
+        padding: 8px 10px !important;
+        min-height: 55px !important;
+    }
+
+    .dashboard-grid .card-stat .stat-value {
+        font-size: 12px !important;
+    }
+
+    .dashboard-grid .card-stat .stat-icon {
+        width: 24px !important;
+        height: 24px !important;
+        font-size: 10px !important;
+    }
+
+    .dashboard-grid .card-stat .stat-label {
+        font-size: 8px !important;
+    }
+
+    .transaction-item {
+        padding: 6px 10px;
+    }
+
+    .transaction-item .tx-icon {
+        width: 26px;
+        height: 26px;
+        font-size: 10px;
+        border-radius: 8px;
+    }
+
+    .transaction-item .tx-info strong {
+        font-size: 11px;
+    }
+
+    .transaction-item .tx-info .tx-meta .tx-category {
+        font-size: 8px;
+        padding: 0 6px;
+    }
+
+    .transaction-item .tx-amount {
+        font-size: 11px;
+        padding: 1px 6px;
+    }
+
+    .transactions-card .view-all-link {
+        font-size: 10px;
+        padding: 2px 8px;
+    }
+
+    .expense-legend-row {
+        flex: 1 1 100%;
+        min-width: 60px;
+    }
+
+    .expense-legend-name {
+        max-width: 50px;
+        font-size: 8px;
+    }
+
+    .expense-legend-pct {
+        font-size: 8px;
+    }
+
+    .expense-canvas-box {
+        height: 220px;
+    }
+
+    .charts-grid .card:last-child .chart-wrap {
+        height: 180px;
+    }
+
+    .expense-summary-card {
+        min-height: 320px;
+    }
+
+    .charts-grid .card:last-child {
+        min-height: 280px;
+    }
+
+    .transactions-card .card-header h3 {
+        font-size: 13px;
+    }
+}

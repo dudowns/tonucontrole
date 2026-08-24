@@ -1,0 +1,209 @@
+/* ============================================
+   GOALS.CSS - Estilos específicos de Metas
+   ============================================ */
+
+@import url('theme.css');
+
+/* ============================================
+   GRID DE METAS
+   ============================================ */
+.goals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-md);
+}
+
+/* ============================================
+   CARD DE META
+   ============================================ */
+.goal-card {
+    background: var(--color-surface);
+    border-radius: 10px;
+    padding: 14px 16px;
+    border: 1px solid var(--color-border);
+    border-left: 5px solid var(--color-primary);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+    cursor: pointer;
+}
+
+.goal-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.goal-card.completed {
+    opacity: 0.75;
+    border-left-color: var(--color-success);
+}
+
+.goal-card .goal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.goal-card .goal-header h3 {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.goal-card .goal-header .goal-emoji {
+    font-size: 22px;
+}
+
+.goal-card .goal-amounts {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.goal-card .goal-amounts strong {
+    color: var(--color-text);
+}
+
+.goal-card .goal-progress {
+    margin: 8px 0;
+}
+
+.goal-card .goal-progress .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+
+.goal-card .goal-progress .progress {
+    height: 6px;
+}
+
+.goal-card .goal-progress .progress-bar.success {
+    background: var(--color-success);
+}
+
+.goal-card .goal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: var(--color-text-muted);
+    margin-top: 6px;
+}
+
+.goal-card .goal-footer .deadline {
+    color: var(--color-danger);
+    font-weight: 600;
+}
+
+.goal-card .goal-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.goal-card .goal-actions .btn-add-value {
+    flex: 1;
+    min-height: 30px;
+    font-size: 11px;
+    padding: 4px 10px;
+}
+
+.goal-card .goal-actions .btn-icon-sm {
+    width: 28px;
+    height: 28px;
+    min-height: 28px;
+    font-size: 11px;
+}
+
+/* ============================================
+   PROGRESS BAR
+   ============================================ */
+.progress {
+    width: 100%;
+    height: 8px;
+    background: var(--color-border);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: var(--radius-full);
+    transition: width 0.5s ease;
+}
+
+.progress-bar.success {
+    background: var(--color-success);
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.empty-state {
+    text-align: center;
+    padding: 30px 16px;
+    color: var(--color-text-muted);
+}
+
+.empty-state .empty-icon {
+    font-size: 40px;
+    margin-bottom: 8px;
+    display: block;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    color: var(--color-text);
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.empty-state p {
+    font-size: 13px;
+    max-width: 360px;
+    margin: 0 auto;
+}
+
+/* ============================================
+   RESPONSIVIDADE
+   ============================================ */
+@media (max-width: 768px) {
+    .goals-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-sm);
+    }
+
+    .goal-card {
+        padding: 12px 14px;
+    }
+
+    .goal-card .goal-header h3 {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .goals-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .goal-card {
+        padding: 10px 12px;
+    }
+
+    .goal-card .goal-header h3 {
+        font-size: 14px;
+    }
+
+    .goal-card .goal-actions .btn-add-value {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+}

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
+
+    <meta name="theme-color" content="#6C5CE7">
+    <meta name="msapplication-TileColor" content="#6C5CE7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TonuControle">
+
+    <link rel="manifest" href="../manifest.json">
+    <link rel="apple-touch-icon" href="../icons/icon-192x192.png">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png" type="image/png">
+    <link rel="icon" href="../icons/icon-128x128.png" type="image/png">
+    <link rel="icon" href="../icons/icon-96x96.png" sizes="96x96" type="image/png">
+
+    <title>404 - Página Não Encontrada | TonuControle</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/dark-theme.css">
+
+    <style>
+        /* ==========================================
+           PREFERS-REDUCED-MOTION
+           ========================================== */
+        @media (prefers-reduced-motion: reduce) {
+            .error-badge {
+                animation: none !important;
+            }
+
+            .btn {
+                transition: none !important;
+            }
+        }
+
+        /* ==========================================
+           FOCO VISÍVEL
+           ========================================== */
+        *:focus-visible {
+            outline: 3px solid #6C5CE7 !important;
+            outline-offset: 2px !important;
+        }
+
+        /* ==========================================
+           SKIP LINK
+           ========================================== */
+        .skip-link {
+            position: absolute;
+            top: -100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: #6C5CE7;
+            color: #fff;
+            border-radius: 8px;
+            z-index: 999999;
+            font-weight: 600;
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .skip-link:focus {
+            top: 16px;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--color-bg);
+            font-family: 'Inter', sans-serif;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .error-card {
+            background: var(--color-surface);
+            border-radius: 24px;
+            padding: 48px 32px;
+            max-width: 480px;
+            width: 100%;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--color-border);
+        }
+
+        .error-logo {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 16px auto;
+            border-radius: 20px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #6C5CE7, #a29bfe);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px rgba(108, 92, 231, 0.25);
+        }
+
+        .error-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .error-badge {
+            font-size: 56px;
+            margin-bottom: 12px;
+            display: inline-block;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            20%,
+            50%,
+            80%,
+            100% {
+                transform: translateY(0);
+            }
+
+            40% {
+                transform: translateY(-15px);
+            }
+
+            60% {
+                transform: translateY(-7px);
+            }
+        }
+
+        .error-title {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--color-text);
+            margin-bottom: 8px;
+        }
+
+        .error-desc {
+            font-size: 14px;
+            color: var(--color-text-light);
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
+            min-height: 44px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6C5CE7, #a29bfe);
+            color: #ffffff;
+            box-shadow: 0 4px 16px rgba(108, 92, 231, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(108, 92, 231, 0.35);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--color-text);
+            border: 2px solid var(--color-border);
+        }
+
+        .btn-outline:hover {
+            background: var(--color-bg);
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+
+        .error-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 480px) {
+            .error-card {
+                padding: 32px 20px;
+                border-radius: 18px;
+            }
+
+            .error-logo {
+                width: 56px;
+                height: 56px;
+                border-radius: 16px;
+            }
+
+            .error-badge {
+                font-size: 42px;
+            }
+
+            .error-title {
+                font-size: 20px;
+            }
+
+            .error-desc {
+                font-size: 13px;
+            }
+
+            .btn {
+                padding: 8px 16px;
+                font-size: 12px;
+                width: 100%;
+                min-height: 40px;
+            }
+
+            .error-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ==========================================
+    SKIP LINK - ACESSIBILIDADE
+    ========================================== -->
+    <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
+
+    <!-- ==========================================
+    ERROR CARD
+    ========================================== -->
+    <main class="error-card" id="main-content" role="main" aria-labelledby="error-title">
+        <div class="error-logo" aria-hidden="true">
+            <img src="../icons/logo.png" alt="TonuControle">
+        </div>
+        <div class="error-badge" aria-hidden="true">🔍</div>
+        <h1 class="error-title" id="error-title">Página Não Encontrada</h1>
+        <p class="error-desc">
+            O endereço que você tentou acessar não existe ou foi movido. Não se preocupe, todas as suas finanças
+            continuam seguras!
+        </p>
+        <div class="error-actions">
+            <a href="dashboard.html" class="btn btn-primary" aria-label="Ir para o Dashboard">
+                <i class="fas fa-home" aria-hidden="true"></i> Ir para o Dashboard
+            </a>
+            <a href="transactions.html" class="btn btn-outline" aria-label="Ir para Transações">
+                <i class="fas fa-exchange-alt" aria-hidden="true"></i> Transações
+            </a>
+        </div>
+    </main>
+
+    <!-- ==========================================
+    SCRIPTS
+    ========================================== -->
+    <script>
+        // Registrar Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => { });
+            });
+        }
+
+        // Atualizar tema
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('tonu_theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        });
+    </script>
+
+</body>
+
+</html>

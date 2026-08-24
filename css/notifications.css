@@ -1,0 +1,610 @@
+/* ============================================
+   NOTIFICATIONS.CSS - TonuControle Push & Reminders
+   ============================================ */
+
+/* Botão do Sino de Notificações na Topbar */
+.notif-bell-btn {
+    position: relative;
+    background: transparent;
+    border: 1px solid var(--color-border, #E8ECF1);
+    color: var(--color-text, #2D3436);
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md, 10px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all var(--transition-fast, 0.15s ease);
+}
+
+.notif-bell-btn:hover {
+    background: var(--color-surface-hover, #F8F9FA);
+    border-color: var(--color-primary-light, #A29BFE);
+    color: var(--color-primary, #6C5CE7);
+    transform: translateY(-1px);
+}
+
+.notif-bell-btn.has-urgent {
+    animation: bellShake 3s infinite ease-in-out;
+}
+
+@keyframes bellShake {
+
+    0%,
+    85%,
+    100% {
+        transform: rotate(0);
+    }
+
+    88% {
+        transform: rotate(12deg);
+    }
+
+    92% {
+        transform: rotate(-12deg);
+    }
+
+    96% {
+        transform: rotate(8deg);
+    }
+
+    98% {
+        transform: rotate(-4deg);
+    }
+}
+
+/* Badge contador */
+.notif-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: var(--color-danger, #FF7675);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 5px rgba(255, 118, 117, 0.4);
+    animation: badgePulse 2s infinite;
+}
+
+@keyframes badgePulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.notif-badge.hidden {
+    display: none !important;
+}
+
+/* Dropdown de Notificações */
+.notif-dropdown {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    background: #ffffff;
+    border: 1px solid #E8ECF1;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    z-index: 999999 !important;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+    pointer-events: none;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+.notif-dropdown.show {
+    display: flex !important;
+    opacity: 1 !important;
+    transform: translateY(0) scale(1) !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+}
+
+.notif-header {
+    padding: 14px 18px;
+    background: #f8f9fa;
+    border-bottom: 1px solid var(--color-border-light, #F1F2F6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.notif-header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--color-text, #2D3436);
+}
+
+.notif-header-title i {
+    color: var(--color-primary, #6C5CE7);
+}
+
+.notif-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.notif-header-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-light, #636E72);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.15s;
+}
+
+.notif-header-btn:hover {
+    background: #e9ecef;
+    color: var(--color-primary, #6C5CE7);
+}
+
+/* Banner de Permissão Push */
+.notif-perm-banner {
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #f0edff, #f8f9fa);
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+}
+
+.notif-perm-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #4a5568;
+    line-height: 1.3;
+}
+
+.notif-perm-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--color-primary, #6C5CE7);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.notif-perm-btn:hover {
+    background: var(--color-primary-dark, #5848c7);
+}
+
+/* Lista de Notificações */
+.notif-body {
+    max-height: 380px;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.notif-empty {
+    padding: 32px 20px;
+    text-align: center;
+    color: var(--color-text-muted, #B2BEC3);
+}
+
+.notif-empty-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+    display: block;
+    opacity: 0.6;
+}
+
+.notif-empty p {
+    font-size: 13px;
+    color: var(--color-text-light, #636E72);
+    margin-bottom: 4px;
+}
+
+.notif-empty small {
+    font-size: 11px;
+    color: var(--color-text-muted, #B2BEC3);
+}
+
+/* Item de Notificação de Conta */
+.notif-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--color-border-light, #F1F2F6);
+    transition: background var(--transition-fast, 0.15s ease);
+    cursor: pointer;
+    position: relative;
+}
+
+.notif-item:last-child {
+    border-bottom: none;
+}
+
+.notif-item:hover {
+    background: var(--color-surface-hover, #F8F9FA);
+}
+
+.notif-item.overdue {
+    background: #FFF5F5;
+    border-left: 3px solid var(--color-danger, #FF7675);
+}
+
+.notif-item.due-today {
+    background: #FFFDF0;
+    border-left: 3px solid var(--color-warning-dark, #F39C12);
+}
+
+.notif-item.due-soon {
+    border-left: 3px solid var(--color-primary, #6C5CE7);
+}
+
+.notif-icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.notif-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-item-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text, #2D3436);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.notif-item-amount {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--color-text, #2D3436);
+    white-space: nowrap;
+}
+
+.notif-item-desc {
+    font-size: 11px;
+    color: var(--color-text-light, #636E72);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.notif-tag {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.notif-tag.overdue {
+    background: #FADBD8;
+    color: #E74C3C;
+}
+
+.notif-tag.due-today {
+    background: #FFF3CD;
+    color: #B7791F;
+}
+
+.notif-tag.due-soon {
+    background: #EBF8FF;
+    color: #2B6CB0;
+}
+
+.notif-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.notif-btn-pay {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--color-success, #00B894);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+}
+
+.notif-btn-pay:hover {
+    background: var(--color-success-dark, #009977);
+    transform: translateY(-1px);
+}
+
+.notif-btn-view {
+    padding: 3px 8px;
+    font-size: 11px;
+    color: var(--color-text-light, #636E72);
+    background: #edf2f7;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.notif-btn-view:hover {
+    background: #e2e8f0;
+    color: var(--color-primary, #6C5CE7);
+}
+
+.notif-footer {
+    padding: 10px 16px;
+    background: #f8f9fa;
+    border-top: 1px solid var(--color-border-light, #F1F2F6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+}
+
+.notif-footer a {
+    color: var(--color-primary, #6C5CE7);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.notif-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Banner de Alerta de Contas a Vencer no topo da página de Contas e Dashboard */
+.due-bills-banner {
+    background: linear-gradient(135deg, #ffffff, #fff8f8);
+    border: 1px solid #fed7d7;
+    border-left: 4px solid var(--color-danger, #FF7675);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: var(--space-md, 16px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 12px rgba(255, 118, 117, 0.08);
+    gap: 12px;
+    flex-wrap: wrap;
+    animation: fadeIn 0.3s ease;
+}
+
+.due-bills-banner.warning {
+    background: linear-gradient(135deg, #ffffff, #fffdf0);
+    border-color: #feebc8;
+    border-left-color: var(--color-warning-dark, #F39C12);
+}
+
+.due-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 240px;
+}
+
+.due-banner-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #fed7d7;
+    color: var(--color-danger, #FF7675);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.due-bills-banner.warning .due-banner-icon {
+    background: #feebc8;
+    color: #d69e2e;
+}
+
+.due-banner-info h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 2px;
+}
+
+.due-banner-info p {
+    font-size: 11px;
+    color: #718096;
+    margin: 0;
+}
+
+.due-banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Switches e Configurações de Notificação */
+.notif-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-border-light, #F1F2F6);
+}
+
+.notif-switch-row:last-child {
+    border-bottom: none;
+}
+
+.notif-switch-info {
+    flex: 1;
+    padding-right: 16px;
+}
+
+.notif-switch-info strong {
+    display: block;
+    font-size: 13px;
+    color: var(--color-text, #2D3436);
+    margin-bottom: 2px;
+}
+
+.notif-switch-info small {
+    display: block;
+    font-size: 11px;
+    color: var(--color-text-muted, #B2BEC3);
+    line-height: 1.4;
+}
+
+/* Custom Switch Toggle */
+.custom-toggle {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.custom-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: 0.25s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.25s;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.custom-toggle input:checked+.toggle-slider {
+    background-color: var(--color-primary, #6C5CE7);
+}
+
+.custom-toggle input:checked+.toggle-slider:before {
+    transform: translateX(20px);
+}
+
+/* Chips de dias de antecedência */
+.days-chips-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.day-chip {
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.day-chip:hover {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+}
+
+.day-chip.active {
+    background: var(--color-primary-bg, #F0EDFF);
+    border-color: var(--color-primary, #6C5CE7);
+    color: var(--color-primary, #6C5CE7);
+}
+
+.day-chip i {
+    font-size: 10px;
+}
+
+/* Backdrop para fechar dropdown */
+.notif-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 99990;
+    display: none;
+}
+
+.notif-backdrop.show {
+    display: block;
+}
+
+@media (max-width: 480px) {
+    .notif-dropdown {
+        top: 56px;
+        right: 8px;
+        left: 8px;
+        width: auto;
+        max-width: none;
+    }
+}

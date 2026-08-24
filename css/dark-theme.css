@@ -1,0 +1,983 @@
+/* ============================================
+   TONUCONTROLE - TEMA ESCURO (DARK MODE) V4
+   VERSÃO FINAL - CORRIGIDA E COMPLETA
+   ============================================ */
+
+body.dark-theme,
+[data-theme="dark"] {
+    /* ==========================================
+       CORES BASE - SUAVES E LEGÍVEIS
+       ========================================== */
+    --color-bg: #0F172A;
+    --color-surface: #1E293B;
+    --color-surface-hover: #2D3B55;
+    --color-surface-2: #162135;
+
+    --color-text: #E2E8F0;
+    --color-text-light: #CBD5E1;
+    --color-text-muted: #94A3B8;
+    --color-text-dim: #64748B;
+
+    --color-border: #334155;
+    --color-border-light: #253345;
+    --color-border-focus: #818CF8;
+
+    --color-shadow: rgba(0, 0, 0, 0.6);
+    --color-shadow-strong: rgba(0, 0, 0, 0.8);
+
+    /* ==========================================
+       CORES DE STATUS - VIVAS E CLARAS
+       ========================================== */
+    --color-primary-bg: rgba(129, 140, 248, 0.15);
+    --color-primary-hover: rgba(129, 140, 248, 0.25);
+    --color-success-bg: rgba(52, 211, 153, 0.15);
+    --color-success-hover: rgba(52, 211, 153, 0.25);
+    --color-danger-bg: rgba(248, 113, 113, 0.15);
+    --color-danger-hover: rgba(248, 113, 113, 0.25);
+    --color-warning-bg: rgba(251, 191, 36, 0.15);
+    --color-warning-hover: rgba(251, 191, 36, 0.25);
+    --color-info-bg: rgba(96, 165, 250, 0.15);
+}
+
+/* ==========================================
+   FUNDO DA PÁGINA
+   ========================================== */
+body.dark-theme {
+    background: var(--color-bg) !important;
+    color: var(--color-text) !important;
+}
+
+/* ==========================================
+   CARDS E SUPERFÍCIES
+   ========================================== */
+body.dark-theme .card,
+body.dark-theme .settings-card,
+body.dark-theme .transaction-card,
+body.dark-theme .bill-card,
+body.dark-theme .goal-card,
+body.dark-theme .investment-card,
+body.dark-theme .chart-panel,
+body.dark-theme .portfolio-container,
+body.dark-theme .class-card,
+body.dark-theme .modal,
+body.dark-theme .modal-content,
+body.dark-theme .notif-dropdown,
+body.dark-theme .sync-indicator-card,
+body.dark-theme .month-selector,
+body.dark-theme .progress-section,
+body.dark-theme .expense-summary-card,
+body.dark-theme .share-target-content {
+    background: var(--color-surface) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+}
+
+/* ==========================================
+   SIDEBAR
+   ========================================== */
+body.dark-theme .sidebar {
+    background: var(--color-surface) !important;
+    border-right-color: var(--color-border) !important;
+}
+
+body.dark-theme .sidebar-brand {
+    background: linear-gradient(135deg, #818CF8, #A78BFA) !important;
+}
+
+body.dark-theme .sidebar-nav a {
+    color: var(--color-text-light) !important;
+}
+
+body.dark-theme .sidebar-nav a:hover {
+    background: var(--color-primary-bg) !important;
+    color: #A78BFA !important;
+}
+
+body.dark-theme .sidebar-nav a.active {
+    background: #818CF8 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(129, 140, 248, 0.3) !important;
+}
+
+body.dark-theme .sidebar-footer {
+    border-top-color: var(--color-border) !important;
+}
+
+body.dark-theme .sidebar-user-profile {
+    background: var(--color-bg) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .sidebar-user-profile:hover {
+    background: var(--color-primary-bg) !important;
+    border-color: #818CF8 !important;
+}
+
+body.dark-theme .sidebar-user-name {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .sidebar-user-email {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .sidebar-user-status {
+    color: #34D399 !important;
+}
+
+body.dark-theme .sidebar-footer .btn-sair {
+    color: var(--color-text-light) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .sidebar-footer .btn-sair:hover {
+    background: var(--color-danger-bg) !important;
+    color: #F87171 !important;
+    border-color: #F87171 !important;
+}
+
+/* ==========================================
+   TOPBAR
+   ========================================== */
+body.dark-theme .topbar {
+    background: rgba(30, 41, 59, 0.92) !important;
+    backdrop-filter: blur(12px) !important;
+    border-bottom-color: var(--color-border) !important;
+}
+
+body.dark-theme .topbar .topbar-title h1 {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .topbar .topbar-title .sub {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .topbar .menu-toggle {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .topbar .menu-toggle:hover {
+    background: var(--color-surface-hover) !important;
+}
+
+/* ==========================================
+   FORMULÁRIOS
+   ========================================== */
+body.dark-theme .form-control,
+body.dark-theme select,
+body.dark-theme input[type="text"],
+body.dark-theme input[type="number"],
+body.dark-theme input[type="date"],
+body.dark-theme input[type="password"],
+body.dark-theme input[type="email"],
+body.dark-theme input[type="month"],
+body.dark-theme textarea,
+body.dark-theme .input-prefix {
+    background: var(--color-bg) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .form-control:focus,
+body.dark-theme select:focus,
+body.dark-theme input:focus {
+    border-color: #818CF8 !important;
+    box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.25) !important;
+}
+
+body.dark-theme .form-control::placeholder {
+    color: var(--color-text-dim) !important;
+}
+
+body.dark-theme .input-prefix span {
+    background: var(--color-bg) !important;
+    color: var(--color-text-muted) !important;
+    border-right-color: var(--color-border) !important;
+}
+
+body.dark-theme .input-prefix.readonly {
+    background: var(--color-bg) !important;
+}
+
+body.dark-theme .form-group label {
+    color: var(--color-text-light) !important;
+}
+
+/* ==========================================
+   BOTÕES
+   ========================================== */
+body.dark-theme .btn-primary {
+    background: #818CF8 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .btn-primary:hover {
+    background: #6C7AEF !important;
+    box-shadow: 0 6px 20px rgba(129, 140, 248, 0.4) !important;
+}
+
+body.dark-theme .btn-secondary {
+    background: var(--color-surface-hover) !important;
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .btn-secondary:hover {
+    background: var(--color-border) !important;
+}
+
+body.dark-theme .btn-outline {
+    background: transparent !important;
+    color: #A78BFA !important;
+    border-color: #818CF8 !important;
+}
+
+body.dark-theme .btn-outline:hover {
+    background: #818CF8 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .btn-success {
+    background: #34D399 !important;
+    color: #0F172A !important;
+}
+
+body.dark-theme .btn-success:hover {
+    background: #2BBF8A !important;
+}
+
+body.dark-theme .btn-danger {
+    background: #F87171 !important;
+    color: #0F172A !important;
+}
+
+body.dark-theme .btn-danger:hover {
+    background: #EF5E5E !important;
+}
+
+body.dark-theme .btn-ghost {
+    color: var(--color-text-light) !important;
+}
+
+body.dark-theme .btn-ghost:hover {
+    background: var(--color-surface-hover) !important;
+}
+
+/* ==========================================
+   CARD-STAT
+   ========================================== */
+body.dark-theme .card-stat {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .card-stat .stat-label {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .card-stat .stat-value {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .card-stat .stat-sub {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .card-stat .text-success {
+    color: #34D399 !important;
+}
+
+body.dark-theme .card-stat .text-danger {
+    color: #F87171 !important;
+}
+
+/* ==========================================
+   TRANSAÇÕES
+   ========================================== */
+body.dark-theme .transaction-item {
+    border-bottom-color: var(--color-border-light) !important;
+}
+
+body.dark-theme .transaction-item:hover {
+    background: var(--color-surface-hover) !important;
+}
+
+body.dark-theme .transaction-item .tx-info strong {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .transaction-item .tx-info .tx-meta {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .transaction-item .tx-amount.income {
+    color: #34D399 !important;
+    background: rgba(52, 211, 153, 0.15) !important;
+}
+
+body.dark-theme .transaction-item .tx-amount.expense {
+    color: #F87171 !important;
+    background: rgba(248, 113, 113, 0.15) !important;
+}
+
+body.dark-theme .transaction-item .tx-info .tx-meta .tx-category {
+    background: var(--color-surface-hover) !important;
+    color: var(--color-text-light) !important;
+}
+
+/* ==========================================
+   CONTAS (BILLS)
+   ========================================== */
+body.dark-theme .bill-card {
+    border-bottom-color: var(--color-border-light) !important;
+}
+
+body.dark-theme .bill-card:hover {
+    background: var(--color-surface-hover) !important;
+}
+
+body.dark-theme .bill-card .bill-info strong {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .bill-card .bill-info small {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .bill-card .bill-amount.text-success {
+    color: #34D399 !important;
+}
+
+body.dark-theme .bill-card .bill-amount.text-danger {
+    color: #F87171 !important;
+}
+
+body.dark-theme .bill-card.overdue {
+    background: rgba(248, 113, 113, 0.12) !important;
+    border-left-color: #F87171 !important;
+}
+
+/* ==========================================
+   METAS
+   ========================================== */
+body.dark-theme .goal-card {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .goal-card .goal-header h3 {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .goal-card .goal-amounts {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .goal-card .goal-amounts strong {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .goal-card .goal-footer {
+    color: var(--color-text-muted) !important;
+}
+
+/* ==========================================
+   INVESTIMENTOS
+   ========================================== */
+body.dark-theme .asset-item {
+    border-bottom-color: var(--color-border-light) !important;
+}
+
+body.dark-theme .asset-item:hover {
+    background: var(--color-surface-hover) !important;
+}
+
+body.dark-theme .asset-item .asset-name .ticker {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .asset-item .asset-name .full-name {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .class-card {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .class-card:hover {
+    background: var(--color-surface-hover) !important;
+}
+
+body.dark-theme .class-card .class-name {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .class-card .class-total {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .portfolio-header {
+    background: var(--color-bg) !important;
+    border-bottom-color: var(--color-border) !important;
+}
+
+body.dark-theme .portfolio-header h2 {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .portfolio-header .total-value {
+    color: #A78BFA !important;
+}
+
+body.dark-theme .class-filters {
+    background: var(--color-surface) !important;
+    border-bottom-color: var(--color-border-light) !important;
+}
+
+body.dark-theme .class-filters .btn {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .class-filters .btn:hover {
+    background: var(--color-surface-hover) !important;
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .class-filters .btn.active {
+    background: #818CF8 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .class-filters .btn .count {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .class-filters .btn.active .count {
+    background: rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+}
+
+/* ==========================================
+   TABELAS
+   ========================================== */
+body.dark-theme .transactions-table th {
+    background: var(--color-bg) !important;
+    color: var(--color-text-muted) !important;
+    border-bottom-color: var(--color-border) !important;
+}
+
+body.dark-theme .transactions-table td {
+    border-bottom-color: var(--color-border-light) !important;
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .transactions-table tr:hover td {
+    background: var(--color-surface-hover) !important;
+}
+
+/* ==========================================
+   MODAL
+   ========================================== */
+body.dark-theme .modal {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .modal-header {
+    background: var(--color-bg) !important;
+    border-bottom-color: var(--color-border) !important;
+}
+
+body.dark-theme .modal-header h3 {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .modal-footer {
+    background: var(--color-bg) !important;
+    border-top-color: var(--color-border) !important;
+}
+
+body.dark-theme .modal-close {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .modal-close:hover {
+    background: var(--color-surface-hover) !important;
+    color: var(--color-text) !important;
+}
+
+/* ==========================================
+   NOTIFICAÇÕES
+   ========================================== */
+body.dark-theme .notif-dropdown {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .notif-header {
+    background: var(--color-bg) !important;
+    border-bottom-color: var(--color-border) !important;
+}
+
+body.dark-theme .notif-header-title {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .notif-item {
+    border-bottom-color: var(--color-border-light) !important;
+}
+
+body.dark-theme .notif-item:hover {
+    background: var(--color-surface-hover) !important;
+}
+
+body.dark-theme .notif-item.overdue {
+    background: rgba(248, 113, 113, 0.12) !important;
+}
+
+body.dark-theme .notif-item.due-today {
+    background: rgba(251, 191, 36, 0.12) !important;
+}
+
+body.dark-theme .notif-item-title {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .notif-item-amount {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .notif-item-desc {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .notif-footer {
+    background: var(--color-bg) !important;
+    border-top-color: var(--color-border) !important;
+}
+
+body.dark-theme .notif-empty {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .notif-empty p {
+    color: var(--color-text-light) !important;
+}
+
+/* ==========================================
+   MÊS (SELECTOR)
+   ========================================== */
+body.dark-theme .month-selector {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .month-selector .month-label {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .month-selector .month-nav {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .month-selector .month-nav:hover {
+    background: #818CF8 !important;
+    border-color: #818CF8 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .month-selector .btn-today {
+    background: #818CF8 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .month-selector .btn-today:hover {
+    background: #6C7AEF !important;
+}
+
+/* ==========================================
+   GRÁFICOS
+   ========================================== */
+body.dark-theme .chart-panel {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .chart-panel .card-header {
+    border-bottom-color: var(--color-border) !important;
+}
+
+body.dark-theme .chart-panel .card-header h3 {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .chart-panel .card-header .badge {
+    background: var(--color-bg) !important;
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .expense-legend-name {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .expense-legend-pct {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .expense-floating-legend {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .expense-legend-row {
+    border-bottom-color: var(--color-border-light) !important;
+}
+
+/* ==========================================
+   PROGRESSO
+   ========================================== */
+body.dark-theme .progress-section {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .progress-section .progress-header {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .progress {
+    background: var(--color-bg) !important;
+}
+
+/* ==========================================
+   FILTROS E BUSCAS
+   ========================================== */
+body.dark-theme .filters-bar .search-box input {
+    background: var(--color-bg) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .filters-bar .search-box i {
+    color: var(--color-text-dim) !important;
+}
+
+body.dark-theme .filter-count {
+    background: var(--color-surface-hover) !important;
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .filter-count strong {
+    color: var(--color-text) !important;
+}
+
+/* ==========================================
+   INSIGHTS
+   ========================================== */
+body.dark-theme .insights-panel {
+    background: linear-gradient(135deg, #0B1120, #1E293B) !important;
+}
+
+body.dark-theme .insight-item {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: var(--color-text) !important;
+}
+
+/* ==========================================
+   TOAST
+   ========================================== */
+body.dark-theme .toast {
+    background: var(--color-surface) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+}
+
+/* ==========================================
+   EMPTY STATE
+   ========================================== */
+body.dark-theme .empty-state {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .empty-state h3 {
+    color: var(--color-text) !important;
+}
+
+/* ==========================================
+   SCROLLBAR
+   ========================================== */
+body.dark-theme ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+body.dark-theme ::-webkit-scrollbar-track {
+    background: var(--color-bg);
+}
+
+body.dark-theme ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+}
+
+body.dark-theme ::-webkit-scrollbar-thumb:hover {
+    background: #818CF8;
+}
+
+/* ==========================================
+   THEME TOGGLE - CORREÇÃO DEFINITIVA
+   ========================================== */
+
+/* BOTÃO BASE NO TEMA ESCURO */
+body.dark-theme .theme-toggle-btn {
+    background: transparent !important;
+    border: 1px solid var(--color-border, #334155) !important;
+    color: var(--color-text, #E2E8F0) !important;
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+body.dark-theme .theme-toggle-btn:hover {
+    background: var(--color-surface-hover, #2D3B55) !important;
+    border-color: #818CF8 !important;
+    transform: scale(1.05) !important;
+}
+
+/* ÍCONE SOL - AMARELO COM BRILHO */
+body.dark-theme .theme-toggle-btn i.fa-sun {
+    color: #FBBF24 !important;
+    font-size: 18px !important;
+    filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.4)) !important;
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* GARANTIR QUE O ÍCONE NÃO SUMa */
+body.dark-theme .theme-toggle-btn i {
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: inline-block !important;
+    pointer-events: none !important;
+}
+
+/* FORÇAR O SOL A APARECER */
+body.dark-theme .theme-toggle-btn i.fa-sun::before {
+    content: "\f185" !important;
+    display: inline-block !important;
+}
+
+body.dark-theme .theme-toggle-btn i.fa-moon {
+    display: none !important;
+}
+
+/* ==========================================
+   NOTIFICAÇÃO BELL
+   ========================================== */
+body.dark-theme .notif-bell-btn {
+    border-color: var(--color-border) !important;
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .notif-bell-btn:hover {
+    background: var(--color-surface-hover) !important;
+    color: #A78BFA !important;
+}
+
+/* ==========================================
+   DUE BILLS BANNER
+   ========================================== */
+body.dark-theme .due-bills-banner {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .due-bills-banner.warning {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .due-banner-info h4 {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .due-banner-info p {
+    color: var(--color-text-muted) !important;
+}
+
+/* ==========================================
+   SWITCH TOGGLE
+   ========================================== */
+body.dark-theme .custom-toggle .toggle-slider {
+    background-color: var(--color-border) !important;
+}
+
+body.dark-theme .custom-toggle input:checked+.toggle-slider {
+    background-color: #818CF8 !important;
+}
+
+body.dark-theme .day-chip {
+    background: var(--color-bg) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-text-light) !important;
+}
+
+body.dark-theme .day-chip:hover {
+    background: var(--color-surface-hover) !important;
+}
+
+body.dark-theme .day-chip.active {
+    background: var(--color-primary-bg) !important;
+    border-color: #818CF8 !important;
+    color: #A78BFA !important;
+}
+
+/* ==========================================
+   SYNC STATUS
+   ========================================== */
+body.dark-theme .sync-signal-bottom {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .sync-signal-bottom.status-online {
+    color: #34D399 !important;
+}
+
+body.dark-theme .sync-signal-bottom.status-offline {
+    color: #F87171 !important;
+}
+
+body.dark-theme .sync-signal-bottom.status-syncing {
+    color: #A78BFA !important;
+}
+
+body.dark-theme .sync-signal-bottom.status-pending {
+    color: #FBBF24 !important;
+}
+
+/* ==========================================
+   DIVIDENDOS / PROVENTOS
+   ========================================== */
+body.dark-theme .badge-buy {
+    background: rgba(52, 211, 153, 0.2) !important;
+    color: #34D399 !important;
+}
+
+body.dark-theme .badge-sell {
+    background: rgba(248, 113, 113, 0.2) !important;
+    color: #F87171 !important;
+}
+
+body.dark-theme .badge-dividend {
+    background: rgba(251, 191, 36, 0.2) !important;
+    color: #FBBF24 !important;
+}
+
+/* ==========================================
+   CARDS DE INVESTIMENTOS
+   ========================================== */
+body.dark-theme .investments-grid .card-stat .stat-label {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .investments-grid .card-stat .stat-value {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .investments-grid .card-stat .stat-sub {
+    color: var(--color-text-muted) !important;
+}
+
+/* ==========================================
+   MODAL DE LOGIN (FALLBACK)
+   ========================================== */
+body.dark-theme .login-container {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .login-side {
+    background: var(--color-surface) !important;
+}
+
+body.dark-theme .login-side .mobile-logo h2 {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .login-side .mobile-logo p {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .tabs {
+    background: var(--color-bg) !important;
+}
+
+body.dark-theme .tab-btn {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .tab-btn.active {
+    background: var(--color-surface) !important;
+    color: #A78BFA !important;
+}
+
+body.dark-theme .tab-btn.active[aria-selected="true"] {
+    background: var(--color-surface) !important;
+    color: #A78BFA !important;
+}
+
+body.dark-theme .tab-btn:hover {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .tab-btn.active:hover {
+    color: #A78BFA !important;
+}
+
+body.dark-theme .input-wrapper input {
+    background: var(--color-bg) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .input-wrapper input:focus {
+    border-color: #818CF8 !important;
+}
+
+body.dark-theme .divider::before,
+body.dark-theme .divider::after {
+    background: var(--color-border) !important;
+}
+
+body.dark-theme .divider span {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .btn-social {
+    background: var(--color-bg) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .btn-social:hover {
+    background: var(--color-surface-hover) !important;
+}
+
+body.dark-theme .form-links a {
+    color: #A78BFA !important;
+}
+
+body.dark-theme .form-links a:hover {
+    color: #818CF8 !important;
+}
