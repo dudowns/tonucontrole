@@ -13,29 +13,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TonuControle">
 
-    <meta name="description"
-        content="TonuControle - Controle financeiro inteligente com estilo. Gerencie receitas, despesas, metas e investimentos.">
-    <meta name="keywords" content="finanças, controle financeiro, orçamento, metas, investimentos, dinheiro">
-    <meta name="author" content="TonuControle">
-
-    <meta property="og:title" content="TonuControle - Suas Finanças">
-    <meta property="og:description" content="Gerencie suas finanças com simplicidade e inteligência.">
-    <meta property="og:image" content="icons/icon-512x512.png">
-    <meta property="og:url" content="https://tonucontrole.com">
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="TonuControle">
-
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="TonuControle - Suas Finanças">
-    <meta name="twitter:description" content="Gerencie suas finanças com simplicidade e inteligência.">
-    <meta name="twitter:image" content="icons/icon-512x512.png">
-
-    <link rel="prefetch" href="pages/dashboard.html">
-    <link rel="prefetch" href="pages/transactions.html">
-    <link rel="prefetch" href="pages/bills.html">
-    <link rel="prefetch" href="pages/settings.html">
-    <link rel="dns-prefetch" href="https://rbtxrbacdpenbslqcbbl.supabase.co">
-
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     <title>TonuControle - Suas Finanças</title>
@@ -126,7 +103,7 @@
             z-index: 0;
         }
 
-        /* 🔥 LOGO COM GIRO DE VOLANTE */
+        /* 🔥 SPLASH: LOGO SOBE E DESCE (FLOAT) */
         .splash-logo-wrapper .logo-img {
             position: relative;
             z-index: 1;
@@ -134,55 +111,37 @@
             height: 100%;
             object-fit: cover;
             display: block;
-            animation: girarVolante 3s ease-in-out infinite !important;
-            -webkit-animation: girarVolante 3s ease-in-out infinite !important;
+            animation: floatSplash 3s ease-in-out infinite !important;
+            -webkit-animation: floatSplash 3s ease-in-out infinite !important;
             animation-play-state: running !important;
         }
 
-        /* ==========================================
-           ANIMAÇÃO DE VOLANTE (GIRO 360°)
-           ========================================== */
-        @keyframes girarVolante {
+        /* 🔥 FLOAT - SOBE E DESCE */
+        @keyframes floatSplash {
             0% {
-                transform: rotate(0deg) scale(1);
-            }
-
-            25% {
-                transform: rotate(90deg) scale(1.08);
+                transform: translateY(0px) scale(1);
             }
 
             50% {
-                transform: rotate(180deg) scale(1);
-            }
-
-            75% {
-                transform: rotate(270deg) scale(1.08);
+                transform: translateY(-12px) scale(1.04);
             }
 
             100% {
-                transform: rotate(360deg) scale(1);
+                transform: translateY(0px) scale(1);
             }
         }
 
-        @-webkit-keyframes girarVolante {
+        @-webkit-keyframes floatSplash {
             0% {
-                -webkit-transform: rotate(0deg) scale(1);
-            }
-
-            25% {
-                -webkit-transform: rotate(90deg) scale(1.08);
+                -webkit-transform: translateY(0px) scale(1);
             }
 
             50% {
-                -webkit-transform: rotate(180deg) scale(1);
-            }
-
-            75% {
-                -webkit-transform: rotate(270deg) scale(1.08);
+                -webkit-transform: translateY(-12px) scale(1.04);
             }
 
             100% {
-                -webkit-transform: rotate(360deg) scale(1);
+                -webkit-transform: translateY(0px) scale(1);
             }
         }
 
@@ -448,7 +407,7 @@
             z-index: 1;
         }
 
-        /* 🔥 LOGO DO WELCOME COM GIRO DE VOLANTE */
+        /* 🔥 LOGIN: LOGO VOLANTE (VAI E VOLTA) */
         .welcome-logo {
             width: 80px;
             height: 80px;
@@ -461,7 +420,7 @@
             overflow: hidden;
             backdrop-filter: blur(4px);
             border: 2px solid rgba(255, 255, 255, 0.1);
-            animation: girarVolante 3s ease-in-out infinite;
+            animation: volanteLogin 3s ease-in-out infinite;
         }
 
         .welcome-logo img {
@@ -469,6 +428,51 @@
             height: 100%;
             object-fit: cover;
             display: block;
+        }
+
+        /* 🔥 VOLANTE - VAI E VOLTA */
+        @keyframes volanteLogin {
+            0% {
+                transform: rotate(-12deg) scale(1);
+            }
+
+            25% {
+                transform: rotate(-4deg) scale(1.05);
+            }
+
+            50% {
+                transform: rotate(12deg) scale(1);
+            }
+
+            75% {
+                transform: rotate(4deg) scale(1.05);
+            }
+
+            100% {
+                transform: rotate(-12deg) scale(1);
+            }
+        }
+
+        @-webkit-keyframes volanteLogin {
+            0% {
+                -webkit-transform: rotate(-12deg) scale(1);
+            }
+
+            25% {
+                -webkit-transform: rotate(-4deg) scale(1.05);
+            }
+
+            50% {
+                -webkit-transform: rotate(12deg) scale(1);
+            }
+
+            75% {
+                -webkit-transform: rotate(4deg) scale(1.05);
+            }
+
+            100% {
+                -webkit-transform: rotate(-12deg) scale(1);
+            }
         }
 
         @keyframes titleGlow {
@@ -1463,7 +1467,7 @@
         window.__TONU_IS_LOGIN_PAGE = true;
 
         // ==========================================
-        // 🔥 STORAGE SEGURO (FALLBACK)
+        // STORAGE SEGURO (FALLBACK)
         // ==========================================
         const storage = {
             get: function (key) {
@@ -1517,26 +1521,26 @@
         // SPLASH SCREEN
         // ==========================================
         document.addEventListener('DOMContentLoaded', function () {
-            // 🔥 LIMPAR FLAG DE LOGOUT COM STORAGE SEGURO
+            // Limpar flag de logout
             try {
                 storage.remove('tonu_logout_in_progress');
             } catch (e) { }
 
-            // 🔥 FORÇAR ANIMAÇÃO DE VOLANTE NO LOGO DO SPLASH
+            // 🔥 SPLASH: LOGO SOBE E DESCE
             const splashLogo = document.getElementById('logoAnimado');
             if (splashLogo) {
-                splashLogo.style.animation = 'girarVolante 3s ease-in-out infinite !important';
-                splashLogo.style.webkitAnimation = 'girarVolante 3s ease-in-out infinite !important';
+                splashLogo.style.animation = 'floatSplash 3s ease-in-out infinite !important';
+                splashLogo.style.webkitAnimation = 'floatSplash 3s ease-in-out infinite !important';
                 splashLogo.style.animationPlayState = 'running';
-                console.log('🔥 Logo do splash girando como volante!');
+                console.log('🔥 Splash: logo flutuando!');
             }
 
-            // 🔥 FORÇAR ANIMAÇÃO DE VOLANTE NO LOGO DO LOGIN
+            // 🔥 LOGIN: LOGO VOLANTE (VAI E VOLTA)
             const loginLogo = document.getElementById('loginLogo');
             if (loginLogo) {
-                loginLogo.style.animation = 'girarVolante 3s ease-in-out infinite';
+                loginLogo.style.animation = 'volanteLogin 3s ease-in-out infinite';
                 loginLogo.style.animationPlayState = 'running';
-                console.log('🔥 Logo do login girando como volante!');
+                console.log('🔥 Login: logo volante!');
             }
 
             // Verificar biometria
@@ -1617,7 +1621,7 @@
                 document.documentElement.setAttribute('data-theme', 'dark');
             }
 
-            console.log('✅ TonuControle Login carregado com volante girando!');
+            console.log('✅ TonuControle Login carregado!');
         });
 
         // ==========================================
@@ -1717,7 +1721,6 @@
                     await createDefaultCategories(data.user.id);
                 }
 
-                // 🔥 STORAGE SEGURO
                 try {
                     storage.remove('tonu_logout_in_progress');
                 } catch (e) { }
@@ -1798,7 +1801,6 @@
                     await createDefaultCategories(data.user.id);
                 }
 
-                // 🔥 STORAGE SEGURO
                 try {
                     storage.remove('tonu_logout_in_progress');
                 } catch (e) { }
@@ -2055,7 +2057,7 @@
         window.isValidEmail = isValidEmail;
         window.storage = storage;
 
-        console.log('✅ TonuControle Login carregado com volante girando!');
+        console.log('✅ TonuControle Login carregado!');
     </script>
 
 </body>
