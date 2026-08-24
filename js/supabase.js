@@ -5,15 +5,42 @@
 const SUPABASE_URL = 'https://rbtxrbacdpenbslqcbbl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidHhyYmFjZHBlbmJzbHFjYmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MDA5MjksImV4cCI6MjEwMTk3NjkyOX0.VDmJ-pty8oLzkgEad4WBpk7leR9ZR-b_bXXUE3HkPcM';
 
+// ============================================
+// 🔥 getBaseUrl() - CORRIGIDO PARA GITHUB PAGES
+// ============================================
 function getBaseUrl() {
     var hostname = window.location.hostname;
-    if (hostname.includes('onrender.com')) return window.location.origin;
-    if (hostname.includes('github.io')) return window.location.origin + '/tonucontrole';
-    return window.location.origin;
+    var origin = window.location.origin;
+    var pathname = window.location.pathname;
+
+    // 🔥 GitHub Pages
+    if (hostname.includes('github.io')) {
+        // Remove o nome do repositório do pathname
+        var parts = pathname.split('/');
+        if (parts.length > 1 && parts[1] !== '' && parts[1] !== 'index.html') {
+            return origin + '/' + parts[1];
+        }
+        return origin;
+    }
+
+    // Render.com / Vercel / Netlify / localhost
+    if (hostname.includes('onrender.com') ||
+        hostname.includes('vercel.app') ||
+        hostname.includes('netlify.app') ||
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1') {
+        return origin;
+    }
+
+    // Fallback
+    return origin;
 }
 
+// 🔥 GARANTIR QUE A FUNÇÃO ESTÁ DISPONÍVEL GLOBALMENTE
+window.getBaseUrl = getBaseUrl;
+
 // ============================================
-// 🔥 CORREÇÃO: CRIAR CLIENTE SUPABASE COM FALLBACK
+// CRIAR CLIENTE SUPABASE
 // ============================================
 var supabaseClient;
 
@@ -28,7 +55,6 @@ if (typeof supabase !== 'undefined' && supabase.createClient) {
         }
     });
 } else if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-    // Fallback: usar window.supabase
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
             autoRefreshToken: true,
@@ -38,7 +64,6 @@ if (typeof supabase !== 'undefined' && supabase.createClient) {
         }
     });
 } else {
-    // Fallback: criar cliente manualmente
     console.warn('⚠️ Supabase não encontrado globalmente, tentando criar manualmente');
     supabaseClient = {
         auth: {
@@ -65,9 +90,7 @@ if (typeof supabase !== 'undefined' && supabase.createClient) {
     };
 }
 
-// Garantir que supabaseClient esteja disponível globalmente
 window.supabaseClient = supabaseClient;
-window.getBaseUrl = getBaseUrl;
 
 console.log('✅ Supabase client inicializado');
 console.log('📌 Base URL:', getBaseUrl());

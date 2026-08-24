@@ -4,8 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; font-src * data:; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'; img-src * data: blob:; connect-src *;">
+
+    <!-- 🔥 CSP CORRIGIDO -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; 
+                   font-src 'self' https: data:; 
+                   style-src 'self' 'unsafe-inline' https:; 
+                   script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; 
+                   img-src 'self' data: https: blob:; 
+                   connect-src 'self' https: wss:;">
+
     <meta name="theme-color" content="#6C5CE7">
 
     <meta name="mobile-web-app-capable" content="yes">
@@ -24,6 +31,29 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/theme.css">
     <link rel="stylesheet" href="./css/dark-theme.css">
+
+    <!-- ==========================================
+    🔥 SCRIPT DE EMERGÊNCIA - getBaseUrl ANTES DE TUDO
+    ========================================== -->
+    <script>
+        // 🔥 DEFINIR getBaseUrl ANTES DE TUDO
+        window.getBaseUrl = function () {
+            var hostname = window.location.hostname;
+            var origin = window.location.origin;
+            var pathname = window.location.pathname;
+
+            if (hostname.includes('github.io')) {
+                var parts = pathname.split('/');
+                if (parts.length > 1 && parts[1] !== '' && parts[1] !== 'index.html') {
+                    return origin + '/' + parts[1];
+                }
+                return origin;
+            }
+            return origin;
+        };
+
+        console.log('📌 Base URL (emergência):', window.getBaseUrl());
+    </script>
 
     <style>
         /* ==========================================
@@ -103,7 +133,6 @@
             z-index: 0;
         }
 
-        /* 🔥 SPLASH: LOGO SOBE E DESCE (FLOAT) */
         .splash-logo-wrapper .logo-img {
             position: relative;
             z-index: 1;
@@ -116,7 +145,6 @@
             animation-play-state: running !important;
         }
 
-        /* 🔥 FLOAT - SOBE E DESCE */
         @keyframes floatSplash {
             0% {
                 transform: translateY(0px) scale(1);
@@ -165,8 +193,7 @@
             }
 
             50% {
-                text-shadow: 0 0 40px rgba(108, 92, 231, 0.4),
-                    0 0 80px rgba(108, 92, 231, 0.1);
+                text-shadow: 0 0 40px rgba(108, 92, 231, 0.4), 0 0 80px rgba(108, 92, 231, 0.1);
             }
         }
 
@@ -407,7 +434,6 @@
             z-index: 1;
         }
 
-        /* 🔥 LOGIN: LOGO VOLANTE (VAI E VOLTA) */
         .welcome-logo {
             width: 80px;
             height: 80px;
@@ -430,7 +456,6 @@
             display: block;
         }
 
-        /* 🔥 VOLANTE - VAI E VOLTA */
         @keyframes volanteLogin {
             0% {
                 transform: rotate(-12deg) scale(1);
@@ -483,8 +508,7 @@
             }
 
             50% {
-                text-shadow: 0 0 40px rgba(108, 92, 231, 0.5),
-                    0 0 80px rgba(108, 92, 231, 0.15);
+                text-shadow: 0 0 40px rgba(108, 92, 231, 0.5), 0 0 80px rgba(108, 92, 231, 0.15);
             }
         }
 
@@ -1443,22 +1467,50 @@
     </div>
 
     <!-- ==========================================
-SCRIPTS - CAMINHOS CORRIGIDOS COM ./
-========================================== -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+    SCRIPTS - ORDEM CORRETA COM FALLBACK
+    ========================================== -->
+
+    <!-- 1. Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- 2. EMERGÊNCIA: getBaseUrl (já definido no head, mas reforçando) -->
+    <script>
+        if (typeof window.getBaseUrl !== 'function') {
+            window.getBaseUrl = function () {
+                var hostname = window.location.hostname;
+                var origin = window.location.origin;
+                var pathname = window.location.pathname;
+
+                if (hostname.includes('github.io')) {
+                    var parts = pathname.split('/');
+                    if (parts.length > 1 && parts[1] !== '' && parts[1] !== 'index.html') {
+                        return origin + '/' + parts[1];
+                    }
+                    return origin;
+                }
+                return origin;
+            };
+            console.log('📌 Base URL (fallback):', window.getBaseUrl());
+        }
     </script>
-    <script src="./js/supabase.js">
-    </script>
-    <script src="./js/core.js">
-    </script>
-    <script src="./js/security.js">
-    </script>
-    <script src="./js/auth.js">
-    </script>
-    <script src="./js/validators.js">
-    </script>
-    <script src="./js/sw-register.js">
-    </script>
+
+    <!-- 3. Supabase Config -->
+    <script src="./js/supabase.js"></script>
+
+    <!-- 4. Core -->
+    <script src="./js/core.js"></script>
+
+    <!-- 5. Security -->
+    <script src="./js/security.js"></script>
+
+    <!-- 6. Auth -->
+    <script src="./js/auth.js"></script>
+
+    <!-- 7. Validators -->
+    <script src="./js/validators.js"></script>
+
+    <!-- 8. Service Worker -->
+    <script src="./js/sw-register.js"></script>
 
     <script>
         // ==========================================
@@ -1725,8 +1777,13 @@ SCRIPTS - CAMINHOS CORRIGIDOS COM ./
                     storage.remove('tonu_logout_in_progress');
                 } catch (e) { }
 
+                // 🔥 REDIRECIONAMENTO CORRIGIDO
+                const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
+                const redirectUrl = baseUrl + '/pages/dashboard.html';
+                console.log('🔀 Redirecionando para:', redirectUrl);
+
                 setTimeout(() => {
-                    window.location.href = './pages/dashboard.html';
+                    window.location.href = redirectUrl;
                 }, 800);
 
             } catch (error) {
@@ -1805,13 +1862,15 @@ SCRIPTS - CAMINHOS CORRIGIDOS COM ./
                     storage.remove('tonu_logout_in_progress');
                 } catch (e) { }
 
+                const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
+
                 showToast(data.session ? 'Conta criada! 🎉' : 'Conta criada! Verifique seu e-mail 📧', 'success');
 
                 setTimeout(() => {
                     if (data.session) {
-                        window.location.href = './pages/dashboard.html';
+                        window.location.href = baseUrl + '/pages/dashboard.html';
                     } else {
-                        window.location.href = './index.html';
+                        window.location.href = baseUrl + '/index.html';
                     }
                 }, 1500);
 
@@ -1861,10 +1920,13 @@ SCRIPTS - CAMINHOS CORRIGIDOS COM ./
                     throw new Error('Módulo de autenticação não disponível.');
                 }
 
+                const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
+                const redirectUrl = baseUrl + '/pages/dashboard.html';
+
                 const { data, error } = await window.supabaseClient.auth.signInWithOAuth({
                     provider: provider,
                     options: {
-                        redirectTo: window.location.origin + '/pages/dashboard.html',
+                        redirectTo: redirectUrl,
                         queryParams: provider === 'google' ? {
                             access_type: 'offline',
                             prompt: 'select_account'
@@ -1932,8 +1994,9 @@ SCRIPTS - CAMINHOS CORRIGIDOS COM ./
                 const user = await window.TonuBiometrics.authenticate();
                 if (user) {
                     showToast('✅ Autenticado com sucesso! Entrando...', 'success');
+                    const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
                     setTimeout(() => {
-                        window.location.href = './pages/dashboard.html';
+                        window.location.href = baseUrl + '/pages/dashboard.html';
                     }, 500);
                 }
             } catch (err) {
