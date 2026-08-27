@@ -4,9 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6C5CE7">
     <title>Dashboard | TonuControle</title>
 
     <!-- Fontes e Ícones -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -15,9 +18,12 @@
     <link rel="stylesheet" href="../css/dark-theme.css">
     <link rel="stylesheet" href="../css/sidebar-patch.css">
     <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/notifications.css">
+    <link rel="stylesheet" href="../css/sync.css">
 </head>
 
 <body>
+
     <div class="app-shell">
         <!-- SIDEBAR -->
         <aside class="sidebar hidden" id="sidebar">
@@ -52,17 +58,64 @@
                     <h1>Dashboard</h1>
                 </div>
                 <div class="topbar-actions">
-                    <button class="theme-toggle-btn" onclick="toggleTheme()">
+                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro">
                         <i class="fas fa-moon"></i>
                     </button>
-                    <button class="btn btn-primary" onclick="openModal()">
-                        <i class="fas fa-plus"></i> Nova Transação
+                    <button id="notifBellBtn" class="notif-bell-btn" onclick="window.toggleNotificationDropdown(event)"
+                        title="Lembretes e Notificações">
+                        <i class="fas fa-bell"></i>
+                        <span class="notif-badge hidden" id="notifBadgeCount">0</span>
+                    </button>
+                    <button class="btn btn-outline" onclick="openCashFlowModal()" title="Projeção de Fluxo de Caixa">
+                        <i class="fas fa-chart-line"></i> <span class="hide-mobile">Projeção</span>
+                    </button>
+                    <button class="btn btn-outline" onclick="TonuWeeklyReport.showWeeklySummaryModal()"
+                        title="Resumo Semanal">
+                        <i class="fas fa-envelope-open-text"></i> <span class="hide-mobile">Semanal</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportarPDF()" title="Exportar relatório em PDF">
+                        <i class="fas fa-file-pdf"></i> <span class="hide-mobile">PDF</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="window.location.href='transactions.html'">
+                        <i class="fas fa-plus"></i> Nova
                     </button>
                 </div>
             </header>
 
             <!-- CONTENT -->
             <div class="content">
+                <!-- BANNER DE CONTAS ATRASADAS -->
+                <div id="dueBillsWarningBanner" class="due-bills-banner" style="display:none;">
+                    <div class="due-banner-left">
+                        <div class="due-banner-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="due-banner-info">
+                            <h4 id="dueBannerTitle">⚠️ Atenção: Você tem contas em atraso!</h4>
+                            <p id="dueBannerDesc">Acesse a lista e efetue o pagamento para regularizar suas contas.</p>
+                        </div>
+                    </div>
+                    <div class="due-banner-actions">
+                        <button class="btn btn-danger btn-sm" onclick="window.location.href='bills.html'">
+                            <i class="fas fa-file-invoice-dollar"></i> Ver Contas
+                        </button>
+                        <button class="btn btn-ghost btn-sm"
+                            onclick="document.getElementById('dueBillsWarningBanner').style.display='none'">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SELECTOR DE MÊS -->
+                <div class="month-selector">
+                    <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="month-label" id="selectedMonth">Agosto 2026</span>
+                    <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="btn-today" onclick="goToCurrentMonth()">Hoje</button>
+                </div>
+
                 <!-- Cards de Resumo -->
                 <div class="dashboard-grid" id="summaryGrid">
                     <!-- Patrimônio -->
@@ -119,11 +172,12 @@
                 <!-- Alertas -->
                 <div id="alertContainer"></div>
 
-                <!-- Gráficos -->
+                <!-- GRÁFICOS -->
                 <div class="charts-grid">
                     <div class="card">
                         <div class="card-header">
                             <h3>📊 Evolução Mensal</h3>
+                            <span class="badge badge-muted">Últimos 6 meses</span>
                         </div>
                         <div class="chart-wrap">
                             <canvas id="monthlyChart"></canvas>
@@ -132,6 +186,7 @@
                     <div class="card">
                         <div class="card-header">
                             <h3>🎯 Distribuição de Gastos</h3>
+                            <span class="badge badge-muted">Mês atual</span>
                         </div>
                         <div class="chart-wrap">
                             <canvas id="categoryChart"></canvas>
@@ -139,7 +194,7 @@
                     </div>
                 </div>
 
-                <!-- Últimas Transações -->
+                <!-- ÚLTIMAS TRANSAÇÕES -->
                 <div class="card transactions-card">
                     <div class="card-header">
                         <h3>📋 Últimas Transações</h3>
@@ -164,9 +219,78 @@
     <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="../js/supabase.js"></script>
     <script src="../js/core.js"></script>
+    <script src="../js/security.js"></script>
+    <script src="../js/financial-tools.js"></script>
+    <script src="../js/sync.js"></script>
+    <script src="../js/notifications.js"></script>
     <script src="../js/dashboard.js"></script>
+    <script src="../js/sw-register.js"></script>
+
+    <script>
+        // ==========================================
+        // DOM READY - INICIALIZAR TEMA
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('tonu_theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.querySelector('.theme-toggle-btn i')?.classList.replace('fa-moon', 'fa-sun');
+            }
+
+            // Fechar sidebar com ESC
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeSidebar();
+            });
+
+            console.log('✅ Dashboard.html carregado!');
+        });
+
+        // ==========================================
+        // RESPONSIVO - SIDEBAR
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function () {
+            const main = document.getElementById('mainContent');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            if (window.innerWidth <= 768) {
+                if (main) main.classList.add('full');
+                if (sidebar) sidebar.classList.add('hidden');
+                if (overlay) overlay.classList.remove('show');
+            } else {
+                if (main) main.classList.remove('full');
+                if (sidebar) sidebar.classList.remove('hidden');
+            }
+        });
+
+        window.addEventListener('resize', function () {
+            const main = document.getElementById('mainContent');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            if (window.innerWidth <= 768) {
+                if (main) main.classList.add('full');
+                if (sidebar) sidebar.classList.add('hidden');
+                if (overlay) overlay.classList.remove('show');
+            } else {
+                if (main) main.classList.remove('full');
+                if (sidebar) sidebar.classList.remove('hidden');
+            }
+        });
+
+        // ==========================================
+        // FECHAR SIDEBAR AO CLICAR FORA
+        // ==========================================
+        document.addEventListener('click', function (e) {
+            if (e.target.classList.contains('sidebar-overlay')) {
+                closeSidebar();
+            }
+        });
+    </script>
 </body>
 
 </html>
