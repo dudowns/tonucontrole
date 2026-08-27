@@ -41,6 +41,66 @@ function getMonthName(month) {
     return months[month];
 }
 
+function formatCurrency(value) {
+    const num = Number(value) || 0;
+    try {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+    } catch {
+        return 'R$ ' + num.toFixed(2);
+    }
+}
+
+function formatDate(date, format = 'short') {
+    if (!date) return '--/--/----';
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '--/--/----';
+    if (format === 'short') {
+        return d.toLocaleDateString('pt-BR');
+    }
+    return d.toLocaleDateString('pt-BR');
+}
+
+function getToday() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function stripHTML(str) {
+    if (!str) return '';
+    const temp = document.createElement('div');
+    temp.textContent = str;
+    return temp.innerHTML;
+}
+
+function updateMonthDisplay(elementId, offset) {
+    offset = offset || 0;
+    const d = new Date();
+    d.setMonth(d.getMonth() + offset);
+    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.textContent = months[d.getMonth()] + ' ' + d.getFullYear();
+    }
+    return d;
+}
+
+// ✨ FUNÇÃO DE SANITIZAÇÃO
+function sanitizeReportText(rawText) {
+    if (!rawText || typeof rawText !== 'string') return '';
+    return rawText
+        .replace(/Ø=[^\s]{1,2}/g, '')
+        .replace(/[^\x20-\x7EÀ-ž]/g, '')
+        .replace(/\s*\(pago\)\s*/gi, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
+
 function inferClass(ticker) {
     const tk = ticker.toUpperCase();
     if (/^(KN|HGLG|MXRF|GGRC|RZTR|XPLG|VISC|BTLG|CPTS|IRDM|BCFF|MALL|HFOF|XPML|KNSC|RECR|HGRE|TRXF|TGAR|VILG|RECT|RBRF|RBRP|MCCI|PVBI|VRTA|ALZR|LVBI|JSRE|PATL|DEVA|RBVA|HCTR|VINO|URPR|SNFF|BARI|HSAF|KORE|MCHF|VGIP|VGIR|RBRY|KNIP|KNRI|KNCR)/.test(tk)) {
@@ -192,7 +252,6 @@ async function loadCategories() {
         }
 
         console.log('✅ Categorias carregadas do Supabase:', categories.length);
-        console.log('📋 Categorias:', categories.map(c => ({ name: c.name, icon: c.icon, color: c.color })));
     } catch (error) {
         console.error('❌ Erro ao carregar categorias:', error);
         categories = [];
@@ -1612,22 +1671,42 @@ window.addEventListener('resize', function () {
 });
 
 // ============================================
-// EXPORTAR RELATÓRIO PDF
+// 📄 EXPORTAR RELATÓRIO PDF - VERSÃO ROBUSTA
 // ============================================
 async function exportarPDF() {
     try {
-        showToast('📄 Gerando PDF...', 'info');
+        showToast('Gerando PDF...', 'info');
 
+        // Verificar se o jsPDF está disponível
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            throw new Error('Biblioteca jsPDF não foi carregada.');
+        }
+
+        if (!currentUser) {
+            throw new Error('Usuário não autenticado.');
+        }
+
+        // ============================================
+        // DEFINIR MÊS SELECIONADO
+        // ============================================
         const d = new Date();
         d.setMonth(d.getMonth() + currentMonthOffset);
+
         const year = d.getFullYear();
         const month = d.getMonth();
-        const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+        const monthName = d.toLocaleDateString('pt-BR', {
+            month: 'long',
+            year: 'numeric'
+        });
 
         const lastDay = getLastDayOfMonth(year, month);
         const firstDay = formatDateKey(year, month, 1);
         const lastDayStr = formatDateKey(year, month, lastDay);
 
+        // ============================================
+        // BUSCAR TRANSAÇÕES
+        // ============================================
         const { data: transactions, error } = await supabaseClient
             .from('transactions')
             .select('*')
@@ -1635,110 +1714,581 @@ async function exportarPDF() {
             .eq('paid', true)
             .eq('is_bill', false)
             .gte('date', firstDay)
-            .lte('date', lastDayStr);
+            .lte('date', lastDayStr)
+            .order('date', { ascending: false });
 
-        if (error) throw error;
-
-        let income = 0,
-            expense = 0;
-        let incomeCount = 0,
-            expenseCount = 0;
-
-        if (transactions) {
-            transactions.forEach(t => {
-                if (t.type === 'income') {
-                    income += Number(t.amount);
-                    incomeCount++;
-                } else {
-                    expense += Number(t.amount);
-                    expenseCount++;
-                }
-            });
+        if (error) {
+            throw error;
         }
+
+        const txs = transactions || [];
+
+        // ============================================
+        // CALCULAR RESUMO
+        // ============================================
+        let income = 0;
+        let expense = 0;
+
+        let incomeCount = 0;
+        let expenseCount = 0;
+
+        txs.forEach(t => {
+            const amount = Number(t.amount) || 0;
+
+            if (t.type === 'income') {
+                income += amount;
+                incomeCount++;
+            } else {
+                expense += amount;
+                expenseCount++;
+            }
+        });
 
         const balance = income - expense;
 
+        // ============================================
+        // CRIAR PDF
+        // ============================================
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('p', 'pt', 'a4');
 
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'pt',
+            format: 'a4'
+        });
+
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        const margin = 40;
+
+        // ============================================
+        // CORES
+        // ============================================
+        const colors = {
+            primary: [108, 92, 231],
+            dark: [30, 41, 59],
+            muted: [100, 116, 139],
+            light: [241, 245, 249],
+            white: [255, 255, 255],
+            green: [0, 184, 148],
+            red: [255, 118, 117],
+            yellow: [253, 203, 110],
+            border: [226, 232, 240]
+        };
+
+        // ============================================
+        // FUNÇÕES AUXILIARES DO PDF
+        // ============================================
+
+        function setColor(rgb) {
+            doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+        }
+
+        function setFill(rgb) {
+            doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+        }
+
+        function setDraw(rgb) {
+            doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+        }
+
+        function drawRoundedCard(x, y, w, h, fillColor) {
+            setFill(fillColor);
+            doc.roundedRect(x, y, w, h, 8, 8, 'F');
+        }
+
+        function drawLine(x1, y1, x2, y2, color) {
+            setDraw(color);
+            doc.setLineWidth(0.7);
+            doc.line(x1, y1, x2, y2);
+        }
+
+        function cleanText(text) {
+            if (text === null || text === undefined) {
+                return '';
+            }
+
+            return String(text)
+                .replace(/[\u{1F300}-\u{1FAFF}]/gu, '')
+                .replace(/[\u{2600}-\u{27BF}]/gu, '')
+                .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function safeDescription(text) {
+            const cleaned = cleanText(text);
+
+            if (cleaned.length > 55) {
+                return cleaned.substring(0, 52) + '...';
+            }
+
+            return cleaned || 'Sem descricao';
+        }
+
+        function formatPdfCurrency(value) {
+            const number = Number(value) || 0;
+
+            return number.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
+        }
+
+        function formatPdfDate(dateValue) {
+            if (!dateValue) {
+                return '-';
+            }
+
+            const date = new Date(dateValue + 'T00:00:00');
+
+            if (Number.isNaN(date.getTime())) {
+                return '-';
+            }
+
+            return date.toLocaleDateString('pt-BR');
+        }
+
+        // ============================================
+        // CABEÇALHO
+        // ============================================
+        setFill(colors.primary);
+        doc.rect(0, 0, pageWidth, 8, 'F');
+
+        setColor(colors.primary);
+        doc.setFont('helvetica', 'bold');
         doc.setFontSize(24);
-        doc.setTextColor(108, 92, 231);
-        doc.text('💰 TonuControle', 40, 60);
+        doc.text('TonuControle', margin, 55);
 
-        doc.setFontSize(14);
-        doc.setTextColor(44, 62, 80);
-        doc.text('Relatorio - ' + monthName, 40, 90);
+        setColor(colors.dark);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(13);
+        doc.text(
+            'Relatorio financeiro - ' + monthName,
+            margin,
+            80
+        );
 
-        doc.setFontSize(12);
-        doc.text('📊 Resumo do Mes', 40, 130);
-        doc.setFontSize(11);
-        doc.setTextColor(0, 0, 0);
+        setColor(colors.muted);
+        doc.setFontSize(9);
+        doc.text(
+            'Periodo: ' + formatPdfDate(firstDay) + ' ate ' + formatPdfDate(lastDayStr),
+            margin,
+            98
+        );
 
-        let y = 160;
-        doc.text('📈 Receitas: ' + formatCurrency(income) + ' (' + incomeCount + ' transacoes)', 50, y);
+        // Linha
+        drawLine(
+            margin,
+            115,
+            pageWidth - margin,
+            115,
+            colors.border
+        );
+
+        // ============================================
+        // TITULO RESUMO
+        // ============================================
+        setColor(colors.dark);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.text('Resumo do mes', margin, 145);
+
+        // ============================================
+        // CARDS DO RESUMO
+        // ============================================
+        const cardGap = 10;
+        const cardWidth = (pageWidth - margin * 2 - cardGap * 2) / 3;
+        const cardHeight = 78;
+        const cardY = 165;
+
+        // RECEITAS
+        drawRoundedCard(
+            margin,
+            cardY,
+            cardWidth,
+            cardHeight,
+            [240, 253, 250]
+        );
+
+        setColor(colors.muted);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text('RECEITAS', margin + 14, cardY + 20);
+
+        setColor(colors.green);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.text(
+            formatPdfCurrency(income),
+            margin + 14,
+            cardY + 43
+        );
+
+        setColor(colors.muted);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text(
+            incomeCount + (incomeCount === 1 ? ' transacao' : ' transacoes'),
+            margin + 14,
+            cardY + 62
+        );
+
+        // DESPESAS
+        const expenseX = margin + cardWidth + cardGap;
+
+        drawRoundedCard(
+            expenseX,
+            cardY,
+            cardWidth,
+            cardHeight,
+            [255, 245, 245]
+        );
+
+        setColor(colors.muted);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text('DESPESAS', expenseX + 14, cardY + 20);
+
+        setColor(colors.red);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.text(
+            formatPdfCurrency(expense),
+            expenseX + 14,
+            cardY + 43
+        );
+
+        setColor(colors.muted);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text(
+            expenseCount + (expenseCount === 1 ? ' transacao' : ' transacoes'),
+            expenseX + 14,
+            cardY + 62
+        );
+
+        // SALDO
+        const balanceX = expenseX + cardWidth + cardGap;
+
+        drawRoundedCard(
+            balanceX,
+            cardY,
+            cardWidth,
+            cardHeight,
+            balance >= 0 ?
+                [245, 243, 255] :
+                [255, 245, 245]
+        );
+
+        setColor(colors.muted);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text('SALDO', balanceX + 14, cardY + 20);
+
+        setColor(
+            balance >= 0 ?
+                colors.primary :
+                colors.red
+        );
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.text(
+            formatPdfCurrency(balance),
+            balanceX + 14,
+            cardY + 43
+        );
+
+        setColor(colors.muted);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+
+        doc.text(
+            balance >= 0 ? 'Saldo positivo' : 'Saldo negativo',
+            balanceX + 14,
+            cardY + 62
+        );
+
+        // ============================================
+        // LISTA DE TRANSAÇÕES
+        // ============================================
+        let y = cardY + cardHeight + 35;
+
+        setColor(colors.dark);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.text('Transacoes do mes', margin, y);
+
         y += 20;
-        doc.text('📉 Despesas: ' + formatCurrency(expense) + ' (' + expenseCount + ' transacoes)', 50, y);
-        y += 20;
 
-        const balanceColor = balance >= 0 ? '#00B894' : '#FF7675';
-        doc.setTextColor(balanceColor);
-        doc.text('💼 Saldo: ' + formatCurrency(balance), 50, y);
-        doc.setTextColor(0, 0, 0);
-        y += 30;
+        if (txs.length === 0) {
+            drawRoundedCard(
+                margin,
+                y,
+                pageWidth - margin * 2,
+                60,
+                colors.light
+            );
 
-        if (transactions && transactions.length > 0) {
-            doc.setFontSize(12);
-            doc.text('📋 Ultimas Transacoes:', 40, y + 10);
-            y += 30;
-
-            const sorted = [...transactions]
-                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .slice(0, 15);
-
+            setColor(colors.muted);
+            doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
+            doc.text(
+                'Nenhuma transacao registrada neste mes.',
+                margin + 15,
+                y + 35
+            );
+        } else {
 
-            sorted.forEach((t, i) => {
-                const type = t.type === 'income' ? '✅ Receita' : '🔴 Despesa';
-                const date = new Date(t.date).toLocaleDateString('pt-BR');
-                const desc = t.description.length > 30 ? t.description.substring(0, 27) + '...' : t
-                    .description;
-                const amount = formatCurrency(t.amount);
+            // ============================================
+            // CABEÇALHO DA TABELA
+            // ============================================
+            const colDate = margin + 8;
+            const colDescription = margin + 85;
+            const colType = margin + 370;
+            const colAmount = pageWidth - margin - 8;
 
-                const line = (i + 1) + '. ' + date + ' - ' + desc + ' - ' + type + ' - ' + amount;
-                const lines = doc.splitTextToSize(line, 450);
+            setFill(colors.primary);
+            doc.roundedRect(
+                margin,
+                y,
+                pageWidth - margin * 2,
+                25,
+                5,
+                5,
+                'F'
+            );
 
-                if (y + 20 > 750) {
+            setColor(colors.white);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
+
+            doc.text('DATA', colDate, y + 16);
+            doc.text('DESCRICAO', colDescription, y + 16);
+            doc.text('TIPO', colType, y + 16);
+            doc.text('VALOR', colAmount, y + 16, {
+                align: 'right'
+            });
+
+            y += 25;
+
+            // ============================================
+            // TRANSAÇÕES
+            // ============================================
+            txs.forEach((t, index) => {
+
+                const rowHeight = 32;
+
+                // Nova página
+                if (y + rowHeight > pageHeight - 55) {
+
                     doc.addPage();
-                    y = 50;
+
+                    // Barra superior
+                    setFill(colors.primary);
+                    doc.rect(0, 0, pageWidth, 8, 'F');
+
+                    y = 40;
+
+                    setColor(colors.dark);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(11);
+                    doc.text(
+                        'Transacoes do mes - continuacao',
+                        margin,
+                        y
+                    );
+
+                    y += 18;
+
+                    // Cabeçalho novamente
+                    setFill(colors.primary);
+
+                    doc.roundedRect(
+                        margin,
+                        y,
+                        pageWidth - margin * 2,
+                        25,
+                        5,
+                        5,
+                        'F'
+                    );
+
+                    setColor(colors.white);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(8);
+
+                    doc.text('DATA', colDate, y + 16);
+                    doc.text('DESCRICAO', colDescription, y + 16);
+                    doc.text('TIPO', colType, y + 16);
+                    doc.text(
+                        'VALOR',
+                        colAmount,
+                        y + 16, { align: 'right' }
+                    );
+
+                    y += 25;
                 }
 
-                doc.text(lines, 50, y);
-                y += 16;
+                // Fundo alternado
+                if (index % 2 === 0) {
+                    setFill([248, 250, 252]);
+
+                    doc.rect(
+                        margin,
+                        y,
+                        pageWidth - margin * 2,
+                        rowHeight,
+                        'F'
+                    );
+                }
+
+                const isIncome = t.type === 'income';
+
+                const typeText = isIncome ?
+                    'Receita' :
+                    'Despesa';
+
+                const amount = Number(t.amount) || 0;
+
+                const description = safeDescription(
+                    t.description
+                );
+
+                // DATA
+                setColor(colors.dark);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+
+                doc.text(
+                    formatPdfDate(t.date),
+                    colDate,
+                    y + 20
+                );
+
+                // DESCRIÇÃO
+                doc.text(
+                    description,
+                    colDescription,
+                    y + 20
+                );
+
+                // TIPO
+                setColor(
+                    isIncome ?
+                        colors.green :
+                        colors.red
+                );
+
+                doc.setFont('helvetica', 'bold');
+
+                doc.text(
+                    typeText,
+                    colType,
+                    y + 20
+                );
+
+                // VALOR
+                doc.text(
+                    formatPdfCurrency(amount),
+                    colAmount,
+                    y + 20, { align: 'right' }
+                );
+
+                // Linha
+                drawLine(
+                    margin,
+                    y + rowHeight,
+                    pageWidth - margin,
+                    y + rowHeight,
+                    colors.border
+                );
+
+                y += rowHeight;
             });
-        } else {
-            doc.text('Nenhuma transacao neste mes.', 50, y + 20);
         }
 
+        // ============================================
+        // RODAPÉ / PAGINAÇÃO
+        // ============================================
         const pageCount = doc.internal.getNumberOfPages();
+
+        const generatedAt = new Date();
+
+        const generatedDate =
+            generatedAt.toLocaleDateString('pt-BR');
+
+        const generatedTime =
+            generatedAt.toLocaleTimeString('pt-BR');
+
         for (let i = 1; i <= pageCount; i++) {
+
             doc.setPage(i);
-            doc.setFontSize(8);
-            doc.setTextColor(180, 180, 180);
-            doc.text(
-                'Gerado em ' + new Date().toLocaleDateString('pt-BR') + ' as ' + new Date().toLocaleTimeString(
-                    'pt-BR'),
-                40,
-                800
+
+            const footerY = pageHeight - 25;
+
+            drawLine(
+                margin,
+                footerY - 10,
+                pageWidth - margin,
+                footerY - 10,
+                colors.border
             );
-            doc.text('Pagina ' + i + '/' + pageCount, 500, 800);
+
+            setColor(colors.muted);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7);
+
+            doc.text(
+                'TonuControle - Relatorio financeiro',
+                margin,
+                footerY
+            );
+
+            doc.text(
+                'Gerado em ' + generatedDate + ' as ' + generatedTime,
+                pageWidth / 2,
+                footerY, { align: 'center' }
+            );
+
+            doc.text(
+                'Pagina ' + i + '/' + pageCount,
+                pageWidth - margin,
+                footerY, { align: 'right' }
+            );
         }
 
-        doc.save('TonuControle_' + year + '_' + String(month + 1).padStart(2, '0') + '.pdf');
-        showToast('✅ PDF gerado com sucesso!', 'success');
+        // ============================================
+        // SALVAR
+        // ============================================
+        const fileName =
+            'TonuControle_' +
+            year +
+            '_' +
+            String(month + 1).padStart(2, '0') +
+            '.pdf';
+
+        doc.save(fileName);
+
+        showToast(
+            'PDF gerado com sucesso!',
+            'success'
+        );
 
     } catch (error) {
-        console.error('❌ Erro ao gerar PDF:', error);
-        showToast('Erro ao gerar PDF', 'error');
+
+        console.error(
+            'Erro ao gerar PDF:',
+            error
+        );
+
+        showToast(
+            'Erro ao gerar PDF: ' +
+            (error.message || 'erro desconhecido'),
+            'error'
+        );
     }
 }
 
