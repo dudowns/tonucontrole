@@ -90,9 +90,7 @@ function updateMonthDisplay(elementId, offset) {
     return d;
 }
 
-// ============================================
 // ✨ FUNÇÃO DE SANITIZAÇÃO MELHORADA
-// ============================================
 function sanitizeReportText(rawText) {
     if (!rawText || typeof rawText !== 'string') return '';
     return rawText
@@ -1660,7 +1658,6 @@ async function exportarPDF() {
         const firstDay = formatDateKey(year, month, 1);
         const lastDayStr = formatDateKey(year, month, getLastDayOfMonth(year, month));
 
-        // Busca dados atualizados
         const { data: transactions, error } = await supabaseClient
             .from('transactions')
             .select('*, categories(name)')
@@ -1675,13 +1672,12 @@ async function exportarPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'pt', 'a4');
 
-        // Cores do Sistema
-        const PRIMARY_COLOR = [108, 92, 231]; // Roxo Tonu
-        const SUCCESS_COLOR = [0, 184, 148]; // Verde
-        const DANGER_COLOR = [255, 118, 117]; // Vermelho
+        const PRIMARY_COLOR = [108, 92, 231];
+        const SUCCESS_COLOR = [0, 184, 148];
+        const DANGER_COLOR = [255, 118, 117];
         const TEXT_COLOR = [45, 52, 54];
 
-        // --- 1. CABEÇALHO ---
+        // --- CABEÇALHO ---
         doc.setFillColor(...PRIMARY_COLOR);
         doc.rect(0, 0, 595, 80, 'F');
 
@@ -1697,7 +1693,7 @@ async function exportarPDF() {
         doc.setFontSize(12);
         doc.text(monthName.toUpperCase(), 450, 50, { align: 'right' });
 
-        // --- 2. RESUMO FINANCEIRO ---
+        // --- RESUMO FINANCEIRO ---
         let income = 0, expense = 0;
         transactions?.forEach(t => {
             if (t.type === 'income') income += Number(t.amount);
@@ -1731,12 +1727,12 @@ async function exportarPDF() {
 
         doc.setTextColor(100, 100, 100);
         doc.setFontSize(10);
-        doc.text('SALDO FINAL', 440, currentY);
+        doc.text('SALDO', 440, currentY);
         doc.setTextColor(balance >= 0 ? SUCCESS_COLOR[0] : DANGER_COLOR[0], balance >= 0 ? SUCCESS_COLOR[1] : DANGER_COLOR[1], balance >= 0 ? SUCCESS_COLOR[2] : DANGER_COLOR[2]);
         doc.setFontSize(13);
         doc.text(formatCurrency(balance), 440, currentY + 15);
 
-        // --- 3. TABELA DE TRANSAÇÕES ---
+        // --- TABELA DE TRANSAÇÕES ---
         currentY += 50;
         doc.setTextColor(...TEXT_COLOR);
         doc.setFontSize(14);
@@ -1764,6 +1760,18 @@ async function exportarPDF() {
                 if (rowY > 750) {
                     doc.addPage();
                     rowY = 50;
+                    doc.setFillColor(245, 246, 250);
+                    doc.rect(40, rowY, 515, 20, 'F');
+                    doc.setFontSize(9);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(100, 100, 100);
+                    doc.text('DATA', 45, rowY + 13);
+                    doc.text('DESCRIÇÃO', 110, rowY + 13);
+                    doc.text('CATEGORIA', 320, rowY + 13);
+                    doc.text('VALOR', 550, rowY + 13, { align: 'right' });
+                    rowY += 20;
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(...TEXT_COLOR);
                 }
 
                 if (index % 2 === 0) {
@@ -1801,7 +1809,7 @@ async function exportarPDF() {
             doc.text('Nenhuma transação encontrada para este período.', 40, rowY + 20);
         }
 
-        // --- 4. RODAPÉ ---
+        // --- RODAPÉ ---
         const pageCount = doc.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
