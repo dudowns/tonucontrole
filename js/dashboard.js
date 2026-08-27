@@ -1887,9 +1887,13 @@ async function exportarPDF() {
 
                 const date = new Date(t.date).toLocaleDateString('pt-BR');
                 const desc = safeDescription(t.description || 'Sem descrição');
-                const cat = t.categories?.name || 'Geral';
-                const val = formatCurrency(t.amount);
 
+                // 🔥 LIMPA A CATEGORIA - ESSA É A CORREÇÃO CRÍTICA!
+                let cat = t.categories?.name || 'Geral';
+                cat = cleanText(cat);
+                if (!cat || cat.length === 0) cat = 'Geral';
+
+                const val = formatCurrency(t.amount);
                 doc.setFontSize(9);
                 doc.text(date, 45, rowY + 13);
 
