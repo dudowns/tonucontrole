@@ -1471,7 +1471,7 @@ async function loadMonthlyChart() {
 }
 
 // ============================================
-// INSIGHTS
+// 📊 INSIGHTS
 // ============================================
 async function loadInsights() {
     const container = document.getElementById('insightsContent');
@@ -1531,14 +1531,12 @@ async function loadInsights() {
         if (balance > 0) {
             html += '<div class="insight-item success">✅ Saldo positivo: ' + formatCurrency(balance) + '</div>';
         } else if (balance < 0) {
-            html += '<div class="insight-item danger">⚠️ Saldo negativo: ' + formatCurrency(Math.abs(balance)) +
-                '</div>';
+            html += '<div class="insight-item danger">⚠️ Saldo negativo: ' + formatCurrency(Math.abs(balance)) + '</div>';
         }
 
         if (topCategory && expense > 0) {
             const pct = (topCategory[1] / expense * 100).toFixed(0);
-            html += '<div class="insight-item info">📊 Maior gasto: "' + stripHTML(topCategory[0]) + '" (' + pct +
-                '% das despesas)</div>';
+            html += '<div class="insight-item info">📊 Maior gasto: "' + stripHTML(topCategory[0]) + '" (' + pct + '% das despesas)</div>';
         }
 
         if (expense > income && income > 0) {
@@ -1558,8 +1556,7 @@ async function loadInsights() {
 
     } catch (error) {
         console.error('❌ Erro ao carregar insights:', error);
-        container.innerHTML =
-            '<p style="text-align:center;padding:12px 0;color:rgba(255,255,255,0.7);">Erro ao carregar insights</p>';
+        container.innerHTML = '<p style="text-align:center;padding:12px 0;color:rgba(255,255,255,0.7);">Erro ao carregar insights</p>';
     }
 }
 
@@ -1671,624 +1668,190 @@ window.addEventListener('resize', function () {
 });
 
 // ============================================
-// 📄 EXPORTAR RELATÓRIO PDF - VERSÃO ROBUSTA
+// 📄 EXPORTAR RELATÓRIO PDF - VERSÃO PREMIUM
 // ============================================
 async function exportarPDF() {
     try {
-        showToast('Gerando PDF...', 'info');
+        showToast('📄 Gerando relatório detalhado...', 'info');
 
-        // Verificar se o jsPDF está disponível
-        if (!window.jspdf || !window.jspdf.jsPDF) {
-            throw new Error('Biblioteca jsPDF não foi carregada.');
-        }
-
-        if (!currentUser) {
-            throw new Error('Usuário não autenticado.');
-        }
-
-        // ============================================
-        // DEFINIR MÊS SELECIONADO
-        // ============================================
         const d = new Date();
         d.setMonth(d.getMonth() + currentMonthOffset);
+        const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
         const year = d.getFullYear();
         const month = d.getMonth();
-
-        const monthName = d.toLocaleDateString('pt-BR', {
-            month: 'long',
-            year: 'numeric'
-        });
-
-        const lastDay = getLastDayOfMonth(year, month);
         const firstDay = formatDateKey(year, month, 1);
-        const lastDayStr = formatDateKey(year, month, lastDay);
+        const lastDayStr = formatDateKey(year, month, getLastDayOfMonth(year, month));
 
-        // ============================================
-        // BUSCAR TRANSAÇÕES
-        // ============================================
         const { data: transactions, error } = await supabaseClient
             .from('transactions')
-            .select('*')
+            .select('*, categories(name)')
             .eq('user_id', currentUser.id)
             .eq('paid', true)
-            .eq('is_bill', false)
             .gte('date', firstDay)
             .lte('date', lastDayStr)
             .order('date', { ascending: false });
 
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
 
-        const txs = transactions || [];
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'pt', 'a4');
 
-        // ============================================
-        // CALCULAR RESUMO
-        // ============================================
-        let income = 0;
-        let expense = 0;
+        const PRIMARY_COLOR = [108, 92, 231];
+        const SUCCESS_COLOR = [0, 184, 148];
+        const DANGER_COLOR = [255, 118, 117];
+        const TEXT_COLOR = [45, 52, 54];
 
-        let incomeCount = 0;
-        let expenseCount = 0;
+        // CABEÇALHO
+        doc.setFillColor(...PRIMARY_COLOR);
+        doc.rect(0, 0, 595, 80, 'F');
 
-        txs.forEach(t => {
-            const amount = Number(t.amount) || 0;
+        doc.setFontSize(22);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.text('TonuControle', 40, 45);
 
-            if (t.type === 'income') {
-                income += amount;
-                incomeCount++;
-            } else {
-                expense += amount;
-                expenseCount++;
-            }
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text('Gestão Financeira Pessoal', 40, 60);
+
+        doc.setFontSize(12);
+        doc.text(monthName.toUpperCase(), 450, 50, { align: 'right' });
+
+        // RESUMO FINANCEIRO
+        let income = 0, expense = 0;
+        transactions?.forEach(t => {
+            if (t.type === 'income') income += Number(t.amount);
+            else expense += Number(t.amount);
         });
-
         const balance = income - expense;
 
-        // ============================================
-        // CRIAR PDF
-        // ============================================
-        const { jsPDF } = window.jspdf;
+        let currentY = 110;
+        doc.setTextColor(...TEXT_COLOR);
+        doc.setFontSize(14);
+        doc.text('Resumo do Período', 40, currentY);
 
-        const doc = new jsPDF({
-            orientation: 'portrait',
-            unit: 'pt',
-            format: 'a4'
-        });
+        doc.setDrawColor(220, 220, 220);
+        doc.line(40, currentY + 5, 555, currentY + 5);
 
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
+        currentY += 35;
 
-        const margin = 40;
-
-        // ============================================
-        // CORES
-        // ============================================
-        const colors = {
-            primary: [108, 92, 231],
-            dark: [30, 41, 59],
-            muted: [100, 116, 139],
-            light: [241, 245, 249],
-            white: [255, 255, 255],
-            green: [0, 184, 148],
-            red: [255, 118, 117],
-            yellow: [253, 203, 110],
-            border: [226, 232, 240]
-        };
-
-        // ============================================
-        // FUNÇÕES AUXILIARES DO PDF
-        // ============================================
-
-        function setColor(rgb) {
-            doc.setTextColor(rgb[0], rgb[1], rgb[2]);
-        }
-
-        function setFill(rgb) {
-            doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-        }
-
-        function setDraw(rgb) {
-            doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
-        }
-
-        function drawRoundedCard(x, y, w, h, fillColor) {
-            setFill(fillColor);
-            doc.roundedRect(x, y, w, h, 8, 8, 'F');
-        }
-
-        function drawLine(x1, y1, x2, y2, color) {
-            setDraw(color);
-            doc.setLineWidth(0.7);
-            doc.line(x1, y1, x2, y2);
-        }
-
-        function cleanText(text) {
-            if (text === null || text === undefined) {
-                return '';
-            }
-
-            return String(text)
-                .replace(/[\u{1F300}-\u{1FAFF}]/gu, '')
-                .replace(/[\u{2600}-\u{27BF}]/gu, '')
-                .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
-                .replace(/\s+/g, ' ')
-                .trim();
-        }
-
-        function safeDescription(text) {
-            const cleaned = cleanText(text);
-
-            if (cleaned.length > 55) {
-                return cleaned.substring(0, 52) + '...';
-            }
-
-            return cleaned || 'Sem descricao';
-        }
-
-        function formatPdfCurrency(value) {
-            const number = Number(value) || 0;
-
-            return number.toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-            });
-        }
-
-        function formatPdfDate(dateValue) {
-            if (!dateValue) {
-                return '-';
-            }
-
-            const date = new Date(dateValue + 'T00:00:00');
-
-            if (Number.isNaN(date.getTime())) {
-                return '-';
-            }
-
-            return date.toLocaleDateString('pt-BR');
-        }
-
-        // ============================================
-        // CABEÇALHO
-        // ============================================
-        setFill(colors.primary);
-        doc.rect(0, 0, pageWidth, 8, 'F');
-
-        setColor(colors.primary);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(24);
-        doc.text('TonuControle', margin, 55);
-
-        setColor(colors.dark);
-        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text('RECEITAS', 40, currentY);
+        doc.setTextColor(...SUCCESS_COLOR);
         doc.setFontSize(13);
-        doc.text(
-            'Relatorio financeiro - ' + monthName,
-            margin,
-            80
-        );
+        doc.text(formatCurrency(income), 40, currentY + 15);
 
-        setColor(colors.muted);
-        doc.setFontSize(9);
-        doc.text(
-            'Periodo: ' + formatPdfDate(firstDay) + ' ate ' + formatPdfDate(lastDayStr),
-            margin,
-            98
-        );
-
-        // Linha
-        drawLine(
-            margin,
-            115,
-            pageWidth - margin,
-            115,
-            colors.border
-        );
-
-        // ============================================
-        // TITULO RESUMO
-        // ============================================
-        setColor(colors.dark);
-        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(10);
+        doc.text('DESPESAS', 240, currentY);
+        doc.setTextColor(...DANGER_COLOR);
         doc.setFontSize(13);
-        doc.text('Resumo do mes', margin, 145);
+        doc.text(formatCurrency(expense), 240, currentY + 15);
 
-        // ============================================
-        // CARDS DO RESUMO
-        // ============================================
-        const cardGap = 10;
-        const cardWidth = (pageWidth - margin * 2 - cardGap * 2) / 3;
-        const cardHeight = 78;
-        const cardY = 165;
-
-        // RECEITAS
-        drawRoundedCard(
-            margin,
-            cardY,
-            cardWidth,
-            cardHeight,
-            [240, 253, 250]
-        );
-
-        setColor(colors.muted);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.text('RECEITAS', margin + 14, cardY + 20);
-
-        setColor(colors.green);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(16);
-        doc.text(
-            formatPdfCurrency(income),
-            margin + 14,
-            cardY + 43
-        );
-
-        setColor(colors.muted);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.text(
-            incomeCount + (incomeCount === 1 ? ' transacao' : ' transacoes'),
-            margin + 14,
-            cardY + 62
-        );
-
-        // DESPESAS
-        const expenseX = margin + cardWidth + cardGap;
-
-        drawRoundedCard(
-            expenseX,
-            cardY,
-            cardWidth,
-            cardHeight,
-            [255, 245, 245]
-        );
-
-        setColor(colors.muted);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.text('DESPESAS', expenseX + 14, cardY + 20);
-
-        setColor(colors.red);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(16);
-        doc.text(
-            formatPdfCurrency(expense),
-            expenseX + 14,
-            cardY + 43
-        );
-
-        setColor(colors.muted);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.text(
-            expenseCount + (expenseCount === 1 ? ' transacao' : ' transacoes'),
-            expenseX + 14,
-            cardY + 62
-        );
-
-        // SALDO
-        const balanceX = expenseX + cardWidth + cardGap;
-
-        drawRoundedCard(
-            balanceX,
-            cardY,
-            cardWidth,
-            cardHeight,
-            balance >= 0 ?
-                [245, 243, 255] :
-                [255, 245, 245]
-        );
-
-        setColor(colors.muted);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.text('SALDO', balanceX + 14, cardY + 20);
-
-        setColor(
-            balance >= 0 ?
-                colors.primary :
-                colors.red
-        );
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(16);
-        doc.text(
-            formatPdfCurrency(balance),
-            balanceX + 14,
-            cardY + 43
-        );
-
-        setColor(colors.muted);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-
-        doc.text(
-            balance >= 0 ? 'Saldo positivo' : 'Saldo negativo',
-            balanceX + 14,
-            cardY + 62
-        );
-
-        // ============================================
-        // LISTA DE TRANSAÇÕES
-        // ============================================
-        let y = cardY + cardHeight + 35;
-
-        setColor(colors.dark);
-        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(10);
+        doc.text('SALDO FINAL', 440, currentY);
+        doc.setTextColor(balance >= 0 ? SUCCESS_COLOR[0] : DANGER_COLOR[0], balance >= 0 ? SUCCESS_COLOR[1] : DANGER_COLOR[1], balance >= 0 ? SUCCESS_COLOR[2] : DANGER_COLOR[2]);
         doc.setFontSize(13);
-        doc.text('Transacoes do mes', margin, y);
+        doc.text(formatCurrency(balance), 440, currentY + 15);
 
-        y += 20;
+        // TABELA DE TRANSAÇÕES
+        currentY += 50;
+        doc.setTextColor(...TEXT_COLOR);
+        doc.setFontSize(14);
+        doc.text('Detalhamento de Movimentações', 40, currentY);
 
-        if (txs.length === 0) {
-            drawRoundedCard(
-                margin,
-                y,
-                pageWidth - margin * 2,
-                60,
-                colors.light
-            );
+        currentY += 20;
+        const tableHeaderY = currentY;
+        doc.setFillColor(245, 246, 250);
+        doc.rect(40, tableHeaderY, 515, 20, 'F');
 
-            setColor(colors.muted);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.text(
-                'Nenhuma transacao registrada neste mes.',
-                margin + 15,
-                y + 35
-            );
-        } else {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(100, 100, 100);
+        doc.text('DATA', 45, tableHeaderY + 13);
+        doc.text('DESCRIÇÃO', 110, tableHeaderY + 13);
+        doc.text('CATEGORIA', 320, tableHeaderY + 13);
+        doc.text('VALOR', 550, tableHeaderY + 13, { align: 'right' });
 
-            // ============================================
-            // CABEÇALHO DA TABELA
-            // ============================================
-            const colDate = margin + 8;
-            const colDescription = margin + 85;
-            const colType = margin + 370;
-            const colAmount = pageWidth - margin - 8;
+        let rowY = tableHeaderY + 20;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...TEXT_COLOR);
 
-            setFill(colors.primary);
-            doc.roundedRect(
-                margin,
-                y,
-                pageWidth - margin * 2,
-                25,
-                5,
-                5,
-                'F'
-            );
-
-            setColor(colors.white);
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8);
-
-            doc.text('DATA', colDate, y + 16);
-            doc.text('DESCRICAO', colDescription, y + 16);
-            doc.text('TIPO', colType, y + 16);
-            doc.text('VALOR', colAmount, y + 16, {
-                align: 'right'
-            });
-
-            y += 25;
-
-            // ============================================
-            // TRANSAÇÕES
-            // ============================================
-            txs.forEach((t, index) => {
-
-                const rowHeight = 32;
-
-                // Nova página
-                if (y + rowHeight > pageHeight - 55) {
-
+        if (transactions && transactions.length > 0) {
+            transactions.forEach((t, index) => {
+                if (rowY > 750) {
                     doc.addPage();
-
-                    // Barra superior
-                    setFill(colors.primary);
-                    doc.rect(0, 0, pageWidth, 8, 'F');
-
-                    y = 40;
-
-                    setColor(colors.dark);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(11);
-                    doc.text(
-                        'Transacoes do mes - continuacao',
-                        margin,
-                        y
-                    );
-
-                    y += 18;
-
-                    // Cabeçalho novamente
-                    setFill(colors.primary);
-
-                    doc.roundedRect(
-                        margin,
-                        y,
-                        pageWidth - margin * 2,
-                        25,
-                        5,
-                        5,
-                        'F'
-                    );
-
-                    setColor(colors.white);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(8);
-
-                    doc.text('DATA', colDate, y + 16);
-                    doc.text('DESCRICAO', colDescription, y + 16);
-                    doc.text('TIPO', colType, y + 16);
-                    doc.text(
-                        'VALOR',
-                        colAmount,
-                        y + 16, { align: 'right' }
-                    );
-
-                    y += 25;
+                    rowY = 50;
+                    doc.setFillColor(245, 246, 250);
+                    doc.rect(40, rowY, 515, 20, 'F');
+                    doc.setFontSize(9);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(100, 100, 100);
+                    doc.text('DATA', 45, rowY + 13);
+                    doc.text('DESCRIÇÃO', 110, rowY + 13);
+                    doc.text('CATEGORIA', 320, rowY + 13);
+                    doc.text('VALOR', 550, rowY + 13, { align: 'right' });
+                    rowY += 20;
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(...TEXT_COLOR);
                 }
 
-                // Fundo alternado
                 if (index % 2 === 0) {
-                    setFill([248, 250, 252]);
-
-                    doc.rect(
-                        margin,
-                        y,
-                        pageWidth - margin * 2,
-                        rowHeight,
-                        'F'
-                    );
+                    doc.setFillColor(252, 252, 255);
+                    doc.rect(40, rowY, 515, 20, 'F');
                 }
 
-                const isIncome = t.type === 'income';
+                const date = new Date(t.date).toLocaleDateString('pt-BR');
+                const desc = sanitizeReportText(t.description || 'Sem descrição');
+                const cat = t.categories?.name || 'Geral';
+                const val = formatCurrency(t.amount);
 
-                const typeText = isIncome ?
-                    'Receita' :
-                    'Despesa';
+                doc.setFontSize(9);
+                doc.text(date, 45, rowY + 13);
 
-                const amount = Number(t.amount) || 0;
+                let descDisplay = desc;
+                if (descDisplay.length > 45) {
+                    descDisplay = descDisplay.substring(0, 42) + '...';
+                }
+                doc.text(descDisplay, 110, rowY + 13);
+                doc.text(cat, 320, rowY + 13);
 
-                const description = safeDescription(
-                    t.description
-                );
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(t.type === 'income' ? SUCCESS_COLOR[0] : DANGER_COLOR[0], t.type === 'income' ? SUCCESS_COLOR[1] : DANGER_COLOR[1], t.type === 'income' ? SUCCESS_COLOR[2] : DANGER_COLOR[2]);
+                doc.text((t.type === 'income' ? '+ ' : '- ') + val, 550, rowY + 13, { align: 'right' });
 
-                // DATA
-                setColor(colors.dark);
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(8);
+                doc.setTextColor(...TEXT_COLOR);
+                doc.setFont("helvetica", "normal");
+                rowY += 20;
 
-                doc.text(
-                    formatPdfDate(t.date),
-                    colDate,
-                    y + 20
-                );
-
-                // DESCRIÇÃO
-                doc.text(
-                    description,
-                    colDescription,
-                    y + 20
-                );
-
-                // TIPO
-                setColor(
-                    isIncome ?
-                        colors.green :
-                        colors.red
-                );
-
-                doc.setFont('helvetica', 'bold');
-
-                doc.text(
-                    typeText,
-                    colType,
-                    y + 20
-                );
-
-                // VALOR
-                doc.text(
-                    formatPdfCurrency(amount),
-                    colAmount,
-                    y + 20, { align: 'right' }
-                );
-
-                // Linha
-                drawLine(
-                    margin,
-                    y + rowHeight,
-                    pageWidth - margin,
-                    y + rowHeight,
-                    colors.border
-                );
-
-                y += rowHeight;
+                doc.setDrawColor(240, 240, 240);
+                doc.line(40, rowY, 555, rowY);
             });
+        } else {
+            doc.text('Nenhuma transação encontrada para este período.', 40, rowY + 20);
         }
 
-        // ============================================
-        // RODAPÉ / PAGINAÇÃO
-        // ============================================
+        // RODAPÉ
         const pageCount = doc.internal.getNumberOfPages();
-
-        const generatedAt = new Date();
-
-        const generatedDate =
-            generatedAt.toLocaleDateString('pt-BR');
-
-        const generatedTime =
-            generatedAt.toLocaleTimeString('pt-BR');
-
         for (let i = 1; i <= pageCount; i++) {
-
             doc.setPage(i);
-
-            const footerY = pageHeight - 25;
-
-            drawLine(
-                margin,
-                footerY - 10,
-                pageWidth - margin,
-                footerY - 10,
-                colors.border
-            );
-
-            setColor(colors.muted);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7);
-
-            doc.text(
-                'TonuControle - Relatorio financeiro',
-                margin,
-                footerY
-            );
-
-            doc.text(
-                'Gerado em ' + generatedDate + ' as ' + generatedTime,
-                pageWidth / 2,
-                footerY, { align: 'center' }
-            );
-
-            doc.text(
-                'Pagina ' + i + '/' + pageCount,
-                pageWidth - margin,
-                footerY, { align: 'right' }
-            );
+            doc.setFontSize(8);
+            doc.setTextColor(170, 170, 170);
+            const now = new Date().toLocaleString('pt-BR');
+            doc.text(`Gerado em: ${now} | TonuControle Financial Report`, 40, 820);
+            doc.text(`Página ${i} de ${pageCount}`, 555, 820, { align: 'right' });
         }
 
-        // ============================================
-        // SALVAR
-        // ============================================
-        const fileName =
-            'TonuControle_' +
-            year +
-            '_' +
-            String(month + 1).padStart(2, '0') +
-            '.pdf';
-
+        const fileName = `Relatorio_Tonu_${year}_${String(month + 1).padStart(2, '0')}.pdf`;
         doc.save(fileName);
-
-        showToast(
-            'PDF gerado com sucesso!',
-            'success'
-        );
+        showToast('✅ PDF profissional gerado!', 'success');
 
     } catch (error) {
-
-        console.error(
-            'Erro ao gerar PDF:',
-            error
-        );
-
-        showToast(
-            'Erro ao gerar PDF: ' +
-            (error.message || 'erro desconhecido'),
-            'error'
-        );
+        console.error('Erro ao gerar PDF:', error);
+        showToast('❌ Erro ao exportar PDF', 'error');
     }
 }
 
@@ -2325,9 +1888,9 @@ async function openCashFlowModal() {
 }
 
 // ============================================
-// LOGOUT - 🔥 CORRIGIDO
+// LOGOUT
 // ============================================
-window.logout = async function () {
+async function logout() {
     try {
         sessionStorage.setItem('tonu_logout_in_progress', 'true');
 
@@ -2350,10 +1913,10 @@ window.logout = async function () {
         sessionStorage.removeItem('tonu_logout_in_progress');
         window.location.href = '../index.html';
     }
-};
+}
 
 // ============================================
-// EXPORTAR FUNÇÕES GLOBAIS
+// EXPORTA FUNÇÕES GLOBAIS
 // ============================================
 window.exportarPDF = exportarPDF;
 window.openCashFlowModal = openCashFlowModal;
@@ -2372,9 +1935,8 @@ window.logout = logout;
 console.log('✅ Dashboard.js carregado com sucesso!');
 
 // ============================================
-// DASHBOARD WIDGETS - MELHORIA EXISTENTE
+// DASHBOARD WIDGETS
 // ============================================
-
 window.DashboardWidgets = {
     initialized: false,
     widgets: [],
