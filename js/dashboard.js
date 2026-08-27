@@ -41,15 +41,6 @@ function getMonthName(month) {
     return months[month];
 }
 
-// ✨ FUNÇÃO: Limpa ruídos de codificação e caracteres corrompidos do PDF/Texto
-function sanitizeReportText(rawText) {
-    if (!rawText || typeof rawText !== 'string') return rawText;
-    return rawText
-        .replace(/Ø=[ÜÝ]./g, '') // Remove marcadores como Ø=Ü°, Ø=Ý4, etc.
-        .replace(/ {2,}/g, ' ')  // Corrige espaços múltiplos
-        .trim();
-}
-
 function formatCurrency(value) {
     const num = Number(value) || 0;
     try {
@@ -97,6 +88,19 @@ function updateMonthDisplay(elementId, offset) {
         el.textContent = months[d.getMonth()] + ' ' + d.getFullYear();
     }
     return d;
+}
+
+// ============================================
+// ✨ FUNÇÃO DE SANITIZAÇÃO MELHORADA
+// ============================================
+function sanitizeReportText(rawText) {
+    if (!rawText || typeof rawText !== 'string') return '';
+    return rawText
+        .replace(/Ø=[^\s]{1,2}/g, '') // Remove padrões como Ø=Ü°, Ø=Ý4, Ø=ÜÊ
+        .replace(/[^\x20-\x7EÀ-ž]/g, '') // Remove caracteres não imprimíveis, mantendo acentuação PT-BR
+        .replace(/\s*\(pago\)\s*/gi, '') // Remove o excesso de "(pago)"
+        .replace(/\s{2,}/g, ' ') // Remove espaços duplos
+        .trim();
 }
 
 function inferClass(ticker) {
@@ -1641,135 +1645,180 @@ window.addEventListener('resize', function () {
 });
 
 // ============================================
-// EXPORTAR RELATÓRIO PDF - CORRIGIDO
+// 📄 EXPORTAR RELATÓRIO PDF - VERSÃO PREMIUM
 // ============================================
 async function exportarPDF() {
     try {
-        showToast('📄 Gerando PDF...', 'info');
+        showToast('📄 Gerando relatório detalhado...', 'info');
 
         const d = new Date();
         d.setMonth(d.getMonth() + currentMonthOffset);
-        const year = d.getFullYear();
-        const month = d.getMonth();
         const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
-        const lastDay = getLastDayOfMonth(year, month);
+        const year = d.getFullYear();
+        const month = d.getMonth();
         const firstDay = formatDateKey(year, month, 1);
-        const lastDayStr = formatDateKey(year, month, lastDay);
+        const lastDayStr = formatDateKey(year, month, getLastDayOfMonth(year, month));
 
+        // Busca dados atualizados
         const { data: transactions, error } = await supabaseClient
             .from('transactions')
-            .select('*')
+            .select('*, categories(name)')
             .eq('user_id', currentUser.id)
             .eq('paid', true)
-            .eq('is_bill', false)
             .gte('date', firstDay)
-            .lte('date', lastDayStr);
+            .lte('date', lastDayStr)
+            .order('date', { ascending: false });
 
         if (error) throw error;
-
-        let income = 0, expense = 0;
-        let incomeCount = 0, expenseCount = 0;
-
-        if (transactions) {
-            transactions.forEach(t => {
-                if (t.type === 'income') {
-                    income += Number(t.amount);
-                    incomeCount++;
-                } else {
-                    expense += Number(t.amount);
-                    expenseCount++;
-                }
-            });
-        }
-
-        const balance = income - expense;
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'pt', 'a4');
 
-        doc.setFontSize(24);
-        doc.setTextColor(108, 92, 231);
-        doc.text('TonuControle', 40, 60);
+        // Cores do Sistema
+        const PRIMARY_COLOR = [108, 92, 231]; // Roxo Tonu
+        const SUCCESS_COLOR = [0, 184, 148]; // Verde
+        const DANGER_COLOR = [255, 118, 117]; // Vermelho
+        const TEXT_COLOR = [45, 52, 54];
 
-        doc.setFontSize(14);
-        doc.setTextColor(44, 62, 80);
-        doc.text('Relatorio - ' + monthName, 40, 90);
+        // --- 1. CABEÇALHO ---
+        doc.setFillColor(...PRIMARY_COLOR);
+        doc.rect(0, 0, 595, 80, 'F');
+
+        doc.setFontSize(22);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.text('TonuControle', 40, 45);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text('Gestão Financeira Pessoal', 40, 60);
 
         doc.setFontSize(12);
-        doc.text('Resumo do Mes', 40, 130);
-        doc.setFontSize(11);
-        doc.setTextColor(0, 0, 0);
+        doc.text(monthName.toUpperCase(), 450, 50, { align: 'right' });
 
-        let y = 160;
-        doc.text('Receitas: ' + formatCurrency(income) + ' (' + incomeCount + ' transacoes)', 50, y);
-        y += 20;
-        doc.text('Despesas: ' + formatCurrency(expense) + ' (' + expenseCount + ' transacoes)', 50, y);
-        y += 20;
+        // --- 2. RESUMO FINANCEIRO ---
+        let income = 0, expense = 0;
+        transactions?.forEach(t => {
+            if (t.type === 'income') income += Number(t.amount);
+            else expense += Number(t.amount);
+        });
+        const balance = income - expense;
 
-        const balanceColor = balance >= 0 ? '#00B894' : '#FF7675';
-        doc.setTextColor(balanceColor);
-        doc.text('Saldo: ' + formatCurrency(balance), 50, y);
-        doc.setTextColor(0, 0, 0);
-        y += 30;
+        let currentY = 110;
+        doc.setTextColor(...TEXT_COLOR);
+        doc.setFontSize(14);
+        doc.text('Resumo do Período', 40, currentY);
+
+        doc.setDrawColor(220, 220, 220);
+        doc.line(40, currentY + 5, 555, currentY + 5);
+
+        currentY += 35;
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text('RECEITAS', 40, currentY);
+        doc.setTextColor(...SUCCESS_COLOR);
+        doc.setFontSize(13);
+        doc.text(formatCurrency(income), 40, currentY + 15);
+
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(10);
+        doc.text('DESPESAS', 240, currentY);
+        doc.setTextColor(...DANGER_COLOR);
+        doc.setFontSize(13);
+        doc.text(formatCurrency(expense), 240, currentY + 15);
+
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(10);
+        doc.text('SALDO FINAL', 440, currentY);
+        doc.setTextColor(balance >= 0 ? SUCCESS_COLOR[0] : DANGER_COLOR[0], balance >= 0 ? SUCCESS_COLOR[1] : DANGER_COLOR[1], balance >= 0 ? SUCCESS_COLOR[2] : DANGER_COLOR[2]);
+        doc.setFontSize(13);
+        doc.text(formatCurrency(balance), 440, currentY + 15);
+
+        // --- 3. TABELA DE TRANSAÇÕES ---
+        currentY += 50;
+        doc.setTextColor(...TEXT_COLOR);
+        doc.setFontSize(14);
+        doc.text('Detalhamento de Movimentações', 40, currentY);
+
+        currentY += 20;
+        const tableHeaderY = currentY;
+        doc.setFillColor(245, 246, 250);
+        doc.rect(40, tableHeaderY, 515, 20, 'F');
+
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(100, 100, 100);
+        doc.text('DATA', 45, tableHeaderY + 13);
+        doc.text('DESCRIÇÃO', 110, tableHeaderY + 13);
+        doc.text('CATEGORIA', 320, tableHeaderY + 13);
+        doc.text('VALOR', 550, tableHeaderY + 13, { align: 'right' });
+
+        let rowY = tableHeaderY + 20;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...TEXT_COLOR);
 
         if (transactions && transactions.length > 0) {
-            doc.setFontSize(12);
-            doc.text('Ultimas Transacoes:', 40, y + 10);
-            y += 30;
-
-            const sorted = [...transactions]
-                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .slice(0, 15);
-
-            doc.setFontSize(10);
-
-            sorted.forEach((t, i) => {
-                const type = t.type === 'income' ? 'Receita' : 'Despesa';
-                const date = new Date(t.date).toLocaleDateString('pt-BR');
-                let desc = sanitizeReportText(t.description || 'Sem descricao');
-                if (desc.length > 30) {
-                    desc = desc.substring(0, 27) + '...';
-                }
-                const amount = formatCurrency(t.amount);
-
-                desc = desc.replace(/[^\x20-\x7E]/g, '').trim();
-
-                const line = (i + 1) + '. ' + date + ' - ' + desc + ' - ' + type + ' - ' + amount;
-                const lines = doc.splitTextToSize(line, 450);
-
-                if (y + 20 > 750) {
+            transactions.forEach((t, index) => {
+                if (rowY > 750) {
                     doc.addPage();
-                    y = 50;
+                    rowY = 50;
                 }
 
-                doc.text(lines, 50, y);
-                y += 16;
+                if (index % 2 === 0) {
+                    doc.setFillColor(252, 252, 255);
+                    doc.rect(40, rowY, 515, 20, 'F');
+                }
+
+                const date = new Date(t.date).toLocaleDateString('pt-BR');
+                const desc = sanitizeReportText(t.description || 'Sem descrição');
+                const cat = t.categories?.name || 'Geral';
+                const val = formatCurrency(t.amount);
+
+                doc.setFontSize(9);
+                doc.text(date, 45, rowY + 13);
+
+                let descDisplay = desc;
+                if (descDisplay.length > 45) {
+                    descDisplay = descDisplay.substring(0, 42) + '...';
+                }
+                doc.text(descDisplay, 110, rowY + 13);
+                doc.text(cat, 320, rowY + 13);
+
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(t.type === 'income' ? SUCCESS_COLOR[0] : DANGER_COLOR[0], t.type === 'income' ? SUCCESS_COLOR[1] : DANGER_COLOR[1], t.type === 'income' ? SUCCESS_COLOR[2] : DANGER_COLOR[2]);
+                doc.text((t.type === 'income' ? '+ ' : '- ') + val, 550, rowY + 13, { align: 'right' });
+
+                doc.setTextColor(...TEXT_COLOR);
+                doc.setFont("helvetica", "normal");
+                rowY += 20;
+
+                doc.setDrawColor(240, 240, 240);
+                doc.line(40, rowY, 555, rowY);
             });
         } else {
-            doc.text('Nenhuma transacao neste mes.', 50, y + 20);
+            doc.text('Nenhuma transação encontrada para este período.', 40, rowY + 20);
         }
 
+        // --- 4. RODAPÉ ---
         const pageCount = doc.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
             doc.setFontSize(8);
-            doc.setTextColor(180, 180, 180);
-            doc.text(
-                'Gerado em ' + new Date().toLocaleDateString('pt-BR') + ' as ' + new Date().toLocaleTimeString('pt-BR'),
-                40,
-                800
-            );
-            doc.text('Pagina ' + i + '/' + pageCount, 500, 800);
+            doc.setTextColor(170, 170, 170);
+            const now = new Date().toLocaleString('pt-BR');
+            doc.text(`Gerado em: ${now} | TonuControle Financial Report`, 40, 820);
+            doc.text(`Página ${i} de ${pageCount}`, 555, 820, { align: 'right' });
         }
 
-        const fileName = 'TonuControle_' + year + '_' + String(month + 1).padStart(2, '0') + '.pdf';
+        const fileName = `Relatorio_Tonu_${year}_${String(month + 1).padStart(2, '0')}.pdf`;
         doc.save(fileName);
-        showToast('PDF gerado com sucesso!', 'success');
+        showToast('✅ PDF profissional gerado!', 'success');
 
     } catch (error) {
         console.error('Erro ao gerar PDF:', error);
-        showToast('Erro ao gerar PDF', 'error');
+        showToast('❌ Erro ao exportar PDF', 'error');
     }
 }
 
@@ -1851,252 +1900,3 @@ window.stopPatrimonyAutoUpdate = stopPatrimonyAutoUpdate;
 window.logout = logout;
 
 console.log('✅ Dashboard.js carregado com sucesso!');
-
-// ============================================
-// DASHBOARD WIDGETS
-// ============================================
-window.DashboardWidgets = {
-    initialized: false,
-    widgets: [],
-    layout: null,
-
-    init() {
-        if (this.initialized) return;
-        this.loadLayout();
-        this.renderWidgets();
-        this.initialized = true;
-        console.log('✅ Dashboard Widgets inicializados');
-    },
-
-    loadLayout() {
-        try {
-            const saved = localStorage.getItem('tonu_dashboard_layout');
-            this.layout = saved ? JSON.parse(saved) : null;
-        } catch (e) {
-            this.layout = null;
-        }
-    },
-
-    saveLayout() {
-        localStorage.setItem('tonu_dashboard_layout', JSON.stringify(this.layout));
-    },
-
-    renderWidgets() {
-        const grid = document.getElementById('dashboardGrid');
-        if (!grid) return;
-
-        const availableWidgets = [
-            { id: 'summary', title: '📊 Resumo', icon: 'fa-chart-pie' },
-            { id: 'income', title: '💰 Receitas', icon: 'fa-arrow-up' },
-            { id: 'expenses', title: '📉 Despesas', icon: 'fa-arrow-down' },
-            { id: 'balance', title: '💼 Saldo', icon: 'fa-wallet' },
-            { id: 'bills', title: '📅 Contas', icon: 'fa-file-invoice' },
-            { id: 'patrimony', title: '🏦 Patrimônio', icon: 'fa-coins' },
-            { id: 'chart', title: '📊 Gráfico', icon: 'fa-chart-pie' },
-            { id: 'transactions', title: '📋 Transações', icon: 'fa-list' },
-            { id: 'insights', title: '💡 Insights', icon: 'fa-lightbulb' }
-        ];
-
-        const activeIds = this.layout?.widgets || ['summary', 'income', 'expenses', 'balance', 'bills', 'chart', 'transactions'];
-        const activeWidgets = availableWidgets.filter(w => activeIds.includes(w.id));
-
-        grid.innerHTML = activeWidgets.map(w => `
-            <div class="widget" data-widget="${w.id}">
-                <div class="widget-header">
-                    <h3><i class="fas ${w.icon}"></i> ${w.title}</h3>
-                    <button class="widget-close" onclick="window.DashboardWidgets.removeWidget('${w.id}')">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="widget-body" id="widget-${w.id}">
-                    <div class="widget-loading">Carregando...</div>
-                </div>
-            </div>
-        `).join('');
-
-        activeWidgets.forEach(w => this.initWidget(w.id));
-
-        grid.insertAdjacentHTML('beforeend', `
-            <div class="widget widget-add" onclick="window.DashboardWidgets.showAddMenu()">
-                <button><i class="fas fa-plus"></i> Adicionar</button>
-            </div>
-        `);
-    },
-
-    initWidget(id) {
-        const container = document.getElementById(`widget-${id}`);
-        if (!container) return;
-
-        switch (id) {
-            case 'summary':
-                container.innerHTML = `
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
-                        <div><span style="font-size:11px;color:#94a3b8;">Receitas</span><br><span style="font-size:18px;font-weight:700;color:#00b894;" id="wIncome">R$ 0,00</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Despesas</span><br><span style="font-size:18px;font-weight:700;color:#ff7675;" id="wExpense">R$ 0,00</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Saldo</span><br><span style="font-size:18px;font-weight:700;color:#6c5ce7;" id="wBalance">R$ 0,00</span></div>
-                    </div>
-                `;
-                setTimeout(() => {
-                    const income = document.getElementById('totalIncome');
-                    const expense = document.getElementById('totalExpense');
-                    const balance = document.getElementById('totalBalance');
-                    if (income) document.getElementById('wIncome').textContent = income.textContent;
-                    if (expense) document.getElementById('wExpense').textContent = expense.textContent;
-                    if (balance) document.getElementById('wBalance').textContent = balance.textContent;
-                }, 500);
-                break;
-            case 'income':
-                container.innerHTML = `
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;border-radius:10px;background:#00b894;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
-                            <i class="fas fa-arrow-up"></i>
-                        </div>
-                        <div>
-                            <div style="font-size:11px;color:#94a3b8;">Receitas</div>
-                            <div style="font-size:20px;font-weight:700;color:#00b894;" id="wIncomeOnly">R$ 0,00</div>
-                        </div>
-                    </div>
-                `;
-                setTimeout(() => {
-                    const income = document.getElementById('totalIncome');
-                    if (income) document.getElementById('wIncomeOnly').textContent = income.textContent;
-                }, 500);
-                break;
-            case 'expenses':
-                container.innerHTML = `
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;border-radius:10px;background:#ff7675;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
-                            <i class="fas fa-arrow-down"></i>
-                        </div>
-                        <div>
-                            <div style="font-size:11px;color:#94a3b8;">Despesas</div>
-                            <div style="font-size:20px;font-weight:700;color:#ff7675;" id="wExpenseOnly">R$ 0,00</div>
-                        </div>
-                    </div>
-                `;
-                setTimeout(() => {
-                    const expense = document.getElementById('totalExpense');
-                    if (expense) document.getElementById('wExpenseOnly').textContent = expense.textContent;
-                }, 500);
-                break;
-            case 'balance':
-                container.innerHTML = `
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;border-radius:10px;background:#6c5ce7;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
-                            <i class="fas fa-wallet"></i>
-                        </div>
-                        <div>
-                            <div style="font-size:11px;color:#94a3b8;">Saldo</div>
-                            <div style="font-size:20px;font-weight:700;color:#6c5ce7;" id="wBalanceOnly">R$ 0,00</div>
-                        </div>
-                    </div>
-                `;
-                setTimeout(() => {
-                    const balance = document.getElementById('totalBalance');
-                    if (balance) document.getElementById('wBalanceOnly').textContent = balance.textContent;
-                }, 500);
-                break;
-            case 'bills':
-                container.innerHTML = `
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
-                        <div><span style="font-size:11px;color:#94a3b8;">Pendentes</span><br><span style="font-size:18px;font-weight:700;color:#fdcb6e;" id="wBillsPending">0</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Pagas</span><br><span style="font-size:18px;font-weight:700;color:#00b894;" id="wBillsPaid">0</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Total</span><br><span style="font-size:18px;font-weight:700;color:#6c5ce7;" id="wBillsTotal">R$ 0,00</span></div>
-                    </div>
-                `;
-                setTimeout(() => {
-                    const pending = document.getElementById('pendingBills');
-                    const paid = document.getElementById('paidBills');
-                    const total = document.getElementById('totalAmount');
-                    if (pending) document.getElementById('wBillsPending').textContent = pending.textContent;
-                    if (paid) document.getElementById('wBillsPaid').textContent = paid.textContent;
-                    if (total) document.getElementById('wBillsTotal').textContent = total.textContent;
-                }, 500);
-                break;
-            case 'patrimony':
-                container.innerHTML = `
-                    <div style="text-align:center;padding:8px 0;">
-                        <div style="font-size:28px;font-weight:800;color:#6c5ce7;" id="wPatrimony">R$ 0,00</div>
-                        <div style="font-size:12px;color:#94a3b8;">Patrimônio Total</div>
-                    </div>
-                `;
-                setTimeout(() => {
-                    const patrimony = document.getElementById('patrimony');
-                    if (patrimony) document.getElementById('wPatrimony').textContent = patrimony.textContent;
-                }, 500);
-                break;
-            case 'chart':
-                container.innerHTML = `<canvas id="wCategoryChart" style="height:160px;"></canvas>`;
-                setTimeout(() => {
-                    if (typeof window.loadCategoryChart === 'function') {
-                        setTimeout(() => window.loadCategoryChart(), 300);
-                    }
-                }, 500);
-                break;
-            case 'transactions':
-                container.innerHTML = `<div id="wTransactionsList" style="max-height:200px;overflow-y:auto;"></div>`;
-                setTimeout(() => {
-                    const list = document.getElementById('transactionsList');
-                    if (list) {
-                        document.getElementById('wTransactionsList').innerHTML = list.innerHTML;
-                    }
-                }, 500);
-                break;
-            case 'insights':
-                container.innerHTML = `<div id="wInsights"></div>`;
-                setTimeout(() => {
-                    const insights = document.getElementById('insightsContent');
-                    if (insights) {
-                        document.getElementById('wInsights').innerHTML = insights.innerHTML;
-                    }
-                }, 500);
-                break;
-        }
-    },
-
-    removeWidget(id) {
-        const grid = document.getElementById('dashboardGrid');
-        if (!grid) return;
-
-        const activeIds = this.layout?.widgets || ['summary', 'income', 'expenses', 'balance', 'bills', 'chart', 'transactions'];
-        const index = activeIds.indexOf(id);
-        if (index > -1) {
-            activeIds.splice(index, 1);
-            this.layout = { widgets: activeIds };
-            this.saveLayout();
-            this.renderWidgets();
-        }
-    },
-
-    showAddMenu() {
-        const available = ['summary', 'income', 'expenses', 'balance', 'bills', 'patrimony', 'chart', 'transactions', 'insights'];
-        const activeIds = this.layout?.widgets || ['summary', 'income', 'expenses', 'balance', 'bills', 'chart', 'transactions'];
-        const toAdd = available.filter(id => !activeIds.includes(id));
-
-        if (toAdd.length === 0) {
-            if (typeof showToast === 'function') {
-                showToast('Todos os widgets já estão adicionados!', 'info');
-            }
-            return;
-        }
-
-        const first = toAdd[0];
-        activeIds.push(first);
-        this.layout = { widgets: activeIds };
-        this.saveLayout();
-        this.renderWidgets();
-
-        if (typeof showToast === 'function') {
-            showToast('✅ Widget adicionado!', 'success');
-        }
-    }
-};
-
-// Inicializar widgets após carregar o dashboard
-document.addEventListener('DOMContentLoaded', function () {
-    setTimeout(() => {
-        if (window.DashboardWidgets) {
-            window.DashboardWidgets.init();
-        }
-    }, 1500);
-});
