@@ -1,6 +1,6 @@
 // ============================================
 // INVESTIMENTOS - TonuControle
-// VERSÃO COMPLETA FINAL
+// VERSÃO COMPLETA FINAL - CORRIGIDA
 // ============================================
 
 console.log('📈 Investments.js carregado');
@@ -1333,7 +1333,7 @@ function renderTransactions() {
 }
 
 // ============================================
-// BUILD CHART DATA - COM LABELS MM/AA
+// BUILD CHART DATA - CORRIGIDO
 // ============================================
 function buildChartData() {
     if (allTransactions.length === 0) {
@@ -1348,10 +1348,10 @@ function buildChartData() {
     const start = new Date(end);
     start.setMonth(start.getMonth() - monthsMap + 1);
     start.setDate(1);
-    end.setDate(1);
 
     const allMonths = [];
     const currentDate = new Date(start);
+
     while (currentDate <= end) {
         const key = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
         allMonths.push({
@@ -1385,9 +1385,6 @@ function buildChartData() {
         currentPrices.set(p.ticker, price);
     }
 
-    let lastInvested = 0;
-    let lastGain = 0;
-    let lastTotal = 0;
     const labels = [];
     const invested = [];
     const gain = [];
@@ -1437,20 +1434,11 @@ function buildChartData() {
             }
             monthGain = totalSimulatedValue - runningInvested;
             runningTotal = totalSimulatedValue;
-            lastInvested = runningInvested;
-            lastGain = monthGain;
-            lastTotal = runningTotal;
-        } else if (i > 0) {
-            runningInvested = lastInvested;
-            monthGain = lastGain;
-            runningTotal = lastTotal;
         } else {
-            runningInvested = 0;
+            runningTotal = runningInvested;
             monthGain = 0;
-            runningTotal = 0;
         }
 
-        // 🔥 FORMATO MM/AA (ex: 08/26)
         const monthLabel = `${String(month.date.getMonth() + 1).padStart(2, '0')}/${String(month.date.getFullYear()).slice(2)}`;
         labels.push(monthLabel);
         invested.push(Math.round(runningInvested * 100) / 100);
@@ -1528,9 +1516,6 @@ function renderChart() {
         return;
     }
 
-    // 🔥 GRÁFICO COM DUAS CAMADAS
-    // Valor Aplicado = Roxo (#6C5CE7)
-    // Ganho de Capital = Dourado (#FDCB6E)
     patrimonyChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1804,7 +1789,6 @@ function renderDividendsChart() {
 
     const sortedMonths = Object.keys(byMonth).sort();
 
-    // 🔥 LABELS NO FORMATO MM/AA (ex: 08/26)
     const labels = sortedMonths.map(m => {
         const [year, month] = m.split('-');
         return `${String(month).padStart(2, '0')}/${String(year).slice(2)}`;

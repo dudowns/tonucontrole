@@ -3,513 +3,170 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
-
-    <meta name="theme-color" content="#6C5CE7">
-    <meta name="msapplication-TileColor" content="#6C5CE7">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="TonuControle">
-
-    <link rel="manifest" href="../manifest.json">
-    <link rel="apple-touch-icon" href="../icons/icon-192x192.png">
-    <link rel="shortcut icon" href="../icons/icon-128x128.png" type="image/png">
-    <link rel="icon" href="../icons/icon-128x128.png" type="image/png">
-    <link rel="icon" href="../icons/icon-96x96.png" sizes="96x96" type="image/png">
-
     <title>Dashboard | TonuControle</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Fontes e Ícones -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js" defer></script>
 
+    <!-- CSS -->
     <link rel="stylesheet" href="../css/theme.css">
     <link rel="stylesheet" href="../css/dark-theme.css">
     <link rel="stylesheet" href="../css/sidebar-patch.css">
     <link rel="stylesheet" href="../css/dashboard.css">
-    <link rel="stylesheet" href="../css/notifications.css">
-    <link rel="stylesheet" href="../css/sync.css">
-    <link rel="stylesheet" href="../css/sync-status.css">
-
-    <style>
-        /* ==========================================
-           PREFERS-REDUCED-MOTION
-           ========================================== */
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
-
-            .spinner {
-                animation: none !important;
-            }
-
-            .card-stat:hover {
-                transform: none !important;
-            }
-
-            .transaction-item:hover {
-                transform: none !important;
-            }
-        }
-
-        /* ==========================================
-           FOCO VISÍVEL
-           ========================================== */
-        *:focus-visible {
-            outline: 3px solid #6C5CE7 !important;
-            outline-offset: 2px !important;
-        }
-
-        /* ==========================================
-           SKIP LINK - ACESSIBILIDADE
-           ========================================== */
-        .skip-link {
-            position: absolute;
-            top: -100%;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            background: #6C5CE7;
-            color: #fff;
-            border-radius: 8px;
-            z-index: 999999;
-            font-weight: 600;
-            text-decoration: none;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .skip-link:focus {
-            top: 16px;
-        }
-    </style>
 </head>
 
 <body>
-
-    <!-- ==========================================
-    SKIP LINK - ACESSIBILIDADE
-    ========================================== -->
-    <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
-
-    <!-- ==========================================
-    APP SHELL
-    ========================================== -->
     <div class="app-shell">
-        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button"
-            aria-label="Fechar menu"></div>
-
-        <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
+        <!-- SIDEBAR -->
+        <aside class="sidebar hidden" id="sidebar">
             <div class="sidebar-brand">
-                <div class="brand-icon">
-                    <img src="../icons/logo.png" alt="TonuControle">
-                </div>
+                <div class="brand-icon">💰</div>
                 <h2>TonuControle</h2>
             </div>
-            <ul class="sidebar-nav" role="menubar">
-                <li role="none"><a href="dashboard.html" class="active" role="menuitem" aria-current="page"><i
-                            class="fas fa-chart-pie" aria-hidden="true"></i> Dashboard</a></li>
-                <li role="none"><a href="transactions.html" role="menuitem"><i class="fas fa-exchange-alt"
-                            aria-hidden="true"></i> Transações</a></li>
-                <li role="none"><a href="bills.html" role="menuitem"><i class="fas fa-file-invoice-dollar"
-                            aria-hidden="true"></i> Contas do Mês</a></li>
-                <li role="none"><a href="goals.html" role="menuitem"><i class="fas fa-bullseye" aria-hidden="true"></i>
-                        Metas</a></li>
-                <li role="none"><a href="investments.html" role="menuitem"><i class="fas fa-chart-line"
-                            aria-hidden="true"></i> Investimentos</a></li>
-                <li role="none"><a href="settings.html" role="menuitem"><i class="fas fa-cog" aria-hidden="true"></i>
-                        Configurações</a></li>
+            <ul class="sidebar-nav">
+                <li><a href="dashboard.html" class="active"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
+                <li><a href="transactions.html"><i class="fas fa-exchange-alt"></i> Transações</a></li>
+                <li><a href="bills.html"><i class="fas fa-file-invoice-dollar"></i> Contas</a></li>
+                <li><a href="goals.html"><i class="fas fa-bullseye"></i> Metas</a></li>
+                <li><a href="investments.html"><i class="fas fa-chart-line"></i> Investimentos</a></li>
+                <li><a href="settings.html"><i class="fas fa-cog"></i> Configurações</a></li>
             </ul>
             <div class="sidebar-footer">
-                <a href="settings.html" class="sidebar-user-profile" id="sidebarUserProfile"
-                    title="Abrir Configurações e Perfil">
-                    <div class="avatar-circle" id="sidebarUserAvatar">U</div>
-                    <div class="sidebar-user-info">
-                        <span class="sidebar-user-name" id="sidebarUserName">Usuário</span>
-                        <span class="sidebar-user-email" id="sidebarUserEmail">Configurações</span>
-                        <div class="sidebar-user-status" id="sidebarUserStatus">
-                            <span class="status-dot"></span>
-                            <span>Ativo</span>
-                        </div>
-                    </div>
-                    <i class="fas fa-cog sidebar-user-icon" aria-hidden="true"></i>
-                </a>
-                <button class="btn-sair" onclick="logout()" aria-label="Sair da conta">
-                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair
+                <button class="btn-sair" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Sair
                 </button>
             </div>
         </aside>
 
-        <main class="main-content full" id="mainContent" id="main-content">
-            <header class="topbar" role="banner">
-                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu" aria-expanded="false">
-                    <i class="fas fa-bars" aria-hidden="true"></i>
+        <!-- MAIN CONTENT -->
+        <main class="main-content full" id="mainContent">
+            <!-- TOPBAR -->
+            <header class="topbar">
+                <button class="menu-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
                 </button>
                 <div class="topbar-title">
                     <div class="sub">Visão geral</div>
                     <h1>Dashboard</h1>
                 </div>
                 <div class="topbar-actions">
-                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro"
-                        aria-label="Alternar tema">
-                        <i class="fas fa-moon" aria-hidden="true"></i>
+                    <button class="theme-toggle-btn" onclick="toggleTheme()">
+                        <i class="fas fa-moon"></i>
                     </button>
-                    <button id="notifBellBtn" class="notif-bell-btn" type="button"
-                        onclick="window.toggleNotificationDropdown(event)" title="Lembretes e Notificações de Contas"
-                        aria-label="Notificações">
-                        <i class="fas fa-bell" aria-hidden="true"></i>
-                        <span class="notif-badge hidden" id="notifBadgeCount">0</span>
-                    </button>
-                    <button class="btn btn-outline" onclick="openCashFlowModal()"
-                        title="Ver Projeção de Fluxo de Caixa Futuro (30 dias)" aria-label="Projeção de fluxo de caixa">
-                        <i class="fas fa-chart-line" aria-hidden="true"></i> <span class="hide-mobile">Projeção</span>
-                    </button>
-                    <button class="btn btn-outline" onclick="TonuWeeklyReport.showWeeklySummaryModal()"
-                        title="Ver Resumo Semanal de Gastos" aria-label="Resumo semanal">
-                        <i class="fas fa-envelope-open-text" aria-hidden="true"></i> <span
-                            class="hide-mobile">Semanal</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="exportarPDF()" title="Exportar relatório em PDF"
-                        aria-label="Exportar PDF">
-                        <i class="fas fa-file-pdf" aria-hidden="true"></i> PDF
+                    <button class="btn btn-primary" onclick="openModal()">
+                        <i class="fas fa-plus"></i> Nova Transação
                     </button>
                 </div>
             </header>
 
-            <!-- ==========================================
-            CONTEÚDO - COMPLETO
-            ========================================== -->
-            <div class="content" id="main-content">
-                <div class="month-selector">
-                    <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
-                        <i class="fas fa-chevron-left" aria-hidden="true"></i>
-                    </button>
-                    <span class="month-label" id="selectedMonth">Agosto 2026</span>
-                    <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês">
-                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
-                    </button>
-                    <button class="btn-today" onclick="goToCurrentMonth()">Hoje</button>
-                </div>
-
-                <div id="dueBillsWarningBanner" class="due-bills-banner warning" style="display:none;">
-                    <div class="due-banner-left">
-                        <div class="due-banner-icon"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
-                        </div>
-                        <div class="due-banner-info">
-                            <h4 id="dueBannerTitle">⚠️ Atenção: Você tem contas em atraso!</h4>
-                            <p id="dueBannerDesc">Acesse a lista e efetue o pagamento para regularizar suas contas.</p>
-                        </div>
-                    </div>
-                    <div class="due-banner-actions">
-                        <button class="btn btn-danger btn-sm" onclick="window.location.href='bills.html'"
-                            aria-label="Ver contas">
-                            <i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Ver Contas
-                        </button>
-                        <button class="btn btn-ghost btn-sm"
-                            onclick="document.getElementById('dueBillsWarningBanner').style.display='none'"
-                            title="Dispensar aviso" aria-label="Dispensar aviso">
-                            &times;
-                        </button>
-                    </div>
-                </div>
-
-                <section class="dashboard-grid" id="summaryGrid">
-                    <div class="card-stat success">
-                        <div class="stat-icon success"><i class="fas fa-arrow-up" aria-hidden="true"></i></div>
-                        <div class="stat-info">
-                            <div class="stat-label">Receitas</div>
-                            <div class="stat-value" id="totalIncome">R$ 0,00</div>
-                            <div class="stat-sub" id="incomeTrend"></div>
-                        </div>
-                    </div>
-                    <div class="card-stat danger">
-                        <div class="stat-icon danger"><i class="fas fa-arrow-down" aria-hidden="true"></i></div>
-                        <div class="stat-info">
-                            <div class="stat-label">Despesas</div>
-                            <div class="stat-value" id="totalExpense">R$ 0,00</div>
-                            <div class="stat-sub" id="expenseTrend"></div>
-                        </div>
-                    </div>
+            <!-- CONTENT -->
+            <div class="content">
+                <!-- Cards de Resumo -->
+                <div class="dashboard-grid" id="summaryGrid">
+                    <!-- Patrimônio -->
                     <div class="card-stat primary">
-                        <div class="stat-icon primary"><i class="fas fa-wallet" aria-hidden="true"></i></div>
-                        <div class="stat-info">
-                            <div class="stat-label">Saldo</div>
-                            <div class="stat-value" id="totalBalance">R$ 0,00</div>
-                            <div class="stat-sub" id="balanceStatus"></div>
-                        </div>
-                    </div>
-                    <div class="card-stat warning">
-                        <div class="stat-icon warning"><i class="fas fa-file-invoice" aria-hidden="true"></i></div>
-                        <div class="stat-info">
-                            <div class="stat-label">Contas a Pagar</div>
-                            <div class="stat-value" id="billsCount">0</div>
-                            <div class="stat-sub" id="billsAmount">R$ 0,00</div>
-                        </div>
-                    </div>
-                    <div class="card-stat info">
-                        <div class="stat-icon info"><i class="fas fa-coins" aria-hidden="true"></i></div>
+                        <div class="stat-icon primary"><i class="fas fa-coins"></i></div>
                         <div class="stat-info">
                             <div class="stat-label">Patrimônio</div>
-                            <div class="stat-value" id="patrimony">R$ 0,00</div>
-                            <div class="stat-sub">Acumulado</div>
+                            <div class="stat-value" id="totalPatrimony">R$ 0,00</div>
+                            <div class="stat-sub" id="patrimonyVariation">Carregando...</div>
                         </div>
                     </div>
-                </section>
 
-                <!-- ==========================================
-                GRÁFICOS
-                ========================================== -->
+                    <!-- Receitas -->
+                    <div class="card-stat success">
+                        <div class="stat-icon success"><i class="fas fa-arrow-up"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Total Receitas</div>
+                            <div class="stat-value" id="totalIncome">R$ 0,00</div>
+                            <div class="stat-sub" id="incomeTrend">+0%</div>
+                        </div>
+                    </div>
+
+                    <!-- Despesas -->
+                    <div class="card-stat danger">
+                        <div class="stat-icon danger"><i class="fas fa-arrow-down"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Total Despesas</div>
+                            <div class="stat-value" id="totalExpense">R$ 0,00</div>
+                            <div class="stat-sub" id="expenseTrend">+0%</div>
+                        </div>
+                    </div>
+
+                    <!-- Saldo do Mês -->
+                    <div class="card-stat warning">
+                        <div class="stat-icon warning"><i class="fas fa-wallet"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Saldo do Mês</div>
+                            <div class="stat-value" id="monthBalance">R$ 0,00</div>
+                            <div class="stat-sub" id="balanceStatus">Carregando...</div>
+                        </div>
+                    </div>
+
+                    <!-- Total Investido -->
+                    <div class="card-stat info">
+                        <div class="stat-icon info"><i class="fas fa-chart-line"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Total Investido</div>
+                            <div class="stat-value" id="totalInvested">R$ 0,00</div>
+                            <div class="stat-sub" id="investedCount">0 ativos</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alertas -->
+                <div id="alertContainer"></div>
+
+                <!-- Gráficos -->
                 <div class="charts-grid">
-                    <div class="card expense-summary-card">
-                        <div class="card-header expense-card-header">
-                            <button class="expense-nav-arrow" onclick="changeMonth(-1)" title="Mês anterior"
-                                aria-label="Mês anterior">
-                                <i class="fas fa-chevron-left" aria-hidden="true"></i>
-                            </button>
-                            <h3 class="expense-card-title">RESUMO DE DESPESAS - MÊS ATUAL</h3>
-                            <div class="expense-header-actions">
-                                <button class="expense-more-btn" onclick="openCashFlowModal()"
-                                    title="Opções e Projeções" aria-label="Mais opções">
-                                    <i class="fas fa-ellipsis-h" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="expense-chart-body">
-                            <div class="expense-canvas-box">
-                                <canvas id="categoryChart" role="img"
-                                    aria-label="Gráfico de categorias de despesas"></canvas>
-                            </div>
-                            <div class="expense-floating-legend" id="expenseLegendCard"></div>
-                        </div>
-                    </div>
-
                     <div class="card">
                         <div class="card-header">
-                            <h3>📈 Fluxo Financeiro</h3>
-                            <span class="badge badge-muted">Últimos 6 meses</span>
+                            <h3>📊 Evolução Mensal</h3>
                         </div>
                         <div class="chart-wrap">
-                            <canvas id="monthlyChart" role="img"
-                                aria-label="Gráfico de fluxo financeiro mensal"></canvas>
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>🎯 Distribuição de Gastos</h3>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="categoryChart"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- ==========================================
-                BOTTOM GRID - INSIGHTS E TRANSAÇÕES
-                ========================================== -->
-                <div class="bottom-grid">
-                    <div class="card insights-panel">
-                        <div class="card-header">
-                            <h3>🤖 Insights do Tonu</h3>
-                            <button class="btn btn-ghost btn-icon-sm" onclick="loadInsights()"
-                                aria-label="Atualizar insights">
-                                <i class="fas fa-sync-alt" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        <div class="card-body" id="insightsContent">
-                            <p class="text-muted text-center" style="padding:20px 0;">Analisando...</p>
-                        </div>
+                <!-- Últimas Transações -->
+                <div class="card transactions-card">
+                    <div class="card-header">
+                        <h3>📋 Últimas Transações</h3>
+                        <a href="transactions.html" class="view-all-link">
+                            Ver todas <i class="fas fa-arrow-right"></i>
+                        </a>
                     </div>
-
-                    <div class="card transactions-card">
-                        <div class="card-header">
-                            <div class="card-header-left">
-                                <h3>📋 Últimas Transações</h3>
-                                <span class="tx-count" id="txCount">0</span>
-                            </div>
-                            <a href="transactions.html" class="view-all-link" aria-label="Ver todas as transações">
-                                Ver todas <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                            </a>
-                        </div>
-                        <div class="card-body" id="transactionsList">
-                            <div class="loading-transactions">
-                                <span class="spinner"></span>
-                                <p>Carregando transações...</p>
-                            </div>
+                    <div class="card-body" id="transactionsList">
+                        <div class="loading-transactions">
+                            <span class="spinner"></span>
+                            <p>Carregando transações...</p>
                         </div>
                     </div>
                 </div>
-
             </div>
         </main>
     </div>
 
-    <!-- ==========================================
-    TOAST
-    ========================================== -->
-    <div id="toast" class="toast hidden" role="alert" aria-live="polite" aria-atomic="true"></div>
+    <!-- TOAST -->
+    <div id="toast" class="toast hidden"></div>
 
-    <!-- ==========================================
-    MODAL - LOGIN (FALLBACK)
-    ========================================== -->
-    <div class="modal-overlay" id="loginModalOverlay" onclick="if(event.target === this) closeLoginModal()"
-        role="dialog" aria-modal="true" aria-labelledby="modalLoginTitle">
-        <div class="modal hidden" id="loginModal">
-            <div class="modal-header">
-                <h3 id="modalLoginTitle">🔐 Faça o Login</h3>
-                <button class="modal-close" onclick="closeLoginModal()" aria-label="Fechar modal">
-                    <i class="fas fa-times" aria-hidden="true"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="loginFormModal" onsubmit="handleLoginModal(event)" novalidate>
-                    <div class="form-group">
-                        <label for="loginEmailModal">E-mail</label>
-                        <div class="input-wrapper">
-                            <i class="fa-regular fa-envelope" aria-hidden="true"></i>
-                            <input type="email" id="loginEmailModal" placeholder="seu@email.com" required
-                                aria-required="true">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="loginPasswordModal">Senha</label>
-                        <div class="input-wrapper">
-                            <i class="fa-solid fa-lock" aria-hidden="true"></i>
-                            <input type="password" id="loginPasswordModal" placeholder="••••••••" required
-                                aria-required="true">
-                        </div>
-                    </div>
-                    <button type="submit" class="btn-primary w-full" id="loginBtnModal">Entrar</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- ==========================================
-    SCRIPTS
-    ========================================== -->
+    <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
     <script src="../js/supabase.js"></script>
     <script src="../js/core.js"></script>
-    <script src="../js/security.js"></script>
-    <script src="../js/financial-tools.js"></script>
-    <script src="../js/sync.js"></script>
-    <script src="../js/notifications.js"></script>
     <script src="../js/dashboard.js"></script>
-    <script src="../js/sw-register.js"></script>
-
-    <script>
-        // ==========================================
-        // DOM READY
-        // ==========================================
-        document.addEventListener('DOMContentLoaded', function () {
-            const savedTheme = localStorage.getItem('tonu_theme') || 'light';
-            if (savedTheme === 'dark') {
-                document.body.classList.add('dark-theme');
-                document.documentElement.setAttribute('data-theme', 'dark');
-                document.querySelector('.theme-toggle-btn i')?.classList.replace('fa-moon', 'fa-sun');
-            }
-
-            // Verificação de elementos do dashboard
-            console.log('📊 Dashboard HTML carregado');
-            ['totalIncome', 'totalExpense', 'totalBalance', 'patrimony', 'billsCount', 'billsAmount'].forEach(function (id) {
-                const el = document.getElementById(id);
-                if (el) console.log('✅ Elemento ' + id + ' encontrado');
-                else console.warn('⚠️ Elemento ' + id + ' NÃO encontrado');
-            });
-
-            // Inicializar toast
-            const toast = document.getElementById('toast');
-            if (toast) toast.className = 'toast hidden';
-
-            // Verificar contas em atraso
-            if (typeof checkOverdueBills === 'function') {
-                setTimeout(checkOverdueBills, 1500);
-            }
-
-            console.log('✅ Dashboard.html refatorado com acessibilidade e PWA');
-        });
-
-        // ==========================================
-        // SIDEBAR
-        // ==========================================
-        window.toggleSidebar = function () {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            const main = document.getElementById('mainContent');
-            if (!sidebar) return;
-            if (sidebar.classList.contains('hidden')) {
-                sidebar.classList.remove('hidden');
-                if (window.innerWidth <= 768 && overlay) overlay.classList.add('show');
-                if (main && window.innerWidth > 768) main.classList.remove('full');
-            } else {
-                sidebar.classList.add('hidden');
-                if (overlay) overlay.classList.remove('show');
-                if (main && window.innerWidth > 768) main.classList.add('full');
-            }
-        };
-
-        window.closeSidebar = function () {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            const main = document.getElementById('mainContent');
-            if (sidebar) sidebar.classList.add('hidden');
-            if (overlay) overlay.classList.remove('show');
-            if (main && window.innerWidth > 768) main.classList.add('full');
-        };
-
-        // ==========================================
-        // LOGOUT
-        // ==========================================
-        window.logout = async function () {
-            await supabaseClient.auth.signOut();
-            window.location.href = '../index.html';
-        };
-
-        // ==========================================
-        // RESPONSIVO
-        // ==========================================
-        document.addEventListener('DOMContentLoaded', function () {
-            const main = document.getElementById('mainContent');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            if (window.innerWidth <= 768) {
-                if (main) main.classList.add('full');
-                if (sidebar) sidebar.classList.add('hidden');
-                if (overlay) overlay.classList.remove('show');
-            } else {
-                if (main) main.classList.remove('full');
-                if (sidebar) sidebar.classList.remove('hidden');
-            }
-        });
-
-        window.addEventListener('resize', function () {
-            const main = document.getElementById('mainContent');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            if (window.innerWidth <= 768) {
-                if (main) main.classList.add('full');
-                if (sidebar) sidebar.classList.add('hidden');
-                if (overlay) overlay.classList.remove('show');
-            } else {
-                if (main) main.classList.remove('full');
-                if (sidebar) sidebar.classList.remove('hidden');
-            }
-        });
-
-        // ==========================================
-        // FECHAR SIDEBAR
-        // ==========================================
-        document.addEventListener('click', function (e) {
-            if (e.target.classList.contains('sidebar-overlay')) closeSidebar();
-        });
-
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeSidebar();
-        });
-    </script>
-
 </body>
 
 </html>
