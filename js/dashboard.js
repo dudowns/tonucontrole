@@ -90,15 +90,47 @@ function updateMonthDisplay(elementId, offset) {
     return d;
 }
 
-// ✨ FUNÇÃO DE SANITIZAÇÃO
+// ============================================
+// ✨ FUNÇÃO DE SANITIZAÇÃO - VERSÃO DEFINITIVA
+// ============================================
 function sanitizeReportText(rawText) {
     if (!rawText || typeof rawText !== 'string') return '';
-    return rawText
-        .replace(/Ø=[^\s]{1,2}/g, '')
-        .replace(/[^\x20-\x7EÀ-ž]/g, '')
-        .replace(/\s*\(pago\)\s*/gi, '')
-        .replace(/\s{2,}/g, ' ')
-        .trim();
+
+    let cleaned = rawText;
+
+    // 1. REMOVE TODOS OS CARACTERES ESTRANHOS QUE COMEÇAM COM "Ø"
+    cleaned = cleaned.replace(/Ø[=][^\s]{1,4}/g, '');
+    cleaned = cleaned.replace(/Ø[>][^\s]{1,4}/g, '');
+    cleaned = cleaned.replace(/Ø[=][^\\s]*/g, '');
+    cleaned = cleaned.replace(/Ø[>][^\\s]*/g, '');
+    cleaned = cleaned.replace(/�/g, '');
+    cleaned = cleaned.replace(/’┐Į/g, '');
+
+    // 2. REMOVE &¡, &lt;, &gt; e similares
+    cleaned = cleaned.replace(/&[a-z]{1,4};/gi, '');
+
+    // 3. REMOVE "(pago)"
+    cleaned = cleaned.replace(/\s*\(pago\)\s*/gi, '');
+
+    // 4. REMOVE ESPAÇOS DUPLOS
+    cleaned = cleaned.replace(/\s{2,}/g, ' ');
+
+    // 5. REMOVE PONTOS ESTRANHOS NO FINAL
+    cleaned = cleaned.replace(/[\.]+$/, '');
+
+    // 6. REMOVE CARACTERES NÃO IMPRIMÍVEIS (mantém acentos e caracteres especiais)
+    cleaned = cleaned.replace(/[^\x20-\x7EÀ-ž\r\n\t]/g, '');
+
+    // 7. REMOVE PADRÕES ESPECÍFICOS QUE APARECEM NO PDF
+    cleaned = cleaned.replace(/�\s*I�n�v�e�s�t�i�m�e�n�t�o�s/g, 'Investimentos');
+    cleaned = cleaned.replace(/�\s*C�a�r�t�ã�o�\s*�\s*d�e�\s*�\s*C�r�é�d�i�t�o/g, 'Cartão de Crédito');
+    cleaned = cleaned.replace(/�\s*C�o�n�t�a�s�\s*�\s*B�á�s�i�c�a�s/g, 'Contas Básicas');
+    cleaned = cleaned.replace(/�\s*E�m�p�r�é�s�t�i�m�o�s/g, 'Empréstimos');
+
+    // 8. LIMPEZA FINAL - REMOVE QUALQUER CARACTERE ESTRANHO QUE SOBROU
+    cleaned = cleaned.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)]/g, '');
+
+    return cleaned.trim();
 }
 
 function inferClass(ticker) {
@@ -837,9 +869,12 @@ async function loadRecentTransactions() {
         const groupedByKey = new Map();
 
         for (const tx of (data || [])) {
-            let desc = tx.description.trim();
+            // 🔥 APLICA A SANITIZAÇÃO COMPLETA
+            let desc = sanitizeReportText(tx.description);
+            // REMOVE "(pago)" e limpa espaços extras
             desc = desc.replace(/\s*\(pago\)\s*/gi, '').trim();
-            desc = desc.replace(/\s+$/g, '');
+            // REMOVE CARACTERES ESTRANHOS ISOLADOS QUE SOBRAREM
+            desc = desc.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)]/g, '').trim();
 
             const amountKey = Math.round(Number(tx.amount) * 100);
             const catKey = tx.category_id || 'null';
@@ -887,8 +922,9 @@ async function loadRecentTransactions() {
             const catColor = category?.color || '#6C5CE7';
             const catName = category?.name || 'Sem categoria';
 
-            let displayDesc = t.description;
+            let displayDesc = sanitizeReportText(t.description);
             displayDesc = displayDesc.replace(/\s*\(pago\)\s*/gi, '').trim();
+            displayDesc = displayDesc.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)]/g, '').trim();
 
             return `
                 <div class="transaction-item">
@@ -1694,6 +1730,51 @@ async function exportarPDF() {
 
         if (error) throw error;
 
+        // ============================================
+        // 🔥 FUNÇÃO DE LIMPEZA AGRESSIVA PARA O PDF
+        // ============================================
+        function cleanText(text) {
+            if (!text) return '';
+
+            let cleaned = String(text);
+
+            // REMOVE TODOS OS PADRÕES ESTRANHOS
+            cleaned = cleaned.replace(/Ø[=][^\s]{1,4}/g, '');
+            cleaned = cleaned.replace(/Ø[>][^\s]{1,4}/g, '');
+            cleaned = cleaned.replace(/Ø[=][^\\s]*/g, '');
+            cleaned = cleaned.replace(/Ø[>][^\\s]*/g, '');
+            cleaned = cleaned.replace(/&[a-z]{1,4};/gi, '');
+            cleaned = cleaned.replace(/�/g, '');
+            cleaned = cleaned.replace(/’┐Į/g, '');
+            cleaned = cleaned.replace(/[^\x20-\x7EÀ-ž]/g, '');
+            cleaned = cleaned.replace(/\s*\(pago\)\s*/gi, '');
+            cleaned = cleaned.replace(/\s{2,}/g, ' ');
+
+            // REMOVE PADRÕES ESPECÍFICOS
+            cleaned = cleaned.replace(/�\s*I�n�v�e�s�t�i�m�e�n�t�o�s/g, 'Investimentos');
+            cleaned = cleaned.replace(/�\s*C�a�r�t�ã�o�\s*�\s*d�e�\s*�\s*C�r�é�d�i�t�o/g, 'Cartão de Crédito');
+            cleaned = cleaned.replace(/�\s*C�o�n�t�a�s�\s*�\s*B�á�s�i�c�a�s/g, 'Contas Básicas');
+            cleaned = cleaned.replace(/�\s*E�m�p�r�é�s�t�i�m�o�s/g, 'Empréstimos');
+
+            // LIMPEZA FINAL
+            cleaned = cleaned.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)]/g, '');
+
+            return cleaned.trim();
+        }
+
+        function safeDescription(text) {
+            // 🔥 APLICA A LIMPEZA COMPLETA
+            let cleaned = cleanText(text);
+
+            // REMOVE "(pago)" novamente (segurança)
+            cleaned = cleaned.replace(/\s*\(pago\)\s*/gi, '').trim();
+
+            if (cleaned.length > 55) {
+                return cleaned.substring(0, 52) + '...';
+            }
+            return cleaned || 'Sem descricao';
+        }
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'pt', 'a4');
 
@@ -1805,7 +1886,7 @@ async function exportarPDF() {
                 }
 
                 const date = new Date(t.date).toLocaleDateString('pt-BR');
-                const desc = sanitizeReportText(t.description || 'Sem descrição');
+                const desc = safeDescription(t.description || 'Sem descrição');
                 const cat = t.categories?.name || 'Geral';
                 const val = formatCurrency(t.amount);
 
