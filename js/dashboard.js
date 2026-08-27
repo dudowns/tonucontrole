@@ -41,64 +41,6 @@ function getMonthName(month) {
     return months[month];
 }
 
-// ✨ FUNÇÃO: Limpa ruídos de codificação e caracteres corrompidos do PDF/Texto
-function sanitizeReportText(rawText) {
-    if (!rawText || typeof rawText !== 'string') return rawText;
-    return rawText
-        .replace(/Ø=[ÜÝ]./g, '') // Remove marcadores como Ø=Ü°, Ø=Ý4, etc.
-        .replace(/ {2,}/g, ' ')  // Corrige espaços múltiplos
-        .trim();
-}
-
-function formatCurrency(value) {
-    const num = Number(value) || 0;
-    try {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(num);
-    } catch {
-        return 'R$ ' + num.toFixed(2);
-    }
-}
-
-function formatDate(date, format = 'short') {
-    if (!date) return '--/--/----';
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return '--/--/----';
-    if (format === 'short') {
-        return d.toLocaleDateString('pt-BR');
-    }
-    return d.toLocaleDateString('pt-BR');
-}
-
-function getToday() {
-    return new Date().toISOString().split('T')[0];
-}
-
-function stripHTML(str) {
-    if (!str) return '';
-    const temp = document.createElement('div');
-    temp.textContent = str;
-    return temp.innerHTML;
-}
-
-function updateMonthDisplay(elementId, offset) {
-    offset = offset || 0;
-    const d = new Date();
-    d.setMonth(d.getMonth() + offset);
-    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-    ];
-    const el = document.getElementById(elementId);
-    if (el) {
-        el.textContent = months[d.getMonth()] + ' ' + d.getFullYear();
-    }
-    return d;
-}
-
 function inferClass(ticker) {
     const tk = ticker.toUpperCase();
     if (/^(KN|HGLG|MXRF|GGRC|RZTR|XPLG|VISC|BTLG|CPTS|IRDM|BCFF|MALL|HFOF|XPML|KNSC|RECR|HGRE|TRXF|TGAR|VILG|RECT|RBRF|RBRP|MCCI|PVBI|VRTA|ALZR|LVBI|JSRE|PATL|DEVA|RBVA|HCTR|VINO|URPR|SNFF|BARI|HSAF|KORE|MCHF|VGIP|VGIR|RBRY|KNIP|KNRI|KNCR)/.test(tk)) {
@@ -250,6 +192,7 @@ async function loadCategories() {
         }
 
         console.log('✅ Categorias carregadas do Supabase:', categories.length);
+        console.log('📋 Categorias:', categories.map(c => ({ name: c.name, icon: c.icon, color: c.color })));
     } catch (error) {
         console.error('❌ Erro ao carregar categorias:', error);
         categories = [];
@@ -385,6 +328,7 @@ async function fetchQuotes() {
 
         if (allResults.length > 0) {
             isUsingRealQuotes = true;
+
             for (const q of allResults) {
                 const tk = q.symbol?.toUpperCase().trim();
                 if (!tk || !Number.isFinite(Number(q.regularMarketPrice))) continue;
@@ -457,10 +401,13 @@ async function calculatePatrimony() {
         buildPositions();
         await fetchQuotes();
         decoratePositions();
+
         const total = positions.reduce((s, p) => s + p.currentValue, 0);
         const result = Math.round(total * 100) / 100;
+
         console.log('🏦 Patrimonio calculado:', result);
         return result;
+
     } catch (error) {
         console.error('❌ Erro ao calcular patrimonio:', error);
         return 0;
@@ -471,11 +418,13 @@ function startPatrimonyAutoUpdate() {
     if (patrimonyUpdateInterval) {
         clearInterval(patrimonyUpdateInterval);
     }
+
     patrimonyUpdateInterval = setInterval(async () => {
         console.log('🔄 Atualizando patrimonio automaticamente...');
         const patrimony = await calculatePatrimony();
         updatePatrimonyUI(patrimony);
     }, 300000);
+
     console.log('⏰ Atualizacao automatica do patrimonio configurada (a cada 5 min)');
 }
 
@@ -533,7 +482,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     startPatrimonyAutoUpdate();
 
-    console.log('✅ Dashboard initialized!');
+    console.log('✅ Dashboard inicializado!');
 });
 
 // ============================================
@@ -620,8 +569,10 @@ async function loadDashboard() {
         console.log('🏦 Patrimonio calculado:', patrimony);
 
         // CALCULAR RECEITAS E DESPESAS DO MÊS ATUAL
-        let currentIncome = 0, currentExpense = 0;
-        let prevIncome = 0, prevExpense = 0;
+        let currentIncome = 0,
+            currentExpense = 0;
+        let prevIncome = 0,
+            prevExpense = 0;
 
         if (current) {
             current.forEach(t => {
@@ -685,6 +636,7 @@ async function loadDashboard() {
                 billsAmountEl.style.display = 'block';
 
                 const contasText = billsCount === 1 ? '1 conta' : `${billsCount} contas`;
+
                 let subEl = document.getElementById('billsSub');
                 if (!subEl) {
                     subEl = document.createElement('div');
@@ -785,7 +737,8 @@ async function checkOverdueBills() {
             }
             if (descEl) {
                 const total = data.reduce((sum, b) => sum + Number(b.amount), 0);
-                descEl.textContent = `Total em atraso: ${formatCurrency(total)}. Acesse a lista e efetue o pagamento.`;
+                descEl.textContent =
+                    `Total em atraso: ${formatCurrency(total)}. Acesse a lista e efetue o pagamento.`;
             }
         } else {
             banner.style.display = 'none';
@@ -825,7 +778,7 @@ async function loadRecentTransactions() {
         const groupedByKey = new Map();
 
         for (const tx of (data || [])) {
-            let desc = sanitizeReportText(tx.description);
+            let desc = tx.description.trim();
             desc = desc.replace(/\s*\(pago\)\s*/gi, '').trim();
             desc = desc.replace(/\s+$/g, '');
 
@@ -875,7 +828,7 @@ async function loadRecentTransactions() {
             const catColor = category?.color || '#6C5CE7';
             const catName = category?.name || 'Sem categoria';
 
-            let displayDesc = sanitizeReportText(t.description);
+            let displayDesc = t.description;
             displayDesc = displayDesc.replace(/\s*\(pago\)\s*/gi, '').trim();
 
             return `
@@ -923,6 +876,7 @@ async function loadCharts() {
 // ============================================
 // 🔥 LAZY LOADING DE GRÁFICOS
 // ============================================
+
 let chartsLoaded = false;
 let chartsLoading = false;
 
@@ -961,28 +915,36 @@ function loadChartsLazy() {
 function getCategoryStyle(name, index) {
     const n = (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    if (n.includes('aliment') || n.includes('comida') || n.includes('mercado') || n.includes('restaurante') || n.includes('ifood') || n.includes('lanche')) {
+    if (n.includes('aliment') || n.includes('comida') || n.includes('mercado') || n.includes('restaurante') || n
+        .includes('ifood') || n.includes('lanche')) {
         return { color: '#EF4444', icon: 'fa-circle' };
     }
-    if (n.includes('transport') || n.includes('uber') || n.includes('combustivel') || n.includes('gasolina') || n.includes('carro') || n.includes('onibus') || n.includes('veiculo')) {
+    if (n.includes('transport') || n.includes('uber') || n.includes('combustivel') || n.includes('gasolina') || n
+        .includes('carro') || n.includes('onibus') || n.includes('veiculo')) {
         return { color: '#38BDF8', icon: 'fa-circle' };
     }
-    if (n.includes('moradia') || n.includes('casa') || n.includes('aluguel') || n.includes('condominio') || n.includes('iptu') || n.includes('luz') || n.includes('agua') || n.includes('energia')) {
+    if (n.includes('moradia') || n.includes('casa') || n.includes('aluguel') || n.includes('condominio') || n
+        .includes('iptu') || n.includes('luz') || n.includes('agua') || n.includes('energia')) {
         return { color: '#8B5CF6', icon: 'fa-circle' };
     }
-    if (n.includes('saude') || n.includes('farmacia') || n.includes('medico') || n.includes('hospital') || n.includes('consulta') || n.includes('drogaria') || n.includes('dentista')) {
+    if (n.includes('saude') || n.includes('farmacia') || n.includes('medico') || n.includes('hospital') || n
+        .includes('consulta') || n.includes('drogaria') || n.includes('dentista')) {
         return { color: '#EC4899', icon: 'fa-heart' };
     }
-    if (n.includes('lazer') || n.includes('viagem') || n.includes('cinema') || n.includes('passeio') || n.includes('bar') || n.includes('festa') || n.includes('hotel')) {
+    if (n.includes('lazer') || n.includes('viagem') || n.includes('cinema') || n.includes('passeio') || n
+        .includes('bar') || n.includes('festa') || n.includes('hotel')) {
         return { color: '#F59E0B', icon: 'fa-circle' };
     }
-    if (n.includes('educa') || n.includes('escola') || n.includes('faculdade') || n.includes('curso') || n.includes('livro') || n.includes('estudo')) {
+    if (n.includes('educa') || n.includes('escola') || n.includes('faculdade') || n.includes('curso') || n
+        .includes('livro') || n.includes('estudo')) {
         return { color: '#06B6D4', icon: 'fa-diamond' };
     }
-    if (n.includes('assinat') || n.includes('stream') || n.includes('netflix') || n.includes('spotify') || n.includes('internet') || n.includes('software')) {
+    if (n.includes('assinat') || n.includes('stream') || n.includes('netflix') || n.includes('spotify') || n
+        .includes('internet') || n.includes('software')) {
         return { color: '#475569', icon: 'fa-circle' };
     }
-    if (n.includes('salar') || n.includes('renda') || n.includes('invest') || n.includes('servico') || n.includes('trabalho') || n.includes('imposto')) {
+    if (n.includes('salar') || n.includes('renda') || n.includes('invest') || n.includes('servico') || n
+        .includes('trabalho') || n.includes('imposto')) {
         return { color: '#10B981', icon: 'fa-circle' };
     }
 
@@ -1049,6 +1011,7 @@ async function loadCategoryChart() {
         }
 
         const groups = {};
+
         if (data && data.length > 0) {
             data.forEach(t => {
                 const catId = t.category_id;
@@ -1239,7 +1202,8 @@ async function loadCategoryChart() {
                     ctx.textBaseline = 'middle';
                     ctx.fillStyle = '#FFFFFF';
 
-                    const pctFontSize = Math.min(13, Math.max(10, Math.floor((outerRadius - innerRadius) * 0.28)));
+                    const pctFontSize = Math.min(13, Math.max(10, Math.floor((outerRadius - innerRadius) *
+                        0.28)));
                     const valFontSize = Math.max(8, Math.floor(pctFontSize * 0.78));
 
                     ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
@@ -1304,9 +1268,11 @@ async function loadCategoryChart() {
                         callbacks: {
                             label: function (context) {
                                 const totalVal = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = totalVal > 0 ? ((context.parsed / totalVal) * 100).toFixed(1) : 0;
+                                const percentage = totalVal > 0 ? ((context.parsed / totalVal) * 100)
+                                    .toFixed(1) : 0;
                                 const label = context.label || 'Outros';
-                                return label + ': ' + formatCurrency(context.parsed) + ' (' + percentage + '%)';
+                                return label + ': ' + formatCurrency(context.parsed) + ' (' + percentage +
+                                    '%)';
                             }
                         }
                     }
@@ -1363,7 +1329,8 @@ async function loadMonthlyChart() {
 
             if (error) throw error;
 
-            let inc = 0, exp = 0;
+            let inc = 0,
+                exp = 0;
             if (data) {
                 data.forEach(t => {
                     if (t.type === 'income') inc += Number(t.amount);
@@ -1482,7 +1449,8 @@ async function loadInsights() {
             return;
         }
 
-        let income = 0, expense = 0;
+        let income = 0,
+            expense = 0;
         const categoriesObj = {};
 
         data.forEach(t => {
@@ -1504,12 +1472,14 @@ async function loadInsights() {
         if (balance > 0) {
             html += '<div class="insight-item success">✅ Saldo positivo: ' + formatCurrency(balance) + '</div>';
         } else if (balance < 0) {
-            html += '<div class="insight-item danger">⚠️ Saldo negativo: ' + formatCurrency(Math.abs(balance)) + '</div>';
+            html += '<div class="insight-item danger">⚠️ Saldo negativo: ' + formatCurrency(Math.abs(balance)) +
+                '</div>';
         }
 
         if (topCategory && expense > 0) {
             const pct = (topCategory[1] / expense * 100).toFixed(0);
-            html += '<div class="insight-item info">📊 Maior gasto: "' + stripHTML(topCategory[0]) + '" (' + pct + '% das despesas)</div>';
+            html += '<div class="insight-item info">📊 Maior gasto: "' + stripHTML(topCategory[0]) + '" (' + pct +
+                '% das despesas)</div>';
         }
 
         if (expense > income && income > 0) {
@@ -1529,7 +1499,8 @@ async function loadInsights() {
 
     } catch (error) {
         console.error('❌ Erro ao carregar insights:', error);
-        container.innerHTML = '<p style="text-align:center;padding:12px 0;color:rgba(255,255,255,0.7);">Erro ao carregar insights</p>';
+        container.innerHTML =
+            '<p style="text-align:center;padding:12px 0;color:rgba(255,255,255,0.7);">Erro ao carregar insights</p>';
     }
 }
 
@@ -1641,7 +1612,7 @@ window.addEventListener('resize', function () {
 });
 
 // ============================================
-// EXPORTAR RELATÓRIO PDF - CORRIGIDO
+// EXPORTAR RELATÓRIO PDF
 // ============================================
 async function exportarPDF() {
     try {
@@ -1668,8 +1639,10 @@ async function exportarPDF() {
 
         if (error) throw error;
 
-        let income = 0, expense = 0;
-        let incomeCount = 0, expenseCount = 0;
+        let income = 0,
+            expense = 0;
+        let incomeCount = 0,
+            expenseCount = 0;
 
         if (transactions) {
             transactions.forEach(t => {
@@ -1690,32 +1663,32 @@ async function exportarPDF() {
 
         doc.setFontSize(24);
         doc.setTextColor(108, 92, 231);
-        doc.text('TonuControle', 40, 60);
+        doc.text('💰 TonuControle', 40, 60);
 
         doc.setFontSize(14);
         doc.setTextColor(44, 62, 80);
         doc.text('Relatorio - ' + monthName, 40, 90);
 
         doc.setFontSize(12);
-        doc.text('Resumo do Mes', 40, 130);
+        doc.text('📊 Resumo do Mes', 40, 130);
         doc.setFontSize(11);
         doc.setTextColor(0, 0, 0);
 
         let y = 160;
-        doc.text('Receitas: ' + formatCurrency(income) + ' (' + incomeCount + ' transacoes)', 50, y);
+        doc.text('📈 Receitas: ' + formatCurrency(income) + ' (' + incomeCount + ' transacoes)', 50, y);
         y += 20;
-        doc.text('Despesas: ' + formatCurrency(expense) + ' (' + expenseCount + ' transacoes)', 50, y);
+        doc.text('📉 Despesas: ' + formatCurrency(expense) + ' (' + expenseCount + ' transacoes)', 50, y);
         y += 20;
 
         const balanceColor = balance >= 0 ? '#00B894' : '#FF7675';
         doc.setTextColor(balanceColor);
-        doc.text('Saldo: ' + formatCurrency(balance), 50, y);
+        doc.text('💼 Saldo: ' + formatCurrency(balance), 50, y);
         doc.setTextColor(0, 0, 0);
         y += 30;
 
         if (transactions && transactions.length > 0) {
             doc.setFontSize(12);
-            doc.text('Ultimas Transacoes:', 40, y + 10);
+            doc.text('📋 Ultimas Transacoes:', 40, y + 10);
             y += 30;
 
             const sorted = [...transactions]
@@ -1725,15 +1698,11 @@ async function exportarPDF() {
             doc.setFontSize(10);
 
             sorted.forEach((t, i) => {
-                const type = t.type === 'income' ? 'Receita' : 'Despesa';
+                const type = t.type === 'income' ? '✅ Receita' : '🔴 Despesa';
                 const date = new Date(t.date).toLocaleDateString('pt-BR');
-                let desc = sanitizeReportText(t.description || 'Sem descricao');
-                if (desc.length > 30) {
-                    desc = desc.substring(0, 27) + '...';
-                }
+                const desc = t.description.length > 30 ? t.description.substring(0, 27) + '...' : t
+                    .description;
                 const amount = formatCurrency(t.amount);
-
-                desc = desc.replace(/[^\x20-\x7E]/g, '').trim();
 
                 const line = (i + 1) + '. ' + date + ' - ' + desc + ' - ' + type + ' - ' + amount;
                 const lines = doc.splitTextToSize(line, 450);
@@ -1756,19 +1725,19 @@ async function exportarPDF() {
             doc.setFontSize(8);
             doc.setTextColor(180, 180, 180);
             doc.text(
-                'Gerado em ' + new Date().toLocaleDateString('pt-BR') + ' as ' + new Date().toLocaleTimeString('pt-BR'),
+                'Gerado em ' + new Date().toLocaleDateString('pt-BR') + ' as ' + new Date().toLocaleTimeString(
+                    'pt-BR'),
                 40,
                 800
             );
             doc.text('Pagina ' + i + '/' + pageCount, 500, 800);
         }
 
-        const fileName = 'TonuControle_' + year + '_' + String(month + 1).padStart(2, '0') + '.pdf';
-        doc.save(fileName);
-        showToast('PDF gerado com sucesso!', 'success');
+        doc.save('TonuControle_' + year + '_' + String(month + 1).padStart(2, '0') + '.pdf');
+        showToast('✅ PDF gerado com sucesso!', 'success');
 
     } catch (error) {
-        console.error('Erro ao gerar PDF:', error);
+        console.error('❌ Erro ao gerar PDF:', error);
         showToast('Erro ao gerar PDF', 'error');
     }
 }
@@ -1806,9 +1775,9 @@ async function openCashFlowModal() {
 }
 
 // ============================================
-// LOGOUT
+// LOGOUT - 🔥 CORRIGIDO
 // ============================================
-async function logout() {
+window.logout = async function () {
     try {
         sessionStorage.setItem('tonu_logout_in_progress', 'true');
 
@@ -1831,10 +1800,10 @@ async function logout() {
         sessionStorage.removeItem('tonu_logout_in_progress');
         window.location.href = '../index.html';
     }
-}
+};
 
 // ============================================
-// EXPORTA FUNÇÕES GLOBAIS
+// EXPORTAR FUNÇÕES GLOBAIS
 // ============================================
 window.exportarPDF = exportarPDF;
 window.openCashFlowModal = openCashFlowModal;
@@ -1853,8 +1822,9 @@ window.logout = logout;
 console.log('✅ Dashboard.js carregado com sucesso!');
 
 // ============================================
-// DASHBOARD WIDGETS
+// DASHBOARD WIDGETS - MELHORIA EXISTENTE
 // ============================================
+
 window.DashboardWidgets = {
     initialized: false,
     widgets: [],
