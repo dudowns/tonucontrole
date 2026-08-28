@@ -203,7 +203,6 @@ async function loadTransactions() {
         }
 
         // 🔥 BUSCAR TODAS AS TRANSAÇÕES DO MÊS
-        // SEM filtro de paid e SEM filtro de is_bill
         const { data, error } = await supabaseClient
             .from('transactions')
             .select('*')
@@ -214,7 +213,6 @@ async function loadTransactions() {
 
         if (error) throw error;
 
-        // 🔥 REMOVER DUPLICATAS
         allTransactions = removeDuplicates(data || []);
 
         console.log('📊 Total de transações no mês:', allTransactions.length);
@@ -236,23 +234,18 @@ async function loadTransactions() {
 // UPDATE SUMMARY - TODAS AS TRANSAÇÕES DO MÊS
 // ============================================
 function updateSummary() {
-    // 🔥 Calcular mês atual com base no offset
     const d = new Date();
     d.setMonth(d.getMonth() + currentMonthOffset);
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const monthFilter = year + '-' + month;
 
-    // 🔥 Filtrar apenas transações do mês selecionado
     const monthTransactions = allTransactions.filter(t => {
         if (!t.date) return false;
         return t.date.startsWith(monthFilter);
     });
 
     let income = 0, expense = 0;
-    const bills = monthTransactions.filter(t => t.is_bill === true);
-    const paid = monthTransactions.filter(t => t.paid === true);
-    const unpaid = monthTransactions.filter(t => t.paid === false);
 
     monthTransactions.forEach(t => {
         if (t.type === 'income') income += Number(t.amount);
@@ -265,7 +258,6 @@ function updateSummary() {
     document.getElementById('totalCount').textContent = monthTransactions.length;
     document.getElementById('totalCountDisplay').textContent = monthTransactions.length;
 
-    // 🔥 INFO ADICIONAL NO RODAPÉ
     const footerInfo = document.querySelector('.filter-count');
     if (footerInfo) {
         const infoText = `📋 ${monthTransactions.length} transações | 💰 ${formatCurrency(income)} | 💸 ${formatCurrency(expense)}`;
@@ -273,6 +265,9 @@ function updateSummary() {
     }
 }
 
+// ============================================
+// RENDER TRANSAÇÕES
+// ============================================
 function renderTransactions(transactions) {
     const container = document.getElementById('transactionsContainer');
     if (!container) return;
@@ -302,7 +297,6 @@ function renderTransactions(transactions) {
         const color = cat.color || (isIncome ? '#00B894' : '#FF7675');
         const tags = t.tags ? t.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
 
-        // 🔥 BADGE DE STATUS
         let statusBadge = '';
         if (t.is_bill) {
             statusBadge = `<span style="font-size:9px; background:#6C5CE7; color:#fff; padding:1px 8px; border-radius:4px; margin-left:4px;">📋 Conta</span>`;
@@ -344,7 +338,7 @@ function renderTransactions(transactions) {
 }
 
 // ============================================
-// FILTROS - AGORA COM TODAS AS TRANSAÇÕES
+// FILTROS
 // ============================================
 function filterTransactions() {
     const search = document.getElementById('searchInput')?.value?.toLowerCase() || '';
@@ -363,7 +357,6 @@ function filterTransactions() {
     const maxAmount = parseFloat(document.getElementById('filterMaxAmount')?.value) || null;
     const tagFilter = document.getElementById('filterTag')?.value?.toLowerCase().replace(/^#/, '') || '';
 
-    // 🔥 COMEÇA COM TODAS AS TRANSAÇÕES DO MÊS
     let filtered = allTransactions.filter(t => {
         if (!t.date) return false;
         return t.date.startsWith(monthFilter);
@@ -501,7 +494,7 @@ function editTransaction(id) {
 }
 
 // ============================================
-// SALVAR TRANSAÇÃO
+// SALVAR TRANSAÇÃO - CORRIGIDO
 // ============================================
 async function saveTransaction(event) {
     event.preventDefault();
@@ -521,27 +514,39 @@ async function saveTransaction(event) {
     const tags = document.getElementById('tTags')?.value?.trim() || null;
     const notes = document.getElementById('tNotes').value.trim();
 
-    const validation = window.validateTransaction({
-        description, amount, date, type
-    });
-
-    if (!validation.valid) {
-        showToast('❌ ' + validation.errors.join('\n'), 'error');
+    // 🔥 VALIDAÇÕES
+    if (!description || description.length < 2) {
+        showToast('❌ Descrição deve ter pelo menos 2 caracteres', 'error');
         return;
     }
 
+    if (isNaN(amount) || amount <= 0) {
+        showToast('❌ Digite um valor válido', 'error');
+        return;
+    }
+
+    if (!date) {
+        showToast('❌ Selecione uma data', 'error');
+        return;
+    }
+
+    // 🔥 TRATAMENTO DA CATEGORIA
+    const finalCategoryId = (categoryId && categoryId !== '' && categoryId !== 'null') ? categoryId : null;
+
     const data = {
         user_id: currentUser.id,
-        type,
+        type: type,
         description: stripHTML(description),
-        amount,
-        category_id: categoryId || null,
-        date,
-        paid,
+        amount: amount,
+        category_id: finalCategoryId,
+        date: date,
+        paid: paid,
         is_bill: false,
         tags: tags ? stripHTML(tags) : null,
         notes: notes ? stripHTML(notes) : null
     };
+
+    console.log('📤 Dados a serem enviados:', data);
 
     const btn = event.target.querySelector('button[type="submit"]');
     const originalText = btn.innerHTML;
@@ -565,10 +570,25 @@ async function saveTransaction(event) {
             return;
         }
 
+        let result;
         if (editId) {
-            await supabaseClient.from('transactions').update(data).eq('id', editId).eq('user_id', currentUser.id);
+            result = await supabaseClient
+                .from('transactions')
+                .update(data)
+                .eq('id', editId)
+                .eq('user_id', currentUser.id);
         } else {
-            await supabaseClient.from('transactions').insert([data]);
+            result = await supabaseClient
+                .from('transactions')
+                .insert([data]);
+        }
+
+        console.log('📥 Resposta:', result);
+
+        if (result.error) {
+            console.error('❌ Erro detalhado:', result.error);
+            showToast('❌ Erro ao salvar: ' + (result.error.message || 'Erro desconhecido'), 'error');
+            return;
         }
 
         showToast(editId ? '✅ Transação atualizada!' : '✅ Transação criada!', 'success');
