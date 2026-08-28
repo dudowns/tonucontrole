@@ -14,6 +14,19 @@ let isProcessing = false;
 let currentMonthOffset = 0;
 
 // ============================================
+// FUNÇÕES AUXILIARES
+// ============================================
+function getLastDayOfMonth(year, month) {
+    return new Date(year, month + 1, 0).getDate();
+}
+
+function formatDateKey(year, month, day) {
+    const m = String(month + 1).padStart(2, '0');
+    const d = String(day).padStart(2, '0');
+    return year + '-' + m + '-' + d;
+}
+
+// ============================================
 // INICIALIZAÇÃO
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -163,7 +176,7 @@ function removeDuplicates(transactions) {
 }
 
 // ============================================
-// CARREGAR TRANSAÇÕES
+// CARREGAR TRANSAÇÕES - MOSTRA TODAS DO MÊS
 // ============================================
 async function loadTransactions() {
     try {
@@ -172,6 +185,9 @@ async function loadTransactions() {
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const monthFilter = year + '-' + month;
+        const lastDay = getLastDayOfMonth(year, d.getMonth());
+        const firstDayStr = formatDateKey(year, d.getMonth(), 1);
+        const lastDayStr = formatDateKey(year, d.getMonth(), lastDay);
 
         console.log('📊 Mês selecionado:', monthFilter);
 
@@ -186,31 +202,29 @@ async function loadTransactions() {
             }
         }
 
-        // 🔥 BUSCAR TRANSAÇÕES PAGAS QUE NÃO SÃO CONTAS (is_bill = false)
+        // 🔥 BUSCAR TODAS AS TRANSAÇÕES DO MÊS
+        // SEM filtro de paid e SEM filtro de is_bill
         const { data, error } = await supabaseClient
             .from('transactions')
             .select('*')
             .eq('user_id', currentUser.id)
-            .eq('paid', true)
-            .eq('is_bill', false)
+            .gte('date', firstDayStr)
+            .lte('date', lastDayStr)
             .order('date', { ascending: false });
 
         if (error) throw error;
 
+        // 🔥 REMOVER DUPLICATAS
         allTransactions = removeDuplicates(data || []);
 
-        console.log('📊 Total de transações pagas (sem duplicatas):', allTransactions.length);
+        console.log('📊 Total de transações no mês:', allTransactions.length);
+        console.log('   💰 Receitas:', allTransactions.filter(t => t.type === 'income').length);
+        console.log('   💸 Despesas:', allTransactions.filter(t => t.type === 'expense').length);
+        console.log('   📋 Contas:', allTransactions.filter(t => t.is_bill === true).length);
+        console.log('   ⏳ Não pagas:', allTransactions.filter(t => t.paid === false).length);
 
         updateSummary();
-
-        const filtered = allTransactions.filter(t => {
-            if (!t.date) return false;
-            return t.date.startsWith(monthFilter);
-        });
-
-        console.log('📊 Transações do mês', monthFilter, ':', filtered.length);
-
-        renderTransactions(filtered);
+        renderTransactions(allTransactions);
 
     } catch (error) {
         console.error('❌ Erro ao carregar transações:', error);
@@ -219,7 +233,7 @@ async function loadTransactions() {
 }
 
 // ============================================
-// UPDATE SUMMARY - APENAS MÊS SELECIONADO
+// UPDATE SUMMARY - TODAS AS TRANSAÇÕES DO MÊS
 // ============================================
 function updateSummary() {
     // 🔥 Calcular mês atual com base no offset
@@ -236,9 +250,13 @@ function updateSummary() {
     });
 
     let income = 0, expense = 0;
+    const bills = monthTransactions.filter(t => t.is_bill === true);
+    const paid = monthTransactions.filter(t => t.paid === true);
+    const unpaid = monthTransactions.filter(t => t.paid === false);
+
     monthTransactions.forEach(t => {
         if (t.type === 'income') income += Number(t.amount);
-        else expense += Number(t.amount);
+        else if (t.type === 'expense' && t.is_bill !== true) expense += Number(t.amount);
     });
 
     document.getElementById('totalIncome').textContent = formatCurrency(income);
@@ -246,6 +264,13 @@ function updateSummary() {
     document.getElementById('totalBalance').textContent = formatCurrency(income - expense);
     document.getElementById('totalCount').textContent = monthTransactions.length;
     document.getElementById('totalCountDisplay').textContent = monthTransactions.length;
+
+    // 🔥 INFO ADICIONAL NO RODAPÉ
+    const footerInfo = document.querySelector('.filter-count');
+    if (footerInfo) {
+        const infoText = `📋 ${monthTransactions.length} transações | 💰 ${formatCurrency(income)} | 💸 ${formatCurrency(expense)}`;
+        footerInfo.innerHTML = `<i class="fas fa-list-ul" style="margin-right:6px;"></i> ${infoText}`;
+    }
 }
 
 function renderTransactions(transactions) {
@@ -277,6 +302,15 @@ function renderTransactions(transactions) {
         const color = cat.color || (isIncome ? '#00B894' : '#FF7675');
         const tags = t.tags ? t.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
 
+        // 🔥 BADGE DE STATUS
+        let statusBadge = '';
+        if (t.is_bill) {
+            statusBadge = `<span style="font-size:9px; background:#6C5CE7; color:#fff; padding:1px 8px; border-radius:4px; margin-left:4px;">📋 Conta</span>`;
+        }
+        if (!t.paid) {
+            statusBadge += `<span style="font-size:9px; background:#FDCB6E; color:#2D3436; padding:1px 8px; border-radius:4px; margin-left:4px;">⏳ Pendente</span>`;
+        }
+
         return `
             <div class="transaction-card" onclick="editTransaction('${t.id}')">
                 <div class="tx-left">
@@ -284,7 +318,7 @@ function renderTransactions(transactions) {
                         <i class="fas ${icon}"></i>
                     </div>
                     <div class="tx-info">
-                        <strong>${stripHTML(t.description)}</strong>
+                        <strong>${stripHTML(t.description)} ${statusBadge}</strong>
                         <small>${cat.name || 'Sem categoria'} • ${formatDate(t.date)}</small>
                         ${tags.length > 0 ? `
                             <div style="display:flex; gap:4px; margin-top:2px; flex-wrap:wrap;">
@@ -310,7 +344,7 @@ function renderTransactions(transactions) {
 }
 
 // ============================================
-// FILTROS
+// FILTROS - AGORA COM TODAS AS TRANSAÇÕES
 // ============================================
 function filterTransactions() {
     const search = document.getElementById('searchInput')?.value?.toLowerCase() || '';
@@ -329,11 +363,11 @@ function filterTransactions() {
     const maxAmount = parseFloat(document.getElementById('filterMaxAmount')?.value) || null;
     const tagFilter = document.getElementById('filterTag')?.value?.toLowerCase().replace(/^#/, '') || '';
 
-    let filtered = allTransactions.slice();
-
-    if (!dateStart && !dateEnd) {
-        filtered = filtered.filter(t => t.date && t.date.startsWith(monthFilter));
-    }
+    // 🔥 COMEÇA COM TODAS AS TRANSAÇÕES DO MÊS
+    let filtered = allTransactions.filter(t => {
+        if (!t.date) return false;
+        return t.date.startsWith(monthFilter);
+    });
 
     if (search) {
         filtered = filtered.filter(t =>
@@ -363,6 +397,8 @@ function filterTransactions() {
         filtered = filtered.filter(t => t.tags && t.tags.toLowerCase().includes(tagFilter));
     }
 
+    document.getElementById('filteredCount').textContent = filtered.length;
+
     renderTransactions(filtered);
 }
 
@@ -372,7 +408,7 @@ function filterTransactions() {
 function changeMonth(dir) {
     currentMonthOffset += dir;
     updateMonthDisplay('selectedMonth', currentMonthOffset);
-    loadTransactions(); // Recarrega com o novo mês
+    loadTransactions();
 }
 
 function goToCurrentMonth() {
