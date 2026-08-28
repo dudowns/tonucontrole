@@ -147,7 +147,7 @@ function populateCategorySelects() {
 }
 
 function getCategoryById(id) {
-    return categories.find(c => c.id === id) || { name: 'Sem categoria', icon: 'fa-tag', color: '#B2BEC3' };
+    return categories.find(c => c.id === id) || null;
 }
 
 // ============================================
@@ -272,7 +272,7 @@ function updateSummary() {
 }
 
 // ============================================
-// RENDER TRANSAÇÕES - CORRIGIDO (SEM DUPLICATAS)
+// RENDER TRANSAÇÕES - CORRIGIDO (SEM DUPLICATAS E COM ÍCONES)
 // ============================================
 function renderTransactions(transactions) {
     const container = document.getElementById('transactionsContainer');
@@ -281,34 +281,23 @@ function renderTransactions(transactions) {
         return;
     }
 
-    // 🔥 FILTRAR TRANSAÇÕES DE PAGAMENTO (que terminam com "(pago)")
+    // 🔥 FILTRAR TRANSAÇÕES DE PAGAMENTO
     const filteredTransactions = transactions.filter(t => {
-        // Se a descrição contém "(pago)", REMOVE da lista
         if (t.description && t.description.includes('(pago)')) {
-            return false; // ❌ Remove
+            return false;
         }
-        return true; // ✅ Mantém
+        return true;
     });
 
-    // 🔥 VERIFICAR SE O ELEMENTO filteredCount EXISTE
+    // Atualizar contadores
     const filteredCount = document.getElementById('filteredCount');
-    if (filteredCount) {
-        filteredCount.textContent = filteredTransactions.length;
-    } else {
-        console.warn('⚠️ Elemento filteredCount não encontrado');
-    }
+    if (filteredCount) filteredCount.textContent = filteredTransactions.length;
 
-    // 🔥 ATUALIZAR totalCountDisplay também
     const totalDisplay = document.getElementById('totalCountDisplay');
-    if (totalDisplay) {
-        totalDisplay.textContent = filteredTransactions.length;
-    }
+    if (totalDisplay) totalDisplay.textContent = filteredTransactions.length;
 
-    // 🔥 ATUALIZAR totalCount também
     const totalCount = document.getElementById('totalCount');
-    if (totalCount) {
-        totalCount.textContent = filteredTransactions.length;
-    }
+    if (totalCount) totalCount.textContent = filteredTransactions.length;
 
     if (!filteredTransactions || filteredTransactions.length === 0) {
         container.innerHTML = `
@@ -329,9 +318,25 @@ function renderTransactions(transactions) {
         const isIncome = t.type === 'income';
         const sign = isIncome ? '+' : '-';
         const cls = isIncome ? 'income' : 'expense';
-        const icon = cat.icon || (isIncome ? 'fa-money-bill-wave' : 'fa-tag');
-        const color = cat.color || (isIncome ? '#00B894' : '#FF7675');
         const tags = t.tags ? t.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
+
+        // 🔥 CORREÇÃO DOS ÍCONES
+        let icon = 'fa-tag';
+        let color = '#6C5CE7';
+
+        if (cat && cat.icon) {
+            icon = cat.icon;
+        } else if (isIncome) {
+            icon = 'fa-money-bill-wave';
+            color = '#00B894';
+        } else {
+            icon = 'fa-tag';
+            color = '#FF7675';
+        }
+
+        if (cat && cat.color) {
+            color = cat.color;
+        }
 
         // Badge de status
         let statusBadge = '';
@@ -350,7 +355,7 @@ function renderTransactions(transactions) {
                     </div>
                     <div class="tx-info">
                         <strong>${stripHTML(t.description)} ${statusBadge}</strong>
-                        <small>${cat.name || 'Sem categoria'} • ${formatDate(t.date)}</small>
+                        <small>${cat && cat.name ? cat.name : 'Sem categoria'} • ${formatDate(t.date)}</small>
                         ${tags.length > 0 ? `
                             <div style="display:flex; gap:4px; margin-top:2px; flex-wrap:wrap;">
                                 ${tags.map(tag => '<span style="font-size:10px; background:rgba(108,92,231,0.12); color:#6c5ce7; padding:1px 6px; border-radius:4px; font-weight:600;">' + stripHTML(tag.startsWith('#') ? tag : '#' + tag) + '</span>').join('')}
