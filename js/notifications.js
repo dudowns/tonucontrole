@@ -40,7 +40,7 @@
 
         isAllowedPage() {
             const currentPath = window.location.pathname;
-            const allowedPages = ['dashboard.html', 'bills.html'];
+            const allowedPages = ['dashboard.html'];
             return allowedPages.some(page => currentPath.includes(page));
         }
 
