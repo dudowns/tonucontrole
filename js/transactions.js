@@ -252,11 +252,17 @@ function updateSummary() {
         else if (t.type === 'expense' && t.is_bill !== true) expense += Number(t.amount);
     });
 
-    document.getElementById('totalIncome').textContent = formatCurrency(income);
-    document.getElementById('totalExpense').textContent = formatCurrency(expense);
-    document.getElementById('totalBalance').textContent = formatCurrency(income - expense);
-    document.getElementById('totalCount').textContent = monthTransactions.length;
-    document.getElementById('totalCountDisplay').textContent = monthTransactions.length;
+    const totalIncome = document.getElementById('totalIncome');
+    const totalExpense = document.getElementById('totalExpense');
+    const totalBalance = document.getElementById('totalBalance');
+    const totalCount = document.getElementById('totalCount');
+    const totalCountDisplay = document.getElementById('totalCountDisplay');
+
+    if (totalIncome) totalIncome.textContent = formatCurrency(income);
+    if (totalExpense) totalExpense.textContent = formatCurrency(expense);
+    if (totalBalance) totalBalance.textContent = formatCurrency(income - expense);
+    if (totalCount) totalCount.textContent = monthTransactions.length;
+    if (totalCountDisplay) totalCountDisplay.textContent = monthTransactions.length;
 
     const footerInfo = document.querySelector('.filter-count');
     if (footerInfo) {
@@ -275,12 +281,24 @@ function renderTransactions(transactions) {
         return;
     }
 
-    // 🔥 VERIFICAR SE O ELEMENTO EXISTE
+    // 🔥 VERIFICAR SE O ELEMENTO filteredCount EXISTE
     const filteredCount = document.getElementById('filteredCount');
     if (filteredCount) {
         filteredCount.textContent = transactions.length;
     } else {
         console.warn('⚠️ Elemento filteredCount não encontrado');
+    }
+
+    // 🔥 ATUALIZAR totalCountDisplay também
+    const totalDisplay = document.getElementById('totalCountDisplay');
+    if (totalDisplay) {
+        totalDisplay.textContent = transactions.length;
+    }
+
+    // 🔥 ATUALIZAR totalCount também
+    const totalCount = document.getElementById('totalCount');
+    if (totalCount) {
+        totalCount.textContent = transactions.length;
     }
 
     if (!transactions || transactions.length === 0) {
@@ -400,7 +418,10 @@ function filterTransactions() {
         filtered = filtered.filter(t => t.tags && t.tags.toLowerCase().includes(tagFilter));
     }
 
-    document.getElementById('filteredCount').textContent = filtered.length;
+    const filteredCount = document.getElementById('filteredCount');
+    if (filteredCount) {
+        filteredCount.textContent = filtered.length;
+    }
 
     renderTransactions(filtered);
 }
