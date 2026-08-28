@@ -272,7 +272,7 @@ function updateSummary() {
 }
 
 // ============================================
-// RENDER TRANSAÇÕES - CORRIGIDO
+// RENDER TRANSAÇÕES - CORRIGIDO (SEM DUPLICATAS)
 // ============================================
 function renderTransactions(transactions) {
     const container = document.getElementById('transactionsContainer');
@@ -281,10 +281,19 @@ function renderTransactions(transactions) {
         return;
     }
 
+    // 🔥 FILTRAR TRANSAÇÕES DE PAGAMENTO (que terminam com "(pago)")
+    const filteredTransactions = transactions.filter(t => {
+        // Se a descrição contém "(pago)", REMOVE da lista
+        if (t.description && t.description.includes('(pago)')) {
+            return false; // ❌ Remove
+        }
+        return true; // ✅ Mantém
+    });
+
     // 🔥 VERIFICAR SE O ELEMENTO filteredCount EXISTE
     const filteredCount = document.getElementById('filteredCount');
     if (filteredCount) {
-        filteredCount.textContent = transactions.length;
+        filteredCount.textContent = filteredTransactions.length;
     } else {
         console.warn('⚠️ Elemento filteredCount não encontrado');
     }
@@ -292,16 +301,16 @@ function renderTransactions(transactions) {
     // 🔥 ATUALIZAR totalCountDisplay também
     const totalDisplay = document.getElementById('totalCountDisplay');
     if (totalDisplay) {
-        totalDisplay.textContent = transactions.length;
+        totalDisplay.textContent = filteredTransactions.length;
     }
 
     // 🔥 ATUALIZAR totalCount também
     const totalCount = document.getElementById('totalCount');
     if (totalCount) {
-        totalCount.textContent = transactions.length;
+        totalCount.textContent = filteredTransactions.length;
     }
 
-    if (!transactions || transactions.length === 0) {
+    if (!filteredTransactions || filteredTransactions.length === 0) {
         container.innerHTML = `
             <div class="empty-state" style="padding:40px 20px;">
                 <span class="empty-icon">📋</span>
@@ -315,7 +324,7 @@ function renderTransactions(transactions) {
         return;
     }
 
-    container.innerHTML = transactions.map(t => {
+    container.innerHTML = filteredTransactions.map(t => {
         const cat = getCategoryById(t.category_id);
         const isIncome = t.type === 'income';
         const sign = isIncome ? '+' : '-';
