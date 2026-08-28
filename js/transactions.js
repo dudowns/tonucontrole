@@ -266,13 +266,22 @@ function updateSummary() {
 }
 
 // ============================================
-// RENDER TRANSAÇÕES
+// RENDER TRANSAÇÕES - CORRIGIDO
 // ============================================
 function renderTransactions(transactions) {
     const container = document.getElementById('transactionsContainer');
-    if (!container) return;
+    if (!container) {
+        console.warn('⚠️ Container transactionsContainer não encontrado');
+        return;
+    }
 
-    document.getElementById('filteredCount').textContent = transactions.length;
+    // 🔥 VERIFICAR SE O ELEMENTO EXISTE
+    const filteredCount = document.getElementById('filteredCount');
+    if (filteredCount) {
+        filteredCount.textContent = transactions.length;
+    } else {
+        console.warn('⚠️ Elemento filteredCount não encontrado');
+    }
 
     if (!transactions || transactions.length === 0) {
         container.innerHTML = `
@@ -297,6 +306,7 @@ function renderTransactions(transactions) {
         const color = cat.color || (isIncome ? '#00B894' : '#FF7675');
         const tags = t.tags ? t.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
 
+        // Badge de status
         let statusBadge = '';
         if (t.is_bill) {
             statusBadge = `<span style="font-size:9px; background:#6C5CE7; color:#fff; padding:1px 8px; border-radius:4px; margin-left:4px;">📋 Conta</span>`;
@@ -514,7 +524,7 @@ async function saveTransaction(event) {
     const tags = document.getElementById('tTags')?.value?.trim() || null;
     const notes = document.getElementById('tNotes').value.trim();
 
-    // 🔥 VALIDAÇÕES
+    // Validações
     if (!description || description.length < 2) {
         showToast('❌ Descrição deve ter pelo menos 2 caracteres', 'error');
         return;
@@ -530,7 +540,7 @@ async function saveTransaction(event) {
         return;
     }
 
-    // 🔥 TRATAMENTO DA CATEGORIA
+    // Tratamento da categoria
     const finalCategoryId = (categoryId && categoryId !== '' && categoryId !== 'null') ? categoryId : null;
 
     const data = {
