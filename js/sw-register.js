@@ -15,8 +15,9 @@
             this.registration = null;
             this.isSupported = 'serviceWorker' in navigator;
             this.version = '2.1.0';
-            this.swUrl = '/sw.js';
-            this.scope = '/';
+            // 🔥 CORREÇÃO: caminho absoluto para o GitHub Pages
+            this.swUrl = '/tonucontrole/sw.js';
+            this.scope = '/tonucontrole/';
             this.updateCheckInterval = null;
             this.isUpdateAvailable = false;
         }
