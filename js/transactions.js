@@ -272,7 +272,7 @@ function updateSummary() {
 }
 
 // ============================================
-// RENDER TRANSAÇÕES - CORRIGIDO (COM ÍCONES E EXTRA)
+// RENDER TRANSAÇÕES - COM ÍCONES PERSONALIZADOS
 // ============================================
 function renderTransactions(transactions) {
     const container = document.getElementById('transactionsContainer');
@@ -320,13 +320,48 @@ function renderTransactions(transactions) {
         const cls = isIncome ? 'income' : 'expense';
         const tags = t.tags ? t.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
 
+        // 🔥 ÍCONES PERSONALIZADOS POR DESCRIÇÃO
+        const customIcons = {
+            'gordo': { icon: 'fa-scooter', color: '#F39C12' },
+            'gordone': { icon: 'fa-scooter', color: '#F39C12' },
+            'salário': { icon: 'fa-money-bill-wave', color: '#00B894' },
+            'aluguel': { icon: 'fa-home', color: '#6C5CE7' },
+            'mercado': { icon: 'fa-shopping-cart', color: '#E17055' },
+            'ifood': { icon: 'fa-utensils', color: '#FF7675' },
+            'uber': { icon: 'fa-car', color: '#0984E3' },
+            'cinema': { icon: 'fa-film', color: '#6C5CE7' },
+            'academia': { icon: 'fa-dumbbell', color: '#00CEC9' },
+            'internet': { icon: 'fa-wifi', color: '#0984E3' },
+            'luz': { icon: 'fa-bolt', color: '#FDCB6E' },
+            'agua': { icon: 'fa-tint', color: '#0984E3' },
+            'celular': { icon: 'fa-mobile-alt', color: '#6C5CE7' },
+            'cartão': { icon: 'fa-credit-card', color: '#636E72' },
+            'investimento': { icon: 'fa-chart-line', color: '#00B894' },
+            'emprestimo': { icon: 'fa-hand-holding-usd', color: '#E17055' },
+            'mae': { icon: 'fa-heart', color: '#FF7675' }
+        };
+
         // 🔥 CORREÇÃO DOS ÍCONES
         let icon = 'fa-tag';
         let color = '#6C5CE7';
         let isBill = t.is_bill || false;
 
+        // 🔥 VERIFICAR ÍCONE PERSONALIZADO
+        const descLower = (t.description || '').toLowerCase();
+        let customKey = null;
+        for (const [key, value] of Object.entries(customIcons)) {
+            if (descLower.includes(key)) {
+                customKey = key;
+                break;
+            }
+        }
+
+        if (customKey && customIcons[customKey]) {
+            icon = customIcons[customKey].icon;
+            color = customIcons[customKey].color;
+        }
         // 🔥 SE FOR CONTA (is_bill = true)
-        if (isBill) {
+        else if (isBill) {
             icon = 'fa-dollar-sign';
             color = '#FDCB6E';
         }
