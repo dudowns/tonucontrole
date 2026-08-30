@@ -1,5 +1,5 @@
 // ============================================
-// TRANSAÇÕES - TonuControle
+// TRANSAÇÕES - TonuControle (VERSÃO CORRIGIDA)
 // ============================================
 
 console.log('📋 Transactions.js carregado');
@@ -14,6 +14,66 @@ let isProcessing = false;
 let currentMonthOffset = 0;
 
 // ============================================
+// MAPEAMENTO DE ÍCONES POR NOME DE CATEGORIA
+// ============================================
+const CATEGORY_ICON_MAP = {
+    'Alimentação': 'fa-utensils',
+    'Transporte': 'fa-car',
+    'Moradia': 'fa-home',
+    'Saúde': 'fa-heartbeat',
+    'Lazer': 'fa-gamepad',
+    'Educação': 'fa-book',
+    'Assinaturas': 'fa-credit-card',
+    'Salário': 'fa-money-bill-wave',
+    'Bico/Extra': 'fa-briefcase',        // ← ÍCONE PARA BICO/EXTRA
+    'Extra': 'fa-hand-holding-dollar',
+    'Investimentos': 'fa-chart-line',
+    'Cartão de Crédito': 'fa-credit-card',
+    'Empréstimos': 'fa-handshake',
+    'Outros': 'fa-tag',
+    'Default': 'fa-tag'
+};
+
+const CATEGORY_COLOR_MAP = {
+    'Alimentação': '#FF7675',
+    'Transporte': '#FDCB6E',
+    'Moradia': '#E17055',
+    'Saúde': '#FF6B6B',
+    'Lazer': '#A29BFE',
+    'Educação': '#0984E3',
+    'Assinaturas': '#636E72',
+    'Salário': '#00B894',
+    'Bico/Extra': '#F39C12',            // ← COR LARANJA PARA BICO/EXTRA
+    'Extra': '#F39C12',
+    'Investimentos': '#6C5CE7',
+    'Cartão de Crédito': '#E17055',
+    'Empréstimos': '#E17055',
+    'Outros': '#B2BEC3',
+    'Default': '#6C5CE7'
+};
+
+// ============================================
+// FUNÇÃO PARA OBTER ÍCONE E COR DA CATEGORIA
+// ============================================
+function getCategoryIcon(category) {
+    if (!category) return { icon: 'fa-tag', color: '#6C5CE7' };
+
+    // Se tem ícone definido no banco e é válido, usa ele
+    if (category.icon && category.icon.startsWith('fa-')) {
+        return {
+            icon: category.icon,
+            color: category.color || CATEGORY_COLOR_MAP[category.name] || '#6C5CE7'
+        };
+    }
+
+    // Se não tem ícone, busca pelo nome
+    const iconName = CATEGORY_ICON_MAP[category.name] || CATEGORY_ICON_MAP['Default'];
+    const colorName = CATEGORY_COLOR_MAP[category.name] || CATEGORY_COLOR_MAP['Default'];
+
+    return { icon: iconName, color: colorName };
+}
+
+// ============================================
 // FUNÇÕES AUXILIARES
 // ============================================
 function getLastDayOfMonth(year, month) {
@@ -24,6 +84,51 @@ function formatDateKey(year, month, day) {
     const m = String(month + 1).padStart(2, '0');
     const d = String(day).padStart(2, '0');
     return year + '-' + m + '-' + d;
+}
+
+function debounce(fn, delay) {
+    let timer = null;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            fn.apply(this, args);
+        }, delay);
+    };
+}
+
+function stripHTML(str) {
+    if (!str) return '';
+    const temp = document.createElement('div');
+    temp.textContent = str;
+    return temp.innerHTML;
+}
+
+function formatCurrency(value) {
+    const num = Number(value) || 0;
+    try {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+    } catch {
+        return 'R$ ' + num.toFixed(2);
+    }
+}
+
+function formatDate(date, format = 'short') {
+    if (!date) return '--/--/----';
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '--/--/----';
+    if (format === 'short') {
+        return d.toLocaleDateString('pt-BR');
+    }
+    return d.toLocaleDateString('pt-BR');
+}
+
+function getToday() {
+    return new Date().toISOString().split('T')[0];
 }
 
 // ============================================
@@ -77,19 +182,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 500);
     }
 });
-
-// ============================================
-// DEBOUNCE
-// ============================================
-function debounce(fn, delay) {
-    let timer = null;
-    return function (...args) {
-        clearTimeout(timer);
-        timer = setTimeout(function () {
-            fn.apply(this, args);
-        }, delay);
-    };
-}
 
 // ============================================
 // CATEGORIAS
@@ -176,7 +268,7 @@ function removeDuplicates(transactions) {
 }
 
 // ============================================
-// CARREGAR TRANSAÇÕES - MOSTRA TODAS DO MÊS
+// CARREGAR TRANSAÇÕES
 // ============================================
 async function loadTransactions() {
     try {
@@ -202,7 +294,6 @@ async function loadTransactions() {
             }
         }
 
-        // 🔥 BUSCAR TODAS AS TRANSAÇÕES DO MÊS
         const { data, error } = await supabaseClient
             .from('transactions')
             .select('*')
@@ -231,7 +322,7 @@ async function loadTransactions() {
 }
 
 // ============================================
-// UPDATE SUMMARY - TODAS AS TRANSAÇÕES DO MÊS
+// UPDATE SUMMARY
 // ============================================
 function updateSummary() {
     const d = new Date();
@@ -272,7 +363,7 @@ function updateSummary() {
 }
 
 // ============================================
-// RENDER TRANSAÇÕES - CORRIGIDO (SEM DUPLICATAS E COM ÍCONES)
+// RENDER TRANSAÇÕES - VERSÃO CORRIGIDA
 // ============================================
 function renderTransactions(transactions) {
     const container = document.getElementById('transactionsContainer');
@@ -281,7 +372,7 @@ function renderTransactions(transactions) {
         return;
     }
 
-    // 🔥 FILTRAR TRANSAÇÕES DE PAGAMENTO
+    // Filtrar transações de pagamento
     const filteredTransactions = transactions.filter(t => {
         if (t.description && t.description.includes('(pago)')) {
             return false;
@@ -320,32 +411,36 @@ function renderTransactions(transactions) {
         const cls = isIncome ? 'income' : 'expense';
         const tags = t.tags ? t.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
 
-        // 🔥 CORREÇÃO DOS ÍCONES
-        let icon = 'fa-tag';
-        let color = '#6C5CE7';
+        // 🔥 CORREÇÃO: OBTÉM ÍCONE E COR USANDO A FUNÇÃO MELHORADA
+        const iconData = getCategoryIcon(cat);
+        let icon = iconData.icon;
+        let color = iconData.color;
 
-        if (cat && cat.icon) {
-            icon = cat.icon;
-        } else if (isIncome) {
+        // Se for receita e não tiver categoria específica, usa ícone de dinheiro
+        if (isIncome && !cat) {
             icon = 'fa-money-bill-wave';
             color = '#00B894';
-        } else {
+        }
+
+        // Se for despesa e não tiver categoria, usa tag
+        if (!isIncome && !cat) {
             icon = 'fa-tag';
             color = '#FF7675';
         }
 
-        if (cat && cat.color) {
-            color = cat.color;
-        }
-
-        // Badge de status
+        // Badge de status (CORRIGIDO - sem emojis)
         let statusBadge = '';
         if (t.is_bill) {
-            statusBadge = `<span style="font-size:9px; background:#6C5CE7; color:#fff; padding:1px 8px; border-radius:4px; margin-left:4px;">📋 Conta</span>`;
+            statusBadge = `<span class="badge badge-bill">Conta</span>`;
         }
         if (!t.paid) {
-            statusBadge += `<span style="font-size:9px; background:#FDCB6E; color:#2D3436; padding:1px 8px; border-radius:4px; margin-left:4px;">⏳ Pendente</span>`;
+            statusBadge += `<span class="badge badge-pending">Pendente</span>`;
         }
+
+        // Nome da categoria (sem emojis no texto)
+        let categoryName = cat && cat.name ? cat.name : 'Sem categoria';
+        // Remove emojis do nome da categoria para exibição
+        categoryName = categoryName.replace(/[\u{1F300}-\u{1FAFF}]/gu, '').trim();
 
         return `
             <div class="transaction-card" onclick="editTransaction('${t.id}')">
@@ -355,10 +450,10 @@ function renderTransactions(transactions) {
                     </div>
                     <div class="tx-info">
                         <strong>${stripHTML(t.description)} ${statusBadge}</strong>
-                        <small>${cat && cat.name ? cat.name : 'Sem categoria'} • ${formatDate(t.date)}</small>
+                        <small>${categoryName} • ${formatDate(t.date)}</small>
                         ${tags.length > 0 ? `
                             <div style="display:flex; gap:4px; margin-top:2px; flex-wrap:wrap;">
-                                ${tags.map(tag => '<span style="font-size:10px; background:rgba(108,92,231,0.12); color:#6c5ce7; padding:1px 6px; border-radius:4px; font-weight:600;">' + stripHTML(tag.startsWith('#') ? tag : '#' + tag) + '</span>').join('')}
+                                ${tags.map(tag => '<span class="tag">' + stripHTML(tag.startsWith('#') ? tag : '#' + tag) + '</span>').join('')}
                             </div>
                         ` : ''}
                     </div>
@@ -539,7 +634,7 @@ function editTransaction(id) {
 }
 
 // ============================================
-// SALVAR TRANSAÇÃO - CORRIGIDO
+// SALVAR TRANSAÇÃO
 // ============================================
 async function saveTransaction(event) {
     event.preventDefault();
@@ -700,6 +795,23 @@ async function deleteTransaction(id) {
             btn.innerHTML = '<i class="fas fa-trash"></i> Excluir';
         }
     }
+}
+
+// ============================================
+// MONTH DISPLAY
+// ============================================
+function updateMonthDisplay(elementId, offset) {
+    offset = offset || 0;
+    const d = new Date();
+    d.setMonth(d.getMonth() + offset);
+    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.textContent = months[d.getMonth()] + ' ' + d.getFullYear();
+    }
+    return d;
 }
 
 // ============================================
