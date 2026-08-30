@@ -12,7 +12,7 @@ const APP_VERSION = '2.1.0';
 const urlsToCache = [
     '/tonucontrole/',
     '/tonucontrole/index.html',
-    '/tonucontrole/404.html',
+    // '/tonucontrole/404.html',
     '/tonucontrole/manifest.json',
     '/tonucontrole/css/theme.css',
     '/tonucontrole/css/dark-theme.css',
@@ -26,7 +26,7 @@ const urlsToCache = [
     '/tonucontrole/css/notifications.css',
     '/tonucontrole/css/sync.css',
     '/tonucontrole/css/sync-status.css',
-    '/tonucontrole/css/style.css',
+    // '/tonucontrole/css/style.css',
     '/tonucontrole/js/supabase.js',
     '/tonucontrole/js/core.js',
     '/tonucontrole/js/security.js',
@@ -57,7 +57,7 @@ const urlsToCache = [
     '/tonucontrole/icons/icon-192x192.png',
     '/tonucontrole/icons/icon-384x384.png',
     '/tonucontrole/icons/icon-512x512.png',
-    '/tonucontrole/icons/icon-1024x1024.png',
+    // '/tonucontrole/icons/icon-1024x1024.png',
     '/tonucontrole/icons/logo.png'
 ];
 
