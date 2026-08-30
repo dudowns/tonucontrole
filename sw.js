@@ -10,55 +10,55 @@ const API_CACHE = 'tonucontrole-api-v7';
 const APP_VERSION = '2.1.0';
 
 const urlsToCache = [
-    './',
-    './index.html',
-    './404.html',
-    './manifest.json',
-    './css/theme.css',
-    './css/dark-theme.css',
-    './css/sidebar-patch.css',
-    './css/dashboard.css',
-    './css/transactions.css',
-    './css/bills.css',
-    './css/goals.css',
-    './css/investments.css',
-    './css/settings.css',
-    './css/notifications.css',
-    './css/sync.css',
-    './css/sync-status.css',
-    './css/style.css',
-    './js/supabase.js',
-    './js/core.js',
-    './js/security.js',
-    './js/financial-tools.js',
-    './js/auth.js',
-    './js/sync.js',
-    './js/notifications.js',
-    './js/dashboard.js',
-    './js/transactions.js',
-    './js/bills.js',
-    './js/goals.js',
-    './js/investments.js',
-    './js/settings.js',
-    './js/validators.js',
-    './js/pagination.js',
-    './js/sw-register.js',
-    './pages/dashboard.html',
-    './pages/transactions.html',
-    './pages/bills.html',
-    './pages/goals.html',
-    './pages/investments.html',
-    './pages/settings.html',
-    './icons/icon-72x72.png',
-    './icons/icon-96x96.png',
-    './icons/icon-128x128.png',
-    './icons/icon-144x144.png',
-    './icons/icon-152x152.png',
-    './icons/icon-192x192.png',
-    './icons/icon-384x384.png',
-    './icons/icon-512x512.png',
-    './icons/icon-1024x1024.png',
-    './icons/logo.png'
+    '/tonucontrole/',
+    '/tonucontrole/index.html',
+    '/tonucontrole/404.html',
+    '/tonucontrole/manifest.json',
+    '/tonucontrole/css/theme.css',
+    '/tonucontrole/css/dark-theme.css',
+    '/tonucontrole/css/sidebar-patch.css',
+    '/tonucontrole/css/dashboard.css',
+    '/tonucontrole/css/transactions.css',
+    '/tonucontrole/css/bills.css',
+    '/tonucontrole/css/goals.css',
+    '/tonucontrole/css/investments.css',
+    '/tonucontrole/css/settings.css',
+    '/tonucontrole/css/notifications.css',
+    '/tonucontrole/css/sync.css',
+    '/tonucontrole/css/sync-status.css',
+    '/tonucontrole/css/style.css',
+    '/tonucontrole/js/supabase.js',
+    '/tonucontrole/js/core.js',
+    '/tonucontrole/js/security.js',
+    '/tonucontrole/js/financial-tools.js',
+    '/tonucontrole/js/auth.js',
+    '/tonucontrole/js/sync.js',
+    '/tonucontrole/js/notifications.js',
+    '/tonucontrole/js/dashboard.js',
+    '/tonucontrole/js/transactions.js',
+    '/tonucontrole/js/bills.js',
+    '/tonucontrole/js/goals.js',
+    '/tonucontrole/js/investments.js',
+    '/tonucontrole/js/settings.js',
+    '/tonucontrole/js/validators.js',
+    '/tonucontrole/js/pagination.js',
+    '/tonucontrole/js/sw-register.js',
+    '/tonucontrole/pages/dashboard.html',
+    '/tonucontrole/pages/transactions.html',
+    '/tonucontrole/pages/bills.html',
+    '/tonucontrole/pages/goals.html',
+    '/tonucontrole/pages/investments.html',
+    '/tonucontrole/pages/settings.html',
+    '/tonucontrole/icons/icon-72x72.png',
+    '/tonucontrole/icons/icon-96x96.png',
+    '/tonucontrole/icons/icon-128x128.png',
+    '/tonucontrole/icons/icon-144x144.png',
+    '/tonucontrole/icons/icon-152x152.png',
+    '/tonucontrole/icons/icon-192x192.png',
+    '/tonucontrole/icons/icon-384x384.png',
+    '/tonucontrole/icons/icon-512x512.png',
+    '/tonucontrole/icons/icon-1024x1024.png',
+    '/tonucontrole/icons/logo.png'
 ];
 
 // ==========================================================================
@@ -141,6 +141,26 @@ self.addEventListener('message', event => {
 
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
+
+    // ============================================
+    // 🔥 REGRA ESPECIAL PARA O MANIFEST (NETWORK-FIRST)
+    // ============================================
+    if (url.pathname.includes('manifest.json')) {
+        event.respondWith(
+            fetch(event.request)
+                .then(response => {
+                    const copy = response.clone();
+                    caches.open(STATIC_CACHE).then(cache => {
+                        cache.put(event.request, copy);
+                    });
+                    return response;
+                })
+                .catch(() => {
+                    return caches.match(event.request);
+                })
+        );
+        return;
+    }
 
     if (url.hostname.includes('fonts.googleapis.com') ||
         url.hostname.includes('fonts.gstatic.com') ||
@@ -255,7 +275,7 @@ async function handlePageRequest(event) {
     } catch (error) {
         const cachedResponse = await caches.match(request);
         if (cachedResponse) return cachedResponse;
-        return caches.match('/index.html');
+        return caches.match('/tonucontrole/index.html');
     }
 }
 
@@ -342,11 +362,11 @@ async function handleShareTarget(event) {
         });
 
         console.log('📥 Web Share Target recebido e armazenado!');
-        return Response.redirect('/pages/transactions.html?share_target=received', 303);
+        return Response.redirect('/tonucontrole/pages/transactions.html?share_target=received', 303);
 
     } catch (err) {
         console.error('❌ Erro no Share Target:', err);
-        return Response.redirect('/pages/transactions.html?share_target=error', 303);
+        return Response.redirect('/tonucontrole/pages/transactions.html?share_target=error', 303);
     }
 }
 
@@ -386,7 +406,7 @@ self.addEventListener('push', event => {
     let data = {
         title: 'TonuControle 💰',
         body: 'Você tem contas a vencer ou alertas financeiros importantes!',
-        url: './pages/bills.html'
+        url: '/tonucontrole/pages/bills.html'
     };
 
     if (event.data) {
@@ -399,14 +419,14 @@ self.addEventListener('push', event => {
 
     const options = {
         body: data.body,
-        icon: './icons/icon-128x128.png',
-        badge: './icons/icon-128x128.png',
+        icon: '/tonucontrole/icons/icon-128x128.png',
+        badge: '/tonucontrole/icons/icon-128x128.png',
         vibrate: [200, 100, 200, 100, 200],
         tag: data.tag || 'tonucontrole-reminder',
         renotify: true,
         requireInteraction: true,
         data: {
-            url: data.url || './pages/bills.html',
+            url: data.url || '/tonucontrole/pages/bills.html',
             billId: data.billId,
             dateOfArrival: Date.now()
         },
@@ -424,7 +444,7 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
     event.notification.close();
 
-    const targetUrl = event.notification.data?.url || './pages/bills.html';
+    const targetUrl = event.notification.data?.url || '/tonucontrole/pages/bills.html';
     const action = event.action;
     const billId = event.notification.data?.billId;
 
