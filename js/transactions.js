@@ -272,7 +272,7 @@ function updateSummary() {
 }
 
 // ============================================
-// RENDER TRANSAÇÕES - CORRIGIDO (COM ÍCONES E EXTRA)
+// RENDER TRANSAÇÕES - CORRIGIDO (SEM DUPLICATAS E COM ÍCONES)
 // ============================================
 function renderTransactions(transactions) {
     const container = document.getElementById('transactionsContainer');
@@ -323,32 +323,19 @@ function renderTransactions(transactions) {
         // 🔥 CORREÇÃO DOS ÍCONES
         let icon = 'fa-tag';
         let color = '#6C5CE7';
-        let isBill = t.is_bill || false;
 
-        // 🔥 SE FOR CONTA (is_bill = true)
-        if (isBill) {
-            icon = 'fa-dollar-sign';
-            color = '#FDCB6E';
-        }
-        // 🔥 SE TIVER CATEGORIA COM ÍCONE
-        else if (cat && cat.icon) {
+        if (cat && cat.icon) {
             icon = cat.icon;
-            if (cat.color) color = cat.color;
-        }
-        // 🔥 SE FOR RECEITA
-        else if (isIncome) {
+        } else if (isIncome) {
             icon = 'fa-money-bill-wave';
             color = '#00B894';
-        }
-        // 🔥 SE FOR CATEGORIA "Extra" ou "Outros"
-        else if (cat && (cat.name === 'Extra' || cat.name === 'Outros' || cat.name.toLowerCase().includes('extra'))) {
-            icon = 'fa-plus-circle';
-            color = '#FDCB6E';
-        }
-        // 🔥 SE FOR DESPESA SEM CATEGORIA
-        else {
+        } else {
             icon = 'fa-tag';
             color = '#FF7675';
+        }
+
+        if (cat && cat.color) {
+            color = cat.color;
         }
 
         // Badge de status
