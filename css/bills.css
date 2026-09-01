@@ -219,14 +219,170 @@
 
 .bill-card .bill-actions {
     display: flex;
-    gap: 4px;
+    align-items: center;
+    gap: 6px;
 }
 
 .bill-card .bill-actions .btn-icon-sm {
-    width: 28px;
-    height: 28px;
-    min-height: 28px;
-    font-size: 11px;
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    background: var(--color-surface, #ffffff);
+    color: var(--color-text, #2d3436);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.bill-card .bill-actions .btn-icon-sm:hover {
+    background: var(--color-bg, #f1f5f9);
+    border-color: var(--color-primary, #6c5ce7);
+    color: var(--color-primary, #6c5ce7);
+}
+
+.bill-card .bill-actions .btn-icon-sm.text-danger:hover {
+    border-color: var(--color-danger, #ef4444);
+    color: var(--color-danger, #ef4444);
+    background: #fee2e2;
+}
+
+/* ============================================
+   BOTÃO PAGAR / PAGA (DESTAQUE)
+   ============================================ */
+.btn-pay {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.btn-pay:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.btn-pay:active {
+    transform: translateY(0);
+}
+
+.btn-pay-pending {
+    background: #10b981;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+}
+
+.btn-pay-pending:hover {
+    background: #059669;
+}
+
+.btn-pay-overdue {
+    background: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+    animation: pulse-danger 2s infinite;
+}
+
+.btn-pay-overdue:hover {
+    background: #dc2626;
+}
+
+@keyframes pulse-danger {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+
+.btn-paid {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #86efac;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.btn-paid:hover {
+    background: #fef3c7;
+    color: #b45309;
+    border-color: #fcd34d;
+}
+
+.btn-paid:hover i:before {
+    content: "\f0e2"; /* Ícone fa-undo */
+}
+
+/* ============================================
+   MODAL OVERLAY & MODAL DIALOG REFORÇADO
+   ============================================ */
+.modal-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(15, 23, 42, 0.65) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 99999 !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 20px !important;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.modal-overlay.active {
+    display: flex !important;
+    opacity: 1 !important;
+}
+
+.modal {
+    background: var(--color-surface, #ffffff) !important;
+    border-radius: 16px !important;
+    width: 100% !important;
+    max-width: 520px !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.35) !important;
+    border: 1px solid var(--color-border, #e2e8f0) !important;
+    position: relative !important;
+    z-index: 100000 !important;
+    margin: 0 auto !important;
+    transform: scale(0.95) translateY(10px);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-overlay.active .modal {
+    transform: scale(1) translateY(0);
+}
+
+.modal.hidden {
+    display: none !important;
+}
+
+body.no-scroll {
+    overflow: hidden !important;
 }
 
 /* ============================================

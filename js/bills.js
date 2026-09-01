@@ -453,15 +453,24 @@
                         <div class="bill-amount ${isPaid ? 'text-success' : (isOverdue ? 'text-danger' : 'text-warning')}">
                             ${formatCurrency(b.amount)}
                         </div>
-                        ${statusBadge}
-                        <div class="bill-actions">
-                            <button class="btn-icon-sm btn-outline" onclick="toggleBillPaid('${b.id}')" title="${isPaid ? 'Marcar como Pendente' : 'Marcar como Paga'}">
-                                <i class="fas ${isPaid ? 'fa-undo' : 'fa-check'}" style="color:${isPaid ? '#f59e0b' : '#10b981'};"></i>
+                        ${isPaid ? `
+                            <button class="btn-paid" onclick="toggleBillPaid('${b.id}')" title="Conta Paga! Clique para marcar como pendente">
+                                <i class="fas fa-check-double"></i> Paga
                             </button>
-                            <button class="btn-icon-sm btn-outline" onclick="openBillModal('${b.id}')" title="Editar conta">
+                        ` : (isOverdue ? `
+                            <button class="btn-pay btn-pay-overdue" onclick="toggleBillPaid('${b.id}')" title="Conta Atrasada! Clique para pagar">
+                                <i class="fas fa-check"></i> Pagar
+                            </button>
+                        ` : `
+                            <button class="btn-pay btn-pay-pending" onclick="toggleBillPaid('${b.id}')" title="Clique para pagar esta conta">
+                                <i class="fas fa-check"></i> Pagar
+                            </button>
+                        `)}
+                        <div class="bill-actions">
+                            <button class="btn-icon-sm" onclick="openBillModal('${b.id}')" title="Editar conta">
                                 <i class="fas fa-pencil-alt" style="color:var(--color-primary,#6c5ce7);"></i>
                             </button>
-                            <button class="btn-icon-sm btn-outline text-danger" onclick="deleteBill('${b.id}')" title="Excluir conta">
+                            <button class="btn-icon-sm text-danger" onclick="deleteBill('${b.id}')" title="Excluir conta">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -525,15 +534,14 @@
     // ============================================
     function openBillModal(id = null) {
         currentEditBillId = id;
+        const overlay = document.getElementById('billModalOverlay');
         const modal = document.getElementById('billModal');
         const form = document.getElementById('billForm');
         const titleEl = document.getElementById('billModalTitle');
         const btnDelete = document.getElementById('btnDeleteBill');
         const btnSave = document.getElementById('btnSaveBill');
 
-        if (!modal) return;
         if (form) form.reset();
-
         populateCategoryDropdowns();
 
         const dateInput = document.getElementById('billDate');
@@ -567,14 +575,46 @@
             if (btnDelete) btnDelete.classList.add('hidden');
         }
 
-        modal.classList.add('show');
+        if (overlay) {
+            overlay.classList.add('active');
+            overlay.style.display = 'flex';
+        }
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('show');
+        }
+        document.body.classList.add('no-scroll');
+
+        setTimeout(() => {
+            const firstInput = document.getElementById('billDescription');
+            if (firstInput) firstInput.focus();
+        }, 50);
     }
 
     function closeBillModal() {
+        const overlay = document.getElementById('billModalOverlay');
         const modal = document.getElementById('billModal');
-        if (modal) modal.classList.remove('show');
+        if (overlay) {
+            overlay.classList.remove('active');
+            overlay.style.display = 'none';
+        }
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('show');
+        }
+        document.body.classList.remove('no-scroll');
         currentEditBillId = null;
     }
+
+    // Ouvinte global para tecla ESC fechar o modal
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            const overlay = document.getElementById('billModalOverlay');
+            if (overlay && overlay.classList.contains('active')) {
+                closeBillModal();
+            }
+        }
+    });
 
     // ============================================
     // SALVAR CONTA (INSERT / UPDATE)
