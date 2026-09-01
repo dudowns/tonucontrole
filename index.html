@@ -1482,6 +1482,16 @@
                 </button>
             </div>
 
+            <!-- SELETOR DE VERSÃO (DESKTOP / MOBILE) -->
+            <div style="margin-top: 24px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
+                <span style="color: #64748b; font-weight: 500;"><i class="fa-solid fa-display" style="margin-right: 6px;"></i>Interface:</span>
+                <div style="display: flex; gap: 4px;">
+                    <button type="button" id="devModeAuto" onclick="setDeviceMode('auto')" style="border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; background: #6c5ce7; color: white;">Auto</button>
+                    <button type="button" id="devModeMobile" onclick="setDeviceMode('mobile')" style="border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; background: #e2e8f0; color: #475569;">📱 Mobile</button>
+                    <button type="button" id="devModeDesktop" onclick="setDeviceMode('desktop')" style="border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; background: #e2e8f0; color: #475569;">💻 PC</button>
+                </div>
+            </div>
+
         </div>
 
     </div>
@@ -1590,9 +1600,64 @@
         }
 
         // ==========================================
-        // SPLASH SCREEN
+        // DETECTOR DE DISPOSITIVO E ROTEAMENTO
         // ==========================================
-        document.addEventListener('DOMContentLoaded', function () {
+        function isMobileDevice() {
+            const preferred = localStorage.getItem('tonu_device_mode');
+            if (preferred === 'mobile') return true;
+            if (preferred === 'desktop') return false;
+
+            const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
+            const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(ua);
+            const isTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+            const isSmall = window.innerWidth <= 768;
+
+            return isMobileUA || (isTouch && isSmall) || isSmall;
+        }
+
+        function getAppTargetUrl(page) {
+            page = page || 'dashboard.html';
+            const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
+            const mobile = isMobileDevice();
+            return mobile ? `${baseUrl}/pages/mobile/${page}` : `${baseUrl}/pages/${page}`;
+        }
+
+        function setDeviceMode(mode) {
+            localStorage.setItem('tonu_device_mode', mode);
+            updateDeviceModeUI();
+            showToast(`Modo alterado para: ${mode === 'mobile' ? '📱 Mobile' : mode === 'desktop' ? '💻 PC / Desktop' : '⚙️ Automático'}`, 'info');
+        }
+
+        function updateDeviceModeUI() {
+            const mode = localStorage.getItem('tonu_device_mode') || 'auto';
+            const autoBtn = document.getElementById('devModeAuto');
+            const mobBtn = document.getElementById('devModeMobile');
+            const dskBtn = document.getElementById('devModeDesktop');
+
+            if (autoBtn && mobBtn && dskBtn) {
+                [autoBtn, mobBtn, dskBtn].forEach(b => {
+                    b.style.background = '#e2e8f0';
+                    b.style.color = '#475569';
+                });
+                if (mode === 'auto') {
+                    autoBtn.style.background = '#6c5ce7';
+                    autoBtn.style.color = '#ffffff';
+                } else if (mode === 'mobile') {
+                    mobBtn.style.background = '#6c5ce7';
+                    mobBtn.style.color = '#ffffff';
+                } else if (mode === 'desktop') {
+                    dskBtn.style.background = '#6c5ce7';
+                    dskBtn.style.color = '#ffffff';
+                }
+            }
+        }
+
+        // ==========================================
+        // SPLASH SCREEN & AUTO LOGIN CHECK
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', async function () {
+            updateDeviceModeUI();
+
             // Limpar flag de logout
             try {
                 storage.remove('tonu_logout_in_progress');
@@ -1646,6 +1711,31 @@
             });
 
             // ==========================================
+            // VERIFICAÇÃO DE SESSÃO EXISTENTE
+            // ==========================================
+            let authenticatedUser = null;
+            try {
+                if (window.supabaseClient && window.supabaseClient.auth) {
+                    const { data: { session } } = await window.supabaseClient.auth.getSession();
+                    if (session && session.user) {
+                        authenticatedUser = session.user;
+                    }
+                }
+            } catch (err) {
+                console.warn('Verificação de sessão online falhou, tentando offline:', err);
+            }
+
+            if (!authenticatedUser) {
+                try {
+                    const offline = localStorage.getItem('tonu_offline_session');
+                    if (offline) {
+                        const parsed = JSON.parse(offline);
+                        if (parsed && parsed.id) authenticatedUser = parsed;
+                    }
+                } catch (e) { }
+            }
+
+            // ==========================================
             // SPLASH PROGRESS
             // ==========================================
             let progress = 0;
@@ -1655,7 +1745,7 @@
             const splash = document.getElementById('splashScreen');
 
             const interval = setInterval(() => {
-                const increment = Math.random() * 0.6 + 0.8;
+                const increment = Math.random() * 0.8 + 1.2;
                 progress += increment;
 
                 if (progress >= 100) {
@@ -1666,16 +1756,25 @@
                     percentText.innerText = '100%';
                     statusText.innerText = 'Tudo pronto!';
 
-                    setTimeout(() => {
-                        splash.classList.add('hidden');
-                    }, 600);
+                    if (authenticatedUser) {
+                        const targetUrl = getAppTargetUrl('dashboard.html');
+                        console.log('✅ Usuário já autenticado! Redirecionando para:', targetUrl);
+                        statusText.innerText = 'Acessando dashboard...';
+                        setTimeout(() => {
+                            window.location.href = targetUrl;
+                        }, 400);
+                    } else {
+                        setTimeout(() => {
+                            splash.classList.add('hidden');
+                        }, 500);
+                    }
                 } else {
                     const currentPercent = Math.floor(progress);
                     fill.style.width = currentPercent + '%';
                     percentText.innerText = currentPercent + '%';
 
                     if (currentPercent < 30) {
-                        statusText.innerText = 'Inicializando ambiente...';
+                        statusText.innerText = 'Detectando dispositivo...';
                     } else if (currentPercent < 65) {
                         statusText.innerText = 'Carregando módulos...';
                     } else if (currentPercent < 90) {
@@ -1684,7 +1783,7 @@
                         statusText.innerText = 'Quase lá...';
                     }
                 }
-            }, 50);
+            }, 30);
 
             // Tema
             const savedTheme = localStorage.getItem('tonu_theme') || 'light';
@@ -1693,7 +1792,7 @@
                 document.documentElement.setAttribute('data-theme', 'dark');
             }
 
-            console.log('✅ TonuControle Login carregado!');
+            console.log('✅ TonuControle Login carregado! Modo Mobile:', isMobileDevice());
         });
 
         // ==========================================
@@ -1797,14 +1896,13 @@
                     storage.remove('tonu_logout_in_progress');
                 } catch (e) { }
 
-                // 🔥 REDIRECIONAMENTO CORRIGIDO
-                const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
-                const redirectUrl = baseUrl + '/pages/dashboard.html';
+                // 🔥 REDIRECIONAMENTO COM DETECÇÃO DESKTOP / MOBILE
+                const redirectUrl = getAppTargetUrl('dashboard.html');
                 console.log('🔀 Redirecionando para:', redirectUrl);
 
                 setTimeout(() => {
                     window.location.href = redirectUrl;
-                }, 800);
+                }, 600);
 
             } catch (error) {
                 console.error('❌ Erro no login:', error);
@@ -1882,17 +1980,16 @@
                     storage.remove('tonu_logout_in_progress');
                 } catch (e) { }
 
-                const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
-
                 showToast(data.session ? 'Conta criada! 🎉' : 'Conta criada! Verifique seu e-mail 📧', 'success');
 
                 setTimeout(() => {
                     if (data.session) {
-                        window.location.href = baseUrl + '/pages/dashboard.html';
+                        window.location.href = getAppTargetUrl('dashboard.html');
                     } else {
+                        const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
                         window.location.href = baseUrl + '/index.html';
                     }
-                }, 1500);
+                }, 1200);
 
             } catch (error) {
                 console.error('❌ Erro no registro:', error);
@@ -1940,8 +2037,7 @@
                     throw new Error('Módulo de autenticação não disponível.');
                 }
 
-                const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
-                const redirectUrl = baseUrl + '/pages/dashboard.html';
+                const redirectUrl = getAppTargetUrl('dashboard.html');
 
                 const { data, error } = await window.supabaseClient.auth.signInWithOAuth({
                     provider: provider,
@@ -1986,8 +2082,9 @@
                     throw new Error('Cliente Supabase não inicializado.');
                 }
 
+                const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
                 const { error } = await window.supabaseClient.auth.resetPasswordForEmail(email.trim(), {
-                    redirectTo: window.location.origin + '/index.html'
+                    redirectTo: baseUrl + '/index.html'
                 });
                 if (error) throw error;
                 showToast('E-mail de recuperação enviado! 📧', 'success');
@@ -2014,9 +2111,9 @@
                 const user = await window.TonuBiometrics.authenticate();
                 if (user) {
                     showToast('✅ Autenticado com sucesso! Entrando...', 'success');
-                    const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
+                    const targetUrl = getAppTargetUrl('dashboard.html');
                     setTimeout(() => {
-                        window.location.href = baseUrl + '/pages/dashboard.html';
+                        window.location.href = targetUrl;
                     }, 500);
                 }
             } catch (err) {

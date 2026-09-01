@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -91,6 +91,11 @@
         <div class="right"><i class="fas fa-chevron-right"></i></div>
     </div>
 
+    <div class="settings-item" onclick="switchToDesktop()">
+        <div class="left"><i class="fas fa-desktop"></i><span>Versão PC (Desktop)</span></div>
+        <div class="right"><i class="fas fa-arrow-right"></i></div>
+    </div>
+
     <div class="settings-item danger" onclick="logout()">
         <div class="left"><i class="fas fa-sign-out-alt"></i><span>Sair da Conta</span></div>
         <div class="right"><i class="fas fa-chevron-right"></i></div>
@@ -145,6 +150,12 @@ function toggleTheme() {
     const icon = document.querySelector("#themeIcon");
     if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
     document.getElementById("themeStatus").textContent = isDark ? "Ativado" : "Desativado";
+}
+
+function switchToDesktop() {
+    localStorage.setItem("tonu_device_mode", "desktop");
+    const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
+    window.location.href = baseUrl + "/pages/dashboard.html";
 }
 
 async function logout() {

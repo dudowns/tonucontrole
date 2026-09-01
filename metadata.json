@@ -1,0 +1,6 @@
+{
+  "name": "TonuControle",
+  "description": "Controle financeiro inteligente com dashboard de transações, metas e investimentos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

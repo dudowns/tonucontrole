@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -64,7 +64,37 @@
 
 <!-- CONTEÚDO -->
 <main class="mobile-content" id="main-content">
+    <!-- BALANÇO E CARDS -->
     <div id="summaryContainer"></div>
+
+    <!-- AÇÕES RÁPIDAS -->
+    <div class="mobile-quick-actions">
+        <button class="quick-action-btn" onclick="openQuickAddModal('expense')">
+            <i class="fas fa-arrow-down" style="color: #FF7675;"></i>
+            <span>Nova Despesa</span>
+        </button>
+        <button class="quick-action-btn" onclick="openQuickAddModal('income')">
+            <i class="fas fa-arrow-up" style="color: #00B894;"></i>
+            <span>Nova Receita</span>
+        </button>
+        <a href="bills.html" class="quick-action-btn">
+            <i class="fas fa-file-invoice-dollar" style="color: #FDCB6E;"></i>
+            <span>Contas</span>
+        </a>
+        <a href="goals.html" class="quick-action-btn">
+            <i class="fas fa-bullseye" style="color: #0984E3;"></i>
+            <span>Metas</span>
+        </a>
+        <a href="investments.html" class="quick-action-btn">
+            <i class="fas fa-chart-line" style="color: #6C5CE7;"></i>
+            <span>Investimentos</span>
+        </a>
+    </div>
+
+    <!-- CATEGORIAS EM DESTAQUE -->
+    <div id="categoryBarsContainer"></div>
+
+    <!-- ÚLTIMAS TRANSAÇÕES -->
     <div class="mobile-section-title">
         <span>📋 Últimas Transações</span>
         <a href="transactions.html">Ver todas →</a>
@@ -76,6 +106,64 @@
         </div>
     </div>
 </main>
+
+<!-- BOTTOM SHEET MODAL (ADICIONAR TRANSAÇÃO RÁPIDA) -->
+<div class="mobile-modal-overlay" id="quickAddModal" onclick="closeQuickAddModal(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <h3 id="modalTitle">Nova Transação</h3>
+            <button class="sheet-close-btn" onclick="closeQuickAddModal()"><i class="fas fa-times"></i></button>
+        </div>
+
+        <form id="quickAddForm" onsubmit="handleQuickAddSubmit(event)">
+            <div class="type-toggle-group">
+                <button type="button" class="type-toggle-btn active expense" id="toggleExpense" onclick="setQuickType('expense')">
+                    <i class="fas fa-arrow-down"></i> Despesa
+                </button>
+                <button type="button" class="type-toggle-btn income" id="toggleIncome" onclick="setQuickType('income')">
+                    <i class="fas fa-arrow-up"></i> Receita
+                </button>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Descrição</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-pencil-alt"></i>
+                    <input type="text" id="quickDesc" class="sheet-input" placeholder="Ex: Supermercado, Salário..." required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Valor (R$)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-dollar-sign"></i>
+                    <input type="number" step="0.01" min="0.01" id="quickAmount" class="sheet-input" placeholder="0,00" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Categoria</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-tags"></i>
+                    <select id="quickCategory" class="sheet-input" required>
+                        <option value="">Selecione a categoria...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Data</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-calendar"></i>
+                    <input type="date" id="quickDate" class="sheet-input" required>
+                </div>
+            </div>
+
+            <button type="submit" class="sheet-submit-btn" id="quickSubmitBtn">Salvar Transação</button>
+        </form>
+    </div>
+</div>
 
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">

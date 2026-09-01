@@ -1,4 +1,4 @@
-﻿// ============================================
+// ============================================
 // MOBILE DASHBOARD
 // ============================================
 
@@ -86,6 +86,7 @@ async function loadMobileData() {
         console.log("📊 Mobile: Transações carregadas:", allTransactions.length);
 
         renderSummary();
+        renderCategoryBars();
         renderTransactions();
     } catch (error) {
         console.error("❌ Erro ao carregar dados mobile:", error);
@@ -139,6 +140,66 @@ function renderSummary() {
 }
 
 // ============================================
+// RENDER CATEGORIAS EM BARRA
+// ============================================
+function renderCategoryBars() {
+    const container = document.getElementById("categoryBarsContainer");
+    if (!container) return;
+
+    const expenses = allTransactions.filter(t => t.type === "expense");
+    if (expenses.length === 0) {
+        container.innerHTML = "";
+        return;
+    }
+
+    const catMap = {};
+    let totalExpense = 0;
+
+    expenses.forEach(t => {
+        const catId = t.category_id || "outros";
+        const amt = Number(t.amount) || 0;
+        totalExpense += amt;
+        if (!catMap[catId]) catMap[catId] = 0;
+        catMap[catId] += amt;
+    });
+
+    const sortedCats = Object.entries(catMap)
+        .map(([catId, amount]) => {
+            const cat = categories.find(c => c.id === catId);
+            return {
+                id: catId,
+                name: cat?.name || "Outros",
+                icon: cat?.icon || "fa-tag",
+                color: cat?.color || "#FF7675",
+                amount: amount,
+                percent: totalExpense > 0 ? Math.round((amount / totalExpense) * 100) : 0
+            };
+        })
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 4);
+
+    container.innerHTML = `
+        <div class="category-bars-card">
+            <div class="category-bars-header">
+                <h3><i class="fas fa-chart-pie" style="color:#6C5CE7; margin-right:6px;"></i> Gastos por Categoria</h3>
+                <span>${sortedCats.length} categorias</span>
+            </div>
+            ${sortedCats.map(cat => `
+                <div class="category-bar-item">
+                    <div class="category-bar-info">
+                        <span class="cat-name"><i class="fas ${cat.icon}" style="color:${cat.color}"></i> ${cat.name}</span>
+                        <span class="cat-amount">${formatCurrency(cat.amount)} <small style="color:#94a3b8; font-weight:normal;">(${cat.percent}%)</small></span>
+                    </div>
+                    <div class="category-bar-track">
+                        <div class="category-bar-fill" style="width: ${cat.percent}%; background: ${cat.color};"></div>
+                    </div>
+                </div>
+            `).join("")}
+        </div>
+    `;
+}
+
+// ============================================
 // RENDER TRANSAÇÕES
 // ============================================
 function renderTransactions() {
@@ -183,10 +244,116 @@ function renderTransactions() {
 }
 
 // ============================================
-// FUNÇÃO PARA ABRIR NOVA TRANSAÇÃO
+// MODAL BOTTOM SHEET (NOVA TRANSAÇÃO)
 // ============================================
+let currentQuickType = "expense";
+
 function openAddTransaction() {
-    window.location.href = "transactions.html";
+    openQuickAddModal("expense");
+}
+
+function openQuickAddModal(type) {
+    type = type || "expense";
+    setQuickType(type);
+
+    const dateInput = document.getElementById("quickDate");
+    if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split("T")[0];
+    }
+
+    populateCategoryOptions();
+
+    const modal = document.getElementById("quickAddModal");
+    if (modal) modal.classList.add("active");
+}
+
+function closeQuickAddModal(e) {
+    if (e && e.target !== e.currentTarget && e.target.classList && !e.target.classList.contains("mobile-modal-overlay")) {
+        return;
+    }
+    const modal = document.getElementById("quickAddModal");
+    if (modal) modal.classList.remove("active");
+}
+
+function setQuickType(type) {
+    currentQuickType = type;
+    const expBtn = document.getElementById("toggleExpense");
+    const incBtn = document.getElementById("toggleIncome");
+    const title = document.getElementById("modalTitle");
+
+    if (type === "expense") {
+        expBtn?.classList.add("active");
+        incBtn?.classList.remove("active");
+        if (title) title.textContent = "Nova Despesa";
+    } else {
+        incBtn?.classList.add("active");
+        expBtn?.classList.remove("active");
+        if (title) title.textContent = "Nova Receita";
+    }
+
+    populateCategoryOptions();
+}
+
+function populateCategoryOptions() {
+    const select = document.getElementById("quickCategory");
+    if (!select) return;
+
+    const filtered = categories.filter(c => !c.type || c.type === currentQuickType);
+    select.innerHTML = '<option value="">Selecione a categoria...</option>' +
+        (filtered.length > 0 ? filtered : categories).map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+}
+
+async function handleQuickAddSubmit(event) {
+    event.preventDefault();
+    const btn = document.getElementById("quickSubmitBtn");
+    const desc = document.getElementById("quickDesc").value.trim();
+    const amount = parseFloat(document.getElementById("quickAmount").value);
+    const category_id = document.getElementById("quickCategory").value;
+    const date = document.getElementById("quickDate").value;
+
+    if (!desc || isNaN(amount) || amount <= 0 || !category_id || !date) {
+        showMobileToast("Preencha todos os campos corretamente!", "error");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+
+    try {
+        const { data, error } = await supabaseClient.from("transactions").insert([{
+            user_id: currentUser.id,
+            description: desc,
+            amount: amount,
+            type: currentQuickType,
+            category_id: category_id,
+            date: date
+        }]).select();
+
+        if (error) throw error;
+
+        showMobileToast("Transação adicionada com sucesso! 🎉", "success");
+        closeQuickAddModal();
+        document.getElementById("quickAddForm").reset();
+
+        await loadMobileData();
+    } catch (err) {
+        console.error("Erro ao salvar transação rápida:", err);
+        showMobileToast("Erro ao salvar: " + (err.message || "Tente novamente"), "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Salvar Transação";
+    }
+}
+
+function showMobileToast(message, type) {
+    type = type || "info";
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => {
+        toast.className = "toast hidden";
+    }, 3000);
 }
 
 // ============================================

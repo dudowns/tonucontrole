@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -99,6 +99,64 @@
     </div>
 </main>
 
+<!-- BOTTOM SHEET MODAL (ADICIONAR TRANSAÇÃO) -->
+<div class="mobile-modal-overlay" id="quickAddModal" onclick="closeQuickAddModal(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <h3 id="modalTitle">Nova Transação</h3>
+            <button class="sheet-close-btn" onclick="closeQuickAddModal()"><i class="fas fa-times"></i></button>
+        </div>
+
+        <form id="quickAddForm" onsubmit="handleQuickAddSubmit(event)">
+            <div class="type-toggle-group">
+                <button type="button" class="type-toggle-btn active expense" id="toggleExpense" onclick="setQuickType('expense')">
+                    <i class="fas fa-arrow-down"></i> Despesa
+                </button>
+                <button type="button" class="type-toggle-btn income" id="toggleIncome" onclick="setQuickType('income')">
+                    <i class="fas fa-arrow-up"></i> Receita
+                </button>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Descrição</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-pencil-alt"></i>
+                    <input type="text" id="quickDesc" class="sheet-input" placeholder="Ex: Mercado, Combustível, Salário..." required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Valor (R$)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-dollar-sign"></i>
+                    <input type="number" step="0.01" min="0.01" id="quickAmount" class="sheet-input" placeholder="0,00" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Categoria</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-tags"></i>
+                    <select id="quickCategory" class="sheet-input" required>
+                        <option value="">Selecione a categoria...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Data</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-calendar"></i>
+                    <input type="date" id="quickDate" class="sheet-input" required>
+                </div>
+            </div>
+
+            <button type="submit" class="sheet-submit-btn" id="quickSubmitBtn">Salvar Transação</button>
+        </form>
+    </div>
+</div>
+
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
     <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
@@ -127,6 +185,7 @@ let currentUser = null;
 let allTransactions = [];
 let categories = [];
 let filteredTransactions = [];
+let currentQuickType = "expense";
 
 document.addEventListener("DOMContentLoaded", async () => {
     const savedTheme = localStorage.getItem("tonu_theme") || "light";
@@ -143,6 +202,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         await loadCategories();
         await loadTransactions();
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('action') === 'new') {
+            openAddTransaction();
+        }
     } catch (e) {
         console.error("Erro:", e);
         window.location.href = "../../index.html";
@@ -195,7 +259,7 @@ function renderTransactions() {
             <div class="mobile-empty">
                 <span class="empty-icon">📭</span>
                 <h3>Nenhuma transação</h3>
-                <p>Adicione sua primeira transação</p>
+                <p>Toque no botão + para adicionar</p>
             </div>
         `;
         return;
@@ -208,23 +272,28 @@ function renderTransactions() {
         const icon = cat?.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
 
         let badge = "";
-        if (t.is_bill) badge += `<span class="badge-mobile bill">Conta</span>`;
-        if (!t.paid) badge += `<span class="badge-mobile pending">Pendente</span>`;
+        if (t.is_bill) badge += `<span style="font-size:9px; background:#fff3cd; color:#856404; padding:2px 6px; border-radius:4px; margin-left:4px;">Conta</span>`;
+        if (t.is_bill && !t.paid) badge += `<span style="font-size:9px; background:#f8d7da; color:#721c24; padding:2px 6px; border-radius:4px; margin-left:4px;">Pendente</span>`;
 
         return `
-            <div class="mobile-transaction">
-                <div class="tx-left">
-                    <div class="tx-icon" style="background:${color}">
+            <div class="mobile-transaction" style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="tx-left" style="display:flex; align-items:center; gap:10px; flex:1;">
+                    <div class="tx-icon" style="background:${color}; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:white; font-size:13px;">
                         <i class="fas ${icon}"></i>
                     </div>
                     <div class="tx-info">
                         <strong>${t.description} ${badge}</strong>
-                        <small>${formatDate(t.date)}</small>
+                        <small style="display:block; color:#94a3b8; font-size:11px;">${formatDate(t.date)} • ${cat?.name || 'Geral'}</small>
                     </div>
                 </div>
-                <span class="tx-amount ${isIncome ? 'income' : 'expense'}">
-                    ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
-                </span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="tx-amount ${isIncome ? 'income' : 'expense'}" style="font-weight:700; font-size:13px; color:${isIncome ? '#00B894' : '#FF7675'}">
+                        ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
+                    </span>
+                    <button onclick="deleteTransaction('${t.id}')" style="border:none; background:transparent; color:#cbd5e1; padding:4px; font-size:13px; cursor:pointer;" title="Excluir">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
         `;
     }).join("");
@@ -244,7 +313,105 @@ function filterTransactions() {
 }
 
 function openAddTransaction() {
-    window.location.href = "transactions.html?action=new";
+    setQuickType("expense");
+    const dateInput = document.getElementById("quickDate");
+    if (dateInput) dateInput.value = new Date().toISOString().split("T")[0];
+    populateCategoryOptions();
+    document.getElementById("quickAddModal")?.classList.add("active");
+}
+
+function closeQuickAddModal(e) {
+    if (e && e.target !== e.currentTarget && e.target.classList && !e.target.classList.contains("mobile-modal-overlay")) return;
+    document.getElementById("quickAddModal")?.classList.remove("active");
+}
+
+function setQuickType(type) {
+    currentQuickType = type;
+    const expBtn = document.getElementById("toggleExpense");
+    const incBtn = document.getElementById("toggleIncome");
+    const title = document.getElementById("modalTitle");
+
+    if (type === "expense") {
+        expBtn?.classList.add("active");
+        incBtn?.classList.remove("active");
+        if (title) title.textContent = "Nova Despesa";
+    } else {
+        incBtn?.classList.add("active");
+        expBtn?.classList.remove("active");
+        if (title) title.textContent = "Nova Receita";
+    }
+    populateCategoryOptions();
+}
+
+function populateCategoryOptions() {
+    const select = document.getElementById("quickCategory");
+    if (!select) return;
+    const filtered = categories.filter(c => !c.type || c.type === currentQuickType);
+    select.innerHTML = '<option value="">Selecione a categoria...</option>' +
+        (filtered.length > 0 ? filtered : categories).map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+}
+
+async function handleQuickAddSubmit(event) {
+    event.preventDefault();
+    const btn = document.getElementById("quickSubmitBtn");
+    const desc = document.getElementById("quickDesc").value.trim();
+    const amount = parseFloat(document.getElementById("quickAmount").value);
+    const category_id = document.getElementById("quickCategory").value;
+    const date = document.getElementById("quickDate").value;
+
+    if (!desc || isNaN(amount) || amount <= 0 || !category_id || !date) {
+        showToast("Preencha todos os campos corretamente!", "error");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+
+    try {
+        const { error } = await supabaseClient.from("transactions").insert([{
+            user_id: currentUser.id,
+            description: desc,
+            amount: amount,
+            type: currentQuickType,
+            category_id: category_id,
+            date: date
+        }]);
+
+        if (error) throw error;
+
+        showToast("Transação adicionada com sucesso! 🎉", "success");
+        closeQuickAddModal();
+        document.getElementById("quickAddForm").reset();
+        await loadTransactions();
+    } catch (err) {
+        console.error("Erro ao salvar:", err);
+        showToast("Erro ao salvar: " + (err.message || "Tente novamente"), "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Salvar Transação";
+    }
+}
+
+async function deleteTransaction(id) {
+    if (!confirm("Deseja realmente excluir esta transação?")) return;
+    try {
+        const { error } = await supabaseClient.from("transactions").delete().eq("id", id).eq("user_id", currentUser.id);
+        if (error) throw error;
+        showToast("Transação excluída!", "success");
+        await loadTransactions();
+    } catch (err) {
+        console.error("Erro ao excluir:", err);
+        showToast("Erro ao excluir transação.", "error");
+    }
+}
+
+function showToast(message, type) {
+    type = type || "info";
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => { toast.className = "toast hidden"; }, 3000);
 }
 
 function formatCurrency(value) {

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6C5CE7">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TonuControle">
+
+    <link rel="manifest" href="../manifest.json">
+    <link rel="apple-touch-icon" href="../icons/icon-192x192.png">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png" type="image/png">
+    <link rel="icon" href="../icons/icon-128x128.png" type="image/png">
+
+    <title>Contas a Pagar e Receber | TonuControle</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/sidebar-patch.css">
+    <link rel="stylesheet" href="../css/bills.css">
+    <link rel="stylesheet" href="../css/notifications.css">
+    <link rel="stylesheet" href="../css/sync.css">
+    <link rel="stylesheet" href="../css/sync-status.css">
+</head>
+
+<body>
+
+    <div class="app-shell">
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button" aria-label="Fechar menu"></div>
+
+        <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
+            <div class="sidebar-brand">
+                <div class="brand-icon"><img src="../icons/logo.png" alt="TonuControle"></div>
+                <h2>TonuControle</h2>
+            </div>
+            <ul class="sidebar-nav" role="menubar">
+                <li role="none"><a href="dashboard.html" role="menuitem"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
+                <li role="none"><a href="transactions.html" role="menuitem"><i class="fas fa-exchange-alt"></i> Transações</a></li>
+                <li role="none"><a href="bills.html" class="active" role="menuitem" aria-current="page"><i class="fas fa-file-invoice-dollar"></i> Contas</a></li>
+                <li role="none"><a href="goals.html" role="menuitem"><i class="fas fa-bullseye"></i> Metas</a></li>
+                <li role="none"><a href="investments.html" role="menuitem"><i class="fas fa-chart-line"></i> Investimentos</a></li>
+                <li role="none"><a href="settings.html" role="menuitem"><i class="fas fa-cog"></i> Configurações</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" style="display:flex;align-items:center;gap:10px;padding:8px 0;margin-bottom:8px;">
+                    <div id="sidebarUserAvatar" style="width:32px;height:32px;border-radius:50%;background:#6C5CE7;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;">U</div>
+                    <div style="min-width:0;">
+                        <strong id="sidebarUserName" style="font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Usuário</strong>
+                        <small id="sidebarUserEmail" style="font-size:10px;color:var(--color-text-muted,#94a3b8);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">user@tonu.app</small>
+                    </div>
+                </div>
+                <button class="btn-sair" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content full" id="mainContent">
+            <header class="topbar">
+                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="topbar-title">
+                    <div class="sub">Gestão de Vencimentos</div>
+                    <h1>Contas & Boletos</h1>
+                </div>
+                <div class="topbar-actions">
+                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button id="notifBellBtn" class="notif-bell-btn" onclick="window.toggleNotificationDropdown(event)" title="Notificações">
+                        <i class="fas fa-bell"></i>
+                        <span class="notif-badge hidden" id="notifBadgeCount">0</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="openBillModal()">
+                        <i class="fas fa-plus"></i> Nova Conta
+                    </button>
+                </div>
+            </header>
+
+            <div class="content" style="padding:20px;">
+                <!-- Cards de Resumo -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:20px;">
+                    <div class="card-stat" style="background:var(--color-surface,#fff); padding:16px; border-radius:12px; border:1px solid var(--color-border,#e2e8f0);">
+                        <div style="font-size:12px; color:var(--color-text-muted,#94a3b8);">Total de Contas</div>
+                        <div id="billsStatTotal" style="font-size:20px; font-weight:700; color:var(--color-text,#2d3436); margin-top:4px;">R$ 0,00</div>
+                    </div>
+                    <div class="card-stat" style="background:var(--color-surface,#fff); padding:16px; border-radius:12px; border:1px solid var(--color-border,#e2e8f0);">
+                        <div style="font-size:12px; color:var(--color-text-muted,#94a3b8);">Pagas no Mês</div>
+                        <div id="billsStatPaid" style="font-size:20px; font-weight:700; color:var(--color-success,#00b894); margin-top:4px;">R$ 0,00</div>
+                    </div>
+                    <div class="card-stat" style="background:var(--color-surface,#fff); padding:16px; border-radius:12px; border:1px solid var(--color-border,#e2e8f0);">
+                        <div style="font-size:12px; color:var(--color-text-muted,#94a3b8);">Pendentes / A Vencer</div>
+                        <div id="billsStatPending" style="font-size:20px; font-weight:700; color:var(--color-warning,#fdcb6e); margin-top:4px;">R$ 0,00</div>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div style="background:var(--color-surface,#fff); padding:12px 16px; border-radius:12px; border:1px solid var(--color-border,#e2e8f0); margin-bottom:16px; display:flex; gap:12px; flex-wrap:wrap;">
+                    <input type="text" id="billFilterSearch" placeholder="Buscar conta..." style="flex:1; min-width:200px; padding:8px 12px; border-radius:8px; border:1px solid var(--color-border,#e2e8f0); background:var(--color-bg,#f8fafc); color:var(--color-text,#2d3436);">
+                    <select id="billFilterStatus" style="padding:8px 12px; border-radius:8px; border:1px solid var(--color-border,#e2e8f0); background:var(--color-bg,#f8fafc); color:var(--color-text,#2d3436);">
+                        <option value="">Todos os status</option>
+                        <option value="pending">Apenas pendentes</option>
+                        <option value="overdue">Apenas atrasadas</option>
+                        <option value="paid">Apenas pagas</option>
+                    </select>
+                </div>
+
+                <!-- Lista de Contas -->
+                <div id="billsContainer" style="min-height:200px;">
+                    <div style="text-align:center;padding:30px;"><span class="spinner"></span></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL DE CONTA -->
+    <div id="billModal" class="modal" role="dialog" aria-modal="true">
+        <div class="modal-content" style="max-width:480px; width:90%;">
+            <div class="modal-header">
+                <h3 id="billModalTitle">Nova Conta</h3>
+                <button type="button" class="modal-close" onclick="closeBillModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="billForm" onsubmit="saveBill(event)">
+                <input type="hidden" id="billEditId">
+                <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+                    <div class="form-group">
+                        <label for="billName">Nome da Conta / Fornecedor</label>
+                        <input type="text" id="billName" class="form-control" placeholder="Ex: Conta de Luz, Aluguel, Internet" required>
+                    </div>
+                    <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label for="billAmount">Valor (R$)</label>
+                            <input type="number" id="billAmount" class="form-control" placeholder="0,00" step="0.01" min="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="billDueDate">Vencimento</label>
+                            <input type="date" id="billDueDate" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="billCategory">Categoria</label>
+                        <select id="billCategory" class="form-control">
+                            <option value="Moradia">🏠 Moradia</option>
+                            <option value="Serviços">💡 Água / Luz / Gás</option>
+                            <option value="Telecom">📶 Internet / Telefone</option>
+                            <option value="Cartão">💳 Fatura de Cartão</option>
+                            <option value="Saúde">🏥 Convênio / Saúde</option>
+                            <option value="Educação">🎓 Educação / Cursos</option>
+                            <option value="Outros">🏷️ Outros</option>
+                        </select>
+                    </div>
+                    <div class="checkbox-group" style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                        <input type="checkbox" id="billPaid">
+                        <label for="billPaid" style="margin:0; cursor:pointer;">Já foi paga</label>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding:12px 16px; display:flex; gap:8px; border-top:1px solid var(--color-border,#e2e8f0);">
+                    <button type="button" class="btn btn-danger btn-sm hidden" id="btnDeleteBill" onclick="deleteBill()">
+                        <i class="fas fa-trash"></i> Excluir
+                    </button>
+                    <div style="flex:1;"></div>
+                    <button type="button" class="btn btn-secondary" onclick="closeBillModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/core.js"></script>
+    <script src="../js/security.js"></script>
+    <script src="../js/financial-tools.js"></script>
+    <script src="../js/sync.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/bills.js"></script>
+    <script src="../js/sw-register.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('tonu_theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.querySelector('.theme-toggle-btn i')?.classList.replace('fa-moon', 'fa-sun');
+            }
+        });
+    </script>
+</body>
+</html>
