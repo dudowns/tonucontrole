@@ -1,16 +1,19 @@
 ﻿/* ============================================
-   TONUCONTROLE - MOBILE.CSS
+   TONUCONTROLE - MOBILE.CSS (CORRIGIDO)
    Versão otimizada para dispositivos móveis
    ============================================ */
 
 * {
     -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
 }
 
 body {
     padding-bottom: 72px !important;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
+    background: var(--color-bg, #f0f2f5);
+    font-size: 14px;
 }
 
 /* ==========================================
@@ -19,10 +22,11 @@ body {
 .mobile-topbar {
     background: linear-gradient(135deg, #6C5CE7, #A29BFE);
     color: white;
-    padding: 14px 16px 10px;
+    padding: 12px 16px 10px;
     position: sticky;
     top: 0;
     z-index: 100;
+    width: 100%;
 }
 
 .mobile-topbar .topbar-header {
@@ -42,7 +46,8 @@ body {
     height: 32px;
     border-radius: 8px;
     overflow: hidden;
-    background: rgba(255,255,255,0.15);
+    background: rgba(255, 255, 255, 0.15);
+    flex-shrink: 0;
 }
 
 .mobile-topbar .topbar-left .app-icon img {
@@ -52,8 +57,9 @@ body {
 }
 
 .mobile-topbar .topbar-left h1 {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
+    margin: 0;
 }
 
 .mobile-topbar .topbar-left h1 span {
@@ -67,7 +73,7 @@ body {
 }
 
 .mobile-topbar .topbar-actions button {
-    background: rgba(255,255,255,0.12);
+    background: rgba(255, 255, 255, 0.12);
     border: none;
     color: white;
     width: 34px;
@@ -77,10 +83,13 @@ body {
     font-size: 15px;
     transition: all 0.2s;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .mobile-topbar .topbar-actions button:hover {
-    background: rgba(255,255,255,0.25);
+    background: rgba(255, 255, 255, 0.25);
 }
 
 .mobile-topbar .greeting {
@@ -95,38 +104,61 @@ body {
    ========================================== */
 .mobile-content {
     padding: 12px 14px;
+    max-width: 100%;
+}
+
+/* Cards de resumo - GRID 2x2 */
+.mobile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
 .mobile-card {
     background: var(--color-surface, #ffffff);
     border-radius: 12px;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border: 1px solid var(--color-border, #e2e8f0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s;
     display: flex;
     align-items: center;
-    gap: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    margin-bottom: 10px;
-    transition: all 0.2s;
+    gap: 10px;
 }
 
 .mobile-card .card-icon {
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 15px;
+    font-size: 14px;
     flex-shrink: 0;
 }
 
-.mobile-card .card-icon.income { background: #00B894; }
-.mobile-card .card-icon.expense { background: #FF7675; }
-.mobile-card .card-icon.balance { background: #6C5CE7; }
-.mobile-card .card-icon.count { background: #0984E3; }
-.mobile-card .card-icon.bills { background: #FDCB6E; color: #2D3436; }
+.mobile-card .card-icon.income {
+    background: #00B894;
+}
+
+.mobile-card .card-icon.expense {
+    background: #FF7675;
+}
+
+.mobile-card .card-icon.balance {
+    background: #6C5CE7;
+}
+
+.mobile-card .card-icon.count {
+    background: #0984E3;
+}
+
+.mobile-card .card-icon.bills {
+    background: #FDCB6E;
+    color: #2D3436;
+}
 
 .mobile-card .card-info {
     flex: 1;
@@ -134,7 +166,7 @@ body {
 }
 
 .mobile-card .card-label {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -142,13 +174,16 @@ body {
 }
 
 .mobile-card .card-value {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 700;
     color: var(--color-text, #1e293b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ==========================================
-   TRANSAÇÕES MOBILE
+   SEÇÃO DE TRANSAÇÕES
    ========================================== */
 .mobile-section-title {
     font-size: 14px;
@@ -199,6 +234,11 @@ body {
     flex-shrink: 0;
 }
 
+.mobile-transaction .tx-info {
+    flex: 1;
+    min-width: 0;
+}
+
 .mobile-transaction .tx-info strong {
     display: block;
     font-size: 12px;
@@ -211,120 +251,32 @@ body {
 .mobile-transaction .tx-info small {
     font-size: 10px;
     color: var(--color-text-muted, #94a3b8);
+    display: block;
 }
 
 .mobile-transaction .tx-amount {
     font-size: 13px;
     font-weight: 700;
     flex-shrink: 0;
+    margin-left: 8px;
 }
 
-.mobile-transaction .tx-amount.income { color: #00B894; }
-.mobile-transaction .tx-amount.expense { color: #FF7675; }
-
-/* ==========================================
-   BOTTOM NAVIGATION
-   ========================================== */
-.bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--color-surface, #ffffff);
-    border-top: 1px solid var(--color-border, #e2e8f0);
-    display: flex;
-    justify-content: space-around;
-    padding: 6px 0 12px;
-    z-index: 999;
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.04);
+.mobile-transaction .tx-amount.income {
+    color: #00B894;
 }
 
-.bottom-nav a {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-size: 9px;
-    color: var(--color-text-muted, #94a3b8);
-    text-decoration: none;
-    gap: 2px;
-    padding: 2px 8px;
-    transition: all 0.2s;
-    min-width: 44px;
-}
-
-.bottom-nav a i {
-    font-size: 20px;
-}
-
-.bottom-nav a.active {
-    color: #6C5CE7;
-}
-
-.bottom-nav a.active i {
-    background: #F0EDFF;
-    padding: 4px 8px;
-    border-radius: 8px;
-}
-
-.bottom-nav .nav-center {
-    position: relative;
-}
-
-.bottom-nav .nav-center .btn-add {
-    background: linear-gradient(135deg, #6C5CE7, #A29BFE);
-    color: white;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.3);
-    margin-top: -16px;
-    transition: all 0.2s;
-}
-
-.bottom-nav .nav-center .btn-add:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 24px rgba(108, 92, 231, 0.4);
+.mobile-transaction .tx-amount.expense {
+    color: #FF7675;
 }
 
 /* ==========================================
-   RESPONSIVO
-   ========================================== */
-@media (max-width: 480px) {
-    .mobile-card {
-        padding: 10px 12px;
-    }
-    .mobile-card .card-value {
-        font-size: 14px;
-    }
-    .mobile-transaction {
-        padding: 8px 10px;
-    }
-    .bottom-nav a {
-        font-size: 8px;
-        min-width: 36px;
-    }
-    .bottom-nav a i {
-        font-size: 17px;
-    }
-    .bottom-nav .nav-center .btn-add {
-        width: 44px;
-        height: 44px;
-        font-size: 20px;
-        margin-top: -12px;
-    }
-}
-
-/* ==========================================
-   BADGES MOBILE
+   BADGES
    ========================================== */
 .badge-mobile {
     display: inline-block;
     padding: 1px 8px;
     border-radius: 9999px;
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 600;
     margin-left: 4px;
 }
@@ -340,7 +292,81 @@ body {
 }
 
 /* ==========================================
-   EMPTY STATE MOBILE
+   BOTTOM NAVIGATION
+   ========================================== */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-surface, #ffffff);
+    border-top: 1px solid var(--color-border, #e2e8f0);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 6px 0 10px;
+    z-index: 999;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
+    height: 64px;
+}
+
+.bottom-nav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 9px;
+    color: var(--color-text-muted, #94a3b8);
+    text-decoration: none;
+    gap: 2px;
+    padding: 2px 8px;
+    transition: all 0.2s;
+    min-width: 44px;
+    flex: 1;
+}
+
+.bottom-nav a i {
+    font-size: 20px;
+}
+
+.bottom-nav a.active {
+    color: #6C5CE7;
+}
+
+.bottom-nav a.active i {
+    background: #F0EDFF;
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+
+.bottom-nav .nav-center {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.bottom-nav .nav-center .btn-add {
+    background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+    color: white;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.3);
+    margin-top: -16px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bottom-nav .nav-center .btn-add:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 24px rgba(108, 92, 231, 0.4);
+}
+
+/* ==========================================
+   EMPTY STATE
    ========================================== */
 .mobile-empty {
     text-align: center;
@@ -366,9 +392,91 @@ body {
 }
 
 /* ==========================================
+   RESPONSIVO PARA TELAS MUITO PEQUENAS
+   ========================================== */
+@media (max-width: 480px) {
+    .mobile-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .mobile-card {
+        padding: 10px 12px;
+    }
+
+    .mobile-card .card-icon {
+        width: 30px;
+        height: 30px;
+        font-size: 12px;
+    }
+
+    .mobile-card .card-value {
+        font-size: 13px;
+    }
+
+    .mobile-transaction {
+        padding: 8px 10px;
+    }
+
+    .mobile-transaction .tx-icon {
+        width: 28px;
+        height: 28px;
+        font-size: 10px;
+    }
+
+    .mobile-transaction .tx-info strong {
+        font-size: 11px;
+    }
+
+    .mobile-transaction .tx-amount {
+        font-size: 12px;
+    }
+
+    .bottom-nav a {
+        font-size: 8px;
+        min-width: 36px;
+    }
+
+    .bottom-nav a i {
+        font-size: 17px;
+    }
+
+    .bottom-nav .nav-center .btn-add {
+        width: 42px;
+        height: 42px;
+        font-size: 18px;
+        margin-top: -12px;
+    }
+}
+
+@media (max-width: 380px) {
+    .mobile-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    .mobile-card {
+        padding: 8px 10px;
+    }
+
+    .mobile-card .card-value {
+        font-size: 12px;
+    }
+
+    .mobile-card .card-label {
+        font-size: 8px;
+    }
+}
+
+/* ==========================================
    PREFERS-REDUCED-MOTION
    ========================================== */
 @media (prefers-reduced-motion: reduce) {
-    * { animation-duration: 0.01ms !important; }
-    .spinner { animation: none !important; }
+    * {
+        animation-duration: 0.01ms !important;
+    }
+
+    .spinner {
+        animation: none !important;
+    }
 }
