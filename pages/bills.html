@@ -15,7 +15,7 @@
     <link rel="shortcut icon" href="../icons/icon-128x128.png" type="image/png">
     <link rel="icon" href="../icons/icon-128x128.png" type="image/png">
 
-    <title>Contas a Pagar e Receber | TonuControle</title>
+    <title>Contas a Pagar e Vencimentos | TonuControle</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,89 +87,159 @@
             </header>
 
             <div class="content" style="padding:20px;">
-                <!-- Cards de Resumo -->
-                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:20px;">
-                    <div class="card-stat" style="background:var(--color-surface,#fff); padding:16px; border-radius:12px; border:1px solid var(--color-border,#e2e8f0);">
-                        <div style="font-size:12px; color:var(--color-text-muted,#94a3b8);">Total de Contas</div>
-                        <div id="billsStatTotal" style="font-size:20px; font-weight:700; color:var(--color-text,#2d3436); margin-top:4px;">R$ 0,00</div>
+                <!-- SELETOR DE MÊS -->
+                <div class="month-selector">
+                    <button class="month-nav" onclick="changeMonth(-1)" title="Mês anterior">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="month-label" id="currentMonthLabel">Carregando...</span>
+                    <button class="month-nav" onclick="changeMonth(1)" title="Próximo mês">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="btn-today" onclick="goToCurrentMonth()">Mês Atual</button>
+                </div>
+
+                <!-- CARDS DE RESUMO (4 COLUNAS) -->
+                <div class="bills-grid">
+                    <div class="card-stat">
+                        <div class="stat-icon" style="background:#e0e7ff; color:#4f46e5;">
+                            <i class="fas fa-file-invoice"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Total a Pagar</div>
+                            <div class="stat-value" id="billsStatTotal">R$ 0,00</div>
+                            <div class="stat-sub" id="billsStatTotalCount">0 contas</div>
+                        </div>
                     </div>
-                    <div class="card-stat" style="background:var(--color-surface,#fff); padding:16px; border-radius:12px; border:1px solid var(--color-border,#e2e8f0);">
-                        <div style="font-size:12px; color:var(--color-text-muted,#94a3b8);">Pagas no Mês</div>
-                        <div id="billsStatPaid" style="font-size:20px; font-weight:700; color:var(--color-success,#00b894); margin-top:4px;">R$ 0,00</div>
+
+                    <div class="card-stat">
+                        <div class="stat-icon" style="background:#dcfce7; color:#16a34a;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Pagas no Mês</div>
+                            <div class="stat-value text-success" id="billsStatPaid">R$ 0,00</div>
+                            <div class="stat-sub" id="billsStatPaidCount">0 pagas</div>
+                        </div>
                     </div>
-                    <div class="card-stat" style="background:var(--color-surface,#fff); padding:16px; border-radius:12px; border:1px solid var(--color-border,#e2e8f0);">
-                        <div style="font-size:12px; color:var(--color-text-muted,#94a3b8);">Pendentes / A Vencer</div>
-                        <div id="billsStatPending" style="font-size:20px; font-weight:700; color:var(--color-warning,#fdcb6e); margin-top:4px;">R$ 0,00</div>
+
+                    <div class="card-stat">
+                        <div class="stat-icon" style="background:#fef3c7; color:#d97706;">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Pendentes</div>
+                            <div class="stat-value text-warning" id="billsStatPending">R$ 0,00</div>
+                            <div class="stat-sub" id="billsStatPendingCount">0 a vencer</div>
+                        </div>
+                    </div>
+
+                    <div class="card-stat">
+                        <div class="stat-icon" style="background:#fee2e2; color:#dc2626;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Atrasadas</div>
+                            <div class="stat-value text-danger" id="billsStatOverdue">R$ 0,00</div>
+                            <div class="stat-sub" id="billsStatOverdueCount">0 atrasadas</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Filtros -->
-                <div style="background:var(--color-surface,#fff); padding:12px 16px; border-radius:12px; border:1px solid var(--color-border,#e2e8f0); margin-bottom:16px; display:flex; gap:12px; flex-wrap:wrap;">
-                    <input type="text" id="billFilterSearch" placeholder="Buscar conta..." style="flex:1; min-width:200px; padding:8px 12px; border-radius:8px; border:1px solid var(--color-border,#e2e8f0); background:var(--color-bg,#f8fafc); color:var(--color-text,#2d3436);">
-                    <select id="billFilterStatus" style="padding:8px 12px; border-radius:8px; border:1px solid var(--color-border,#e2e8f0); background:var(--color-bg,#f8fafc); color:var(--color-text,#2d3436);">
-                        <option value="">Todos os status</option>
-                        <option value="pending">Apenas pendentes</option>
-                        <option value="overdue">Apenas atrasadas</option>
-                        <option value="paid">Apenas pagas</option>
+                <!-- BARRA DE PROGRESSO DO MÊS -->
+                <div class="progress-section">
+                    <div class="progress-header">
+                        <span><i class="fas fa-tasks" style="color:var(--color-primary);margin-right:6px;"></i> Progresso de Pagamentos</span>
+                        <span class="pct" id="billsProgressPct">0%</span>
+                    </div>
+                    <div class="progress" style="background:var(--color-bg,#e2e8f0); border-radius:999px; overflow:hidden; height:10px;">
+                        <div class="progress-bar" id="billsProgressBar" style="width: 0%; height:100%; background:linear-gradient(90deg, #6C5CE7, #00B894); border-radius:999px; transition: width 0.4s ease;"></div>
+                    </div>
+                </div>
+
+                <!-- BARRA DE FILTROS -->
+                <div class="filters-bar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="billFilterSearch" class="form-control" placeholder="Buscar conta por nome ou fornecedor...">
+                    </div>
+                    <select id="billFilterStatus" class="form-control">
+                        <option value="all">Todos os status</option>
+                        <option value="pending">Apenas Pendentes / A Vencer</option>
+                        <option value="overdue">Apenas Atrasadas ⚠️</option>
+                        <option value="paid">Apenas Pagas ✅</option>
+                    </select>
+                    <select id="billFilterCategory" class="form-control">
+                        <option value="all">Todas as categorias</option>
                     </select>
                 </div>
 
-                <!-- Lista de Contas -->
-                <div id="billsContainer" style="min-height:200px;">
-                    <div style="text-align:center;padding:30px;"><span class="spinner"></span></div>
+                <!-- LISTA DE CONTAS -->
+                <div class="card" style="background:var(--color-surface,#fff); border-radius:12px; border:1px solid var(--color-border,#e2e8f0); overflow:hidden; box-shadow:var(--shadow-sm);">
+                    <div style="padding:14px 18px; border-bottom:1px solid var(--color-border,#e2e8f0); display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="font-size:15px; font-weight:700; margin:0; display:flex; align-items:center; gap:8px;">
+                            <i class="fas fa-list" style="color:var(--color-primary);"></i> Contas do Período
+                        </h3>
+                        <span id="billsCountBadge" style="font-size:12px; color:var(--color-text-muted,#94a3b8);">0 registros</span>
+                    </div>
+                    <div id="billsContainer" style="min-height:220px;">
+                        <div style="text-align:center;padding:40px;"><span class="spinner"></span></div>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- MODAL DE CONTA -->
+    <!-- MODAL DE CONTA (NOVA / EDITAR) -->
     <div id="billModal" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content" style="max-width:480px; width:90%;">
-            <div class="modal-header">
-                <h3 id="billModalTitle">Nova Conta</h3>
-                <button type="button" class="modal-close" onclick="closeBillModal()"><i class="fas fa-times"></i></button>
+        <div class="modal-content" style="max-width:500px; width:92%; border-radius:14px; overflow:hidden;">
+            <div class="modal-header" style="background:var(--color-surface,#fff); border-bottom:1px solid var(--color-border,#e2e8f0); padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="billModalTitle" style="font-size:16px; font-weight:700; margin:0;">Nova Conta</h3>
+                <button type="button" class="modal-close" onclick="closeBillModal()" style="border:none; background:transparent; font-size:18px; color:var(--color-text-muted,#94a3b8); cursor:pointer;"><i class="fas fa-times"></i></button>
             </div>
             <form id="billForm" onsubmit="saveBill(event)">
                 <input type="hidden" id="billEditId">
-                <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+                <div class="modal-body" style="padding:20px; display:flex; flex-direction:column; gap:14px; max-height:70vh; overflow-y:auto;">
                     <div class="form-group">
-                        <label for="billName">Nome da Conta / Fornecedor</label>
-                        <input type="text" id="billName" class="form-control" placeholder="Ex: Conta de Luz, Aluguel, Internet" required>
+                        <label for="billDescription" style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Nome / Descrição da Conta *</label>
+                        <input type="text" id="billDescription" class="form-control" placeholder="Ex: Aluguel, Conta de Luz, Cartão Nubank" required style="width:100%;">
                     </div>
+
                     <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                         <div class="form-group">
-                            <label for="billAmount">Valor (R$)</label>
-                            <input type="number" id="billAmount" class="form-control" placeholder="0,00" step="0.01" min="0.01" required>
+                            <label for="billAmount" style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Valor (R$) *</label>
+                            <input type="number" id="billAmount" class="form-control" placeholder="0,00" step="0.01" min="0.01" required style="width:100%;">
                         </div>
                         <div class="form-group">
-                            <label for="billDueDate">Vencimento</label>
-                            <input type="date" id="billDueDate" class="form-control" required>
+                            <label for="billDate" style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Vencimento *</label>
+                            <input type="date" id="billDate" class="form-control" required style="width:100%;">
                         </div>
                     </div>
+
                     <div class="form-group">
-                        <label for="billCategory">Categoria</label>
-                        <select id="billCategory" class="form-control">
-                            <option value="Moradia">🏠 Moradia</option>
-                            <option value="Serviços">💡 Água / Luz / Gás</option>
-                            <option value="Telecom">📶 Internet / Telefone</option>
-                            <option value="Cartão">💳 Fatura de Cartão</option>
-                            <option value="Saúde">🏥 Convênio / Saúde</option>
-                            <option value="Educação">🎓 Educação / Cursos</option>
-                            <option value="Outros">🏷️ Outros</option>
+                        <label for="billCategory" style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Categoria</label>
+                        <select id="billCategory" class="form-control" style="width:100%;">
+                            <option value="">Selecione uma categoria...</option>
                         </select>
                     </div>
-                    <div class="checkbox-group" style="display:flex; align-items:center; gap:8px; margin-top:4px;">
-                        <input type="checkbox" id="billPaid">
-                        <label for="billPaid" style="margin:0; cursor:pointer;">Já foi paga</label>
+
+                    <div class="form-group">
+                        <label for="billNotes" style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Observações / Código de Barras (opcional)</label>
+                        <textarea id="billNotes" class="form-control" rows="2" placeholder="Informações adicionais..." style="width:100%; resize:vertical;"></textarea>
+                    </div>
+
+                    <div style="background:var(--color-bg,#f8fafc); padding:12px 14px; border-radius:8px; border:1px solid var(--color-border,#e2e8f0); display:flex; align-items:center; gap:10px;">
+                        <input type="checkbox" id="billPaid" style="width:18px; height:18px; cursor:pointer; accent-color:var(--color-primary,#6c5ce7);">
+                        <label for="billPaid" style="margin:0; font-size:13px; font-weight:600; cursor:pointer; user-select:none;">Marcar como já paga</label>
                     </div>
                 </div>
-                <div class="modal-footer" style="padding:12px 16px; display:flex; gap:8px; border-top:1px solid var(--color-border,#e2e8f0);">
+                <div class="modal-footer" style="padding:14px 20px; display:flex; gap:10px; border-top:1px solid var(--color-border,#e2e8f0); background:var(--color-surface,#fff); align-items:center;">
                     <button type="button" class="btn btn-danger btn-sm hidden" id="btnDeleteBill" onclick="deleteBill()">
                         <i class="fas fa-trash"></i> Excluir
                     </button>
                     <div style="flex:1;"></div>
                     <button type="button" class="btn btn-secondary" onclick="closeBillModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSaveBill">💾 Salvar Conta</button>
                 </div>
             </form>
         </div>
@@ -201,3 +271,4 @@
     </script>
 </body>
 </html>
+

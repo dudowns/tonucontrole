@@ -54,9 +54,11 @@
             if (user && window.supabaseClient) {
                 try {
                     const { data } = await window.supabaseClient
-                        .from('bills')
+                        .from('transactions')
                         .select('*')
                         .eq('user_id', user.id)
+                        .eq('type', 'expense')
+                        .eq('is_bill', true)
                         .eq('paid', false);
                     if (data) bills = data;
                 } catch (e) {
@@ -73,19 +75,21 @@
             let dueSoonCount = 0;
 
             bills.forEach(bill => {
-                if (bill.due_date) {
-                    if (bill.due_date < todayStr) {
+                const billDate = bill.date || bill.due_date;
+                const billTitle = bill.description || bill.name || 'Conta';
+                if (billDate) {
+                    if (billDate < todayStr) {
                         overdueCount++;
                         notifications.push({
                             id: 'bill_overdue_' + (bill.id || Math.random()),
                             type: 'danger',
                             icon: 'fa-exclamation-circle',
-                            title: `Conta em atraso: ${bill.name || 'Conta'}`,
-                            message: `Venceu em ${bill.due_date} no valor de ${formatCurrency(bill.amount)}`,
+                            title: `Conta em atraso: ${billTitle}`,
+                            message: `Venceu em ${formatDate(billDate)} no valor de ${formatCurrency(bill.amount)}`,
                             link: 'bills.html'
                         });
                     } else {
-                        const dueTime = new Date(bill.due_date + 'T00:00:00').getTime();
+                        const dueTime = new Date(billDate + 'T00:00:00').getTime();
                         const diffDays = Math.round((dueTime - today.getTime()) / (1000 * 60 * 60 * 24));
                         if (diffDays <= 3 && diffDays >= 0) {
                             dueSoonCount++;
@@ -93,8 +97,8 @@
                                 id: 'bill_due_' + (bill.id || Math.random()),
                                 type: 'warning',
                                 icon: 'fa-clock',
-                                title: `Vence em breve: ${bill.name || 'Conta'}`,
-                                message: `Vence em ${diffDays === 0 ? 'hoje' : diffDays + ' dia(s)'} (${bill.due_date})`,
+                                title: `Vence em breve: ${billTitle}`,
+                                message: `Vence em ${diffDays === 0 ? 'hoje' : diffDays + ' dia(s)'} (${formatDate(billDate)})`,
                                 link: 'bills.html'
                             });
                         }

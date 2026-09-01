@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6C5CE7">
+    <link rel="manifest" href="../../manifest.json">
+    <link rel="apple-touch-icon" href="../../icons/icon-192x192.png">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png" type="image/png">
+    <link rel="icon" href="../../icons/icon-128x128.png" type="image/png">
+    <title>Contas a Pagar | TonuControle</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/theme.css">
+    <link rel="stylesheet" href="../../css/dark-theme.css">
+    <link rel="stylesheet" href="../../css/mobile.css">
+    <link rel="stylesheet" href="../../css/notifications.css">
+    <style>
+        body { padding-bottom: 85px; background: var(--color-bg, #f8fafc); }
+        
+        .month-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--color-surface, #ffffff);
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin: 12px 14px;
+        }
+        .month-btn {
+            background: none;
+            border: none;
+            color: var(--color-text, #2d3436);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .month-btn:active { background: var(--color-bg, #edf2f7); }
+        .month-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--color-text, #2d3436);
+        }
+
+        .stats-carousel {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            padding: 0 14px 12px 14px;
+        }
+        .stat-card-mini {
+            background: var(--color-surface, #ffffff);
+            border: 1px solid var(--color-border, #e2e8f0);
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .stat-card-mini .label {
+            font-size: 11px;
+            color: var(--color-text-muted, #94a3b8);
+            font-weight: 500;
+        }
+        .stat-card-mini .val {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 0 14px 12px 14px;
+            scrollbar-width: none;
+        }
+        .filter-chips::-webkit-scrollbar { display: none; }
+        .chip {
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--color-surface, #ffffff);
+            border: 1px solid var(--color-border, #e2e8f0);
+            color: var(--color-text, #2d3436);
+            white-space: nowrap;
+            cursor: pointer;
+        }
+        .chip.active {
+            background: #6C5CE7;
+            color: #ffffff;
+            border-color: #6C5CE7;
+        }
+
+        .bill-card-mobile {
+            background: var(--color-surface, #ffffff);
+            border: 1px solid var(--color-border, #e2e8f0);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin: 0 14px 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: all 0.2s ease;
+        }
+        .bill-card-mobile.overdue {
+            border-left: 4px solid #dc2626;
+        }
+        .bill-top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .bill-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+        .bill-details {
+            flex: 1;
+            min-width: 0;
+        }
+        .bill-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-text, #2d3436);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .bill-meta {
+            font-size: 11px;
+            color: var(--color-text-muted, #94a3b8);
+            margin-top: 2px;
+        }
+        .bill-price {
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .bill-val {
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .bill-badge {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 999px;
+            display: inline-block;
+            margin-top: 2px;
+        }
+        .badge-paid { background: #dcfce7; color: #16a34a; }
+        .badge-pending { background: #fef3c7; color: #d97706; }
+        .badge-overdue { background: #fee2e2; color: #dc2626; }
+
+        .bill-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid var(--color-border, #f1f5f9);
+            padding-top: 8px;
+        }
+        .btn-toggle-paid {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid var(--color-border, #cbd5e1);
+            background: var(--color-surface, #ffffff);
+            padding: 5px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--color-text, #2d3436);
+        }
+        .btn-toggle-paid.is-paid {
+            background: #dcfce7;
+            border-color: #86efac;
+            color: #15803d;
+        }
+        .bill-actions-mobile {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-act {
+            border: none;
+            background: none;
+            color: var(--color-text-muted, #94a3b8);
+            font-size: 13px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+        .btn-act:active { background: var(--color-bg, #edf2f7); }
+
+        /* MODAL BOTTOM SHEET */
+        .bottom-sheet {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .bottom-sheet.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .bottom-sheet-card {
+            background: var(--color-surface, #ffffff);
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+            max-height: 85vh;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .bottom-sheet.show .bottom-sheet-card {
+            transform: translateY(0);
+        }
+        .sheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .sheet-header h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0;
+        }
+        .sheet-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: var(--color-text-muted, #94a3b8);
+        }
+    </style>
+</head>
+<body>
+
+<header class="mobile-topbar">
+    <div class="topbar-header">
+        <div class="topbar-left">
+            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <h1>Tonu<span>Controle</span></h1>
+        </div>
+        <div class="topbar-actions">
+            <button onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button onclick="openModal()" title="Adicionar Conta" style="background:#6C5CE7;color:#fff;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;">
+                <i class="fas fa-plus"></i> Nova
+            </button>
+        </div>
+    </div>
+    <div class="greeting">Gestão de Vencimentos</div>
+</header>
+
+<main class="mobile-content">
+    <!-- NAVEGADOR DE MÊS -->
+    <div class="month-bar">
+        <button class="month-btn" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+        <span class="month-title" id="monthTitle">Carregando...</span>
+        <button class="month-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+    </div>
+
+    <!-- CARDS DE RESUMO -->
+    <div class="stats-carousel">
+        <div class="stat-card-mini">
+            <span class="label">Total a Pagar</span>
+            <span class="val" id="statTotal">R$ 0,00</span>
+        </div>
+        <div class="stat-card-mini">
+            <span class="label">Pagas no Mês</span>
+            <span class="val text-success" id="statPaid">R$ 0,00</span>
+        </div>
+        <div class="stat-card-mini">
+            <span class="label">Pendentes</span>
+            <span class="val text-warning" id="statPending">R$ 0,00</span>
+        </div>
+        <div class="stat-card-mini">
+            <span class="label">Atrasadas</span>
+            <span class="val text-danger" id="statOverdue">R$ 0,00</span>
+        </div>
+    </div>
+
+    <!-- FILTRO RÁPIDO -->
+    <div class="filter-chips">
+        <button class="chip active" onclick="setFilter('all', this)">Todas</button>
+        <button class="chip" onclick="setFilter('pending', this)">Pendentes</button>
+        <button class="chip" onclick="setFilter('overdue', this)">Atrasadas ⚠️</button>
+        <button class="chip" onclick="setFilter('paid', this)">Pagas ✅</button>
+    </div>
+
+    <!-- LISTA DE CONTAS -->
+    <div id="billsContainer">
+        <div style="text-align:center;padding:30px;">
+            <span class="spinner"></span>
+            <p style="margin-top:8px;font-size:12px;color:#94a3b8;">Carregando contas...</p>
+        </div>
+    </div>
+</main>
+
+<!-- BOTTOM SHEET MODAL -->
+<div id="billSheet" class="bottom-sheet" onclick="if(event.target===this)closeModal()">
+    <div class="bottom-sheet-card">
+        <div class="sheet-header">
+            <h3 id="modalTitle">Nova Conta</h3>
+            <button class="sheet-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="mobileBillForm" onsubmit="saveBill(event)">
+            <input type="hidden" id="editBillId">
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <div>
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Nome da Conta *</label>
+                    <input type="text" id="inputDesc" class="form-control" placeholder="Ex: Aluguel, Conta de Luz" required style="width:100%;">
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <div>
+                        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Valor (R$) *</label>
+                        <input type="number" id="inputAmount" class="form-control" placeholder="0,00" step="0.01" min="0.01" required style="width:100%;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Vencimento *</label>
+                        <input type="date" id="inputDate" class="form-control" required style="width:100%;">
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Categoria</label>
+                    <select id="inputCategory" class="form-control" style="width:100%;">
+                        <option value="">Selecione a categoria...</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Observações</label>
+                    <input type="text" id="inputNotes" class="form-control" placeholder="Código de barras, anotação..." style="width:100%;">
+                </div>
+
+                <div style="background:var(--color-bg,#f8fafc); padding:10px 12px; border-radius:8px; display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="inputPaid" style="width:18px; height:18px; accent-color:#6C5CE7;">
+                    <label for="inputPaid" style="font-size:12px; font-weight:600; margin:0; cursor:pointer;">Conta já está paga</label>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button type="button" id="btnDeleteMobile" class="btn btn-danger hidden" onclick="deleteCurrentBill()" style="flex:1;">
+                        <i class="fas fa-trash"></i> Excluir
+                    </button>
+                    <button type="submit" id="btnSaveMobile" class="btn btn-primary" style="flex:2;">
+                        Salvar Conta
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+    <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
+    <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
+    <div class="nav-center">
+        <button class="btn-add" onclick="openModal()"><i class="fas fa-plus"></i></button>
+    </div>
+    <a href="bills.html" class="active"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Config.</span></a>
+</nav>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../js/supabase.js"></script>
+<script src="../../js/core.js"></script>
+<script src="../../js/sync.js"></script>
+<script src="../../js/notifications.js"></script>
+<script src="../../js/sw-register.js"></script>
+
+<script>
+let currentUser = null;
+let currentMonth = new Date().getMonth();
+let currentYear = new Date().getFullYear();
+let allBills = [];
+let categories = [];
+let currentFilter = 'all';
+
+const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const savedTheme = localStorage.getItem("tonu_theme") || "light";
+    if (savedTheme === "dark") {
+        document.body.classList.add("dark-theme");
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.querySelector("#themeIcon")?.classList.replace("fa-moon", "fa-sun");
+    }
+
+    try {
+        let user = null;
+        if (window.supabaseOffline) user = await window.supabaseOffline.isAuthenticated();
+        if (!user && window.supabaseClient?.auth) {
+            const { data: { user: authUser } } = await supabaseClient.auth.getUser();
+            user = authUser;
+        }
+
+        if (!user) { window.location.href = "../../index.html"; return; }
+        currentUser = user;
+
+        updateMonthLabel();
+        await loadCategories();
+        await loadBills();
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('action') === 'bill' || params.get('action') === 'new') {
+            openModal();
+        }
+
+    } catch (e) {
+        console.error("Erro:", e);
+    }
+});
+
+function updateMonthLabel() {
+    document.getElementById("monthTitle").textContent = `${MONTHS[currentMonth]} ${currentYear}`;
+}
+
+function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    else if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    updateMonthLabel();
+    loadBills();
+}
+
+async function loadCategories() {
+    try {
+        if (window.supabaseClient) {
+            const { data } = await supabaseClient.from("categories").select("*").eq("user_id", currentUser.id);
+            if (data) categories = data;
+        }
+        const select = document.getElementById("inputCategory");
+        if (select) {
+            select.innerHTML = '<option value="">Sem categoria</option>' + categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+        }
+    } catch (e) { categories = []; }
+}
+
+async function loadBills() {
+    const container = document.getElementById("billsContainer");
+    container.innerHTML = '<div style="text-align:center;padding:24px;"><span class="spinner"></span></div>';
+
+    const mStr = String(currentMonth + 1).padStart(2, "0");
+    const firstDay = `${currentYear}-${mStr}-01`;
+    const lastDayNum = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const lastDay = `${currentYear}-${mStr}-${String(lastDayNum).padStart(2, "0")}`;
+
+    try {
+        let data = [];
+        if (window.supabaseClient) {
+            const { data: dbBills, error } = await supabaseClient
+                .from("transactions")
+                .select("*, categories(id, name, icon, color)")
+                .eq("user_id", currentUser.id)
+                .eq("type", "expense")
+                .eq("is_bill", true)
+                .gte("date", firstDay)
+                .lte("date", lastDay)
+                .order("date", { ascending: true });
+
+            if (!error && dbBills) data = dbBills;
+        }
+
+        allBills = data;
+        updateStats();
+        renderBills();
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = '<p style="text-align:center;color:#ef4444;font-size:12px;">Erro ao carregar contas.</p>';
+    }
+}
+
+function updateStats() {
+    let total = 0, paid = 0, pending = 0, overdue = 0;
+    const today = new Date().toISOString().split("T")[0];
+
+    allBills.forEach(b => {
+        const amt = parseFloat(b.amount) || 0;
+        total += amt;
+        if (b.paid) paid += amt;
+        else if (b.date && b.date < today) { overdue += amt; pending += amt; }
+        else pending += amt;
+    });
+
+    document.getElementById("statTotal").textContent = formatCurrency(total);
+    document.getElementById("statPaid").textContent = formatCurrency(paid);
+    document.getElementById("statPending").textContent = formatCurrency(pending);
+    document.getElementById("statOverdue").textContent = formatCurrency(overdue);
+}
+
+function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+    btn.classList.add("active");
+    renderBills();
+}
+
+function renderBills() {
+    const container = document.getElementById("billsContainer");
+    const today = new Date().toISOString().split("T")[0];
+
+    const filtered = allBills.filter(b => {
+        const isOverdue = !b.paid && b.date && b.date < today;
+        if (currentFilter === 'paid' && !b.paid) return false;
+        if (currentFilter === 'pending' && b.paid) return false;
+        if (currentFilter === 'overdue' && !isOverdue) return false;
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:32px 14px;">
+                <span style="font-size:32px;">📋</span>
+                <p style="font-size:13px;font-weight:600;margin:6px 0 2px 0;">Nenhuma conta no período</p>
+                <p style="font-size:11px;color:#94a3b8;margin:0;">Toque em "+ Nova" para cadastrar</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = filtered.map(b => {
+        const cat = b.categories || categories.find(c => c.id === b.category_id) || {};
+        const color = cat.color || "#6C5CE7";
+        const icon = cat.icon || "fa-file-invoice-dollar";
+        const isPaid = !!b.paid;
+        const isOverdue = !isPaid && b.date && b.date < today;
+
+        let badge = '<span class="bill-badge badge-pending">PENDENTE</span>';
+        if (isPaid) badge = '<span class="bill-badge badge-paid">PAGA</span>';
+        else if (isOverdue) badge = '<span class="bill-badge badge-overdue">ATRASADA</span>';
+
+        return `
+            <div class="bill-card-mobile ${isOverdue ? 'overdue' : ''}">
+                <div class="bill-top">
+                    <div class="bill-icon" style="background:${color};">
+                        <i class="fas ${icon}"></i>
+                    </div>
+                    <div class="bill-details">
+                        <div class="bill-name">${b.description}</div>
+                        <div class="bill-meta">${formatDate(b.date)} • ${cat.name || 'Geral'}</div>
+                    </div>
+                    <div class="bill-price">
+                        <div class="bill-val ${isPaid ? 'text-success' : (isOverdue ? 'text-danger' : 'text-warning')}">
+                            ${formatCurrency(b.amount)}
+                        </div>
+                        <div>${badge}</div>
+                    </div>
+                </div>
+                <div class="bill-bottom">
+                    <button class="btn-toggle-paid ${isPaid ? 'is-paid' : ''}" onclick="togglePaid('${b.id}')">
+                        <i class="fas ${isPaid ? 'fa-check-circle' : 'fa-circle'}"></i>
+                        ${isPaid ? 'Marcar Pendente' : 'Marcar Paga'}
+                    </button>
+                    <div class="bill-actions-mobile">
+                        <button class="btn-act" onclick="openModal('${b.id}')" title="Editar"><i class="fas fa-pencil-alt"></i></button>
+                        <button class="btn-act" onclick="deleteBillDirect('${b.id}')" style="color:#ef4444;" title="Excluir"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+async function togglePaid(id) {
+    const bill = allBills.find(b => String(b.id) === String(id));
+    if (!bill) return;
+
+    const newStatus = !bill.paid;
+    bill.paid = newStatus;
+    updateStats();
+    renderBills();
+
+    try {
+        if (window.supabaseClient) {
+            await supabaseClient.from("transactions").update({
+                paid: newStatus,
+                paid_date: newStatus ? new Date().toISOString().split("T")[0] : null
+            }).eq("id", id).eq("user_id", currentUser.id);
+        }
+        if (window.checkNotifications) window.checkNotifications();
+    } catch (e) {
+        console.error(e);
+        bill.paid = !newStatus;
+        updateStats();
+        renderBills();
+    }
+}
+
+function openModal(id = null) {
+    const sheet = document.getElementById("billSheet");
+    const form = document.getElementById("mobileBillForm");
+    const title = document.getElementById("modalTitle");
+    const btnDel = document.getElementById("btnDeleteMobile");
+    form.reset();
+
+    if (id) {
+        const bill = allBills.find(b => String(b.id) === String(id));
+        if (bill) {
+            title.textContent = "Editar Conta";
+            document.getElementById("editBillId").value = bill.id;
+            document.getElementById("inputDesc").value = bill.description || "";
+            document.getElementById("inputAmount").value = bill.amount || "";
+            document.getElementById("inputDate").value = (bill.date || "").split("T")[0];
+            document.getElementById("inputCategory").value = bill.category_id || "";
+            document.getElementById("inputNotes").value = bill.notes || "";
+            document.getElementById("inputPaid").checked = !!bill.paid;
+            btnDel.classList.remove("hidden");
+        }
+    } else {
+        title.textContent = "Nova Conta";
+        document.getElementById("editBillId").value = "";
+        const mStr = String(currentMonth + 1).padStart(2, "0");
+        document.getElementById("inputDate").value = `${currentYear}-${mStr}-01`;
+        btnDel.classList.add("hidden");
+    }
+
+    sheet.classList.add("show");
+}
+
+function closeModal() {
+    document.getElementById("billSheet").classList.remove("show");
+}
+
+async function saveBill(event) {
+    event.preventDefault();
+    const desc = document.getElementById("inputDesc").value.trim();
+    const amount = parseFloat(document.getElementById("inputAmount").value);
+    const date = document.getElementById("inputDate").value;
+    const catId = document.getElementById("inputCategory").value || null;
+    const notes = document.getElementById("inputNotes").value.trim() || null;
+    const paid = document.getElementById("inputPaid").checked;
+    const editId = document.getElementById("editBillId").value;
+
+    const payload = {
+        user_id: currentUser.id,
+        description: desc,
+        amount: amount,
+        date: date,
+        type: 'expense',
+        is_bill: true,
+        category_id: catId,
+        notes: notes,
+        paid: paid,
+        paid_date: paid ? new Date().toISOString().split("T")[0] : null
+    };
+
+    try {
+        if (editId) {
+            await supabaseClient.from("transactions").update(payload).eq("id", editId).eq("user_id", currentUser.id);
+        } else {
+            await supabaseClient.from("transactions").insert([payload]);
+        }
+        closeModal();
+        await loadBills();
+        if (window.checkNotifications) window.checkNotifications();
+    } catch (e) {
+        alert("Erro ao salvar: " + e.message);
+    }
+}
+
+async function deleteBillDirect(id) {
+    if (!confirm("Deseja excluir esta conta?")) return;
+    try {
+        await supabaseClient.from("transactions").delete().eq("id", id).eq("user_id", currentUser.id);
+        await loadBills();
+        if (window.checkNotifications) window.checkNotifications();
+    } catch (e) {
+        alert("Erro ao excluir: " + e.message);
+    }
+}
+
+function deleteCurrentBill() {
+    const id = document.getElementById("editBillId").value;
+    if (id) {
+        closeModal();
+        deleteBillDirect(id);
+    }
+}
+
+function formatCurrency(val) {
+    const n = Number(val) || 0;
+    try {
+        return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
+    } catch { return "R$ " + n.toFixed(2); }
+}
+
+function formatDate(d) {
+    if (!d) return "--/--/----";
+    const parts = d.split("T")[0].split("-");
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return d;
+}
+
+function toggleTheme() {
+    const isDark = document.body.classList.toggle("dark-theme");
+    localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
+    const icon = document.querySelector("#themeIcon");
+    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+}
+</script>
+
+</body>
+</html>
