@@ -1,0 +1,279 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6C5CE7">
+    <link rel="manifest" href="../../manifest.json">
+    <link rel="apple-touch-icon" href="../../icons/icon-192x192.png">
+    <title>Contas - Mobile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/theme.css">
+    <link rel="stylesheet" href="../../css/dark-theme.css">
+    <link rel="stylesheet" href="../../css/mobile.css">
+    <link rel="stylesheet" href="../../css/notifications.css">
+    <style>
+        body { padding-bottom: 72px; background: var(--color-bg, #f0f2f5); }
+        .bill-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: var(--color-surface, #ffffff);
+            border-radius: 10px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin-bottom: 6px;
+            transition: all 0.2s;
+        }
+        .bill-item.overdue { border-left: 4px solid #FF7675; }
+        .bill-item .bill-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+        }
+        .bill-item .bill-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        .bill-item .bill-info strong {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .bill-item .bill-info small {
+            font-size: 10px;
+            color: var(--color-text-muted, #94a3b8);
+        }
+        .bill-item .bill-right {
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .bill-item .bill-amount {
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .bill-item .bill-amount.paid { color: #00B894; }
+        .bill-item .bill-amount.pending { color: #FDCB6E; }
+        .bill-item .bill-amount.overdue { color: #FF7675; }
+        .bill-status {
+            font-size: 9px;
+            font-weight: 600;
+            padding: 1px 8px;
+            border-radius: 9999px;
+        }
+        .bill-status.paid { background: #D5F5E3; color: #00B894; }
+        .bill-status.pending { background: #FFF3CD; color: #F39C12; }
+        .bill-status.overdue { background: #FADBD8; color: #E74C3C; }
+    </style>
+</head>
+<body>
+
+<header class="mobile-topbar">
+    <div class="topbar-header">
+        <div class="topbar-left">
+            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <h1>Tonu<span>Controle</span></h1>
+        </div>
+        <div class="topbar-actions">
+            <button onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button onclick="window.history.back()" title="Voltar"><i class="fas fa-arrow-left"></i></button>
+        </div>
+    </div>
+    <div class="greeting">📋 Contas do Mês</div>
+</header>
+
+<main class="mobile-content">
+    <div id="billsContainer">
+        <div style="text-align:center;padding:20px;">
+            <span class="spinner"></span>
+            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando contas...</p>
+        </div>
+    </div>
+</main>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+    <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
+    <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
+    <div class="nav-center">
+        <button class="btn-add" onclick="openAddBill()"><i class="fas fa-plus"></i></button>
+    </div>
+    <a href="bills.html" class="active"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Config.</span></a>
+</nav>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../js/supabase.js"></script>
+<script src="../../js/core.js"></script>
+<script src="../../js/sync.js"></script>
+<script src="../../js/notifications.js"></script>
+<script src="../../js/sw-register.js"></script>
+<script>
+let currentUser = null;
+let bills = [];
+let categories = [];
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const savedTheme = localStorage.getItem("tonu_theme") || "light";
+    if (savedTheme === "dark") {
+        document.body.classList.add("dark-theme");
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.querySelector("#themeIcon")?.classList.replace("fa-moon", "fa-sun");
+    }
+
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) { window.location.href = "../../index.html"; return; }
+        currentUser = user;
+
+        await loadCategories();
+        await loadBills();
+    } catch (e) {
+        console.error("Erro:", e);
+        window.location.href = "../../index.html";
+    }
+});
+
+async function loadCategories() {
+    try {
+        const { data, error } = await supabaseClient
+            .from("categories")
+            .select("*")
+            .eq("user_id", currentUser.id);
+        if (error) throw error;
+        categories = data || [];
+    } catch (e) { categories = []; }
+}
+
+async function loadBills() {
+    try {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, "0");
+        const firstDay = `${year}-${month}-01`;
+        const lastDay = `${year}-${month}-${new Date(year, today.getMonth() + 1, 0).getDate()}`;
+
+        const { data, error } = await supabaseClient
+            .from("transactions")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .eq("type", "expense")
+            .eq("is_bill", true)
+            .gte("date", firstDay)
+            .lte("date", lastDay)
+            .order("date", { ascending: true });
+
+        if (error) throw error;
+        bills = data || [];
+        renderBills();
+    } catch (error) {
+        console.error("Erro:", error);
+    }
+}
+
+function renderBills() {
+    const container = document.getElementById("billsContainer");
+
+    if (bills.length === 0) {
+        container.innerHTML = `
+            <div class="mobile-empty">
+                <span class="empty-icon">📋</span>
+                <h3>Nenhuma conta</h3>
+                <p>Adicione uma conta para controlar</p>
+            </div>
+        `;
+        return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    container.innerHTML = bills.map(b => {
+        const cat = categories.find(c => c.id === b.category_id);
+        const color = cat?.color || "#6C5CE7";
+        const icon = cat?.icon || "fa-file-invoice-dollar";
+        const isPaid = b.paid || false;
+        const isOverdue = !isPaid && b.date < today;
+
+        let statusClass = "pending";
+        let statusText = "Pendente";
+        let amountClass = "pending";
+
+        if (isPaid) {
+            statusClass = "paid";
+            statusText = "Paga ✅";
+            amountClass = "paid";
+        } else if (isOverdue) {
+            statusClass = "overdue";
+            statusText = "Vencida ⚠️";
+            amountClass = "overdue";
+        }
+
+        return `
+            <div class="bill-item ${isOverdue ? 'overdue' : ''}">
+                <div class="bill-left">
+                    <div class="bill-icon" style="background:${color}">
+                        <i class="fas ${icon}"></i>
+                    </div>
+                    <div class="bill-info">
+                        <strong>${b.description}</strong>
+                        <small>${formatDate(b.date)} • ${cat?.name || 'Sem categoria'}</small>
+                    </div>
+                </div>
+                <div class="bill-right">
+                    <div class="bill-amount ${amountClass}">${formatCurrency(b.amount)}</div>
+                    <span class="bill-status ${statusClass}">${statusText}</span>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+function openAddBill() {
+    window.location.href = "transactions.html?action=bill";
+}
+
+function formatCurrency(value) {
+    const num = Number(value) || 0;
+    try {
+        return new Intl.NumberFormat("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+    } catch {
+        return "R$ " + num.toFixed(2);
+    }
+}
+
+function formatDate(date) {
+    if (!date) return "--/--/----";
+    const d = new Date(date);
+    return d.toLocaleDateString("pt-BR");
+}
+
+function toggleTheme() {
+    const isDark = document.body.classList.toggle("dark-theme");
+    localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
+    const icon = document.querySelector("#themeIcon");
+    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,165 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6C5CE7">
+    <link rel="manifest" href="../../manifest.json">
+    <link rel="apple-touch-icon" href="../../icons/icon-192x192.png">
+    <title>Configurações - Mobile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/theme.css">
+    <link rel="stylesheet" href="../../css/dark-theme.css">
+    <link rel="stylesheet" href="../../css/mobile.css">
+    <style>
+        body { padding-bottom: 72px; background: var(--color-bg, #f0f2f5); }
+        .settings-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: var(--color-surface, #ffffff);
+            border-radius: 10px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin-bottom: 6px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .settings-item:active { transform: scale(0.98); }
+        .settings-item .left { display: flex; align-items: center; gap: 12px; }
+        .settings-item .left i { font-size: 18px; width: 24px; text-align: center; color: var(--color-primary, #6C5CE7); }
+        .settings-item .left span { font-size: 13px; font-weight: 500; }
+        .settings-item .right { color: var(--color-text-muted, #94a3b8); font-size: 12px; }
+        .settings-item.danger .left i { color: #FF7675; }
+        .settings-item.danger .left span { color: #FF7675; }
+        .version-info { text-align: center; padding: 16px; font-size: 11px; color: var(--color-text-muted, #94a3b8); }
+    </style>
+</head>
+<body>
+
+<header class="mobile-topbar">
+    <div class="topbar-header">
+        <div class="topbar-left">
+            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <h1>Tonu<span>Controle</span></h1>
+        </div>
+        <div class="topbar-actions">
+            <button onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button onclick="window.history.back()" title="Voltar"><i class="fas fa-arrow-left"></i></button>
+        </div>
+    </div>
+    <div class="greeting">⚙️ Configurações</div>
+</header>
+
+<main class="mobile-content">
+    <div style="text-align:center;padding:12px 0;" id="profileSection">
+        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6C5CE7,#A29BFE);display:inline-flex;align-items:center;justify-content:center;font-size:24px;color:white;font-weight:700;">U</div>
+        <div style="font-weight:700;font-size:16px;margin-top:6px;" id="userName">Usuário</div>
+        <div style="font-size:12px;color:var(--color-text-muted,#94a3b8);" id="userEmail">email@exemplo.com</div>
+    </div>
+
+    <div class="settings-item" onclick="toggleTheme()">
+        <div class="left"><i class="fas fa-moon"></i><span>Modo Escuro</span></div>
+        <div class="right" id="themeStatus">Desativado</div>
+    </div>
+
+    <div class="settings-item" onclick="window.location.href='dashboard.html'">
+        <div class="left"><i class="fas fa-home"></i><span>Início</span></div>
+        <div class="right"><i class="fas fa-chevron-right"></i></div>
+    </div>
+
+    <div class="settings-item" onclick="window.location.href='transactions.html'">
+        <div class="left"><i class="fas fa-exchange-alt"></i><span>Transações</span></div>
+        <div class="right"><i class="fas fa-chevron-right"></i></div>
+    </div>
+
+    <div class="settings-item" onclick="window.location.href='bills.html'">
+        <div class="left"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></div>
+        <div class="right"><i class="fas fa-chevron-right"></i></div>
+    </div>
+
+    <div class="settings-item" onclick="window.location.href='goals.html'">
+        <div class="left"><i class="fas fa-bullseye"></i><span>Metas</span></div>
+        <div class="right"><i class="fas fa-chevron-right"></i></div>
+    </div>
+
+    <div class="settings-item" onclick="window.location.href='investments.html'">
+        <div class="left"><i class="fas fa-chart-line"></i><span>Investimentos</span></div>
+        <div class="right"><i class="fas fa-chevron-right"></i></div>
+    </div>
+
+    <div class="settings-item danger" onclick="logout()">
+        <div class="left"><i class="fas fa-sign-out-alt"></i><span>Sair da Conta</span></div>
+        <div class="right"><i class="fas fa-chevron-right"></i></div>
+    </div>
+
+    <div class="version-info">TonuControle v2.1.0 • Mobile</div>
+</main>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+    <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
+    <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
+    <div class="nav-center">
+        <button class="btn-add" onclick="window.location.href='transactions.html'"><i class="fas fa-plus"></i></button>
+    </div>
+    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <a href="settings.html" class="active"><i class="fas fa-cog"></i><span>Config.</span></a>
+</nav>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../js/supabase.js"></script>
+<script src="../../js/core.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+    const savedTheme = localStorage.getItem("tonu_theme") || "light";
+    if (savedTheme === "dark") {
+        document.body.classList.add("dark-theme");
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.querySelector("#themeIcon")?.classList.replace("fa-moon", "fa-sun");
+        document.getElementById("themeStatus").textContent = "Ativado";
+    } else {
+        document.getElementById("themeStatus").textContent = "Desativado";
+    }
+
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+            const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuário";
+            document.getElementById("userName").textContent = name;
+            document.getElementById("userEmail").textContent = user.email;
+        }
+    } catch (e) { console.error("Erro:", e); }
+});
+
+function toggleTheme() {
+    const isDark = document.body.classList.toggle("dark-theme");
+    const theme = isDark ? "dark" : "light";
+    localStorage.setItem("tonu_theme", theme);
+    const icon = document.querySelector("#themeIcon");
+    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+    document.getElementById("themeStatus").textContent = isDark ? "Ativado" : "Desativado";
+}
+
+async function logout() {
+    if (confirm("Deseja realmente sair da sua conta?")) {
+        try {
+            await supabaseClient.auth.signOut();
+            localStorage.removeItem("tonu_offline_session");
+            sessionStorage.clear();
+            window.location.href = "../../index.html";
+        } catch (e) {
+            console.error("Erro ao sair:", e);
+        }
+    }
+}
+</script>
+
+</body>
+</html>

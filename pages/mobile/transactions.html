@@ -1,0 +1,279 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6C5CE7">
+    <link rel="manifest" href="../../manifest.json">
+    <link rel="apple-touch-icon" href="../../icons/icon-192x192.png">
+    <title>Transações - Mobile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/theme.css">
+    <link rel="stylesheet" href="../../css/dark-theme.css">
+    <link rel="stylesheet" href="../../css/mobile.css">
+    <link rel="stylesheet" href="../../css/notifications.css">
+    <style>
+        body { padding-bottom: 72px; background: var(--color-bg, #f0f2f5); }
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            padding: 0 0 10px 0;
+            overflow-x: auto;
+        }
+        .filter-bar select {
+            flex: 1;
+            min-height: 36px;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            background: var(--color-surface, #ffffff);
+            color: var(--color-text, #1e293b);
+            min-width: 80px;
+        }
+        .filter-bar .search-box {
+            flex: 2;
+            position: relative;
+        }
+        .filter-bar .search-box input {
+            width: 100%;
+            padding: 6px 10px 6px 32px;
+            border-radius: 8px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            background: var(--color-surface, #ffffff);
+            color: var(--color-text, #1e293b);
+            font-size: 12px;
+            min-height: 36px;
+        }
+        .filter-bar .search-box i {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-text-muted, #94a3b8);
+            font-size: 12px;
+        }
+        .transaction-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+    </style>
+</head>
+<body>
+
+<header class="mobile-topbar">
+    <div class="topbar-header">
+        <div class="topbar-left">
+            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <h1>Tonu<span>Controle</span></h1>
+        </div>
+        <div class="topbar-actions">
+            <button onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button onclick="window.history.back()" title="Voltar"><i class="fas fa-arrow-left"></i></button>
+        </div>
+    </div>
+    <div class="greeting">📋 Transações</div>
+</header>
+
+<main class="mobile-content">
+    <div class="filter-bar">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Buscar..." oninput="filterTransactions()">
+        </div>
+        <select id="filterType" onchange="filterTransactions()">
+            <option value="all">Todos</option>
+            <option value="income">Receitas</option>
+            <option value="expense">Despesas</option>
+        </select>
+    </div>
+    <div id="transactionList" class="transaction-list">
+        <div style="text-align:center;padding:20px;">
+            <span class="spinner"></span>
+            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando...</p>
+        </div>
+    </div>
+</main>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+    <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
+    <a href="transactions.html" class="active"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
+    <div class="nav-center">
+        <button class="btn-add" onclick="openAddTransaction()"><i class="fas fa-plus"></i></button>
+    </div>
+    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Config.</span></a>
+</nav>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../js/supabase.js"></script>
+<script src="../../js/core.js"></script>
+<script src="../../js/sync.js"></script>
+<script src="../../js/notifications.js"></script>
+<script src="../../js/sw-register.js"></script>
+<script>
+// ============================================
+// MOBILE TRANSACTIONS
+// ============================================
+let currentUser = null;
+let allTransactions = [];
+let categories = [];
+let filteredTransactions = [];
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const savedTheme = localStorage.getItem("tonu_theme") || "light";
+    if (savedTheme === "dark") {
+        document.body.classList.add("dark-theme");
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.querySelector("#themeIcon")?.classList.replace("fa-moon", "fa-sun");
+    }
+
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) { window.location.href = "../../index.html"; return; }
+        currentUser = user;
+
+        await loadCategories();
+        await loadTransactions();
+    } catch (e) {
+        console.error("Erro:", e);
+        window.location.href = "../../index.html";
+    }
+});
+
+async function loadCategories() {
+    try {
+        const { data, error } = await supabaseClient
+            .from("categories")
+            .select("*")
+            .eq("user_id", currentUser.id);
+        if (error) throw error;
+        categories = data || [];
+    } catch (e) {
+        categories = [];
+    }
+}
+
+async function loadTransactions() {
+    try {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, "0");
+        const firstDay = `${year}-${month}-01`;
+        const lastDay = `${year}-${month}-${new Date(year, today.getMonth() + 1, 0).getDate()}`;
+
+        const { data, error } = await supabaseClient
+            .from("transactions")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .gte("date", firstDay)
+            .lte("date", lastDay)
+            .order("date", { ascending: false });
+
+        if (error) throw error;
+        allTransactions = data || [];
+        filteredTransactions = [...allTransactions];
+        renderTransactions();
+    } catch (error) {
+        console.error("Erro ao carregar:", error);
+    }
+}
+
+function renderTransactions() {
+    const container = document.getElementById("transactionList");
+
+    if (filteredTransactions.length === 0) {
+        container.innerHTML = `
+            <div class="mobile-empty">
+                <span class="empty-icon">📭</span>
+                <h3>Nenhuma transação</h3>
+                <p>Adicione sua primeira transação</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = filteredTransactions.map(t => {
+        const isIncome = t.type === "income";
+        const cat = categories.find(c => c.id === t.category_id);
+        const color = cat?.color || (isIncome ? "#00B894" : "#FF7675");
+        const icon = cat?.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
+
+        let badge = "";
+        if (t.is_bill) badge += `<span class="badge-mobile bill">Conta</span>`;
+        if (!t.paid) badge += `<span class="badge-mobile pending">Pendente</span>`;
+
+        return `
+            <div class="mobile-transaction">
+                <div class="tx-left">
+                    <div class="tx-icon" style="background:${color}">
+                        <i class="fas ${icon}"></i>
+                    </div>
+                    <div class="tx-info">
+                        <strong>${t.description} ${badge}</strong>
+                        <small>${formatDate(t.date)}</small>
+                    </div>
+                </div>
+                <span class="tx-amount ${isIncome ? 'income' : 'expense'}">
+                    ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
+                </span>
+            </div>
+        `;
+    }).join("");
+}
+
+function filterTransactions() {
+    const search = document.getElementById("searchInput").value.toLowerCase();
+    const type = document.getElementById("filterType").value;
+
+    filteredTransactions = allTransactions.filter(t => {
+        const matchSearch = t.description.toLowerCase().includes(search);
+        const matchType = type === "all" || t.type === type;
+        return matchSearch && matchType;
+    });
+
+    renderTransactions();
+}
+
+function openAddTransaction() {
+    window.location.href = "transactions.html?action=new";
+}
+
+function formatCurrency(value) {
+    const num = Number(value) || 0;
+    try {
+        return new Intl.NumberFormat("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+    } catch {
+        return "R$ " + num.toFixed(2);
+    }
+}
+
+function formatDate(date) {
+    if (!date) return "--/--/----";
+    const d = new Date(date);
+    return d.toLocaleDateString("pt-BR");
+}
+
+function toggleTheme() {
+    const isDark = document.body.classList.toggle("dark-theme");
+    localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
+    const icon = document.querySelector("#themeIcon");
+    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+}
+</script>
+
+</body>
+</html>

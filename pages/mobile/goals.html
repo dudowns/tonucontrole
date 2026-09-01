@@ -1,0 +1,234 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6C5CE7">
+    <link rel="manifest" href="../../manifest.json">
+    <link rel="apple-touch-icon" href="../../icons/icon-192x192.png">
+    <title>Metas - Mobile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/theme.css">
+    <link rel="stylesheet" href="../../css/dark-theme.css">
+    <link rel="stylesheet" href="../../css/mobile.css">
+    <style>
+        body { padding-bottom: 72px; background: var(--color-bg, #f0f2f5); }
+        .goal-item {
+            background: var(--color-surface, #ffffff);
+            border-radius: 10px;
+            padding: 14px 16px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin-bottom: 8px;
+            border-left: 5px solid var(--color-primary, #6C5CE7);
+        }
+        .goal-item .goal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .goal-item .goal-header h3 {
+            font-size: 14px;
+            font-weight: 700;
+            margin: 0;
+        }
+        .goal-item .goal-progress {
+            margin-top: 8px;
+        }
+        .goal-item .goal-progress .progress-bar {
+            height: 6px;
+            background: var(--color-border, #e2e8f0);
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        .goal-item .goal-progress .progress-bar .fill {
+            height: 100%;
+            border-radius: 9999px;
+            transition: width 0.5s;
+        }
+        .goal-item .goal-footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--color-text-muted, #94a3b8);
+            margin-top: 6px;
+        }
+        .goal-item .goal-amounts {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+        }
+        .goal-item.completed { opacity: 0.7; border-left-color: #00B894; }
+    </style>
+</head>
+<body>
+
+<header class="mobile-topbar">
+    <div class="topbar-header">
+        <div class="topbar-left">
+            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <h1>Tonu<span>Controle</span></h1>
+        </div>
+        <div class="topbar-actions">
+            <button onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button onclick="window.history.back()" title="Voltar"><i class="fas fa-arrow-left"></i></button>
+        </div>
+    </div>
+    <div class="greeting">🎯 Metas Financeiras</div>
+</header>
+
+<main class="mobile-content" id="goalsContainer">
+    <div style="text-align:center;padding:20px;">
+        <span class="spinner"></span>
+        <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando metas...</p>
+    </div>
+</main>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+    <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
+    <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
+    <div class="nav-center">
+        <button class="btn-add" onclick="openAddGoal()"><i class="fas fa-plus"></i></button>
+    </div>
+    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Config.</span></a>
+</nav>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../js/supabase.js"></script>
+<script src="../../js/core.js"></script>
+<script src="../../js/sync.js"></script>
+<script>
+let currentUser = null;
+let goals = [];
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const savedTheme = localStorage.getItem("tonu_theme") || "light";
+    if (savedTheme === "dark") {
+        document.body.classList.add("dark-theme");
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.querySelector("#themeIcon")?.classList.replace("fa-moon", "fa-sun");
+    }
+
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) { window.location.href = "../../index.html"; return; }
+        currentUser = user;
+        await loadGoals();
+    } catch (e) {
+        console.error("Erro:", e);
+        window.location.href = "../../index.html";
+    }
+});
+
+async function loadGoals() {
+    try {
+        const { data, error } = await supabaseClient
+            .from("goals")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        goals = data || [];
+        renderGoals();
+    } catch (error) {
+        console.error("Erro:", error);
+    }
+}
+
+function renderGoals() {
+    const container = document.getElementById("goalsContainer");
+
+    if (goals.length === 0) {
+        container.innerHTML = `
+            <div class="mobile-empty">
+                <span class="empty-icon">🎯</span>
+                <h3>Nenhuma meta</h3>
+                <p>Crie sua primeira meta financeira</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = goals.map(g => {
+        const percent = g.target_amount > 0
+            ? Math.min(100, (g.current_amount / g.target_amount) * 100)
+            : 0;
+        const isCompleted = g.completed || percent >= 99.99;
+        const color = g.color || "#6C5CE7";
+
+        return `
+            <div class="goal-item ${isCompleted ? 'completed' : ''}" style="border-left-color:${color}">
+                <div class="goal-header">
+                    <h3>${g.title}</h3>
+                    <span>${isCompleted ? '🏆' : '🎯'}</span>
+                </div>
+                <div class="goal-amounts">
+                    <span>Atual: <strong>${formatCurrency(g.current_amount)}</strong></span>
+                    <span>Meta: <strong>${formatCurrency(g.target_amount)}</strong></span>
+                </div>
+                <div class="goal-progress">
+                    <div class="progress-bar">
+                        <div class="fill" style="width:${percent}%;background:${color};"></div>
+                    </div>
+                </div>
+                <div class="goal-footer">
+                    <span>${Math.round(percent)}% concluído</span>
+                    <span>${g.deadline ? '📅 ' + formatDate(g.deadline) : 'Sem prazo'}</span>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+function openAddGoal() {
+    // Redireciona para a versão desktop ou abre modal
+    showToast("Função em desenvolvimento", "info");
+}
+
+function formatCurrency(value) {
+    const num = Number(value) || 0;
+    try {
+        return new Intl.NumberFormat("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+    } catch {
+        return "R$ " + num.toFixed(2);
+    }
+}
+
+function formatDate(date) {
+    if (!date) return "--/--/----";
+    const d = new Date(date);
+    return d.toLocaleDateString("pt-BR");
+}
+
+function toggleTheme() {
+    const isDark = document.body.classList.toggle("dark-theme");
+    localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
+    const icon = document.querySelector("#themeIcon");
+    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+}
+
+function showToast(msg, type) {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.className = "toast show " + type;
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => toast.className = "toast hidden", 2500);
+}
+</script>
+
+</body>
+</html>

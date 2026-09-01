@@ -1,0 +1,255 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6C5CE7">
+    <link rel="manifest" href="../../manifest.json">
+    <link rel="apple-touch-icon" href="../../icons/icon-192x192.png">
+    <title>Investimentos - Mobile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/theme.css">
+    <link rel="stylesheet" href="../../css/dark-theme.css">
+    <link rel="stylesheet" href="../../css/mobile.css">
+    <style>
+        body { padding-bottom: 72px; background: var(--color-bg, #f0f2f5); }
+        .invest-card {
+            background: var(--color-surface, #ffffff);
+            border-radius: 10px;
+            padding: 14px 16px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin-bottom: 8px;
+        }
+        .invest-card .invest-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .invest-card .invest-ticker {
+            font-size: 16px;
+            font-weight: 800;
+        }
+        .invest-card .invest-class {
+            font-size: 10px;
+            color: var(--color-text-muted, #94a3b8);
+        }
+        .invest-card .invest-values {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            font-size: 12px;
+        }
+        .invest-card .invest-values .gain { font-weight: 700; }
+        .invest-card .invest-values .gain.positive { color: #00B894; }
+        .invest-card .invest-values .gain.negative { color: #FF7675; }
+    </style>
+</head>
+<body>
+
+<header class="mobile-topbar">
+    <div class="topbar-header">
+        <div class="topbar-left">
+            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <h1>Tonu<span>Controle</span></h1>
+        </div>
+        <div class="topbar-actions">
+            <button onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button onclick="window.history.back()" title="Voltar"><i class="fas fa-arrow-left"></i></button>
+        </div>
+    </div>
+    <div class="greeting">📈 Investimentos</div>
+</header>
+
+<main class="mobile-content">
+    <div id="patrimonyTotal" style="text-align:center;padding:16px 0;font-size:20px;font-weight:800;color:var(--color-primary, #6C5CE7);">
+        R$ 0,00
+    </div>
+    <div id="investmentsContainer">
+        <div style="text-align:center;padding:20px;">
+            <span class="spinner"></span>
+            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando investimentos...</p>
+        </div>
+    </div>
+</main>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+    <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
+    <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
+    <div class="nav-center">
+        <button class="btn-add" onclick="openAddInvestment()"><i class="fas fa-plus"></i></button>
+    </div>
+    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Config.</span></a>
+</nav>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../js/supabase.js"></script>
+<script src="../../js/core.js"></script>
+<script src="../../js/sync.js"></script>
+<script>
+let currentUser = null;
+let investments = [];
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const savedTheme = localStorage.getItem("tonu_theme") || "light";
+    if (savedTheme === "dark") {
+        document.body.classList.add("dark-theme");
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.querySelector("#themeIcon")?.classList.replace("fa-moon", "fa-sun");
+    }
+
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) { window.location.href = "../../index.html"; return; }
+        currentUser = user;
+        await loadInvestments();
+    } catch (e) {
+        console.error("Erro:", e);
+        window.location.href = "../../index.html";
+    }
+});
+
+async function loadInvestments() {
+    try {
+        // Buscar ativos da carteira
+        const { data, error } = await supabaseClient
+            .from("investments")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .order("date", { ascending: false });
+
+        if (error) throw error;
+        investments = data || [];
+        renderInvestments();
+        calculatePatrimony();
+    } catch (error) {
+        console.error("Erro:", error);
+    }
+}
+
+function calculatePatrimony() {
+    // Agrupa por ticker
+    const grouped = {};
+    investments.forEach(inv => {
+        if (!grouped[inv.ticker]) {
+            grouped[inv.ticker] = { quantity: 0, totalCost: 0 };
+        }
+        if (inv.type === "Compra") {
+            grouped[inv.ticker].quantity += inv.quantity;
+            grouped[inv.ticker].totalCost += inv.total_value;
+        } else if (inv.type === "Venda") {
+            const avgCost = grouped[inv.ticker].quantity > 0 
+                ? grouped[inv.ticker].totalCost / grouped[inv.ticker].quantity 
+                : 0;
+            grouped[inv.ticker].quantity -= inv.quantity;
+            grouped[inv.ticker].totalCost -= avgCost * inv.quantity;
+        }
+    });
+
+    let total = 0;
+    let totalInvested = 0;
+    for (const [ticker, data] of Object.entries(grouped)) {
+        if (data.quantity > 0) {
+            // Valor aproximado (preço médio)
+            const avgPrice = data.quantity > 0 ? data.totalCost / data.quantity : 0;
+            total += data.totalCost;
+            totalInvested += data.totalCost;
+        }
+    }
+
+    document.getElementById("patrimonyTotal").textContent = formatCurrency(total);
+}
+
+function renderInvestments() {
+    const container = document.getElementById("investmentsContainer");
+
+    if (investments.length === 0) {
+        container.innerHTML = `
+            <div class="mobile-empty">
+                <span class="empty-icon">📈</span>
+                <h3>Nenhum investimento</h3>
+                <p>Registre sua primeira operação</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Mostrar apenas os 5 mais recentes
+    const recent = investments.slice(0, 10);
+
+    container.innerHTML = recent.map(inv => {
+        const isBuy = inv.type === "Compra";
+        const sign = isBuy ? "+" : "-";
+        const color = isBuy ? "#00B894" : "#FF7675";
+
+        return `
+            <div class="invest-card">
+                <div class="invest-header">
+                    <div>
+                        <span class="invest-ticker">${inv.ticker}</span>
+                        <span class="invest-class">${inv.asset_class || 'Ações'}</span>
+                    </div>
+                    <span style="font-size:12px;font-weight:600;color:${color}">
+                        ${sign} ${formatCurrency(inv.total_value)}
+                    </span>
+                </div>
+                <div class="invest-values">
+                    <span>${inv.quantity} unidades</span>
+                    <span>${formatDate(inv.date)}</span>
+                    <span>${isBuy ? 'Compra' : 'Venda'}</span>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+function openAddInvestment() {
+    showToast("Função em desenvolvimento", "info");
+}
+
+function formatCurrency(value) {
+    const num = Number(value) || 0;
+    try {
+        return new Intl.NumberFormat("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+    } catch {
+        return "R$ " + num.toFixed(2);
+    }
+}
+
+function formatDate(date) {
+    if (!date) return "--/--/----";
+    const d = new Date(date);
+    return d.toLocaleDateString("pt-BR");
+}
+
+function toggleTheme() {
+    const isDark = document.body.classList.toggle("dark-theme");
+    localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
+    const icon = document.querySelector("#themeIcon");
+    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+}
+
+function showToast(msg, type) {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.className = "toast show " + type;
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => toast.className = "toast hidden", 2500);
+}
+</script>
+
+</body>
+</html>

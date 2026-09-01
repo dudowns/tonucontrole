@@ -1,0 +1,374 @@
+﻿/* ============================================
+   TONUCONTROLE - MOBILE.CSS
+   Versão otimizada para dispositivos móveis
+   ============================================ */
+
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    padding-bottom: 72px !important;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================
+   TOPBAR MOBILE
+   ========================================== */
+.mobile-topbar {
+    background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+    color: white;
+    padding: 14px 16px 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.mobile-topbar .topbar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mobile-topbar .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mobile-topbar .topbar-left .app-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.15);
+}
+
+.mobile-topbar .topbar-left .app-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mobile-topbar .topbar-left h1 {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.mobile-topbar .topbar-left h1 span {
+    color: #FFEAA7;
+}
+
+.mobile-topbar .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mobile-topbar .topbar-actions button {
+    background: rgba(255,255,255,0.12);
+    border: none;
+    color: white;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.mobile-topbar .topbar-actions button:hover {
+    background: rgba(255,255,255,0.25);
+}
+
+.mobile-topbar .greeting {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-top: 4px;
+    padding-left: 42px;
+}
+
+/* ==========================================
+   CONTEÚDO MOBILE
+   ========================================== */
+.mobile-content {
+    padding: 12px 14px;
+}
+
+.mobile-card {
+    background: var(--color-surface, #ffffff);
+    border-radius: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.mobile-card .card-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.mobile-card .card-icon.income { background: #00B894; }
+.mobile-card .card-icon.expense { background: #FF7675; }
+.mobile-card .card-icon.balance { background: #6C5CE7; }
+.mobile-card .card-icon.count { background: #0984E3; }
+.mobile-card .card-icon.bills { background: #FDCB6E; color: #2D3436; }
+
+.mobile-card .card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.mobile-card .card-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted, #94a3b8);
+}
+
+.mobile-card .card-value {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--color-text, #1e293b);
+}
+
+/* ==========================================
+   TRANSAÇÕES MOBILE
+   ========================================== */
+.mobile-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text, #1e293b);
+    margin: 16px 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mobile-section-title a {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6C5CE7;
+    text-decoration: none;
+}
+
+.mobile-transaction {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--color-surface, #ffffff);
+    border-radius: 10px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    margin-bottom: 6px;
+    transition: all 0.2s;
+}
+
+.mobile-transaction .tx-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.mobile-transaction .tx-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.mobile-transaction .tx-info strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mobile-transaction .tx-info small {
+    font-size: 10px;
+    color: var(--color-text-muted, #94a3b8);
+}
+
+.mobile-transaction .tx-amount {
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.mobile-transaction .tx-amount.income { color: #00B894; }
+.mobile-transaction .tx-amount.expense { color: #FF7675; }
+
+/* ==========================================
+   BOTTOM NAVIGATION
+   ========================================== */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-surface, #ffffff);
+    border-top: 1px solid var(--color-border, #e2e8f0);
+    display: flex;
+    justify-content: space-around;
+    padding: 6px 0 12px;
+    z-index: 999;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.04);
+}
+
+.bottom-nav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 9px;
+    color: var(--color-text-muted, #94a3b8);
+    text-decoration: none;
+    gap: 2px;
+    padding: 2px 8px;
+    transition: all 0.2s;
+    min-width: 44px;
+}
+
+.bottom-nav a i {
+    font-size: 20px;
+}
+
+.bottom-nav a.active {
+    color: #6C5CE7;
+}
+
+.bottom-nav a.active i {
+    background: #F0EDFF;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+.bottom-nav .nav-center {
+    position: relative;
+}
+
+.bottom-nav .nav-center .btn-add {
+    background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+    color: white;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.3);
+    margin-top: -16px;
+    transition: all 0.2s;
+}
+
+.bottom-nav .nav-center .btn-add:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 24px rgba(108, 92, 231, 0.4);
+}
+
+/* ==========================================
+   RESPONSIVO
+   ========================================== */
+@media (max-width: 480px) {
+    .mobile-card {
+        padding: 10px 12px;
+    }
+    .mobile-card .card-value {
+        font-size: 14px;
+    }
+    .mobile-transaction {
+        padding: 8px 10px;
+    }
+    .bottom-nav a {
+        font-size: 8px;
+        min-width: 36px;
+    }
+    .bottom-nav a i {
+        font-size: 17px;
+    }
+    .bottom-nav .nav-center .btn-add {
+        width: 44px;
+        height: 44px;
+        font-size: 20px;
+        margin-top: -12px;
+    }
+}
+
+/* ==========================================
+   BADGES MOBILE
+   ========================================== */
+.badge-mobile {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 9999px;
+    font-size: 9px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.badge-mobile.bill {
+    background: #6C5CE7;
+    color: white;
+}
+
+.badge-mobile.pending {
+    background: #FDCB6E;
+    color: #2D3436;
+}
+
+/* ==========================================
+   EMPTY STATE MOBILE
+   ========================================== */
+.mobile-empty {
+    text-align: center;
+    padding: 30px 16px;
+    color: var(--color-text-muted, #94a3b8);
+}
+
+.mobile-empty .empty-icon {
+    font-size: 36px;
+    display: block;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+.mobile-empty h3 {
+    font-size: 14px;
+    color: var(--color-text, #1e293b);
+    margin-bottom: 4px;
+}
+
+.mobile-empty p {
+    font-size: 12px;
+}
+
+/* ==========================================
+   PREFERS-REDUCED-MOTION
+   ========================================== */
+@media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; }
+    .spinner { animation: none !important; }
+}
