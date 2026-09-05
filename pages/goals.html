@@ -24,12 +24,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
     <link rel="stylesheet" href="../css/sidebar-patch.css">
     <link rel="stylesheet" href="../css/goals.css">
     <link rel="stylesheet" href="../css/notifications.css">
     <link rel="stylesheet" href="../css/sync.css">
     <link rel="stylesheet" href="../css/sync-status.css">
+    <link rel="stylesheet" href="../css/dark-theme.css">
+
+    <!-- Anti-flicker Theme Init -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
 
     <style>
         /* ==========================================
@@ -110,7 +121,7 @@
                 <li role="none"><a href="transactions.html" role="menuitem"><i class="fas fa-exchange-alt"
                             aria-hidden="true"></i> Transações</a></li>
                 <li role="none"><a href="bills.html" role="menuitem"><i class="fas fa-file-invoice-dollar"
-                            aria-hidden="true"></i> Contas do Mês</a></li>
+                            aria-hidden="true"></i> Contas</a></li>
                 <li role="none"><a href="goals.html" class="active" role="menuitem" aria-current="page"><i
                             class="fas fa-bullseye" aria-hidden="true"></i> Metas</a></li>
                 <li role="none"><a href="investments.html" role="menuitem"><i class="fas fa-chart-line"
@@ -190,8 +201,11 @@
         aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal hidden" id="goalModal">
             <div class="modal-header">
-                <h3 id="modalTitle">Nova Meta</h3>
-                <button class="modal-close" onclick="closeModal()" aria-label="Fechar modal">
+                <div>
+                    <div class="sub"><i class="fas fa-bullseye" style="margin-right:4px;"></i> Metas Financeiras</div>
+                    <h3 id="modalTitle">Nova Meta</h3>
+                </div>
+                <button type="button" class="modal-close" onclick="closeModal()" aria-label="Fechar modal">
                     <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
@@ -199,19 +213,19 @@
                 <input type="hidden" id="editId">
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="gTitle">Título da Meta</label>
-                        <input type="text" id="gTitle" class="form-control" placeholder="Ex: Comprar um carro" required
+                        <label for="gTitle">Título da Meta *</label>
+                        <input type="text" id="gTitle" class="form-control" placeholder="Ex: Reserva de Emergência, Viagem, Carro Novo" required
                             aria-required="true">
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="gTarget">Valor Total (R$)</label>
+                            <label for="gTarget">Valor Total (R$) *</label>
                             <input type="text" id="gTarget" class="form-control" placeholder="50.000,00" required
                                 aria-required="true">
                         </div>
                         <div class="form-group">
-                            <label for="gCurrent">Valor Atual (R$)</label>
-                            <input type="text" id="gCurrent" class="form-control" placeholder="5.000,00">
+                            <label for="gCurrent">Valor Inicial (R$)</label>
+                            <input type="text" id="gCurrent" class="form-control" placeholder="0,00">
                         </div>
                     </div>
                     <div class="form-group">
@@ -219,9 +233,9 @@
                         <input type="date" id="gDeadline" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label for="gColor">Cor</label>
+                        <label for="gColor">Cor da Meta</label>
                         <select id="gColor" class="form-control">
-                            <option value="#6C5CE7">🟣 Roxo</option>
+                            <option value="#6C5CE7">🟣 Roxo (Padrão)</option>
                             <option value="#00B894">🟢 Verde</option>
                             <option value="#0984E3">🔵 Azul</option>
                             <option value="#FDCB6E">🟡 Amarelo</option>
@@ -230,19 +244,19 @@
                             <option value="#A29BFE">🟪 Lilás</option>
                         </select>
                     </div>
-                    <div class="checkbox-group">
+                    <div class="checkbox-group" style="padding: 10px 14px; background: var(--color-bg, #f8fafc); border-radius: 10px; border: 1px solid var(--color-border, #e2e8f0);">
                         <input type="checkbox" id="gCompleted">
-                        <span>Meta já concluída 🏆</span>
+                        <label for="gCompleted" style="margin:0; font-size:13px; font-weight:600; cursor:pointer;">Meta já concluída 🏆</label>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger btn-sm hidden" id="btnDelete" onclick="deleteGoal()"
                         aria-label="Excluir meta">
-                        <i class="fas fa-trash" aria-hidden="true"></i> Excluir
+                        <i class="fas fa-trash-can" aria-hidden="true"></i> Excluir
                     </button>
                     <div style="flex:1;"></div>
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Salvar Meta</button>
                 </div>
             </form>
         </div>
@@ -255,32 +269,72 @@
         aria-modal="true" aria-labelledby="addValueTitle">
         <div class="modal hidden" id="addValueModal">
             <div class="modal-header">
-                <h3 id="addValueTitle">💰 Adicionar Valor</h3>
-                <button class="modal-close" onclick="closeAddValue()" aria-label="Fechar modal">
+                <div>
+                    <div class="sub"><i class="fas fa-piggy-bank" style="margin-right:4px;"></i> Aporte em Meta</div>
+                    <h3 id="addValueTitle">Adicionar Valor</h3>
+                </div>
+                <button type="button" class="modal-close" onclick="closeAddValue()" aria-label="Fechar modal">
                     <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
             <form id="addValueForm" onsubmit="submitAddValue(event)" novalidate>
                 <input type="hidden" id="addValueGoalId">
                 <div class="modal-body">
-                    <div class="form-group">
-                        <label>Meta: <strong id="addValueGoalTitle"></strong></label>
+                    <div class="form-group" style="padding: 10px 14px; background: var(--color-bg, #f8fafc); border-radius: 10px; border: 1px solid var(--color-border, #e2e8f0); margin-bottom: 16px;">
+                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--color-text-muted, #64748b); letter-spacing: 0.05em; display: block; margin-bottom: 2px;">Meta Selecionada</span>
+                        <strong id="addValueGoalTitle" style="font-size: 15px; color: var(--color-text, #0f172a); font-weight: 700;"></strong>
                     </div>
                     <div class="form-group">
-                        <label for="addValueAmount">Valor a adicionar (R$)</label>
+                        <label for="addValueAmount">Valor do Aporte (R$) *</label>
                         <input type="text" id="addValueAmount" class="form-control" placeholder="0,00" required
                             aria-required="true" autofocus>
                     </div>
-                    <div class="form-group" style="background:#f8f9fa;padding:10px 14px;border-radius:8px;">
-                        <small>Atual: <strong id="addValueCurrent">R$ 0,00</strong> &nbsp;|&nbsp; Meta: <strong
-                                id="addValueTarget">R$ 0,00</strong></small>
+                    <div class="form-group" style="background: var(--color-bg, #f8fafc); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--color-border, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 12px; color: var(--color-text-muted, #64748b);">Atual: <strong id="addValueCurrent" style="color: var(--color-text, #0f172a);">R$ 0,00</strong></span>
+                        <span style="font-size: 12px; color: var(--color-text-muted, #64748b);">Meta: <strong id="addValueTarget" style="color: var(--color-primary, #6C5CE7);">R$ 0,00</strong></span>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeAddValue()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">💰 Adicionar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Confirmar Aporte</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ==========================================
+    EFEITO DE COMEMORAÇÃO EM TELA INTEIRA (CELEBRATION OVERLAY)
+    ========================================== -->
+    <div class="celebration-overlay" id="celebrationOverlay" onclick="if(event.target === this) dismissCelebration()" role="dialog" aria-modal="true" aria-label="Comemoração de Meta Concluída">
+        <canvas id="celebrationCanvas" class="celebration-canvas"></canvas>
+        <div class="celebration-modal" id="celebrationModal">
+            <div class="celebration-badge-wrap">
+                <div class="celebration-rays"></div>
+                <div class="celebration-glow"></div>
+                <div class="celebration-icon-circle">🏆</div>
+            </div>
+            <div class="celebration-eyebrow">🎉 Meta Concluída com Sucesso! 🎉</div>
+            <h2 class="celebration-title">Parabéns pela Conquista!</h2>
+            <div class="celebration-goal-name">
+                <i class="fas fa-bullseye" style="color:#FFB300;"></i>
+                <span id="celebrationGoalTitle">Reserva de Emergência</span>
+            </div>
+            <p class="celebration-message">
+                Você alcançou seu objetivo de <strong id="celebrationGoalAmount" style="color:var(--color-text);">R$ 0,00</strong>! Cada meta conquistada é um marco gigante rumo à sua independência financeira.
+            </p>
+            <div>
+                <span class="celebration-badge-pill">
+                    <i class="fas fa-check-circle"></i> 100% Alcançado
+                </span>
+            </div>
+            <div class="celebration-actions">
+                <button type="button" class="celebration-btn-secondary" onclick="retriggerConfetti()">
+                    🎊 Mais Confetes!
+                </button>
+                <button type="button" class="celebration-btn-primary" onclick="dismissCelebration()">
+                    Continuar <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
         </div>
     </div>
 

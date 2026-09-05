@@ -159,8 +159,11 @@ function renderGoals(goals) {
                 
                 <div class="goal-actions" onclick="event.stopPropagation();">
                     ${!isCompleted ? `
-                        <button class="btn btn-success btn-sm btn-add-value" onclick="openAddValue('${g.id}')">
-                            <i class="fas fa-plus"></i> Adicionar
+                        <button class="btn btn-success btn-sm btn-add-value" onclick="openAddValue('${g.id}')" title="Aportar valor">
+                            <i class="fas fa-plus"></i> Aportar
+                        </button>
+                        <button type="button" class="btn-complete-quick" onclick="quickCompleteGoal('${g.id}')" title="Concluir meta agora!">
+                            <i class="fas fa-check"></i>
                         </button>
                     ` : ''}
                     <button class="btn btn-ghost btn-icon-sm" onclick="editGoal('${g.id}')" title="Editar">
@@ -268,6 +271,9 @@ async function saveGoal(event) {
     }
 
     const editId = document.getElementById('editId').value;
+    const prevGoal = editId ? allGoals.find(g => g.id === editId) : null;
+    const wasCompleted = prevGoal ? (prevGoal.completed || (prevGoal.current_amount >= prevGoal.target_amount)) : false;
+
     const title = document.getElementById('gTitle').value.trim();
     const target = parseNumberInput(document.getElementById('gTarget').value);
     const current = parseNumberInput(document.getElementById('gCurrent').value);
@@ -324,6 +330,9 @@ async function saveGoal(event) {
             showToast('📦 Meta salva localmente! Sincronização pendente.', 'success');
             closeModal();
             await loadGoals();
+            if (completed && !wasCompleted) {
+                triggerCelebration(title, Math.max(target, current));
+            }
             btn.disabled = false;
             isProcessing = false;
             btn.innerHTML = originalText;
@@ -358,6 +367,9 @@ async function saveGoal(event) {
         showToast(editId ? 'Meta atualizada! 🎯' : 'Meta criada! 🎯', 'success');
         closeModal();
         await loadGoals();
+        if (completed && !wasCompleted) {
+            triggerCelebration(title, Math.max(target, current));
+        }
 
     } catch (error) {
         console.error('❌ Erro ao salvar:', error);
@@ -465,9 +477,30 @@ function openAddValue(id) {
 }
 
 function closeAddValue() {
-    document.getElementById('addValueOverlay').classList.remove('active');
-    document.getElementById('addValueModal').classList.add('hidden');
+    document.body.classList.remove('no-scroll');
+    document.getElementById('addValueOverlay')?.classList.remove('active');
+    document.getElementById('addValueModal')?.classList.add('hidden');
 }
+
+// Ouvinte global para tecla ESC fechar modais de metas e overlay de comemoração
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+        const celebrationOverlay = document.getElementById('celebrationOverlay');
+        if (celebrationOverlay && celebrationOverlay.classList.contains('active')) {
+            dismissCelebration();
+            return;
+        }
+        const addOverlay = document.getElementById('addValueOverlay');
+        if (addOverlay && addOverlay.classList.contains('active')) {
+            closeAddValue();
+            return;
+        }
+        const goalOverlay = document.getElementById('modalOverlay');
+        if (goalOverlay && goalOverlay.classList.contains('active')) {
+            closeModal();
+        }
+    }
+});
 
 async function submitAddValue(event) {
     event.preventDefault();
@@ -511,6 +544,9 @@ async function submitAddValue(event) {
             showToast('📦 Valor adicionado localmente! Sincronização pendente.', 'success');
             closeAddValue();
             await loadGoals();
+            if (completed) {
+                triggerCelebration(goal.title, newAmount);
+            }
             btn.disabled = false;
             isProcessing = false;
             btn.innerHTML = originalText;
@@ -529,6 +565,9 @@ async function submitAddValue(event) {
         showToast(msg, 'success');
         closeAddValue();
         await loadGoals();
+        if (completed) {
+            triggerCelebration(goal.title, newAmount);
+        }
 
     } catch (error) {
         console.error('❌ Erro ao adicionar valor:', error);
@@ -539,6 +578,319 @@ async function submitAddValue(event) {
         btn.innerHTML = originalText;
     }
 }
+
+// ============================================
+// CONCLUIR META RAPIDAMENTE (QUICK COMPLETE)
+// ============================================
+async function quickCompleteGoal(id) {
+    if (isProcessing) {
+        showToast('Aguarde a operação atual terminar...', 'warning');
+        return;
+    }
+
+    const goal = allGoals.find(g => g.id === id);
+    if (!goal) return;
+
+    if (!confirm(`Deseja marcar a meta "${goal.title}" como 100% concluída?`)) {
+        return;
+    }
+
+    isProcessing = true;
+
+    try {
+        const data = {
+            current_amount: goal.target_amount,
+            completed: true,
+            updated_at: new Date().toISOString()
+        };
+
+        const secureData = window.TonuCSRF ? window.TonuCSRF.secureRequest(data) : data;
+
+        if (!navigator.onLine && window.tonuSync) {
+            await window.tonuSync.enqueue('UPDATE_GOAL', { id: id, ...secureData });
+            showToast('📦 Meta concluída localmente! Sincronização pendente.', 'success');
+            await loadGoals();
+            triggerCelebration(goal.title, goal.target_amount);
+            isProcessing = false;
+            return;
+        }
+
+        const { error } = await supabaseClient
+            .from('goals')
+            .update(secureData)
+            .eq('id', id)
+            .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+
+        showToast('🎉 Meta concluída com sucesso!', 'success');
+        await loadGoals();
+        triggerCelebration(goal.title, goal.target_amount);
+
+    } catch (error) {
+        console.error('❌ Erro ao concluir meta:', error);
+        showToast('Erro ao concluir meta', 'error');
+    } finally {
+        isProcessing = false;
+    }
+}
+
+// ============================================
+// SISTEMA DE COMEMORAÇÃO EM TELA INTEIRA (CONFETTI & FANFARRA)
+// ============================================
+let celebrationAnimId = null;
+let celebrationParticles = [];
+let celebrationAutoDismissTimer = null;
+
+function playCelebrationSound() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+
+        const notes = [
+            { freq: 523.25, time: 0.00, dur: 0.22 }, // C5
+            { freq: 659.25, time: 0.12, dur: 0.22 }, // E5
+            { freq: 783.99, time: 0.24, dur: 0.22 }, // G5
+            { freq: 1046.50, time: 0.38, dur: 0.45 }, // C6
+            { freq: 1318.51, time: 0.48, dur: 0.55 }  // E6
+        ];
+
+        notes.forEach(n => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(n.freq, ctx.currentTime + n.time);
+
+            gain.gain.setValueAtTime(0.001, ctx.currentTime + n.time);
+            gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + n.time + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n.time + n.dur);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(ctx.currentTime + n.time);
+            osc.stop(ctx.currentTime + n.time + n.dur + 0.05);
+        });
+    } catch (e) {
+        // Áudio é um aprimoramento progressivo; ignora se a política do navegador bloquear
+    }
+}
+
+function createConfettiParticles(count = 140, origin = 'cannons') {
+    const colors = [
+        '#FFD700', '#FFA500', '#6C5CE7', '#00B894', 
+        '#0984E3', '#FF7675', '#FD79A8', '#FDCB6E', '#A29BFE'
+    ];
+    const shapes = ['rect', 'circle', 'ribbon', 'star'];
+    const particles = [];
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    for (let i = 0; i < count; i++) {
+        const fromLeft = i % 2 === 0;
+        let x, y, vx, vy;
+
+        if (origin === 'cannons') {
+            x = fromLeft ? Math.random() * (width * 0.25) : width * 0.75 + Math.random() * (width * 0.25);
+            y = height + 10;
+            vx = fromLeft ? (Math.random() * 8 + 3) : -(Math.random() * 8 + 3);
+            vy = -(Math.random() * 14 + 14);
+        } else {
+            // Explosão central
+            x = width * 0.5 + (Math.random() - 0.5) * 80;
+            y = height * 0.45 + (Math.random() - 0.5) * 60;
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 15 + 5;
+            vx = Math.cos(angle) * speed;
+            vy = Math.sin(angle) * speed - 6;
+        }
+
+        particles.push({
+            x,
+            y,
+            vx,
+            vy,
+            size: Math.random() * 8 + 6,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            shape: shapes[Math.floor(Math.random() * shapes.length)],
+            rotation: Math.random() * 360,
+            rotationSpeed: (Math.random() - 0.5) * 12,
+            wobble: Math.random() * 10,
+            wobbleSpeed: Math.random() * 0.1 + 0.05,
+            opacity: 1,
+            gravity: 0.32 + Math.random() * 0.12,
+            drag: 0.982
+        });
+    }
+    return particles;
+}
+
+function startCelebrationCanvas() {
+    const canvas = document.getElementById('celebrationCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    celebrationParticles = createConfettiParticles(160, 'cannons');
+
+    // Explosão central complementar após 300ms
+    setTimeout(() => {
+        if (celebrationParticles.length > 0) {
+            celebrationParticles.push(...createConfettiParticles(70, 'center'));
+        }
+    }, 350);
+
+    if (celebrationAnimId) {
+        cancelAnimationFrame(celebrationAnimId);
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = celebrationParticles.length - 1; i >= 0; i--) {
+            const p = celebrationParticles[i];
+
+            p.vx *= p.drag;
+            p.vy *= p.drag;
+            p.vy += p.gravity;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rotation += p.rotationSpeed;
+            p.wobble += p.wobbleSpeed;
+
+            // Se cair abaixo da tela
+            if (p.y > canvas.height + 40) {
+                celebrationParticles.splice(i, 1);
+                continue;
+            }
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rotation * Math.PI) / 180);
+            ctx.globalAlpha = p.opacity;
+            ctx.fillStyle = p.color;
+
+            if (p.shape === 'circle') {
+                ctx.beginPath();
+                ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (p.shape === 'star') {
+                drawStar(ctx, 0, 0, 5, p.size, p.size / 2);
+            } else if (p.shape === 'ribbon') {
+                ctx.fillRect(-p.size / 2, -p.size * 1.5, p.size * Math.cos(p.wobble), p.size * 2);
+            } else {
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size * Math.cos(p.wobble), p.size);
+            }
+
+            ctx.restore();
+        }
+
+        if (celebrationParticles.length > 0) {
+            celebrationAnimId = requestAnimationFrame(render);
+        } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    celebrationAnimId = requestAnimationFrame(render);
+}
+
+function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+    let rot = (Math.PI / 2) * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - outerRadius);
+    for (let i = 0; i < spikes; i++) {
+        x = cx + Math.cos(rot) * outerRadius;
+        y = cy + Math.sin(rot) * outerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
+
+        x = cx + Math.cos(rot) * innerRadius;
+        y = cy + Math.sin(rot) * innerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
+    }
+    ctx.lineTo(cx, cy - outerRadius);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function triggerCelebration(title, amount) {
+    const overlay = document.getElementById('celebrationOverlay');
+    if (!overlay) return;
+
+    const titleEl = document.getElementById('celebrationGoalTitle');
+    const amountEl = document.getElementById('celebrationGoalAmount');
+
+    if (titleEl) titleEl.textContent = title || 'Sua Meta';
+    if (amountEl) amountEl.textContent = formatCurrency(amount || 0);
+
+    overlay.classList.add('active');
+    document.body.classList.add('no-scroll');
+
+    playCelebrationSound();
+    startCelebrationCanvas();
+
+    if (celebrationAutoDismissTimer) {
+        clearTimeout(celebrationAutoDismissTimer);
+    }
+    celebrationAutoDismissTimer = setTimeout(() => {
+        dismissCelebration();
+    }, 8500);
+}
+
+function dismissCelebration() {
+    const overlay = document.getElementById('celebrationOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+    document.body.classList.remove('no-scroll');
+
+    if (celebrationAutoDismissTimer) {
+        clearTimeout(celebrationAutoDismissTimer);
+        celebrationAutoDismissTimer = null;
+    }
+
+    if (celebrationAnimId) {
+        cancelAnimationFrame(celebrationAnimId);
+        celebrationAnimId = null;
+    }
+    celebrationParticles = [];
+
+    const canvas = document.getElementById('celebrationCanvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+function retriggerConfetti() {
+    playCelebrationSound();
+    if (celebrationParticles.length < 50) {
+        startCelebrationCanvas();
+    } else {
+        celebrationParticles.push(...createConfettiParticles(100, 'cannons'));
+    }
+}
+
+window.addEventListener('resize', () => {
+    const canvas = document.getElementById('celebrationCanvas');
+    if (canvas && celebrationAnimId) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+});
 
 // ============================================
 // TOAST
@@ -577,6 +929,10 @@ window.deleteGoal = deleteGoal;
 window.openAddValue = openAddValue;
 window.closeAddValue = closeAddValue;
 window.submitAddValue = submitAddValue;
+window.quickCompleteGoal = quickCompleteGoal;
+window.triggerCelebration = triggerCelebration;
+window.dismissCelebration = dismissCelebration;
+window.retriggerConfetti = retriggerConfetti;
 window.loadGoals = loadGoals;
 
-console.log('✅ Goals.js carregado com sucesso (versão segura)!');
+console.log('✅ Goals.js carregado com sucesso (versão segura com celebração em tela cheia)!');

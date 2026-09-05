@@ -26,6 +26,38 @@ function showLoadingAnimation() {
 // ============================================
 const BRAPI_TOKEN = window.APP_CONFIG?.BRAPI_TOKEN || 'n3pZmgKo5YZwJcNx1sfPSN';
 
+function formatCurrency(value) {
+    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
+        return window.formatCurrency(value);
+    }
+    if (value === null || value === undefined || value === '') value = 0;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[R$\s]/g, '');
+        if (cleaned.includes(',') && cleaned.includes('.')) {
+            value = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (cleaned.includes(',')) {
+            value = cleaned.replace(',', '.');
+        }
+        value = parseFloat(value);
+    }
+    const num = Number(value) || 0;
+    try {
+        const formatted = new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+        return formatted.replace(/\u00A0/g, ' ');
+    } catch {
+        const isNegative = num < 0;
+        const parts = Math.abs(num).toFixed(2).split('.');
+        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const res = 'R$ ' + intPart + ',' + parts[1];
+        return isNegative ? '-' + res : res;
+    }
+}
+
 // ============================================
 // ESTADO
 // ============================================
@@ -1111,18 +1143,30 @@ function updateSummary() {
 
 async function salvarPatrimonio(valor) {
     try {
-        const { error } = await supabaseClient
-            .from('user_stats')
-            .upsert({
+        if (!currentUser || !currentUser.id) return;
+        if (!window.supabaseClient || typeof window.supabaseClient.from !== 'function') return;
+
+        const tableQuery = window.supabaseClient.from('user_stats');
+        if (tableQuery && typeof tableQuery.upsert === 'function') {
+            const { error } = await tableQuery.upsert({
                 user_id: currentUser.id,
                 patrimony: valor,
                 updated_at: new Date().toISOString()
             }, { onConflict: 'user_id' });
 
-        if (error) throw error;
-        console.log('✅ Patrimônio salvo:', valor);
+            if (error) throw error;
+            console.log('✅ Patrimônio salvo:', valor);
+        } else if (tableQuery) {
+            const { data: existing } = await tableQuery.select('id').eq('user_id', currentUser.id).maybeSingle();
+            if (existing && existing.id) {
+                await tableQuery.update({ patrimony: valor, updated_at: new Date().toISOString() }).eq('user_id', currentUser.id);
+            } else {
+                await tableQuery.insert([{ user_id: currentUser.id, patrimony: valor, updated_at: new Date().toISOString() }]);
+            }
+            console.log('✅ Patrimônio salvo via fallback:', valor);
+        }
     } catch (error) {
-        console.error('❌ Erro ao salvar patrimônio:', error);
+        console.warn('⚠️ Não foi possível sincronizar patrimônio em user_stats:', error?.message || error);
     }
 }
 
@@ -1169,9 +1213,10 @@ function renderClassCards() {
         const items = positions.filter(p => p.assetClass === cls);
         const total = items.reduce((s, p) => s + p.currentValue, 0);
         const count = items.length;
+        const isActive = cls === selectedClass ? 'active' : '';
 
         html += `
-            <div class="class-card" onclick="filterByClass('${cls}')" style="cursor:pointer;">
+            <div class="class-card ${isActive}" onclick="filterByClass('${cls}')" style="cursor:pointer;" data-class="${cls}">
                 <div class="class-header">
                     <span class="class-name">${cls}</span>
                     <span class="class-icon">${icons[cls] || '📦'}</span>
@@ -1225,15 +1270,15 @@ function renderTable() {
     const sortedItems = [...filtered].sort((a, b) => b.portfolioPct - a.portfolioPct);
 
     let html = `
-        <div style="overflow-x:auto;padding:8px 16px;">
-            <table style="width:100%;border-collapse:collapse;font-size:var(--font-size-sm);min-width:600px;">
+        <div class="portfolio-table-wrap">
+            <table class="transactions-table" style="min-width:600px;">
                 <thead>
-                    <tr style="border-bottom:2px solid var(--color-border);">
-                        <th style="text-align:left;padding:10px 8px;font-weight:600;color:var(--color-text-muted);font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:0.05em;">Ativo</th>
-                        <th style="text-align:right;padding:10px 8px;font-weight:600;color:var(--color-text-muted);font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:0.05em;">Quant.</th>
-                        <th style="text-align:right;padding:10px 8px;font-weight:600;color:var(--color-text-muted);font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:0.05em;">Preço</th>
-                        <th style="text-align:right;padding:10px 8px;font-weight:600;color:var(--color-text-muted);font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:0.05em;">Variação</th>
-                        <th style="text-align:right;padding:10px 8px;font-weight:600;color:var(--color-text-muted);font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:0.05em;">Ganho/Perda</th>
+                    <tr>
+                        <th>Ativo</th>
+                        <th style="text-align:right;">Quant.</th>
+                        <th style="text-align:right;">Preço</th>
+                        <th style="text-align:right;">Variação</th>
+                        <th style="text-align:right;">Ganho/Perda</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1251,15 +1296,17 @@ function renderTable() {
         const signChange = changePct > 0 ? '+' : '';
 
         html += `
-            <tr style="border-bottom:1px solid var(--color-border-light);">
-                <td style="padding:10px 8px;text-align:left;">
-                    <span style="font-weight:700;">${p.ticker}</span>
-                    <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-left:6px;">${p.assetClass}</span>
+            <tr>
+                <td>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-weight:700;font-size:14px;letter-spacing:-0.01em;">${p.ticker}</span>
+                        <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:9999px;background:var(--color-bg);border:1px solid var(--color-border);color:var(--color-text-light);">${p.assetClass}</span>
+                    </div>
                 </td>
-                <td style="padding:10px 8px;text-align:right;font-weight:500;">${quantity}</td>
-                <td style="padding:10px 8px;text-align:right;font-weight:600;">${formatCurrency(price)}</td>
-                <td style="padding:10px 8px;text-align:right;font-weight:600;" class="${changeClass}">${signChange}${changePct.toFixed(2)}%</td>
-                <td style="padding:10px 8px;text-align:right;font-weight:600;" class="${gainClass}">${signGain}${formatCurrency(gain)}</td>
+                <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">${quantity}</td>
+                <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">${formatCurrency(price)}</td>
+                <td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;" class="${changeClass}">${signChange}${changePct.toFixed(2)}%</td>
+                <td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;" class="${gainClass}">${signGain}${formatCurrency(gain)}</td>
             </tr>
         `;
     });
@@ -1333,26 +1380,74 @@ function renderTransactions() {
 }
 
 // ============================================
-// BUILD CHART DATA - CORRIGIDO
+// AUXILIAR PARA ATUALIZAR POSIÇÕES SIMULADAS
+// ============================================
+function applyTxToSimulatedPortfolio(simulatedPortfolio, tx) {
+    if (!tx || !tx.ticker) return;
+    const ticker = tx.ticker.toUpperCase().trim();
+    const qty = Number(tx.quantity) || 0;
+    const price = Number(tx.unit_price) || 0;
+    const totalVal = Number(tx.total_value) || (qty * price);
+
+    if (!simulatedPortfolio.has(ticker)) {
+        simulatedPortfolio.set(ticker, { quantity: 0, costBasis: 0 });
+    }
+    const pos = simulatedPortfolio.get(ticker);
+
+    if (tx.type === 'Compra') {
+        pos.quantity += qty;
+        pos.costBasis += totalVal;
+    } else {
+        const avgCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+        const sellQty = Math.min(qty, pos.quantity);
+        pos.quantity -= sellQty;
+        pos.costBasis -= avgCost * sellQty;
+        if (pos.quantity <= 0.0001) {
+            simulatedPortfolio.delete(ticker);
+        }
+    }
+}
+
+// ============================================
+// BUILD CHART DATA - INTELIGENTE E DINÂMICO
 // ============================================
 function buildChartData() {
-    if (allTransactions.length === 0) {
+    if (!allTransactions || allTransactions.length === 0) {
         return { labels: ['Agora'], invested: [0], gain: [0], total: [0] };
     }
 
-    const monthsMap = selectedPeriod === '3m' ? 3 :
-        selectedPeriod === '6m' ? 6 :
-            selectedPeriod === '12m' ? 12 : 120;
+    // Filtra e ordena todas as transações cronologicamente
+    const validTransactions = allTransactions
+        .filter(tx => tx.date && !isNaN(new Date(tx.date + 'T12:00:00').getTime()))
+        .sort((a, b) => new Date(a.date + 'T12:00:00') - new Date(b.date + 'T12:00:00'));
+
+    if (validTransactions.length === 0) {
+        return { labels: ['Agora'], invested: [0], gain: [0], total: [0] };
+    }
 
     const end = new Date();
-    const start = new Date(end);
-    start.setMonth(start.getMonth() - monthsMap + 1);
-    start.setDate(1);
+    let start;
 
+    if (selectedPeriod === 'all') {
+        // Encontra a data da primeira transação de investimento real
+        const firstTxDate = new Date(validTransactions[0].date + 'T12:00:00');
+        start = new Date(firstTxDate.getFullYear(), firstTxDate.getMonth(), 1);
+
+        // Se a primeira transação tiver menos de 3 meses, garante uma janela mínima para boa visualização
+        const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+        if (diffMonths < 3) {
+            start = new Date(end.getFullYear(), end.getMonth() - 2, 1);
+        }
+    } else {
+        const monthsCount = selectedPeriod === '3m' ? 3 : (selectedPeriod === '6m' ? 6 : 12);
+        start = new Date(end.getFullYear(), end.getMonth() - monthsCount + 1, 1);
+    }
+
+    // Gera os meses contínuos do período
     const allMonths = [];
     const currentDate = new Date(start);
 
-    while (currentDate <= end) {
+    while (currentDate <= end || (currentDate.getFullYear() === end.getFullYear() && currentDate.getMonth() === end.getMonth())) {
         const key = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
         allMonths.push({
             key: key,
@@ -1362,14 +1457,22 @@ function buildChartData() {
         currentDate.setMonth(currentDate.getMonth() + 1);
     }
 
+    // Agrupa transações nos meses correspondentes e pré-acumula as anteriores
+    const simulatedPortfolio = new Map();
     const txByMonth = new Map();
-    for (const tx of allTransactions) {
+
+    for (const tx of validTransactions) {
         const d = new Date(tx.date + 'T12:00:00');
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        if (!txByMonth.has(key)) {
-            txByMonth.set(key, []);
+        if (d < start) {
+            // Transações anteriores a start alimentam o portfólio acumulado inicial
+            applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
+        } else {
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            if (!txByMonth.has(key)) {
+                txByMonth.set(key, []);
+            }
+            txByMonth.get(key).push(tx);
         }
-        txByMonth.get(key).push(tx);
     }
 
     for (const month of allMonths) {
@@ -1389,54 +1492,27 @@ function buildChartData() {
     const invested = [];
     const gain = [];
     const total = [];
-    let simulatedPortfolio = new Map();
 
     for (let i = 0; i < allMonths.length; i++) {
         const month = allMonths[i];
 
         for (const tx of month.transactions) {
-            const ticker = tx.ticker.toUpperCase().trim();
-            const qty = Number(tx.quantity) || 0;
-            const price = Number(tx.unit_price) || 0;
-            const totalVal = Number(tx.total_value) || qty * price;
-
-            if (!simulatedPortfolio.has(ticker)) {
-                simulatedPortfolio.set(ticker, { quantity: 0, costBasis: 0 });
-            }
-            const pos = simulatedPortfolio.get(ticker);
-
-            if (tx.type === 'Compra') {
-                pos.quantity += qty;
-                pos.costBasis += totalVal;
-            } else {
-                const avgCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
-                const sellQty = Math.min(qty, pos.quantity);
-                pos.quantity -= sellQty;
-                pos.costBasis -= avgCost * sellQty;
-                if (pos.quantity <= 0.0001) {
-                    simulatedPortfolio.delete(ticker);
-                }
-            }
+            applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
         }
 
         let runningInvested = 0;
-        let runningTotal = 0;
         for (const [, pos] of simulatedPortfolio) {
-            runningInvested += pos.costBasis;
+            runningInvested += (pos.costBasis || 0);
         }
 
         let monthGain = 0;
         if (simulatedPortfolio.size > 0) {
             let totalSimulatedValue = 0;
             for (const [ticker, pos] of simulatedPortfolio) {
-                const currentPrice = currentPrices.get(ticker) || pos.costBasis / (pos.quantity || 1);
+                const currentPrice = currentPrices.get(ticker) || (pos.quantity > 0 ? pos.costBasis / pos.quantity : 0);
                 totalSimulatedValue += pos.quantity * currentPrice;
             }
-            monthGain = totalSimulatedValue - runningInvested;
-            runningTotal = totalSimulatedValue;
-        } else {
-            runningTotal = runningInvested;
-            monthGain = 0;
+            monthGain = Math.max(0, totalSimulatedValue - runningInvested);
         }
 
         const monthLabel = `${String(month.date.getMonth() + 1).padStart(2, '0')}/${String(month.date.getFullYear()).slice(2)}`;
@@ -1451,7 +1527,7 @@ function buildChartData() {
         const totalCostBasis = positions.reduce((s, p) => s + p.costBasis, 0);
         const totalCurrentValue = positions.reduce((s, p) => s + p.currentValue, 0);
         invested.push(totalCostBasis);
-        gain.push(totalCurrentValue - totalCostBasis);
+        gain.push(Math.max(0, totalCurrentValue - totalCostBasis));
         total.push(totalCurrentValue);
     }
 
@@ -1504,7 +1580,13 @@ function renderChart() {
                     y: {
                         beginAtZero: true,
                         grid: { color: gridColor },
-                        ticks: { color: textColor, font: { size: 10 } }
+                        ticks: {
+                            color: textColor,
+                            font: { size: 10 },
+                            callback: function (value) {
+                                return formatCurrency(value);
+                            }
+                        }
                     },
                     x: {
                         grid: { display: false },
@@ -1539,6 +1621,9 @@ function renderChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            categoryPercentage: 0.7,
+            barPercentage: 0.85,
+            maxBarThickness: 52,
             interaction: {
                 intersect: false,
                 mode: 'index'
@@ -1589,7 +1674,7 @@ function renderChart() {
                         color: textColor,
                         font: { size: 10 },
                         callback: function (value) {
-                            return formatCurrency(value).replace(/\s/g, '');
+                            return formatCurrency(value);
                         }
                     }
                 }
@@ -1768,7 +1853,12 @@ function renderDividendsChart() {
                 scales: {
                     y: {
                         grid: { color: gridColor },
-                        ticks: { color: textColor }
+                        ticks: {
+                            color: textColor,
+                            callback: function (value) {
+                                return formatCurrency(value);
+                            }
+                        }
                     },
                     x: {
                         grid: { display: false },
@@ -1848,7 +1938,7 @@ function renderDividendsChart() {
                         color: textColor,
                         font: { size: 10 },
                         callback: function (value) {
-                            return formatCurrency(value).replace(/\s/g, '');
+                            return formatCurrency(value);
                         }
                     }
                 },

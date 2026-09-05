@@ -49,16 +49,34 @@ function showToast(message, type) {
 // 2. FORMATAÇÃO
 // ============================================
 function formatCurrency(value) {
-    var num = Number(value) || 0;
+    if (value === null || value === undefined || value === '') {
+        value = 0;
+    }
+    if (typeof value === 'string') {
+        var cleaned = value.replace(/[R$\s]/g, '');
+        if (cleaned.includes(',') && cleaned.includes('.')) {
+            cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (cleaned.includes(',')) {
+            cleaned = cleaned.replace(',', '.');
+        }
+        value = parseFloat(cleaned);
+    }
+    var num = Number(value);
+    if (isNaN(num)) num = 0;
     try {
-        return new Intl.NumberFormat('pt-BR', {
+        var formatted = new Intl.NumberFormat('pt-BR', {
             style: 'currency',
             currency: 'BRL',
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(num);
+        return formatted.replace(/\u00A0/g, ' ');
     } catch (error) {
-        return 'R$ ' + num.toFixed(2);
+        var isNegative = num < 0;
+        var parts = Math.abs(num).toFixed(2).split('.');
+        var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        var res = 'R$ ' + intPart + ',' + parts[1];
+        return isNegative ? '-' + res : res;
     }
 }
 
@@ -96,6 +114,28 @@ function getDaysBetween(date1, date2) {
     var diffTime = Math.abs(d2 - d1);
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
+
+// ============================================
+// NAVEGAÇÃO DE MÊS GLOBAL (FALLBACK & DISPATCHER)
+// ============================================
+function changeMonth(delta) {
+    if (typeof window.changeMonthHandler === 'function') {
+        return window.changeMonthHandler(delta);
+    }
+    var evt = new CustomEvent('tonu:changeMonth', { detail: { delta: delta } });
+    window.dispatchEvent(evt);
+}
+
+function goToCurrentMonth() {
+    if (typeof window.goToCurrentMonthHandler === 'function') {
+        return window.goToCurrentMonthHandler();
+    }
+    var evt = new CustomEvent('tonu:goToCurrentMonth');
+    window.dispatchEvent(evt);
+}
+
+window.changeMonth = changeMonth;
+window.goToCurrentMonth = goToCurrentMonth;
 
 // ============================================
 // 3. SANITIZAÇÃO E VALIDAÇÃO
@@ -638,9 +678,11 @@ function initTheme() {
     var savedTheme = localStorage.getItem('tonu_theme') || 'light';
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-theme');
+        document.documentElement.classList.add('dark-theme');
         document.documentElement.setAttribute('data-theme', 'dark');
     } else {
         document.body.classList.remove('dark-theme');
+        document.documentElement.classList.remove('dark-theme');
         document.documentElement.setAttribute('data-theme', 'light');
     }
     updateThemeToggleIcons(savedTheme);
@@ -648,12 +690,15 @@ function initTheme() {
 
 function toggleTheme() {
     var isDark = document.body.classList.toggle('dark-theme');
+    document.documentElement.classList.toggle('dark-theme', isDark);
     var newTheme = isDark ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('tonu_theme', newTheme);
     updateThemeToggleIcons(newTheme);
 
-    // 🔥 TOAST REMOVIDO - SEM NECESSIDADE DISSO
+    try {
+        window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: newTheme } }));
+    } catch (e) {}
 }
 
 function updateThemeToggleIcons(theme) {

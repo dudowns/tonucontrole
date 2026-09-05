@@ -2,84 +2,94 @@
    GOALS.CSS - Estilos específicos de Metas
    ============================================ */
 
-@import url('theme.css');
-
 /* ============================================
-   GRID DE METAS
+   GRID DE METAS - COMPACTO E HARMONIOSO
    ============================================ */
 .goals-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: var(--space-md);
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
 }
 
 /* ============================================
-   CARD DE META
+   CARD DE META - SLIM & AFINADO
    ============================================ */
 .goal-card {
     background: var(--color-surface);
-    border-radius: 10px;
-    padding: 14px 16px;
+    border-radius: 9px;
+    padding: 10px 12px;
     border: 1px solid var(--color-border);
-    border-left: 5px solid var(--color-primary);
-    box-shadow: var(--shadow-sm);
-    transition: all var(--transition-base);
+    border-left: 3.5px solid var(--color-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .goal-card:hover {
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     transform: translateY(-2px);
 }
 
 .goal-card.completed {
-    opacity: 0.75;
+    opacity: 0.85;
     border-left-color: var(--color-success);
+    background: linear-gradient(180deg, var(--color-surface) 0%, rgba(0, 184, 148, 0.04) 100%);
 }
 
 .goal-card .goal-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 10px;
+    align-items: center;
+    margin-bottom: 6px;
 }
 
 .goal-card .goal-header h3 {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     margin: 0;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 6px;
 }
 
 .goal-card .goal-header .goal-emoji {
-    font-size: 22px;
+    font-size: 18px;
+    flex-shrink: 0;
 }
 
 .goal-card .goal-amounts {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 6px;
-    font-size: 12px;
+    margin-bottom: 4px;
+    font-size: 11px;
     color: var(--color-text-muted);
 }
 
 .goal-card .goal-amounts strong {
     color: var(--color-text);
+    font-weight: 600;
 }
 
 .goal-card .goal-progress {
-    margin: 8px 0;
+    margin: 5px 0;
 }
 
 .goal-card .goal-progress .progress-label {
     display: flex;
     justify-content: space-between;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
 }
 
 .goal-card .goal-progress .progress {
-    height: 6px;
+    height: 5px;
 }
 
 .goal-card .goal-progress .progress-bar.success {
@@ -92,7 +102,7 @@
     align-items: center;
     font-size: 10px;
     color: var(--color-text-muted);
-    margin-top: 6px;
+    margin-top: 5px;
 }
 
 .goal-card .goal-footer .deadline {
@@ -103,22 +113,56 @@
 .goal-card .goal-actions {
     display: flex;
     gap: 4px;
-    margin-top: 10px;
-    flex-wrap: wrap;
+    margin-top: 8px;
+    align-items: center;
 }
 
 .goal-card .goal-actions .btn-add-value {
     flex: 1;
-    min-height: 30px;
-    font-size: 11px;
-    padding: 4px 10px;
+    min-height: 26px;
+    height: 26px;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
 }
 
 .goal-card .goal-actions .btn-icon-sm {
-    width: 28px;
-    height: 28px;
-    min-height: 28px;
-    font-size: 11px;
+    width: 26px;
+    height: 26px;
+    min-height: 26px;
+    font-size: 10px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.goal-card .goal-actions .btn-complete-quick {
+    width: 26px;
+    height: 26px;
+    min-height: 26px;
+    font-size: 10px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: #00b894;
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.goal-card .goal-actions .btn-complete-quick:hover {
+    background: #00a382;
+    transform: scale(1.06);
 }
 
 /* ============================================
@@ -126,7 +170,7 @@
    ============================================ */
 .progress {
     width: 100%;
-    height: 8px;
+    height: 5px;
     background: var(--color-border);
     border-radius: var(--radius-full);
     overflow: hidden;
@@ -153,7 +197,7 @@
 }
 
 .empty-state .empty-icon {
-    font-size: 40px;
+    font-size: 36px;
     margin-bottom: 8px;
     display: block;
     opacity: 0.5;
@@ -166,9 +210,226 @@
 }
 
 .empty-state p {
-    font-size: 13px;
+    font-size: 12px;
     max-width: 360px;
     margin: 0 auto;
+}
+
+/* ============================================
+   EFEITO DE COMEMORAÇÃO EM TELA INTEIRA
+   (FULL-SCREEN CELEBRATION OVERLAY & CONFETTI)
+   ============================================ */
+.celebration-overlay {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.celebration-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.celebration-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.celebration-modal {
+    position: relative;
+    z-index: 2;
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 20px;
+    padding: 28px 24px;
+    max-width: 440px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 0 35px rgba(255, 215, 0, 0.3);
+    transform: scale(0.85) translateY(20px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.celebration-overlay.active .celebration-modal {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+/* Efeito de brilho rotativo atrás do troféu */
+.celebration-badge-wrap {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.celebration-glow {
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.45) 0%, rgba(108, 92, 231, 0.2) 60%, transparent 80%);
+    animation: celebrationPulse 2s infinite ease-in-out;
+}
+
+.celebration-rays {
+    position: absolute;
+    inset: -20px;
+    background: repeating-conic-gradient(
+        from 0deg,
+        rgba(255, 215, 0, 0.18) 0deg 15deg,
+        transparent 15deg 30deg
+    );
+    border-radius: 50%;
+    animation: celebrationRotate 14s linear infinite;
+}
+
+.celebration-icon-circle {
+    position: relative;
+    z-index: 2;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 38px;
+    box-shadow: 0 10px 25px rgba(255, 165, 0, 0.45);
+    animation: trophyBounce 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.celebration-eyebrow {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #FFB300;
+    background: rgba(255, 179, 0, 0.12);
+    padding: 3px 10px;
+    border-radius: 9999px;
+    margin-bottom: 8px;
+}
+
+.celebration-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--color-text, #0f172a);
+    margin: 0 0 6px 0;
+    line-height: 1.2;
+}
+
+.celebration-goal-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-primary, #6C5CE7);
+    margin: 0 0 12px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.celebration-message {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--color-text-muted, #64748b);
+    margin: 0 0 16px 0;
+}
+
+.celebration-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 184, 148, 0.12);
+    color: #00B894;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 14px;
+    border-radius: 9999px;
+    margin-bottom: 18px;
+    border: 1px solid rgba(0, 184, 148, 0.25);
+}
+
+.celebration-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.celebration-btn-primary {
+    background: linear-gradient(135deg, #6C5CE7 0%, #a363d9 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.celebration-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(108, 92, 231, 0.5);
+}
+
+.celebration-btn-secondary {
+    background: var(--color-bg, #f8fafc);
+    color: var(--color-text, #0f172a);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.celebration-btn-secondary:hover {
+    background: var(--color-border-light, #f1f5f9);
+}
+
+@keyframes trophyBounce {
+    0% { transform: scale(0.3) rotate(-15deg); }
+    50% { transform: scale(1.15) rotate(5deg); }
+    70% { transform: scale(0.95) rotate(-3deg); }
+    100% { transform: scale(1) rotate(0); }
+}
+
+@keyframes celebrationPulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.25); opacity: 1; }
+}
+
+@keyframes celebrationRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* ============================================
@@ -176,34 +437,54 @@
    ============================================ */
 @media (max-width: 768px) {
     .goals-grid {
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-sm);
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 8px;
     }
 
     .goal-card {
-        padding: 12px 14px;
+        padding: 9px 11px;
     }
 
     .goal-card .goal-header h3 {
-        font-size: 13px;
+        font-size: 12px;
+    }
+
+    .celebration-modal {
+        padding: 22px 18px;
+    }
+
+    .celebration-badge-wrap {
+        width: 80px;
+        height: 80px;
+    }
+
+    .celebration-icon-circle {
+        width: 68px;
+        height: 68px;
+        font-size: 32px;
+    }
+
+    .celebration-title {
+        font-size: 18px;
     }
 }
 
 @media (max-width: 480px) {
     .goals-grid {
         grid-template-columns: 1fr;
+        gap: 8px;
     }
 
     .goal-card {
-        padding: 10px 12px;
+        padding: 9px 11px;
     }
 
     .goal-card .goal-header h3 {
-        font-size: 14px;
+        font-size: 13px;
     }
 
     .goal-card .goal-actions .btn-add-value {
         font-size: 10px;
-        padding: 3px 8px;
+        padding: 2px 6px;
     }
 }

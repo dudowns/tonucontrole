@@ -12,13 +12,13 @@
     left: 0 !important;
     width: 260px !important;
     height: 100vh !important;
-    background: #ffffff !important;
-    border-right: 1px solid #e9ecef !important;
+    background: var(--color-surface, #ffffff) !important;
+    border-right: 1px solid var(--color-border, #e9ecef) !important;
     padding: 16px 14px !important;
     display: flex !important;
     flex-direction: column !important;
     z-index: 1000 !important;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease, border-color 0.25s ease !important;
     transform: translateX(0) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
@@ -48,13 +48,59 @@
 .sidebar-brand .brand-icon {
     width: 28px !important;
     height: 28px !important;
-    border-radius: 6px !important;
+    border-radius: 8px !important;
     overflow: hidden !important;
     flex-shrink: 0 !important;
-    background: rgba(255, 255, 255, 0.15) !important;
+    background: rgba(255, 255, 255, 0.18) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    position: relative !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    transition: transform 0.65s cubic-bezier(0.34, 1.45, 0.64, 1), box-shadow 0.35s ease !important;
+    animation: brandIconFloat 4s ease-in-out infinite alternate !important;
+}
+
+.sidebar-brand:hover .brand-icon,
+.sidebar-brand .brand-icon:hover {
+    transform: rotate(180deg) scale(1.15) !important;
+    box-shadow: 0 6px 18px rgba(108, 92, 231, 0.45) !important;
+}
+
+.sidebar-brand .brand-icon::after {
+    content: '' !important;
+    position: absolute !important;
+    top: -50% !important;
+    left: -100% !important;
+    width: 60% !important;
+    height: 200% !important;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent) !important;
+    transform: rotate(25deg) !important;
+    pointer-events: none !important;
+    animation: brandIconGlint 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+}
+
+@keyframes brandIconFloat {
+    0% {
+        transform: translateY(0) scale(1);
+    }
+    100% {
+        transform: translateY(-2px) scale(1.03);
+    }
+}
+
+@keyframes brandIconGlint {
+    0%, 30% {
+        transform: translateX(0) rotate(25deg);
+        opacity: 0;
+    }
+    35% {
+        opacity: 1;
+    }
+    60%, 100% {
+        transform: translateX(350%) rotate(25deg);
+        opacity: 0;
+    }
 }
 
 .sidebar-brand .brand-icon img {
@@ -62,6 +108,11 @@
     height: 100% !important;
     object-fit: cover !important;
     display: block !important;
+    transition: transform 0.3s ease !important;
+}
+
+.sidebar-brand .brand-icon:hover img {
+    transform: scale(1.08) !important;
 }
 
 .sidebar-brand h2 {
@@ -94,7 +145,7 @@
     gap: 10px !important;
     padding: 10px 14px !important;
     border-radius: 8px !important;
-    color: #636e72 !important;
+    color: var(--color-text-light, #636e72) !important;
     font-weight: 500 !important;
     font-size: 13px !important;
     text-decoration: none !important;
@@ -105,14 +156,14 @@
 }
 
 .sidebar-nav a:hover {
-    background: #f0edff !important;
-    color: #6C5CE7 !important;
+    background: var(--color-primary-bg, #f0edff) !important;
+    color: var(--color-primary, #6C5CE7) !important;
 }
 
 .sidebar-nav a.active {
-    background: #6C5CE7 !important;
+    background: var(--color-primary, #6C5CE7) !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.3) !important;
+    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.35) !important;
 }
 
 .sidebar-nav a i {
@@ -132,7 +183,7 @@
 .sidebar-footer {
     margin-top: auto !important;
     padding-top: 10px !important;
-    border-top: 1px solid #e9ecef !important;
+    border-top: 1px solid var(--color-border, #e9ecef) !important;
     flex-shrink: 0 !important;
     display: flex !important;
     flex-direction: column !important;
@@ -144,8 +195,8 @@
     align-items: center !important;
     gap: 10px !important;
     padding: 10px 12px !important;
-    background: #f8fafc !important;
-    border: 1px solid #e2e8f0 !important;
+    background: var(--color-bg, #f8fafc) !important;
+    border: 1px solid var(--color-border, #e2e8f0) !important;
     border-radius: 10px !important;
     text-decoration: none !important;
     color: inherit !important;
@@ -157,8 +208,8 @@
 }
 
 .sidebar-user-profile:hover {
-    background: #f0edff !important;
-    border-color: #6C5CE7 !important;
+    background: var(--color-primary-bg, #f0edff) !important;
+    border-color: var(--color-primary, #6C5CE7) !important;
     transform: translateY(-1px) !important;
     box-shadow: 0 4px 10px rgba(108, 92, 231, 0.12) !important;
 }
@@ -197,7 +248,7 @@
 .sidebar-user-name {
     font-size: 13px !important;
     font-weight: 700 !important;
-    color: #1e293b !important;
+    color: var(--color-text, #1e293b) !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
@@ -206,7 +257,7 @@
 
 .sidebar-user-email {
     font-size: 11px !important;
-    color: #64748b !important;
+    color: var(--color-text-muted, #64748b) !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
@@ -219,7 +270,7 @@
     gap: 4px !important;
     font-size: 10px !important;
     font-weight: 600 !important;
-    color: #00B894 !important;
+    color: var(--color-success, #00B894) !important;
     margin-top: 2px !important;
 }
 
@@ -227,7 +278,7 @@
     width: 6px !important;
     height: 6px !important;
     border-radius: 50% !important;
-    background: #00B894 !important;
+    background: var(--color-success, #00B894) !important;
     display: inline-block !important;
     animation: pulseStatus 2s ease-in-out infinite !important;
 }
@@ -248,13 +299,13 @@
 
 .sidebar-user-icon {
     font-size: 13px !important;
-    color: #94a3b8 !important;
+    color: var(--color-text-muted, #94a3b8) !important;
     transition: transform 0.2s ease, color 0.2s ease !important;
     flex-shrink: 0 !important;
 }
 
 .sidebar-user-profile:hover .sidebar-user-icon {
-    color: #6C5CE7 !important;
+    color: var(--color-primary, #6C5CE7) !important;
     transform: rotate(45deg) !important;
 }
 
@@ -268,9 +319,9 @@
     font-size: 12px !important;
     font-weight: 600 !important;
     font-family: 'Inter', sans-serif !important;
-    border: 1px solid #e2e8f0 !important;
+    border: 1px solid var(--color-border, #e2e8f0) !important;
     background: transparent !important;
-    color: #636e72 !important;
+    color: var(--color-text-light, #636e72) !important;
     cursor: pointer !important;
     transition: all 0.2s ease !important;
     display: flex !important;
@@ -422,168 +473,135 @@
 }
 
 /* ============================================
-   10. CORREÇÃO DE MODAL
+   10. MODAL - DESIGN SYSTEM UNIFICADO
    ============================================ */
-.modal-overlay {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    background: rgba(0, 0, 0, 0.5) !important;
-    backdrop-filter: blur(3px) !important;
-    z-index: 99999 !important;
-    display: none !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 16px !important;
-}
-
-.modal-overlay.active {
-    display: flex !important;
-}
-
-.modal {
-    background: #ffffff !important;
-    border-radius: 14px !important;
-    width: 100% !important;
-    max-width: 440px !important;
-    max-height: 85vh !important;
-    overflow-y: auto !important;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25) !important;
-    position: relative !important;
-    z-index: 100000 !important;
-    margin: auto !important;
-    animation: modalFadeIn 0.25s ease !important;
-}
-
-.modal-wide {
-    max-width: 540px !important;
-}
-
-@keyframes modalFadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.92) translateY(-8px);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-.modal.hidden {
-    display: none !important;
-}
-
-.modal-header {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    padding: 12px 18px !important;
-    border-bottom: 1px solid #e9ecef !important;
-    background: #f8f9fa !important;
-    border-radius: 14px 14px 0 0 !important;
-    flex-shrink: 0 !important;
-}
-
-.modal-header h3 {
-    font-size: 15px !important;
-    font-weight: 700 !important;
-    color: #2d3436 !important;
-    margin: 0 !important;
-}
-
-.modal-close {
-    background: none !important;
-    border: none !important;
-    font-size: 16px !important;
-    cursor: pointer !important;
-    color: #636e72 !important;
-    padding: 4px !important;
-    border-radius: 6px !important;
-    transition: all 0.2s !important;
-    width: 30px !important;
-    height: 30px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex-shrink: 0 !important;
-}
-
-.modal-close:hover {
-    background: #e9ecef !important;
-    color: #2d3436 !important;
-}
-
-.modal-body {
-    padding: 16px 18px !important;
-    overflow-y: auto !important;
-    flex: 1 !important;
-}
-
-.modal-footer {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    gap: 8px !important;
-    padding: 10px 18px !important;
-    border-top: 1px solid #e9ecef !important;
-    background: #f8f9fa !important;
-    border-radius: 0 0 14px 14px !important;
-    flex-shrink: 0 !important;
-    flex-wrap: wrap !important;
-}
-
-.modal-footer .btn {
-    min-height: 34px !important;
-    padding: 5px 14px !important;
-    font-size: 12px !important;
-}
-
-body.no-scroll {
-    overflow: hidden !important;
-}
+/* Os estilos principais de modal agora residem em css/theme.css e css/dark-theme.css */
 
 /* ============================================
-   11. RESPONSIVO - MODAL
+   11. PADRONIZAÇÃO DO TEMA ESCURO (DARK MODE)
+   Garante 100% de consistência visual no sidebar
    ============================================ */
-@media (max-width: 600px) {
-    .modal-overlay {
-        padding: 10px !important;
-    }
-
-    .modal {
-        max-width: 100% !important;
-        max-height: 80vh !important;
-        border-radius: 12px !important;
-    }
-
-    .modal-header {
-        padding: 10px 14px !important;
-    }
-
-    .modal-header h3 {
-        font-size: 14px !important;
-    }
-
-    .modal-body {
-        padding: 12px 14px !important;
-    }
-
-    .modal-footer {
-        padding: 8px 14px !important;
-        flex-direction: column !important;
-    }
-
-    .modal-footer .btn {
-        width: 100% !important;
-        justify-content: center !important;
-    }
-
-    .modal-footer .btn-danger {
-        margin-right: 0 !important;
-        order: -1 !important;
-    }
+body.dark-theme .sidebar,
+[data-theme="dark"] .sidebar,
+html[data-theme="dark"] .sidebar {
+    background: #1E293B !important;
+    border-right: 1px solid #334155 !important;
 }
+
+body.dark-theme .sidebar-nav a,
+[data-theme="dark"] .sidebar-nav a,
+html[data-theme="dark"] .sidebar-nav a {
+    color: #CBD5E1 !important;
+}
+
+body.dark-theme .sidebar-nav a:hover,
+[data-theme="dark"] .sidebar-nav a:hover,
+html[data-theme="dark"] .sidebar-nav a:hover,
+body.dark-theme .settings-card .sidebar-nav a:hover,
+body.dark-theme .dashboard-grid .sidebar-nav a:hover,
+body.dark-theme .transactions-grid .sidebar-nav a:hover,
+body.dark-theme .bills-grid .sidebar-nav a:hover,
+body.dark-theme .goals-grid .sidebar-nav a:hover,
+body.dark-theme .investments-grid .sidebar-nav a:hover,
+body.dark-theme .content .sidebar-nav a:hover,
+body.dark-theme .auth-container .sidebar-nav a:hover,
+body.dark-theme .card .sidebar-nav a:hover,
+[data-theme="dark"] .settings-card .sidebar-nav a:hover,
+[data-theme="dark"] .dashboard-grid .sidebar-nav a:hover,
+[data-theme="dark"] .transactions-grid .sidebar-nav a:hover,
+[data-theme="dark"] .bills-grid .sidebar-nav a:hover,
+[data-theme="dark"] .goals-grid .sidebar-nav a:hover,
+[data-theme="dark"] .investments-grid .sidebar-nav a:hover,
+[data-theme="dark"] .content .sidebar-nav a:hover,
+[data-theme="dark"] .auth-container .sidebar-nav a:hover,
+[data-theme="dark"] .card .sidebar-nav a:hover {
+    background: rgba(129, 140, 248, 0.16) !important;
+    color: #A78BFA !important;
+}
+
+body.dark-theme .sidebar-nav a.active,
+[data-theme="dark"] .sidebar-nav a.active,
+html[data-theme="dark"] .sidebar-nav a.active,
+body.dark-theme .settings-card .sidebar-nav a.active,
+body.dark-theme .dashboard-grid .sidebar-nav a.active,
+body.dark-theme .transactions-grid .sidebar-nav a.active,
+body.dark-theme .bills-grid .sidebar-nav a.active,
+body.dark-theme .goals-grid .sidebar-nav a.active,
+body.dark-theme .investments-grid .sidebar-nav a.active,
+body.dark-theme .content .sidebar-nav a.active,
+body.dark-theme .card .sidebar-nav a.active,
+[data-theme="dark"] .settings-card .sidebar-nav a.active,
+[data-theme="dark"] .dashboard-grid .sidebar-nav a.active,
+[data-theme="dark"] .transactions-grid .sidebar-nav a.active,
+[data-theme="dark"] .bills-grid .sidebar-nav a.active,
+[data-theme="dark"] .goals-grid .sidebar-nav a.active,
+[data-theme="dark"] .investments-grid .sidebar-nav a.active,
+[data-theme="dark"] .content .sidebar-nav a.active,
+[data-theme="dark"] .card .sidebar-nav a.active {
+    background: #6C5CE7 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.45) !important;
+}
+
+body.dark-theme .sidebar-footer,
+[data-theme="dark"] .sidebar-footer,
+html[data-theme="dark"] .sidebar-footer {
+    border-top: 1px solid #334155 !important;
+}
+
+body.dark-theme .sidebar-user-profile,
+[data-theme="dark"] .sidebar-user-profile,
+html[data-theme="dark"] .sidebar-user-profile {
+    background: #0F172A !important;
+    border: 1px solid #334155 !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-theme .sidebar-user-profile:hover,
+[data-theme="dark"] .sidebar-user-profile:hover,
+html[data-theme="dark"] .sidebar-user-profile:hover {
+    background: rgba(129, 140, 248, 0.16) !important;
+    border-color: #818CF8 !important;
+    box-shadow: 0 4px 12px rgba(129, 140, 248, 0.2) !important;
+}
+
+body.dark-theme .sidebar-user-name,
+[data-theme="dark"] .sidebar-user-name,
+html[data-theme="dark"] .sidebar-user-name {
+    color: #E2E8F0 !important;
+}
+
+body.dark-theme .sidebar-user-email,
+[data-theme="dark"] .sidebar-user-email,
+html[data-theme="dark"] .sidebar-user-email {
+    color: #94A3B8 !important;
+}
+
+body.dark-theme .sidebar-user-icon,
+[data-theme="dark"] .sidebar-user-icon,
+html[data-theme="dark"] .sidebar-user-icon {
+    color: #94A3B8 !important;
+}
+
+body.dark-theme .sidebar-user-profile:hover .sidebar-user-icon,
+[data-theme="dark"] .sidebar-user-profile:hover .sidebar-user-icon,
+html[data-theme="dark"] .sidebar-user-profile:hover .sidebar-user-icon {
+    color: #A78BFA !important;
+}
+
+body.dark-theme .sidebar-footer .btn-sair,
+[data-theme="dark"] .sidebar-footer .btn-sair,
+html[data-theme="dark"] .sidebar-footer .btn-sair {
+    border: 1px solid #334155 !important;
+    color: #CBD5E1 !important;
+    background: transparent !important;
+}
+
+body.dark-theme .sidebar-footer .btn-sair:hover,
+[data-theme="dark"] .sidebar-footer .btn-sair:hover,
+html[data-theme="dark"] .sidebar-footer .btn-sair:hover {
+    background: rgba(248, 113, 113, 0.15) !important;
+    color: #F87171 !important;
+    border-color: #F87171 !important;
+}
+

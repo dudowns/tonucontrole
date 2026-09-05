@@ -15,13 +15,61 @@
     <link rel="stylesheet" href="../../css/dark-theme.css">
     <link rel="stylesheet" href="../../css/mobile.css">
     <style>
-        body { padding-bottom: 72px; background: var(--color-bg, #f0f2f5); }
+        body { padding-bottom: 80px; background: var(--color-bg, #f0f2f5); }
+        .patrimony-hero-card {
+            background: var(--color-surface, #ffffff);
+            border-radius: var(--radius-lg, 16px);
+            padding: 18px 20px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05));
+            margin-bottom: 16px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .patrimony-hero-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #6C5CE7, #a29bfe);
+        }
+        .patrimony-hero-card .label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--color-text-light, #64748b);
+            margin-bottom: 4px;
+        }
+        .patrimony-hero-card .value {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--color-primary, #6C5CE7);
+            letter-spacing: -0.02em;
+        }
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-text, #1e293b);
+            margin: 16px 0 8px 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
         .invest-card {
             background: var(--color-surface, #ffffff);
-            border-radius: 10px;
+            border-radius: var(--radius-md, 12px);
             padding: 14px 16px;
             border: 1px solid var(--color-border, #e2e8f0);
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.04));
+            transition: transform 0.15s ease;
+        }
+        .invest-card:active {
+            transform: scale(0.99);
         }
         .invest-card .invest-header {
             display: flex;
@@ -29,22 +77,44 @@
             align-items: center;
         }
         .invest-card .invest-ticker {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 800;
+            color: var(--color-text, #1e293b);
         }
         .invest-card .invest-class {
             font-size: 10px;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 9999px;
+            background: var(--color-bg, #f1f5f9);
             color: var(--color-text-muted, #94a3b8);
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin-left: 6px;
         }
         .invest-card .invest-values {
             display: flex;
             justify-content: space-between;
-            margin-top: 6px;
-            font-size: 12px;
+            align-items: center;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--color-border-light, #f1f5f9);
+            font-size: 11px;
+            color: var(--color-text-muted, #64748b);
         }
-        .invest-card .invest-values .gain { font-weight: 700; }
-        .invest-card .invest-values .gain.positive { color: #00B894; }
-        .invest-card .invest-values .gain.negative { color: #FF7675; }
+        .invest-card .badge-type {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 9999px;
+        }
+        .invest-card .badge-type.buy {
+            background: rgba(0, 184, 148, 0.12);
+            color: #00B894;
+        }
+        .invest-card .badge-type.sell {
+            background: rgba(255, 118, 117, 0.12);
+            color: #FF7675;
+        }
     </style>
 </head>
 <body>
@@ -56,19 +126,23 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
-            <button onclick="window.history.back()" title="Voltar"><i class="fas fa-arrow-left"></i></button>
+            <button onclick="toggleTheme()" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
         </div>
     </div>
     <div class="greeting">📈 Investimentos</div>
 </header>
 
-<main class="mobile-content">
-    <div id="patrimonyTotal" style="text-align:center;padding:16px 0;font-size:20px;font-weight:800;color:var(--color-primary, #6C5CE7);">
-        R$ 0,00
+<main class="mobile-content" style="padding: 14px 16px;">
+    <div class="patrimony-hero-card">
+        <div class="label"><i class="fas fa-wallet" style="margin-right:4px;"></i> Patrimônio em Ativos</div>
+        <div class="value" id="patrimonyTotal">R$ 0,00</div>
+    </div>
+    <div class="section-title">
+        <i class="fas fa-clock-rotate-left"></i> Últimas Operações
     </div>
     <div id="investmentsContainer">
-        <div style="text-align:center;padding:20px;">
+        <div style="text-align:center;padding:24px;">
             <span class="spinner"></span>
             <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando investimentos...</p>
         </div>
@@ -201,9 +275,8 @@ function renderInvestments() {
                     </span>
                 </div>
                 <div class="invest-values">
-                    <span>${inv.quantity} unidades</span>
-                    <span>${formatDate(inv.date)}</span>
-                    <span>${isBuy ? 'Compra' : 'Venda'}</span>
+                    <span>${inv.quantity} un. • ${formatDate(inv.date)}</span>
+                    <span class="badge-type ${isBuy ? 'buy' : 'sell'}">${isBuy ? 'Compra' : 'Venda'}</span>
                 </div>
             </div>
         `;
@@ -215,16 +288,34 @@ function openAddInvestment() {
 }
 
 function formatCurrency(value) {
+    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
+        return window.formatCurrency(value);
+    }
+    if (value === null || value === undefined || value === '') value = 0;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[R$\s]/g, '');
+        if (cleaned.includes(',') && cleaned.includes('.')) {
+            value = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (cleaned.includes(',')) {
+            value = cleaned.replace(',', '.');
+        }
+        value = parseFloat(value);
+    }
     const num = Number(value) || 0;
     try {
-        return new Intl.NumberFormat("pt-BR", {
+        const formatted = new Intl.NumberFormat("pt-BR", {
             style: "currency",
             currency: "BRL",
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(num);
+        return formatted.replace(/\u00A0/g, ' ');
     } catch {
-        return "R$ " + num.toFixed(2);
+        const isNegative = num < 0;
+        const parts = Math.abs(num).toFixed(2).split('.');
+        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const res = 'R$ ' + intPart + ',' + parts[1];
+        return isNegative ? '-' + res : res;
     }
 }
 

@@ -478,34 +478,42 @@ body.dark-theme .transactions-table tr:hover td {
 }
 
 /* ==========================================
-   MODAL
+   MODAL (Tailwind 4 / Dark Mode Standards)
    ========================================== */
+body.dark-theme .modal-overlay {
+    background: rgba(2, 6, 23, 0.78) !important;
+}
+
 body.dark-theme .modal {
-    background: var(--color-surface) !important;
-    border-color: var(--color-border) !important;
+    background: var(--color-surface, #1e293b) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
 }
 
 body.dark-theme .modal-header {
-    background: var(--color-bg) !important;
-    border-bottom-color: var(--color-border) !important;
+    background: var(--color-surface, #1e293b) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 body.dark-theme .modal-header h3 {
-    color: var(--color-text) !important;
+    color: var(--color-text, #f8fafc) !important;
 }
 
 body.dark-theme .modal-footer {
-    background: var(--color-bg) !important;
-    border-top-color: var(--color-border) !important;
+    background: #0f172a !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 body.dark-theme .modal-close {
-    color: var(--color-text-muted) !important;
+    background: #0f172a !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #94a3b8 !important;
 }
 
 body.dark-theme .modal-close:hover {
-    background: var(--color-surface-hover) !important;
-    color: var(--color-text) !important;
+    background: #334155 !important;
+    color: #f8fafc !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 /* ==========================================

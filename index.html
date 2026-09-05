@@ -49,8 +49,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/tonucontrole/css/theme.css">
-    <link rel="stylesheet" href="/tonucontrole/css/dark-theme.css">
+    <link rel="stylesheet" href="css/theme.css">
+    <link rel="stylesheet" href="css/dark-theme.css">
+
+    <!-- Anti-flicker Theme Init -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
 
     <!-- ==========================================
     🔥 SCRIPT DE EMERGÊNCIA - getBaseUrl ANTES DE TUDO
@@ -102,11 +113,12 @@
             position: fixed;
             inset: 0;
             z-index: 999999;
-            background: radial-gradient(circle at center, #ffffff 0%, #f8fafc 100%) !important;
+            background: radial-gradient(circle at center, #ffffff 0%, #f4f6fb 100%) !important;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
             transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
                 transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
                 visibility 0.6s;
@@ -120,35 +132,246 @@
             pointer-events: none;
         }
 
+        /* Ambient background glow orbs */
+        .splash-ambient-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(75px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .splash-ambient-orb.orb-1 {
+            width: 260px;
+            height: 260px;
+            background: radial-gradient(circle, rgba(108, 92, 231, 0.28) 0%, rgba(162, 155, 254, 0.08) 70%, transparent 100%);
+            top: 15%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: splashOrbFloat1 8s ease-in-out infinite alternate;
+        }
+
+        .splash-ambient-orb.orb-2 {
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(129, 236, 236, 0.3) 0%, rgba(108, 92, 231, 0.08) 70%, transparent 100%);
+            bottom: 12%;
+            left: 50%;
+            transform: translate(-45%, 0);
+            animation: splashOrbFloat2 9s ease-in-out infinite alternate;
+        }
+
+        @keyframes splashOrbFloat1 {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.35;
+            }
+            100% {
+                transform: translate(-46%, -56%) scale(1.2);
+                opacity: 0.65;
+            }
+        }
+
+        @keyframes splashOrbFloat2 {
+            0% {
+                transform: translate(-45%, 0) scale(1);
+                opacity: 0.3;
+            }
+            100% {
+                transform: translate(-58%, -15px) scale(1.22);
+                opacity: 0.55;
+            }
+        }
+
         .splash-core {
+            position: relative;
+            z-index: 1;
             text-align: center;
             display: flex;
             flex-direction: column;
             align-items: center;
             width: 100%;
-            max-width: 300px;
-            padding: 16px;
+            max-width: 310px;
+            padding: 20px;
+            animation: splashCoreIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes splashCoreIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px) scale(0.92);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .splash-logo-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 18px auto;
+        }
+
+        /* Concentric radar pulse rings */
+        .splash-ripple-pulse {
+            position: absolute;
+            width: 84px;
+            height: 84px;
+            border-radius: 26px;
+            border: 2px solid rgba(108, 92, 231, 0.35);
+            animation: splashRipple 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .splash-ripple-pulse.delayed {
+            animation-delay: 1.4s;
+        }
+
+        @keyframes splashRipple {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.8;
+            }
+            50% {
+                opacity: 0.3;
+            }
+            100% {
+                transform: scale(1.65);
+                opacity: 0;
+            }
+        }
+
+        /* 🚗 Animação Volante 180°: esterçamento suave meia-volta (180°) para a direita, volta ao centro, meia-volta para a esquerda (-180°) e retorno */
+        @keyframes volanteSpin180 {
+            0% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            8% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            32% {
+                transform: translateY(-6px) rotate(180deg);
+            }
+            42% {
+                transform: translateY(-6px) rotate(180deg);
+            }
+            58% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            66% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            84% {
+                transform: translateY(-6px) rotate(-180deg);
+            }
+            92% {
+                transform: translateY(-6px) rotate(-180deg);
+            }
+            100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+        }
+
+        @-webkit-keyframes volanteSpin180 {
+            0% {
+                -webkit-transform: translateY(0px) rotate(0deg);
+            }
+            8% {
+                -webkit-transform: translateY(0px) rotate(0deg);
+            }
+            32% {
+                -webkit-transform: translateY(-6px) rotate(180deg);
+            }
+            42% {
+                -webkit-transform: translateY(-6px) rotate(180deg);
+            }
+            58% {
+                -webkit-transform: translateY(0px) rotate(0deg);
+            }
+            66% {
+                -webkit-transform: translateY(0px) rotate(0deg);
+            }
+            84% {
+                -webkit-transform: translateY(-6px) rotate(-180deg);
+            }
+            92% {
+                -webkit-transform: translateY(-6px) rotate(-180deg);
+            }
+            100% {
+                -webkit-transform: translateY(0px) rotate(0deg);
+            }
         }
 
         .splash-logo-wrapper {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 16px auto;
+            width: 84px;
+            height: 84px;
             border-radius: 24px;
             overflow: hidden;
-            border: 3px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(4px);
+            border: 2.5px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 16px 36px -8px rgba(108, 92, 231, 0.28), 0 0 0 1px rgba(108, 92, 231, 0.1);
+            background: #ffffff;
             position: relative;
+            z-index: 1;
+            transform-origin: center center;
+            animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite, splashLogoAuraPulse 3.4s ease-in-out infinite alternate;
+            -webkit-animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite, splashLogoAuraPulse 3.4s ease-in-out infinite alternate;
+        }
+
+        /* Efeito de brilho de luz transversal passando pelo logo */
+        .splash-logo-wrapper::after {
+            content: '';
+            position: absolute;
+            top: -60%;
+            left: -80%;
+            width: 50%;
+            height: 220%;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.35) 40%,
+                rgba(255, 255, 255, 0.85) 50%,
+                rgba(255, 255, 255, 0.35) 60%,
+                transparent 100%
+            );
+            transform: rotate(26deg);
+            pointer-events: none;
+            z-index: 3;
+            animation: splashLogoGlint 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes splashLogoGlint {
+            0%, 25% {
+                transform: translateX(0) rotate(26deg);
+                opacity: 0;
+            }
+            30% {
+                opacity: 1;
+            }
+            58%, 100% {
+                transform: translateX(420%) rotate(26deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes splashLogoAuraPulse {
+            0% {
+                box-shadow: 0 14px 32px -8px rgba(108, 92, 231, 0.25), 0 0 0 1px rgba(108, 92, 231, 0.1);
+            }
+            100% {
+                box-shadow: 0 20px 42px -4px rgba(108, 92, 231, 0.45), 0 0 22px rgba(129, 236, 236, 0.35), 0 0 0 2px rgba(108, 92, 231, 0.2);
+            }
         }
 
         .splash-logo-wrapper .splash-logo-bg {
             position: absolute;
-            inset: -6px;
-            background: linear-gradient(135deg, rgba(108, 92, 231, 0.2), rgba(162, 155, 254, 0.1));
+            inset: -4px;
+            background: linear-gradient(135deg, rgba(108, 92, 231, 0.3), rgba(162, 155, 254, 0.2));
             border-radius: 24px;
-            filter: blur(10px);
+            filter: blur(8px);
             animation: pulseGlow 3s ease-in-out infinite alternate;
             z-index: 0;
         }
@@ -160,37 +383,8 @@
             height: 100%;
             object-fit: cover;
             display: block;
-            animation: floatSplash 3s ease-in-out infinite !important;
-            -webkit-animation: floatSplash 3s ease-in-out infinite !important;
-            animation-play-state: running !important;
-        }
-
-        @keyframes floatSplash {
-            0% {
-                transform: translateY(0px) scale(1);
-            }
-
-            50% {
-                transform: translateY(-12px) scale(1.04);
-            }
-
-            100% {
-                transform: translateY(0px) scale(1);
-            }
-        }
-
-        @-webkit-keyframes floatSplash {
-            0% {
-                -webkit-transform: translateY(0px) scale(1);
-            }
-
-            50% {
-                -webkit-transform: translateY(-12px) scale(1.04);
-            }
-
-            100% {
-                -webkit-transform: translateY(0px) scale(1);
-            }
+            transform-origin: center center;
+            border-radius: inherit;
         }
 
         @keyframes pulseGlow {
@@ -198,37 +392,35 @@
                 transform: scale(0.95);
                 opacity: 0.5;
             }
-
             100% {
                 transform: scale(1.15);
                 opacity: 0.9;
             }
         }
 
-        @keyframes splashTitleGlow {
-
-            0%,
-            100% {
-                text-shadow: 0 0 20px rgba(108, 92, 231, 0.1);
-            }
-
-            50% {
-                text-shadow: 0 0 40px rgba(108, 92, 231, 0.4), 0 0 80px rgba(108, 92, 231, 0.1);
-            }
-        }
-
         .splash-title {
-            font-size: 24px;
+            font-size: 25px;
             font-weight: 800;
             color: #0f172a !important;
             margin: 0 0 4px 0;
-            letter-spacing: -0.02em;
-            animation: splashTitleGlow 3s ease-in-out infinite;
+            letter-spacing: -0.025em;
         }
 
         .splash-title span {
-            color: #6C5CE7;
-            animation: splashTitleGlow 3s ease-in-out infinite 0.5s;
+            background: linear-gradient(135deg, #6c5ce7 0%, #8c7ae6 50%, #4834d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: splashTitleShimmer 3.2s ease-in-out infinite alternate;
+        }
+
+        @keyframes splashTitleShimmer {
+            0% {
+                filter: brightness(1) drop-shadow(0 0 0 rgba(108, 92, 231, 0));
+            }
+            100% {
+                filter: brightness(1.25) drop-shadow(0 3px 10px rgba(108, 92, 231, 0.35));
+            }
         }
 
         .splash-subtitle {
@@ -260,40 +452,110 @@
         .splash-status-text {
             color: #64748b;
             font-size: 12px;
+            font-weight: 500;
+            transition: color 0.3s ease;
         }
 
         .splash-percent {
             color: #6c5ce7;
             font-weight: 700;
+            font-variant-numeric: tabular-nums;
         }
 
         .progress-bar-bg {
             width: 100%;
-            height: 6px;
-            background: #e2e8f0;
+            height: 7px;
+            background: rgba(108, 92, 231, 0.08);
+            border: 1px solid rgba(108, 92, 231, 0.12);
             border-radius: 99px;
             overflow: hidden;
             position: relative;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
         .progress-bar-fill {
             height: 100%;
             width: 0%;
-            background: linear-gradient(90deg, #6c5ce7, #a29bfe);
+            background: linear-gradient(90deg, #6c5ce7 0%, #a29bfe 50%, #6c5ce7 100%);
+            background-size: 200% 100%;
             border-radius: 99px;
             transition: width 0.15s ease-out;
             position: relative;
+            animation: progressShimmerWave 2s linear infinite;
+        }
+
+        @keyframes progressShimmerWave {
+            0% {
+                background-position: 100% 0;
+            }
+            100% {
+                background-position: -100% 0;
+            }
+        }
+
+        .progress-sparkle {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 7px;
+            height: 7px;
+            background: #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 0 6px 1.5px rgba(255, 255, 255, 0.9), 0 0 10px 3px rgba(108, 92, 231, 0.7);
+            animation: sparklePulse 1.2s ease-in-out infinite;
+        }
+
+        @keyframes sparklePulse {
+            0%, 100% {
+                opacity: 0.7;
+                transform: translateY(-50%) scale(0.9);
+            }
+            50% {
+                opacity: 1;
+                transform: translateY(-50%) scale(1.35);
+            }
         }
 
         .splash-footer-brand {
             position: absolute;
             bottom: 24px;
             font-size: 12px;
-            color: #94a3b8;
-            font-weight: 500;
+            color: #64748b;
+            font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 7px;
+            padding: 6px 14px;
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(108, 92, 231, 0.12);
+            border-radius: 99px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+            backdrop-filter: blur(8px);
+            animation: footerBrandFloat 3.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes footerBrandFloat {
+            0% {
+                transform: translateY(0);
+            }
+            100% {
+                transform: translateY(-4px);
+            }
+        }
+
+        .splash-footer-brand i {
+            color: #6c5ce7;
+            animation: shieldGlow 2.5s ease-in-out infinite;
+        }
+
+        @keyframes shieldGlow {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.15);
+            }
         }
 
         /* ==========================================
@@ -304,6 +566,25 @@
                 animation-duration: 0.01ms !important;
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
+            }
+
+            .splash-logo-wrapper,
+            .splash-logo-wrapper::after,
+            .splash-logo-wrapper .logo-img,
+            .splash-logo-bg,
+            .splash-ambient-orb,
+            .splash-ripple-pulse,
+            .welcome-ambient-orb,
+            .welcome-logo,
+            .welcome-logo::after,
+            .welcome-logo-glow,
+            .welcome-logo img,
+            .mobile-logo-box,
+            .mobile-logo-box::after,
+            .mobile-logo-glow,
+            .badge-pulse-dot,
+            .feature-icon-wrap {
+                animation: none !important;
             }
 
             .splash-logo-wrapper .logo-img {
@@ -400,9 +681,9 @@
            ========================================== */
         .welcome-side {
             flex: 1;
-            background: linear-gradient(135deg, #6C5CE7, #A29BFE, #6C5CE7);
-            background-size: 300% 300%;
-            padding: 56px 44px;
+            background: linear-gradient(135deg, #5746e0 0%, #7664f3 50%, #8e80fa 100%);
+            background-size: 200% 200%;
+            padding: 52px 42px;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -410,43 +691,84 @@
             position: relative;
             overflow: hidden;
             min-height: 600px;
-            animation: gradientMove 8s ease-in-out infinite !important;
+            animation: welcomeGradientShift 10s ease-in-out infinite alternate !important;
         }
 
-        @keyframes gradientMove {
+        @keyframes welcomeGradientShift {
             0% {
-                background-position: 0% 50%;
+                background-position: 0% 30%;
             }
-
             50% {
-                background-position: 100% 50%;
+                background-position: 100% 70%;
             }
-
             100% {
-                background-position: 0% 50%;
+                background-position: 0% 30%;
             }
         }
 
-        .welcome-side::before {
-            content: '';
+        /* Ambient light orbs floating in background */
+        .welcome-ambient-orb {
             position: absolute;
-            top: -100px;
-            right: -100px;
-            width: 280px;
-            height: 280px;
-            background: rgba(255, 255, 255, 0.06);
             border-radius: 50%;
+            pointer-events: none;
+            filter: blur(45px);
+            z-index: 0;
         }
 
-        .welcome-side::after {
-            content: '';
-            position: absolute;
-            bottom: -80px;
-            left: -80px;
-            width: 220px;
-            height: 220px;
-            background: rgba(255, 255, 255, 0.04);
-            border-radius: 50%;
+        .welcome-ambient-orb.orb-1 {
+            width: 260px;
+            height: 260px;
+            top: -60px;
+            right: -60px;
+            background: radial-gradient(circle, rgba(255, 234, 167, 0.24) 0%, rgba(255, 255, 255, 0.05) 70%, transparent 100%);
+            animation: welcomeOrbFloat1 9s ease-in-out infinite alternate;
+        }
+
+        .welcome-ambient-orb.orb-2 {
+            width: 240px;
+            height: 240px;
+            bottom: -70px;
+            left: -60px;
+            background: radial-gradient(circle, rgba(129, 236, 236, 0.25) 0%, rgba(108, 92, 231, 0.08) 70%, transparent 100%);
+            animation: welcomeOrbFloat2 11s ease-in-out infinite alternate;
+        }
+
+        .welcome-ambient-orb.orb-3 {
+            width: 140px;
+            height: 140px;
+            top: 48%;
+            right: 6%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.16) 0%, transparent 80%);
+            animation: welcomeOrbFloat3 7s ease-in-out infinite alternate;
+        }
+
+        @keyframes welcomeOrbFloat1 {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                transform: translate(-30px, 40px) scale(1.15);
+            }
+        }
+
+        @keyframes welcomeOrbFloat2 {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                transform: translate(40px, -30px) scale(1.2);
+            }
+        }
+
+        @keyframes welcomeOrbFloat3 {
+            0% {
+                transform: translateY(0) scale(0.9);
+                opacity: 0.3;
+            }
+            100% {
+                transform: translateY(-24px) scale(1.15);
+                opacity: 0.65;
+            }
         }
 
         .welcome-content {
@@ -454,19 +776,110 @@
             z-index: 1;
         }
 
+        .welcome-logo-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 22px;
+        }
+
         .welcome-logo {
-            width: 80px;
-            height: 80px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
+            width: 82px;
+            height: 82px;
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 24px;
             overflow: hidden;
-            backdrop-filter: blur(4px);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            animation: volanteLogin 3s ease-in-out infinite;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            transform-origin: center center;
+            animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+            -webkit-animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+            position: relative;
+            z-index: 1;
+            cursor: pointer;
+            transition: box-shadow 0.4s ease;
+        }
+
+        /* Efeito de reflexo de luz transversal (glint / shimmer) */
+        .welcome-logo::after {
+            content: '';
+            position: absolute;
+            top: -60%;
+            left: -80%;
+            width: 50%;
+            height: 220%;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.35) 40%,
+                rgba(255, 255, 255, 0.9) 50%,
+                rgba(255, 255, 255, 0.35) 60%,
+                transparent 100%
+            );
+            transform: rotate(26deg);
+            pointer-events: none;
+            z-index: 3;
+            animation: welcomeLogoGlint 3.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes welcomeLogoGlint {
+            0%, 28% {
+                transform: translateX(0) rotate(26deg);
+                opacity: 0;
+            }
+            34% {
+                opacity: 1;
+            }
+            64%, 100% {
+                transform: translateX(430%) rotate(26deg);
+                opacity: 0;
+            }
+        }
+
+        .welcome-logo:hover {
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3), 0 0 32px rgba(255, 234, 167, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+            animation-duration: 2.8s !important;
+        }
+
+        .welcome-logo:active {
+            transform: scale(0.96) !important;
+        }
+
+        .welcome-logo-glow {
+            position: absolute;
+            inset: -12px;
+            background: conic-gradient(from 0deg, #ffeaa7, #6c5ce7, #00cec9, #a29bfe, #ffeaa7);
+            border-radius: 36px;
+            filter: blur(14px);
+            animation: welcomeGlowSpin 7s linear infinite, welcomeHaloGlow 3.5s ease-in-out infinite alternate;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        @keyframes welcomeGlowSpin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes welcomeHaloGlow {
+            0% {
+                opacity: 0.35;
+                filter: blur(12px);
+                transform: scale(0.92);
+            }
+            100% {
+                opacity: 0.8;
+                filter: blur(16px);
+                transform: scale(1.15);
+            }
         }
 
         .welcome-logo img {
@@ -474,120 +887,131 @@
             height: 100%;
             object-fit: cover;
             display: block;
+            position: relative;
+            z-index: 1;
+            transform-origin: center center;
+            border-radius: inherit;
         }
 
-        @keyframes volanteLogin {
-            0% {
-                transform: rotate(-12deg) scale(1);
-            }
-
-            25% {
-                transform: rotate(-4deg) scale(1.05);
-            }
-
-            50% {
-                transform: rotate(12deg) scale(1);
-            }
-
-            75% {
-                transform: rotate(4deg) scale(1.05);
-            }
-
-            100% {
-                transform: rotate(-12deg) scale(1);
-            }
-        }
-
-        @-webkit-keyframes volanteLogin {
-            0% {
-                -webkit-transform: rotate(-12deg) scale(1);
-            }
-
-            25% {
-                -webkit-transform: rotate(-4deg) scale(1.05);
-            }
-
-            50% {
-                -webkit-transform: rotate(12deg) scale(1);
-            }
-
-            75% {
-                -webkit-transform: rotate(4deg) scale(1.05);
-            }
-
-            100% {
-                -webkit-transform: rotate(-12deg) scale(1);
-            }
-        }
-
-        @keyframes titleGlow {
-
-            0%,
-            100% {
-                text-shadow: 0 0 20px rgba(108, 92, 231, 0.2);
-            }
-
-            50% {
-                text-shadow: 0 0 40px rgba(108, 92, 231, 0.5), 0 0 80px rgba(108, 92, 231, 0.15);
-            }
-        }
-
-        .welcome-side h1 {
-            font-size: 36px;
+        .welcome-title {
+            font-size: 35px;
             font-weight: 800;
             margin-bottom: 8px;
-            letter-spacing: -0.02em;
-            line-height: 1.1;
-            animation: titleGlow 3s ease-in-out infinite;
+            letter-spacing: -0.025em;
+            line-height: 1.15;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            animation: welcomeTitleSlide 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
-        .welcome-side h1 span {
-            color: #ffeaa7;
-            animation: titleGlow 3s ease-in-out infinite 0.5s;
-        }
-
-        .welcome-side p {
-            font-size: 15px;
-            opacity: 0.85;
-            line-height: 1.6;
-            max-width: 340px;
-            margin-bottom: 8px;
-        }
-
-        .welcome-features {
-            margin-top: 32px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-
-        @keyframes featurePulse {
+        @keyframes welcomeTitleSlide {
             0% {
-                transform: scale(1);
-                box-shadow: 0 0 0 0 rgba(108, 92, 231, 0);
+                opacity: 0;
+                transform: translateY(18px);
             }
-
-            50% {
-                transform: scale(1.03);
-                box-shadow: 0 0 25px 8px rgba(108, 92, 231, 0.12);
-            }
-
             100% {
-                transform: scale(1);
-                box-shadow: 0 0 0 0 rgba(108, 92, 231, 0);
+                opacity: 1;
+                transform: translateY(0);
             }
         }
 
-        @keyframes cardEntrance {
-            from {
-                opacity: 0;
-                transform: translateY(30px) scale(0.95);
-            }
+        .welcome-title span {
+            color: #ffeaa7;
+            display: inline-block;
+            position: relative;
+            background: linear-gradient(135deg, #fff3b0 0%, #ffd064 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: goldGleam 3s ease-in-out infinite alternate;
+        }
 
-            to {
+        @keyframes goldGleam {
+            0% {
+                filter: brightness(1) drop-shadow(0 0 0 rgba(255, 234, 167, 0));
+            }
+            100% {
+                filter: brightness(1.22) drop-shadow(0 2px 14px rgba(255, 234, 167, 0.5));
+            }
+        }
+
+        .welcome-desc {
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.92);
+            line-height: 1.6;
+            max-width: 360px;
+            margin-bottom: 16px;
+            animation: welcomeDescIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+        }
+
+        @keyframes welcomeDescIn {
+            0% {
+                opacity: 0;
+                transform: translateY(14px);
+            }
+            100% {
+                opacity: 0.92;
+                transform: translateY(0);
+            }
+        }
+
+        /* Pill Badge */
+        .welcome-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 99px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #ffffff;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            margin-bottom: 22px;
+            width: fit-content;
+            animation: welcomeBadgeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+        }
+
+        @keyframes welcomeBadgeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(12px) scale(0.95);
+            }
+            100% {
                 opacity: 1;
                 transform: translateY(0) scale(1);
             }
+        }
+
+        .badge-pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #55efc4;
+            box-shadow: 0 0 0 0 rgba(85, 239, 196, 0.7);
+            animation: badgeDotPing 2s infinite;
+        }
+
+        @keyframes badgeDotPing {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(85, 239, 196, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 8px rgba(85, 239, 196, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(85, 239, 196, 0);
+            }
+        }
+
+        .welcome-features {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .welcome-features .feature {
@@ -595,44 +1019,107 @@
             align-items: center;
             gap: 14px;
             font-size: 14px;
-            opacity: 0.92;
-            padding: 8px 12px;
-            background: rgba(255, 255, 255, 0.06);
-            border-radius: 10px;
-            backdrop-filter: blur(2px);
-            transition: all 0.3s ease;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.09);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 14px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                background 0.28s ease,
+                border-color 0.28s ease,
+                box-shadow 0.28s ease;
             opacity: 0;
-            animation: cardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards,
-                featurePulse 3.5s ease-in-out infinite;
+            animation: featureCardEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes featureCardEntrance {
+            from {
+                opacity: 0;
+                transform: translateY(24px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .welcome-features .feature::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s ease;
+        }
+
+        .welcome-features .feature:hover::before {
+            transform: translateX(100%);
         }
 
         .welcome-features .feature:nth-child(1) {
-            animation-delay: 0.6s, 0s;
+            animation-delay: 0.35s;
         }
 
         .welcome-features .feature:nth-child(2) {
-            animation-delay: 0.8s, 0.5s;
+            animation-delay: 0.5s;
         }
 
         .welcome-features .feature:nth-child(3) {
-            animation-delay: 1.0s, 1s;
+            animation-delay: 0.65s;
         }
 
         .welcome-features .feature:hover {
-            background: rgba(255, 255, 255, 0.12);
-            transform: translateX(4px) scale(1.02);
+            background: rgba(255, 255, 255, 0.18);
+            border-color: rgba(255, 255, 255, 0.35);
+            transform: translateX(6px) scale(1.015);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
         }
 
-        .welcome-features .feature i {
-            width: 32px;
-            height: 32px;
+        .feature-icon-wrap {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(255, 255, 255, 0.12);
-            border-radius: 8px;
-            font-size: 14px;
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease;
+        }
+
+        .welcome-features .feature:hover .feature-icon-wrap {
+            transform: scale(1.15) rotate(6deg);
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .feature-icon-wrap i {
+            font-size: 15px;
             color: #ffeaa7;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            line-height: 1.35;
+        }
+
+        .feature-text strong {
+            font-weight: 700;
+            color: #ffffff;
+            font-size: 13.5px;
+            letter-spacing: -0.01em;
+        }
+
+        .feature-text span {
+            font-size: 12.5px;
+            color: rgba(255, 255, 255, 0.82);
         }
 
         /* ==========================================
@@ -664,13 +1151,89 @@
         .login-side .mobile-logo {
             display: none;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 22px;
+        }
+
+        .mobile-logo-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+
+        .mobile-logo-box {
+            width: 58px;
+            height: 58px;
+            background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(162, 155, 254, 0.22));
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 2px solid rgba(108, 92, 231, 0.25);
+            box-shadow: 0 10px 24px -4px rgba(108, 92, 231, 0.3);
+            transform-origin: center center;
+            animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+            -webkit-animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+            position: relative;
+            z-index: 1;
+            transition: box-shadow 0.4s ease;
+        }
+
+        .mobile-logo-box:hover {
+            animation-duration: 2.8s !important;
+        }
+
+        .mobile-logo-box::after {
+            content: '';
+            position: absolute;
+            top: -60%;
+            left: -80%;
+            width: 50%;
+            height: 220%;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.4) 40%,
+                rgba(255, 255, 255, 0.9) 50%,
+                rgba(255, 255, 255, 0.4) 60%,
+                transparent 100%
+            );
+            transform: rotate(26deg);
+            pointer-events: none;
+            z-index: 3;
+            animation: welcomeLogoGlint 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        .mobile-logo-glow {
+            position: absolute;
+            inset: -8px;
+            background: conic-gradient(from 0deg, #ffeaa7, #6c5ce7, #00cec9, #a29bfe, #ffeaa7);
+            border-radius: 26px;
+            filter: blur(10px);
+            opacity: 0.45;
+            animation: welcomeGlowSpin 7s linear infinite, welcomeHaloGlow 3.2s ease-in-out infinite alternate;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .mobile-logo-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transform-origin: center center;
+            border-radius: inherit;
         }
 
         .login-side .mobile-logo h2 {
             font-size: 22px;
             font-weight: 800;
             color: #0f172a;
+            letter-spacing: -0.02em;
+        }
+
+        .login-side .mobile-logo h2 span {
+            color: #6C5CE7;
         }
 
         .login-side .mobile-logo p {
@@ -1085,7 +1648,7 @@
            ========================================== */
         @media (prefers-color-scheme: dark) {
             #splashScreen {
-                background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%) !important;
+                background: radial-gradient(circle at center, #1e293b 0%, #0b1120 100%) !important;
             }
 
             .splash-title {
@@ -1100,8 +1663,25 @@
                 color: #94a3b8 !important;
             }
 
+            .splash-status-text {
+                color: #94a3b8 !important;
+            }
+
+            .splash-logo-wrapper {
+                background: #1e293b !important;
+                border-color: rgba(255, 255, 255, 0.18) !important;
+                box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.6) !important;
+            }
+
+            .progress-bar-bg {
+                background: rgba(255, 255, 255, 0.08) !important;
+                border-color: rgba(255, 255, 255, 0.12) !important;
+            }
+
             .splash-footer-brand {
-                color: #64748b !important;
+                color: #cbd5e1 !important;
+                background: rgba(30, 41, 59, 0.85) !important;
+                border-color: rgba(162, 155, 254, 0.25) !important;
             }
 
             body {
@@ -1195,7 +1775,7 @@
                 border-radius: 28px 28px 0 0;
             }
 
-            .welcome-side h1 {
+            .welcome-title {
                 font-size: 26px;
             }
 
@@ -1204,20 +1784,29 @@
                 height: 64px;
             }
 
+            .welcome-badge {
+                margin-bottom: 16px;
+                font-size: 11.5px;
+            }
+
             .welcome-features {
-                margin-top: 16px;
+                margin-top: 14px;
                 gap: 10px;
             }
 
             .welcome-features .feature {
-                padding: 6px 10px;
+                padding: 8px 12px;
                 font-size: 13px;
             }
 
-            .welcome-features .feature i {
-                width: 28px;
-                height: 28px;
-                font-size: 12px;
+            .feature-icon-wrap {
+                width: 32px;
+                height: 32px;
+                min-width: 32px;
+            }
+
+            .feature-icon-wrap i {
+                font-size: 13px;
             }
 
             .login-side {
@@ -1253,12 +1842,19 @@
                 border-radius: 20px 20px 0 0;
             }
 
-            .welcome-side h1 {
+            .welcome-title {
                 font-size: 22px;
             }
 
-            .welcome-side p {
+            .welcome-desc {
                 font-size: 13px;
+                margin-bottom: 12px;
+            }
+
+            .welcome-badge {
+                padding: 4px 10px;
+                font-size: 11px;
+                margin-bottom: 14px;
             }
 
             .welcome-logo {
@@ -1318,10 +1914,18 @@
     SPLASH SCREEN
     ========================================== -->
     <div id="splashScreen">
+        <!-- Ambient background aura orbs -->
+        <div class="splash-ambient-orb orb-1" aria-hidden="true"></div>
+        <div class="splash-ambient-orb orb-2" aria-hidden="true"></div>
+
         <div class="splash-core">
-            <div class="splash-logo-wrapper">
-                <div class="splash-logo-bg"></div>
-                <img src="/tonucontrole/icons/logo.png" alt="TonuControle" class="logo-img" id="logoAnimado">
+            <div class="splash-logo-container">
+                <div class="splash-ripple-pulse" aria-hidden="true"></div>
+                <div class="splash-ripple-pulse delayed" aria-hidden="true"></div>
+                <div class="splash-logo-wrapper">
+                    <div class="splash-logo-bg"></div>
+                    <img src="/tonucontrole/icons/logo.png" alt="TonuControle" class="logo-img" id="logoAnimado">
+                </div>
             </div>
 
             <h1 class="splash-title">Tonu<span>Controle</span></h1>
@@ -1333,13 +1937,15 @@
                     <span class="splash-percent" id="splashPercent">0%</span>
                 </div>
                 <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" id="progressFill"></div>
+                    <div class="progress-bar-fill" id="progressFill">
+                        <span class="progress-sparkle" aria-hidden="true"></span>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="splash-footer-brand">
-            <i class="fa-solid fa-shield-halved" style="color: #6c5ce7;"></i>
+            <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
             <span>Conexão Segura</span>
         </div>
     </div>
@@ -1356,25 +1962,54 @@
 
         <!-- WELCOME SIDE -->
         <div class="welcome-side" aria-hidden="true">
+            <!-- Ambient floating glow orbs -->
+            <div class="welcome-ambient-orb orb-1"></div>
+            <div class="welcome-ambient-orb orb-2"></div>
+            <div class="welcome-ambient-orb orb-3"></div>
+
             <div class="welcome-content">
-                <div class="welcome-logo">
-                    <img src="/tonucontrole/icons/logo.png" alt="TonuControle" id="loginLogo">
+                <div class="welcome-logo-container">
+                    <div class="welcome-logo-glow"></div>
+                    <div class="welcome-logo">
+                        <img src="/tonucontrole/icons/logo.png" alt="TonuControle" id="loginLogo">
+                    </div>
                 </div>
-                <h1>Bem-vindo ao<br><span>TonuControle</span></h1>
-                <p>Gerencie suas finanças com simplicidade e inteligência.</p>
+
+                <h1 class="welcome-title">Bem-vindo ao<br><span>TonuControle</span></h1>
+                <p class="welcome-desc">Gerencie suas finanças com simplicidade, segurança e controle inteligente.</p>
+
+                <div class="welcome-badge">
+                    <span class="badge-pulse-dot"></span>
+                    <span>100% Criptografado &amp; Seguro</span>
+                </div>
 
                 <div class="welcome-features">
                     <div class="feature">
-                        <i class="fas fa-chart-pie" aria-hidden="true"></i>
-                        <span>Controle total das suas finanças</span>
+                        <div class="feature-icon-wrap">
+                            <i class="fas fa-chart-pie" aria-hidden="true"></i>
+                        </div>
+                        <div class="feature-text">
+                            <strong>Controle total</strong>
+                            <span>das suas finanças em tempo real</span>
+                        </div>
                     </div>
                     <div class="feature">
-                        <i class="fas fa-file-invoice-dollar" aria-hidden="true"></i>
-                        <span>Contas e metas organizadas</span>
+                        <div class="feature-icon-wrap">
+                            <i class="fas fa-file-invoice-dollar" aria-hidden="true"></i>
+                        </div>
+                        <div class="feature-text">
+                            <strong>Contas e metas</strong>
+                            <span>organizadas sem complicação</span>
+                        </div>
                     </div>
                     <div class="feature">
-                        <i class="fas fa-shield-alt" aria-hidden="true"></i>
-                        <span>Segurança e privacidade</span>
+                        <div class="feature-icon-wrap">
+                            <i class="fas fa-shield-alt" aria-hidden="true"></i>
+                        </div>
+                        <div class="feature-text">
+                            <strong>Segurança máxima</strong>
+                            <span>proteção e privacidade garantidas</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1383,7 +2018,13 @@
         <!-- LOGIN SIDE -->
         <div class="login-side">
             <div class="mobile-logo">
-                <h2>TonuControle</h2>
+                <div class="mobile-logo-container">
+                    <div class="mobile-logo-glow" aria-hidden="true"></div>
+                    <div class="mobile-logo-box">
+                        <img src="/tonucontrole/icons/logo.png" alt="TonuControle">
+                    </div>
+                </div>
+                <h2>Tonu<span>Controle</span></h2>
                 <p>Gerencie suas finanças com simplicidade</p>
             </div>
 
@@ -1486,9 +2127,9 @@
             <div style="margin-top: 24px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
                 <span style="color: #64748b; font-weight: 500;"><i class="fa-solid fa-display" style="margin-right: 6px;"></i>Interface:</span>
                 <div style="display: flex; gap: 4px;">
-                    <button type="button" id="devModeAuto" onclick="setDeviceMode('auto')" style="border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; background: #6c5ce7; color: white;">Auto</button>
-                    <button type="button" id="devModeMobile" onclick="setDeviceMode('mobile')" style="border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; background: #e2e8f0; color: #475569;">📱 Mobile</button>
-                    <button type="button" id="devModeDesktop" onclick="setDeviceMode('desktop')" style="border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; background: #e2e8f0; color: #475569;">💻 PC</button>
+                    <button type="button" id="deviceModeAuto" onclick="setDeviceMode('auto')" style="border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; background: #6c5ce7; color: white;">Auto</button>
+                    <button type="button" id="deviceModeMobile" onclick="setDeviceMode('mobile')" style="border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; background: #e2e8f0; color: #475569;">📱 Mobile</button>
+                    <button type="button" id="deviceModeDesktop" onclick="setDeviceMode('desktop')" style="border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; background: #e2e8f0; color: #475569;">💻 PC</button>
                 </div>
             </div>
 
@@ -1524,23 +2165,23 @@
         }
     </script>
 
-    <!-- 3. Supabase Config -->
-    <script src="/tonucontrole/js/supabase.js"></script>
+    <!-- 4. Supabase Config -->
+    <script src="js/supabase.js"></script>
 
-    <!-- 4. Core -->
-    <script src="/tonucontrole/js/core.js"></script>
+    <!-- 5. Core -->
+    <script src="js/core.js"></script>
 
-    <!-- 5. Security -->
-    <script src="/tonucontrole/js/security.js"></script>
+    <!-- 6. Security -->
+    <script src="js/security.js"></script>
 
-    <!-- 6. Auth -->
-    <script src="/tonucontrole/js/auth.js"></script>
+    <!-- 7. Auth -->
+    <script src="js/auth.js"></script>
 
-    <!-- 7. Validators -->
-    <script src="/tonucontrole/js/validators.js"></script>
+    <!-- 8. Validators -->
+    <script src="js/validators.js"></script>
 
-    <!-- 8. Service Worker -->
-    <script src="/tonucontrole/js/sw-register.js"></script>
+    <!-- 9. Service Worker -->
+    <script src="js/sw-register.js"></script>
 
     <script>
         // ==========================================
@@ -1630,9 +2271,9 @@
 
         function updateDeviceModeUI() {
             const mode = localStorage.getItem('tonu_device_mode') || 'auto';
-            const autoBtn = document.getElementById('devModeAuto');
-            const mobBtn = document.getElementById('devModeMobile');
-            const dskBtn = document.getElementById('devModeDesktop');
+            const autoBtn = document.getElementById('deviceModeAuto');
+            const mobBtn = document.getElementById('deviceModeMobile');
+            const dskBtn = document.getElementById('deviceModeDesktop');
 
             if (autoBtn && mobBtn && dskBtn) {
                 [autoBtn, mobBtn, dskBtn].forEach(b => {
@@ -1658,27 +2299,26 @@
         document.addEventListener('DOMContentLoaded', async function () {
             updateDeviceModeUI();
 
-            // Limpar flag de logout
+            // Limpar flag de logout e quaisquer resquícios de demo
             try {
                 storage.remove('tonu_logout_in_progress');
+                storage.remove('tonu_demo_mode');
+                storage.remove('tonu_demo_data');
+                storage.remove('tonu_demo_user');
+                localStorage.removeItem('tonu_demo_mode');
+                sessionStorage.removeItem('tonu_demo_mode');
             } catch (e) { }
 
-            // 🔥 SPLASH: LOGO SOBE E DESCE
+            // 🔥 SPLASH & LOGIN: Garantir que as animações de volante 180° estejam ativas
+            const splashWrapper = document.querySelector('.splash-logo-wrapper');
+            if (splashWrapper) splashWrapper.style.animationPlayState = 'running';
             const splashLogo = document.getElementById('logoAnimado');
-            if (splashLogo) {
-                splashLogo.style.animation = 'floatSplash 3s ease-in-out infinite !important';
-                splashLogo.style.webkitAnimation = 'floatSplash 3s ease-in-out infinite !important';
-                splashLogo.style.animationPlayState = 'running';
-                console.log('🔥 Splash: logo flutuando!');
-            }
+            if (splashLogo) splashLogo.style.animationPlayState = 'running';
 
-            // 🔥 LOGIN: LOGO VOLANTE (VAI E VOLTA)
+            const welcomeWrapper = document.querySelector('.welcome-logo');
+            if (welcomeWrapper) welcomeWrapper.style.animationPlayState = 'running';
             const loginLogo = document.getElementById('loginLogo');
-            if (loginLogo) {
-                loginLogo.style.animation = 'volanteLogin 3s ease-in-out infinite';
-                loginLogo.style.animationPlayState = 'running';
-                console.log('🔥 Login: logo volante!');
-            }
+            if (loginLogo) loginLogo.style.animationPlayState = 'running';
 
             // Verificar biometria
             if (window.TonuBiometrics) {
@@ -1744,6 +2384,16 @@
             const statusText = document.getElementById('statusText');
             const splash = document.getElementById('splashScreen');
 
+            let redirectTimeout = null;
+
+            const cancelAutoRedirect = () => {
+                if (redirectTimeout) {
+                    clearTimeout(redirectTimeout);
+                    redirectTimeout = null;
+                }
+                splash.classList.add('hidden');
+            };
+
             const interval = setInterval(() => {
                 const increment = Math.random() * 0.8 + 1.2;
                 progress += increment;
@@ -1756,18 +2406,9 @@
                     percentText.innerText = '100%';
                     statusText.innerText = 'Tudo pronto!';
 
-                    if (authenticatedUser) {
-                        const targetUrl = getAppTargetUrl('dashboard.html');
-                        console.log('✅ Usuário já autenticado! Redirecionando para:', targetUrl);
-                        statusText.innerText = 'Acessando dashboard...';
-                        setTimeout(() => {
-                            window.location.href = targetUrl;
-                        }, 400);
-                    } else {
-                        setTimeout(() => {
-                            splash.classList.add('hidden');
-                        }, 500);
-                    }
+                    setTimeout(() => {
+                        splash.classList.add('hidden');
+                    }, 400);
                 } else {
                     const currentPercent = Math.floor(progress);
                     fill.style.width = currentPercent + '%';
@@ -1830,16 +2471,16 @@
             });
 
             if (tab === 'login') {
-                loginForm.classList.remove('hidden');
-                registerForm.classList.add('hidden');
-                tabs[0].classList.add('active');
-                tabs[0].setAttribute('aria-selected', 'true');
+                if (loginForm) loginForm.classList.remove('hidden');
+                if (registerForm) registerForm.classList.add('hidden');
+                const t0 = document.getElementById('tabLogin');
+                if (t0) { t0.classList.add('active'); t0.setAttribute('aria-selected', 'true'); }
                 setTimeout(() => document.getElementById('loginEmail')?.focus(), 100);
-            } else {
-                loginForm.classList.add('hidden');
-                registerForm.classList.remove('hidden');
-                tabs[1].classList.add('active');
-                tabs[1].setAttribute('aria-selected', 'true');
+            } else if (tab === 'register') {
+                if (loginForm) loginForm.classList.add('hidden');
+                if (registerForm) registerForm.classList.remove('hidden');
+                const t1 = document.getElementById('tabRegister');
+                if (t1) { t1.classList.add('active'); t1.setAttribute('aria-selected', 'true'); }
                 setTimeout(() => document.getElementById('registerName')?.focus(), 100);
             }
         }

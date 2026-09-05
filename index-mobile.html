@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#6C5CE7">
-    <title>TonuControle - Detector</title>
+    <title>TonuControle - Redirecionando</title>
     <style>
         * {
             margin: 0;
@@ -39,6 +39,10 @@
             overflow: hidden;
             background: rgba(255, 255, 255, 0.15);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
         }
 
         .loader .logo img {
@@ -89,14 +93,24 @@
 <body>
     <div class="loader">
         <div class="logo">
-            <img src="./icons/logo.png" alt="TonuControle">
+            <img src="./icons/logo.png" alt="TonuControle" onerror="this.outerHTML='💰'">
         </div>
         <div class="spinner"></div>
         <h1>Tonu<span>Controle</span></h1>
         <p>Detectando seu dispositivo...</p>
         <div class="device-badge" id="deviceBadge">📱 Carregando...</div>
+
+        <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 240px;">
+            <button type="button" onclick="window.location.href='index.html'" style="padding: 10px 14px; background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.4); border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer;">
+                Ir para Login
+            </button>
+        </div>
     </div>
     <script>
+        try {
+            sessionStorage.removeItem('tonu_demo_mode');
+            localStorage.removeItem('tonu_demo_mode');
+        } catch (e) {}
         function isMobile() {
             const ua = navigator.userAgent || navigator.vendor || window.opera;
             const mobileRegex = /Android|iPhone|iPad|iPod|BlackBerry|Windows Phone|webOS|Mobile/i;
@@ -121,13 +135,14 @@
                 badge.textContent = isMobileDevice ? '📱 Versão Mobile' : '💻 Versão Desktop';
             }
             setTimeout(() => {
-                const target = isMobileDevice ? 'mobile' : 'desktop';
-                window.location.href = basePath + '/pages/' + target + '/dashboard.html';
-            }, 1000);
+                const targetUrl = isMobileDevice 
+                    ? basePath + '/pages/mobile/dashboard.html'
+                    : basePath + '/pages/dashboard.html';
+                window.location.href = targetUrl;
+            }, 600);
         }
         redirect();
     </script>
 </body>
 
 </html>
-'@ | Out-File -FilePath "index-mobile.html" -Encoding UTF8

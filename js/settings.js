@@ -1192,7 +1192,8 @@ async function generateReportFromModal() {
                 doc.setFontSize(10);
                 for (let i = 0; i < maxDisplay; i++) {
                     const t = data[i];
-                    const line = `${i + 1}. ${t.date} - ${t.description} - ${t.type === 'income' ? 'Receita' : 'Despesa'} - R$ ${Number(t.amount).toFixed(2)}`;
+                    const valStr = typeof formatCurrency === 'function' ? formatCurrency(t.amount) : ('R$ ' + (Number(t.amount) || 0).toFixed(2).replace('.', ','));
+                    const line = `${i + 1}. ${t.date} - ${t.description} - ${t.type === 'income' ? 'Receita' : 'Despesa'} - ${valStr}`;
                     if (y > 750) { doc.addPage(); y = 50; }
                     doc.text(line, 50, y);
                     y += 16;

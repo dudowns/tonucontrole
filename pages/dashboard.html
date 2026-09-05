@@ -15,33 +15,59 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
     <link rel="stylesheet" href="../css/sidebar-patch.css">
     <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="../css/notifications.css">
     <link rel="stylesheet" href="../css/sync.css">
+    <link rel="stylesheet" href="../css/dark-theme.css">
+
+    <!-- Anti-flicker Theme Init -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
 </head>
 
 <body>
 
     <div class="app-shell">
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button" aria-label="Fechar menu"></div>
+
         <!-- SIDEBAR -->
-        <aside class="sidebar hidden" id="sidebar">
+        <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
             <div class="sidebar-brand">
-                <div class="brand-icon">💰</div>
+                <div class="brand-icon"><img src="../icons/logo.png" alt="TonuControle"></div>
                 <h2>TonuControle</h2>
             </div>
-            <ul class="sidebar-nav">
-                <li><a href="dashboard.html" class="active"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
-                <li><a href="transactions.html"><i class="fas fa-exchange-alt"></i> Transações</a></li>
-                <li><a href="bills.html"><i class="fas fa-file-invoice-dollar"></i> Contas</a></li>
-                <li><a href="goals.html"><i class="fas fa-bullseye"></i> Metas</a></li>
-                <li><a href="investments.html"><i class="fas fa-chart-line"></i> Investimentos</a></li>
-                <li><a href="settings.html"><i class="fas fa-cog"></i> Configurações</a></li>
+            <ul class="sidebar-nav" role="menubar">
+                <li role="none"><a href="dashboard.html" class="active" role="menuitem" aria-current="page"><i class="fas fa-chart-pie" aria-hidden="true"></i> Dashboard</a></li>
+                <li role="none"><a href="transactions.html" role="menuitem"><i class="fas fa-exchange-alt" aria-hidden="true"></i> Transações</a></li>
+                <li role="none"><a href="bills.html" role="menuitem"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Contas</a></li>
+                <li role="none"><a href="goals.html" role="menuitem"><i class="fas fa-bullseye" aria-hidden="true"></i> Metas</a></li>
+                <li role="none"><a href="investments.html" role="menuitem"><i class="fas fa-chart-line" aria-hidden="true"></i> Investimentos</a></li>
+                <li role="none"><a href="settings.html" role="menuitem"><i class="fas fa-cog" aria-hidden="true"></i> Configurações</a></li>
             </ul>
             <div class="sidebar-footer">
-                <button class="btn-sair" onclick="logout()">
-                    <i class="fas fa-sign-out-alt"></i> Sair
+                <a href="settings.html" class="sidebar-user-profile" id="sidebarUserProfile"
+                    title="Abrir Configurações e Perfil">
+                    <div class="avatar-circle" id="sidebarUserAvatar">U</div>
+                    <div class="sidebar-user-info">
+                        <span class="sidebar-user-name" id="sidebarUserName">Usuário</span>
+                        <span class="sidebar-user-email" id="sidebarUserEmail">Configurações</span>
+                        <div class="sidebar-user-status" id="sidebarUserStatus">
+                            <span class="status-dot"></span>
+                            <span>Ativo</span>
+                        </div>
+                    </div>
+                    <i class="fas fa-cog sidebar-user-icon" aria-hidden="true"></i>
+                </a>
+                <button class="btn-sair" onclick="logout()" aria-label="Sair da conta">
+                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair
                 </button>
             </div>
         </aside>
@@ -65,6 +91,10 @@
                         title="Lembretes e Notificações">
                         <i class="fas fa-bell"></i>
                         <span class="notif-badge hidden" id="notifBadgeCount">0</span>
+                    </button>
+                    <button class="btn btn-outline" onclick="window.TonuBudget?.openBudgetModal()"
+                        title="Limites & Tetos por Categoria">
+                        <i class="fas fa-bullseye"></i> <span class="hide-mobile">Limites</span>
                     </button>
                     <button class="btn btn-outline" onclick="openCashFlowModal()" title="Projeção de Fluxo de Caixa">
                         <i class="fas fa-chart-line"></i> <span class="hide-mobile">Projeção</span>
@@ -104,6 +134,26 @@
                     </div>
                 </div>
 
+                <!-- BANNER DE ALERTA DE LIMITES POR CATEGORIA -->
+                <div id="budgetWarningBanner" class="due-bills-banner warning" style="display:none;">
+                    <div class="due-banner-left">
+                        <div class="due-banner-icon"><i class="fas fa-bullseye"></i></div>
+                        <div class="due-banner-info">
+                            <h4 id="budgetBannerTitle">⚠️ Atenção aos Limites de Gastos</h4>
+                            <p id="budgetBannerDesc">Você está próximo ou ultrapassou o teto estipulado em algumas categorias.</p>
+                        </div>
+                    </div>
+                    <div class="due-banner-actions">
+                        <button class="btn btn-danger btn-sm" onclick="window.TonuBudget?.openBudgetModal()">
+                            <i class="fas fa-sliders-h"></i> Ajustar Limites
+                        </button>
+                        <button class="btn btn-ghost btn-sm"
+                            onclick="document.getElementById('budgetWarningBanner').style.display='none'">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- SELECTOR DE MÊS -->
                 <div class="month-selector">
                     <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
@@ -116,55 +166,57 @@
                     <button class="btn-today" onclick="goToCurrentMonth()">Hoje</button>
                 </div>
 
-                <!-- Cards de Resumo -->
+                <!-- Cards de Resumo (4 Pilares Financeiros - Compacto) -->
                 <div class="dashboard-grid" id="summaryGrid">
-                    <!-- Patrimônio -->
-                    <div class="card-stat primary">
-                        <div class="stat-icon primary"><i class="fas fa-coins"></i></div>
-                        <div class="stat-info">
-                            <div class="stat-label">Patrimônio</div>
-                            <div class="stat-value" id="totalPatrimony">R$ 0,00</div>
-                            <div class="stat-sub" id="patrimonyVariation">Carregando...</div>
-                        </div>
-                    </div>
-
-                    <!-- Receitas -->
-                    <div class="card-stat success">
-                        <div class="stat-icon success"><i class="fas fa-arrow-up"></i></div>
-                        <div class="stat-info">
-                            <div class="stat-label">Total Receitas</div>
-                            <div class="stat-value" id="totalIncome">R$ 0,00</div>
-                            <div class="stat-sub" id="incomeTrend">+0%</div>
-                        </div>
-                    </div>
-
-                    <!-- Despesas -->
-                    <div class="card-stat danger">
-                        <div class="stat-icon danger"><i class="fas fa-arrow-down"></i></div>
-                        <div class="stat-info">
-                            <div class="stat-label">Total Despesas</div>
-                            <div class="stat-value" id="totalExpense">R$ 0,00</div>
-                            <div class="stat-sub" id="expenseTrend">+0%</div>
-                        </div>
-                    </div>
-
-                    <!-- Saldo do Mês -->
-                    <div class="card-stat warning">
-                        <div class="stat-icon warning"><i class="fas fa-wallet"></i></div>
+                    <!-- 1. Saldo do Mês -->
+                    <div class="card-stat primary card-stat-balance" id="cardStatBalance" onclick="window.location.href='transactions.html'" style="cursor: pointer;" title="Clique para ver transações do mês">
+                        <div class="stat-icon primary"><i class="fas fa-wallet"></i></div>
                         <div class="stat-info">
                             <div class="stat-label">Saldo do Mês</div>
-                            <div class="stat-value" id="monthBalance">R$ 0,00</div>
-                            <div class="stat-sub" id="balanceStatus">Carregando...</div>
+                            <div class="stat-value" id="totalBalance">R$ 0,00</div>
+                            <div class="stat-sub" id="balanceStatus">Calculando...</div>
                         </div>
                     </div>
 
-                    <!-- Total Investido -->
-                    <div class="card-stat info">
-                        <div class="stat-icon info"><i class="fas fa-chart-line"></i></div>
+                    <!-- 2. Total de Receitas -->
+                    <div class="card-stat success" id="cardStatIncome" onclick="window.location.href='transactions.html?type=income'" style="cursor: pointer;" title="Clique para ver receitas">
+                        <div class="stat-icon success"><i class="fas fa-arrow-up"></i></div>
                         <div class="stat-info">
-                            <div class="stat-label">Total Investido</div>
-                            <div class="stat-value" id="totalInvested">R$ 0,00</div>
-                            <div class="stat-sub" id="investedCount">0 ativos</div>
+                            <div class="stat-label">Total de Receitas</div>
+                            <div class="stat-value" id="totalIncome">R$ 0,00</div>
+                            <div class="stat-sub" id="incomeTrend">+0% vs anterior</div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Total de Despesas -->
+                    <div class="card-stat danger" id="cardStatExpense" onclick="window.location.href='transactions.html?type=expense'" style="cursor: pointer;" title="Clique para ver despesas">
+                        <div class="stat-icon danger"><i class="fas fa-arrow-down"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Total de Despesas</div>
+                            <div class="stat-value" id="totalExpense">R$ 0,00</div>
+                            <div class="stat-sub" id="expenseTrend">+0% vs anterior</div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Contas a Pagar e Patrimônio Investido -->
+                    <div class="card-stat warning card-stat-bills-invested" id="cardStatBillsInvested">
+                        <div class="stat-icon warning"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <div class="stat-info" style="min-width: 0; width: 100%;">
+                            <div class="stat-label" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>Contas a Pagar</span>
+                                <span style="color: #6C5CE7; font-weight: 700;">Investido</span>
+                            </div>
+                            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-top: 1px;">
+                                <div title="Ver Contas a Pagar" onclick="window.location.href='bills.html'" style="cursor: pointer; min-width: 0;">
+                                    <div class="stat-value" id="billsAmount" style="font-size: 13px !important; color: #F59E0B; white-space: nowrap;">R$ 0,00</div>
+                                    <div class="stat-sub" id="billsCount" style="font-size: 9px !important;">0 pendentes</div>
+                                </div>
+                                <div style="height: 18px; width: 1px; background: var(--color-border, #e2e8f0); flex-shrink: 0;"></div>
+                                <div title="Ver Investimentos" onclick="window.location.href='investments.html'" style="cursor: pointer; min-width: 0; text-align: right;">
+                                    <div class="stat-value" id="totalInvested" style="font-size: 13px !important; color: #6C5CE7; white-space: nowrap;">R$ 0,00</div>
+                                    <div class="stat-sub" id="investedCount" style="font-size: 9px !important; justify-content: flex-end;">0 ativos</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -174,12 +226,38 @@
 
                 <!-- GRÁFICOS -->
                 <div class="charts-grid">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>📊 Evolução Mensal</h3>
-                            <span class="badge badge-muted">Últimos 6 meses</span>
+                    <div class="card monthly-chart-card">
+                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <h3>📊 Evolução Mensal</h3>
+                                <span class="badge badge-muted" id="monthlyPeriodBadge">Últimos 6 meses</span>
+                            </div>
+                            <div class="chart-controls-wrap" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <!-- SELETOR DE PERÍODO -->
+                                <div class="chart-btn-group" style="display: inline-flex; background: var(--color-bg, #f1f5f9); padding: 2px; border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0);">
+                                    <button type="button" class="btn-chart-toggle active" id="btnPeriod6" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(6)" style="padding: 3px 8px; font-size: 11px; font-weight: 700; border: none; background: #6C5CE7; color: #ffffff; border-radius: 6px; cursor: pointer; transition: all 0.2s;">6M</button>
+                                    <button type="button" class="btn-chart-toggle" id="btnPeriod12" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(12)" style="padding: 3px 8px; font-size: 11px; font-weight: 600; border: none; background: transparent; color: var(--color-text-muted, #64748b); border-radius: 6px; cursor: pointer; transition: all 0.2s;">12M</button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="chart-wrap">
+
+                        <!-- RESUMO RÁPIDO DO PERÍODO (APENAS RECEITAS E DESPESAS) -->
+                        <div id="monthlyChartSummary" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 14px; background: rgba(108, 92, 231, 0.03); border-bottom: 1px solid var(--color-border-light, #f1f5f9); font-size: 11px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: #10B981;"></span>
+                                <span style="color: var(--color-text-muted, #64748b);">Receitas:</span>
+                                <strong id="totalPeriodIncomeVal" style="color: #10B981; font-weight: 700;">R$ 0,00</strong>
+                                <span style="color: var(--color-text-muted, #94a3b8); font-size: 10px;">(méd. <span id="avgIncomeVal">R$ 0,00</span>)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: #EF4444;"></span>
+                                <span style="color: var(--color-text-muted, #64748b);">Despesas:</span>
+                                <strong id="totalPeriodExpenseVal" style="color: #EF4444; font-weight: 700;">R$ 0,00</strong>
+                                <span style="color: var(--color-text-muted, #94a3b8); font-size: 10px;">(méd. <span id="avgExpenseVal">R$ 0,00</span>)</span>
+                            </div>
+                        </div>
+
+                        <div class="chart-wrap" style="position: relative; height: 260px; padding: 8px 12px;">
                             <canvas id="monthlyChart"></canvas>
                         </div>
                     </div>
@@ -188,7 +266,7 @@
                             <h3>🎯 Distribuição de Gastos</h3>
                             <span class="badge badge-muted">Mês atual</span>
                         </div>
-                        <div class="chart-wrap">
+                        <div class="chart-wrap" style="height: 260px;">
                             <canvas id="categoryChart"></canvas>
                         </div>
                     </div>

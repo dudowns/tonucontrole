@@ -14,6 +14,8 @@ let categories = [];
 let currentUser = null;
 let categoryChart = null;
 let monthlyChart = null;
+let monthlyChartPeriod = 6;
+let monthlyChartMode = 'combo';
 let currentMonthOffset = 0;
 let patrimonyUpdateInterval = null;
 let allTransactions = [];
@@ -42,16 +44,33 @@ function getMonthName(month) {
 }
 
 function formatCurrency(value) {
+    if (value === null || value === undefined || value === '') {
+        value = 0;
+    }
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[R$\s]/g, '');
+        if (cleaned.includes(',') && cleaned.includes('.')) {
+            value = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (cleaned.includes(',')) {
+            value = cleaned.replace(',', '.');
+        }
+        value = parseFloat(value);
+    }
     const num = Number(value) || 0;
     try {
-        return new Intl.NumberFormat('pt-BR', {
+        const formatted = new Intl.NumberFormat('pt-BR', {
             style: 'currency',
             currency: 'BRL',
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(num);
+        return formatted.replace(/\u00A0/g, ' ');
     } catch {
-        return 'R$ ' + num.toFixed(2);
+        const isNegative = num < 0;
+        const parts = Math.abs(num).toFixed(2).split('.');
+        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const res = 'R$ ' + intPart + ',' + parts[1];
+        return isNegative ? '-' + res : res;
     }
 }
 
@@ -79,6 +98,7 @@ function stripHTML(str) {
 function updateMonthDisplay(elementId, offset) {
     offset = offset || 0;
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() + offset);
     const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -529,6 +549,7 @@ function stopPatrimonyAutoUpdate() {
 
 function updatePatrimonyUI(valor) {
     const patrimonyEl = document.getElementById('patrimony');
+    const investedEl = document.getElementById('totalInvested');
     if (patrimonyEl) {
         patrimonyEl.textContent = formatCurrency(valor);
         patrimonyEl.style.transition = 'all 0.3s ease';
@@ -538,6 +559,44 @@ function updatePatrimonyUI(valor) {
             patrimonyEl.style.transform = 'scale(1)';
             patrimonyEl.style.color = '';
         }, 1000);
+    }
+    if (investedEl && Number(valor) > 0) {
+        investedEl.textContent = formatCurrency(valor);
+    }
+}
+
+async function loadInvestedSummary() {
+    try {
+        const investedEl = document.getElementById('totalInvested');
+        const countEl = document.getElementById('investedCount');
+        if (!investedEl) return;
+
+        await loadInvestmentTransactions();
+        buildPositions();
+
+        const totalInvested = positions.reduce((s, p) => s + (p.costBasis || 0), 0);
+        const activePositions = positions.filter(p => p.quantity > 0.0000001);
+        const activeCount = activePositions.length;
+
+        investedEl.textContent = formatCurrency(totalInvested);
+        if (countEl) {
+            countEl.textContent = `${activeCount} ${activeCount === 1 ? 'ativo' : 'ativos'}`;
+        }
+
+        // Atualização em background com cotações
+        if (activeCount > 0) {
+            fetchQuotes().then(() => {
+                decoratePositions();
+                const totalMarket = positions.reduce((s, p) => s + (p.currentValue || p.costBasis || 0), 0);
+                if (investedEl && totalMarket > 0) {
+                    investedEl.textContent = formatCurrency(totalMarket);
+                }
+            }).catch(e => {
+                console.log('Background quotes:', e);
+            });
+        }
+    } catch (err) {
+        console.warn('Erro ao carregar investimentos:', err);
     }
 }
 
@@ -571,29 +630,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await loadInsights();
 
-    startPatrimonyAutoUpdate();
-
     console.log('✅ Dashboard inicializado!');
 });
 
 // ============================================
 // MÊS
 // ============================================
-window.changeMonth = function (dir) {
-    currentMonthOffset += dir;
+function changeMonth(dir) {
+    currentMonthOffset += Number(dir) || 0;
     updateMonthDisplay('selectedMonth', currentMonthOffset);
     loadDashboard();
-    loadChartsLazy();
+    if (typeof loadCategoryChart === 'function') loadCategoryChart();
+    if (typeof loadMonthlyChart === 'function') loadMonthlyChart();
     loadInsights();
-};
+}
 
-window.goToCurrentMonth = function () {
+function goToCurrentMonth() {
     currentMonthOffset = 0;
     updateMonthDisplay('selectedMonth', currentMonthOffset);
     loadDashboard();
-    loadChartsLazy();
+    if (typeof loadCategoryChart === 'function') loadCategoryChart();
+    if (typeof loadMonthlyChart === 'function') loadMonthlyChart();
     loadInsights();
-};
+}
+
+window.changeMonth = changeMonth;
+window.goToCurrentMonth = goToCurrentMonth;
 
 // ============================================
 // CARREGAR DASHBOARD
@@ -602,6 +664,7 @@ async function loadDashboard() {
     console.log('📊 Carregando dashboard...');
 
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() + currentMonthOffset);
     const year = d.getFullYear();
     const month = d.getMonth();
@@ -610,6 +673,7 @@ async function loadDashboard() {
     const lastDayStr = formatDateKey(year, month, lastDay);
 
     const dPrev = new Date();
+    dPrev.setDate(1);
     dPrev.setMonth(dPrev.getMonth() + currentMonthOffset - 1);
     const yearPrev = dPrev.getFullYear();
     const monthPrev = dPrev.getMonth();
@@ -618,80 +682,75 @@ async function loadDashboard() {
     const lastDayPrevStr = formatDateKey(yearPrev, monthPrev, lastDayPrev);
 
     try {
-        // BUSCAR TRANSAÇÕES DO MÊS ATUAL
+        // BUSCAR TRANSAÇÕES DO MÊS ATUAL (PAGAS)
         const { data: current, error: err1 } = await supabaseClient
             .from('transactions')
             .select('*')
             .eq('user_id', currentUser.id)
             .eq('paid', true)
-            .eq('is_bill', false)
             .gte('date', firstDay)
             .lte('date', lastDayStr);
 
         if (err1) console.error('Erro ao buscar transacoes atuais:', err1);
 
-        // BUSCAR TRANSAÇÕES DO MÊS ANTERIOR
+        // BUSCAR TRANSAÇÕES DO MÊS ANTERIOR (PAGAS)
         const { data: previous, error: err2 } = await supabaseClient
             .from('transactions')
             .select('*')
             .eq('user_id', currentUser.id)
             .eq('paid', true)
-            .eq('is_bill', false)
             .gte('date', firstDayPrev)
             .lte('date', lastDayPrevStr);
 
         if (err2) console.error('Erro ao buscar transacoes anteriores:', err2);
 
-        // BUSCAR CONTAS NÃO PAGAS DO MÊS ATUAL
+        // BUSCAR CONTAS NÃO PAGAS DO MÊS ATUAL (A PAGAR)
         const { data: bills, error: err3 } = await supabaseClient
             .from('transactions')
             .select('*')
             .eq('user_id', currentUser.id)
             .eq('type', 'expense')
             .eq('paid', false)
-            .eq('is_bill', true)
             .gte('date', firstDay)
             .lte('date', lastDayStr);
 
-        if (err3) console.error('Erro ao buscar contas:', err3);
-
-        // CALCULAR PATRIMÔNIO
-        const patrimony = await calculatePatrimony();
-        console.log('🏦 Patrimonio calculado:', patrimony);
+        if (err3) console.error('Erro ao buscar contas a pagar:', err3);
 
         // CALCULAR RECEITAS E DESPESAS DO MÊS ATUAL
-        let currentIncome = 0,
-            currentExpense = 0;
-        let prevIncome = 0,
-            prevExpense = 0;
+        let currentIncome = 0;
+        let currentExpense = 0;
+        let prevIncome = 0;
+        let prevExpense = 0;
 
         if (current) {
             current.forEach(t => {
-                if (t.type === 'income') currentIncome += Number(t.amount);
-                else currentExpense += Number(t.amount);
+                if (t.type === 'income') currentIncome += Number(t.amount || 0);
+                else if (t.type === 'expense') currentExpense += Number(t.amount || 0);
             });
         }
 
         if (previous) {
             previous.forEach(t => {
-                if (t.type === 'income') prevIncome += Number(t.amount);
-                else prevExpense += Number(t.amount);
+                if (t.type === 'income') prevIncome += Number(t.amount || 0);
+                else if (t.type === 'expense') prevExpense += Number(t.amount || 0);
             });
         }
 
         const balance = currentIncome - currentExpense;
 
-        // CALCULAR CONTAS
+        // CALCULAR CONTAS A PAGAR DO MÊS
         const billsCount = bills?.length || 0;
-        const billsTotal = bills?.reduce((s, t) => s + Number(t.amount), 0) || 0;
+        const billsTotal = bills?.reduce((s, t) => s + Number(t.amount || 0), 0) || 0;
+        const todayStr = getToday();
+        const overdueBills = bills ? bills.filter(b => b.date && b.date < todayStr) : [];
+        const overdueCount = overdueBills.length;
 
-        console.log('📋 Contas: ' + billsCount + ' | Total: R$ ' + billsTotal);
+        console.log(`📋 Resumo do mês: Receitas: R$ ${currentIncome} | Despesas: R$ ${currentExpense} | Saldo: R$ ${balance} | Contas a pagar: ${billsCount} (R$ ${billsTotal})`);
 
         // ATUALIZAR CARDS
         const incomeEl = document.getElementById('totalIncome');
         const expenseEl = document.getElementById('totalExpense');
-        const balanceEl = document.getElementById('totalBalance');
-        const patrimonyEl = document.getElementById('patrimony');
+        const balanceEl = document.getElementById('totalBalance') || document.getElementById('monthBalance');
         const billsCountEl = document.getElementById('billsCount');
         const billsAmountEl = document.getElementById('billsAmount');
 
@@ -701,59 +760,27 @@ async function loadDashboard() {
             balanceEl.textContent = formatCurrency(balance);
             balanceEl.style.color = balance >= 0 ? '#00B894' : '#FF7675';
         }
-        if (patrimonyEl) patrimonyEl.textContent = formatCurrency(patrimony);
 
-        // CARD CONTAS A PAGAR
+        // CARD CONTAS A PAGAR E INVESTIMENTOS
+        if (billsAmountEl) {
+            billsAmountEl.textContent = formatCurrency(billsTotal);
+            billsAmountEl.style.color = billsTotal > 0 ? (overdueCount > 0 ? '#FF7675' : '#F59E0B') : '#00B894';
+        }
+
         if (billsCountEl) {
             if (billsCount > 0) {
-                billsCountEl.textContent = '';
-                billsCountEl.style.display = 'none';
-            } else {
-                billsCountEl.textContent = '0 ✅';
-                billsCountEl.style.color = '#00B894';
-                billsCountEl.style.fontSize = '20px';
-                billsCountEl.style.fontWeight = '800';
-                billsCountEl.style.display = 'block';
-            }
-        }
-
-        if (billsAmountEl) {
-            if (billsTotal > 0) {
-                billsAmountEl.textContent = formatCurrency(billsTotal);
-                billsAmountEl.className = 'stat-value';
-                billsAmountEl.style.color = '#FDCB6E';
-                billsAmountEl.style.fontSize = '24px';
-                billsAmountEl.style.fontWeight = '700';
-                billsAmountEl.style.display = 'block';
-
-                const contasText = billsCount === 1 ? '1 conta' : `${billsCount} contas`;
-
-                let subEl = document.getElementById('billsSub');
-                if (!subEl) {
-                    subEl = document.createElement('div');
-                    subEl.id = 'billsSub';
-                    subEl.className = 'stat-sub';
-                    billsAmountEl.parentElement.appendChild(subEl);
+                if (overdueCount > 0) {
+                    billsCountEl.innerHTML = `<span style="color:#FF7675; font-weight:700;"><i class="fas fa-exclamation-circle"></i> ${overdueCount} atraso</span>`;
+                } else {
+                    billsCountEl.innerHTML = `<span style="color:#F59E0B; font-weight:600;"><i class="fas fa-clock"></i> ${billsCount} pend.</span>`;
                 }
-                subEl.textContent = contasText;
-                subEl.style.fontSize = '12px';
-                subEl.style.color = '#94A3B8';
-                subEl.style.fontWeight = '500';
-                subEl.style.marginTop = '2px';
-                subEl.style.display = 'block';
-
             } else {
-                billsAmountEl.textContent = 'Tudo pago! ✅';
-                billsAmountEl.className = 'stat-sub text-success';
-                billsAmountEl.style.color = '#00B894';
-                billsAmountEl.style.fontSize = '16px';
-                billsAmountEl.style.fontWeight = '600';
-                billsAmountEl.style.display = 'block';
-
-                const subEl = document.getElementById('billsSub');
-                if (subEl) subEl.remove();
+                billsCountEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-check-circle"></i> Tudo pago</span>`;
             }
         }
+
+        // CARREGA INVESTIMENTOS NO CARD 4
+        loadInvestedSummary();
 
         // TENDÊNCIAS
         const incomeTrend = prevIncome > 0 ? ((currentIncome - prevIncome) / prevIncome * 100) : 0;
@@ -764,27 +791,39 @@ async function loadDashboard() {
         const balanceStatusEl = document.getElementById('balanceStatus');
 
         if (incomeTrendEl) {
-            const sign = incomeTrend >= 0 ? '+' : '';
-            incomeTrendEl.textContent = sign + incomeTrend.toFixed(0) + '%';
-            incomeTrendEl.className = 'stat-sub ' + (incomeTrend >= 0 ? 'text-success' : 'text-danger');
+            if (prevIncome > 0) {
+                const sign = incomeTrend >= 0 ? '+' : '';
+                incomeTrendEl.textContent = sign + incomeTrend.toFixed(0) + '% vs anterior';
+                incomeTrendEl.className = 'stat-sub ' + (incomeTrend >= 0 ? 'text-success' : 'text-danger');
+            } else {
+                incomeTrendEl.textContent = 'Mês de referência';
+                incomeTrendEl.className = 'stat-sub';
+            }
         }
 
         if (expenseTrendEl) {
-            const sign = expenseTrend >= 0 ? '+' : '';
-            expenseTrendEl.textContent = sign + expenseTrend.toFixed(0) + '%';
-            expenseTrendEl.className = 'stat-sub ' + (expenseTrend <= 0 ? 'text-success' : 'text-danger');
+            if (prevExpense > 0) {
+                const sign = expenseTrend >= 0 ? '+' : '';
+                expenseTrendEl.textContent = sign + expenseTrend.toFixed(0) + '% vs anterior';
+                expenseTrendEl.className = 'stat-sub ' + (expenseTrend <= 0 ? 'text-success' : 'text-danger');
+            } else {
+                expenseTrendEl.textContent = 'Mês de referência';
+                expenseTrendEl.className = 'stat-sub';
+            }
         }
 
         if (balanceStatusEl) {
-            if (balance > 0) {
-                balanceStatusEl.textContent = '✅ Positivo';
-                balanceStatusEl.className = 'stat-sub text-success';
-            } else if (balance < 0) {
-                balanceStatusEl.textContent = '⚠️ Negativo';
-                balanceStatusEl.className = 'stat-sub text-danger';
+            const projected = balance - billsTotal;
+            if (billsTotal > 0) {
+                balanceStatusEl.innerHTML = `<span>Previsto: <strong style="color:${projected >= 0 ? '#00B894' : '#FF7675'}">${formatCurrency(projected)}</strong></span>`;
             } else {
-                balanceStatusEl.textContent = 'Zerado';
-                balanceStatusEl.className = 'stat-sub';
+                if (balance > 0) {
+                    balanceStatusEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-arrow-trend-up"></i> Positivo</span>`;
+                } else if (balance < 0) {
+                    balanceStatusEl.innerHTML = `<span style="color:#FF7675; font-weight:600;"><i class="fas fa-arrow-trend-down"></i> Negativo</span>`;
+                } else {
+                    balanceStatusEl.textContent = 'Zerado';
+                }
             }
         }
 
@@ -840,17 +879,26 @@ async function checkOverdueBills() {
 }
 
 // ============================================
-// TRANSAÇÕES RECENTES
+// TRANSAÇÕES RECENTES (MÊS SELECIONADO)
 // ============================================
 async function loadRecentTransactions() {
     const container = document.getElementById('transactionsList');
     if (!container) return;
 
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + currentMonthOffset);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const lastDay = getLastDayOfMonth(year, month);
+    const firstDay = formatDateKey(year, month, 1);
+    const lastDayStr = formatDateKey(year, month, lastDay);
+
     try {
         container.innerHTML = `
             <div class="loading-transactions">
                 <span class="spinner"></span>
-                <p>Carregando transacoes...</p>
+                <p>Carregando transações...</p>
             </div>
         `;
 
@@ -859,7 +907,8 @@ async function loadRecentTransactions() {
             .select('*, categories(name, icon, color)')
             .eq('user_id', currentUser.id)
             .eq('paid', true)
-            .eq('is_bill', false)
+            .gte('date', firstDay)
+            .lte('date', lastDayStr)
             .order('date', { ascending: false })
             .limit(50);
 
@@ -1068,6 +1117,7 @@ async function loadCategoryChart() {
 
     const ctx = canvas.getContext('2d');
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() + currentMonthOffset);
     const year = d.getFullYear();
     const month = d.getMonth();
@@ -1082,7 +1132,6 @@ async function loadCategoryChart() {
             .eq('user_id', currentUser.id)
             .eq('type', 'expense')
             .eq('paid', true)
-            .eq('is_bill', false)
             .gte('date', firstDay)
             .lte('date', lastDayStr);
 
@@ -1388,21 +1437,65 @@ async function loadCategoryChart() {
 }
 
 // ============================================
-// GRÁFICO MENSAL
+// CONTROLES DO GRÁFICO MENSAL (PERÍODO)
+// ============================================
+window.setMonthlyPeriod = function (period) {
+    monthlyChartPeriod = Number(period) || 6;
+
+    const btn6 = document.getElementById('btnPeriod6');
+    const btn12 = document.getElementById('btnPeriod12');
+    const badge = document.getElementById('monthlyPeriodBadge');
+
+    if (btn6 && btn12) {
+        if (monthlyChartPeriod === 6) {
+            btn6.style.background = '#6C5CE7';
+            btn6.style.color = '#ffffff';
+            btn6.style.fontWeight = '700';
+            btn12.style.background = 'transparent';
+            btn12.style.color = 'var(--color-text-muted, #64748b)';
+            btn12.style.fontWeight = '600';
+        } else {
+            btn12.style.background = '#6C5CE7';
+            btn12.style.color = '#ffffff';
+            btn12.style.fontWeight = '700';
+            btn6.style.background = 'transparent';
+            btn6.style.color = 'var(--color-text-muted, #64748b)';
+            btn6.style.fontWeight = '600';
+        }
+    }
+
+    if (badge) {
+        badge.textContent = `Últimos ${monthlyChartPeriod} meses`;
+    }
+
+    loadMonthlyChart();
+};
+
+window.setMonthlyMode = function (mode) {
+    // Compatibilidade caso seja chamado externamente; o gráfico agora foca exclusivamente em Despesas e Receitas
+    loadMonthlyChart();
+};
+
+// ============================================
+// GRÁFICO MENSAL - APENAS RECEITAS E DESPESAS
 // ============================================
 async function loadMonthlyChart() {
     const canvas = document.getElementById('monthlyChart');
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
+    const isDark = document.body.classList.contains('dark-theme');
+    const periodCount = monthlyChartPeriod || 6;
 
     try {
         const months = [];
+        const fullLabels = [];
         const incomes = [];
         const expenses = [];
 
-        for (let i = 5; i >= 0; i--) {
+        for (let i = periodCount - 1; i >= 0; i--) {
             const d = new Date();
+            d.setDate(1);
             d.setMonth(d.getMonth() - i + currentMonthOffset);
             const year = d.getFullYear();
             const month = d.getMonth();
@@ -1410,72 +1503,141 @@ async function loadMonthlyChart() {
             const firstDay = formatDateKey(year, month, 1);
             const lastDayStr = formatDateKey(year, month, lastDay);
 
-            const label = d.toLocaleDateString('pt-BR', { month: 'short' });
-            months.push(label);
+            const shortMonth = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+            const capitalizedMonth = shortMonth.charAt(0).toUpperCase() + shortMonth.slice(1);
+            const yearSuffix = periodCount > 6 ? `/${String(year).slice(-2)}` : '';
+            months.push(capitalizedMonth + yearSuffix);
+
+            const monthFullName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            fullLabels.push(monthFullName.charAt(0).toUpperCase() + monthFullName.slice(1));
 
             const { data, error } = await supabaseClient
                 .from('transactions')
                 .select('type, amount')
                 .eq('user_id', currentUser.id)
                 .eq('paid', true)
-                .eq('is_bill', false)
                 .gte('date', firstDay)
                 .lte('date', lastDayStr);
 
             if (error) throw error;
 
-            let inc = 0,
-                exp = 0;
+            let inc = 0;
+            let exp = 0;
             if (data) {
                 data.forEach(t => {
-                    if (t.type === 'income') inc += Number(t.amount);
-                    else exp += Number(t.amount);
+                    if (t.type === 'income') inc += Number(t.amount || 0);
+                    else if (t.type === 'expense') exp += Number(t.amount || 0);
                 });
             }
             incomes.push(inc);
             expenses.push(exp);
         }
 
+        // ATUALIZA RESUMO NO CARD (APENAS RECEITAS E DESPESAS)
+        const totalInc = incomes.reduce((a, b) => a + b, 0);
+        const totalExp = expenses.reduce((a, b) => a + b, 0);
+        const avgInc = periodCount > 0 ? totalInc / periodCount : 0;
+        const avgExp = periodCount > 0 ? totalExp / periodCount : 0;
+
+        const totalPeriodIncEl = document.getElementById('totalPeriodIncomeVal');
+        const totalPeriodExpEl = document.getElementById('totalPeriodExpenseVal');
+        const avgIncEl = document.getElementById('avgIncomeVal');
+        const avgExpEl = document.getElementById('avgExpenseVal');
+
+        if (totalPeriodIncEl) totalPeriodIncEl.textContent = formatCurrency(totalInc);
+        if (totalPeriodExpEl) totalPeriodExpEl.textContent = formatCurrency(totalExp);
+        if (avgIncEl) avgIncEl.textContent = formatCurrency(avgInc);
+        if (avgExpEl) avgExpEl.textContent = formatCurrency(avgExp);
+
         if (monthlyChart) {
             monthlyChart.destroy();
             monthlyChart = null;
         }
 
+        // GRADIENTES MODERNOS PARA BARRAS
+        const height = canvas.clientHeight || 260;
+        const incomeGradient = ctx.createLinearGradient(0, 0, 0, height);
+        incomeGradient.addColorStop(0, '#10B981');
+        incomeGradient.addColorStop(1, 'rgba(16, 185, 129, 0.45)');
+
+        const expenseGradient = ctx.createLinearGradient(0, 0, 0, height);
+        expenseGradient.addColorStop(0, '#EF4444');
+        expenseGradient.addColorStop(1, 'rgba(239, 68, 68, 0.45)');
+
+        const chartDatasets = [
+            {
+                type: 'bar',
+                label: 'Receitas',
+                data: incomes,
+                backgroundColor: incomeGradient,
+                borderColor: '#10B981',
+                borderWidth: 1.5,
+                borderRadius: 6,
+                borderSkipped: false
+            },
+            {
+                type: 'bar',
+                label: 'Despesas',
+                data: expenses,
+                backgroundColor: expenseGradient,
+                borderColor: '#EF4444',
+                borderWidth: 1.5,
+                borderRadius: 6,
+                borderSkipped: false
+            }
+        ];
+
+        const textColor = isDark ? '#94A3B8' : '#64748B';
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)';
+
         monthlyChart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: months,
-                datasets: [{
-                    label: 'Receitas',
-                    data: incomes,
-                    backgroundColor: '#00B894',
-                    borderRadius: 4,
-                    borderSkipped: false
-                }, {
-                    label: 'Despesas',
-                    data: expenses,
-                    backgroundColor: '#FF7675',
-                    borderRadius: 4,
-                    borderSkipped: false
-                }]
+                datasets: chartDatasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                categoryPercentage: 0.75,
+                barPercentage: 0.85,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
                 plugins: {
                     legend: {
                         position: 'top',
+                        align: 'end',
                         labels: {
-                            font: { size: 11, weight: '500' },
+                            color: textColor,
+                            font: { size: 11, weight: '600', family: "'Inter', sans-serif" },
                             usePointStyle: true,
                             pointStyle: 'circle',
-                            padding: 15
+                            padding: 14,
+                            boxWidth: 8,
+                            boxHeight: 8
                         }
                     },
                     tooltip: {
+                        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(30, 41, 59, 0.95)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#e2e8f0',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1,
+                        padding: 10,
+                        cornerRadius: 10,
+                        titleFont: { size: 12, weight: '700' },
+                        bodyFont: { size: 11 },
                         callbacks: {
+                            title: function (items) {
+                                if (!items.length) return '';
+                                const idx = items[0].dataIndex;
+                                return fullLabels[idx] || items[0].label;
+                            },
                             label: function (context) {
-                                return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                                const val = context.parsed.y !== undefined ? context.parsed.y : context.parsed;
+                                return ' ' + context.dataset.label + ': ' + formatCurrency(val);
                             }
                         }
                     }
@@ -1483,8 +1645,12 @@ async function loadMonthlyChart() {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        grid: {
+                            color: gridColor,
+                            drawBorder: false
+                        },
                         ticks: {
+                            color: textColor,
                             font: { size: 10 },
                             callback: function (value) {
                                 return formatCurrency(value);
@@ -1493,16 +1659,23 @@ async function loadMonthlyChart() {
                     },
                     x: {
                         grid: { display: false },
-                        ticks: { font: { size: 10 } }
+                        ticks: {
+                            color: textColor,
+                            font: { size: 11, weight: '500' }
+                        }
                     }
+                },
+                animation: {
+                    duration: 600,
+                    easing: 'easeOutQuart'
                 }
             }
         });
 
-        console.log('✅ Grafico mensal criado!');
+        console.log('✅ Gráfico de evolução mensal (Receitas e Despesas) atualizado com sucesso!');
 
     } catch (error) {
-        console.error('❌ Erro no grafico mensal:', error);
+        console.error('❌ Erro no gráfico mensal:', error);
     }
 }
 
@@ -2003,6 +2176,10 @@ async function logout() {
 // ============================================
 // EXPORTA FUNÇÕES GLOBAIS
 // ============================================
+window.changeMonth = changeMonth;
+window.goToCurrentMonth = goToCurrentMonth;
+window.changeMonthHandler = changeMonth;
+window.goToCurrentMonthHandler = goToCurrentMonth;
 window.exportarPDF = exportarPDF;
 window.openCashFlowModal = openCashFlowModal;
 window.loadCategoryChart = loadCategoryChart;

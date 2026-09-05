@@ -40,11 +40,10 @@ function getBaseUrl() {
 window.getBaseUrl = getBaseUrl;
 
 // ============================================
-// CRIAR CLIENTE SUPABASE
+// CRIAR CLIENTE SUPABASE REAL
 // ============================================
 var supabaseClient;
 
-// Verificar se supabase já existe (carregado pelo CDN)
 if (typeof supabase !== 'undefined' && supabase.createClient) {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
@@ -64,35 +63,12 @@ if (typeof supabase !== 'undefined' && supabase.createClient) {
         }
     });
 } else {
-    console.warn('⚠️ Supabase não encontrado globalmente, tentando criar manualmente');
-    supabaseClient = {
-        auth: {
-            signInWithPassword: async () => ({ data: null, error: new Error('Supabase não inicializado') }),
-            signUp: async () => ({ data: null, error: new Error('Supabase não inicializado') }),
-            signInWithOAuth: async () => ({ data: null, error: new Error('Supabase não inicializado') }),
-            resetPasswordForEmail: async () => ({ error: new Error('Supabase não inicializado') }),
-            getUser: async () => ({ data: { user: null }, error: null }),
-            signOut: async () => ({ error: null })
-        },
-        from: () => ({
-            select: () => ({
-                eq: () => ({
-                    maybeSingle: async () => ({ data: null, error: null }),
-                    single: async () => ({ data: null, error: null }),
-                    limit: async () => ({ data: [], error: null }),
-                    order: () => ({ data: [], error: null })
-                }),
-                insert: async () => ({ data: null, error: null }),
-                update: async () => ({ data: null, error: null }),
-                delete: async () => ({ data: null, error: null })
-            })
-        })
-    };
+    console.warn('⚠️ Supabase JS SDK não encontrado no escopo global.');
 }
 
 window.supabaseClient = supabaseClient;
 
-console.log('✅ Supabase client inicializado');
+console.log('✅ Supabase client inicializado para dados reais');
 console.log('📌 Base URL:', getBaseUrl());
 
 // ============================================

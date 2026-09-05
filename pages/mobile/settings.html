@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#6C5CE7">
     <link rel="manifest" href="../../manifest.json">
     <link rel="apple-touch-icon" href="../../icons/icon-192x192.png">
-    <title>Configurações - Mobile</title>
+    <title>Configurações - Mobile | TonuControle</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -15,27 +15,157 @@
     <link rel="stylesheet" href="../../css/dark-theme.css">
     <link rel="stylesheet" href="../../css/mobile.css">
     <style>
-        body { padding-bottom: 72px; background: var(--color-bg, #f0f2f5); }
+        body { padding-bottom: 84px; background: var(--color-bg, #f6f7fb); }
+        
+        .mobile-settings-profile {
+            background: var(--color-surface, #ffffff);
+            border-radius: 16px;
+            padding: 20px 16px;
+            margin: 12px 14px;
+            border: 1px solid var(--color-border, #e8ecf1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .mobile-avatar {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: white;
+            font-weight: 700;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.25);
+        }
+
+        .mobile-profile-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .mobile-user-name {
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--color-text, #2d3436);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .mobile-user-email {
+            font-size: 12px;
+            color: var(--color-text-light, #636e72);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+
+        .mobile-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(0, 184, 148, 0.12);
+            color: #00b894;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 999px;
+            margin-top: 4px;
+        }
+
+        .mobile-group-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--color-text-muted, #94a3b8);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 18px 18px 6px 18px;
+        }
+
+        .settings-card-group {
+            background: var(--color-surface, #ffffff);
+            border-radius: 14px;
+            border: 1px solid var(--color-border, #e8ecf1);
+            margin: 0 14px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+
         .settings-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 14px 16px;
-            background: var(--color-surface, #ffffff);
-            border-radius: 10px;
-            border: 1px solid var(--color-border, #e2e8f0);
-            margin-bottom: 6px;
-            transition: all 0.2s;
+            border-bottom: 1px solid var(--color-border-light, #f1f2f6);
+            transition: background 0.15s ease;
             cursor: pointer;
         }
-        .settings-item:active { transform: scale(0.98); }
-        .settings-item .left { display: flex; align-items: center; gap: 12px; }
-        .settings-item .left i { font-size: 18px; width: 24px; text-align: center; color: var(--color-primary, #6C5CE7); }
-        .settings-item .left span { font-size: 13px; font-weight: 500; }
-        .settings-item .right { color: var(--color-text-muted, #94a3b8); font-size: 12px; }
-        .settings-item.danger .left i { color: #FF7675; }
-        .settings-item.danger .left span { color: #FF7675; }
-        .version-info { text-align: center; padding: 16px; font-size: 11px; color: var(--color-text-muted, #94a3b8); }
+
+        .settings-item:last-child {
+            border-bottom: none;
+        }
+
+        .settings-item:active {
+            background: var(--color-bg, #f6f7fb);
+        }
+
+        .settings-item .left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .item-icon-box {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .item-icon-box.purple { background: rgba(108, 92, 231, 0.12); color: #6C5CE7; }
+        .item-icon-box.green { background: rgba(0, 184, 148, 0.12); color: #00B894; }
+        .item-icon-box.blue { background: rgba(9, 132, 227, 0.12); color: #0984E3; }
+        .item-icon-box.amber { background: rgba(253, 203, 110, 0.22); color: #d68910; }
+        .item-icon-box.red { background: rgba(255, 118, 117, 0.15); color: #FF7675; }
+
+        .item-text-title {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--color-text, #2d3436);
+        }
+
+        .item-text-sub {
+            font-size: 11px;
+            color: var(--color-text-muted, #94a3b8);
+            margin-top: 1px;
+        }
+
+        .settings-item .right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--color-text-muted, #94a3b8);
+            font-size: 12px;
+        }
+
+        .version-info {
+            text-align: center;
+            padding: 24px 16px 12px 16px;
+            font-size: 11px;
+            color: var(--color-text-muted, #94a3b8);
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -47,61 +177,133 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
-            <button onclick="window.history.back()" title="Voltar"><i class="fas fa-arrow-left"></i></button>
+            <button onclick="toggleTheme()" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
         </div>
     </div>
     <div class="greeting">⚙️ Configurações</div>
 </header>
 
 <main class="mobile-content">
-    <div style="text-align:center;padding:12px 0;" id="profileSection">
-        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6C5CE7,#A29BFE);display:inline-flex;align-items:center;justify-content:center;font-size:24px;color:white;font-weight:700;">U</div>
-        <div style="font-weight:700;font-size:16px;margin-top:6px;" id="userName">Usuário</div>
-        <div style="font-size:12px;color:var(--color-text-muted,#94a3b8);" id="userEmail">email@exemplo.com</div>
+    <!-- PERFIL -->
+    <div class="mobile-settings-profile" id="profileSection">
+        <div class="mobile-avatar" id="userAvatar">U</div>
+        <div class="mobile-profile-details">
+            <div class="mobile-user-name" id="userName">Usuário</div>
+            <div class="mobile-user-email" id="userEmail">email@exemplo.com</div>
+            <div class="mobile-status-pill">
+                <i class="fas fa-check-circle" style="font-size:9px;"></i> Ativo & Sincronizado
+            </div>
+        </div>
     </div>
 
-    <div class="settings-item" onclick="toggleTheme()">
-        <div class="left"><i class="fas fa-moon"></i><span>Modo Escuro</span></div>
-        <div class="right" id="themeStatus">Desativado</div>
+    <!-- PREFERÊNCIAS VISUAIS & SISTEMA -->
+    <div class="mobile-group-title">Preferências Visuais</div>
+    <div class="settings-card-group">
+        <div class="settings-item" onclick="toggleTheme()">
+            <div class="left">
+                <div class="item-icon-box purple"><i class="fas fa-moon"></i></div>
+                <div>
+                    <div class="item-text-title">Modo Escuro</div>
+                    <div class="item-text-sub">Alto contraste e economia</div>
+                </div>
+            </div>
+            <div class="right">
+                <span id="themeStatus">Desativado</span>
+                <i class="fas fa-adjust"></i>
+            </div>
+        </div>
+
+        <div class="settings-item" onclick="switchToDesktop()">
+            <div class="left">
+                <div class="item-icon-box blue"><i class="fas fa-desktop"></i></div>
+                <div>
+                    <div class="item-text-title">Painel Completo PC</div>
+                    <div class="item-text-sub">Acessar versão Desktop avançada</div>
+                </div>
+            </div>
+            <div class="right"><i class="fas fa-arrow-right"></i></div>
+        </div>
     </div>
 
-    <div class="settings-item" onclick="window.location.href='dashboard.html'">
-        <div class="left"><i class="fas fa-home"></i><span>Início</span></div>
-        <div class="right"><i class="fas fa-chevron-right"></i></div>
+    <!-- MÓDULOS DE GESTÃO -->
+    <div class="mobile-group-title">Módulos de Gestão</div>
+    <div class="settings-card-group">
+        <div class="settings-item" onclick="window.location.href='dashboard.html'">
+            <div class="left">
+                <div class="item-icon-box purple"><i class="fas fa-chart-pie"></i></div>
+                <div>
+                    <div class="item-text-title">Dashboard Principal</div>
+                    <div class="item-text-sub">Saldos e visão geral</div>
+                </div>
+            </div>
+            <div class="right"><i class="fas fa-chevron-right"></i></div>
+        </div>
+
+        <div class="settings-item" onclick="window.location.href='transactions.html'">
+            <div class="left">
+                <div class="item-icon-box green"><i class="fas fa-exchange-alt"></i></div>
+                <div>
+                    <div class="item-text-title">Transações & Extrato</div>
+                    <div class="item-text-sub">Receitas e despesas</div>
+                </div>
+            </div>
+            <div class="right"><i class="fas fa-chevron-right"></i></div>
+        </div>
+
+        <div class="settings-item" onclick="window.location.href='bills.html'">
+            <div class="left">
+                <div class="item-icon-box amber"><i class="fas fa-file-invoice-dollar"></i></div>
+                <div>
+                    <div class="item-text-title">Contas a Pagar & Receber</div>
+                    <div class="item-text-sub">Controle de vencimentos</div>
+                </div>
+            </div>
+            <div class="right"><i class="fas fa-chevron-right"></i></div>
+        </div>
+
+        <div class="settings-item" onclick="window.location.href='goals.html'">
+            <div class="left">
+                <div class="item-icon-box blue"><i class="fas fa-bullseye"></i></div>
+                <div>
+                    <div class="item-text-title">Metas de Economia</div>
+                    <div class="item-text-sub">Planejamento financeiro</div>
+                </div>
+            </div>
+            <div class="right"><i class="fas fa-chevron-right"></i></div>
+        </div>
+
+        <div class="settings-item" onclick="window.location.href='investments.html'">
+            <div class="left">
+                <div class="item-icon-box purple"><i class="fas fa-chart-line"></i></div>
+                <div>
+                    <div class="item-text-title">Investimentos & Aportes</div>
+                    <div class="item-text-sub">Patrimônio e rentabilidade</div>
+                </div>
+            </div>
+            <div class="right"><i class="fas fa-chevron-right"></i></div>
+        </div>
     </div>
 
-    <div class="settings-item" onclick="window.location.href='transactions.html'">
-        <div class="left"><i class="fas fa-exchange-alt"></i><span>Transações</span></div>
-        <div class="right"><i class="fas fa-chevron-right"></i></div>
+    <!-- SEGURANÇA E CONTA -->
+    <div class="mobile-group-title">Conta & Acesso</div>
+    <div class="settings-card-group">
+        <div class="settings-item" onclick="logout()">
+            <div class="left">
+                <div class="item-icon-box red"><i class="fas fa-sign-out-alt"></i></div>
+                <div>
+                    <div class="item-text-title" style="color: #FF7675;">Sair da Conta</div>
+                    <div class="item-text-sub">Encerrar sessão com segurança</div>
+                </div>
+            </div>
+            <div class="right"><i class="fas fa-chevron-right"></i></div>
+        </div>
     </div>
 
-    <div class="settings-item" onclick="window.location.href='bills.html'">
-        <div class="left"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></div>
-        <div class="right"><i class="fas fa-chevron-right"></i></div>
+    <div class="version-info">
+        TonuControle v2.1.0 • PWA Mobile<br>
+        Seus dados estão protegidos com criptografia.
     </div>
-
-    <div class="settings-item" onclick="window.location.href='goals.html'">
-        <div class="left"><i class="fas fa-bullseye"></i><span>Metas</span></div>
-        <div class="right"><i class="fas fa-chevron-right"></i></div>
-    </div>
-
-    <div class="settings-item" onclick="window.location.href='investments.html'">
-        <div class="left"><i class="fas fa-chart-line"></i><span>Investimentos</span></div>
-        <div class="right"><i class="fas fa-chevron-right"></i></div>
-    </div>
-
-    <div class="settings-item" onclick="switchToDesktop()">
-        <div class="left"><i class="fas fa-desktop"></i><span>Versão PC (Desktop)</span></div>
-        <div class="right"><i class="fas fa-arrow-right"></i></div>
-    </div>
-
-    <div class="settings-item danger" onclick="logout()">
-        <div class="left"><i class="fas fa-sign-out-alt"></i><span>Sair da Conta</span></div>
-        <div class="right"><i class="fas fa-chevron-right"></i></div>
-    </div>
-
-    <div class="version-info">TonuControle v2.1.0 • Mobile</div>
 </main>
 
 <!-- BOTTOM NAV -->
@@ -109,7 +311,7 @@
     <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
     <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
     <div class="nav-center">
-        <button class="btn-add" onclick="window.location.href='transactions.html'"><i class="fas fa-plus"></i></button>
+        <button class="btn-add" onclick="window.location.href='transactions.html'" aria-label="Nova transação"><i class="fas fa-plus"></i></button>
     </div>
     <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
     <a href="settings.html" class="active"><i class="fas fa-cog"></i><span>Config.</span></a>
@@ -139,8 +341,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuário";
             document.getElementById("userName").textContent = name;
             document.getElementById("userEmail").textContent = user.email;
+            const avatar = document.getElementById("userAvatar");
+            if (avatar) avatar.textContent = name.charAt(0).toUpperCase();
         }
-    } catch (e) { console.error("Erro:", e); }
+    } catch (e) { console.error("Erro ao carregar usuário:", e); }
 });
 
 function toggleTheme() {
@@ -155,7 +359,7 @@ function toggleTheme() {
 function switchToDesktop() {
     localStorage.setItem("tonu_device_mode", "desktop");
     const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
-    window.location.href = baseUrl + "/pages/dashboard.html";
+    window.location.href = baseUrl + "/pages/settings.html";
 }
 
 async function logout() {

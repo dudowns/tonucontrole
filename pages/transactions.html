@@ -25,14 +25,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- 🔥 CORREÇÃO: Paths relativos corretos -->
     <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
     <link rel="stylesheet" href="../css/sidebar-patch.css">
     <link rel="stylesheet" href="../css/transactions.css">
     <link rel="stylesheet" href="../css/notifications.css">
     <link rel="stylesheet" href="../css/sync.css">
     <link rel="stylesheet" href="../css/sync-status.css">
+    <link rel="stylesheet" href="../css/dark-theme.css">
+
+    <!-- Anti-flicker Theme Init -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
 
     <style>
         @media (prefers-reduced-motion: reduce) {
@@ -100,7 +110,7 @@
                 <li role="none"><a href="transactions.html" class="active" role="menuitem" aria-current="page"><i
                             class="fas fa-exchange-alt" aria-hidden="true"></i> Transações</a></li>
                 <li role="none"><a href="bills.html" role="menuitem"><i class="fas fa-file-invoice-dollar"
-                            aria-hidden="true"></i> Contas do Mês</a></li>
+                            aria-hidden="true"></i> Contas</a></li>
                 <li role="none"><a href="goals.html" role="menuitem"><i class="fas fa-bullseye" aria-hidden="true"></i>
                         Metas</a></li>
                 <li role="none"><a href="investments.html" role="menuitem"><i class="fas fa-chart-line"
@@ -148,6 +158,11 @@
                         <i class="fas fa-bell" aria-hidden="true"></i>
                         <span class="notif-badge hidden" id="notifBadgeCount">0</span>
                     </button>
+                    <button class="btn btn-outline" type="button"
+                        onclick="window.TonuBudget?.openBudgetModal()"
+                        title="Definir e acompanhar limites por categoria" aria-label="Limites por Categoria">
+                        <i class="fas fa-bullseye" aria-hidden="true"></i> Limites
+                    </button>
                     <button class="btn btn-outline"
                         onclick="window.TonuBankImporterInstance.selectAndImportFile(loadTransactions)"
                         title="Importar arquivo CSV ou OFX de extrato bancário" aria-label="Importar extrato bancário">
@@ -194,15 +209,17 @@
                     </div>
                 </div>
 
-                <div class="month-selector">
-                    <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
-                        <i class="fas fa-chevron-left" aria-hidden="true"></i>
-                    </button>
-                    <span class="month-label" id="selectedMonth">Agosto 2026</span>
-                    <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês">
-                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
-                    </button>
-                    <button class="btn-today" onclick="goToCurrentMonth()">Hoje</button>
+                <div class="month-selector-container">
+                    <div class="month-selector">
+                        <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
+                            <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                        </button>
+                        <span class="month-label" id="selectedMonth">Agosto 2026</span>
+                        <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês">
+                            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                        </button>
+                        <button class="btn-today" onclick="goToCurrentMonth()">Hoje</button>
+                    </div>
                 </div>
 
                 <div class="filters-bar" style="flex-wrap: wrap;">
@@ -289,14 +306,17 @@
     </div>
 
     <!-- ==========================================
-    MODAL
+    MODAL DE TRANSAÇÃO (NOVA / EDITAR)
     ========================================== -->
     <div class="modal-overlay" id="modalOverlay" onclick="if(event.target === this) closeModal()" role="dialog"
         aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal hidden" id="transactionModal">
             <div class="modal-header">
-                <h3 id="modalTitle">Nova Transação</h3>
-                <button class="modal-close" onclick="closeModal()" aria-label="Fechar modal">
+                <div>
+                    <div class="sub"><i class="fas fa-arrow-right-arrow-left" style="margin-right:4px;"></i> Transação</div>
+                    <h3 id="modalTitle">Nova Transação</h3>
+                </div>
+                <button type="button" class="modal-close" onclick="closeModal()" aria-label="Fechar modal">
                     <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
@@ -305,56 +325,61 @@
                 <input type="hidden" id="csrfToken" name="_csrf">
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="tType">Tipo</label>
+                        <label for="tType">Tipo de Movimentação</label>
                         <select id="tType" class="form-control" required aria-required="true">
                             <option value="expense">🔴 Despesa</option>
                             <option value="income">🟢 Receita</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="tDescription">Descrição</label>
-                        <input type="text" id="tDescription" class="form-control" placeholder="Ex: Supermercado"
+                        <label for="tDescription">Descrição *</label>
+                        <input type="text" id="tDescription" class="form-control" placeholder="Ex: Supermercado, Salário, Internet"
                             required aria-required="true">
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="tAmount">Valor (R$)</label>
+                            <label for="tAmount">Valor (R$) *</label>
                             <input type="number" id="tAmount" class="form-control" placeholder="0,00" step="0.01"
                                 min="0.01" required aria-required="true">
                         </div>
                         <div class="form-group">
-                            <label for="tDate">Data</label>
+                            <label for="tDate">Data *</label>
                             <input type="date" id="tDate" class="form-control" required aria-required="true">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label for="tCategory">Categoria</label>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label for="tCategory" style="margin-bottom:0;">Categoria *</label>
+                            <button type="button" onclick="window.TonuCategoryManagerInstance?.showManagerModal(loadCategories)" style="background:none; border:none; color:var(--primary-color,#6c5ce7); font-size:11px; font-weight:600; cursor:pointer; padding:0; display:flex; align-items:center; gap:4px;">
+                                <i class="fas fa-cog"></i> Gerenciar & Limites
+                            </button>
+                        </div>
                         <select id="tCategory" class="form-control" required aria-required="true">
-                            <option value="">Selecione...</option>
+                            <option value="">Selecione uma categoria...</option>
                         </select>
                     </div>
-                    <div class="checkbox-group">
+                    <div class="checkbox-group" style="padding: 6px 0; margin-bottom: 12px;">
                         <input type="checkbox" id="tPaid" checked>
-                        <span>Já foi pago/recebido</span>
+                        <label for="tPaid" style="margin-bottom:0; font-weight:500; cursor:pointer;">Já foi pago / recebido</label>
                     </div>
                     <div class="form-group">
-                        <label for="tTags">Tags (separadas por vírgula)</label>
+                        <label for="tTags">Tags (opcional)</label>
                         <input type="text" id="tTags" class="form-control"
                             placeholder="Ex: #viagem, #trabalho, #reforma">
                     </div>
                     <div class="form-group">
-                        <label for="tNotes">Observações</label>
-                        <textarea id="tNotes" class="form-control" rows="2" placeholder="Opcional..."></textarea>
+                        <label for="tNotes">Observações (opcional)</label>
+                        <textarea id="tNotes" class="form-control" rows="2" placeholder="Anotações adicionais sobre o lançamento..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger btn-sm hidden" id="btnDelete"
                         onclick="deleteTransaction()" aria-label="Excluir transação">
-                        <i class="fas fa-trash" aria-hidden="true"></i> Excluir
+                        <i class="fas fa-trash-can" aria-hidden="true"></i> Excluir
                     </button>
                     <div style="flex:1;"></div>
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Salvar</button>
                 </div>
             </form>
         </div>

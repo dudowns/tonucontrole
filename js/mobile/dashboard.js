@@ -360,16 +360,34 @@ function showMobileToast(message, type) {
 // FUNÇÕES AUXILIARES
 // ============================================
 function formatCurrency(value) {
+    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
+        return window.formatCurrency(value);
+    }
+    if (value === null || value === undefined || value === '') value = 0;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[R$\s]/g, '');
+        if (cleaned.includes(',') && cleaned.includes('.')) {
+            value = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (cleaned.includes(',')) {
+            value = cleaned.replace(',', '.');
+        }
+        value = parseFloat(value);
+    }
     const num = Number(value) || 0;
     try {
-        return new Intl.NumberFormat("pt-BR", {
+        const formatted = new Intl.NumberFormat("pt-BR", {
             style: "currency",
             currency: "BRL",
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(num);
+        return formatted.replace(/\u00A0/g, ' ');
     } catch {
-        return "R$ " + num.toFixed(2);
+        const isNegative = num < 0;
+        const parts = Math.abs(num).toFixed(2).split('.');
+        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const res = 'R$ ' + intPart + ',' + parts[1];
+        return isNegative ? '-' + res : res;
     }
 }
 

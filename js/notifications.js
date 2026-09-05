@@ -10,11 +10,28 @@
 
     // Helper: format currency
     function formatCurrency(val) {
+        if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
+            return window.formatCurrency(val);
+        }
+        if (val === null || val === undefined || val === '') val = 0;
+        if (typeof val === 'string') {
+            const cleaned = val.replace(/[R$\s]/g, '');
+            if (cleaned.includes(',') && cleaned.includes('.')) {
+                val = cleaned.replace(/\./g, '').replace(',', '.');
+            } else if (cleaned.includes(',')) {
+                val = cleaned.replace(',', '.');
+            }
+            val = parseFloat(val);
+        }
         const n = Number(val) || 0;
         try {
-            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n).replace(/\u00A0/g, ' ');
         } catch {
-            return 'R$ ' + n.toFixed(2);
+            const isNegative = n < 0;
+            const parts = Math.abs(n).toFixed(2).split('.');
+            const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            const res = 'R$ ' + intPart + ',' + parts[1];
+            return isNegative ? '-' + res : res;
         }
     }
 
@@ -126,7 +143,96 @@
                 }
             }
 
-            // Sync status notification if offline queue has items
+            // 2. Check Category Budget Limits & Overruns
+            if (window.TonuBudget && user) {
+                try {
+                    let txs = [];
+                    let cats = [];
+
+                    if (window.supabaseClient) {
+                        try {
+                            const [tRes, cRes] = await Promise.all([
+                                window.supabaseClient.from('transactions').select('*').eq('user_id', user.id),
+                                window.supabaseClient.from('categories').select('*').eq('user_id', user.id)
+                            ]);
+                            txs = tRes.data || [];
+                            cats = cRes.data || [];
+                        } catch (e) {
+                            console.warn('Fallback para cache local ao verificar limites:', e);
+                        }
+                    }
+
+                    if (txs.length === 0) {
+                        try {
+                            const localTx = localStorage.getItem('tonu_transactions_' + user.id);
+                            if (localTx) txs = JSON.parse(localTx);
+                        } catch (e) {}
+                    }
+
+                    if (cats.length === 0) {
+                        try {
+                            const localCats = localStorage.getItem('tonu_categories_' + user.id);
+                            if (localCats) cats = JSON.parse(localCats);
+                        } catch (e) {}
+                    }
+
+                    const budgetProgress = window.TonuBudget.calculateCategoryProgress(user.id, txs, cats);
+                    const exceededList = budgetProgress.filter(p => p.isExceeded);
+                    const warningList = budgetProgress.filter(p => p.isWarning);
+
+                    exceededList.forEach(p => {
+                        notifications.push({
+                            id: 'budget_exceeded_' + p.categoryId,
+                            type: 'danger',
+                            icon: 'fa-exclamation-triangle',
+                            title: `🚨 Limite Ultrapassado: ${p.name}`,
+                            message: `Você gastou ${formatCurrency(p.spent)} do teto de ${formatCurrency(p.limit)} (${p.percentage.toFixed(0)}%). Excedeu em ${formatCurrency(p.spent - p.limit)}!`,
+                            action: 'openBudgetModal',
+                            link: '#'
+                        });
+                    });
+
+                    warningList.forEach(p => {
+                        notifications.push({
+                            id: 'budget_warning_' + p.categoryId,
+                            type: 'warning',
+                            icon: 'fa-clock',
+                            title: `⚠️ Perto do Limite: ${p.name}`,
+                            message: `Você já utilizou ${p.percentage.toFixed(0)}% do teto (${formatCurrency(p.spent)} de ${formatCurrency(p.limit)}). Restam apenas ${formatCurrency(p.remaining)}.`,
+                            action: 'openBudgetModal',
+                            link: '#'
+                        });
+                    });
+
+                    // Update dashboard budget banner if present
+                    const budgetBanner = document.getElementById('budgetWarningBanner');
+                    if (budgetBanner) {
+                        if (exceededList.length > 0) {
+                            budgetBanner.style.display = 'flex';
+                            budgetBanner.className = 'due-bills-banner'; // danger red
+                            const titleEl = document.getElementById('budgetBannerTitle');
+                            const descEl = document.getElementById('budgetBannerDesc');
+                            const catNames = exceededList.map(p => p.name).join(', ');
+                            if (titleEl) titleEl.textContent = `🚨 Atenção aos Gastos: Limite estourado em ${exceededList.length} categoria(s)!`;
+                            if (descEl) descEl.textContent = `Você ultrapassou o teto estipulado em: ${catNames}. Clique para gerenciar seus limites.`;
+                        } else if (warningList.length > 0) {
+                            budgetBanner.style.display = 'flex';
+                            budgetBanner.className = 'due-bills-banner warning'; // warning yellow
+                            const titleEl = document.getElementById('budgetBannerTitle');
+                            const descEl = document.getElementById('budgetBannerDesc');
+                            const catNames = warningList.map(p => p.name).join(', ');
+                            if (titleEl) titleEl.textContent = `⚠️ Lembrete de Teto: Chegando perto do limite em ${warningList.length} categoria(s)!`;
+                            if (descEl) descEl.textContent = `Você já atingiu a margem de alerta em: ${catNames}. Fique de olho no seu consumo.`;
+                        } else {
+                            budgetBanner.style.display = 'none';
+                        }
+                    }
+                } catch (bErr) {
+                    console.warn('⚠️ Erro ao avaliar limites de orçamento:', bErr);
+                }
+            }
+
+            // 3. Sync status notification if offline queue has items
             if (window.tonuSync && window.tonuSync.db) {
                 try {
                     const queue = await window.tonuSync.getQueue?.();
@@ -164,6 +270,26 @@
         }
     }
 
+    function handleNotificationClick(id) {
+        const notif = notifications.find(n => n.id === id);
+        const dropdown = getNotificationDropdown();
+        if (dropdown) {
+            dropdown.classList.add('hidden');
+            isDropdownOpen = false;
+        }
+        if (notif) {
+            if (notif.action === 'openBudgetModal') {
+                if (window.TonuBudget && typeof window.TonuBudget.openBudgetModal === 'function') {
+                    window.TonuBudget.openBudgetModal();
+                    return;
+                }
+            }
+            if (notif.link && notif.link !== '#') {
+                window.location.href = notif.link;
+            }
+        }
+    }
+
     function renderNotificationList() {
         const container = document.getElementById('notifListContainer');
         if (!container) return;
@@ -174,7 +300,7 @@
         }
 
         container.innerHTML = notifications.map(n => `
-            <div class="notif-item notif-${n.type || 'info'}" onclick="window.location.href='${n.link || '#'}'">
+            <div class="notif-item notif-${n.type || 'info'}" onclick="window.handleNotificationClick('${n.id}')" style="cursor:pointer;">
                 <div class="notif-icon-box"><i class="fas ${n.icon || 'fa-info-circle'}"></i></div>
                 <div class="notif-details">
                     <strong class="notif-title">${n.title}</strong>
@@ -235,6 +361,7 @@
     window.checkNotifications = checkNotifications;
     window.updateNotificationBadge = updateNotificationBadge;
     window.clearAllNotifications = clearAllNotifications;
+    window.handleNotificationClick = handleNotificationClick;
 
     document.addEventListener('DOMContentLoaded', () => {
         setTimeout(checkNotifications, 1000);

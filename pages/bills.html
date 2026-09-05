@@ -23,12 +23,23 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
     <link rel="stylesheet" href="../css/sidebar-patch.css">
     <link rel="stylesheet" href="../css/bills.css">
     <link rel="stylesheet" href="../css/notifications.css">
     <link rel="stylesheet" href="../css/sync.css">
     <link rel="stylesheet" href="../css/sync-status.css">
+    <link rel="stylesheet" href="../css/dark-theme.css">
+
+    <!-- Anti-flicker Theme Init -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
 </head>
 
 <body>
@@ -50,14 +61,20 @@
                 <li role="none"><a href="settings.html" role="menuitem"><i class="fas fa-cog"></i> Configurações</a></li>
             </ul>
             <div class="sidebar-footer">
-                <div class="sidebar-user" style="display:flex;align-items:center;gap:10px;padding:8px 0;margin-bottom:8px;">
-                    <div id="sidebarUserAvatar" style="width:32px;height:32px;border-radius:50%;background:#6C5CE7;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;">U</div>
-                    <div style="min-width:0;">
-                        <strong id="sidebarUserName" style="font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Usuário</strong>
-                        <small id="sidebarUserEmail" style="font-size:10px;color:var(--color-text-muted,#94a3b8);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">user@tonu.app</small>
+                <a href="settings.html" class="sidebar-user-profile" id="sidebarUserProfile"
+                    title="Abrir Configurações e Perfil">
+                    <div class="avatar-circle" id="sidebarUserAvatar">U</div>
+                    <div class="sidebar-user-info">
+                        <span class="sidebar-user-name" id="sidebarUserName">Usuário</span>
+                        <span class="sidebar-user-email" id="sidebarUserEmail">Configurações</span>
+                        <div class="sidebar-user-status" id="sidebarUserStatus">
+                            <span class="status-dot"></span>
+                            <span>Ativo</span>
+                        </div>
                     </div>
-                </div>
-                <button class="btn-sair" onclick="logout()">
+                    <i class="fas fa-cog sidebar-user-icon" aria-hidden="true"></i>
+                </a>
+                <button class="btn-sair" onclick="logout()" aria-label="Sair da conta">
                     <i class="fas fa-sign-out-alt"></i> Sair
                 </button>
             </div>
@@ -194,7 +211,10 @@
     <div class="modal-overlay" id="billModalOverlay" onclick="if(event.target === this) closeBillModal()" role="dialog" aria-modal="true" aria-labelledby="billModalTitle">
         <div class="modal hidden" id="billModal">
             <div class="modal-header">
-                <h3 id="billModalTitle">Nova Conta</h3>
+                <div>
+                    <div class="sub"><i class="fas fa-file-invoice-dollar" style="margin-right:4px;"></i> Contas & Boletos</div>
+                    <h3 id="billModalTitle">Nova Conta</h3>
+                </div>
                 <button type="button" class="modal-close" onclick="closeBillModal()" aria-label="Fechar modal">
                     <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
@@ -204,7 +224,7 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="billDescription">Nome / Descrição da Conta *</label>
-                        <input type="text" id="billDescription" class="form-control" placeholder="Ex: Aluguel, Conta de Luz, Cartão Nubank" required>
+                        <input type="text" id="billDescription" class="form-control" placeholder="Ex: Aluguel, Conta de Luz, Fatura Cartão" required>
                     </div>
 
                     <div class="form-row">
@@ -230,18 +250,18 @@
                         <textarea id="billNotes" class="form-control" rows="2" placeholder="Informações adicionais, código do boleto..."></textarea>
                     </div>
 
-                    <div class="checkbox-group" style="padding: 10px 14px; background: var(--color-bg, #f8fafc); border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0);">
+                    <div class="checkbox-group" style="padding: 10px 14px; background: var(--color-bg, #f8fafc); border-radius: 10px; border: 1px solid var(--color-border, #e2e8f0);">
                         <input type="checkbox" id="billPaid">
                         <label for="billPaid" style="margin:0; font-size:13px; font-weight:600; cursor:pointer;">Marcar como já paga</label>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger btn-sm hidden" id="btnDeleteBill" onclick="deleteBill()">
-                        <i class="fas fa-trash"></i> Excluir
+                        <i class="fas fa-trash-can"></i> Excluir
                     </button>
                     <div style="flex:1;"></div>
                     <button type="button" class="btn btn-secondary" onclick="closeBillModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="btnSaveBill">💾 Salvar Conta</button>
+                    <button type="submit" class="btn btn-primary" id="btnSaveBill"><i class="fas fa-check"></i> Salvar Conta</button>
                 </div>
             </form>
         </div>

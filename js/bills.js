@@ -35,11 +35,28 @@
     }
 
     function formatCurrency(val) {
+        if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
+            return window.formatCurrency(val);
+        }
+        if (val === null || val === undefined || val === '') val = 0;
+        if (typeof val === 'string') {
+            const cleaned = val.replace(/[R$\s]/g, '');
+            if (cleaned.includes(',') && cleaned.includes('.')) {
+                val = cleaned.replace(/\./g, '').replace(',', '.');
+            } else if (cleaned.includes(',')) {
+                val = cleaned.replace(',', '.');
+            }
+            val = parseFloat(val);
+        }
         const num = Number(val) || 0;
         try {
-            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num).replace(/\u00A0/g, ' ');
         } catch {
-            return 'R$ ' + num.toFixed(2);
+            const isNegative = num < 0;
+            const parts = Math.abs(num).toFixed(2).split('.');
+            const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            const res = 'R$ ' + intPart + ',' + parts[1];
+            return isNegative ? '-' + res : res;
         }
     }
 
@@ -737,6 +754,8 @@
     window.toggleBillPaid = toggleBillPaid;
     window.changeMonth = changeMonth;
     window.goToCurrentMonth = goToCurrentMonth;
+    window.changeMonthHandler = changeMonth;
+    window.goToCurrentMonthHandler = goToCurrentMonth;
     window.loadBills = loadBills;
 
 })();

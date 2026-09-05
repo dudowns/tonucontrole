@@ -80,6 +80,17 @@
 </header>
 
 <main class="mobile-content">
+    <!-- SELETOR DE MÊS -->
+    <div style="display:flex; align-items:center; justify-content:space-between; background:var(--color-surface,#fff); padding:8px 14px; border-radius:12px; margin-bottom:10px; border:1px solid var(--color-border,#e2e8f0);">
+        <button onclick="changeMonth(-1)" aria-label="Mês anterior" style="background:none; border:none; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--color-text,#1e293b); cursor:pointer; font-size:14px;">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <span id="selectedMonth" style="font-weight:600; font-size:14px; color:var(--color-text,#1e293b);">Setembro 2026</span>
+        <button onclick="changeMonth(1)" aria-label="Próximo mês" style="background:none; border:none; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--color-text,#1e293b); cursor:pointer; font-size:14px;">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+
     <div class="filter-bar">
         <div class="search-box">
             <i class="fas fa-search"></i>
@@ -186,6 +197,33 @@ let allTransactions = [];
 let categories = [];
 let filteredTransactions = [];
 let currentQuickType = "expense";
+let currentMonthOffset = 0;
+
+const MONTH_NAMES = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+function getSelectedMonthDate() {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + currentMonthOffset);
+    return d;
+}
+
+function updateMonthDisplay() {
+    const d = getSelectedMonthDate();
+    const el = document.getElementById('selectedMonth');
+    if (el) {
+        el.textContent = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+    }
+}
+
+function changeMonth(delta) {
+    currentMonthOffset += Number(delta) || 0;
+    updateMonthDisplay();
+    loadTransactions();
+}
 
 document.addEventListener("DOMContentLoaded", async () => {
     const savedTheme = localStorage.getItem("tonu_theme") || "light";
@@ -194,6 +232,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.documentElement.setAttribute("data-theme", "dark");
         document.querySelector("#themeIcon")?.classList.replace("fa-moon", "fa-sun");
     }
+
+    updateMonthDisplay();
 
     try {
         const { data: { user } } = await supabaseClient.auth.getUser();
@@ -228,24 +268,29 @@ async function loadCategories() {
 
 async function loadTransactions() {
     try {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, "0");
+        const selDate = getSelectedMonthDate();
+        const year = selDate.getFullYear();
+        const month = String(selDate.getMonth() + 1).padStart(2, "0");
         const firstDay = `${year}-${month}-01`;
-        const lastDay = `${year}-${month}-${new Date(year, today.getMonth() + 1, 0).getDate()}`;
+        const lastDay = `${year}-${month}-${new Date(year, selDate.getMonth() + 1, 0).getDate()}`;
 
-        const { data, error } = await supabaseClient
-            .from("transactions")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .gte("date", firstDay)
-            .lte("date", lastDay)
-            .order("date", { ascending: false });
+        let txs = [];
+        if (supabaseClient) {
+            const { data, error } = await supabaseClient
+                .from("transactions")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .gte("date", firstDay)
+                .lte("date", lastDay)
+                .order("date", { ascending: false });
 
-        if (error) throw error;
-        allTransactions = data || [];
-        filteredTransactions = [...allTransactions];
-        renderTransactions();
+            if (!error && data) {
+                txs = data;
+            }
+        }
+
+        allTransactions = txs;
+        filterTransactions();
     } catch (error) {
         console.error("Erro ao carregar:", error);
     }
@@ -315,7 +360,17 @@ function filterTransactions() {
 function openAddTransaction() {
     setQuickType("expense");
     const dateInput = document.getElementById("quickDate");
-    if (dateInput) dateInput.value = new Date().toISOString().split("T")[0];
+    if (dateInput) {
+        const selDate = getSelectedMonthDate();
+        const now = new Date();
+        if (selDate.getFullYear() === now.getFullYear() && selDate.getMonth() === now.getMonth()) {
+            dateInput.value = now.toISOString().split("T")[0];
+        } else {
+            const y = selDate.getFullYear();
+            const m = String(selDate.getMonth() + 1).padStart(2, "0");
+            dateInput.value = `${y}-${m}-01`;
+        }
+    }
     populateCategoryOptions();
     document.getElementById("quickAddModal")?.classList.add("active");
 }
@@ -415,16 +470,34 @@ function showToast(message, type) {
 }
 
 function formatCurrency(value) {
+    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
+        return window.formatCurrency(value);
+    }
+    if (value === null || value === undefined || value === '') value = 0;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[R$\s]/g, '');
+        if (cleaned.includes(',') && cleaned.includes('.')) {
+            value = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (cleaned.includes(',')) {
+            value = cleaned.replace(',', '.');
+        }
+        value = parseFloat(value);
+    }
     const num = Number(value) || 0;
     try {
-        return new Intl.NumberFormat("pt-BR", {
+        const formatted = new Intl.NumberFormat("pt-BR", {
             style: "currency",
             currency: "BRL",
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(num);
+        return formatted.replace(/\u00A0/g, ' ');
     } catch {
-        return "R$ " + num.toFixed(2);
+        const isNegative = num < 0;
+        const parts = Math.abs(num).toFixed(2).split('.');
+        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const res = 'R$ ' + intPart + ',' + parts[1];
+        return isNegative ? '-' + res : res;
     }
 }
 

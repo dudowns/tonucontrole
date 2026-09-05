@@ -7,12 +7,40 @@
 (function () {
     'use strict';
 
+    function formatMoney(val) {
+        if (typeof window.formatCurrency === 'function') {
+            return window.formatCurrency(val);
+        }
+        if (val === null || val === undefined || val === '') val = 0;
+        if (typeof val === 'string') {
+            const cleaned = val.replace(/[R$\s]/g, '');
+            if (cleaned.includes(',') && cleaned.includes('.')) {
+                val = cleaned.replace(/\./g, '').replace(',', '.');
+            } else if (cleaned.includes(',')) {
+                val = cleaned.replace(',', '.');
+            }
+            val = parseFloat(val);
+        }
+        const num = Number(val) || 0;
+        try {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num).replace(/\u00A0/g, ' ');
+        } catch {
+            const isNegative = num < 0;
+            const parts = Math.abs(num).toFixed(2).split('.');
+            const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            const res = 'R$ ' + intPart + ',' + parts[1];
+            return isNegative ? '-' + res : res;
+        }
+    }
+
     // ==========================================================================
     // 1. ORÇAMENTOS E LIMITES POR CATEGORIA (TonuBudget)
     // ==========================================================================
     class TonuBudgetManager {
         constructor() {
             this.storagePrefix = 'tonu_budget_limits_';
+            this.nameMapPrefix = 'tonu_budget_namemap_';
+            this.thresholdPrefix = 'tonu_budget_threshold_';
         }
 
         getBudgets(userId) {
@@ -24,29 +52,150 @@
             }
         }
 
-        setCategoryBudget(userId, categoryId, limitAmount) {
-            const budgets = this.getBudgets(userId);
-            if (limitAmount > 0) {
-                budgets[categoryId] = parseFloat(limitAmount);
-            } else {
-                delete budgets[categoryId];
+        getNameMap(userId) {
+            try {
+                const raw = localStorage.getItem(this.nameMapPrefix + userId);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                return {};
             }
+        }
+
+        getWarningThreshold(userId) {
+            try {
+                const raw = localStorage.getItem(this.thresholdPrefix + userId);
+                const val = parseFloat(raw);
+                return (!isNaN(val) && val >= 50 && val <= 95) ? val : 80;
+            } catch (e) {
+                return 80;
+            }
+        }
+
+        setWarningThreshold(userId, threshold) {
+            const val = parseFloat(threshold) || 80;
+            localStorage.setItem(this.thresholdPrefix + userId, String(val));
+        }
+
+        getLimitForCategory(userId, categoryId, categoryName = null) {
+            const budgets = this.getBudgets(userId);
+            if (categoryId && budgets[categoryId] !== undefined) {
+                return Number(budgets[categoryId]) || 0;
+            }
+            if (categoryName) {
+                const cleanName = categoryName.trim().toLowerCase();
+                const nameMap = this.getNameMap(userId);
+                if (nameMap[cleanName] && budgets[nameMap[cleanName]] !== undefined) {
+                    return Number(budgets[nameMap[cleanName]]) || 0;
+                }
+                if (budgets[cleanName] !== undefined) {
+                    return Number(budgets[cleanName]) || 0;
+                }
+                // Check case-insensitive match on keys
+                for (const k in budgets) {
+                    if (k.toLowerCase() === cleanName) {
+                        return Number(budgets[k]) || 0;
+                    }
+                }
+            }
+            return 0;
+        }
+
+        setCategoryBudget(userId, categoryId, limitAmount, categoryName = null) {
+            const budgets = this.getBudgets(userId);
+            const nameMap = this.getNameMap(userId);
+            const limit = parseFloat(limitAmount) || 0;
+
+            const key = categoryId || (categoryName ? categoryName.trim() : null);
+            if (!key) return;
+
+            if (limit > 0) {
+                budgets[key] = limit;
+                if (categoryName) {
+                    const cleanName = categoryName.trim().toLowerCase();
+                    nameMap[cleanName] = key;
+                    budgets[cleanName] = limit;
+                }
+            } else {
+                delete budgets[key];
+                if (categoryName) {
+                    const cleanName = categoryName.trim().toLowerCase();
+                    delete nameMap[cleanName];
+                    delete budgets[cleanName];
+                }
+            }
+
             localStorage.setItem(this.storagePrefix + userId, JSON.stringify(budgets));
+            localStorage.setItem(this.nameMapPrefix + userId, JSON.stringify(nameMap));
+
+            try {
+                window.dispatchEvent(new CustomEvent('tonu:budget-updated', { detail: { categoryId, categoryName, limit } }));
+            } catch (e) {}
+
+            if (typeof window.checkNotifications === 'function') {
+                window.checkNotifications();
+            }
         }
 
         calculateCategoryProgress(userId, transactions, categories, targetMonth = null) {
             const now = new Date();
             const monthPrefix = targetMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            const budgets = this.getBudgets(userId);
+            const threshold = this.getWarningThreshold(userId);
             const results = [];
 
-            categories.filter(c => c.type === 'expense').forEach(cat => {
-                const limit = budgets[cat.id] || 0;
-                const spent = transactions
-                    .filter(t => t.type === 'expense' && t.category_id === cat.id && t.date && t.date.startsWith(monthPrefix))
+            // Gather base expense categories
+            const categoryPool = [...(categories || []).filter(c => c.type === 'expense')];
+
+            // Also check transactions in the current month for any custom categories not in categories list
+            const seenCategoryKeys = new Set(categoryPool.map(c => (c.name || '').trim().toLowerCase()));
+            (transactions || []).forEach(t => {
+                if (t.type === 'expense' && t.category) {
+                    const clean = t.category.trim().toLowerCase();
+                    if (!seenCategoryKeys.has(clean)) {
+                        seenCategoryKeys.add(clean);
+                        categoryPool.push({
+                            id: t.category_id || ('cat_' + clean),
+                            name: t.category.trim(),
+                            icon: 'fa-tag',
+                            color: '#6c5ce7',
+                            type: 'expense'
+                        });
+                    }
+                }
+            });
+
+            // Also check if user has set limits for any categories not yet in the pool
+            const budgets = this.getBudgets(userId);
+            for (const bKey in budgets) {
+                const cleanKey = bKey.trim().toLowerCase();
+                if (!seenCategoryKeys.has(cleanKey) && !categoryPool.some(c => c.id === bKey)) {
+                    seenCategoryKeys.add(cleanKey);
+                    categoryPool.push({
+                        id: bKey,
+                        name: bKey,
+                        icon: 'fa-bullseye',
+                        color: '#f39c12',
+                        type: 'expense'
+                    });
+                }
+            }
+
+            categoryPool.forEach(cat => {
+                const limit = this.getLimitForCategory(userId, cat.id, cat.name);
+                const cleanName = (cat.name || '').trim().toLowerCase();
+
+                const spent = (transactions || [])
+                    .filter(t => {
+                        if (t.type !== 'expense') return false;
+                        if (!t.date || !t.date.startsWith(monthPrefix)) return false;
+                        const tCat = (t.category || '').trim().toLowerCase();
+                        return (cat.id && t.category_id && String(t.category_id) === String(cat.id)) ||
+                               (cleanName && tCat === cleanName);
+                    })
                     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
                 const percentage = limit > 0 ? (spent / limit) * 100 : 0;
+                const isExceeded = limit > 0 && spent > limit;
+                const isWarning = limit > 0 && percentage >= threshold && spent <= limit;
 
                 results.push({
                     categoryId: cat.id,
@@ -56,28 +205,133 @@
                     limit: limit,
                     spent: spent,
                     remaining: Math.max(0, limit - spent),
-                    percentage: Math.min(percentage, 100),
-                    isExceeded: limit > 0 && spent > limit,
-                    isWarning: limit > 0 && percentage >= 80 && spent <= limit
+                    exceededBy: Math.max(0, spent - limit),
+                    percentage: percentage,
+                    isExceeded: isExceeded,
+                    isWarning: isWarning,
+                    threshold: threshold
                 });
+            });
+
+            // Sort: Exceeded first, then warnings, then highest spent
+            results.sort((a, b) => {
+                if (a.isExceeded && !b.isExceeded) return -1;
+                if (!a.isExceeded && b.isExceeded) return 1;
+                if (a.isWarning && !b.isWarning) return -1;
+                if (!a.isWarning && b.isWarning) return 1;
+                if (a.limit > 0 && b.limit === 0) return -1;
+                if (a.limit === 0 && b.limit > 0) return 1;
+                return b.spent - a.spent;
             });
 
             return results;
         }
 
+        checkLimitAfterTransaction(userId, transaction, allTransactions, categories) {
+            if (!transaction || transaction.type !== 'expense') return;
+
+            const now = new Date();
+            const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const txDate = transaction.date || currentMonthPrefix;
+            if (!txDate.startsWith(currentMonthPrefix)) return; // Only notify if current month
+
+            const catName = transaction.category || 'Outros';
+            const catId = transaction.category_id || null;
+            const limit = this.getLimitForCategory(userId, catId, catName);
+
+            if (limit <= 0) return; // No limit set for this category
+
+            const threshold = this.getWarningThreshold(userId);
+            const cleanName = catName.trim().toLowerCase();
+
+            // Calculate total spent in this category for current month
+            const txList = allTransactions || [];
+            const spent = txList
+                .filter(t => {
+                    if (t.type !== 'expense') return false;
+                    if (!t.date || !t.date.startsWith(currentMonthPrefix)) return false;
+                    const tCat = (t.category || '').trim().toLowerCase();
+                    return (catId && t.category_id && String(t.category_id) === String(catId)) ||
+                           (cleanName && tCat === cleanName);
+                })
+                .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+            const percentage = (spent / limit) * 100;
+
+            if (spent > limit) {
+                const diff = spent - limit;
+                if (typeof window.showToast === 'function') {
+                    window.showToast(`🚨 Limite Estourado: Você gastou ${formatMoney(spent)} em ${catName}! Limite de ${formatMoney(limit)} ultrapassado em ${formatMoney(diff)}.`, 'error');
+                }
+            } else if (percentage >= threshold) {
+                const remaining = limit - spent;
+                if (typeof window.showToast === 'function') {
+                    window.showToast(`⚠️ Atenção: Você atingiu ${percentage.toFixed(0)}% do limite de ${catName}! Gastou ${formatMoney(spent)} de ${formatMoney(limit)}. Restam ${formatMoney(remaining)}.`, 'warning');
+                }
+            }
+
+            if (typeof window.checkNotifications === 'function') {
+                setTimeout(window.checkNotifications, 100);
+            }
+        }
+
         async openBudgetModal() {
             try {
-                const { data: { user } } = await window.supabaseClient.auth.getUser();
-                if (!user) return;
+                let user = null;
+                if (window.supabaseOffline) {
+                    user = await window.supabaseOffline.isAuthenticated();
+                }
+                if (!user && window.supabaseClient?.auth?.getUser) {
+                    const res = await window.supabaseClient.auth.getUser();
+                    user = res?.data?.user;
+                }
 
-                const [txRes, catRes] = await Promise.all([
-                    window.supabaseClient.from('transactions').select('*').eq('user_id', user.id),
-                    window.supabaseClient.from('categories').select('*').eq('user_id', user.id)
-                ]);
+                if (!user) {
+                    try {
+                        const raw = localStorage.getItem('tonu_user');
+                        if (raw) user = JSON.parse(raw);
+                    } catch (e) {}
+                }
 
-                this.showBudgetModal(user.id, catRes.data || [], txRes.data || []);
+                if (!user) {
+                    if (window.showToast) window.showToast('Faça login para gerenciar limites.', 'warning');
+                    return;
+                }
+
+                let txList = [];
+                let catList = [];
+
+                if (window.supabaseClient) {
+                    try {
+                        const [txRes, catRes] = await Promise.all([
+                            window.supabaseClient.from('transactions').select('*').eq('user_id', user.id),
+                            window.supabaseClient.from('categories').select('*').eq('user_id', user.id)
+                        ]);
+                        txList = txRes.data || [];
+                        catList = catRes.data || [];
+                    } catch (e) {
+                        console.warn('Fallback para cache local:', e);
+                    }
+                }
+
+                if (txList.length === 0) {
+                    try {
+                        const local = localStorage.getItem('tonu_transactions_' + user.id);
+                        if (local) txList = JSON.parse(local);
+                    } catch (e) {}
+                }
+
+                if (catList.length === 0) {
+                    try {
+                        const local = localStorage.getItem('tonu_categories_' + user.id);
+                        if (local) catList = JSON.parse(local);
+                    } catch (e) {}
+                }
+
+                this.showBudgetModal(user.id, catList, txList);
             } catch (e) {
                 console.error('❌ Erro ao abrir modal de orçamentos:', e);
+                if (window.showToast) window.showToast('Erro ao abrir gerenciador de limites.', 'error');
             }
         }
 
@@ -85,82 +339,108 @@
             let modal = document.getElementById('tonuBudgetModal');
             if (modal) modal.remove();
 
-            const budgets = this.getBudgets(userId);
-            const expenseCategories = categories.filter(c => c.type === 'expense');
             const progressList = this.calculateCategoryProgress(userId, transactions, categories);
+            const currentThreshold = this.getWarningThreshold(userId);
 
-            const totalBudget = Object.values(budgets).reduce((sum, val) => sum + val, 0);
+            const activeBudgets = progressList.filter(p => p.limit > 0);
+            const totalBudget = activeBudgets.reduce((sum, p) => sum + p.limit, 0);
             const totalSpent = progressList.reduce((sum, p) => sum + p.spent, 0);
+            const totalSpentInBudgeted = activeBudgets.reduce((sum, p) => sum + p.spent, 0);
+
+            const exceededCount = progressList.filter(p => p.isExceeded).length;
+            const warningCount = progressList.filter(p => p.isWarning).length;
 
             const modalHtml = `
-            <div id="tonuBudgetModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.8); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px); font-family:'Inter',sans-serif;">
-                <div style="background:#ffffff; border-radius:20px; max-width:620px; width:100%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); border:1px solid #e2e8f0; overflow:hidden;">
-                    <div style="padding:20px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <div id="tonuBudgetModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.82); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px); font-family:'Inter',sans-serif;">
+                <div style="background:#ffffff; border-radius:20px; max-width:680px; width:100%; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); border:1px solid #e2e8f0; overflow:hidden;">
+                    
+                    <!-- HEADER -->
+                    <div style="padding:18px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:flex-start; background:#ffffff;">
                         <div>
-                            <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:0 0 4px 0;">
-                                <i class="fas fa-wallet" style="color:#6c5ce7; margin-right:8px;"></i> Orçamentos & Tetos de Gastos
-                            </h3>
-                            <p style="font-size:12px; color:#64748b; margin:0;">Defina limites mensais por categoria para controlar suas despesas.</p>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg, #6c5ce7, #a29bfe); color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 4px 10px rgba(108,92,231,0.25);">
+                                    <i class="fas fa-bullseye"></i>
+                                </div>
+                                <div>
+                                    <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:0;">
+                                        Limites & Tetos por Categoria
+                                    </h3>
+                                    <p style="font-size:12px; color:#64748b; margin:2px 0 0 0;">
+                                        Estipule limites mensais e receba notificações automáticas se chegar perto ou ultrapassar.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        <button onclick="document.getElementById('tonuBudgetModal').remove()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">&times;</button>
+                        <button onclick="document.getElementById('tonuBudgetModal').remove()" style="background:none; border:none; font-size:24px; cursor:pointer; color:#94a3b8; line-height:1; padding:4px;" title="Fechar">&times;</button>
                     </div>
 
-                    <div style="padding:14px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; font-size:13px;">
-                        <div>
-                            <span style="color:#64748b;">Orçamento Total:</span>
-                            <strong style="color:#0f172a; margin-left:4px;">${window.formatCurrency ? window.formatCurrency(totalBudget) : 'R$ ' + totalBudget.toFixed(2)}</strong>
+                    <!-- STATS BAR -->
+                    <div style="padding:12px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; font-size:12px;">
+                        <div style="background:#ffffff; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0;">
+                            <span style="color:#64748b; display:block; font-size:11px;">Teto Total Definido</span>
+                            <strong style="color:#0f172a; font-size:15px; font-weight:700;">${formatMoney(totalBudget)}</strong>
                         </div>
-                        <div>
-                            <span style="color:#64748b;">Gasto Real:</span>
-                            <strong style="color:${totalSpent > totalBudget && totalBudget > 0 ? '#ff7675' : '#00b894'}; margin-left:4px;">
-                                ${window.formatCurrency ? window.formatCurrency(totalSpent) : 'R$ ' + totalSpent.toFixed(2)}
+                        <div style="background:#ffffff; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0;">
+                            <span style="color:#64748b; display:block; font-size:11px;">Gasto Total no Mês</span>
+                            <strong style="color:${totalSpentInBudgeted > totalBudget && totalBudget > 0 ? '#ff7675' : '#00b894'}; font-size:15px; font-weight:700;">
+                                ${formatMoney(totalSpent)}
                             </strong>
                         </div>
-                    </div>
-
-                    <div style="flex:1; overflow-y:auto; padding:16px 24px; max-height:420px; display:flex; flex-direction:column; gap:12px;">
-                        ${expenseCategories.map(cat => {
-                const prog = progressList.find(p => p.categoryId === cat.id) || { limit: 0, spent: 0, percentage: 0 };
-                const barColor = prog.isExceeded ? '#ff7675' : (prog.isWarning ? '#fdcb6e' : '#00b894');
-
-                return `
-                            <div style="padding:12px 16px; background:#ffffff; border:1px solid #e2e8f0; border-radius:14px;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                                    <div style="display:flex; align-items:center; gap:10px;">
-                                        <div style="width:32px; height:32px; border-radius:8px; background:${cat.color || '#6c5ce7'}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px;">
-                                            <i class="fas ${cat.icon || 'fa-tag'}"></i>
-                                        </div>
-                                        <div>
-                                            <strong style="font-size:13px; color:#0f172a;">${cat.name}</strong>
-                                            <div style="font-size:11px; color:#64748b;">
-                                                Gasto atual: ${window.formatCurrency ? window.formatCurrency(prog.spent) : 'R$ ' + prog.spent.toFixed(2)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div style="display:flex; align-items:center; gap:6px;">
-                                        <span style="font-size:12px; color:#64748b;">Teto R$:</span>
-                                        <input type="number" step="10" min="0" id="budget_input_${cat.id}" value="${prog.limit || ''}" placeholder="Sem limite" style="width:110px; padding:6px 10px; border-radius:8px; border:1px solid #cbd5e1; font-size:13px; font-weight:600; text-align:right;">
-                                    </div>
-                                </div>
-                                ${prog.limit > 0 ? `
-                                <div style="width:100%; height:6px; background:#e2e8f0; border-radius:99px; overflow:hidden;">
-                                    <div style="width:${prog.percentage}%; height:100%; background:${barColor}; border-radius:99px; transition:width 0.3s;"></div>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; font-size:10px; color:#94a3b8; margin-top:4px;">
-                                    <span>${prog.percentage.toFixed(0)}% consumido</span>
-                                    <span>${prog.isExceeded ? '⚠️ Estourado em ' + (window.formatCurrency ? window.formatCurrency(prog.spent - prog.limit) : '') : 'Restante: ' + (window.formatCurrency ? window.formatCurrency(prog.remaining) : '')}</span>
-                                </div>
-                                ` : ''}
+                        <div style="background:#ffffff; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0;">
+                            <span style="color:#64748b; display:block; font-size:11px;">Status de Alertas</span>
+                            <div style="display:flex; gap:6px; align-items:center; margin-top:2px;">
+                                ${exceededCount > 0 ? `<span style="background:#fee2e2; color:#dc2626; padding:2px 6px; border-radius:6px; font-size:11px; font-weight:700;">🚨 ${exceededCount} estourado(s)</span>` : ''}
+                                ${warningCount > 0 ? `<span style="background:#fef3c7; color:#d97706; padding:2px 6px; border-radius:6px; font-size:11px; font-weight:700;">⚠️ ${warningCount} perto</span>` : ''}
+                                ${exceededCount === 0 && warningCount === 0 ? `<span style="background:#dcfce7; color:#16a34a; padding:2px 6px; border-radius:6px; font-size:11px; font-weight:700;">✅ Tudo no limite</span>` : ''}
                             </div>
-                            `;
-            }).join('')}
+                        </div>
                     </div>
 
-                    <div style="padding:16px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:12px; background:#f8fafc;">
-                        <button class="btn btn-outline btn-sm" onclick="document.getElementById('tonuBudgetModal').remove()">Fechar</button>
-                        <button class="btn btn-primary btn-sm" onclick="TonuBudget.saveBudgetsFromModal('${userId}', ${JSON.stringify(expenseCategories).replace(/"/g, '&quot;')})">
-                            <i class="fas fa-save"></i> Salvar Orçamentos
-                        </button>
+                    <!-- CONTROLS & FILTER BAR -->
+                    <div style="padding:12px 24px; background:#ffffff; border-bottom:1px solid #e2e8f0; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:200px;">
+                            <div style="position:relative; width:100%; max-width:240px;">
+                                <i class="fas fa-search" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:12px;"></i>
+                                <input type="text" id="budgetSearchInput" placeholder="Buscar categoria..." oninput="TonuBudget.filterList()" style="width:100%; padding:6px 10px 6px 30px; border-radius:8px; border:1px solid #cbd5e1; font-size:12px;">
+                            </div>
+                            <div style="display:flex; gap:4px;">
+                                <button type="button" class="btn-budget-filter active" id="btnFilterAll" onclick="TonuBudget.setFilter('all')" style="padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:#6c5ce7; color:#fff; border:none;">Todas (${progressList.length})</button>
+                                <button type="button" class="btn-budget-filter" id="btnFilterActive" onclick="TonuBudget.setFilter('active')" style="padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;">Com Limite (${activeBudgets.length})</button>
+                                <button type="button" class="btn-budget-filter" id="btnFilterAlerts" onclick="TonuBudget.setFilter('alerts')" style="padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;">Alertas (${exceededCount + warningCount})</button>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size:11px; color:#64748b; font-weight:600;">Alertar a:</label>
+                            <select id="budgetThresholdSelect" onchange="TonuBudget.updateThreshold('${userId}', this.value)" style="padding:4px 8px; border-radius:6px; border:1px solid #cbd5e1; font-size:11px; font-weight:600;">
+                                <option value="70" ${currentThreshold === 70 ? 'selected' : ''}>70% do teto</option>
+                                <option value="80" ${currentThreshold === 80 ? 'selected' : ''}>80% do teto (Padrão)</option>
+                                <option value="85" ${currentThreshold === 85 ? 'selected' : ''}>85% do teto</option>
+                                <option value="90" ${currentThreshold === 90 ? 'selected' : ''}>90% do teto</option>
+                            </select>
+
+                            <button type="button" onclick="TonuBudget.openNewCategoryModal('${userId}')" style="background:#ede9fe; color:#6c5ce7; border:1px solid #ddd6fe; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                                <i class="fas fa-plus"></i> Nova Categoria
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- CATEGORIES LIST -->
+                    <div id="budgetCategoryListContainer" style="flex:1; overflow-y:auto; padding:16px 24px; max-height:440px; display:flex; flex-direction:column; gap:12px;">
+                        ${this.renderCategoryRows(userId, progressList)}
+                    </div>
+
+                    <!-- FOOTER -->
+                    <div style="padding:14px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+                        <span style="font-size:12px; color:#64748b;">
+                            <i class="fas fa-info-circle" style="color:#6c5ce7;"></i> Deixe em branco ou 0 para desativar o limite.
+                        </span>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-outline btn-sm" onclick="document.getElementById('tonuBudgetModal').remove()">Fechar</button>
+                            <button class="btn btn-primary btn-sm" onclick="TonuBudget.saveBudgetsFromModal('${userId}', ${JSON.stringify(progressList.map(p => ({ id: p.categoryId, name: p.name }))).replace(/"/g, '&quot;')})">
+                                <i class="fas fa-save"></i> Salvar Limites
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -168,6 +448,148 @@
 
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             this.currentSaveCallback = onSaveCallback;
+            this.currentProgressList = progressList;
+            this.currentFilter = 'all';
+        }
+
+        renderCategoryRows(userId, progressList) {
+            if (!progressList || progressList.length === 0) {
+                return '<div style="padding:32px; text-align:center; color:#94a3b8; font-size:13px;">Nenhuma categoria encontrada. Clique em "+ Nova Categoria" acima para criar uma!</div>';
+            }
+
+            return progressList.map(prog => {
+                const barColor = prog.isExceeded ? '#ff7675' : (prog.isWarning ? '#fdcb6e' : '#00b894');
+                const badgeHtml = prog.isExceeded
+                    ? `<span style="background:#fee2e2; color:#dc2626; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:800;">🚨 LIMITE ESTOURADO (+${formatMoney(prog.exceededBy)})</span>`
+                    : (prog.isWarning
+                        ? `<span style="background:#fef3c7; color:#d97706; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:800;">⚠️ ${prog.percentage.toFixed(0)}% CONSUMIDO (Perto)</span>`
+                        : (prog.limit > 0 ? `<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700;">✅ Dentro do Limite</span>` : ''));
+
+                const pctWidth = Math.min(Math.max(prog.percentage, 0), 100);
+
+                return `
+                <div class="budget-cat-row" data-cat-id="${prog.categoryId}" data-cat-name="${prog.name.toLowerCase()}" data-has-limit="${prog.limit > 0}" data-is-alert="${prog.isExceeded || prog.isWarning}" style="padding:14px 16px; background:#ffffff; border:1px solid ${prog.isExceeded ? '#fca5a5' : (prog.isWarning ? '#fde68a' : '#e2e8f0')}; border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,0.02); transition:all 0.2s ease;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+                        
+                        <!-- LEFT INFO -->
+                        <div style="display:flex; align-items:center; gap:12px; min-width:200px;">
+                            <div style="width:38px; height:38px; border-radius:10px; background:${prog.color || '#6c5ce7'}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+                                <i class="fas ${prog.icon || 'fa-tag'}"></i>
+                            </div>
+                            <div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <strong style="font-size:14px; color:#0f172a;">${prog.name}</strong>
+                                    ${badgeHtml}
+                                </div>
+                                <div style="font-size:12px; color:#64748b; margin-top:2px;">
+                                    Gasto no mês: <strong style="color:#0f172a;">${formatMoney(prog.spent)}</strong>
+                                    ${prog.limit > 0 ? ` • Restante: <span style="color:${prog.isExceeded ? '#dc2626' : '#16a34a'}; font-weight:600;">${prog.isExceeded ? 'R$ 0,00' : formatMoney(prog.remaining)}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT INPUT -->
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:12px; color:#64748b; font-weight:600;">Limite Mensal:</span>
+                            <div style="position:relative; width:130px;">
+                                <span style="position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:12px; font-weight:700; color:#64748b;">R$</span>
+                                <input type="number" step="10" min="0" id="budget_input_${prog.categoryId}" value="${prog.limit || ''}" placeholder="Sem limite" style="width:100%; padding:7px 8px 7px 28px; border-radius:8px; border:1px solid #cbd5e1; font-size:13px; font-weight:700; color:#0f172a; text-align:right;">
+                            </div>
+                            <!-- PRESETS -->
+                            <div style="display:flex; gap:2px;">
+                                <button type="button" title="Definir R$ 100" onclick="document.getElementById('budget_input_${prog.categoryId}').value='100'" style="padding:4px 6px; font-size:10px; font-weight:600; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:4px; cursor:pointer; color:#475569;">100</button>
+                                <button type="button" title="Definir R$ 250" onclick="document.getElementById('budget_input_${prog.categoryId}').value='250'" style="padding:4px 6px; font-size:10px; font-weight:600; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:4px; cursor:pointer; color:#475569;">250</button>
+                                <button type="button" title="Definir R$ 500" onclick="document.getElementById('budget_input_${prog.categoryId}').value='500'" style="padding:4px 6px; font-size:10px; font-weight:600; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:4px; cursor:pointer; color:#475569;">500</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PROGRESS BAR -->
+                    ${prog.limit > 0 ? `
+                    <div style="margin-top:6px;">
+                        <div style="width:100%; height:7px; background:#e2e8f0; border-radius:99px; overflow:hidden;">
+                            <div style="width:${pctWidth}%; height:100%; background:${barColor}; border-radius:99px; transition:width 0.3s ease;"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:11px; color:#64748b; margin-top:4px;">
+                            <span>${prog.percentage.toFixed(0)}% do limite consumido</span>
+                            <span>${prog.isExceeded ? `<strong style="color:#dc2626;">Estourou o teto em ${formatMoney(prog.exceededBy)}</strong>` : `Teto: ${formatMoney(prog.limit)}`}</span>
+                        </div>
+                    </div>
+                    ` : `
+                    <div style="font-size:11px; color:#94a3b8; font-style:italic; margin-top:4px;">
+                        Nenhum teto configurado para esta categoria. Defina um valor ao lado para receber alertas.
+                    </div>
+                    `}
+                </div>
+                `;
+            }).join('');
+        }
+
+        filterList() {
+            const query = (document.getElementById('budgetSearchInput')?.value || '').trim().toLowerCase();
+            const filter = this.currentFilter || 'all';
+            const rows = document.querySelectorAll('.budget-cat-row');
+
+            rows.forEach(row => {
+                const name = row.getAttribute('data-cat-name') || '';
+                const hasLimit = row.getAttribute('data-has-limit') === 'true';
+                const isAlert = row.getAttribute('data-is-alert') === 'true';
+
+                let matchesSearch = !query || name.includes(query);
+                let matchesFilter = true;
+
+                if (filter === 'active') matchesFilter = hasLimit;
+                else if (filter === 'alerts') matchesFilter = isAlert;
+
+                if (matchesSearch && matchesFilter) {
+                    row.style.display = 'block';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        setFilter(filterType) {
+            this.currentFilter = filterType;
+            document.querySelectorAll('.btn-budget-filter').forEach(b => {
+                b.style.background = '#f1f5f9';
+                b.style.color = '#475569';
+                b.style.border = '1px solid #e2e8f0';
+            });
+
+            const activeBtn = document.getElementById(filterType === 'all' ? 'btnFilterAll' : (filterType === 'active' ? 'btnFilterActive' : 'btnFilterAlerts'));
+            if (activeBtn) {
+                activeBtn.style.background = '#6c5ce7';
+                activeBtn.style.color = '#ffffff';
+                activeBtn.style.border = 'none';
+            }
+
+            this.filterList();
+        }
+
+        updateThreshold(userId, newThreshold) {
+            this.setWarningThreshold(userId, newThreshold);
+            if (window.showToast) {
+                window.showToast(`Notificações serão disparadas ao atingir ${newThreshold}% do limite.`, 'info');
+            }
+            if (typeof window.checkNotifications === 'function') {
+                window.checkNotifications();
+            }
+        }
+
+        openNewCategoryModal(userId) {
+            if (window.TonuCategoryManager) {
+                window.TonuCategoryManager.showEditModal(null, userId);
+            } else {
+                const name = prompt('Nome da nova categoria:');
+                if (name && name.trim()) {
+                    const limit = prompt(`Limite mensal em R$ para "${name.trim()}" (opcional):`, '100');
+                    const num = parseFloat(limit) || 0;
+                    this.setCategoryBudget(userId, null, num, name.trim());
+                    if (window.showToast) window.showToast(`Categoria "${name.trim()}" configurada com limite de ${formatMoney(num)}!`, 'success');
+                    this.openBudgetModal();
+                }
+            }
         }
 
         saveBudgetsFromModal(userId, categories) {
@@ -175,16 +597,20 @@
                 const input = document.getElementById(`budget_input_${cat.id}`);
                 if (input) {
                     const val = parseFloat(input.value) || 0;
-                    this.setCategoryBudget(userId, cat.id, val);
+                    this.setCategoryBudget(userId, cat.id, val, cat.name);
                 }
             });
 
             if (window.showToast) {
-                window.showToast('Orçamentos atualizados com sucesso! 🎯', 'success');
+                window.showToast('Limites de gastos atualizados com sucesso! 🎯', 'success');
             }
 
             const modal = document.getElementById('tonuBudgetModal');
             if (modal) modal.remove();
+
+            if (typeof window.checkNotifications === 'function') {
+                window.checkNotifications();
+            }
 
             if (this.currentSaveCallback) {
                 this.currentSaveCallback();
@@ -265,18 +691,18 @@
                     <div style="padding:16px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">
                         <div style="background:#ffffff; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;">
                             <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Saldo Atual</div>
-                            <div style="font-size:16px; font-weight:700; color:#0f172a;">${window.formatCurrency ? window.formatCurrency(projection.currentBalance) : 'R$ ' + projection.currentBalance.toFixed(2)}</div>
+                            <div style="font-size:16px; font-weight:700; color:#0f172a;">${formatMoney(projection.currentBalance)}</div>
                         </div>
                         <div style="background:#ffffff; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;">
                             <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Saldo em 30 Dias</div>
                             <div style="font-size:16px; font-weight:700; color:${projection.finalBalance >= 0 ? '#00b894' : '#ff7675'};">
-                                ${window.formatCurrency ? window.formatCurrency(projection.finalBalance) : 'R$ ' + projection.finalBalance.toFixed(2)}
+                                ${formatMoney(projection.finalBalance)}
                             </div>
                         </div>
                         <div style="background:#ffffff; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;">
                             <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Menor Saldo Previsto</div>
                             <div style="font-size:16px; font-weight:700; color:${projection.minBalance >= 0 ? '#0984e3' : '#e17055'};">
-                                ${window.formatCurrency ? window.formatCurrency(projection.minBalance) : 'R$ ' + projection.minBalance.toFixed(2)}
+                                ${formatMoney(projection.minBalance)}
                             </div>
                         </div>
                     </div>
@@ -294,11 +720,11 @@
                                 <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; font-size:12px;">
                                     <span style="font-weight:600; color:#0f172a; width:80px;">${p.dayLabel}</span>
                                     <div style="flex:1; display:flex; gap:12px; font-size:11px;">
-                                        ${p.dayIncome > 0 ? `<span style="color:#00b894;">+ ${window.formatCurrency ? window.formatCurrency(p.dayIncome) : p.dayIncome}</span>` : ''}
-                                        ${p.dayExpense > 0 ? `<span style="color:#ff7675;">- ${window.formatCurrency ? window.formatCurrency(p.dayExpense) : p.dayExpense}</span>` : ''}
+                                        ${p.dayIncome > 0 ? `<span style="color:#00b894;">+ ${formatMoney(p.dayIncome)}</span>` : ''}
+                                        ${p.dayExpense > 0 ? `<span style="color:#ff7675;">- ${formatMoney(p.dayExpense)}</span>` : ''}
                                     </div>
                                     <span style="font-weight:700; color:${p.balance >= 0 ? '#0f172a' : '#ff7675'};">
-                                        Saldo: ${window.formatCurrency ? window.formatCurrency(p.balance) : 'R$ ' + p.balance.toFixed(2)}
+                                        Saldo: ${formatMoney(p.balance)}
                                     </span>
                                 </div>
                             `).join('')}
@@ -556,7 +982,7 @@
         }
 
         formatTextSummary(data) {
-            const fmt = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const fmt = (v) => formatMoney(v);
             let text = `📊 *RESUMO SEMANAL TONUCONTROLE*\n`;
             text += `📅 Período: ${data.startDate.split('-').reverse().join('/')} a ${data.endDate.split('-').reverse().join('/')}\n\n`;
             text += `💸 Despesas da semana: ${fmt(data.currentWeekExpenses)}\n`;
@@ -665,14 +1091,19 @@
                     </div>
 
                     <div style="flex:1; overflow-y:auto; padding:16px 24px; max-height:420px; display:flex; flex-direction:column; gap:8px;">
-                        ${cats.map(c => `
+                        ${cats.map(c => {
+                            const catLimit = window.TonuBudget ? window.TonuBudget.getLimitForCategory(user.id, c.id, c.name) : 0;
+                            return `
                             <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px;">
                                 <div style="display:flex; align-items:center; gap:12px;">
                                     <div style="width:36px; height:36px; border-radius:10px; background:${c.color || '#6c5ce7'}; color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:15px;">
                                         <i class="fas ${c.icon || 'fa-tag'}"></i>
                                     </div>
                                     <div>
-                                        <strong style="font-size:13px; color:#0f172a;">${c.name}</strong>
+                                        <div style="display:flex; align-items:center; gap:6px;">
+                                            <strong style="font-size:13px; color:#0f172a;">${c.name}</strong>
+                                            ${catLimit > 0 ? `<span style="background:#ede9fe; color:#6c5ce7; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:700;"><i class="fas fa-bullseye"></i> Limite: ${formatMoney(catLimit)}</span>` : ''}
+                                        </div>
                                         <div style="font-size:11px; color:#64748b;">
                                             ${c.type === 'income' ? '🟢 Receita' : '🔴 Despesa'}
                                         </div>
@@ -687,10 +1118,14 @@
                                     </button>
                                 </div>
                             </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </div>
 
-                    <div style="padding:14px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; background:#f8fafc;">
+                    <div style="padding:14px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+                        <button class="btn btn-outline btn-sm" onclick="window.TonuBudget?.openBudgetModal(); document.getElementById('tonuCategoriesModal').remove();">
+                            <i class="fas fa-sliders-h"></i> Ajustar Todos os Limites
+                        </button>
                         <button class="btn btn-outline btn-sm" onclick="document.getElementById('tonuCategoriesModal').remove()">Fechar</button>
                     </div>
                 </div>
@@ -707,6 +1142,7 @@
 
             const isEdit = !!id;
             const instance = window.TonuCategoryManagerInstance;
+            const currentLimit = window.TonuBudget ? window.TonuBudget.getLimitForCategory(userId, id, name) : 0;
 
             const modalHtml = `
             <div id="categoryEditSubModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.85); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px); font-family:'Inter',sans-serif;">
@@ -718,15 +1154,25 @@
                     <div style="display:flex; flex-direction:column; gap:14px;">
                         <div>
                             <label style="font-size:12px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Nome da Categoria</label>
-                            <input type="text" id="catEditName" value="${name}" placeholder="Ex: Mercado, Viagem..." style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; font-size:14px;">
+                            <input type="text" id="catEditName" value="${name}" placeholder="Ex: Delivery, Mercado, Lazer..." style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; font-size:14px;">
                         </div>
 
                         <div>
                             <label style="font-size:12px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Tipo</label>
-                            <select id="catEditType" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; font-size:14px;">
+                            <select id="catEditType" onchange="document.getElementById('catEditBudgetBox').style.display = this.value === 'expense' ? 'block' : 'none';" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; font-size:14px;">
                                 <option value="expense" ${type === 'expense' ? 'selected' : ''}>🔴 Despesa</option>
                                 <option value="income" ${type === 'income' ? 'selected' : ''}>🟢 Receita</option>
                             </select>
+                        </div>
+
+                        <!-- LIMITE MENSAL DE GASTOS -->
+                        <div id="catEditBudgetBox" style="background:#f8fafc; padding:12px; border-radius:12px; border:1px dashed #cbd5e1; display:${type === 'expense' ? 'block' : 'none'};">
+                            <label style="font-size:12px; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                                <i class="fas fa-bullseye" style="color:#6c5ce7;"></i> Limite Mensal de Gastos (R$)
+                                <span style="font-size:11px; font-weight:normal; color:#64748b;">(Opcional)</span>
+                            </label>
+                            <p style="font-size:11px; color:#64748b; margin:0 0 6px 0;">Receba uma notificação automática ao se aproximar ou ultrapassar este valor.</p>
+                            <input type="number" step="10" min="0" id="catEditBudgetLimit" value="${currentLimit > 0 ? currentLimit : ''}" placeholder="Ex: 100.00" style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; font-size:14px; font-weight:700; color:#0f172a;">
                         </div>
 
                         <div>
@@ -770,6 +1216,8 @@
             const type = document.getElementById('catEditType')?.value || 'expense';
             const color = document.getElementById('catEditSelectedColor')?.value || '#6c5ce7';
             const icon = document.getElementById('catEditSelectedIcon')?.value || 'fa-tag';
+            const budgetLimitInput = document.getElementById('catEditBudgetLimit');
+            const limitVal = budgetLimitInput ? (parseFloat(budgetLimitInput.value) || 0) : 0;
 
             if (!name) {
                 if (window.showToast) window.showToast('Digite um nome para a categoria.', 'warning');
@@ -777,6 +1225,7 @@
             }
 
             try {
+                let savedId = id;
                 if (id) {
                     await window.supabaseClient
                         .from('categories')
@@ -784,9 +1233,18 @@
                         .eq('id', id)
                         .eq('user_id', userId);
                 } else {
-                    await window.supabaseClient
+                    const insertRes = await window.supabaseClient
                         .from('categories')
-                        .insert([{ user_id: userId, name, type, color, icon }]);
+                        .insert([{ user_id: userId, name, type, color, icon }])
+                        .select();
+                    if (insertRes?.data && insertRes.data[0]) {
+                        savedId = insertRes.data[0].id;
+                    }
+                }
+
+                // Save or update budget limit if configured
+                if (window.TonuBudget) {
+                    window.TonuBudget.setCategoryBudget(userId, savedId || name, limitVal, name);
                 }
 
                 if (window.showToast) {
@@ -794,9 +1252,11 @@
                 }
 
                 document.getElementById('categoryEditSubModal')?.remove();
-                window.TonuCategoryManagerInstance.showManagerModal(window.TonuCategoryManagerInstance.currentUpdateCallback);
+                if (window.TonuCategoryManagerInstance) {
+                    window.TonuCategoryManagerInstance.showManagerModal(window.TonuCategoryManagerInstance.currentUpdateCallback);
+                }
 
-                if (window.TonuCategoryManagerInstance.currentUpdateCallback) {
+                if (window.TonuCategoryManagerInstance?.currentUpdateCallback) {
                     window.TonuCategoryManagerInstance.currentUpdateCallback();
                 }
             } catch (e) {
@@ -999,8 +1459,8 @@
                     </div>
 
                     <div style="padding:12px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; gap:16px; font-size:13px;">
-                        <span style="color:#00b894; font-weight:600;"><i class="fas fa-arrow-down"></i> Entradas: ${window.formatCurrency ? window.formatCurrency(totalIncome) : 'R$ ' + totalIncome.toFixed(2)}</span>
-                        <span style="color:#ff7675; font-weight:600;"><i class="fas fa-arrow-up"></i> Saídas: ${window.formatCurrency ? window.formatCurrency(totalExpense) : 'R$ ' + totalExpense.toFixed(2)}</span>
+                        <span style="color:#00b894; font-weight:600;"><i class="fas fa-arrow-down"></i> Entradas: ${formatMoney(totalIncome)}</span>
+                        <span style="color:#ff7675; font-weight:600;"><i class="fas fa-arrow-up"></i> Saídas: ${formatMoney(totalExpense)}</span>
                     </div>
 
                     <div style="flex:1; overflow-y:auto; padding:16px 24px; max-height:400px;">
@@ -1019,7 +1479,7 @@
                                         <div style="font-size:11px; color:#64748b;">${t.date}</div>
                                     </div>
                                     <div style="font-weight:700; font-size:14px; color:${t.type === 'income' ? '#00b894' : '#ff7675'};">
-                                        ${t.type === 'income' ? '+' : '-'} ${window.formatCurrency ? window.formatCurrency(t.amount) : 'R$ ' + t.amount.toFixed(2)}
+                                        ${t.type === 'income' ? '+' : '-'} ${formatMoney(t.amount)}
                                     </div>
                                 </div>
                             `).join('')}

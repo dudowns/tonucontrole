@@ -24,44 +24,44 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
     <link rel="stylesheet" href="../css/sidebar-patch.css">
     <link rel="stylesheet" href="../css/settings.css">
     <link rel="stylesheet" href="../css/notifications.css">
     <link rel="stylesheet" href="../css/sync.css">
     <link rel="stylesheet" href="../css/sync-status.css">
+    <link rel="stylesheet" href="../css/dark-theme.css">
+
+    <!-- Anti-flicker Theme Init -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
 
     <style>
-        /* ==========================================
-           PREFERS-REDUCED-MOTION
-           ========================================== */
         @media (prefers-reduced-motion: reduce) {
             * {
                 animation-duration: 0.01ms !important;
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
             }
-
             .spinner {
                 animation: none !important;
             }
-
             .settings-card:hover {
                 transform: none !important;
             }
         }
 
-        /* ==========================================
-           FOCO VISÍVEL
-           ========================================== */
         *:focus-visible {
             outline: 3px solid #6C5CE7 !important;
             outline-offset: 2px !important;
         }
 
-        /* ==========================================
-           SKIP LINK - ACESSIBILIDADE
-           ========================================== */
         .skip-link {
             position: absolute;
             top: -100%;
@@ -85,14 +85,10 @@
 
 <body>
 
-    <!-- ==========================================
-    SKIP LINK - ACESSIBILIDADE
-    ========================================== -->
-    <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
+    <!-- SKIP LINK -->
+    <a href="#mainContent" class="skip-link">Pular para o conteúdo principal</a>
 
-    <!-- ==========================================
-    APP SHELL
-    ========================================== -->
+    <!-- APP SHELL -->
     <div class="app-shell">
         <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button"
             aria-label="Fechar menu"></div>
@@ -110,7 +106,7 @@
                 <li role="none"><a href="transactions.html" role="menuitem"><i class="fas fa-exchange-alt"
                             aria-hidden="true"></i> Transações</a></li>
                 <li role="none"><a href="bills.html" role="menuitem"><i class="fas fa-file-invoice-dollar"
-                            aria-hidden="true"></i> Contas do Mês</a></li>
+                            aria-hidden="true"></i> Contas</a></li>
                 <li role="none"><a href="goals.html" role="menuitem"><i class="fas fa-bullseye" aria-hidden="true"></i>
                         Metas</a></li>
                 <li role="none"><a href="investments.html" role="menuitem"><i class="fas fa-chart-line"
@@ -138,14 +134,14 @@
             </div>
         </aside>
 
-        <main class="main-content full" id="mainContent" id="main-content">
+        <main class="main-content full" id="mainContent">
             <header class="topbar" role="banner">
                 <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu" aria-expanded="false">
                     <i class="fas fa-bars" aria-hidden="true"></i>
                 </button>
                 <div class="topbar-title">
-                    <div class="sub">Preferências</div>
-                    <h1>⚙️ Configurações</h1>
+                    <div class="sub">Preferências & Segurança</div>
+                    <h1>Configurações</h1>
                 </div>
                 <div class="topbar-actions">
                     <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro"
@@ -161,478 +157,610 @@
                 </div>
             </header>
 
-            <!-- ==========================================
-            CONTEÚDO - COMPLETO
-            ========================================== -->
-            <div class="content" id="main-content">
+            <!-- CONTEÚDO PRINCIPAL -->
+            <div class="content">
                 <div class="settings-content">
 
                     <!-- ==========================================
-                    CARD: APARÊNCIA & TEMA
-                    ========================================== -->
-                    <div class="settings-card">
-                        <h3><i class="fas fa-palette" aria-hidden="true"></i> Aparência & Tema</h3>
-                        <div class="setting-row">
-                            <div>
-                                <strong>Modo Escuro (Dark Mode)</strong>
-                                <p style="font-size:12px; color:var(--color-text-muted); margin:2px 0 0 0;">
-                                    Alterna entre a interface clara e o tema escuro de alto contraste.
-                                </p>
-                            </div>
-                            <button class="btn btn-outline btn-sm" onclick="toggleTheme()" aria-label="Alternar tema">
-                                <i class="fas fa-adjust" aria-hidden="true"></i> Alternar Tema
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- ==========================================
-                    CARD: CATEGORIAS & ORÇAMENTOS
-                    ========================================== -->
-                    <div class="settings-card">
-                        <h3><i class="fas fa-wallet" aria-hidden="true"></i> Categorias & Orçamentos Mensais</h3>
-                        <p>Personalize suas categorias com cores e ícones exclusivos e defina metas e tetos de gastos
-                            para cada uma.</p>
-                        <div class="settings-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-                            <button class="btn btn-primary btn-sm" onclick="openCategoriesManager()"
-                                aria-label="Gerenciar categorias">
-                                <i class="fas fa-tags" aria-hidden="true"></i> Gerenciar Categorias
-                            </button>
-                            <button class="btn btn-outline btn-sm" onclick="openBudgetLimitsModal()"
-                                aria-label="Definir orçamentos">
-                                <i class="fas fa-sliders-h" aria-hidden="true"></i> Definir Orçamentos & Tetos
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- ==========================================
-                    CARD: NOTIFICAÇÕES
-                    ========================================== -->
-                    <div class="settings-card" id="notifSettingsCard">
-                        <h3><i class="fas fa-bell" aria-hidden="true"></i> Notificações & Lembretes de Vencimento</h3>
-                        <p>Receba alertas automáticos e notificações Push para nunca atrasar o pagamento de suas contas.
-                        </p>
-
-                        <div class="notif-switch-row">
-                            <div class="notif-switch-info">
-                                <strong>🔔 Notificações Push no Navegador</strong>
-                                <small id="notifPermStatusText">Verificando status de permissão...</small>
-                            </div>
-                            <label class="custom-toggle">
-                                <input type="checkbox" id="togglePushEnabled" onchange="togglePushNotifications()">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-
-                        <div id="notifPermissionActionRow" class="setting-row hidden" style="padding: 10px 0;">
-                            <span class="setting-label" style="font-size:12px; color:var(--color-text-light);">Permissão
-                                no navegador pendente:</span>
-                            <button class="btn btn-primary btn-sm" onclick="requestPushPermissionFromSettings()"
-                                aria-label="Permitir notificações">
-                                <i class="fas fa-shield-alt" aria-hidden="true"></i> Permitir Notificações
-                            </button>
-                        </div>
-
-                        <div style="padding: 14px 0; border-bottom: 1px solid var(--color-border-light);">
-                            <div class="notif-switch-info" style="padding-right:0; margin-bottom:6px;">
-                                <strong>📅 Quando você deseja ser lembrado?</strong>
-                                <small>Escolha com quantos dias de antecedência enviar lembretes antes do
-                                    vencimento:</small>
-                            </div>
-                            <div class="days-chips-group">
-                                <div class="day-chip" id="chipDay0" onclick="toggleReminderDay(0)" role="button"
-                                    tabindex="0">
-                                    <i class="fas fa-check" aria-hidden="true"></i> No dia do vencimento
+                         BANNER DE PERFIL & RESUMO EM DESTAQUE
+                         ========================================== -->
+                    <div class="settings-profile-hero" id="profileHero">
+                        <div class="profile-hero-top">
+                            <div class="profile-user-summary">
+                                <div class="avatar-large-container" onclick="triggerAvatarUpload()"
+                                    title="Clique para alterar a foto de perfil" role="button" tabindex="0"
+                                    aria-label="Alterar foto de perfil">
+                                    <div class="avatar-large" id="avatarLarge">U</div>
+                                    <div class="avatar-upload-overlay">
+                                        <i class="fas fa-camera" aria-hidden="true"></i>
+                                    </div>
                                 </div>
-                                <div class="day-chip" id="chipDay1" onclick="toggleReminderDay(1)" role="button"
-                                    tabindex="0">
-                                    <i class="fas fa-check" aria-hidden="true"></i> 1 dia antes
-                                </div>
-                                <div class="day-chip" id="chipDay2" onclick="toggleReminderDay(2)" role="button"
-                                    tabindex="0">
-                                    <i class="fas fa-check" aria-hidden="true"></i> 2 dias antes
-                                </div>
-                                <div class="day-chip" id="chipDay3" onclick="toggleReminderDay(3)" role="button"
-                                    tabindex="0">
-                                    <i class="fas fa-check" aria-hidden="true"></i> 3 dias antes
-                                </div>
-                                <div class="day-chip" id="chipDay5" onclick="toggleReminderDay(5)" role="button"
-                                    tabindex="0">
-                                    <i class="fas fa-check" aria-hidden="true"></i> 5 dias antes
-                                </div>
-                                <div class="day-chip" id="chipDay7" onclick="toggleReminderDay(7)" role="button"
-                                    tabindex="0">
-                                    <i class="fas fa-check" aria-hidden="true"></i> 7 dias antes
+                                <input type="file" id="avatarFileInput"
+                                    accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;"
+                                    onchange="handleAvatarFileSelect(event)" aria-label="Selecionar foto de perfil">
+                                <div class="profile-meta">
+                                    <div class="profile-name" id="profileName">Usuário</div>
+                                    <div class="profile-email" id="profileEmail">email@exemplo.com</div>
+                                    <div class="profile-badge-active">
+                                        <span class="status-dot"></span>
+                                        <span>Conta Pessoal Conectada</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="notif-switch-row">
-                            <div class="notif-switch-info">
-                                <strong>🚨 Alertar Contas Já Vencidas</strong>
-                                <small>Enviar alerta se houver contas pendentes com data de vencimento
-                                    ultrapassada.</small>
-                            </div>
-                            <label class="custom-toggle">
-                                <input type="checkbox" id="toggleRemindOverdue" onchange="updateNotificationSettings()">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-
-                        <div class="notif-switch-row">
-                            <div class="notif-switch-info">
-                                <strong>🔊 Som e Vibração nos Alertas</strong>
-                                <small>Tocar tom audível suave e vibrar o dispositivo ao disparar notificações.</small>
-                            </div>
-                            <label class="custom-toggle">
-                                <input type="checkbox" id="toggleNotifSound" onchange="updateNotificationSettings()">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-
-                        <div class="settings-actions" style="margin-top: var(--space-md);">
-                            <button class="btn btn-outline" onclick="testPushNotificationFromSettings()"
-                                aria-label="Testar notificação">
-                                <i class="fas fa-paper-plane" aria-hidden="true"></i> Testar Notificação Push
-                            </button>
-                            <button class="btn btn-secondary" onclick="checkBillsFromSettings()"
-                                aria-label="Verificar contas">
-                                <i class="fas fa-sync-alt" aria-hidden="true"></i> Verificar Contas Agora
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- ==========================================
-                    CARD: PERFIL
-                    ========================================== -->
-                    <div class="settings-card">
-                        <h3><i class="fas fa-user" aria-hidden="true"></i> Perfil</h3>
-                        <div class="profile-info">
-                            <div class="avatar-large-container" onclick="triggerAvatarUpload()"
-                                title="Clique para alterar a foto de perfil" role="button" tabindex="0"
-                                aria-label="Alterar foto de perfil">
-                                <div class="avatar-large" id="avatarLarge">U</div>
-                                <div class="avatar-upload-overlay">
-                                    <i class="fas fa-camera" aria-hidden="true"></i>
-                                </div>
-                            </div>
-                            <input type="file" id="avatarFileInput"
-                                accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;"
-                                onchange="handleAvatarFileSelect(event)" aria-label="Selecionar foto de perfil">
-                            <div>
-                                <div class="profile-name" id="profileName">Usuário</div>
-                                <div class="profile-email" id="profileEmail">email@exemplo.com</div>
-                            </div>
-                        </div>
-                        <div class="profile-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button class="btn btn-primary btn-sm" onclick="triggerAvatarUpload()"
-                                aria-label="Alterar foto">
-                                <i class="fas fa-camera" aria-hidden="true"></i> Alterar Foto
-                            </button>
-                            <button class="btn btn-outline btn-sm hidden" id="btnRemoveAvatar" onclick="removeAvatar()"
-                                aria-label="Remover foto">
-                                <i class="fas fa-trash-alt" aria-hidden="true"></i> Remover Foto
-                            </button>
-                            <button class="btn btn-outline btn-sm" onclick="editProfile()" aria-label="Editar nome">
-                                <i class="fas fa-edit" aria-hidden="true"></i> Editar Nome
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- ==========================================
-                    CARD: MOEDA
-                    ========================================== -->
-                    <div class="settings-card">
-                        <h3><i class="fas fa-dollar-sign" aria-hidden="true"></i> Moeda</h3>
-                        <div class="setting-row">
-                            <span class="setting-label">Moeda principal</span>
-                            <select id="currencySelect" class="form-control" style="width:auto;min-width:120px;"
-                                onchange="changeCurrency()" aria-label="Selecionar moeda">
-                                <option value="BRL">R$ Real (BRL)</option>
-                                <option value="USD">$ Dólar (USD)</option>
-                                <option value="EUR">€ Euro (EUR)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- ==========================================
-                    CARD: ESTATÍSTICAS
-                    ========================================== -->
-                    <div class="settings-card">
-                        <h3><i class="fas fa-chart-bar" aria-hidden="true"></i> Estatísticas</h3>
-                        <div class="setting-row">
-                            <span class="setting-label">Total de transações</span>
-                            <span class="setting-value" id="totalTransactions">0</span>
-                        </div>
-                        <div class="setting-row">
-                            <span class="setting-label">Total de metas</span>
-                            <span class="setting-value" id="totalGoals">0</span>
-                        </div>
-                        <div class="setting-row">
-                            <span class="setting-label">Total de investimentos</span>
-                            <span class="setting-value" id="totalInvestments">0</span>
-                        </div>
-                    </div>
-
-                    <!-- ==========================================
-                    CARD: RESUMO SEMANAL
-                    ========================================== -->
-                    <div class="settings-card" id="weeklyReportCard">
-                        <h3><i class="fas fa-envelope-open-text" aria-hidden="true"></i> Resumo Semanal de Gastos</h3>
-                        <p>Acompanhe o balanço dos últimos 7 dias, maiores categorias de consumo e envie o relatório por
-                            e-mail.</p>
-                        <div class="settings-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-                            <button class="btn btn-primary btn-sm" onclick="TonuWeeklyReport.showWeeklySummaryModal()"
-                                aria-label="Visualizar resumo semanal">
-                                <i class="fas fa-chart-pie" aria-hidden="true"></i> Visualizar Resumo Semanal
-                            </button>
-                            <button class="btn btn-outline btn-sm" onclick="TonuWeeklyReport.sendWeeklyEmail()"
-                                aria-label="Enviar resumo por e-mail">
-                                <i class="fas fa-paper-plane" aria-hidden="true"></i> Enviar Resumo por E-mail
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- ==========================================
-                    CARD: SEGURANÇA - PIN, INATIVIDADE & 2FA
-                    ========================================== -->
-                    <div class="settings-card" id="securityPinCard">
-                        <h3><i class="fas fa-key" aria-hidden="true"></i> Bloqueio por PIN, Inatividade & 2FA</h3>
-                        <p>Configure uma senha numérica de 4 dígitos para proteger o aplicativo contra acessos indevidos
-                            e ative o encerramento automático por inatividade.</p>
-
-                        <div class="setting-row">
-                            <div>
-                                <strong id="pinStatusText">PIN de 4 Dígitos</strong>
-                                <p style="font-size:12px; color:var(--color-text-muted); margin:2px 0 0 0;"
-                                    id="pinSubText">
-                                    Exigido ao abrir o aplicativo ou retornar da tela bloqueada.
-                                </p>
-                            </div>
-                            <div id="pinActionContainer">
-                                <button class="btn btn-outline btn-sm" onclick="handleConfigurePin()"
-                                    aria-label="Configurar PIN">
-                                    <i class="fas fa-plus" aria-hidden="true"></i> Ativar PIN
+                            <div class="profile-actions">
+                                <button class="btn btn-primary btn-sm" onclick="triggerAvatarUpload()"
+                                    aria-label="Alterar foto">
+                                    <i class="fas fa-camera" aria-hidden="true"></i> Alterar Foto
+                                </button>
+                                <button class="btn btn-outline btn-sm hidden" id="btnRemoveAvatar" onclick="removeAvatar()"
+                                    aria-label="Remover foto">
+                                    <i class="fas fa-trash-alt" aria-hidden="true"></i> Remover Foto
+                                </button>
+                                <button class="btn btn-outline btn-sm" onclick="editProfile()" aria-label="Editar nome">
+                                    <i class="fas fa-edit" aria-hidden="true"></i> Editar Nome
                                 </button>
                             </div>
                         </div>
 
-                        <div class="setting-row">
-                            <div>
-                                <strong>Bloqueio Automático por Inatividade</strong>
-                                <p style="font-size:12px; color:var(--color-text-muted); margin:2px 0 0 0;">
-                                    Tempo sem interação até que o aplicativo seja bloqueado.
-                                </p>
+                        <!-- ESTATÍSTICAS INTEGRADAS -->
+                        <div class="profile-stats-grid">
+                            <div class="profile-stat-item">
+                                <div class="profile-stat-icon transactions">
+                                    <i class="fas fa-exchange-alt" aria-hidden="true"></i>
+                                </div>
+                                <div class="profile-stat-info">
+                                    <span class="profile-stat-value" id="totalTransactions">0</span>
+                                    <span class="profile-stat-label">Transações</span>
+                                </div>
                             </div>
-                            <select id="selectInactivityTimeout" class="form-control" style="width:auto;"
-                                onchange="handleInactivityChange(this.value)" aria-label="Tempo de inatividade">
-                                <option value="0">Nunca</option>
-                                <option value="2">Após 2 minutos</option>
-                                <option value="5" selected>Após 5 minutos</option>
-                                <option value="15">Após 15 minutos</option>
-                                <option value="30">Após 30 minutos</option>
-                            </select>
+
+                            <div class="profile-stat-item">
+                                <div class="profile-stat-icon goals">
+                                    <i class="fas fa-bullseye" aria-hidden="true"></i>
+                                </div>
+                                <div class="profile-stat-info">
+                                    <span class="profile-stat-value" id="totalGoals">0</span>
+                                    <span class="profile-stat-label">Metas Ativas</span>
+                                </div>
+                            </div>
+
+                            <div class="profile-stat-item">
+                                <div class="profile-stat-icon investments">
+                                    <i class="fas fa-chart-line" aria-hidden="true"></i>
+                                </div>
+                                <div class="profile-stat-info">
+                                    <span class="profile-stat-value" id="totalInvestments">0</span>
+                                    <span class="profile-stat-label">Investimentos</span>
+                                </div>
+                            </div>
+
+                            <div class="profile-stat-item">
+                                <div class="profile-stat-icon currency">
+                                    <i class="fas fa-coins" aria-hidden="true"></i>
+                                </div>
+                                <div class="profile-stat-info">
+                                    <span class="profile-stat-value" id="displayCurrencyLabel">BRL (R$)</span>
+                                    <span class="profile-stat-label">Moeda Padrão</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ==========================================
+                         BARRA DE NAVEGAÇÃO POR ABAS
+                         ========================================== -->
+                    <div class="settings-tabs-wrapper">
+                        <div class="settings-nav-tabs" role="tablist" aria-label="Categorias de configuração">
+                            <button class="settings-tab-btn active" data-tab="all" onclick="switchSettingsCategory('all', this)" role="tab" aria-selected="true">
+                                <i class="fas fa-layer-group" aria-hidden="true"></i> Todas as Seções
+                            </button>
+                            <button class="settings-tab-btn" data-tab="general" onclick="switchSettingsCategory('general', this)" role="tab" aria-selected="false">
+                                <i class="fas fa-sliders-h" aria-hidden="true"></i> Geral & Visual
+                            </button>
+                            <button class="settings-tab-btn" data-tab="notifications" onclick="switchSettingsCategory('notifications', this)" role="tab" aria-selected="false">
+                                <i class="fas fa-bell" aria-hidden="true"></i> Notificações
+                            </button>
+                            <button class="settings-tab-btn" data-tab="security" onclick="switchSettingsCategory('security', this)" role="tab" aria-selected="false">
+                                <i class="fas fa-shield-alt" aria-hidden="true"></i> Segurança
+                            </button>
+                            <button class="settings-tab-btn" data-tab="pwa" onclick="switchSettingsCategory('pwa', this)" role="tab" aria-selected="false">
+                                <i class="fas fa-bolt" aria-hidden="true"></i> PWA & Sincronização
+                            </button>
+                            <button class="settings-tab-btn" data-tab="backup" onclick="switchSettingsCategory('backup', this)" role="tab" aria-selected="false">
+                                <i class="fas fa-database" aria-hidden="true"></i> Backup & Dados
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ==========================================
+                         SEÇÃO 1: GERAL & VISUAL
+                         ========================================== -->
+                    <section class="settings-section" id="section-general" data-section="general">
+                        <div class="settings-section-title">
+                            <i class="fas fa-sliders-h" aria-hidden="true"></i> Geral & Visual
                         </div>
 
-                        <div class="setting-row">
-                            <div>
-                                <strong>Autenticação em Duas Etapas (2FA)</strong>
-                                <p style="font-size:12px; color:var(--color-text-muted); margin:2px 0 0 0;"
-                                    id="twoFactorSubText">
-                                    Camada adicional de proteção via e-mail ou código de uso único.
-                                </p>
+                        <!-- CARD: APARÊNCIA & TEMA -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon primary">
+                                    <i class="fas fa-palette" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Aparência & Tema</h3>
+                                    <p>Alterne entre a interface suave clara e o tema escuro de alto contraste.</p>
+                                </div>
                             </div>
-                            <div id="twoFactorActionContainer">
-                                <button class="btn btn-outline btn-sm" onclick="handleToggle2FA()"
-                                    aria-label="Configurar 2FA">
-                                    <i class="fas fa-shield-alt" aria-hidden="true"></i> Configurar 2FA
+                            <div class="setting-row">
+                                <div class="setting-row-text">
+                                    <strong>Modo Escuro (Dark Mode)</strong>
+                                    <small>Ideal para ambientes com pouca luz e economia de bateria.</small>
+                                </div>
+                                <button class="btn btn-outline btn-sm" onclick="toggleTheme()" aria-label="Alternar tema">
+                                    <i class="fas fa-adjust" aria-hidden="true"></i> Alternar Tema
                                 </button>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- ==========================================
-                    CARD: BIOMETRIA
-                    ========================================== -->
-                    <div class="settings-card" id="biometricsCard">
-                        <h3><i class="fas fa-fingerprint" aria-hidden="true"></i> Biometria & Face ID</h3>
-                        <p>Acesse o aplicativo de forma ultra-rápida e segura usando a impressão digital ou
-                            reconhecimento facial do seu aparelho.</p>
-                        <div class="setting-row">
-                            <div>
-                                <strong id="biometricsStatusText">Status da Biometria</strong>
-                                <p style="font-size:12px; color:var(--color-text-muted); margin:2px 0 0 0;"
-                                    id="biometricsSubText">
-                                    Verificando disponibilidade no dispositivo...
-                                </p>
+                        <!-- CARD: MOEDA & PREFERÊNCIAS REGIONAIS -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon warning">
+                                    <i class="fas fa-dollar-sign" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Moeda & Formatação</h3>
+                                    <p>Define a moeda base utilizada para exibir saldos, transações e projeções.</p>
+                                </div>
                             </div>
-                            <div id="biometricsActionContainer">
-                                <button class="btn btn-outline btn-sm" id="btnRegisterBiometrics"
-                                    onclick="handleRegisterBiometrics()" aria-label="Ativar biometria">
-                                    <i class="fas fa-plus" aria-hidden="true"></i> Ativar Biometria
+                            <div class="setting-row">
+                                <div class="setting-row-text">
+                                    <span class="setting-label">Moeda Principal</span>
+                                    <small>Os valores serão formatados conforme o símbolo e separadores selecionados.</small>
+                                </div>
+                                <select id="currencySelect" class="form-control" style="width:auto;min-width:140px;"
+                                    onchange="changeCurrency(); updateCurrencyBadge();" aria-label="Selecionar moeda">
+                                    <option value="BRL">R$ Real (BRL)</option>
+                                    <option value="USD">$ Dólar (USD)</option>
+                                    <option value="EUR">€ Euro (EUR)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- CARD: CATEGORIAS & ORÇAMENTOS -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon success">
+                                    <i class="fas fa-wallet" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Categorias & Orçamentos Mensais</h3>
+                                    <p>Personalize suas categorias com cores e ícones exclusivos e defina metas e tetos de gastos para cada uma.</p>
+                                </div>
+                            </div>
+                            <div class="settings-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+                                <button class="btn btn-primary btn-sm" onclick="openCategoriesManager()"
+                                    aria-label="Gerenciar categorias">
+                                    <i class="fas fa-tags" aria-hidden="true"></i> Gerenciar Categorias
+                                </button>
+                                <button class="btn btn-outline btn-sm" onclick="openBudgetLimitsModal()"
+                                    aria-label="Definir orçamentos">
+                                    <i class="fas fa-sliders-h" aria-hidden="true"></i> Definir Orçamentos & Tetos
                                 </button>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- ==========================================
-                    CARD: CRIPTOGRAFIA
-                    ========================================== -->
-                    <div class="settings-card" id="encryptionCard">
-                        <h3><i class="fas fa-shield-alt" aria-hidden="true"></i> Criptografia Local dos Dados</h3>
-                        <p>Protege suas transações e dados armazenados offline no IndexedDB com criptografia militar
-                            AES-GCM de 256 bits.</p>
-                        <div class="setting-row">
-                            <div>
-                                <strong>Criptografia AES-GCM (Web Crypto)</strong>
-                                <p style="font-size:12px; color:var(--color-text-muted); margin:2px 0 0 0;">
-                                    Dados offline cifrados contra extração direta no navegador.
-                                </p>
+                        <!-- CARD: RESUMO SEMANAL -->
+                        <div class="settings-card" id="weeklyReportCard">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon info">
+                                    <i class="fas fa-envelope-open-text" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Resumo Semanal de Gastos</h3>
+                                    <p>Acompanhe o balanço dos últimos 7 dias, maiores categorias de consumo e envie o relatório por e-mail.</p>
+                                </div>
                             </div>
-                            <span class="badge"
-                                style="background:#e8f8f5; color:#00b894; font-weight:600; padding:4px 8px; border-radius:6px;"
-                                id="encryptionBadge">
-                                <i class="fas fa-lock" aria-hidden="true"></i> Protegido
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- ==========================================
-                    CARD: RECURSOS AVANÇADOS PWA
-                    ========================================== -->
-                    <div class="settings-card" id="pwaAdvancedCard">
-                        <h3><i class="fas fa-mobile-alt" aria-hidden="true"></i> Recursos Avançados do PWA</h3>
-                        <p>Funcionalidades nativas ativas no aplicativo instalado no celular ou computador.</p>
-
-                        <div class="setting-row">
-                            <div>
-                                <strong>⚡ Background Sync (Sincronização em Segundo Plano)</strong>
-                                <p style="font-size:12px; color:var(--color-text-muted); margin:2px 0 0 0;">
-                                    Permite adicionar despesas, pagar contas e alterar metas mesmo sem internet. Os
-                                    dados são sincronizados automaticamente assim que a conexão retornar.
-                                </p>
+                            <div class="settings-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+                                <button class="btn btn-primary btn-sm" onclick="TonuWeeklyReport.showWeeklySummaryModal()"
+                                    aria-label="Visualizar resumo semanal">
+                                    <i class="fas fa-chart-pie" aria-hidden="true"></i> Visualizar Resumo Semanal
+                                </button>
+                                <button class="btn btn-outline btn-sm" onclick="TonuWeeklyReport.sendWeeklyEmail()"
+                                    aria-label="Enviar resumo por e-mail">
+                                    <i class="fas fa-paper-plane" aria-hidden="true"></i> Enviar Resumo por E-mail
+                                </button>
                             </div>
-                            <span class="badge"
-                                style="background:#e8f8f5; color:#00b894; font-weight:600; padding:4px 8px; border-radius:6px;">
-                                <i class="fas fa-check-circle" aria-hidden="true"></i> Ativo
-                            </span>
+                        </div>
+                    </section>
+
+                    <!-- ==========================================
+                         SEÇÃO 2: NOTIFICAÇÕES & LEMBRETES
+                         ========================================== -->
+                    <section class="settings-section" id="section-notifications" data-section="notifications">
+                        <div class="settings-section-title">
+                            <i class="fas fa-bell" aria-hidden="true"></i> Notificações & Lembretes
                         </div>
 
-                        <div class="setting-row">
-                            <div>
-                                <strong>📥 Web Share Target (Compartilhar com TonuControle)</strong>
-                                <p style="font-size:12px; color:var(--color-text-muted); margin:2px 0 0 0;">
-                                    Compartilhe fotos de recibos, comprovantes bancários, faturas ou textos de outros
-                                    apps direto para o TonuControle para criar despesas num clique.
-                                </p>
+                        <div class="settings-card" id="notifSettingsCard">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon primary">
+                                    <i class="fas fa-bell" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Notificações & Lembretes de Vencimento</h3>
+                                    <p>Receba alertas automáticos e notificações Push para nunca atrasar o pagamento de suas contas.</p>
+                                </div>
                             </div>
-                            <span class="badge"
-                                style="background:#e8f4fd; color:#0984e3; font-weight:600; padding:4px 8px; border-radius:6px;">
-                                <i class="fas fa-share-alt" aria-hidden="true"></i> Suportado
-                            </span>
-                        </div>
 
-                        <div class="setting-row">
-                            <div>
-                                <strong>🔔 Push Notifications & Lembretes Periódicos</strong>
-                                <p style="font-size:12px; color:var(--color-text-muted); margin:2px 0 0 0;">
-                                    Receba alertas no sistema mesmo com o navegador fechado quando uma conta estiver
-                                    próxima do vencimento.
-                                </p>
+                            <div class="notif-switch-row">
+                                <div class="notif-switch-info">
+                                    <strong>Notificações Push no Navegador</strong>
+                                    <small id="notifPermStatusText">Verificando status de permissão...</small>
+                                </div>
+                                <label class="custom-toggle">
+                                    <input type="checkbox" id="togglePushEnabled" onchange="togglePushNotifications()">
+                                    <span class="toggle-slider"></span>
+                                </label>
                             </div>
-                            <button class="btn btn-outline btn-sm" onclick="testPushNotificationFromSettings()"
-                                aria-label="Testar push">
-                                <i class="fas fa-bell" aria-hidden="true"></i> Testar Push
-                            </button>
-                        </div>
 
-                        <div class="settings-actions" style="margin-top:12px; display:flex; gap:10px;">
-                            <button class="btn btn-secondary btn-sm"
-                                onclick="if(window.tonuSync){ window.tonuSync.flushQueue(); }"
-                                aria-label="Forçar sincronização">
-                                <i class="fas fa-sync-alt" aria-hidden="true"></i> Forçar Sincronização Agora
-                            </button>
+                            <div id="notifPermissionActionRow" class="setting-row hidden" style="padding: 10px 0;">
+                                <div class="setting-row-text">
+                                    <span class="setting-label">Permissão no navegador pendente:</span>
+                                    <small>Clique no botão ao lado para autorizar alertas sonoros e na barra de notificações.</small>
+                                </div>
+                                <button class="btn btn-primary btn-sm" onclick="requestPushPermissionFromSettings()"
+                                    aria-label="Permitir notificações">
+                                    <i class="fas fa-shield-alt" aria-hidden="true"></i> Permitir Notificações
+                                </button>
+                            </div>
+
+                            <div style="padding: 14px 0; border-bottom: 1px solid var(--color-border-light);">
+                                <div class="notif-switch-info" style="padding-right:0; margin-bottom:8px;">
+                                    <strong>Quando você deseja ser lembrado?</strong>
+                                    <small>Selecione os dias de antecedência para disparo de lembretes antes do vencimento:</small>
+                                </div>
+                                <div class="days-chips-group">
+                                    <div class="day-chip" id="chipDay0" onclick="toggleReminderDay(0)" role="button" tabindex="0">
+                                        <i class="fas fa-check" aria-hidden="true"></i> No dia do vencimento
+                                    </div>
+                                    <div class="day-chip" id="chipDay1" onclick="toggleReminderDay(1)" role="button" tabindex="0">
+                                        <i class="fas fa-check" aria-hidden="true"></i> 1 dia antes
+                                    </div>
+                                    <div class="day-chip" id="chipDay2" onclick="toggleReminderDay(2)" role="button" tabindex="0">
+                                        <i class="fas fa-check" aria-hidden="true"></i> 2 dias antes
+                                    </div>
+                                    <div class="day-chip" id="chipDay3" onclick="toggleReminderDay(3)" role="button" tabindex="0">
+                                        <i class="fas fa-check" aria-hidden="true"></i> 3 dias antes
+                                    </div>
+                                    <div class="day-chip" id="chipDay5" onclick="toggleReminderDay(5)" role="button" tabindex="0">
+                                        <i class="fas fa-check" aria-hidden="true"></i> 5 dias antes
+                                    </div>
+                                    <div class="day-chip" id="chipDay7" onclick="toggleReminderDay(7)" role="button" tabindex="0">
+                                        <i class="fas fa-check" aria-hidden="true"></i> 7 dias antes
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="notif-switch-row">
+                                <div class="notif-switch-info">
+                                    <strong>Alertar Contas Já Vencidas</strong>
+                                    <small>Enviar alerta se houver contas pendentes com data de vencimento ultrapassada.</small>
+                                </div>
+                                <label class="custom-toggle">
+                                    <input type="checkbox" id="toggleRemindOverdue" onchange="updateNotificationSettings()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="notif-switch-row">
+                                <div class="notif-switch-info">
+                                    <strong>Som e Vibração nos Alertas</strong>
+                                    <small>Tocar tom audível suave e vibrar o dispositivo ao disparar notificações.</small>
+                                </div>
+                                <label class="custom-toggle">
+                                    <input type="checkbox" id="toggleNotifSound" onchange="updateNotificationSettings()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="settings-actions" style="margin-top: var(--space-md);">
+                                <button class="btn btn-outline btn-sm" onclick="testPushNotificationFromSettings()"
+                                    aria-label="Testar notificação">
+                                    <i class="fas fa-paper-plane" aria-hidden="true"></i> Testar Notificação Push
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="checkBillsFromSettings()"
+                                    aria-label="Verificar contas">
+                                    <i class="fas fa-sync-alt" aria-hidden="true"></i> Verificar Contas Agora
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- ==========================================
-                    CARD: BACKUP
-                    ========================================== -->
-                    <div class="settings-card">
-                        <h3><i class="fas fa-database" aria-hidden="true"></i> Backup & Restauração de Dados</h3>
-                        <p>Exporte um backup integral de todas as suas finanças em formato JSON estruturado ou restaure
-                            seus dados a qualquer momento.</p>
-                        <div class="settings-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-                            <button class="btn btn-primary" onclick="window.TonuBackupInstance.exportFullBackup()"
-                                aria-label="Fazer backup completo">
-                                <i class="fas fa-file-export" aria-hidden="true"></i> 📦 Fazer Backup Completo (JSON)
-                            </button>
-                            <button class="btn btn-outline"
-                                onclick="window.TonuBackupInstance.selectAndRestoreBackup(loadStats)"
-                                aria-label="Restaurar backup">
-                                <i class="fas fa-file-import" aria-hidden="true"></i> 🔄 Restaurar Backup (JSON)
-                            </button>
-                            <button class="btn btn-outline" onclick="exportData()" aria-label="Exportar transações CSV">
-                                <i class="fas fa-file-csv" aria-hidden="true"></i> Exportar Transações (CSV)
-                            </button>
+                         SEÇÃO 3: SEGURANÇA & PRIVACIDADE
+                         ========================================== -->
+                    <section class="settings-section" id="section-security" data-section="security">
+                        <div class="settings-section-title">
+                            <i class="fas fa-shield-alt" aria-hidden="true"></i> Segurança & Privacidade
                         </div>
-                    </div>
+
+                        <!-- CARD: BLOQUEIO POR PIN & 2FA -->
+                        <div class="settings-card" id="securityPinCard">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon primary">
+                                    <i class="fas fa-key" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Bloqueio por PIN, Inatividade & 2FA</h3>
+                                    <p>Configure uma senha numérica de 4 dígitos para proteger o aplicativo contra acessos indevidos e ative o encerramento automático por inatividade.</p>
+                                </div>
+                            </div>
+
+                            <div class="setting-row">
+                                <div class="setting-row-text">
+                                    <strong id="pinStatusText">PIN de 4 Dígitos</strong>
+                                    <small id="pinSubText">Exigido ao abrir o aplicativo ou retornar da tela bloqueada.</small>
+                                </div>
+                                <div id="pinActionContainer">
+                                    <button class="btn btn-outline btn-sm" onclick="handleConfigurePin()"
+                                        aria-label="Configurar PIN">
+                                        <i class="fas fa-plus" aria-hidden="true"></i> Ativar PIN
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="setting-row">
+                                <div class="setting-row-text">
+                                    <strong>Bloqueio Automático por Inatividade</strong>
+                                    <small>Tempo sem interação até que o aplicativo solicite desbloqueio.</small>
+                                </div>
+                                <select id="selectInactivityTimeout" class="form-control" style="width:auto;"
+                                    onchange="handleInactivityChange(this.value)" aria-label="Tempo de inatividade">
+                                    <option value="0">Nunca</option>
+                                    <option value="2">Após 2 minutos</option>
+                                    <option value="5" selected>Após 5 minutos</option>
+                                    <option value="15">Após 15 minutos</option>
+                                    <option value="30">Após 30 minutos</option>
+                                </select>
+                            </div>
+
+                            <div class="setting-row">
+                                <div class="setting-row-text">
+                                    <strong>Autenticação em Duas Etapas (2FA)</strong>
+                                    <small id="twoFactorSubText">Camada adicional de proteção via e-mail ou código de uso único.</small>
+                                </div>
+                                <div id="twoFactorActionContainer">
+                                    <button class="btn btn-outline btn-sm" onclick="handleToggle2FA()"
+                                        aria-label="Configurar 2FA">
+                                        <i class="fas fa-shield-alt" aria-hidden="true"></i> Configurar 2FA
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CARD: BIOMETRIA & FACE ID -->
+                        <div class="settings-card" id="biometricsCard">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon success">
+                                    <i class="fas fa-fingerprint" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Biometria & Face ID</h3>
+                                    <p>Acesse o aplicativo de forma ultra-rápida e segura usando a impressão digital ou reconhecimento facial do seu aparelho.</p>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <div class="setting-row-text">
+                                    <strong id="biometricsStatusText">Status da Biometria</strong>
+                                    <small id="biometricsSubText">Verificando disponibilidade no dispositivo...</small>
+                                </div>
+                                <div id="biometricsActionContainer">
+                                    <button class="btn btn-outline btn-sm" id="btnRegisterBiometrics"
+                                        onclick="handleRegisterBiometrics()" aria-label="Ativar biometria">
+                                        <i class="fas fa-plus" aria-hidden="true"></i> Ativar Biometria
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CARD: CRIPTOGRAFIA LOCAL -->
+                        <div class="settings-card" id="encryptionCard">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon info">
+                                    <i class="fas fa-shield-alt" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Criptografia Local dos Dados</h3>
+                                    <p>Protege suas transações e dados armazenados offline no IndexedDB com criptografia militar AES-GCM de 256 bits.</p>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <div class="setting-row-text">
+                                    <strong>Criptografia AES-GCM (Web Crypto)</strong>
+                                    <small>Dados offline cifrados contra extração direta no navegador.</small>
+                                </div>
+                                <span class="badge"
+                                    style="background:#e8f8f5; color:#00b894; font-weight:600;"
+                                    id="encryptionBadge">
+                                    <i class="fas fa-lock" aria-hidden="true"></i> Protegido
+                                </span>
+                            </div>
+                            <div id="csrfStatus" style="margin-top: 8px;"></div>
+                        </div>
+                    </section>
 
                     <!-- ==========================================
-                    CARD: CÓDIGO FONTE
-                    ========================================== -->
-                    <div class="settings-card">
-                        <h3><i class="fas fa-code" aria-hidden="true"></i> Código Fonte do Projeto</h3>
-                        <p>Baixe o pacote ZIP completo com todo o código fonte e documentação do TonuControle.</p>
-                        <div class="settings-actions" style="margin-top:12px;">
-                            <a href="/api/download-zip" download="tonucontrole-source-code.zip" class="btn btn-outline"
-                                style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;"
-                                aria-label="Baixar código fonte">
-                                <i class="fas fa-file-archive" aria-hidden="true"></i> 📥 Baixar Código Completo (.ZIP)
-                            </a>
+                         SEÇÃO 4: PWA & RECURSOS AVANÇADOS
+                         ========================================== -->
+                    <section class="settings-section" id="section-pwa" data-section="pwa">
+                        <div class="settings-section-title">
+                            <i class="fas fa-bolt" aria-hidden="true"></i> PWA & Sincronização
                         </div>
-                    </div>
+
+                        <div class="settings-card" id="pwaAdvancedCard">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon primary">
+                                    <i class="fas fa-mobile-alt" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Recursos Avançados do PWA</h3>
+                                    <p>Funcionalidades nativas ativas no aplicativo instalado no celular ou computador.</p>
+                                </div>
+                            </div>
+
+                            <div class="setting-row">
+                                <div class="setting-row-text">
+                                    <strong>Background Sync (Sincronização em Segundo Plano)</strong>
+                                    <small>Permite adicionar despesas, pagar contas e alterar metas mesmo sem internet. Os dados são sincronizados automaticamente assim que a conexão retornar.</small>
+                                </div>
+                                <span class="badge" style="background:#e8f8f5; color:#00b894; font-weight:600;">
+                                    <i class="fas fa-check-circle" aria-hidden="true"></i> Ativo
+                                </span>
+                            </div>
+
+                            <div class="setting-row">
+                                <div class="setting-row-text">
+                                    <strong>Web Share Target (Compartilhar com TonuControle)</strong>
+                                    <small>Compartilhe fotos de recibos, comprovantes bancários ou faturas direto para o TonuControle para criar despesas num clique.</small>
+                                </div>
+                                <span class="badge" style="background:#e8f4fd; color:#0984e3; font-weight:600;">
+                                    <i class="fas fa-share-alt" aria-hidden="true"></i> Suportado
+                                </span>
+                            </div>
+
+                            <div class="setting-row">
+                                <div class="setting-row-text">
+                                    <strong>Push Notifications & Lembretes Periódicos</strong>
+                                    <small>Receba alertas mesmo com o navegador fechado quando uma conta estiver próxima do vencimento.</small>
+                                </div>
+                                <button class="btn btn-outline btn-sm" onclick="testPushNotificationFromSettings()"
+                                    aria-label="Testar push">
+                                    <i class="fas fa-bell" aria-hidden="true"></i> Testar Push
+                                </button>
+                            </div>
+
+                            <div class="settings-actions" style="margin-top:14px; display:flex; gap:10px;">
+                                <button class="btn btn-secondary btn-sm"
+                                    onclick="if(window.tonuSync){ window.tonuSync.flushQueue(); }"
+                                    aria-label="Forçar sincronização">
+                                    <i class="fas fa-sync-alt" aria-hidden="true"></i> Forçar Sincronização Agora
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- SOBRE O APLICATIVO -->
+                        <div class="settings-card" id="aboutCard">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon dark">
+                                    <i class="fas fa-info-circle" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Sobre o TonuControle</h3>
+                                    <p>Sistema inteligente de gestão financeira pessoal e familiar de alta performance.</p>
+                                </div>
+                            </div>
+
+                            <div class="about-card-info">
+                                <div class="about-badge-item">
+                                    <i class="fas fa-code-branch" aria-hidden="true"></i>
+                                    <span>Versão 2.1.0 (PWA)</span>
+                                </div>
+                                <div class="about-badge-item">
+                                    <i class="fas fa-database" aria-hidden="true"></i>
+                                    <span>Sincronizado Supabase</span>
+                                </div>
+                                <div class="about-badge-item">
+                                    <i class="fas fa-shield-alt" aria-hidden="true"></i>
+                                    <span>Proteção AES-GCM</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
 
                     <!-- ==========================================
-                    CARD: LIMPAR DADOS (PERIGO)
-                    ========================================== -->
-                    <div class="settings-card danger">
-                        <h3><i class="fas fa-trash-alt" aria-hidden="true"></i> Limpar Dados</h3>
-                        <p>Remove permanentemente todas as transações, contas e metas</p>
-                        <button class="btn btn-danger" onclick="clearAllData()" aria-label="Limpar todos os dados">
-                            <i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Limpar Tudo
-                        </button>
-                    </div>
-
-                    <!-- ==========================================
-                    CARD: SOBRE
-                    ========================================== -->
-                    <div class="settings-card">
-                        <h3><i class="fas fa-info-circle" aria-hidden="true"></i> Sobre</h3>
-                        <div class="about-info">
-                            <p><strong>TonuControle</strong> <span class="version">v2.0</span></p>
-                            <p>💰 Controle financeiro inteligente</p>
-                            <p>🔒 Dados salvos no Supabase</p>
-                            <p>📱 PWA ready</p>
-                            <p
-                                style="margin-top:var(--space-sm);color:var(--color-text-muted);font-size:var(--font-size-xs);">
-                                Feito com ❤️ para você
-                            </p>
+                         SEÇÃO 5: BACKUP, RESTAURAÇÃO & DADOS
+                         ========================================== -->
+                    <section class="settings-section" id="section-backup" data-section="backup">
+                        <div class="settings-section-title">
+                            <i class="fas fa-database" aria-hidden="true"></i> Backup & Dados
                         </div>
-                    </div>
+
+                        <!-- CARD: BACKUP -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon success">
+                                    <i class="fas fa-database" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Backup & Restauração de Dados</h3>
+                                    <p>Exporte um backup integral de todas as suas finanças em formato JSON estruturado ou restaure seus dados a qualquer momento.</p>
+                                </div>
+                            </div>
+                            <div class="settings-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+                                <button class="btn btn-primary" onclick="window.TonuBackupInstance.exportFullBackup()"
+                                    aria-label="Fazer backup completo">
+                                    <i class="fas fa-file-export" aria-hidden="true"></i> Fazer Backup Completo (JSON)
+                                </button>
+                                <button class="btn btn-outline"
+                                    onclick="window.TonuBackupInstance.selectAndRestoreBackup(loadStats)"
+                                    aria-label="Restaurar backup">
+                                    <i class="fas fa-file-import" aria-hidden="true"></i> Restaurar Backup (JSON)
+                                </button>
+                                <button class="btn btn-outline" onclick="exportData()" aria-label="Exportar transações CSV">
+                                    <i class="fas fa-file-csv" aria-hidden="true"></i> Exportar Transações (CSV)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- CARD: CÓDIGO FONTE -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon info">
+                                    <i class="fas fa-code" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Código Fonte do Projeto</h3>
+                                    <p>Baixe o pacote ZIP completo com todo o código fonte e documentação do TonuControle.</p>
+                                </div>
+                            </div>
+                            <div class="settings-actions" style="margin-top:8px;">
+                                <a href="/api/download-zip" download="tonucontrole-source-code.zip" class="btn btn-outline"
+                                    style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;"
+                                    aria-label="Baixar código fonte">
+                                    <i class="fas fa-file-archive" aria-hidden="true"></i> Baixar Código Completo (.ZIP)
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- CARD: LIMPAR DADOS (PERIGO) -->
+                        <div class="settings-card danger">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon danger">
+                                    <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Zona de Risco: Limpar Dados</h3>
+                                    <p>Remove permanentemente todas as suas transações, contas e metas do banco de dados local e em nuvem.</p>
+                                </div>
+                            </div>
+                            <div class="settings-actions" style="margin-top:8px;">
+                                <button class="btn btn-danger" onclick="clearAllData()" aria-label="Limpar todos os dados">
+                                    <i class="fas fa-trash-alt" aria-hidden="true"></i> Limpar Todos os Dados
+                                </button>
+                            </div>
+                        </div>
+                    </section>
 
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- ==========================================
-    TOAST
-    ========================================== -->
+    <!-- TOAST -->
     <div id="toast" class="toast hidden" role="alert" aria-live="polite" aria-atomic="true"></div>
 
-    <!-- ==========================================
-    SCRIPTS
-    ========================================== -->
+    <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/supabase.js"></script>
     <script src="../js/core.js"></script>
@@ -644,9 +772,41 @@
     <script src="../js/sw-register.js"></script>
 
     <script>
-        // ==========================================
-        // DOM READY - INICIALIZAR TEMA
-        // ==========================================
+        // Alternância rápida entre categorias/abas de configurações
+        function switchSettingsCategory(tabName, btnElement) {
+            document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-selected', 'false');
+            });
+            if (btnElement) {
+                btnElement.classList.add('active');
+                btnElement.setAttribute('aria-selected', 'true');
+            }
+
+            const sections = document.querySelectorAll('.settings-section');
+            if (tabName === 'all') {
+                sections.forEach(sec => sec.classList.remove('hidden'));
+            } else {
+                sections.forEach(sec => {
+                    if (sec.getAttribute('data-section') === tabName) {
+                        sec.classList.remove('hidden');
+                    } else {
+                        sec.classList.add('hidden');
+                    }
+                });
+            }
+        }
+
+        // Atualização do indicador de moeda no perfil
+        function updateCurrencyBadge() {
+            const sel = document.getElementById('currencySelect');
+            const badge = document.getElementById('displayCurrencyLabel');
+            if (sel && badge) {
+                const map = { 'BRL': 'BRL (R$)', 'USD': 'USD ($)', 'EUR': 'EUR (€)' };
+                badge.textContent = map[sel.value] || sel.value;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             const savedTheme = localStorage.getItem('tonu_theme') || 'light';
             if (savedTheme === 'dark') {
@@ -654,7 +814,8 @@
                 document.documentElement.setAttribute('data-theme', 'dark');
                 document.querySelector('.theme-toggle-btn i')?.classList.replace('fa-moon', 'fa-sun');
             }
-            console.log('✅ Settings.html refatorado com acessibilidade e PWA');
+            updateCurrencyBadge();
+            console.log('✅ Settings.html repaginado com sucesso!');
         });
     </script>
 
