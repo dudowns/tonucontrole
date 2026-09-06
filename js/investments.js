@@ -765,10 +765,65 @@ function buildPositions() {
 }
 
 // ============================================
-// BUSCAR COTAÇÕES (BRAPI)
+// AUXILIARES DE RENDA FIXA & RENDIMENTOS
+// ============================================
+function isTesouroTicker(ticker) {
+    if (!ticker) return false;
+    const tk = ticker.toUpperCase().trim();
+    return /^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC|CDB|LCI|LCA|LC|RDB)/.test(tk);
+}
+
+function calculateFixedIncomeReturn(pos) {
+    if (!pos || !pos.transactions || pos.transactions.length === 0) return 0;
+    let totalInvested = 0;
+    let weightedDays = 0;
+    const now = new Date();
+
+    for (const tx of pos.transactions) {
+        if (tx.type === 'Compra' && tx.date) {
+            const txDate = new Date(tx.date + 'T12:00:00');
+            const diffTime = Math.max(0, now - txDate);
+            const diffDays = diffTime / (1000 * 60 * 60 * 24);
+            const val = Number(tx.total_value) || (Number(tx.quantity) * Number(tx.unit_price));
+            weightedDays += diffDays * val;
+            totalInvested += val;
+        }
+    }
+
+    if (totalInvested <= 0) return 0;
+    const avgDays = weightedDays / totalInvested;
+    // Rentabilidade média ponderada baseada no CDI/Selic (~10.75% a.a. -> ~0.028% ao dia corrido)
+    const dailyRate = 0.00028;
+    const estimatedYield = Math.pow(1 + dailyRate, avgDays) - 1;
+    return Math.max(0, estimatedYield);
+}
+
+function getMonthsBetween(d1, d2) {
+    let months = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+    return Math.max(0, months);
+}
+
+// ============================================
+// BUSCAR COTAÇÕES (BRAPI) COM CACHE RESILIENTE
 // ============================================
 async function fetchQuotes() {
-    quotes.clear();
+    // Carrega cache local prévio para evitar tela zerada se houver instabilidade na API
+    try {
+        const rawCache = localStorage.getItem('tonu_quotes_cache');
+        if (rawCache) {
+            const parsed = JSON.parse(rawCache);
+            if (parsed && parsed.quotes) {
+                for (const [k, v] of Object.entries(parsed.quotes)) {
+                    if (!quotes.has(k)) {
+                        quotes.set(k, v);
+                    }
+                }
+            }
+        }
+    } catch (cacheErr) {
+        console.warn('⚠️ Erro ao carregar cache de cotações:', cacheErr);
+    }
+
     const tickers = positions.map(p => p.ticker);
     if (!tickers.length) {
         console.log('📊 Nenhum ativo para buscar cotações');
@@ -776,12 +831,12 @@ async function fetchQuotes() {
     }
 
     const validTickers = tickers
-        .filter(t => t && t.length >= 3 && /^[A-Z0-9]{3,}$/.test(t))
+        .filter(t => t && t.length >= 3 && /^[A-Z0-9]{3,}$/.test(t) && !isTesouroTicker(t))
         .map(t => t.toUpperCase().trim());
 
     if (validTickers.length === 0) {
-        console.log('⚠️ Nenhum ticker válido para buscar');
-        showToast('⚠️ Nenhum ticker válido para buscar cotações', 'warning');
+        console.log('ℹ️ Apenas ativos de renda fixa ou tickers especiais, usando valorização inteligente');
+        updateQuoteStatus();
         return;
     }
 
@@ -852,51 +907,85 @@ async function fetchQuotes() {
             let foundCount = 0;
 
             for (const q of allResults) {
-                const tk = q.symbol?.toUpperCase().trim();
-                if (!tk || !Number.isFinite(Number(q.regularMarketPrice))) continue;
+                const rawTk = q.symbol?.toUpperCase().trim();
+                if (!rawTk || !Number.isFinite(Number(q.regularMarketPrice))) continue;
 
-                quotes.set(tk, {
+                const cleanTk = rawTk.replace(/\.SA$/, '');
+                const quoteData = {
                     price: Number(q.regularMarketPrice),
                     changePct: Number(q.regularMarketChangePercent || 0),
                     previousClose: Number(q.regularMarketPreviousClose || 0),
                     marketTime: q.regularMarketTime || new Date().toISOString(),
                     simulated: false,
                     source: 'BRAPI'
-                });
+                };
+
+                // Armazena com e sem .SA para busca rápida sem falhas de formato
+                quotes.set(rawTk, quoteData);
+                quotes.set(cleanTk, quoteData);
+                quotes.set(`${cleanTk}.SA`, quoteData);
                 foundCount++;
-                console.log(`✅ Cotação real de ${tk}: R$ ${q.regularMarketPrice}`);
+                console.log(`✅ Cotação real de ${cleanTk}: R$ ${q.regularMarketPrice}`);
             }
 
             console.log(`✅ ${foundCount} cotações reais carregadas`);
+
+            // Salva no cache local para persistência offline e resiliente
+            try {
+                const cacheObj = {};
+                for (const [k, v] of quotes.entries()) {
+                    cacheObj[k] = v;
+                }
+                localStorage.setItem('tonu_quotes_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    quotes: cacheObj
+                }));
+            } catch (saveErr) {
+                console.warn('⚠️ Erro ao salvar cache de cotações:', saveErr);
+            }
         }
 
         const missingTickers = unique.filter(t => !quotes.has(t));
         if (missingTickers.length > 0) {
             console.warn(`⚠️ Tickers não encontrados na BRAPI: ${missingTickers.join(', ')}`);
-            showToast(`⚠️ ${missingTickers.length} ativo(s) sem cotação: ${missingTickers.join(', ')}`, 'warning');
         }
 
         updateQuoteStatus();
 
     } catch (error) {
         console.error('❌ Erro ao buscar cotações:', error.message);
-        showToast('❌ Erro ao buscar cotações em tempo real', 'error');
-        isUsingRealQuotes = false;
+        // Não apaga quotes se houver cache local prévio
+        if (quotes.size === 0) {
+            isUsingRealQuotes = false;
+        }
     }
 }
 
 // ============================================
-// DECORATE POSITIONS - COM PREÇO REAL
+// DECORATE POSITIONS - COM PREÇO REAL E RENDIMENTO
 // ============================================
 function decoratePositions() {
     const totalValue = positions.reduce((s, p) => s + posValue(p), 0);
 
     positions = positions.map(p => {
-        const quote = quotes.get(p.ticker);
+        const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
+        const quote = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
         const hasQuote = quote !== undefined;
-        const price = hasQuote ? quote.price : p.averageCost;
-        const changePct = hasQuote ? quote.changePct : 0;
-        const simulated = !hasQuote;
+        let price = hasQuote ? quote.price : p.averageCost;
+        let changePct = hasQuote ? quote.changePct : 0;
+        let simulated = !hasQuote;
+        let source = hasQuote ? 'BRAPI' : 'Preço Médio';
+
+        // Ativos de Renda Fixa ou Tesouro Direto: valorização estimada com base no tempo decorrido
+        if (!hasQuote && (p.assetClass === 'Tesouro' || isTesouroTicker(p.ticker))) {
+            const estimatedReturn = calculateFixedIncomeReturn(p);
+            if (estimatedReturn > 0) {
+                price = p.averageCost * (1 + estimatedReturn);
+                changePct = (estimatedReturn * 100);
+                simulated = false;
+                source = 'Selic/CDI';
+            }
+        }
 
         const currentValue = p.quantity * price;
         const gain = currentValue - p.costBasis;
@@ -909,7 +998,7 @@ function decoratePositions() {
                 price: price,
                 changePct: changePct,
                 simulated: simulated,
-                source: simulated ? 'Preço Médio' : 'BRAPI'
+                source: source
             },
             currentValue: currentValue,
             gain: gain,
@@ -920,12 +1009,17 @@ function decoratePositions() {
 }
 
 // ============================================
-// POS VALUE - COM PREÇO REAL
+// POS VALUE - COM PREÇO REAL E RENDIMENTO
 // ============================================
 function posValue(p) {
-    const q = quotes.get(p.ticker);
-    const price = q ? q.price : p.averageCost;
-    return p.quantity * price;
+    const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
+    const q = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
+    if (q) return p.quantity * q.price;
+    if (p.assetClass === 'Tesouro' || isTesouroTicker(p.ticker)) {
+        const estimatedReturn = calculateFixedIncomeReturn(p);
+        return p.quantity * (p.averageCost * (1 + estimatedReturn));
+    }
+    return p.quantity * p.averageCost;
 }
 
 function updateQuoteStatus() {
@@ -1383,7 +1477,7 @@ function renderTransactions() {
 // AUXILIAR PARA ATUALIZAR POSIÇÕES SIMULADAS
 // ============================================
 function applyTxToSimulatedPortfolio(simulatedPortfolio, tx) {
-    if (!tx || !tx.ticker) return;
+    if (!tx || !tx.ticker) return 0;
     const ticker = tx.ticker.toUpperCase().trim();
     const qty = Number(tx.quantity) || 0;
     const price = Number(tx.unit_price) || 0;
@@ -1397,19 +1491,22 @@ function applyTxToSimulatedPortfolio(simulatedPortfolio, tx) {
     if (tx.type === 'Compra') {
         pos.quantity += qty;
         pos.costBasis += totalVal;
+        return 0;
     } else {
         const avgCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
         const sellQty = Math.min(qty, pos.quantity);
+        const realizedGain = (price - avgCost) * sellQty;
         pos.quantity -= sellQty;
         pos.costBasis -= avgCost * sellQty;
         if (pos.quantity <= 0.0001) {
             simulatedPortfolio.delete(ticker);
         }
+        return realizedGain;
     }
 }
 
 // ============================================
-// BUILD CHART DATA - INTELIGENTE E DINÂMICO
+// BUILD CHART DATA - INTELIGENTE E PRECISO
 // ============================================
 function buildChartData() {
     if (!allTransactions || allTransactions.length === 0) {
@@ -1460,12 +1557,14 @@ function buildChartData() {
     // Agrupa transações nos meses correspondentes e pré-acumula as anteriores
     const simulatedPortfolio = new Map();
     const txByMonth = new Map();
+    let accumulatedRealizedGain = 0;
 
     for (const tx of validTransactions) {
         const d = new Date(tx.date + 'T12:00:00');
         if (d < start) {
-            // Transações anteriores a start alimentam o portfólio acumulado inicial
-            applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
+            // Transações anteriores a start alimentam o portfólio acumulado inicial e ganho realizado
+            const realized = applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
+            accumulatedRealizedGain += realized;
         } else {
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             if (!txByMonth.has(key)) {
@@ -1481,11 +1580,21 @@ function buildChartData() {
         }
     }
 
+    // Preços de mercado atuais para cada ativo
     const currentPrices = new Map();
     for (const p of positions) {
-        const quote = quotes.get(p.ticker);
-        const price = quote ? quote.price : p.averageCost;
+        const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
+        const quote = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
+        let price = quote ? quote.price : (p.averageCost || 0);
+
+        // Se for Tesouro ou renda fixa sem cotação de bolsa, utiliza preço atualizado
+        if (!quote && (p.assetClass === 'Tesouro' || isTesouroTicker(p.ticker))) {
+            const estimatedReturn = calculateFixedIncomeReturn(p);
+            price = p.averageCost * (1 + estimatedReturn);
+        }
+
         currentPrices.set(p.ticker, price);
+        currentPrices.set(cleanTicker, price);
     }
 
     const labels = [];
@@ -1495,25 +1604,43 @@ function buildChartData() {
 
     for (let i = 0; i < allMonths.length; i++) {
         const month = allMonths[i];
+        const isCurrentMonth = (i === allMonths.length - 1);
 
+        // Aplica as transações do mês e acumula ganhos de vendas
         for (const tx of month.transactions) {
-            applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
+            const realized = applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
+            accumulatedRealizedGain += realized;
         }
 
         let runningInvested = 0;
-        for (const [, pos] of simulatedPortfolio) {
-            runningInvested += (pos.costBasis || 0);
+        let totalSimulatedValue = 0;
+
+        if (isCurrentMonth && positions.length > 0) {
+            // No mês atual, sincroniza 100% com os dados calculados de positions
+            runningInvested = positions.reduce((s, p) => s + (p.costBasis || 0), 0);
+            totalSimulatedValue = positions.reduce((s, p) => s + (p.currentValue || 0), 0);
+        } else {
+            for (const [ticker, pos] of simulatedPortfolio) {
+                runningInvested += (pos.costBasis || 0);
+                const cleanTk = ticker.replace(/\.SA$/, '');
+                const currentPrice = currentPrices.get(ticker) || currentPrices.get(cleanTk) ||
+                    (pos.quantity > 0 ? pos.costBasis / pos.quantity : 0);
+
+                let priceToUse = currentPrice;
+                if (isTesouroTicker(ticker) && pos.costBasis > 0 && pos.quantity > 0) {
+                    const avgCost = pos.costBasis / pos.quantity;
+                    const monthsElapsed = getMonthsBetween(start, month.date);
+                    // Rendimento proporcional ao tempo
+                    priceToUse = avgCost * (1 + (monthsElapsed * 0.0085));
+                }
+
+                totalSimulatedValue += pos.quantity * priceToUse;
+            }
         }
 
-        let monthGain = 0;
-        if (simulatedPortfolio.size > 0) {
-            let totalSimulatedValue = 0;
-            for (const [ticker, pos] of simulatedPortfolio) {
-                const currentPrice = currentPrices.get(ticker) || (pos.quantity > 0 ? pos.costBasis / pos.quantity : 0);
-                totalSimulatedValue += pos.quantity * currentPrice;
-            }
-            monthGain = Math.max(0, totalSimulatedValue - runningInvested);
-        }
+        // Ganho de Capital = Lucro/Variação Não Realizada + Lucro Realizado de Vendas
+        const unrealizedGain = totalSimulatedValue - runningInvested;
+        const monthGain = unrealizedGain + accumulatedRealizedGain;
 
         const monthLabel = `${String(month.date.getMonth() + 1).padStart(2, '0')}/${String(month.date.getFullYear()).slice(2)}`;
         labels.push(monthLabel);
@@ -1526,9 +1653,11 @@ function buildChartData() {
         labels.push('Agora');
         const totalCostBasis = positions.reduce((s, p) => s + p.costBasis, 0);
         const totalCurrentValue = positions.reduce((s, p) => s + p.currentValue, 0);
-        invested.push(totalCostBasis);
-        gain.push(Math.max(0, totalCurrentValue - totalCostBasis));
-        total.push(totalCurrentValue);
+        const totalRealized = positions.reduce((s, p) => s + (p.realizedGain || 0), 0);
+        const totalGain = (totalCurrentValue - totalCostBasis) + totalRealized;
+        invested.push(Math.round(totalCostBasis * 100) / 100);
+        gain.push(Math.round(totalGain * 100) / 100);
+        total.push(Math.round((totalCostBasis + totalGain) * 100) / 100);
     }
 
     return { labels, invested, gain, total };
@@ -1555,7 +1684,7 @@ function renderChart() {
     const borderColor = isDark ? '#334155' : '#E8ECF1';
 
     const hasData = data && data.labels && data.labels.length > 0 &&
-        data.invested.some(v => v !== 0);
+        (data.invested.some(v => v !== 0) || data.gain.some(v => v !== 0));
 
     if (!hasData) {
         patrimonyChart = new Chart(ctx, {
@@ -1612,7 +1741,10 @@ function renderChart() {
             }, {
                 label: 'Ganho de Capital',
                 data: data.gain,
-                backgroundColor: '#FDCB6E',
+                backgroundColor: function (context) {
+                    const val = context.raw || 0;
+                    return val >= 0 ? '#FDCB6E' : '#FF7675';
+                },
                 borderRadius: 4,
                 borderSkipped: false,
                 stack: 'patrimony'
@@ -1647,11 +1779,26 @@ function renderChart() {
                     borderColor: borderColor,
                     borderWidth: 1,
                     cornerRadius: 8,
-                    padding: 10,
+                    padding: 12,
                     callbacks: {
                         label: function (context) {
-                            const sign = context.parsed.y >= 0 ? '+' : '';
-                            return `${context.dataset.label}: ${sign}${formatCurrency(context.parsed.y)}`;
+                            const val = context.parsed.y;
+                            const sign = val > 0 ? '+' : '';
+                            return `${context.dataset.label}: ${sign}${formatCurrency(val)}`;
+                        },
+                        afterBody: function (contexts) {
+                            if (!contexts || contexts.length === 0) return '';
+                            const idx = contexts[0].dataIndex;
+                            const tot = data.total[idx] || 0;
+                            const inv = data.invested[idx] || 0;
+                            const gn = data.gain[idx] || 0;
+                            const pct = inv > 0 ? ((gn / inv) * 100).toFixed(2) : '0.00';
+                            const sign = gn > 0 ? '+' : '';
+                            return [
+                                '',
+                                `💰 Patrimônio Total: ${formatCurrency(tot)}`,
+                                `📈 Rentabilidade: ${sign}${pct}%`
+                            ];
                         }
                     }
                 }
