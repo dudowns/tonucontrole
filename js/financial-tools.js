@@ -1735,6 +1735,203 @@
     }
 
     // ==========================================================================
+    // 7. GESTÃO DE PARCELAMENTO & RECORRÊNCIA (TonuInstallmentManager)
+    // Suporta: Único, Parcelado (com contagem de quantas parcelas faltam),
+    // Mensal e Semestral
+    // ==========================================================================
+    class TonuInstallmentManager {
+        constructor() {}
+
+        // Adiciona N meses a uma data YYYY-MM-DD com tratamento seguro de fim de mês
+        addMonthsToDate(dateStr, monthsToAdd) {
+            if (!dateStr) return new Date().toISOString().split('T')[0];
+            const parts = String(dateStr).split('T')[0].split('-');
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // 0 a 11
+            const day = parseInt(parts[2], 10);
+
+            const targetDate = new Date(year, month + monthsToAdd, 1);
+            const targetYear = targetDate.getFullYear();
+            const targetMonth = targetDate.getMonth();
+            const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
+            const finalDay = Math.min(day, maxDays);
+
+            const yStr = String(targetYear);
+            const mStr = String(targetMonth + 1).padStart(2, '0');
+            const dStr = String(finalDay).padStart(2, '0');
+            return `${yStr}-${mStr}-${dStr}`;
+        }
+
+        // Analisa um item (transação ou conta) e retorna metadados completos de parcelamento e recorrência
+        getInstallmentInfo(item) {
+            if (!item) {
+                return { type: 'single', isInstallment: false, isRecurring: false, label: 'Único' };
+            }
+
+            let recurrenceType = item.recurrence_type || null;
+            let installments = parseInt(item.installments, 10);
+            let current = parseInt(item.current_installment, 10);
+
+            // Fallback por detecção na descrição (ex: "(3/10)" ou "3 de 10")
+            const desc = (item.description || '') + ' ' + (item.notes || '');
+            const match = desc.match(/\b(\d+)\s*(?:\/|de)\s*(\d+)\b/i);
+            if (match && (!installments || installments <= 1)) {
+                current = parseInt(match[1], 10);
+                installments = parseInt(match[2], 10);
+                if (!recurrenceType && installments > 1) {
+                    recurrenceType = 'installments';
+                }
+            }
+
+            // Tratamento de tipos recorrentes (Mensal / Semestral)
+            if (recurrenceType === 'monthly' || (item.is_recurring && recurrenceType !== 'semiannual')) {
+                return {
+                    type: 'monthly',
+                    isInstallment: false,
+                    isRecurring: true,
+                    label: 'Mensal',
+                    icon: 'fa-rotate',
+                    badgeHtml: `<span class="badge-recurrence badge-monthly" title="Conta / Pagamento Mensal Recorrente"><i class="fas fa-rotate"></i> Mensal</span>`
+                };
+            }
+
+            if (recurrenceType === 'semiannual') {
+                return {
+                    type: 'semiannual',
+                    isInstallment: false,
+                    isRecurring: true,
+                    label: 'Semestral',
+                    icon: 'fa-calendar-days',
+                    badgeHtml: `<span class="badge-recurrence badge-semiannual" title="Conta / Pagamento Semestral Recorrente"><i class="fas fa-calendar-days"></i> Semestral</span>`
+                };
+            }
+
+            // Parcelamento
+            const isInstallment = recurrenceType === 'installments' || (installments && installments > 1);
+            if (isInstallment) {
+                const total = Math.max(2, installments || 2);
+                const curr = Math.max(1, Math.min(total, current || 1));
+                const remaining = Math.max(0, total - curr);
+                const isPaid = !!item.paid;
+                const unitAmount = parseFloat(item.amount) || 0;
+                const remainingAmount = remaining * unitAmount;
+                const progressPct = Math.round((curr / total) * 100);
+
+                let remainingText = '';
+                if (remaining === 0) {
+                    remainingText = isPaid ? 'Quitada 🎉' : 'Última parcela!';
+                } else if (remaining === 1) {
+                    remainingText = 'Falta 1 parcela';
+                } else {
+                    remainingText = `Faltam ${remaining} parcelas`;
+                }
+
+                let badgeHtml = `
+                    <div class="installment-badge-wrap" title="Parcela ${curr} de ${total} • ${remainingText}">
+                        <span class="badge-installment">
+                            <i class="fas fa-layer-group"></i> ${curr}/${total}
+                            <span class="installment-dot">•</span>
+                            <strong class="installment-remaining-badge">${remainingText}</strong>
+                        </span>
+                        ${remaining > 0 ? `<span class="installment-restam-val" title="Total restante a pagar">(Restam ${formatMoney(remainingAmount)})</span>` : ''}
+                    </div>
+                `;
+
+                return {
+                    type: 'installments',
+                    isInstallment: true,
+                    isRecurring: false,
+                    total: total,
+                    current: curr,
+                    remaining: remaining,
+                    remainingText: remainingText,
+                    remainingAmount: remainingAmount,
+                    progressPct: progressPct,
+                    isFinished: remaining === 0 && isPaid,
+                    label: `Parcela ${curr}/${total}`,
+                    badgeHtml: badgeHtml
+                };
+            }
+
+            // Pagamento Único
+            return {
+                type: 'single',
+                isInstallment: false,
+                isRecurring: false,
+                label: 'Único',
+                badgeHtml: `<span class="badge-single" title="Pagamento Único (À vista)"><i class="fas fa-bolt"></i> Único</span>`
+            };
+        }
+
+        // Vincula lógica ao formulário (tanto de bills quanto de transactions)
+        bindFormControls(prefix) {
+            const selectType = document.getElementById(prefix + 'RecurrenceType');
+            const fieldsWrap = document.getElementById(prefix + 'InstallmentFields');
+            const inputTotal = document.getElementById(prefix + 'InstallmentTotal');
+            const inputCurrent = document.getElementById(prefix + 'InstallmentCurrent');
+            const inputAmount = document.getElementById(prefix + 'Amount');
+            const remainingText = document.getElementById(prefix + 'InstallmentRemainingText');
+            const totalRemainingText = document.getElementById(prefix + 'InstallmentTotalRemainingText');
+
+            if (!selectType || !fieldsWrap) return;
+
+            const updatePreview = () => {
+                const type = selectType.value;
+                if (type !== 'installments') {
+                    fieldsWrap.style.display = 'none';
+                    return;
+                }
+                fieldsWrap.style.display = 'block';
+
+                const total = Math.max(2, parseInt(inputTotal?.value, 10) || 2);
+                let curr = Math.max(1, parseInt(inputCurrent?.value, 10) || 1);
+                if (curr > total) {
+                    curr = total;
+                    if (inputCurrent) inputCurrent.value = curr;
+                }
+
+                const rawAmount = parseFloat(inputAmount?.value) || 0;
+                const modeRadio = document.querySelector(`input[name="${prefix}AmountMode"]:checked`);
+                const mode = modeRadio ? modeRadio.value : 'per_installment';
+
+                let unitAmount = rawAmount;
+                let totalPurchase = rawAmount * total;
+                if (mode === 'total') {
+                    unitAmount = total > 0 ? (rawAmount / total) : 0;
+                    totalPurchase = rawAmount;
+                }
+
+                const remaining = Math.max(0, total - curr);
+                const remainingMoney = remaining * unitAmount;
+
+                if (remainingText) {
+                    if (remaining === 0) {
+                        remainingText.innerHTML = `<strong>Última parcela (${curr} de ${total})</strong>`;
+                    } else if (remaining === 1) {
+                        remainingText.innerHTML = `<strong>Falta 1 parcela</strong> após esta (${curr} de ${total})`;
+                    } else {
+                        remainingText.innerHTML = `<strong>Faltam ${remaining} parcelas</strong> após esta (${curr} de ${total})`;
+                    }
+                }
+
+                if (totalRemainingText) {
+                    totalRemainingText.textContent = `Restam ${formatMoney(remainingMoney)} a pagar • Compra total: ${formatMoney(totalPurchase)} (${total}x de ${formatMoney(unitAmount)})`;
+                }
+            };
+
+            selectType.addEventListener('change', updatePreview);
+            if (inputTotal) inputTotal.addEventListener('input', updatePreview);
+            if (inputCurrent) inputCurrent.addEventListener('input', updatePreview);
+            if (inputAmount) inputAmount.addEventListener('input', updatePreview);
+
+            const radios = document.querySelectorAll(`input[name="${prefix}AmountMode"]`);
+            radios.forEach(r => r.addEventListener('change', updatePreview));
+
+            updatePreview();
+        }
+    }
+
+    // ==========================================================================
     // INSTANCIAÇÃO GLOBAL
     // ==========================================================================
     window.TonuBudget = new TonuBudgetManager();
@@ -1746,6 +1943,7 @@
     window.TonuBankImporter = TonuBankImporter;
     window.TonuBackupInstance = new TonuBackupManager();
     window.TonuBackup = window.TonuBackupInstance;
+    window.TonuInstallments = new TonuInstallmentManager();
 
     console.log('⚡ TonuControle Financial Intelligence Suite unificada com sucesso!');
 })();

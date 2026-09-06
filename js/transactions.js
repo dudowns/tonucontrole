@@ -173,6 +173,11 @@
             await loadTransactions();
             setupFilterListeners();
 
+            // Vincular controles de parcelamento e recorrência
+            if (window.TonuInstallments) {
+                window.TonuInstallments.bindFormControls('t');
+            }
+
             // Check if URL has ?new=true to open modal automatically
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('new') === 'true') {
@@ -394,6 +399,7 @@
             const catInfo = getCategoryInfo(t);
             const typeColor = isIncome ? '#00b894' : '#ff7675';
             const amountPrefix = isIncome ? '+ ' : '- ';
+            const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
 
             html += `
                 <div class="transaction-card" onclick="openModal('${sanitize(t.id)}')">
@@ -404,6 +410,7 @@
                         <div style="font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                             ${sanitize(t.description || 'Sem descrição')}
                         </div>
+                        ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
                         <div style="font-size:12px; color:var(--color-text-muted,#94a3b8); display:flex; gap:8px; align-items:center; margin-top:2px;">
                             <span>${formatDateDisplay(t.date)}</span>
                             <span>•</span>
@@ -453,6 +460,7 @@
     function setupFilterListeners() {
         const searchInput = document.getElementById('searchInput') || document.getElementById('filterSearch');
         const typeSelect = document.getElementById('filterType');
+        const recSelect = document.getElementById('filterRecurrence');
         const catSelect = document.getElementById('filterCategory');
         const statusSelect = document.getElementById('filterStatus');
         const monthInput = document.getElementById('filterMonth');
@@ -461,6 +469,7 @@
 
         if (searchInput) searchInput.addEventListener('input', apply);
         if (typeSelect) typeSelect.addEventListener('change', apply);
+        if (recSelect) recSelect.addEventListener('change', apply);
         if (catSelect) catSelect.addEventListener('change', apply);
         if (statusSelect) statusSelect.addEventListener('change', apply);
         if (monthInput) monthInput.addEventListener('change', apply);
@@ -474,6 +483,7 @@
     function filterTransactions() {
         const query = (document.getElementById('searchInput')?.value || document.getElementById('filterSearch')?.value || '').toLowerCase().trim();
         const type = document.getElementById('filterType')?.value || '';
+        const recurrenceFilter = document.getElementById('filterRecurrence')?.value || 'all';
         const cat = document.getElementById('filterCategory')?.value || '';
         const status = document.getElementById('filterStatus')?.value || '';
         const dateStart = document.getElementById('filterDateStart')?.value || '';
@@ -507,6 +517,15 @@
             }
 
             if (type && type !== 'all' && t.type !== type) return false;
+
+            // Recorrência / Parcelamento
+            if (recurrenceFilter !== 'all') {
+                const info = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : { type: 'single' };
+                if (recurrenceFilter === 'installments' && !info.isInstallment) return false;
+                if (recurrenceFilter === 'recurring' && !info.isRecurring) return false;
+                if (recurrenceFilter === 'single' && (info.isInstallment || info.isRecurring)) return false;
+            }
+
             if (cat && cat !== 'all' && cat !== '' && t.category !== cat) return false;
             if (status === 'paid' && t.paid === false) return false;
             if (status === 'pending' && t.paid !== false) return false;
@@ -547,6 +566,11 @@
         const form = document.getElementById('transactionForm');
         const btnDelete = document.getElementById('btnDelete');
 
+        const recTypeInput = document.getElementById('tRecurrenceType');
+        const instTotalInput = document.getElementById('tInstallmentTotal');
+        const instCurrentInput = document.getElementById('tInstallmentCurrent');
+        const futureGroup = document.getElementById('tGenerateFutureGroup');
+
         if (!modal) return;
 
         if (form) form.reset();
@@ -582,6 +606,20 @@
                 if (paidCheckbox) paidCheckbox.checked = tx.paid !== false;
                 if (document.getElementById('tTags')) document.getElementById('tTags').value = tx.tags || '';
                 if (document.getElementById('tNotes')) document.getElementById('tNotes').value = tx.notes || '';
+
+                // Carregar Recorrência e Parcelas
+                const hasInstallments = (parseInt(tx.installments, 10) > 1);
+                let recVal = tx.recurrence_type;
+                if (!recVal) {
+                    if (hasInstallments) recVal = 'installments';
+                    else if (tx.is_recurring) recVal = 'monthly';
+                    else recVal = 'single';
+                }
+                if (recTypeInput) recTypeInput.value = recVal;
+                if (instTotalInput) instTotalInput.value = tx.installments || 2;
+                if (instCurrentInput) instCurrentInput.value = tx.current_installment || 1;
+                if (futureGroup) futureGroup.style.display = 'none';
+
                 if (btnDelete) btnDelete.classList.remove('hidden');
             }
         } else {
@@ -589,6 +627,15 @@
             if (document.getElementById('editId')) document.getElementById('editId').value = '';
             if (btnDelete) btnDelete.classList.add('hidden');
             populateCategorySelects();
+
+            if (recTypeInput) recTypeInput.value = 'single';
+            if (instTotalInput) instTotalInput.value = '2';
+            if (instCurrentInput) instCurrentInput.value = '1';
+            if (futureGroup) futureGroup.style.display = 'flex';
+        }
+
+        if (recTypeInput) {
+            recTypeInput.dispatchEvent(new Event('change'));
         }
 
         if (overlay) overlay.classList.add('active');
@@ -629,7 +676,7 @@
         if (event) event.preventDefault();
 
         const desc = document.getElementById('tDescription')?.value.trim();
-        const amount = parseFloat(document.getElementById('tAmount')?.value);
+        const rawAmount = parseFloat(document.getElementById('tAmount')?.value);
         const type = document.getElementById('tType')?.value || 'expense';
         const date = document.getElementById('tDate')?.value;
         const category = document.getElementById('tCategory')?.value || 'Outros';
@@ -638,7 +685,25 @@
         const notes = document.getElementById('tNotes')?.value.trim() || null;
         const editId = document.getElementById('editId')?.value || currentEditId;
 
-        if (!desc || isNaN(amount) || amount <= 0 || !date) {
+        const recurrenceType = document.getElementById('tRecurrenceType')?.value || 'single';
+        let installmentsTotal = 1;
+        let installmentCurrent = 1;
+        let generateFuture = false;
+        let finalAmount = rawAmount;
+
+        if (recurrenceType === 'installments') {
+            installmentsTotal = Math.max(2, parseInt(document.getElementById('tInstallmentTotal')?.value, 10) || 2);
+            installmentCurrent = Math.max(1, Math.min(installmentsTotal, parseInt(document.getElementById('tInstallmentCurrent')?.value, 10) || 1));
+            const mode = document.querySelector('input[name="tAmountMode"]:checked')?.value || 'per_installment';
+            if (mode === 'total') {
+                finalAmount = parseFloat((rawAmount / installmentsTotal).toFixed(2));
+            }
+            generateFuture = !editId && (document.getElementById('tGenerateFuture')?.checked ?? false);
+        }
+
+        const isRecurring = (recurrenceType === 'monthly' || recurrenceType === 'semiannual');
+
+        if (!desc || isNaN(finalAmount) || finalAmount <= 0 || !date) {
             if (window.showToast) window.showToast('Preencha os campos obrigatórios corretamente!', 'warning');
             return;
         }
@@ -649,10 +714,10 @@
             if (found) matchedCatId = found.id;
         }
 
-        const transactionData = {
+        const baseTransactionData = {
             user_id: currentUser.id,
             description: desc,
-            amount: amount,
+            amount: finalAmount,
             type: type,
             date: date,
             category: category,
@@ -660,6 +725,10 @@
             paid: paid,
             tags: tags,
             notes: notes,
+            recurrence_type: recurrenceType,
+            is_recurring: isRecurring,
+            installments: recurrenceType === 'installments' ? installmentsTotal : 1,
+            current_installment: recurrenceType === 'installments' ? installmentCurrent : 1,
             updated_at: new Date().toISOString()
         };
 
@@ -669,29 +738,66 @@
                 if (window.supabaseClient) {
                     await window.supabaseClient
                         .from('transactions')
-                        .update(transactionData)
+                        .update(baseTransactionData)
                         .eq('id', editId)
                         .eq('user_id', currentUser.id);
                 }
 
                 const idx = allTransactions.findIndex(t => String(t.id) === String(editId));
                 if (idx !== -1) {
-                    allTransactions[idx] = { ...allTransactions[idx], ...transactionData, id: editId };
+                    allTransactions[idx] = { ...allTransactions[idx], ...baseTransactionData, id: editId };
                 }
                 if (window.showToast) window.showToast('Transação atualizada com sucesso! ✅', 'success');
             } else {
-                // Insert
-                transactionData.id = 'tx_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-                transactionData.created_at = new Date().toISOString();
+                if (generateFuture && installmentsTotal > installmentCurrent) {
+                    // Geração em lote das parcelas futuras
+                    const batch = [];
+                    const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
 
-                if (window.supabaseClient) {
-                    await window.supabaseClient
-                        .from('transactions')
-                        .insert([transactionData]);
+                    for (let i = installmentCurrent; i <= installmentsTotal; i++) {
+                        const monthOffset = i - installmentCurrent;
+                        const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
+                        const itemPaid = (i === installmentCurrent) ? paid : false;
+                        const txId = 'tx_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 4);
+
+                        batch.push({
+                            ...baseTransactionData,
+                            id: txId,
+                            description: `${cleanDesc} (${i}/${installmentsTotal})`,
+                            amount: finalAmount,
+                            date: dueDate,
+                            installments: installmentsTotal,
+                            current_installment: i,
+                            paid: itemPaid,
+                            created_at: new Date().toISOString()
+                        });
+                    }
+
+                    if (window.supabaseClient) {
+                        await window.supabaseClient
+                            .from('transactions')
+                            .insert(batch);
+                    }
+
+                    // Prepend to allTransactions
+                    batch.forEach(item => allTransactions.unshift(item));
+                    if (window.showToast) window.showToast(`Lançamento parcelado criado com ${batch.length} parcelas registradas! 📦`, 'success');
+                } else {
+                    const newTx = {
+                        ...baseTransactionData,
+                        id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                        created_at: new Date().toISOString()
+                    };
+
+                    if (window.supabaseClient) {
+                        await window.supabaseClient
+                            .from('transactions')
+                            .insert([newTx]);
+                    }
+
+                    allTransactions.unshift(newTx);
+                    if (window.showToast) window.showToast('Transação criada com sucesso! 🎉', 'success');
                 }
-
-                allTransactions.unshift(transactionData);
-                if (window.showToast) window.showToast('Transação criada com sucesso! 🎉', 'success');
             }
 
             // Save to local cache
@@ -703,7 +809,7 @@
             // Check category budget limits and show notifications if approaching or exceeding
             if (type === 'expense' && window.TonuBudget && currentUser) {
                 try {
-                    window.TonuBudget.checkLimitAfterTransaction(currentUser.id, transactionData, allTransactions, categories);
+                    window.TonuBudget.checkLimitAfterTransaction(currentUser.id, baseTransactionData, allTransactions, categories);
                 } catch (bErr) {
                     console.warn('⚠️ Erro ao verificar limite pós-transação:', bErr);
                 }

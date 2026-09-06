@@ -604,3 +604,125 @@ body.no-scroll {
         font-size: 12px;
     }
 }
+
+/* ============================================
+   ESTILOS DE PARCELAMENTO & RECORRÊNCIA
+   ============================================ */
+.installment-badge-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 3px;
+}
+
+.badge-installment {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #e0e7ff;
+    color: #4338ca;
+    border: 1px solid #c7d2fe;
+    letter-spacing: 0.2px;
+}
+
+.badge-installment i {
+    font-size: 10px;
+}
+
+.installment-dot {
+    opacity: 0.5;
+    margin: 0 1px;
+}
+
+.installment-remaining-badge {
+    font-weight: 700;
+    color: #3730a3;
+}
+
+.installment-restam-val {
+    font-size: 11px;
+    font-weight: 600;
+    color: #4f46e5;
+    opacity: 0.9;
+}
+
+.badge-recurrence {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    margin-top: 3px;
+}
+
+.badge-monthly {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.badge-semiannual {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.badge-single {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    margin-top: 3px;
+}
+
+/* Modo escuro para badges */
+[data-theme="dark"] .badge-installment,
+.dark-theme .badge-installment {
+    background: rgba(99, 102, 241, 0.18);
+    color: #a5b4fc;
+    border-color: rgba(99, 102, 241, 0.35);
+}
+
+[data-theme="dark"] .installment-remaining-badge,
+.dark-theme .installment-remaining-badge {
+    color: #c7d2fe;
+}
+
+[data-theme="dark"] .installment-restam-val,
+.dark-theme .installment-restam-val {
+    color: #818cf8;
+}
+
+[data-theme="dark"] .badge-monthly,
+.dark-theme .badge-monthly {
+    background: rgba(245, 158, 11, 0.18);
+    color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.35);
+}
+
+[data-theme="dark"] .badge-semiannual,
+.dark-theme .badge-semiannual {
+    background: rgba(14, 165, 233, 0.18);
+    color: #7dd3fc;
+    border-color: rgba(14, 165, 233, 0.35);
+}
+
+[data-theme="dark"] .badge-single,
+.dark-theme .badge-single {
+    background: rgba(148, 163, 184, 0.12);
+    color: #94a3b8;
+    border-color: rgba(148, 163, 184, 0.25);
+}

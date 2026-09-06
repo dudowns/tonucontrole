@@ -117,6 +117,11 @@
             await loadBills();
             setupFilters();
 
+            // Vincular controles dinâmicos de parcelamento e recorrência
+            if (window.TonuInstallments) {
+                window.TonuInstallments.bindFormControls('bill');
+            }
+
             // Abrir modal automaticamente se houver parâmetro action=new
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('action') === 'new' || urlParams.get('action') === 'bill') {
@@ -333,7 +338,50 @@
 
         if (elPct) elPct.textContent = `${pct}%`;
         if (elBar) elBar.style.width = `${pct}%`;
+
+        // Métricas de Parcelamento e Banner
+        updateInstallmentsBanner(bills);
     }
+
+    function updateInstallmentsBanner(bills) {
+        const banner = document.getElementById('billsInstallmentBanner');
+        if (!banner) return;
+
+        let activeCount = 0;
+        let totalRemainingInstallments = 0;
+        let totalRemainingDebt = 0;
+
+        bills.forEach(b => {
+            if (window.TonuInstallments) {
+                const info = window.TonuInstallments.getInstallmentInfo(b);
+                if (info.isInstallment && !info.isFinished) {
+                    activeCount++;
+                    totalRemainingInstallments += info.remaining;
+                    totalRemainingDebt += info.remainingAmount;
+                }
+            }
+        });
+
+        if (activeCount > 0) {
+            banner.style.display = 'flex';
+            const countEl = document.getElementById('bannerInstallmentActiveCount');
+            const detailsEl = document.getElementById('bannerInstallmentDetails');
+            if (countEl) countEl.textContent = activeCount;
+            if (detailsEl) {
+                detailsEl.textContent = `Total de parcelas restantes a vencer: ${totalRemainingInstallments} • Saldo restante a quitar: ${formatCurrency(totalRemainingDebt)}`;
+            }
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+
+    window.filterByInstallmentsOnly = function() {
+        const recSelect = document.getElementById('billFilterRecurrence');
+        if (recSelect) {
+            recSelect.value = 'installments';
+            applyFiltersAndRender();
+        }
+    };
 
     // ============================================
     // FILTROS E RENDERIZAÇÃO
@@ -341,20 +389,24 @@
     function setupFilters() {
         const searchInput = document.getElementById('billFilterSearch');
         const statusSelect = document.getElementById('billFilterStatus');
+        const recSelect = document.getElementById('billFilterRecurrence');
         const catSelect = document.getElementById('billFilterCategory');
 
         if (searchInput) searchInput.addEventListener('input', applyFiltersAndRender);
         if (statusSelect) statusSelect.addEventListener('change', applyFiltersAndRender);
+        if (recSelect) recSelect.addEventListener('change', applyFiltersAndRender);
         if (catSelect) catSelect.addEventListener('change', applyFiltersAndRender);
     }
 
     function applyFiltersAndRender() {
         const searchInput = document.getElementById('billFilterSearch');
         const statusSelect = document.getElementById('billFilterStatus');
+        const recSelect = document.getElementById('billFilterRecurrence');
         const catSelect = document.getElementById('billFilterCategory');
 
         const query = (searchInput?.value || '').toLowerCase().trim();
         const status = statusSelect?.value || 'all';
+        const recurrenceFilter = recSelect?.value || 'all';
         const categoryId = catSelect?.value || 'all';
         const todayStr = getTodayString();
 
@@ -369,6 +421,14 @@
             if (status === 'paid' && !b.paid) return false;
             if (status === 'pending' && b.paid) return false;
             if (status === 'overdue' && (!isOverdue)) return false;
+
+            // Recorrência / Parcelamento
+            if (recurrenceFilter !== 'all') {
+                const info = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(b) : { type: 'single' };
+                if (recurrenceFilter === 'installments' && !info.isInstallment) return false;
+                if (recurrenceFilter === 'recurring' && !info.isRecurring) return false;
+                if (recurrenceFilter === 'single' && (info.isInstallment || info.isRecurring)) return false;
+            }
 
             // Categoria
             if (categoryId !== 'all' && b.category_id !== categoryId) return false;
@@ -450,6 +510,9 @@
                 statusBadge = `<span class="badge badge-pending">PENDENTE</span>`;
             }
 
+            // Metadados de Parcelamento / Recorrência
+            const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(b) : null;
+
             html += `
                 <div class="bill-card ${isOverdue ? 'overdue' : ''}" id="bill_item_${b.id}">
                     <div class="bill-left">
@@ -458,6 +521,7 @@
                         </div>
                         <div class="bill-info">
                             <strong>${sanitize(b.description)}</strong>
+                            ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
                             <small>
                                 <i class="fas fa-calendar-alt" style="margin-right:3px;"></i>${formatDate(b.date)} • ${sanitize(catName)}
                                 ${b.notes ? ` • <span style="font-style:italic;" title="${sanitize(b.notes)}"><i class="fas fa-info-circle"></i> ${sanitize(b.notes)}</span>` : ''}
@@ -558,6 +622,11 @@
         const btnDelete = document.getElementById('btnDeleteBill');
         const btnSave = document.getElementById('btnSaveBill');
 
+        const recTypeInput = document.getElementById('billRecurrenceType');
+        const instTotalInput = document.getElementById('billInstallmentTotal');
+        const instCurrentInput = document.getElementById('billInstallmentCurrent');
+        const futureGroup = document.getElementById('billGenerateFutureGroup');
+
         if (form) form.reset();
         populateCategoryDropdowns();
 
@@ -583,6 +652,20 @@
                 document.getElementById('billCategory').value = bill.category_id || '';
                 document.getElementById('billNotes').value = bill.notes || '';
                 document.getElementById('billPaid').checked = !!bill.paid;
+
+                // Carregar recorrência e parcelas
+                const hasInstallments = (parseInt(bill.installments, 10) > 1);
+                let recVal = bill.recurrence_type;
+                if (!recVal) {
+                    if (hasInstallments) recVal = 'installments';
+                    else if (bill.is_recurring) recVal = 'monthly';
+                    else recVal = 'single';
+                }
+                if (recTypeInput) recTypeInput.value = recVal;
+                if (instTotalInput) instTotalInput.value = bill.installments || 2;
+                if (instCurrentInput) instCurrentInput.value = bill.current_installment || 1;
+                if (futureGroup) futureGroup.style.display = 'none';
+
                 if (btnDelete) btnDelete.classList.remove('hidden');
             }
         } else {
@@ -590,6 +673,15 @@
             if (btnSave) btnSave.innerHTML = '💾 Salvar Conta';
             if (document.getElementById('billEditId')) document.getElementById('billEditId').value = '';
             if (btnDelete) btnDelete.classList.add('hidden');
+
+            if (recTypeInput) recTypeInput.value = 'single';
+            if (instTotalInput) instTotalInput.value = '2';
+            if (instCurrentInput) instCurrentInput.value = '1';
+            if (futureGroup) futureGroup.style.display = 'flex';
+        }
+
+        if (recTypeInput) {
+            recTypeInput.dispatchEvent(new Event('change'));
         }
 
         if (overlay) {
@@ -640,14 +732,32 @@
         if (event) event.preventDefault();
 
         const desc = document.getElementById('billDescription')?.value.trim();
-        const amount = parseFloat(document.getElementById('billAmount')?.value);
+        const rawAmount = parseFloat(document.getElementById('billAmount')?.value);
         const date = document.getElementById('billDate')?.value;
         const categoryId = document.getElementById('billCategory')?.value || null;
         const notes = document.getElementById('billNotes')?.value.trim() || null;
         const paid = document.getElementById('billPaid')?.checked ?? false;
         const editId = document.getElementById('billEditId')?.value || currentEditBillId;
 
-        if (!desc || isNaN(amount) || amount <= 0 || !date) {
+        const recurrenceType = document.getElementById('billRecurrenceType')?.value || 'single';
+        let installmentsTotal = 1;
+        let installmentCurrent = 1;
+        let generateFuture = false;
+        let finalAmount = rawAmount;
+
+        if (recurrenceType === 'installments') {
+            installmentsTotal = Math.max(2, parseInt(document.getElementById('billInstallmentTotal')?.value, 10) || 2);
+            installmentCurrent = Math.max(1, Math.min(installmentsTotal, parseInt(document.getElementById('billInstallmentCurrent')?.value, 10) || 1));
+            const mode = document.querySelector('input[name="billAmountMode"]:checked')?.value || 'per_installment';
+            if (mode === 'total') {
+                finalAmount = parseFloat((rawAmount / installmentsTotal).toFixed(2));
+            }
+            generateFuture = !editId && (document.getElementById('billGenerateFuture')?.checked ?? false);
+        }
+
+        const isRecurring = (recurrenceType === 'monthly' || recurrenceType === 'semiannual');
+
+        if (!desc || isNaN(finalAmount) || finalAmount <= 0 || !date) {
             showToast('Preencha os campos obrigatórios corretamente!', 'warning');
             return;
         }
@@ -658,17 +768,21 @@
             btnSave.textContent = 'Salvando...';
         }
 
-        const billPayload = {
+        const baseBillPayload = {
             user_id: currentUser.id,
             description: desc,
-            amount: amount,
+            amount: finalAmount,
             date: date,
             type: 'expense',
             is_bill: true,
             category_id: categoryId || null,
             notes: notes,
             paid: paid,
-            paid_date: paid ? getTodayString() : null
+            paid_date: paid ? getTodayString() : null,
+            recurrence_type: recurrenceType,
+            is_recurring: isRecurring,
+            installments: recurrenceType === 'installments' ? installmentsTotal : 1,
+            current_installment: recurrenceType === 'installments' ? installmentCurrent : 1
         };
 
         try {
@@ -676,7 +790,7 @@
                 if (window.supabaseClient) {
                     const { error } = await window.supabaseClient
                         .from('transactions')
-                        .update(billPayload)
+                        .update(baseBillPayload)
                         .eq('id', editId)
                         .eq('user_id', currentUser.id);
 
@@ -684,14 +798,46 @@
                 }
                 showToast('Conta atualizada com sucesso! ✅', 'success');
             } else {
-                if (window.supabaseClient) {
-                    const { error } = await window.supabaseClient
-                        .from('transactions')
-                        .insert([billPayload]);
+                if (generateFuture && installmentsTotal > installmentCurrent) {
+                    // Geração em lote das parcelas futuras
+                    const batch = [];
+                    const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
 
-                    if (error) throw error;
+                    for (let i = installmentCurrent; i <= installmentsTotal; i++) {
+                        const monthOffset = i - installmentCurrent;
+                        const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
+                        const itemPaid = (i === installmentCurrent) ? paid : false;
+
+                        batch.push({
+                            ...baseBillPayload,
+                            description: `${cleanDesc} (${i}/${installmentsTotal})`,
+                            amount: finalAmount,
+                            date: dueDate,
+                            installments: installmentsTotal,
+                            current_installment: i,
+                            paid: itemPaid,
+                            paid_date: itemPaid ? getTodayString() : null
+                        });
+                    }
+
+                    if (window.supabaseClient) {
+                        const { error } = await window.supabaseClient
+                            .from('transactions')
+                            .insert(batch);
+
+                        if (error) throw error;
+                    }
+                    showToast(`Compra parcelada criada com ${batch.length} parcelas registradas! 📦`, 'success');
+                } else {
+                    if (window.supabaseClient) {
+                        const { error } = await window.supabaseClient
+                            .from('transactions')
+                            .insert([baseBillPayload]);
+
+                        if (error) throw error;
+                    }
+                    showToast('Conta adicionada com sucesso! 🎉', 'success');
                 }
-                showToast('Conta adicionada com sucesso! 🎉', 'success');
             }
 
             closeBillModal();

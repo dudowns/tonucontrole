@@ -7,8 +7,8 @@
     "scripts": {
         "dev": "NODE_ENV=development node server.js",
         "start": "NODE_ENV=production node server.js",
-        "build": "echo 'Build completo'",
-        "lint": "node --check js/core.js js/security.js js/auth.js js/dashboard.js js/transactions.js js/bills.js js/goals.js js/investments.js js/settings.js js/sync.js js/notifications.js server.js",
+        "build": "node scripts/build.js",
+        "lint": "node --check js/core.js js/security.js js/auth.js js/dashboard.js js/transactions.js js/bills.js js/goals.js js/investments.js js/settings.js js/sync.js js/notifications.js js/financial-tools.js server.js",
         "test": "node tests/run-tests.js"
     },
     "dependencies": {

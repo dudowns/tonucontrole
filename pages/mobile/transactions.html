@@ -186,6 +186,7 @@
 <script src="../../js/supabase.js"></script>
 <script src="../../js/core.js"></script>
 <script src="../../js/sync.js"></script>
+<script src="../../js/financial-tools.js"></script>
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
 <script>
@@ -438,6 +439,19 @@ async function handleQuickAddSubmit(event) {
         closeQuickAddModal();
         document.getElementById("quickAddForm").reset();
         await loadTransactions();
+
+        if (currentQuickType === 'expense' && window.TonuBudget && currentUser) {
+            const catObj = categories.find(c => c.id === category_id);
+            window.TonuBudget.checkLimitAfterTransaction(
+                currentUser.id,
+                { type: 'expense', amount, category_id, category: catObj?.name, date },
+                allTransactions,
+                categories
+            );
+        }
+        if (typeof window.checkNotifications === 'function') {
+            window.checkNotifications();
+        }
     } catch (err) {
         console.error("Erro ao salvar:", err);
         showToast("Erro ao salvar: " + (err.message || "Tente novamente"), "error");

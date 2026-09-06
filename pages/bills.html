@@ -186,9 +186,35 @@
                         <option value="overdue">Apenas Atrasadas ⚠️</option>
                         <option value="paid">Apenas Pagas ✅</option>
                     </select>
+                    <select id="billFilterRecurrence" class="form-control">
+                        <option value="all">Todas as formas de pagamento</option>
+                        <option value="installments">📦 Apenas Parceladas (Ver parcelas restantes)</option>
+                        <option value="recurring">🔁 Apenas Recorrentes (Mensal / Semestral)</option>
+                        <option value="single">⚡ Apenas Pagamento Único</option>
+                    </select>
                     <select id="billFilterCategory" class="form-control">
                         <option value="all">Todas as categorias</option>
                     </select>
+                </div>
+
+                <!-- BANNER INFORMATIVO DE COMPRAS/CONTAS PARCELADAS -->
+                <div id="billsInstallmentBanner" style="display:none; margin-bottom:var(--space-md); padding:10px 14px; background:linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(168,85,247,0.08) 100%); border:1px solid rgba(99,102,241,0.25); border-radius:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="width:36px; height:36px; border-radius:8px; background:var(--color-primary, #6c5ce7); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:13px; font-weight:700; color:var(--color-text);">
+                                <span id="bannerInstallmentActiveCount">0</span> Contas Parceladas em Andamento
+                            </div>
+                            <div style="font-size:11px; color:var(--color-text-muted);" id="bannerInstallmentDetails">
+                                Total de parcelas a vencer: 0 • Saldo devedor total: R$ 0,00
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="filterByInstallmentsOnly()" style="font-size:11px; padding:4px 10px; font-weight:600;">
+                        <i class="fas fa-filter"></i> Filtrar Parceladas
+                    </button>
                 </div>
 
                 <!-- LISTA DE CONTAS -->
@@ -235,6 +261,57 @@
                         <div class="form-group">
                             <label for="billDate">Vencimento *</label>
                             <input type="date" id="billDate" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <!-- FORMA / FREQUÊNCIA DE PAGAMENTO -->
+                    <div class="form-group">
+                        <label for="billRecurrenceType">Forma / Frequência de Pagamento *</label>
+                        <select id="billRecurrenceType" class="form-control">
+                            <option value="single">⚡ Pagamento Único (À vista)</option>
+                            <option value="installments">📦 Pagamento Parcelado (Dividido em parcelas)</option>
+                            <option value="monthly">🔁 Mensal (Recorrente todo mês - Ex: Aluguel, Luz)</option>
+                            <option value="semiannual">📅 Semestral (Recorrente a cada 6 meses)</option>
+                        </select>
+                    </div>
+
+                    <!-- DETALHES DE PARCELAMENTO (Condicional) -->
+                    <div id="billInstallmentFields" style="display:none; padding:12px 14px; background:var(--color-bg, #f8fafc); border:1px solid var(--color-border, #e2e8f0); border-radius:10px; margin-bottom:14px;">
+                        <div style="font-size:12px; font-weight:700; color:var(--color-primary, #6c5ce7); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-layer-group"></i> Detalhes do Pagamento Parcelado
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1;">
+                                <label for="billInstallmentTotal">Total de Parcelas *</label>
+                                <input type="number" id="billInstallmentTotal" class="form-control" min="2" max="120" value="2">
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <label for="billInstallmentCurrent">Parcela Atual</label>
+                                <input type="number" id="billInstallmentCurrent" class="form-control" min="1" max="120" value="1">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:8px;">
+                            <label style="font-size:11px; margin-bottom:4px; display:block;">O valor digitado no campo acima é:</label>
+                            <div style="display:flex; gap:14px; flex-wrap:wrap;">
+                                <label style="display:flex; align-items:center; gap:5px; font-size:12px; font-weight:500; cursor:pointer;">
+                                    <input type="radio" name="billAmountMode" value="per_installment" checked>
+                                    Valor de cada parcela
+                                </label>
+                                <label style="display:flex; align-items:center; gap:5px; font-size:12px; font-weight:500; cursor:pointer;">
+                                    <input type="radio" name="billAmountMode" value="total">
+                                    Valor total da compra
+                                </label>
+                            </div>
+                        </div>
+                        <div id="billInstallmentSummaryBox" style="font-size:12px; padding:8px 12px; border-radius:8px; background:#e0e7ff; color:#3730a3; margin-bottom:8px;">
+                            <div style="font-weight:700;" id="billInstallmentRemainingText">Faltam 1 parcelas</div>
+                            <div style="font-size:11px; opacity:0.9;" id="billInstallmentTotalRemainingText">Restam R$ 0,00 a pagar</div>
+                        </div>
+                        <div id="billGenerateFutureGroup" style="display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" id="billGenerateFuture" checked style="cursor:pointer;">
+                            <label for="billGenerateFuture" style="margin:0; font-size:12px; cursor:pointer; font-weight:500;">
+                                Gerar automaticamente as parcelas dos próximos meses
+                            </label>
                         </div>
                     </div>
 

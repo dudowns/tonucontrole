@@ -4,6 +4,7 @@
 
 const { runUnitTests } = require('./unit.test');
 const { runE2ETests } = require('./e2e.test');
+const { runSecurityTests } = require('./security.test');
 
 async function main() {
     console.log('\n======================================================');
@@ -17,7 +18,7 @@ async function main() {
     const startTime = Date.now();
 
     // 1. Testes Unitários
-    console.log('📦 [1/2] Executando Testes Unitários...');
+    console.log('📦 [1/3] Executando Testes Unitários...');
     const unitResults = await runUnitTests();
     unitResults.forEach(r => {
         totalTests++;
@@ -33,9 +34,25 @@ async function main() {
     console.log('');
 
     // 2. Testes E2E & Integração
-    console.log('🔄 [2/2] Executando Testes End-to-End (E2E) & Fluxos...');
+    console.log('🔄 [2/3] Executando Testes End-to-End (E2E) & Fluxos...');
     const e2eResults = await runE2ETests();
     e2eResults.forEach(r => {
+        totalTests++;
+        if (r.passed) {
+            passedTests++;
+            console.log(`   ✅ PASS: ${r.name}`);
+        } else {
+            failedTests++;
+            console.error(`   ❌ FAIL: ${r.name} - ${r.error}`);
+        }
+    });
+
+    console.log('');
+
+    // 3. Testes de Segurança e Servidor
+    console.log('🛡️ [3/3] Executando Testes de Segurança & Servidor...');
+    const secResults = await runSecurityTests();
+    secResults.forEach(r => {
         totalTests++;
         if (r.passed) {
             passedTests++;
