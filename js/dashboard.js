@@ -829,6 +829,7 @@ async function loadDashboard() {
 
         await checkOverdueBills();
         await loadRecentTransactions();
+        await generateDashboardInsights();
 
         console.log('✅ Dashboard atualizado!');
 
@@ -938,7 +939,7 @@ async function loadRecentTransactions() {
         const uniqueTransactions = Array.from(groupedByKey.values());
         const recentTransactions = uniqueTransactions.slice(0, 7);
 
-        const countEl = document.getElementById('txCount');
+        const countEl = document.getElementById('txCountBadge') || document.getElementById('txCount');
         if (countEl) {
             countEl.textContent = recentTransactions.length;
         }
@@ -1004,6 +1005,230 @@ async function loadRecentTransactions() {
                 <span class="empty-icon">⚠️</span>
                 <h4>Erro ao carregar</h4>
                 <p>Nao foi possivel carregar as transacoes. Tente novamente.</p>
+            </div>
+        `;
+    }
+}
+
+// ============================================
+// 💡 INSIGHTS FINANCEIROS INTELIGENTES DO DASHBOARD
+// ============================================
+async function generateDashboardInsights() {
+    const container = document.getElementById('dashboardInsightsBody');
+    if (!container) return;
+
+    try {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() + currentMonthOffset);
+        const year = d.getFullYear();
+        const month = d.getMonth();
+        const firstDay = formatDateKey(year, month, 1);
+        const lastDayStr = formatDateKey(year, month, getLastDayOfMonth(year, month));
+
+        let txs = [];
+        if (supabaseClient && currentUser) {
+            try {
+                const { data } = await supabaseClient
+                    .from('transactions')
+                    .select('*, categories(name, icon, color)')
+                    .eq('user_id', currentUser.id)
+                    .eq('paid', true)
+                    .gte('date', firstDay)
+                    .lte('date', lastDayStr);
+                if (data) txs = data;
+            } catch (e) {
+                console.warn('Erro ao buscar transações para insights:', e);
+            }
+        }
+
+        if (txs.length === 0 && currentUser) {
+            try {
+                const localData = localStorage.getItem('tonu_transactions_' + currentUser.id);
+                if (localData) {
+                    const parsed = JSON.parse(localData);
+                    txs = parsed.filter(t => t.paid && t.date >= firstDay && t.date <= lastDayStr);
+                }
+            } catch {}
+        }
+
+        let totalIncome = 0;
+        let totalExpense = 0;
+        const categoryMap = {};
+
+        txs.forEach(t => {
+            const amt = Number(t.amount || 0);
+            if (t.type === 'income') {
+                totalIncome += amt;
+            } else if (t.type === 'expense') {
+                totalExpense += amt;
+                const catName = t.categories?.name || 'Outros';
+                categoryMap[catName] = (categoryMap[catName] || 0) + amt;
+            }
+        });
+
+        const netBalance = totalIncome - totalExpense;
+
+        // Análise 1: Taxa de Poupança / Margem
+        let savingsRate = 0;
+        let savingsLabel = 'Sem receitas registradas';
+        let savingsClass = 'info';
+        let savingsBadge = 'Neutro';
+
+        if (totalIncome > 0) {
+            savingsRate = Math.round((netBalance / totalIncome) * 100);
+            if (savingsRate >= 20) {
+                savingsLabel = `${savingsRate}% da renda poupada`;
+                savingsClass = 'success';
+                savingsBadge = 'Excelente';
+            } else if (savingsRate > 0) {
+                savingsLabel = `${savingsRate}% da renda poupada`;
+                savingsClass = 'info';
+                savingsBadge = 'Moderado';
+            } else {
+                savingsLabel = `Déficit de ${Math.abs(savingsRate)}% da renda`;
+                savingsClass = 'danger';
+                savingsBadge = 'Déficit';
+            }
+        } else if (totalExpense > 0) {
+            savingsLabel = 'Apenas despesas registradas';
+            savingsClass = 'danger';
+            savingsBadge = 'Atenção';
+        }
+
+        // Análise 2: Maior Categoria de Despesa
+        let topCategory = 'Nenhuma';
+        let topCatAmount = 0;
+        let topCatPct = 0;
+        Object.entries(categoryMap).forEach(([cat, val]) => {
+            if (val > topCatAmount) {
+                topCatAmount = val;
+                topCategory = cat;
+            }
+        });
+        if (totalExpense > 0 && topCatAmount > 0) {
+            topCatPct = Math.round((topCatAmount / totalExpense) * 100);
+        }
+
+        // Análise 3: Ritmo de Gasto Diário
+        const isCurrentMonth = currentMonthOffset === 0;
+        const todayDay = isCurrentMonth ? Math.min(new Date().getDate(), getLastDayOfMonth(year, month)) : getLastDayOfMonth(year, month);
+        const dailyBurnRate = todayDay > 0 ? (totalExpense / todayDay) : 0;
+        const daysInMonth = getLastDayOfMonth(year, month);
+        const projectedExpense = dailyBurnRate * daysInMonth;
+
+        // Análise 4: Limites por Categoria (TonuBudget)
+        let budgetAlert = null;
+        if (window.TonuBudget && currentUser) {
+            try {
+                const budgetProgress = window.TonuBudget.calculateCategoryProgress(currentUser.id, txs, categories || []);
+                const exceeded = budgetProgress.filter(b => b.isExceeded);
+                const warned = budgetProgress.filter(b => b.isWarning && !b.isExceeded);
+
+                if (exceeded.length > 0) {
+                    budgetAlert = {
+                        type: 'danger',
+                        text: `${exceeded.length} categoria(s) estouraram o teto (${exceeded.map(e => e.name).slice(0, 2).join(', ')})`,
+                        sub: 'Ajuste os tetos nas Configurações'
+                    };
+                } else if (warned.length > 0) {
+                    budgetAlert = {
+                        type: 'warning',
+                        text: `${warned.length} categoria(s) na margem preventiva`,
+                        sub: `Atenção com ${warned[0].name}`
+                    };
+                }
+            } catch (e) {
+                console.warn('Erro ao avaliar limites em insights:', e);
+            }
+        }
+
+        // Dica dinâmica inteligente
+        let smartTip = '';
+        if (totalIncome === 0 && totalExpense === 0) {
+            smartTip = '<strong>Comece registrando suas receitas e despesas!</strong><p>Cadastre suas contas do mês para desbloquear diagnósticos automatizados de saúde financeira.</p>';
+        } else if (netBalance < 0) {
+            smartTip = `<strong>Atenção ao fluxo negativo:</strong><p>Suas despesas superaram suas receitas em <strong>${formatCurrency(Math.abs(netBalance))}</strong> este mês. Revise gastos com <em>${topCategory}</em> (${topCatPct}% das saídas) para reequilibrar o mês.</p>`;
+        } else if (topCatPct >= 40) {
+            smartTip = `<strong>Concentração de despesa em ${topCategory}:</strong><p>Essa categoria consome <strong>${topCatPct}%</strong> de todos os seus gastos. Pequenas economias aqui terão o maior impacto no seu saldo final.</p>`;
+        } else if (savingsRate >= 20) {
+            smartTip = `<strong>Ótimo ritmo de poupança!</strong><p>Você guardou <strong>${savingsRate}%</strong> da sua renda este mês. Que tal destinar uma parte desse superávit para sua reserva de emergência ou metas?</p>`;
+        } else {
+            smartTip = `<strong>Ritmo estável no mês:</strong><p>Sua média diária de saídas é de <strong>${formatCurrency(dailyBurnRate)}/dia</strong>. Mantendo esse controle, sua projeção de fechamento é de ${formatCurrency(projectedExpense)}.</p>`;
+        }
+
+        // Renderizar HTML
+        container.innerHTML = `
+            <!-- Bloco 1: Taxa de Poupança -->
+            <div class="insight-metric-block">
+                <div class="insight-metric-left">
+                    <div class="insight-metric-icon ${savingsClass}">
+                        <i class="fas ${savingsClass === 'success' ? 'fa-piggy-bank' : (savingsClass === 'danger' ? 'fa-triangle-exclamation' : 'fa-chart-pie')}"></i>
+                    </div>
+                    <div class="insight-metric-text">
+                        <span class="label">Taxa de Poupança</span>
+                        <span class="val">${savingsLabel}</span>
+                    </div>
+                </div>
+                <span class="insight-metric-badge badge badge-${savingsClass}">${savingsBadge}</span>
+            </div>
+
+            <!-- Bloco 2: Maior Despesa do Mês -->
+            <div class="insight-metric-block">
+                <div class="insight-metric-left">
+                    <div class="insight-metric-icon ${topCatPct >= 40 ? 'warning' : 'info'}">
+                        <i class="fas fa-fire-flame-curved"></i>
+                    </div>
+                    <div class="insight-metric-text">
+                        <span class="label">Maior Centro de Custo</span>
+                        <span class="val">${topCategory} (${formatCurrency(topCatAmount)})</span>
+                    </div>
+                </div>
+                <span class="insight-metric-badge badge badge-muted">${topCatPct}% das saídas</span>
+            </div>
+
+            ${budgetAlert ? `
+                <!-- Alerta de Limite Orçamentário (se houver) -->
+                <div class="insight-metric-block" style="border-left: 3px solid ${budgetAlert.type === 'danger' ? '#EF4444' : '#F59E0B'};">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon ${budgetAlert.type}">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Alerta de Tetos de Gastos</span>
+                            <span class="val" style="font-size: 12px;">${budgetAlert.text}</span>
+                        </div>
+                    </div>
+                    <a href="settings.html" onclick="localStorage.setItem('tonu_settings_active_tab', 'budgets');" class="btn btn-ghost-sm" style="font-size: 10px; text-decoration: none;" title="Gerenciar em Configurações">
+                        Ajustar
+                    </a>
+                </div>
+            ` : ''}
+
+            <!-- Bloco 3: Dica Dinâmica Inteligente -->
+            <div class="insight-tip-box">
+                <div class="insight-tip-icon">
+                    <i class="fas fa-lightbulb"></i>
+                </div>
+                <div class="insight-tip-content">
+                    ${smartTip}
+                </div>
+            </div>
+
+            <!-- Rodapé com Link Rápido -->
+            <div class="insight-footer-action">
+                <a href="settings.html" onclick="localStorage.setItem('tonu_settings_active_tab', 'budgets');" class="insight-footer-link">
+                    <span>Configurar limites e tetos</span>
+                    <i class="fas fa-arrow-right" style="font-size: 10px;"></i>
+                </a>
+            </div>
+        `;
+
+    } catch (err) {
+        console.error('Erro ao gerar insights:', err);
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: var(--color-text-muted); font-size: 12px;">
+                <i class="fas fa-info-circle"></i> Registre movimentações para visualizar os diagnósticos financeiros.
             </div>
         `;
     }
@@ -1892,16 +2117,32 @@ async function exportarPDF() {
         const firstDay = formatDateKey(year, month, 1);
         const lastDayStr = formatDateKey(year, month, getLastDayOfMonth(year, month));
 
-        const { data: transactions, error } = await supabaseClient
-            .from('transactions')
-            .select('*, categories(name)')
-            .eq('user_id', currentUser.id)
-            .eq('paid', true)
-            .gte('date', firstDay)
-            .lte('date', lastDayStr)
-            .order('date', { ascending: false });
+        let transactions = [];
+        if (supabaseClient && currentUser) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('transactions')
+                    .select('*, categories(name)')
+                    .eq('user_id', currentUser.id)
+                    .eq('paid', true)
+                    .gte('date', firstDay)
+                    .lte('date', lastDayStr)
+                    .order('date', { ascending: false });
+                if (!error && data) transactions = data;
+            } catch (e) {
+                console.warn('Erro ao consultar Supabase para PDF:', e);
+            }
+        }
 
-        if (error) throw error;
+        if (transactions.length === 0 && currentUser) {
+            try {
+                const localData = localStorage.getItem('tonu_transactions_' + currentUser.id);
+                if (localData) {
+                    const parsed = JSON.parse(localData);
+                    transactions = parsed.filter(t => t.paid && t.date >= firstDay && t.date <= lastDayStr);
+                }
+            } catch {}
+        }
 
         // ============================================
         // 🔥 FUNÇÃO DE LIMPEZA AGRESSIVA PARA O PDF
@@ -1948,164 +2189,269 @@ async function exportarPDF() {
             return cleaned || 'Sem descricao';
         }
 
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            showToast('Erro: Biblioteca jsPDF não encontrada', 'error');
+            return;
+        }
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'pt', 'a4');
 
-        const PRIMARY_COLOR = [108, 92, 231];
-        const SUCCESS_COLOR = [0, 184, 148];
-        const DANGER_COLOR = [255, 118, 117];
-        const TEXT_COLOR = [45, 52, 54];
+        const COLOR_NAVY = [30, 41, 59];
+        const COLOR_PURPLE = [108, 92, 231];
+        const COLOR_GREEN = [16, 185, 129];
+        const COLOR_RED = [239, 68, 68];
+        const COLOR_TEXT = [30, 41, 59];
+        const COLOR_MUTED = [100, 116, 139];
 
-        // CABEÇALHO
-        doc.setFillColor(...PRIMARY_COLOR);
-        doc.rect(0, 0, 595, 80, 'F');
+        // 1. HEADER EXECUTIVO
+        doc.setFillColor(...COLOR_NAVY);
+        doc.rect(0, 0, 595, 85, 'F');
 
+        // Faixa de destaque
+        doc.setFillColor(...COLOR_PURPLE);
+        doc.rect(0, 82, 595, 3, 'F');
+
+        doc.setFont("helvetica", "bold");
         doc.setFontSize(22);
         doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.text('TonuControle', 40, 45);
+        doc.text('TonuControle', 40, 42);
 
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        doc.text('Gestão Financeira Pessoal', 40, 60);
+        doc.setTextColor(203, 213, 225);
+        doc.text('Relatório Financeiro Executivo Mensal', 40, 60);
 
-        doc.setFontSize(12);
-        doc.text(monthName.toUpperCase(), 450, 50, { align: 'right' });
+        // Badge do Mês e Usuário no topo direito
+        doc.setFillColor(51, 65, 85);
+        doc.roundedRect(380, 22, 175, 45, 6, 6, 'F');
 
-        // RESUMO FINANCEIRO
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(148, 163, 184);
+        doc.text('COMPETÊNCIA', 392, 38);
+
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text(monthName.toUpperCase(), 392, 54);
+
+        // 2. CALCULAR MÉTRICAS DO PERÍODO
         let income = 0, expense = 0;
+        const categoryExpenses = {};
+
         transactions?.forEach(t => {
-            if (t.type === 'income') income += Number(t.amount);
-            else expense += Number(t.amount);
+            const amt = Number(t.amount || 0);
+            if (t.type === 'income') {
+                income += amt;
+            } else if (t.type === 'expense') {
+                expense += amt;
+                let cName = cleanText(t.categories?.name || 'Geral');
+                categoryExpenses[cName] = (categoryExpenses[cName] || 0) + amt;
+            }
         });
         const balance = income - expense;
+        const savingsRate = income > 0 ? Math.round((balance / income) * 100) : 0;
 
-        let currentY = 110;
-        doc.setTextColor(...TEXT_COLOR);
-        doc.setFontSize(14);
-        doc.text('Resumo do Período', 40, currentY);
-
-        doc.setDrawColor(220, 220, 220);
-        doc.line(40, currentY + 5, 555, currentY + 5);
-
-        currentY += 35;
-
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.text('RECEITAS', 40, currentY);
-        doc.setTextColor(...SUCCESS_COLOR);
-        doc.setFontSize(13);
-        doc.text(formatCurrency(income), 40, currentY + 15);
-
-        doc.setTextColor(100, 100, 100);
-        doc.setFontSize(10);
-        doc.text('DESPESAS', 240, currentY);
-        doc.setTextColor(...DANGER_COLOR);
-        doc.setFontSize(13);
-        doc.text(formatCurrency(expense), 240, currentY + 15);
-
-        doc.setTextColor(100, 100, 100);
-        doc.setFontSize(10);
-        doc.text('SALDO FINAL', 440, currentY);
-        doc.setTextColor(balance >= 0 ? SUCCESS_COLOR[0] : DANGER_COLOR[0], balance >= 0 ? SUCCESS_COLOR[1] : DANGER_COLOR[1], balance >= 0 ? SUCCESS_COLOR[2] : DANGER_COLOR[2]);
-        doc.setFontSize(13);
-        doc.text(formatCurrency(balance), 440, currentY + 15);
-
-        // TABELA DE TRANSAÇÕES
-        currentY += 50;
-        doc.setTextColor(...TEXT_COLOR);
-        doc.setFontSize(14);
-        doc.text('Detalhamento de Movimentações', 40, currentY);
-
-        currentY += 20;
-        const tableHeaderY = currentY;
-        doc.setFillColor(245, 246, 250);
-        doc.rect(40, tableHeaderY, 515, 20, 'F');
-
-        doc.setFontSize(9);
+        // 3. CARDS DE KPIS (4 CARTÕES)
+        let currentY = 105;
+        doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(100, 100, 100);
-        doc.text('DATA', 45, tableHeaderY + 13);
-        doc.text('DESCRIÇÃO', 110, tableHeaderY + 13);
-        doc.text('CATEGORIA', 320, tableHeaderY + 13);
-        doc.text('VALOR', 550, tableHeaderY + 13, { align: 'right' });
+        doc.setTextColor(...COLOR_TEXT);
+        doc.text('Sumário do Mês', 40, currentY);
 
-        let rowY = tableHeaderY + 20;
+        currentY += 12;
+        const cardWidth = 120;
+        const cardHeight = 48;
+        const cardGap = 12;
+
+        // Card 1: Receitas
+        doc.setFillColor(240, 253, 244);
+        doc.roundedRect(40, currentY, cardWidth, cardHeight, 6, 6, 'F');
+        doc.setDrawColor(187, 247, 208);
+        doc.roundedRect(40, currentY, cardWidth, cardHeight, 6, 6, 'S');
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...COLOR_GREEN);
+        doc.text('RECEITAS (+)', 48, currentY + 16);
+        doc.setFontSize(11);
+        doc.text(formatCurrency(income), 48, currentY + 34);
+
+        // Card 2: Despesas
+        const c2X = 40 + cardWidth + cardGap;
+        doc.setFillColor(254, 242, 242);
+        doc.roundedRect(c2X, currentY, cardWidth, cardHeight, 6, 6, 'F');
+        doc.setDrawColor(254, 202, 202);
+        doc.roundedRect(c2X, currentY, cardWidth, cardHeight, 6, 6, 'S');
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...COLOR_RED);
+        doc.text('DESPESAS (-)', c2X + 8, currentY + 16);
+        doc.setFontSize(11);
+        doc.text(formatCurrency(expense), c2X + 8, currentY + 34);
+
+        // Card 3: Saldo Líquido
+        const c3X = c2X + cardWidth + cardGap;
+        const isPos = balance >= 0;
+        doc.setFillColor(isPos ? 240 : 254, isPos ? 253 : 242, isPos ? 244 : 242);
+        doc.roundedRect(c3X, currentY, cardWidth, cardHeight, 6, 6, 'F');
+        doc.setDrawColor(isPos ? 187 : 254, isPos ? 247 : 202, isPos ? 208 : 202);
+        doc.roundedRect(c3X, currentY, cardWidth, cardHeight, 6, 6, 'S');
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(isPos ? COLOR_GREEN[0] : COLOR_RED[0], isPos ? COLOR_GREEN[1] : COLOR_RED[1], isPos ? COLOR_GREEN[2] : COLOR_RED[2]);
+        doc.text('SALDO FINAL', c3X + 8, currentY + 16);
+        doc.setFontSize(11);
+        doc.text(formatCurrency(balance), c3X + 8, currentY + 34);
+
+        // Card 4: Taxa de Poupança
+        const c4X = c3X + cardWidth + cardGap;
+        doc.setFillColor(245, 243, 255);
+        doc.roundedRect(c4X, currentY, cardWidth, cardHeight, 6, 6, 'F');
+        doc.setDrawColor(221, 214, 254);
+        doc.roundedRect(c4X, currentY, cardWidth, cardHeight, 6, 6, 'S');
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...COLOR_PURPLE);
+        doc.text('POUPANÇA / MARGEM', c4X + 8, currentY + 16);
+        doc.setFontSize(11);
+        doc.text(`${savingsRate}% da renda`, c4X + 8, currentY + 34);
+
+        currentY += cardHeight + 20;
+
+        // 4. TOP CATEGORIAS DE DESPESA (SE HOUVER)
+        const sortedCats = Object.entries(categoryExpenses).sort((a, b) => b[1] - a[1]).slice(0, 4);
+        if (sortedCats.length > 0 && expense > 0) {
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(...COLOR_TEXT);
+            doc.text('Distribuição das Maiores Despesas:', 40, currentY);
+            currentY += 12;
+
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(40, currentY, 515, 28, 4, 4, 'F');
+
+            let catX = 48;
+            sortedCats.forEach(([catName, val]) => {
+                const pct = Math.round((val / expense) * 100);
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(...COLOR_MUTED);
+                doc.text(`${catName.toUpperCase()}:`, catX, currentY + 12);
+
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(...COLOR_TEXT);
+                doc.text(`${formatCurrency(val)} (${pct}%)`, catX, currentY + 22);
+                catX += 124;
+            });
+            currentY += 40;
+        }
+
+        // 5. TABELA DE TRANSAÇÕES
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...COLOR_TEXT);
+        doc.text(`Movimentações Realizadas (${transactions?.length || 0})`, 40, currentY);
+
+        currentY += 10;
+        const tableHeaderY = currentY;
+        doc.setFillColor(241, 245, 249);
+        doc.rect(40, tableHeaderY, 515, 22, 'F');
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(71, 85, 105);
+        doc.text('DATA', 46, tableHeaderY + 14);
+        doc.text('DESCRIÇÃO', 115, tableHeaderY + 14);
+        doc.text('CATEGORIA', 320, tableHeaderY + 14);
+        doc.text('TIPO', 430, tableHeaderY + 14);
+        doc.text('VALOR', 548, tableHeaderY + 14, { align: 'right' });
+
+        let rowY = tableHeaderY + 22;
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(...TEXT_COLOR);
 
         if (transactions && transactions.length > 0) {
             transactions.forEach((t, index) => {
-                if (rowY > 750) {
+                if (rowY > 755) {
                     doc.addPage();
                     rowY = 50;
-                    doc.setFillColor(245, 246, 250);
-                    doc.rect(40, rowY, 515, 20, 'F');
-                    doc.setFontSize(9);
+                    doc.setFillColor(241, 245, 249);
+                    doc.rect(40, rowY, 515, 22, 'F');
+                    doc.setFontSize(8);
                     doc.setFont("helvetica", "bold");
-                    doc.setTextColor(100, 100, 100);
-                    doc.text('DATA', 45, rowY + 13);
-                    doc.text('DESCRIÇÃO', 110, rowY + 13);
-                    doc.text('CATEGORIA', 320, rowY + 13);
-                    doc.text('VALOR', 550, rowY + 13, { align: 'right' });
-                    rowY += 20;
-                    doc.setFont("helvetica", "normal");
-                    doc.setTextColor(...TEXT_COLOR);
+                    doc.setTextColor(71, 85, 105);
+                    doc.text('DATA', 46, rowY + 14);
+                    doc.text('DESCRIÇÃO', 115, rowY + 14);
+                    doc.text('CATEGORIA', 320, rowY + 14);
+                    doc.text('TIPO', 430, rowY + 14);
+                    doc.text('VALOR', 548, rowY + 14, { align: 'right' });
+                    rowY += 22;
                 }
 
                 if (index % 2 === 0) {
-                    doc.setFillColor(252, 252, 255);
-                    doc.rect(40, rowY, 515, 20, 'F');
+                    doc.setFillColor(250, 250, 252);
+                    doc.rect(40, rowY, 515, 18, 'F');
                 }
 
                 const date = new Date(t.date).toLocaleDateString('pt-BR');
                 const desc = safeDescription(t.description || 'Sem descrição');
 
-                // 🔥 LIMPA A CATEGORIA - ESSA É A CORREÇÃO CRÍTICA!
                 let cat = t.categories?.name || 'Geral';
                 cat = cleanText(cat);
                 if (!cat || cat.length === 0) cat = 'Geral';
 
                 const val = formatCurrency(t.amount);
-                doc.setFontSize(9);
-                doc.text(date, 45, rowY + 13);
+                const isIncome = t.type === 'income';
 
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(...COLOR_MUTED);
+                doc.text(date, 46, rowY + 12);
+
+                doc.setTextColor(...COLOR_TEXT);
                 let descDisplay = desc;
-                if (descDisplay.length > 45) {
-                    descDisplay = descDisplay.substring(0, 42) + '...';
+                if (descDisplay.length > 40) {
+                    descDisplay = descDisplay.substring(0, 37) + '...';
                 }
-                doc.text(descDisplay, 110, rowY + 13);
-                doc.text(cat, 320, rowY + 13);
+                doc.text(descDisplay, 115, rowY + 12);
+
+                doc.setTextColor(...COLOR_MUTED);
+                doc.text(cat, 320, rowY + 12);
 
                 doc.setFont("helvetica", "bold");
-                doc.setTextColor(t.type === 'income' ? SUCCESS_COLOR[0] : DANGER_COLOR[0], t.type === 'income' ? SUCCESS_COLOR[1] : DANGER_COLOR[1], t.type === 'income' ? SUCCESS_COLOR[2] : DANGER_COLOR[2]);
-                doc.text((t.type === 'income' ? '+ ' : '- ') + val, 550, rowY + 13, { align: 'right' });
+                doc.setTextColor(isIncome ? COLOR_GREEN[0] : COLOR_RED[0], isIncome ? COLOR_GREEN[1] : COLOR_RED[1], isIncome ? COLOR_GREEN[2] : COLOR_RED[2]);
+                doc.text(isIncome ? 'Receita' : 'Despesa', 430, rowY + 12);
+                doc.text((isIncome ? '+ ' : '- ') + val, 548, rowY + 12, { align: 'right' });
 
-                doc.setTextColor(...TEXT_COLOR);
-                doc.setFont("helvetica", "normal");
-                rowY += 20;
-
-                doc.setDrawColor(240, 240, 240);
+                rowY += 18;
+                doc.setDrawColor(241, 245, 249);
                 doc.line(40, rowY, 555, rowY);
             });
         } else {
-            doc.text('Nenhuma transação encontrada para este período.', 40, rowY + 20);
+            doc.setFontSize(10);
+            doc.setTextColor(...COLOR_MUTED);
+            doc.text('Nenhuma movimentação encontrada para este período.', 40, rowY + 25);
         }
 
         // RODAPÉ
         const pageCount = doc.internal.getNumberOfPages();
+        const emitTime = new Date().toLocaleString('pt-BR');
+
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
+            doc.setDrawColor(226, 232, 240);
+            doc.line(40, 805, 555, 805);
+
             doc.setFontSize(8);
-            doc.setTextColor(170, 170, 170);
-            const now = new Date().toLocaleString('pt-BR');
-            doc.text(`Gerado em: ${now} | TonuControle Financial Report`, 40, 820);
-            doc.text(`Página ${i} de ${pageCount}`, 555, 820, { align: 'right' });
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(148, 163, 184);
+            doc.text(`TonuControle Gestão Financeira | Emitido em: ${emitTime}`, 40, 818);
+            doc.text(`Página ${i} de ${pageCount}`, 555, 818, { align: 'right' });
         }
 
-        const fileName = `Relatorio_Tonu_${year}_${String(month + 1).padStart(2, '0')}.pdf`;
+        const fileName = `Tonu_Relatorio_Executivo_${year}_${String(month + 1).padStart(2, '0')}.pdf`;
         doc.save(fileName);
-        showToast('✅ PDF profissional gerado!', 'success');
+        showToast('✅ Relatório Executivo PDF gerado com sucesso!', 'success');
 
     } catch (error) {
         console.error('Erro ao gerar PDF:', error);

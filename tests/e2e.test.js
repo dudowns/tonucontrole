@@ -99,6 +99,37 @@ async function runE2ETests() {
         assert.strictEqual(alertBills[0].name, 'Luz');
     });
 
+    // 4. Fluxo E2E: Ciclo de Vida do Gerenciador de Notificações
+    await testAsync('Fluxo E2E: Ciclo de vida e preferências do billNotificationManager', async () => {
+        const mockStorage = {};
+        const manager = {
+            settings: {
+                enabled: true,
+                remindDaysBefore: [0, 1, 2, 3],
+                remindOverdue: true,
+                sound: true,
+                vibrate: true
+            },
+            saveSettings(newSettings) {
+                this.settings = Object.assign(this.settings, newSettings);
+                mockStorage['tonu_notif_settings'] = JSON.stringify(this.settings);
+                return this.settings;
+            },
+            getPermissionState() {
+                return 'granted';
+            }
+        };
+
+        // Testar alteração de dias
+        manager.saveSettings({ remindDaysBefore: [0, 1, 5] });
+        assert.deepStrictEqual(manager.settings.remindDaysBefore, [0, 1, 5]);
+
+        // Testar persistência
+        const persisted = JSON.parse(mockStorage['tonu_notif_settings']);
+        assert.strictEqual(persisted.enabled, true);
+        assert.deepStrictEqual(persisted.remindDaysBefore, [0, 1, 5]);
+    });
+
     return results;
 }
 

@@ -92,20 +92,25 @@
                         <i class="fas fa-bell"></i>
                         <span class="notif-badge hidden" id="notifBadgeCount">0</span>
                     </button>
-                    <button class="btn btn-outline" onclick="window.TonuBudget?.openBudgetModal()"
-                        title="Limites & Tetos por Categoria">
-                        <i class="fas fa-bullseye"></i> <span class="hide-mobile">Limites</span>
-                    </button>
-                    <button class="btn btn-outline" onclick="openCashFlowModal()" title="Projeção de Fluxo de Caixa">
-                        <i class="fas fa-chart-line"></i> <span class="hide-mobile">Projeção</span>
-                    </button>
-                    <button class="btn btn-outline" onclick="TonuWeeklyReport.showWeeklySummaryModal()"
-                        title="Resumo Semanal">
-                        <i class="fas fa-envelope-open-text"></i> <span class="hide-mobile">Semanal</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="exportarPDF()" title="Exportar relatório em PDF">
-                        <i class="fas fa-file-pdf"></i> <span class="hide-mobile">PDF</span>
-                    </button>
+
+                    <!-- MENU DROPDOWN DE FERRAMENTAS & RELATÓRIOS -->
+                    <div class="tools-menu-wrapper">
+                        <button class="btn btn-outline" id="toolsDropdownBtn" onclick="toggleToolsMenu(event)" title="Relatórios e Ferramentas">
+                            <i class="fas fa-sliders-h"></i> <span class="hide-mobile">Ferramentas</span> <i class="fas fa-chevron-down" style="font-size: 10px; margin-left: 4px;"></i>
+                        </button>
+                        <div class="tools-menu-dropdown" id="toolsMenuDropdown">
+                            <button type="button" class="tools-menu-item" onclick="openCashFlowModal(); closeToolsMenu();">
+                                <i class="fas fa-chart-line" style="color: #6C5CE7;"></i> Projeção de Caixa
+                            </button>
+                            <button type="button" class="tools-menu-item" onclick="TonuWeeklyReport.showWeeklySummaryModal(); closeToolsMenu();">
+                                <i class="fas fa-envelope-open-text" style="color: #00B894;"></i> Resumo Semanal
+                            </button>
+                            <button type="button" class="tools-menu-item" onclick="exportarPDF(); closeToolsMenu();">
+                                <i class="fas fa-file-pdf" style="color: #E17055;"></i> Exportar Relatório PDF
+                            </button>
+                        </div>
+                    </div>
+
                     <button class="btn btn-primary" onclick="window.location.href='transactions.html'">
                         <i class="fas fa-plus"></i> Nova
                     </button>
@@ -129,26 +134,6 @@
                         </button>
                         <button class="btn btn-ghost btn-sm"
                             onclick="document.getElementById('dueBillsWarningBanner').style.display='none'">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- BANNER DE ALERTA DE LIMITES POR CATEGORIA -->
-                <div id="budgetWarningBanner" class="due-bills-banner warning" style="display:none;">
-                    <div class="due-banner-left">
-                        <div class="due-banner-icon"><i class="fas fa-bullseye"></i></div>
-                        <div class="due-banner-info">
-                            <h4 id="budgetBannerTitle">⚠️ Atenção aos Limites de Gastos</h4>
-                            <p id="budgetBannerDesc">Você está próximo ou ultrapassou o teto estipulado em algumas categorias.</p>
-                        </div>
-                    </div>
-                    <div class="due-banner-actions">
-                        <button class="btn btn-danger btn-sm" onclick="window.TonuBudget?.openBudgetModal()">
-                            <i class="fas fa-sliders-h"></i> Ajustar Limites
-                        </button>
-                        <button class="btn btn-ghost btn-sm"
-                            onclick="document.getElementById('budgetWarningBanner').style.display='none'">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
@@ -272,18 +257,45 @@
                     </div>
                 </div>
 
-                <!-- ÚLTIMAS TRANSAÇÕES -->
-                <div class="card transactions-card">
-                    <div class="card-header">
-                        <h3>📋 Últimas Transações</h3>
-                        <a href="transactions.html" class="view-all-link">
-                            Ver todas <i class="fas fa-arrow-right"></i>
-                        </a>
+                <!-- GRID INFERIOR: ÚLTIMAS TRANSAÇÕES + INSIGHTS -->
+                <div class="dashboard-bottom-grid">
+                    <!-- ÚLTIMAS TRANSAÇÕES -->
+                    <div class="card transactions-card">
+                        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <h3>📋 Últimas Transações</h3>
+                                <span class="badge badge-muted" id="txCountBadge" style="font-size:11px;">0</span>
+                            </div>
+                            <a href="transactions.html" class="view-all-link">
+                                Ver todas <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                        <div class="card-body" id="transactionsList">
+                            <div class="loading-transactions">
+                                <span class="spinner"></span>
+                                <p>Carregando transações...</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body" id="transactionsList">
-                        <div class="loading-transactions">
-                            <span class="spinner"></span>
-                            <p>Carregando transações...</p>
+
+                    <!-- INSIGHTS FINANCEIROS INTELIGENTES -->
+                    <div class="card insights-card" id="dashboardInsightsCard">
+                        <div class="card-header">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <h3>💡 Insights Financeiros</h3>
+                                <span class="badge badge-primary" style="font-size:10px; font-weight:700; background:rgba(108,92,231,0.12); color:#6C5CE7; padding:2px 8px; border-radius:9999px;">
+                                    Diagnóstico do Mês
+                                </span>
+                            </div>
+                            <button type="button" class="btn-ghost-sm" onclick="window.generateDashboardInsights && window.generateDashboardInsights()" title="Atualizar Insights">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div class="card-body" id="dashboardInsightsBody">
+                            <div class="insights-loading" style="text-align:center; padding:30px 10px; color:var(--color-text-muted);">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p style="font-size:12px; margin-top:8px;">Calculando diagnósticos e oportunidades...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -361,11 +373,32 @@
         });
 
         // ==========================================
-        // FECHAR SIDEBAR AO CLICAR FORA
+        // MENU DE FERRAMENTAS TOPBAR
+        // ==========================================
+        function toggleToolsMenu(e) {
+            if (e) e.stopPropagation();
+            const menu = document.getElementById('toolsMenuDropdown');
+            if (menu) {
+                menu.classList.toggle('show');
+            }
+        }
+
+        function closeToolsMenu() {
+            const menu = document.getElementById('toolsMenuDropdown');
+            if (menu) {
+                menu.classList.remove('show');
+            }
+        }
+
+        // ==========================================
+        // FECHAR SIDEBAR E MENUS AO CLICAR FORA
         // ==========================================
         document.addEventListener('click', function (e) {
             if (e.target.classList.contains('sidebar-overlay')) {
                 closeSidebar();
+            }
+            if (!e.target.closest('.tools-menu-wrapper')) {
+                closeToolsMenu();
             }
         });
     </script>

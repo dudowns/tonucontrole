@@ -1363,6 +1363,263 @@ async function sendTestEmail() {
 }
 
 // ============================================
+// GESTÃO DE LIMITES E TETOS EM CONFIGURAÇÕES
+// ============================================
+let settingsBudgetData = [];
+
+async function renderSettingsBudgets() {
+    const container = document.getElementById('settingsBudgetListContainer');
+    if (!container) return;
+
+    try {
+        let user = null;
+        try {
+            if (window.supabaseOffline) {
+                user = await window.supabaseOffline.isAuthenticated();
+            }
+            if (!user && window.supabaseClient?.auth?.getUser) {
+                user = (await window.supabaseClient.auth.getUser())?.data?.user;
+            }
+            if (!user && window.currentUser) {
+                user = window.currentUser;
+            }
+        } catch {}
+
+        const userId = user?.id || 'offline_user';
+
+        if (window.TonuBudget) {
+            const threshold = window.TonuBudget.getWarningThreshold(userId);
+            const selectEl = document.getElementById('budgetWarningThresholdSelect');
+            if (selectEl) selectEl.value = String(threshold);
+        }
+
+        // Buscar transações e categorias
+        let categories = [];
+        let transactions = [];
+
+        if (window.supabaseClient && user) {
+            try {
+                const [cRes, tRes] = await Promise.all([
+                    window.supabaseClient.from('categories').select('*').eq('user_id', user.id),
+                    window.supabaseClient.from('transactions').select('*').eq('user_id', user.id)
+                ]);
+                if (cRes.data) categories = cRes.data;
+                if (tRes.data) transactions = tRes.data;
+            } catch (e) {
+                console.warn('Erro ao buscar dados do Supabase para limites:', e);
+            }
+        }
+
+        if (categories.length === 0) {
+            try {
+                const localCats = localStorage.getItem('tonu_categories_' + userId);
+                if (localCats) categories = JSON.parse(localCats);
+            } catch {}
+        }
+
+        // Se ainda vazio, categorias padrão
+        if (categories.length === 0) {
+            categories = [
+                { id: 'cat_alimentacao', name: 'Alimentação', icon: 'fa-utensils', color: '#ff7675', type: 'expense' },
+                { id: 'cat_moradia', name: 'Moradia', icon: 'fa-home', color: '#6c5ce7', type: 'expense' },
+                { id: 'cat_transporte', name: 'Transporte', icon: 'fa-car', color: '#0984e3', type: 'expense' },
+                { id: 'cat_lazer', name: 'Lazer', icon: 'fa-gamepad', color: '#fdcb6e', type: 'expense' },
+                { id: 'cat_saude', name: 'Saúde', icon: 'fa-heartbeat', color: '#00b894', type: 'expense' },
+                { id: 'cat_educacao', name: 'Educação', icon: 'fa-graduation-cap', color: '#e17055', type: 'expense' },
+                { id: 'cat_outros', name: 'Outros', icon: 'fa-tag', color: '#636e72', type: 'expense' }
+            ];
+        }
+
+        if (transactions.length === 0) {
+            try {
+                const localTxs = localStorage.getItem('tonu_transactions_' + userId);
+                if (localTxs) transactions = JSON.parse(localTxs);
+            } catch {}
+        }
+
+        if (window.TonuBudget) {
+            settingsBudgetData = window.TonuBudget.calculateCategoryProgress(userId, transactions, categories);
+        } else {
+            settingsBudgetData = categories.filter(c => c.type === 'expense').map(c => ({
+                categoryId: c.id,
+                name: c.name,
+                icon: c.icon || 'fa-tag',
+                color: c.color || '#6c5ce7',
+                spent: 0,
+                limit: 0,
+                remaining: 0,
+                percentage: 0,
+                isExceeded: false,
+                isWarning: false
+            }));
+        }
+
+        renderSettingsBudgetListHtml(settingsBudgetData);
+
+    } catch (err) {
+        console.error('Erro ao carregar limites em configurações:', err);
+        container.innerHTML = '<div style="padding:16px; color:#ef4444; font-size:12px;">Não foi possível carregar as categorias para limites.</div>';
+    }
+}
+
+function renderSettingsBudgetListHtml(items) {
+    const container = document.getElementById('settingsBudgetListContainer');
+    if (!container) return;
+
+    if (!items || items.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:32px 16px; color:var(--color-text-muted);">
+                <i class="fas fa-bullseye" style="font-size:28px; opacity:0.3; margin-bottom:8px;"></i>
+                <p style="font-size:13px; font-weight:600;">Nenhuma categoria encontrada.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = items.map(cat => {
+        const spentFormatted = typeof formatCurrency === 'function' ? formatCurrency(cat.spent || 0) : `R$ ${(cat.spent || 0).toFixed(2)}`;
+        const limitVal = cat.limit > 0 ? cat.limit.toFixed(2).replace('.', ',') : '';
+        const pct = Math.min(100, Math.round(cat.percentage || 0));
+        const statusCls = cat.isExceeded ? 'danger' : (cat.isWarning ? 'warning' : 'normal');
+        const statusLabel = cat.isExceeded ? 'Estourado' : (cat.isWarning ? 'Atenção' : (cat.limit > 0 ? 'Normal' : 'Sem limite'));
+
+        return `
+            <div class="settings-budget-item" data-cat-id="${cat.categoryId}" data-cat-name="${(cat.name || '').toLowerCase()}">
+                <div class="budget-cat-info">
+                    <div class="budget-cat-icon" style="background:${cat.color || '#6c5ce7'};">
+                        <i class="fas ${cat.icon || 'fa-tag'}"></i>
+                    </div>
+                    <div class="budget-cat-name-box">
+                        <div class="budget-cat-name" title="${cat.name}">${cat.name}</div>
+                        <div class="budget-cat-spent">Gasto: <strong>${spentFormatted}</strong></div>
+                    </div>
+                </div>
+
+                <div class="budget-progress-col">
+                    <div class="budget-progress-labels">
+                        <span style="color:var(--color-text-muted); font-size:11px;">
+                            ${cat.limit > 0 ? `${pct}% consumido` : 'Sem teto definido'}
+                        </span>
+                        <span class="badge ${cat.isExceeded ? 'badge-danger' : (cat.isWarning ? 'badge-warning' : 'badge-success')}" style="font-size:10px; padding:1px 6px;">
+                            ${statusLabel}
+                        </span>
+                    </div>
+                    <div class="budget-progress-track">
+                        <div class="budget-progress-fill ${statusCls}" style="width: ${cat.limit > 0 ? Math.max(3, pct) : 0}%;"></div>
+                    </div>
+                </div>
+
+                <div class="budget-input-col">
+                    <span class="budget-currency-prefix">R$</span>
+                    <input type="text"
+                        class="budget-input-field"
+                        placeholder="0,00"
+                        value="${limitVal}"
+                        data-cat-id="${cat.categoryId}"
+                        data-cat-name="${cat.name}"
+                        oninput="window.handleBudgetInputChange(this)"
+                        onfocus="this.select()"
+                        title="Digite o teto mensal para ${cat.name}" />
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function handleBudgetInputChange(inputEl) {
+    let val = inputEl.value.replace(/[^0-9,\.]/g, '');
+    inputEl.value = val;
+}
+
+function filterBudgetCategories(term) {
+    const cleanTerm = (term || '').trim().toLowerCase();
+    const rows = document.querySelectorAll('.settings-budget-item');
+    rows.forEach(row => {
+        const catName = row.getAttribute('data-cat-name') || '';
+        if (!cleanTerm || catName.includes(cleanTerm)) {
+            row.style.display = 'grid';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function updateBudgetWarningThreshold(val) {
+    const num = parseFloat(val) || 80;
+    const user = currentUser || (window.supabaseOffline ? window.supabaseOffline.cachedUser : null);
+    const userId = user?.id || 'offline_user';
+
+    if (window.TonuBudget) {
+        window.TonuBudget.setWarningThreshold(userId, num);
+        if (typeof showToast === 'function') {
+            showToast(`Margem de aviso preventivo ajustada para ${num}%!`, 'success');
+        }
+        renderSettingsBudgets();
+    }
+}
+
+async function saveAllSettingsBudgets() {
+    const btn = document.getElementById('saveAllBudgetsBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+    }
+
+    try {
+        let user = null;
+        try {
+            if (window.supabaseOffline) {
+                user = await window.supabaseOffline.isAuthenticated();
+            }
+            if (!user && window.supabaseClient?.auth?.getUser) {
+                user = (await window.supabaseClient.auth.getUser())?.data?.user;
+            }
+            if (!user && window.currentUser) {
+                user = window.currentUser;
+            }
+        } catch {}
+
+        const userId = user?.id || 'offline_user';
+
+        const inputs = document.querySelectorAll('.budget-input-field');
+        let savedCount = 0;
+
+        inputs.forEach(input => {
+            const catId = input.getAttribute('data-cat-id');
+            const catName = input.getAttribute('data-cat-name');
+            let rawVal = input.value.trim().replace(/\./g, '').replace(',', '.');
+            const num = parseFloat(rawVal) || 0;
+
+            if (window.TonuBudget) {
+                window.TonuBudget.setCategoryBudget(userId, catId, num, catName);
+                savedCount++;
+            }
+        });
+
+        if (typeof showToast === 'function') {
+            showToast('✅ Limites orçamentários salvos com sucesso!', 'success');
+        }
+
+        await renderSettingsBudgets();
+
+        if (typeof window.checkNotifications === 'function') {
+            window.checkNotifications();
+        }
+
+    } catch (err) {
+        console.error('Erro ao salvar limites:', err);
+        if (typeof showToast === 'function') {
+            showToast('Erro ao salvar limites', 'error');
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save" aria-hidden="true"></i> Salvar Limites';
+        }
+    }
+}
+
+// ============================================
 // EXPORTAR FUNÇÕES GLOBAIS
 // ============================================
 
@@ -1371,3 +1628,8 @@ window.generateReportFromModal = generateReportFromModal;
 window.showEmailSettings = showEmailSettings;
 window.saveEmailSettings = saveEmailSettings;
 window.sendTestEmail = sendTestEmail;
+window.renderSettingsBudgets = renderSettingsBudgets;
+window.saveAllSettingsBudgets = saveAllSettingsBudgets;
+window.updateBudgetWarningThreshold = updateBudgetWarningThreshold;
+window.filterBudgetCategories = filterBudgetCategories;
+window.handleBudgetInputChange = handleBudgetInputChange;

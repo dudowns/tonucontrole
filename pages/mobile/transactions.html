@@ -73,6 +73,10 @@
         </div>
         <div class="topbar-actions">
             <button onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button id="notifBellBtn" onclick="window.toggleNotificationDropdown(event)" title="Notificações">
+                <i class="fas fa-bell"></i>
+                <span class="notif-badge hidden" id="notifBadgeCount">0</span>
+            </button>
             <button onclick="window.history.back()" title="Voltar"><i class="fas fa-arrow-left"></i></button>
         </div>
     </div>

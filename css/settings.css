@@ -758,3 +758,154 @@
         justify-content: center;
     }
 }
+
+/* ============================================
+   SEÇÃO DE LIMITES E TETOS (SETTINGS)
+   ============================================ */
+.settings-budget-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.settings-budget-item {
+    background: var(--color-bg, #f8fafc);
+    border: 1px solid var(--color-border-light, #f1f5f9);
+    border-radius: var(--radius-md, 10px);
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: 240px 1fr 180px;
+    align-items: center;
+    gap: 16px;
+    transition: all 0.2s ease;
+}
+
+.settings-budget-item:hover {
+    border-color: var(--color-primary-light, #a29bfe);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.budget-cat-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.budget-cat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.budget-cat-name-box {
+    min-width: 0;
+}
+
+.budget-cat-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text, #1e293b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.budget-cat-spent {
+    font-size: 11px;
+    color: var(--color-text-muted, #64748b);
+    margin-top: 2px;
+}
+
+.budget-progress-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.budget-progress-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.budget-progress-track {
+    height: 7px;
+    background: #e2e8f0;
+    border-radius: 9999px;
+    overflow: hidden;
+    position: relative;
+}
+
+body.dark-theme .budget-progress-track {
+    background: #334155;
+}
+
+.budget-progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.4s ease;
+}
+
+.budget-progress-fill.normal {
+    background: #10b981;
+}
+
+.budget-progress-fill.warning {
+    background: #f59e0b;
+}
+
+.budget-progress-fill.danger {
+    background: #ef4444;
+}
+
+.budget-input-col {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.budget-currency-prefix {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text-muted, #64748b);
+}
+
+.budget-input-field {
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--color-border, #cbd5e1);
+    border-radius: 8px;
+    background: var(--color-surface, #ffffff);
+    color: var(--color-text, #1e293b);
+    outline: none;
+    transition: border-color 0.2s ease;
+    text-align: right;
+}
+
+.budget-input-field:focus {
+    border-color: var(--color-primary, #6c5ce7);
+    box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.15);
+}
+
+@media (max-width: 820px) {
+    .settings-budget-item {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .budget-input-col {
+        justify-content: flex-start;
+    }
+    .budget-input-field {
+        max-width: 180px;
+    }
+}
