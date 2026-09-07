@@ -68,6 +68,8 @@ let positions = [];
 let quotes = new Map();
 let selectedClass = 'Todos';
 let selectedPeriod = '12m';
+let selectedEvolutionClass = 'all';
+let selectedPieClass = 'all';
 let patrimonyChart = null;
 let pieChart = null;
 let dividendsChart = null;
@@ -1295,6 +1297,8 @@ function updateClassCounts() {
     const countTesouro = document.getElementById('countTesouro');
 
     if (countTodos) countTodos.textContent = counts.Todos;
+    const myAssetsCount = document.getElementById('myAssetsCount');
+    if (myAssetsCount) myAssetsCount.textContent = counts.Todos;
     if (countAcoes) countAcoes.textContent = counts.Ações;
     if (countFIIs) countFIIs.textContent = counts.FIIs;
     if (countETFs) countETFs.textContent = counts.ETFs;
@@ -1566,11 +1570,26 @@ function buildChartData() {
         return { labels: ['Agora'], invested: [0], gain: [0], total: [0] };
     }
 
+    // Filtra transações e posições pela classe selecionada no topo do gráfico, se aplicável
+    let activeTransactions = validTransactions;
+    let activePositions = positions;
+    if (selectedEvolutionClass && selectedEvolutionClass !== 'all') {
+        activeTransactions = validTransactions.filter(tx => {
+            const cls = tx.asset_class ? normalizeClass(tx.asset_class) : inferClass(tx.ticker);
+            return cls === selectedEvolutionClass;
+        });
+        activePositions = positions.filter(p => p.assetClass === selectedEvolutionClass);
+    }
+
+    if (activeTransactions.length === 0) {
+        return { labels: ['Sem dados'], invested: [0], gain: [0], total: [0] };
+    }
+
     const end = new Date();
     let start;
 
     if (selectedPeriod === 'all') {
-        const firstTxDate = new Date(validTransactions[0].date + 'T12:00:00');
+        const firstTxDate = new Date(activeTransactions[0].date + 'T12:00:00');
         start = new Date(firstTxDate.getFullYear(), firstTxDate.getMonth(), 1);
 
         const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
@@ -1600,7 +1619,7 @@ function buildChartData() {
     const simulatedPortfolio = new Map();
     const txByMonth = new Map();
 
-    for (const tx of validTransactions) {
+    for (const tx of activeTransactions) {
         const d = new Date(tx.date + 'T12:00:00');
         if (d < start) {
             applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
@@ -1621,7 +1640,7 @@ function buildChartData() {
 
     // Preços de mercado atuais para cada ativo
     const currentPrices = new Map();
-    for (const p of positions) {
+    for (const p of activePositions) {
         const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
         const quote = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
         const price = (quote && Number.isFinite(quote.price) && quote.price > 0) ? quote.price : (p.averageCost || 0);
@@ -1647,10 +1666,10 @@ function buildChartData() {
         let runningInvested = 0;
         let totalSimulatedValue = 0;
 
-        if (isCurrentMonth && positions.length > 0) {
+        if (isCurrentMonth && activePositions.length > 0) {
             // No mês atual, sincroniza com os dados consolidados da carteira ativa
-            runningInvested = positions.reduce((s, p) => s + (p.costBasis || 0), 0);
-            totalSimulatedValue = positions.reduce((s, p) => s + (p.currentValue || 0), 0);
+            runningInvested = activePositions.reduce((s, p) => s + (p.costBasis || 0), 0);
+            totalSimulatedValue = activePositions.reduce((s, p) => s + (p.currentValue || 0), 0);
         } else {
             for (const [ticker, pos] of simulatedPortfolio) {
                 if (pos.quantity > 0.0000001) {
@@ -1683,8 +1702,8 @@ function buildChartData() {
 
     if (labels.length === 0) {
         labels.push('Agora');
-        const totalCostBasis = positions.reduce((s, p) => s + p.costBasis, 0);
-        const totalCurrentValue = positions.reduce((s, p) => s + p.currentValue, 0);
+        const totalCostBasis = activePositions.reduce((s, p) => s + p.costBasis, 0);
+        const totalCurrentValue = activePositions.reduce((s, p) => s + p.currentValue, 0);
         const totalGain = totalCurrentValue - totalCostBasis;
         invested.push(Math.round(totalCostBasis * 100) / 100);
         gain.push(Math.round(totalGain * 100) / 100);
@@ -1725,7 +1744,7 @@ function renderChart() {
                 datasets: [{
                     label: 'Patrimônio',
                     data: [0],
-                    backgroundColor: '#6C5CE7',
+                    backgroundColor: '#00B894',
                     borderRadius: 6,
                     borderSkipped: false
                 }]
@@ -1763,9 +1782,9 @@ function renderChart() {
         data: {
             labels: data.labels,
             datasets: [{
-                label: 'Valor Aplicado',
+                label: 'Valor aplicado',
                 data: data.invested,
-                backgroundColor: '#6C5CE7',
+                backgroundColor: '#00B894',
                 borderRadius: 4,
                 borderSkipped: false,
                 stack: 'patrimony'
@@ -1774,7 +1793,7 @@ function renderChart() {
                 data: data.gain,
                 backgroundColor: function (context) {
                     const val = context.raw || 0;
-                    return val >= 0 ? '#00B894' : '#FF7675';
+                    return val >= 0 ? '#55EFC4' : '#FF7675';
                 },
                 borderRadius: 4,
                 borderSkipped: false,
@@ -1798,42 +1817,74 @@ function renderChart() {
                         font: { size: 11, weight: '500' },
                         usePointStyle: true,
                         pointStyle: 'rectRounded',
-                        boxWidth: 12,
-                        boxHeight: 12,
+                        boxWidth: 10,
+                        boxHeight: 10,
                         padding: 15
                     }
                 },
                 tooltip: {
-                    backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                    titleColor: textColor,
-                    bodyColor: textColor,
-                    borderColor: borderColor,
-                    borderWidth: 1,
-                    cornerRadius: 8,
-                    padding: 12,
-                    callbacks: {
-                        label: function (context) {
-                            const val = context.parsed.y;
-                            if (val === 0 && context.dataset.label === 'Ganho de Capital') {
-                                return `${context.dataset.label}: R$ 0,00`;
-                            }
-                            const sign = val > 0 ? '+' : '';
-                            return `${context.dataset.label}: ${sign}${formatCurrency(val)}`;
-                        },
-                        afterBody: function (contexts) {
-                            if (!contexts || contexts.length === 0) return '';
-                            const idx = contexts[0].dataIndex;
-                            const tot = data.total[idx] || 0;
-                            const inv = data.invested[idx] || 0;
-                            const gn = data.gain[idx] || 0;
-                            const pct = inv > 0 ? ((gn / inv) * 100).toFixed(2) : '0.00';
-                            const sign = gn > 0 ? '+' : '';
-                            return [
-                                '',
-                                `💰 Patrimônio Total: ${formatCurrency(tot)}`,
-                                `📈 Rentabilidade: ${sign}${pct}%`
-                            ];
+                    enabled: false,
+                    external: function (context) {
+                        const tooltipModel = context.tooltip;
+                        const chartCanvas = context.chart.canvas;
+                        const container = chartCanvas.parentNode;
+                        let tooltipEl = container.querySelector('.custom-chart-tooltip');
+                        if (!tooltipEl) {
+                            tooltipEl = document.createElement('div');
+                            tooltipEl.className = 'custom-chart-tooltip';
+                            container.appendChild(tooltipEl);
                         }
+
+                        if (tooltipModel.opacity === 0 || !tooltipModel.dataPoints || tooltipModel.dataPoints.length === 0) {
+                            tooltipEl.style.opacity = '0';
+                            return;
+                        }
+
+                        const idx = tooltipModel.dataPoints[0].dataIndex;
+                        const label = data.labels[idx] || '';
+                        const inv = data.invested[idx] || 0;
+                        const gn = data.gain[idx] || 0;
+                        const tot = data.total[idx] || (inv + gn);
+                        const gainIndicatorColor = gn >= 0 ? '#55EFC4' : '#FF7675';
+
+                        tooltipEl.innerHTML = `
+                            <div class="tooltip-header">${label}</div>
+                            <div class="tooltip-row">
+                                <div class="tooltip-label">
+                                    <span class="tooltip-indicator" style="background: #0984E3;"></span>
+                                    <span>Patrimônio</span>
+                                </div>
+                                <div class="tooltip-value">${formatCurrency(tot)}</div>
+                            </div>
+                            <div class="tooltip-row">
+                                <div class="tooltip-label">
+                                    <span class="tooltip-indicator" style="background: #00B894;"></span>
+                                    <span>Valor aplicado</span>
+                                </div>
+                                <div class="tooltip-value">${formatCurrency(inv)}</div>
+                            </div>
+                            <div class="tooltip-row">
+                                <div class="tooltip-label">
+                                    <span class="tooltip-indicator" style="background: ${gainIndicatorColor};"></span>
+                                    <span>Ganho de Capital</span>
+                                </div>
+                                <div class="tooltip-value">${gn < 0 ? '-' : ''}${formatCurrency(Math.abs(gn))}</div>
+                            </div>
+                        `;
+
+                        const caretX = tooltipModel.caretX;
+                        const caretY = tooltipModel.caretY;
+                        let left = caretX + 12;
+                        let top = Math.max(8, caretY - 60);
+
+                        const tooltipWidth = 155;
+                        if (left + tooltipWidth > container.clientWidth) {
+                            left = Math.max(8, caretX - tooltipWidth - 12);
+                        }
+
+                        tooltipEl.style.left = left + 'px';
+                        tooltipEl.style.top = top + 'px';
+                        tooltipEl.style.opacity = '1';
                     }
                 }
             },
@@ -1879,34 +1930,41 @@ function renderPieChart() {
     const textColor = isDark ? '#E2E8F0' : '#2D3436';
     const borderColor = isDark ? '#1E293B' : '#FFFFFF';
 
-    const classes = ['Ações', 'FIIs', 'ETFs', 'Tesouro'];
-    const colors = {
+    const classColors = {
+        'FIIs': '#0984E3',
         'Ações': '#6C5CE7',
-        'FIIs': '#00B894',
-        'ETFs': '#0984E3',
+        'ETFs': '#00B894',
         'Tesouro': '#FDCB6E'
     };
-    const icons = {
-        'Ações': '📈',
-        'FIIs': '🏢',
-        'ETFs': '📊',
-        'Tesouro': '🏛️'
-    };
+
+    const palette = ['#0984E3', '#6C5CE7', '#00B894', '#FDCB6E', '#E17055', '#E84393', '#00CEC9', '#A29BFE'];
 
     const data = [];
     const labels = [];
     const backgroundColors = [];
 
-    classes.forEach(cls => {
-        const total = positions
-            .filter(p => p.assetClass === cls)
-            .reduce((sum, p) => sum + p.currentValue, 0);
-        if (total > 0) {
-            data.push(total);
-            labels.push(`${icons[cls]} ${cls}`);
-            backgroundColors.push(colors[cls]);
-        }
-    });
+    if (selectedPieClass && selectedPieClass !== 'all') {
+        // Mostra distribuição individual dos ativos dentro da classe selecionada
+        const filteredPositions = positions.filter(p => p.assetClass === selectedPieClass && p.currentValue > 0);
+        filteredPositions.forEach((p, idx) => {
+            data.push(p.currentValue);
+            labels.push(p.ticker || 'Ativo');
+            backgroundColors.push(palette[idx % palette.length]);
+        });
+    } else {
+        // Mostra distribuição consolidada por classe (FIIs em azul, Ações em roxo, etc.)
+        const classes = ['FIIs', 'Ações', 'ETFs', 'Tesouro'];
+        classes.forEach(cls => {
+            const total = positions
+                .filter(p => p.assetClass === cls)
+                .reduce((sum, p) => sum + p.currentValue, 0);
+            if (total > 0) {
+                data.push(total);
+                labels.push(cls);
+                backgroundColors.push(classColors[cls] || '#6C5CE7');
+            }
+        });
+    }
 
     if (pieChart) {
         pieChart.destroy();
@@ -1943,26 +2001,44 @@ function renderPieChart() {
             datasets: [{
                 data: data,
                 backgroundColor: backgroundColors,
-                borderWidth: 3,
+                borderWidth: 2,
                 borderColor: borderColor,
-                hoverOffset: 10
+                hoverOffset: 6
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '55%',
+            cutout: '64%',
             plugins: {
                 legend: {
-                    position: 'bottom',
+                    position: 'right',
+                    align: 'center',
                     labels: {
                         color: textColor,
-                        padding: 10,
+                        padding: 12,
                         usePointStyle: true,
-                        pointStyle: 'circle',
-                        font: { size: 10, weight: '500' },
+                        pointStyle: 'rectRounded',
+                        font: { size: 11, weight: '500' },
                         boxWidth: 10,
-                        boxHeight: 10
+                        boxHeight: 10,
+                        generateLabels: function (chart) {
+                            const dataset = chart.data.datasets[0];
+                            if (!dataset || !dataset.data || dataset.data.length === 0) return [];
+                            const total = dataset.data.reduce((a, b) => a + b, 0);
+                            return chart.data.labels.map((label, i) => {
+                                const val = dataset.data[i] || 0;
+                                const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                                return {
+                                    text: `${label}        ${pct}%`,
+                                    fillStyle: dataset.backgroundColor[i],
+                                    strokeStyle: dataset.backgroundColor[i],
+                                    lineWidth: 0,
+                                    hidden: false,
+                                    index: i
+                                };
+                            });
+                        }
                     }
                 },
                 tooltip: {
@@ -2255,10 +2331,14 @@ function renderDividendsPieChart() {
 }
 
 // ============================================
-// FUNÇÃO GLOBAL PARA PERÍODO
+// FUNÇÃO GLOBAL PARA PERÍODO E FILTROS DE GRÁFICOS
 // ============================================
 function setPeriod(period) {
     selectedPeriod = period;
+    const periodSelect = document.getElementById('evolutionPeriodSelect');
+    if (periodSelect && periodSelect.value !== period) {
+        periodSelect.value = period;
+    }
     document.querySelectorAll('.period-filter .btn').forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.period === period) {
@@ -2266,6 +2346,20 @@ function setPeriod(period) {
         }
     });
     renderChart();
+}
+
+function onPeriodSelectChange(period) {
+    setPeriod(period);
+}
+
+function onEvolutionClassChange(cls) {
+    selectedEvolutionClass = cls;
+    renderChart();
+}
+
+function onPieClassChange(cls) {
+    selectedPieClass = cls;
+    renderPieChart();
 }
 
 // ============================================
@@ -2309,6 +2403,9 @@ window.editTransaction = editTransaction;
 window.filterByClass = filterByClass;
 window.switchTab = switchTab;
 window.setPeriod = setPeriod;
+window.onPeriodSelectChange = onPeriodSelectChange;
+window.onEvolutionClassChange = onEvolutionClassChange;
+window.onPieClassChange = onPieClassChange;
 window.loadDividends = loadDividends;
 window.refreshDashboard = refreshDashboard;
 

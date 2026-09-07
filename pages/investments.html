@@ -245,19 +245,32 @@
                     <div class="charts-row">
                         <div class="chart-panel">
                             <div class="card-header">
-                                <h3>📈 Evolução</h3>
-                                <div class="period-filter">
-                                    <button class="btn" data-period="3m" onclick="setPeriod('3m')"
-                                        aria-label="3 meses">3m</button>
-                                    <button class="btn" data-period="6m" onclick="setPeriod('6m')"
-                                        aria-label="6 meses">6m</button>
-                                    <button class="btn btn-primary active" data-period="12m" onclick="setPeriod('12m')"
-                                        aria-label="12 meses">12m</button>
-                                    <button class="btn" data-period="all" onclick="setPeriod('all')"
-                                        aria-label="Todos">All</button>
+                                <h3>Evolução do Patrimônio</h3>
+                                <div class="header-filters-group">
+                                    <div class="header-select-pill">
+                                        <i class="far fa-calendar-alt" aria-hidden="true"></i>
+                                        <select id="evolutionPeriodSelect" onchange="onPeriodSelectChange(this.value)"
+                                            aria-label="Período do gráfico">
+                                            <option value="12m" selected>12 Meses</option>
+                                            <option value="6m">6 Meses</option>
+                                            <option value="3m">3 Meses</option>
+                                            <option value="all">Todo o período</option>
+                                        </select>
+                                    </div>
+                                    <div class="header-select-pill">
+                                        <i class="fas fa-dollar-sign" aria-hidden="true"></i>
+                                        <select id="evolutionClassSelect" onchange="onEvolutionClassChange(this.value)"
+                                            aria-label="Filtrar por classe de ativos">
+                                            <option value="all" selected>Todos os tipos</option>
+                                            <option value="Ações">Ações</option>
+                                            <option value="FIIs">FIIs</option>
+                                            <option value="ETFs">ETFs</option>
+                                            <option value="Tesouro">Tesouro</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="chart-wrap">
+                            <div class="chart-wrap" style="position: relative;">
                                 <div id="chartLoading" class="loading-overlay hidden">
                                     <span class="spinner"></span> Carregando gráfico...
                                 </div>
@@ -267,19 +280,28 @@
                         </div>
                         <div class="chart-panel">
                             <div class="card-header">
-                                <h3>🍩 Distribuição</h3>
-                                <span class="badge">Por classe</span>
+                                <h3>Ativos na Carteira</h3>
+                                <div class="header-select-pill">
+                                    <i class="fas fa-dollar-sign" aria-hidden="true"></i>
+                                    <select id="portfolioClassSelect" onchange="onPieClassChange(this.value)"
+                                        aria-label="Filtrar distribuição">
+                                        <option value="all" selected>Todos os tipos</option>
+                                        <option value="Ações">Ações</option>
+                                        <option value="FIIs">FIIs</option>
+                                        <option value="ETFs">ETFs</option>
+                                        <option value="Tesouro">Tesouro</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div class="chart-wrap" style="display: flex; align-items: center; justify-content: center;">
-                                <canvas id="pieChart" style="max-width: 155px; max-height: 155px; margin: 0 auto;"
-                                    role="img" aria-label="Gráfico de distribuição da carteira"></canvas>
+                            <div class="chart-wrap" style="display: flex; align-items: center; justify-content: center; position: relative;">
+                                <canvas id="pieChart" role="img" aria-label="Gráfico de ativos na carteira"></canvas>
                             </div>
                         </div>
                     </div>
 
                     <div class="portfolio-container">
                         <div class="portfolio-header">
-                            <h2>📊 Carteira</h2>
+                            <h2 id="myAssetsHeading">Meus Ativos (<span id="myAssetsCount">0</span>)</h2>
                             <div class="total-value">
                                 <small>Total:</small> <span id="portfolioTotal">R$ 0,00</span>
                             </div>
