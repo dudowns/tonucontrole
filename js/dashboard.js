@@ -74,6 +74,30 @@ function formatCurrency(value) {
     }
 }
 
+function parseBrazilianNumber(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return isNaN(value) ? 0 : value;
+
+    let str = String(value).trim();
+    str = str.replace(/[R$\s]/gi, '');
+
+    if (str.includes('.') && str.includes(',')) {
+        str = str.replace(/\./g, '').replace(',', '.');
+    } else if (str.includes(',')) {
+        str = str.replace(',', '.');
+    } else if (str.includes('.')) {
+        const parts = str.split('.');
+        if (parts.length > 2) {
+            str = parts.join('');
+        } else if (parts[1] && parts[1].length === 3 && Number(parts[0]) >= 1) {
+            str = parts[0] + parts[1];
+        }
+    }
+
+    const parsed = parseFloat(str);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
 function formatDate(date, format = 'short') {
     if (!date) return '--/--/----';
     const d = new Date(date);
@@ -334,7 +358,22 @@ async function loadInvestmentTransactions() {
 function buildPositions() {
     const grouped = new Map();
 
-    for (const tx of allTransactions) {
+    const sortedTransactions = [...allTransactions]
+        .filter(tx => tx && tx.ticker)
+        .sort((a, b) => {
+            const da = new Date((a.date || '1970-01-01') + 'T12:00:00').getTime();
+            const db = new Date((b.date || '1970-01-01') + 'T12:00:00').getTime();
+            if (da !== db) return da - db;
+            const typeA = (a.type || '').toLowerCase();
+            const typeB = (b.type || '').toLowerCase();
+            const isBuyA = typeA === 'compra' || typeA === 'buy';
+            const isBuyB = typeB === 'compra' || typeB === 'buy';
+            if (isBuyA && !isBuyB) return -1;
+            if (!isBuyA && isBuyB) return 1;
+            return (a.created_at || '').localeCompare(b.created_at || '');
+        });
+
+    for (const tx of sortedTransactions) {
         const ticker = tx.ticker?.toUpperCase().trim() || '';
         if (!ticker) continue;
 
@@ -353,10 +392,18 @@ function buildPositions() {
         }
 
         const pos = grouped.get(ticker);
-        const qty = Number(tx.quantity) || 0;
-        const unit = Number(tx.unit_price) || 0;
-        const total = Number(tx.total_value) || qty * unit;
-        const isBuy = tx.type === 'Compra';
+        const qty = parseBrazilianNumber(tx.quantity);
+        let unit = parseBrazilianNumber(tx.unit_price);
+        let total = parseBrazilianNumber(tx.total_value);
+
+        if (total <= 0 && qty > 0 && unit > 0) {
+            total = qty * unit;
+        } else if (unit <= 0 && qty > 0 && total > 0) {
+            unit = total / qty;
+        }
+
+        const typeLower = (tx.type || '').toLowerCase();
+        const isBuy = typeLower === 'compra' || typeLower === 'buy';
 
         pos.transactions.push(tx);
 
@@ -374,6 +421,9 @@ function buildPositions() {
                 pos.quantity = 0;
                 pos.costBasis = 0;
                 pos.averageCost = 0;
+            } else {
+                pos.costBasis = Math.max(0, pos.costBasis);
+                pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
             }
         }
     }
@@ -382,28 +432,36 @@ function buildPositions() {
         .filter(p => p.quantity > 0.0000001)
         .map(p => ({
             ...p,
-            costBasis: Math.max(0, p.costBasis)
+            costBasis: Math.max(0, Math.round(p.costBasis * 100) / 100),
+            averageCost: Math.round(p.averageCost * 100) / 100
         }));
 
     console.log('📊 Posicoes calculadas:', positions.length);
 }
 
 async function fetchQuotes() {
-    quotes.clear();
-    const tickers = positions.map(p => p.ticker);
-    if (!tickers.length) {
-        console.log('📊 Nenhum ativo para buscar cotacoes');
-        return;
+    try {
+        const rawCache = localStorage.getItem('tonu_quotes_cache');
+        if (rawCache) {
+            const parsed = JSON.parse(rawCache);
+            if (parsed && parsed.quotes) {
+                for (const [k, v] of Object.entries(parsed.quotes)) {
+                    if (!quotes.has(k)) quotes.set(k, v);
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ Cache local de cotacoes:', e);
     }
+
+    const tickers = positions.map(p => p.ticker);
+    if (!tickers.length) return;
 
     const validTickers = tickers
         .filter(t => t && t.length >= 3 && /^[A-Z0-9]{3,}$/.test(t))
         .map(t => t.toUpperCase().trim());
 
-    if (validTickers.length === 0) {
-        console.log('⚠️ Nenhum ticker valido para buscar');
-        return;
-    }
+    if (validTickers.length === 0) return;
 
     const unique = [...new Set(validTickers)];
     console.log('📊 Buscando cotacoes para:', unique.join(', '));
@@ -429,8 +487,6 @@ async function fetchQuotes() {
                     if (data.results && data.results.length > 0) {
                         allResults = allResults.concat(data.results);
                     }
-                } else {
-                    console.warn('⚠️ Erro ' + response.status + ' para ' + ticker);
                 }
             } catch (e) {
                 console.warn('⚠️ Nao foi possivel buscar ' + ticker);
@@ -444,29 +500,39 @@ async function fetchQuotes() {
                 const tk = q.symbol?.toUpperCase().trim();
                 if (!tk || !Number.isFinite(Number(q.regularMarketPrice))) continue;
 
-                quotes.set(tk, {
+                const quoteObj = {
                     price: Number(q.regularMarketPrice),
                     changePct: Number(q.regularMarketChangePercent || 0),
-                    previousClose: Number(q.regularMarketPreviousClose || 0),
+                    previousClose: Number(q.regularMarketPreviousClose || q.regularMarketPrice || 0),
                     marketTime: q.regularMarketTime || new Date().toISOString(),
                     simulated: false,
                     source: 'BRAPI'
-                });
+                };
+
+                const cleanTk = tk.replace(/\.SA$/, '');
+                quotes.set(tk, quoteObj);
+                quotes.set(cleanTk, quoteObj);
                 foundCount++;
-                console.log('✅ Cotacao real de ' + tk + ': R$ ' + q.regularMarketPrice);
+            }
+
+            try {
+                const cacheObj = {};
+                for (const [k, v] of quotes.entries()) {
+                    cacheObj[k] = v;
+                }
+                localStorage.setItem('tonu_quotes_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    quotes: cacheObj
+                }));
+            } catch (saveErr) {
+                console.warn('⚠️ Erro ao salvar cache de cotacoes:', saveErr);
             }
 
             console.log('✅ ' + foundCount + ' cotacoes reais carregadas');
         }
-
-        const missingTickers = unique.filter(t => !quotes.has(t));
-        if (missingTickers.length > 0) {
-            console.warn('⚠️ Tickers nao encontrados: ' + missingTickers.join(', '));
-        }
-
     } catch (error) {
         console.error('❌ Erro ao buscar cotacoes:', error.message);
-        isUsingRealQuotes = false;
+        if (quotes.size === 0) isUsingRealQuotes = false;
     }
 }
 
@@ -474,22 +540,24 @@ function decoratePositions() {
     const totalValue = positions.reduce((s, p) => s + posValue(p), 0);
 
     positions = positions.map(p => {
-        const quote = quotes.get(p.ticker);
-        const hasQuote = quote !== undefined;
-        const price = hasQuote ? quote.price : p.averageCost;
-        const changePct = hasQuote ? quote.changePct : 0;
+        const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
+        const quote = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
+        const hasQuote = quote !== undefined && Number.isFinite(quote.price) && quote.price > 0;
+        const price = hasQuote ? quote.price : (p.averageCost || 0);
+        const changePct = hasQuote ? (quote.changePct || 0) : 0;
         const simulated = !hasQuote;
 
-        const currentValue = p.quantity * price;
-        const gain = currentValue - p.costBasis;
-        const gainPct = p.costBasis > 0 ? (gain / p.costBasis) * 100 : 0;
-        const portfolioPct = totalValue > 0 ? (currentValue / totalValue) * 100 : 0;
+        const currentValue = Math.round((p.quantity * price) * 100) / 100;
+        const gain = Math.round((currentValue - p.costBasis) * 100) / 100;
+        const gainPct = p.costBasis > 0 ? Math.round(((gain / p.costBasis) * 100) * 100) / 100 : 0;
+        const portfolioPct = totalValue > 0 ? Math.round(((currentValue / totalValue) * 100) * 100) / 100 : 0;
 
         return {
             ...p,
             quote: {
                 price: price,
                 changePct: changePct,
+                previousClose: hasQuote ? (quote.previousClose || price) : price,
                 simulated: simulated,
                 source: simulated ? 'Preco Medio' : 'BRAPI'
             },
@@ -502,8 +570,12 @@ function decoratePositions() {
 }
 
 function posValue(p) {
-    const q = quotes.get(p.ticker);
-    return p.quantity * Number(q?.price || p.averageCost || 0);
+    const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
+    const q = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
+    if (q && Number.isFinite(q.price) && q.price > 0) {
+        return p.quantity * q.price;
+    }
+    return p.quantity * (p.averageCost || 0);
 }
 
 async function calculatePatrimony() {

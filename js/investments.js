@@ -112,18 +112,36 @@ function normalizeClass(cls) {
     return 'Ações';
 }
 
-function parseNumberInput(value) {
-    if (!value || value === '') return 0;
-    const clean = String(value).trim().replace(',', '.');
-    const parsed = parseFloat(clean);
+function parseBrazilianNumber(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return isNaN(value) ? 0 : value;
+
+    let str = String(value).trim();
+    str = str.replace(/[R$\s]/gi, '');
+
+    if (str.includes('.') && str.includes(',')) {
+        str = str.replace(/\./g, '').replace(',', '.');
+    } else if (str.includes(',')) {
+        str = str.replace(',', '.');
+    } else if (str.includes('.')) {
+        const parts = str.split('.');
+        if (parts.length > 2) {
+            str = parts.join('');
+        } else if (parts[1] && parts[1].length === 3 && Number(parts[0]) >= 1) {
+            str = parts[0] + parts[1];
+        }
+    }
+
+    const parsed = parseFloat(str);
     return isNaN(parsed) ? 0 : parsed;
 }
 
+function parseNumberInput(value) {
+    return parseBrazilianNumber(value);
+}
+
 function parsePriceInput(value) {
-    if (!value || value === '') return 0;
-    const clean = String(value).trim().replace(',', '.');
-    const parsed = parseFloat(clean);
-    return isNaN(parsed) ? 0 : parsed;
+    return parseBrazilianNumber(value);
 }
 
 // ============================================
@@ -710,7 +728,24 @@ async function editTransaction(id) {
 function buildPositions() {
     const grouped = new Map();
 
-    for (const tx of allTransactions) {
+    // Ordenação estritamente cronológica
+    const sortedTransactions = [...allTransactions]
+        .filter(tx => tx && tx.ticker)
+        .sort((a, b) => {
+            const da = new Date((a.date || '1970-01-01') + 'T12:00:00').getTime();
+            const db = new Date((b.date || '1970-01-01') + 'T12:00:00').getTime();
+            if (da !== db) return da - db;
+            // Se mesma data, compras são processadas antes de vendas
+            const typeA = (a.type || '').toLowerCase();
+            const typeB = (b.type || '').toLowerCase();
+            const isBuyA = typeA === 'compra' || typeA === 'buy';
+            const isBuyB = typeB === 'compra' || typeB === 'buy';
+            if (isBuyA && !isBuyB) return -1;
+            if (!isBuyA && isBuyB) return 1;
+            return (a.created_at || '').localeCompare(b.created_at || '');
+        });
+
+    for (const tx of sortedTransactions) {
         const ticker = tx.ticker?.toUpperCase().trim() || '';
         if (!ticker) continue;
 
@@ -729,10 +764,19 @@ function buildPositions() {
         }
 
         const pos = grouped.get(ticker);
-        const qty = Number(tx.quantity) || 0;
-        const unit = Number(tx.unit_price) || 0;
-        const total = Number(tx.total_value) || qty * unit;
-        const isBuy = tx.type === 'Compra';
+        const qty = parseBrazilianNumber(tx.quantity);
+        let unit = parseBrazilianNumber(tx.unit_price);
+        let total = parseBrazilianNumber(tx.total_value);
+
+        // Auto-reparação de dados inconsistentes
+        if (total <= 0 && qty > 0 && unit > 0) {
+            total = qty * unit;
+        } else if (unit <= 0 && qty > 0 && total > 0) {
+            unit = total / qty;
+        }
+
+        const typeLower = (tx.type || '').toLowerCase();
+        const isBuy = typeLower === 'compra' || typeLower === 'buy';
 
         pos.transactions.push(tx);
 
@@ -750,6 +794,9 @@ function buildPositions() {
                 pos.quantity = 0;
                 pos.costBasis = 0;
                 pos.averageCost = 0;
+            } else {
+                pos.costBasis = Math.max(0, pos.costBasis);
+                pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
             }
         }
     }
@@ -758,7 +805,8 @@ function buildPositions() {
         .filter(p => p.quantity > 0.0000001)
         .map(p => ({
             ...p,
-            costBasis: Math.max(0, p.costBasis)
+            costBasis: Math.max(0, Math.round(p.costBasis * 100) / 100),
+            averageCost: Math.round(p.averageCost * 100) / 100
         }));
 
     console.log('📊 Posições calculadas:', positions.length);
@@ -771,31 +819,6 @@ function isTesouroTicker(ticker) {
     if (!ticker) return false;
     const tk = ticker.toUpperCase().trim();
     return /^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC|CDB|LCI|LCA|LC|RDB)/.test(tk);
-}
-
-function calculateFixedIncomeReturn(pos) {
-    if (!pos || !pos.transactions || pos.transactions.length === 0) return 0;
-    let totalInvested = 0;
-    let weightedDays = 0;
-    const now = new Date();
-
-    for (const tx of pos.transactions) {
-        if (tx.type === 'Compra' && tx.date) {
-            const txDate = new Date(tx.date + 'T12:00:00');
-            const diffTime = Math.max(0, now - txDate);
-            const diffDays = diffTime / (1000 * 60 * 60 * 24);
-            const val = Number(tx.total_value) || (Number(tx.quantity) * Number(tx.unit_price));
-            weightedDays += diffDays * val;
-            totalInvested += val;
-        }
-    }
-
-    if (totalInvested <= 0) return 0;
-    const avgDays = weightedDays / totalInvested;
-    // Rentabilidade média ponderada baseada no CDI/Selic (~10.75% a.a. -> ~0.028% ao dia corrido)
-    const dailyRate = 0.00028;
-    const estimatedYield = Math.pow(1 + dailyRate, avgDays) - 1;
-    return Math.max(0, estimatedYield);
 }
 
 function getMonthsBetween(d1, d2) {
@@ -962,7 +985,7 @@ async function fetchQuotes() {
 }
 
 // ============================================
-// DECORATE POSITIONS - COM PREÇO REAL E RENDIMENTO
+// DECORATE POSITIONS - COM PREÇO REAL
 // ============================================
 function decoratePositions() {
     const totalValue = positions.reduce((s, p) => s + posValue(p), 0);
@@ -970,33 +993,23 @@ function decoratePositions() {
     positions = positions.map(p => {
         const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
         const quote = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
-        const hasQuote = quote !== undefined;
-        let price = hasQuote ? quote.price : p.averageCost;
-        let changePct = hasQuote ? quote.changePct : 0;
-        let simulated = !hasQuote;
-        let source = hasQuote ? 'BRAPI' : 'Preço Médio';
+        const hasQuote = quote !== undefined && Number.isFinite(quote.price) && quote.price > 0;
+        const price = hasQuote ? quote.price : (p.averageCost || 0);
+        const changePct = hasQuote ? (quote.changePct || 0) : 0;
+        const simulated = !hasQuote;
+        const source = hasQuote ? 'BRAPI' : 'Preço Médio';
 
-        // Ativos de Renda Fixa ou Tesouro Direto: valorização estimada com base no tempo decorrido
-        if (!hasQuote && (p.assetClass === 'Tesouro' || isTesouroTicker(p.ticker))) {
-            const estimatedReturn = calculateFixedIncomeReturn(p);
-            if (estimatedReturn > 0) {
-                price = p.averageCost * (1 + estimatedReturn);
-                changePct = (estimatedReturn * 100);
-                simulated = false;
-                source = 'Selic/CDI';
-            }
-        }
-
-        const currentValue = p.quantity * price;
-        const gain = currentValue - p.costBasis;
-        const gainPct = p.costBasis > 0 ? (gain / p.costBasis) * 100 : 0;
-        const portfolioPct = totalValue > 0 ? (currentValue / totalValue) * 100 : 0;
+        const currentValue = Math.round((p.quantity * price) * 100) / 100;
+        const gain = Math.round((currentValue - p.costBasis) * 100) / 100;
+        const gainPct = p.costBasis > 0 ? Math.round(((gain / p.costBasis) * 100) * 100) / 100 : 0;
+        const portfolioPct = totalValue > 0 ? Math.round(((currentValue / totalValue) * 100) * 100) / 100 : 0;
 
         return {
             ...p,
             quote: {
                 price: price,
                 changePct: changePct,
+                previousClose: hasQuote ? (quote.previousClose || price) : price,
                 simulated: simulated,
                 source: source
             },
@@ -1009,17 +1022,15 @@ function decoratePositions() {
 }
 
 // ============================================
-// POS VALUE - COM PREÇO REAL E RENDIMENTO
+// POS VALUE - PREÇO DE MERCADO OU CUSTO MÉDIO
 // ============================================
 function posValue(p) {
     const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
     const q = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
-    if (q) return p.quantity * q.price;
-    if (p.assetClass === 'Tesouro' || isTesouroTicker(p.ticker)) {
-        const estimatedReturn = calculateFixedIncomeReturn(p);
-        return p.quantity * (p.averageCost * (1 + estimatedReturn));
+    if (q && Number.isFinite(q.price) && q.price > 0) {
+        return p.quantity * q.price;
     }
-    return p.quantity * p.averageCost;
+    return p.quantity * (p.averageCost || 0);
 }
 
 function updateQuoteStatus() {
@@ -1178,22 +1189,24 @@ function updateDividendsSummary() {
 // ATUALIZAR UI
 // ============================================
 function updateSummary() {
-    const total = positions.reduce((s, p) => s + p.currentValue, 0);
-    const invested = positions.reduce((s, p) => s + p.costBasis, 0);
-    const gain = total - invested;
-    const returnPct = invested > 0 ? (gain / invested) * 100 : 0;
+    const totalCurrentValue = positions.reduce((s, p) => s + (p.currentValue || 0), 0);
+    const totalInvested = positions.reduce((s, p) => s + (p.costBasis || 0), 0);
+    const unrealizedGain = Math.round((totalCurrentValue - totalInvested) * 100) / 100;
+    const returnPct = totalInvested > 0 ? (unrealizedGain / totalInvested) * 100 : 0;
 
+    // Variação diária baseada no fechamento anterior
     const dayChange = positions.reduce((s, p) => {
-        const prev = p.quote?.previousClose || 0;
-        return s + (prev ? (p.quote.price - prev) * p.quantity : 0);
+        const prev = p.quote?.previousClose || p.quote?.price || 0;
+        const curr = p.quote?.price || 0;
+        return s + ((curr - prev) * p.quantity);
     }, 0);
-    const previousTotal = total - dayChange;
+    const previousTotal = totalCurrentValue - dayChange;
     const dayPct = previousTotal > 0 ? (dayChange / previousTotal) * 100 : 0;
 
-    const totalDividends = allDividends.reduce((sum, d) => sum + Number(d.total_value), 0);
+    const totalDividends = allDividends.reduce((sum, d) => sum + (parseBrazilianNumber(d.total_value) || 0), 0);
     const dividendsCount = allDividends.length;
 
-    salvarPatrimonio(Math.round(total * 100) / 100);
+    salvarPatrimonio(Math.round(totalCurrentValue * 100) / 100);
 
     const patrimonyEl = document.getElementById('totalPatrimony');
     const variationEl = document.getElementById('patrimonyVariation');
@@ -1204,13 +1217,15 @@ function updateSummary() {
     const dividendsEl = document.getElementById('totalDividends');
     const dividendsCountEl = document.getElementById('dividendsCount');
 
-    if (patrimonyEl) patrimonyEl.textContent = formatCurrency(total);
+    if (patrimonyEl) patrimonyEl.textContent = formatCurrency(totalCurrentValue);
 
     if (variationEl) {
         const sign = dayChange >= 0 ? '+' : '';
-        const colorClass = dayChange >= 0 ? 'text-success' : 'text-danger';
-        variationEl.textContent = `${sign}${formatCurrency(dayChange)} (${sign}${dayPct.toFixed(2)}%)`;
-        variationEl.className = `stat-sub ${colorClass}`;
+        const dayText = Math.abs(dayChange) > 0.01 
+            ? ` | Dia: ${sign}${formatCurrency(dayChange)} (${sign}${dayPct.toFixed(2)}%)`
+            : '';
+        variationEl.innerHTML = `Aplicado: <strong>${formatCurrency(totalInvested)}</strong>${dayText}`;
+        variationEl.className = 'stat-sub';
     }
 
     if (assetCountEl) assetCountEl.textContent = positions.length;
@@ -1225,9 +1240,9 @@ function updateSummary() {
     }
 
     if (gainEl) {
-        const gainSign = gain >= 0 ? '+' : '';
-        const colorClass = gain >= 0 ? 'text-success' : 'text-danger';
-        gainEl.textContent = `${gainSign}${formatCurrency(gain)}`;
+        const gainSign = unrealizedGain >= 0 ? '+' : '';
+        const colorClass = unrealizedGain >= 0 ? 'text-success' : 'text-danger';
+        gainEl.textContent = `Ganho de ${gainSign}${formatCurrency(unrealizedGain)}`;
         gainEl.className = `stat-sub ${colorClass}`;
     }
 
@@ -1365,14 +1380,16 @@ function renderTable() {
 
     let html = `
         <div class="portfolio-table-wrap">
-            <table class="transactions-table" style="min-width:600px;">
+            <table class="transactions-table" style="min-width:700px;">
                 <thead>
                     <tr>
                         <th>Ativo</th>
-                        <th style="text-align:right;">Quant.</th>
-                        <th style="text-align:right;">Preço</th>
-                        <th style="text-align:right;">Variação</th>
-                        <th style="text-align:right;">Ganho/Perda</th>
+                        <th style="text-align:right;">Qtd.</th>
+                        <th style="text-align:right;">Preço Médio</th>
+                        <th style="text-align:right;">Cotação Atual</th>
+                        <th style="text-align:right;">Valor Total</th>
+                        <th style="text-align:right;">Ganho / Rentabilidade</th>
+                        <th style="text-align:right;">% Carteira</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1381,13 +1398,19 @@ function renderTable() {
     sortedItems.forEach(p => {
         const price = p.quote?.price || p.averageCost || 0;
         const gain = p.gain || 0;
+        const gainPct = p.gainPct || 0;
         const changePct = p.quote?.changePct || 0;
         const quantity = p.quantity || 0;
+        const isRealQuote = p.quote && !p.quote.simulated;
 
         const gainClass = gain >= 0 ? 'text-success' : 'text-danger';
         const changeClass = changePct > 0 ? 'text-success' : changePct < 0 ? 'text-danger' : 'text-muted';
         const signGain = gain >= 0 ? '+' : '';
         const signChange = changePct > 0 ? '+' : '';
+
+        const quoteBadge = isRealQuote 
+            ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00B894;margin-left:4px;" title="Cotação ao vivo (B3)"></span>`
+            : `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#94A3B8;margin-left:4px;" title="Preço Médio de Aquisição"></span>`;
 
         html += `
             <tr>
@@ -1398,9 +1421,17 @@ function renderTable() {
                     </div>
                 </td>
                 <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">${quantity}</td>
-                <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">${formatCurrency(price)}</td>
-                <td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;" class="${changeClass}">${signChange}${changePct.toFixed(2)}%</td>
-                <td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;" class="${gainClass}">${signGain}${formatCurrency(gain)}</td>
+                <td style="text-align:right;font-weight:500;color:var(--color-text-light);font-variant-numeric:tabular-nums;">${formatCurrency(p.averageCost)}</td>
+                <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">
+                    ${formatCurrency(price)}${quoteBadge}
+                    ${isRealQuote && Math.abs(changePct) > 0.001 ? `<div style="font-size:11px;font-weight:600;" class="${changeClass}">${signChange}${changePct.toFixed(2)}%</div>` : ''}
+                </td>
+                <td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">${formatCurrency(p.currentValue)}</td>
+                <td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;" class="${gainClass}">
+                    ${signGain}${formatCurrency(gain)}
+                    <div style="font-size:11px;font-weight:600;">${signGain}${gainPct.toFixed(2)}%</div>
+                </td>
+                <td style="text-align:right;font-weight:600;color:var(--color-text-light);font-variant-numeric:tabular-nums;">${p.portfolioPct.toFixed(1)}%</td>
             </tr>
         `;
     });
@@ -1585,13 +1616,7 @@ function buildChartData() {
     for (const p of positions) {
         const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
         const quote = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
-        let price = quote ? quote.price : (p.averageCost || 0);
-
-        // Se for Tesouro ou renda fixa sem cotação de bolsa, utiliza preço atualizado
-        if (!quote && (p.assetClass === 'Tesouro' || isTesouroTicker(p.ticker))) {
-            const estimatedReturn = calculateFixedIncomeReturn(p);
-            price = p.averageCost * (1 + estimatedReturn);
-        }
+        const price = (quote && Number.isFinite(quote.price) && quote.price > 0) ? quote.price : (p.averageCost || 0);
 
         currentPrices.set(p.ticker, price);
         currentPrices.set(cleanTicker, price);
