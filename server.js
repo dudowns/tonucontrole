@@ -144,7 +144,9 @@ function parseChartMonthlyPrices(chart) {
         const price = closes[idx];
         if (price !== null && price !== undefined && Number.isFinite(price) && price > 0) {
             const d = new Date(ts * 1000);
-            const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const year = d.getUTCFullYear();
+            const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const monthKey = `${year}-${month}`;
             monthlyPrices[monthKey] = Math.round(price * 100) / 100;
         }
     });

@@ -1013,7 +1013,7 @@ async function fetchHistoricalMonthlyQuotes() {
         ...positions.map(p => p.ticker),
         ...allTransactions.map(t => t.ticker)
     ]
-    .filter(t => t && t.length >= 3 && /^[A-Z0-9]{3,}$/i.test(t) && !isTesouroTicker(t))
+    .filter(t => t && t.length >= 3 && /^[A-Z0-9\.\-]{3,}$/i.test(t) && !isTesouroTicker(t))
     .map(t => t.toUpperCase().trim().replace(/\.SA$/, ''));
 
     const uniqueTickers = [...new Set(allTickers)];
@@ -1631,6 +1631,24 @@ function applyTxToSimulatedPortfolio(simulatedPortfolio, tx) {
 }
 
 // ============================================
+// AUXILIAR PARA DATA SEGURA DE TRANSAÇÃO
+// ============================================
+function parseTxDate(rawDate) {
+    if (!rawDate) return null;
+    if (rawDate instanceof Date) return isNaN(rawDate.getTime()) ? null : rawDate;
+    const str = String(rawDate).trim();
+    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+        const year = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1;
+        const day = parseInt(match[3], 10);
+        return new Date(year, month, day, 12, 0, 0);
+    }
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+// ============================================
 // BUILD CHART DATA - INTELIGENTE E PRECISO
 // ============================================
 function buildChartData() {
@@ -1640,10 +1658,10 @@ function buildChartData() {
 
     // Filtra e ordena todas as transações cronologicamente (compras antes de vendas no mesmo dia)
     const validTransactions = allTransactions
-        .filter(tx => tx && tx.ticker && tx.date && !isNaN(new Date((tx.date || '1970-01-01') + 'T12:00:00').getTime()))
+        .filter(tx => tx && tx.ticker && parseTxDate(tx.date))
         .sort((a, b) => {
-            const da = new Date((a.date || '1970-01-01') + 'T12:00:00').getTime();
-            const db = new Date((b.date || '1970-01-01') + 'T12:00:00').getTime();
+            const da = parseTxDate(a.date).getTime();
+            const db = parseTxDate(b.date).getTime();
             if (da !== db) return da - db;
             const typeA = (a.type || '').toLowerCase();
             const typeB = (b.type || '').toLowerCase();
@@ -1677,7 +1695,7 @@ function buildChartData() {
     let start;
 
     if (selectedPeriod === 'all') {
-        const firstTxDate = new Date(activeTransactions[0].date + 'T12:00:00');
+        const firstTxDate = parseTxDate(activeTransactions[0].date) || new Date(end.getFullYear(), end.getMonth() - 11, 1);
         start = new Date(firstTxDate.getFullYear(), firstTxDate.getMonth(), 1);
 
         const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
@@ -1694,7 +1712,9 @@ function buildChartData() {
     const currentDate = new Date(start);
 
     while (currentDate <= end || (currentDate.getFullYear() === end.getFullYear() && currentDate.getMonth() === end.getMonth())) {
-        const key = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+        const year = currentDate.getFullYear();
+        const monthNum = currentDate.getMonth() + 1;
+        const key = `${year}-${String(monthNum).padStart(2, '0')}`;
         allMonths.push({
             key: key,
             date: new Date(currentDate),
@@ -1708,7 +1728,9 @@ function buildChartData() {
     const txByMonth = new Map();
 
     for (const tx of activeTransactions) {
-        const d = new Date(tx.date + 'T12:00:00');
+        const d = parseTxDate(tx.date);
+        if (!d) continue;
+
         if (d < start) {
             applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
         } else {
@@ -1735,6 +1757,7 @@ function buildChartData() {
 
         currentPrices.set(p.ticker, price);
         currentPrices.set(cleanTicker, price);
+        currentPrices.set(`${cleanTicker}.SA`, price);
     }
 
     const labels = [];
@@ -1746,7 +1769,7 @@ function buildChartData() {
         const month = allMonths[i];
         const isCurrentMonth = (i === allMonths.length - 1);
 
-        // Aplica as transações deste mês
+        // Aplica todas as transações realizadas neste mês
         for (const tx of month.transactions) {
             applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
         }
@@ -1754,34 +1777,50 @@ function buildChartData() {
         let runningInvested = 0;
         let totalSimulatedValue = 0;
 
-        if (isCurrentMonth && activePositions.length > 0) {
-            // No mês atual, sincroniza com os dados consolidados da carteira ativa em tempo real
-            runningInvested = activePositions.reduce((s, p) => s + (p.costBasis || 0), 0);
-            totalSimulatedValue = activePositions.reduce((s, p) => s + (p.currentValue || 0), 0);
-        } else {
-            for (const [ticker, pos] of simulatedPortfolio) {
-                if (pos.quantity > 0.0000001) {
-                    runningInvested += (pos.costBasis || 0);
-                    const cleanTk = ticker.replace(/\.SA$/, '');
-                    
-                    let assetPrice = 0;
-                    const histMap = historicalMonthlyQuotes.get(cleanTk) || historicalMonthlyQuotes.get(ticker);
+        for (const [ticker, pos] of simulatedPortfolio) {
+            if (pos.quantity > 0.0000001) {
+                const investedInAsset = Math.max(0, pos.costBasis || 0);
+                runningInvested += investedInAsset;
+
+                const cleanTk = ticker.toUpperCase().trim().replace(/\.SA$/, '');
+                let assetPrice = 0;
+
+                if (isCurrentMonth) {
+                    // No mês atual: usa a cotação em tempo real
+                    const curPrice = currentPrices.get(cleanTk) || currentPrices.get(ticker) || currentPrices.get(`${cleanTk}.SA`);
+                    if (curPrice && Number.isFinite(curPrice) && curPrice > 0) {
+                        assetPrice = curPrice;
+                    } else {
+                        assetPrice = (pos.quantity > 0) ? (investedInAsset / pos.quantity) : 0;
+                    }
+                } else {
+                    // Nos meses anteriores: busca o valor do último dia (fechamento do mês)
+                    const histMap = historicalMonthlyQuotes.get(cleanTk) || historicalMonthlyQuotes.get(ticker) || historicalMonthlyQuotes.get(`${cleanTk}.SA`);
                     const monthPrice = histMap ? histMap[month.key] : null;
 
                     if (monthPrice && Number.isFinite(monthPrice) && monthPrice > 0) {
-                        // Preço exato de fechamento histórico do mês (padrão Investidor 10)
+                        // Preço exato do último dia de fechamento do mês
                         assetPrice = monthPrice;
                     } else if (isTesouroTicker(ticker)) {
-                        assetPrice = pos.costBasis / pos.quantity;
+                        assetPrice = (pos.quantity > 0) ? (investedInAsset / pos.quantity) : 0;
                     } else {
-                        const fallbackPrice = findClosestHistoricalPrice(histMap, month.key);
-                        assetPrice = (fallbackPrice && fallbackPrice > 0)
-                            ? fallbackPrice
-                            : (pos.costBasis / pos.quantity);
+                        // Busca fechamento histórico mais próximo disponível
+                        const closestPrice = findClosestHistoricalPrice(histMap, month.key);
+                        if (closestPrice && Number.isFinite(closestPrice) && closestPrice > 0) {
+                            assetPrice = closestPrice;
+                        } else {
+                            // Fallback de mercado
+                            const curPrice = currentPrices.get(cleanTk) || currentPrices.get(ticker);
+                            if (curPrice && Number.isFinite(curPrice) && curPrice > 0) {
+                                assetPrice = curPrice;
+                            } else {
+                                assetPrice = (pos.quantity > 0) ? (investedInAsset / pos.quantity) : 0;
+                            }
+                        }
                     }
-
-                    totalSimulatedValue += pos.quantity * assetPrice;
                 }
+
+                totalSimulatedValue += pos.quantity * assetPrice;
             }
         }
 
@@ -1846,7 +1885,7 @@ function renderChart() {
                 datasets: [{
                     label: 'Patrimônio',
                     data: [0],
-                    backgroundColor: '#00B894',
+                    backgroundColor: '#55EFC4',
                     borderRadius: 6,
                     borderSkipped: false
                 }]
@@ -1883,24 +1922,32 @@ function renderChart() {
         type: 'bar',
         data: {
             labels: data.labels,
-            datasets: [{
-                label: 'Valor aplicado',
-                data: data.invested,
-                backgroundColor: '#00B894',
-                borderRadius: 4,
-                borderSkipped: false,
-                stack: 'patrimony'
-            }, {
-                label: 'Ganho de Capital',
-                data: data.gain,
-                backgroundColor: function (context) {
-                    const val = context.raw || 0;
-                    return val >= 0 ? '#55EFC4' : '#FF7675';
+            datasets: [
+                {
+                    label: 'Patrimônio',
+                    data: data.total,
+                    backgroundColor: '#55EFC4', // verde mais claro
+                    hoverBackgroundColor: '#2ECC71',
+                    borderRadius: 4,
+                    borderSkipped: false,
+                    order: 2, // Desenhado primeiro (fica atrás)
+                    grouped: false,
+                    barPercentage: 0.85,
+                    categoryPercentage: 0.7
                 },
-                borderRadius: 4,
-                borderSkipped: false,
-                stack: 'patrimony'
-            }]
+                {
+                    label: 'Valor aplicado',
+                    data: data.invested,
+                    backgroundColor: '#00B894', // verde
+                    hoverBackgroundColor: '#009879',
+                    borderRadius: 4,
+                    borderSkipped: false,
+                    order: 1, // Desenhado por cima (fica na frente)
+                    grouped: false,
+                    barPercentage: 0.85,
+                    categoryPercentage: 0.7
+                }
+            ]
         },
         options: {
             responsive: true,
@@ -1914,6 +1961,7 @@ function renderChart() {
             },
             plugins: {
                 legend: {
+                    display: true,
                     labels: {
                         color: textColor,
                         font: { size: 11, weight: '500' },
@@ -1945,15 +1993,16 @@ function renderChart() {
                         const idx = tooltipModel.dataPoints[0].dataIndex;
                         const label = data.labels[idx] || '';
                         const inv = data.invested[idx] || 0;
-                        const gn = data.gain[idx] || 0;
-                        const tot = data.total[idx] || (inv + gn);
+                        const tot = data.total[idx] || 0;
+                        const gn = Math.round((tot - inv) * 100) / 100;
+                        const gnPct = inv > 0 ? ((gn / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
                         const gainIndicatorColor = gn >= 0 ? '#55EFC4' : '#FF7675';
 
                         tooltipEl.innerHTML = `
                             <div class="tooltip-header">${label}</div>
                             <div class="tooltip-row">
                                 <div class="tooltip-label">
-                                    <span class="tooltip-indicator" style="background: #0984E3;"></span>
+                                    <span class="tooltip-indicator" style="background: #55EFC4;"></span>
                                     <span>Patrimônio</span>
                                 </div>
                                 <div class="tooltip-value">${formatCurrency(tot)}</div>
@@ -1970,7 +2019,9 @@ function renderChart() {
                                     <span class="tooltip-indicator" style="background: ${gainIndicatorColor};"></span>
                                     <span>Ganho de Capital</span>
                                 </div>
-                                <div class="tooltip-value">${gn < 0 ? '-' : ''}${formatCurrency(Math.abs(gn))}</div>
+                                <div class="tooltip-value" style="color: ${gainIndicatorColor}; font-weight: 600;">
+                                    ${gn < 0 ? '-' : '+'}${formatCurrency(Math.abs(gn))} (${gn < 0 ? '-' : '+'}${gnPct}%)
+                                </div>
                             </div>
                         `;
 
@@ -1979,7 +2030,7 @@ function renderChart() {
                         let left = caretX + 12;
                         let top = Math.max(8, caretY - 60);
 
-                        const tooltipWidth = 155;
+                        const tooltipWidth = 175;
                         if (left + tooltipWidth > container.clientWidth) {
                             left = Math.max(8, caretX - tooltipWidth - 12);
                         }
@@ -1992,7 +2043,7 @@ function renderChart() {
             },
             scales: {
                 x: {
-                    stacked: true,
+                    stacked: false,
                     grid: { display: false },
                     ticks: {
                         color: textColor,
@@ -2001,7 +2052,7 @@ function renderChart() {
                     }
                 },
                 y: {
-                    stacked: true,
+                    stacked: false,
                     beginAtZero: true,
                     grid: { color: gridColor },
                     ticks: {
@@ -2014,7 +2065,7 @@ function renderChart() {
                 }
             },
             animation: {
-                duration: 800
+                duration: 600
             }
         }
     });
