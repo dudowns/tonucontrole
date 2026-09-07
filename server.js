@@ -129,6 +129,102 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// ============================================
+// COTAÇÕES HISTÓRICAS MENSAIS (INVESTIDOR 10 STYLE)
+// ============================================
+const historicalQuotesCache = new Map();
+const HISTORICAL_CACHE_TTL = 60 * 60 * 1000; // 1 hora de cache
+
+function parseChartMonthlyPrices(chart) {
+    const timestamps = chart.timestamp || [];
+    const closes = chart.indicators?.quote?.[0]?.close || [];
+    const monthlyPrices = {};
+
+    timestamps.forEach((ts, idx) => {
+        const price = closes[idx];
+        if (price !== null && price !== undefined && Number.isFinite(price) && price > 0) {
+            const d = new Date(ts * 1000);
+            const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            monthlyPrices[monthKey] = Math.round(price * 100) / 100;
+        }
+    });
+    return monthlyPrices;
+}
+
+app.get('/api/historical-quotes', async (req, res) => {
+    try {
+        const tickersParam = req.query.tickers || '';
+        if (!tickersParam) {
+            return res.json({ quotes: {} });
+        }
+
+        const tickers = tickersParam.split(',')
+            .map(t => t.trim().toUpperCase())
+            .filter(Boolean);
+
+        const result = {};
+        const now = Date.now();
+
+        await Promise.all(tickers.map(async (rawTicker) => {
+            const cleanTicker = rawTicker.replace(/\.SA$/, '');
+            const cacheKey = cleanTicker;
+
+            const cached = historicalQuotesCache.get(cacheKey);
+            if (cached && (now - cached.timestamp < HISTORICAL_CACHE_TTL)) {
+                result[cleanTicker] = cached.data;
+                result[`${cleanTicker}.SA`] = cached.data;
+                return;
+            }
+
+            const saTicker = `${cleanTicker}.SA`;
+            try {
+                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(saTicker)}?range=2y&interval=1mo`;
+                const response = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'application/json'
+                    },
+                    signal: AbortSignal.timeout(6000)
+                });
+
+                if (!response.ok) {
+                    const fallbackUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(cleanTicker)}?range=2y&interval=1mo`;
+                    const fbRes = await fetch(fallbackUrl, {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                        signal: AbortSignal.timeout(6000)
+                    });
+                    if (!fbRes.ok) return;
+                    const fbData = await fbRes.json();
+                    const fbChart = fbData.chart?.result?.[0];
+                    if (fbChart) {
+                        const monthlyPrices = parseChartMonthlyPrices(fbChart);
+                        historicalQuotesCache.set(cacheKey, { timestamp: now, data: monthlyPrices });
+                        result[cleanTicker] = monthlyPrices;
+                        result[saTicker] = monthlyPrices;
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                const chart = data.chart?.result?.[0];
+                if (chart) {
+                    const monthlyPrices = parseChartMonthlyPrices(chart);
+                    historicalQuotesCache.set(cacheKey, { timestamp: now, data: monthlyPrices });
+                    result[cleanTicker] = monthlyPrices;
+                    result[saTicker] = monthlyPrices;
+                }
+            } catch (err) {
+                console.warn(`[historical-quotes] Aviso ao buscar ${cleanTicker}:`, err.message);
+            }
+        }));
+
+        res.json({ quotes: result });
+    } catch (error) {
+        console.error('Erro em /api/historical-quotes:', error);
+        res.status(500).json({ error: 'Erro ao consultar cotações históricas' });
+    }
+});
+
 // Download do código-fonte (ZIP Seguro)
 app.get('/api/download-zip', zipDownloadLimiter, (req, res) => {
     const zipFileName = 'tonucontrole-source-code.zip';

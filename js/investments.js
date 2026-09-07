@@ -404,7 +404,10 @@ async function refreshDashboard() {
     try {
         await loadTransactions();
         buildPositions();
-        await fetchQuotes();
+        await Promise.allSettled([
+            fetchQuotes(),
+            fetchHistoricalMonthlyQuotes()
+        ]);
         decoratePositions();
         updateSummary();
         updateClassCounts();
@@ -412,6 +415,7 @@ async function refreshDashboard() {
         renderTransactions();
         updateQuoteStatus();
         renderChart();
+        renderPieChart();
 
     } catch (error) {
         console.error('❌ Erro ao carregar investimentos:', error);
@@ -984,6 +988,90 @@ async function fetchQuotes() {
             isUsingRealQuotes = false;
         }
     }
+}
+
+// ============================================
+// COTAÇÕES HISTÓRICAS MENSAIS (INVESTIDOR 10 STYLE)
+// ============================================
+let historicalMonthlyQuotes = new Map();
+try {
+    const rawHist = localStorage.getItem('tonu_historical_quotes');
+    if (rawHist) {
+        const parsed = JSON.parse(rawHist);
+        if (parsed && typeof parsed === 'object') {
+            for (const [k, v] of Object.entries(parsed)) {
+                historicalMonthlyQuotes.set(k, v);
+            }
+        }
+    }
+} catch (histCacheErr) {
+    console.warn('⚠️ Erro ao carregar cache de histórico:', histCacheErr);
+}
+
+async function fetchHistoricalMonthlyQuotes() {
+    const allTickers = [
+        ...positions.map(p => p.ticker),
+        ...allTransactions.map(t => t.ticker)
+    ]
+    .filter(t => t && t.length >= 3 && /^[A-Z0-9]{3,}$/i.test(t) && !isTesouroTicker(t))
+    .map(t => t.toUpperCase().trim().replace(/\.SA$/, ''));
+
+    const uniqueTickers = [...new Set(allTickers)];
+    if (uniqueTickers.length === 0) return;
+
+    try {
+        console.log('📈 Buscando histórico mensal para:', uniqueTickers.join(', '));
+        const res = await fetch(`/api/historical-quotes?tickers=${encodeURIComponent(uniqueTickers.join(','))}`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (data && data.quotes) {
+            let loadedCount = 0;
+            for (const [tk, monthMap] of Object.entries(data.quotes)) {
+                const clean = tk.toUpperCase().replace(/\.SA$/, '');
+                historicalMonthlyQuotes.set(clean, monthMap);
+                historicalMonthlyQuotes.set(`${clean}.SA`, monthMap);
+                loadedCount++;
+            }
+
+            try {
+                const cacheObj = {};
+                for (const [k, v] of historicalMonthlyQuotes.entries()) {
+                    cacheObj[k] = v;
+                }
+                localStorage.setItem('tonu_historical_quotes', JSON.stringify(cacheObj));
+            } catch (e) {
+                console.warn('⚠️ Falha ao salvar histórico no localStorage:', e);
+            }
+
+            console.log(`✅ ${loadedCount} ativos com histórico mensal carregados`);
+
+            // Re-renderiza o gráfico de evolução com as cotações de fechamento exatas de cada mês
+            renderChart();
+        }
+    } catch (e) {
+        console.warn('⚠️ Não foi possível carregar histórico mensal:', e);
+    }
+}
+
+function findClosestHistoricalPrice(histMap, targetMonthKey) {
+    if (!histMap) return null;
+    if (histMap[targetMonthKey] && Number.isFinite(histMap[targetMonthKey]) && histMap[targetMonthKey] > 0) {
+        return histMap[targetMonthKey];
+    }
+
+    const months = Object.keys(histMap).sort();
+    if (months.length === 0) return null;
+
+    // Procura o mês mais recente anterior ao mês alvo
+    const pastMonths = months.filter(m => m <= targetMonthKey);
+    if (pastMonths.length > 0) {
+        const closestPast = pastMonths[pastMonths.length - 1];
+        if (histMap[closestPast]) return histMap[closestPast];
+    }
+
+    // Se o mês for anterior ao histórico mais antigo, pega o mais antigo disponível
+    return histMap[months[0]] || null;
 }
 
 // ============================================
@@ -1667,7 +1755,7 @@ function buildChartData() {
         let totalSimulatedValue = 0;
 
         if (isCurrentMonth && activePositions.length > 0) {
-            // No mês atual, sincroniza com os dados consolidados da carteira ativa
+            // No mês atual, sincroniza com os dados consolidados da carteira ativa em tempo real
             runningInvested = activePositions.reduce((s, p) => s + (p.costBasis || 0), 0);
             totalSimulatedValue = activePositions.reduce((s, p) => s + (p.currentValue || 0), 0);
         } else {
@@ -1675,10 +1763,24 @@ function buildChartData() {
                 if (pos.quantity > 0.0000001) {
                     runningInvested += (pos.costBasis || 0);
                     const cleanTk = ticker.replace(/\.SA$/, '');
-                    const currentPrice = currentPrices.get(ticker) || currentPrices.get(cleanTk) ||
-                        (pos.quantity > 0 ? pos.costBasis / pos.quantity : 0);
+                    
+                    let assetPrice = 0;
+                    const histMap = historicalMonthlyQuotes.get(cleanTk) || historicalMonthlyQuotes.get(ticker);
+                    const monthPrice = histMap ? histMap[month.key] : null;
 
-                    totalSimulatedValue += pos.quantity * currentPrice;
+                    if (monthPrice && Number.isFinite(monthPrice) && monthPrice > 0) {
+                        // Preço exato de fechamento histórico do mês (padrão Investidor 10)
+                        assetPrice = monthPrice;
+                    } else if (isTesouroTicker(ticker)) {
+                        assetPrice = pos.costBasis / pos.quantity;
+                    } else {
+                        const fallbackPrice = findClosestHistoricalPrice(histMap, month.key);
+                        assetPrice = (fallbackPrice && fallbackPrice > 0)
+                            ? fallbackPrice
+                            : (pos.costBasis / pos.quantity);
+                    }
+
+                    totalSimulatedValue += pos.quantity * assetPrice;
                 }
             }
         }
