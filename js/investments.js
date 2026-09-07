@@ -1508,31 +1508,33 @@ function renderTransactions() {
 // AUXILIAR PARA ATUALIZAR POSIÇÕES SIMULADAS
 // ============================================
 function applyTxToSimulatedPortfolio(simulatedPortfolio, tx) {
-    if (!tx || !tx.ticker) return 0;
+    if (!tx || !tx.ticker) return;
     const ticker = tx.ticker.toUpperCase().trim();
-    const qty = Number(tx.quantity) || 0;
-    const price = Number(tx.unit_price) || 0;
-    const totalVal = Number(tx.total_value) || (qty * price);
+    const qty = parseBrazilianNumber(tx.quantity);
+    let price = parseBrazilianNumber(tx.unit_price);
+    let totalVal = parseBrazilianNumber(tx.total_value);
+    if (totalVal <= 0 && qty > 0 && price > 0) totalVal = qty * price;
+    if (price <= 0 && qty > 0 && totalVal > 0) price = totalVal / qty;
 
     if (!simulatedPortfolio.has(ticker)) {
         simulatedPortfolio.set(ticker, { quantity: 0, costBasis: 0 });
     }
     const pos = simulatedPortfolio.get(ticker);
 
-    if (tx.type === 'Compra') {
+    const typeLower = (tx.type || '').toLowerCase();
+    const isBuy = typeLower === 'compra' || typeLower === 'buy';
+
+    if (isBuy) {
         pos.quantity += qty;
         pos.costBasis += totalVal;
-        return 0;
     } else {
         const avgCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
         const sellQty = Math.min(qty, pos.quantity);
-        const realizedGain = (price - avgCost) * sellQty;
         pos.quantity -= sellQty;
         pos.costBasis -= avgCost * sellQty;
-        if (pos.quantity <= 0.0001) {
+        if (pos.quantity <= 0.0000001) {
             simulatedPortfolio.delete(ticker);
         }
-        return realizedGain;
     }
 }
 
@@ -1544,10 +1546,21 @@ function buildChartData() {
         return { labels: ['Agora'], invested: [0], gain: [0], total: [0] };
     }
 
-    // Filtra e ordena todas as transações cronologicamente
+    // Filtra e ordena todas as transações cronologicamente (compras antes de vendas no mesmo dia)
     const validTransactions = allTransactions
-        .filter(tx => tx.date && !isNaN(new Date(tx.date + 'T12:00:00').getTime()))
-        .sort((a, b) => new Date(a.date + 'T12:00:00') - new Date(b.date + 'T12:00:00'));
+        .filter(tx => tx && tx.ticker && tx.date && !isNaN(new Date((tx.date || '1970-01-01') + 'T12:00:00').getTime()))
+        .sort((a, b) => {
+            const da = new Date((a.date || '1970-01-01') + 'T12:00:00').getTime();
+            const db = new Date((b.date || '1970-01-01') + 'T12:00:00').getTime();
+            if (da !== db) return da - db;
+            const typeA = (a.type || '').toLowerCase();
+            const typeB = (b.type || '').toLowerCase();
+            const isBuyA = typeA === 'compra' || typeA === 'buy';
+            const isBuyB = typeB === 'compra' || typeB === 'buy';
+            if (isBuyA && !isBuyB) return -1;
+            if (!isBuyA && isBuyB) return 1;
+            return (a.created_at || '').localeCompare(b.created_at || '');
+        });
 
     if (validTransactions.length === 0) {
         return { labels: ['Agora'], invested: [0], gain: [0], total: [0] };
@@ -1557,11 +1570,9 @@ function buildChartData() {
     let start;
 
     if (selectedPeriod === 'all') {
-        // Encontra a data da primeira transação de investimento real
         const firstTxDate = new Date(validTransactions[0].date + 'T12:00:00');
         start = new Date(firstTxDate.getFullYear(), firstTxDate.getMonth(), 1);
 
-        // Se a primeira transação tiver menos de 3 meses, garante uma janela mínima para boa visualização
         const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
         if (diffMonths < 3) {
             start = new Date(end.getFullYear(), end.getMonth() - 2, 1);
@@ -1588,14 +1599,11 @@ function buildChartData() {
     // Agrupa transações nos meses correspondentes e pré-acumula as anteriores
     const simulatedPortfolio = new Map();
     const txByMonth = new Map();
-    let accumulatedRealizedGain = 0;
 
     for (const tx of validTransactions) {
         const d = new Date(tx.date + 'T12:00:00');
         if (d < start) {
-            // Transações anteriores a start alimentam o portfólio acumulado inicial e ganho realizado
-            const realized = applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
-            accumulatedRealizedGain += realized;
+            applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
         } else {
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             if (!txByMonth.has(key)) {
@@ -1631,58 +1639,56 @@ function buildChartData() {
         const month = allMonths[i];
         const isCurrentMonth = (i === allMonths.length - 1);
 
-        // Aplica as transações do mês e acumula ganhos de vendas
+        // Aplica as transações deste mês
         for (const tx of month.transactions) {
-            const realized = applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
-            accumulatedRealizedGain += realized;
+            applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
         }
 
         let runningInvested = 0;
         let totalSimulatedValue = 0;
 
         if (isCurrentMonth && positions.length > 0) {
-            // No mês atual, sincroniza 100% com os dados calculados de positions
+            // No mês atual, sincroniza com os dados consolidados da carteira ativa
             runningInvested = positions.reduce((s, p) => s + (p.costBasis || 0), 0);
             totalSimulatedValue = positions.reduce((s, p) => s + (p.currentValue || 0), 0);
         } else {
             for (const [ticker, pos] of simulatedPortfolio) {
-                runningInvested += (pos.costBasis || 0);
-                const cleanTk = ticker.replace(/\.SA$/, '');
-                const currentPrice = currentPrices.get(ticker) || currentPrices.get(cleanTk) ||
-                    (pos.quantity > 0 ? pos.costBasis / pos.quantity : 0);
+                if (pos.quantity > 0.0000001) {
+                    runningInvested += (pos.costBasis || 0);
+                    const cleanTk = ticker.replace(/\.SA$/, '');
+                    const currentPrice = currentPrices.get(ticker) || currentPrices.get(cleanTk) ||
+                        (pos.quantity > 0 ? pos.costBasis / pos.quantity : 0);
 
-                let priceToUse = currentPrice;
-                if (isTesouroTicker(ticker) && pos.costBasis > 0 && pos.quantity > 0) {
-                    const avgCost = pos.costBasis / pos.quantity;
-                    const monthsElapsed = getMonthsBetween(start, month.date);
-                    // Rendimento proporcional ao tempo
-                    priceToUse = avgCost * (1 + (monthsElapsed * 0.0085));
+                    totalSimulatedValue += pos.quantity * currentPrice;
                 }
-
-                totalSimulatedValue += pos.quantity * priceToUse;
             }
         }
 
-        // Ganho de Capital = Lucro/Variação Não Realizada + Lucro Realizado de Vendas
-        const unrealizedGain = totalSimulatedValue - runningInvested;
-        const monthGain = unrealizedGain + accumulatedRealizedGain;
+        // Se a carteira não possuía ativos no mês, valores são zerados
+        let unrealizedGain = 0;
+        if (runningInvested > 0) {
+            unrealizedGain = Math.round((totalSimulatedValue - runningInvested) * 100) / 100;
+        } else {
+            runningInvested = 0;
+            totalSimulatedValue = 0;
+            unrealizedGain = 0;
+        }
 
         const monthLabel = `${String(month.date.getMonth() + 1).padStart(2, '0')}/${String(month.date.getFullYear()).slice(2)}`;
         labels.push(monthLabel);
         invested.push(Math.round(runningInvested * 100) / 100);
-        gain.push(Math.round(monthGain * 100) / 100);
-        total.push(Math.round((runningInvested + monthGain) * 100) / 100);
+        gain.push(Math.round(unrealizedGain * 100) / 100);
+        total.push(Math.round((runningInvested + unrealizedGain) * 100) / 100);
     }
 
     if (labels.length === 0) {
         labels.push('Agora');
         const totalCostBasis = positions.reduce((s, p) => s + p.costBasis, 0);
         const totalCurrentValue = positions.reduce((s, p) => s + p.currentValue, 0);
-        const totalRealized = positions.reduce((s, p) => s + (p.realizedGain || 0), 0);
-        const totalGain = (totalCurrentValue - totalCostBasis) + totalRealized;
+        const totalGain = totalCurrentValue - totalCostBasis;
         invested.push(Math.round(totalCostBasis * 100) / 100);
         gain.push(Math.round(totalGain * 100) / 100);
-        total.push(Math.round((totalCostBasis + totalGain) * 100) / 100);
+        total.push(Math.round(totalCurrentValue * 100) / 100);
     }
 
     return { labels, invested, gain, total };
@@ -1768,7 +1774,7 @@ function renderChart() {
                 data: data.gain,
                 backgroundColor: function (context) {
                     const val = context.raw || 0;
-                    return val >= 0 ? '#FDCB6E' : '#FF7675';
+                    return val >= 0 ? '#00B894' : '#FF7675';
                 },
                 borderRadius: 4,
                 borderSkipped: false,
@@ -1808,6 +1814,9 @@ function renderChart() {
                     callbacks: {
                         label: function (context) {
                             const val = context.parsed.y;
+                            if (val === 0 && context.dataset.label === 'Ganho de Capital') {
+                                return `${context.dataset.label}: R$ 0,00`;
+                            }
                             const sign = val > 0 ? '+' : '';
                             return `${context.dataset.label}: ${sign}${formatCurrency(val)}`;
                         },
