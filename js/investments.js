@@ -353,6 +353,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await refreshDashboard();
     await loadDividends();
+
+    // Restaura aba ativa caso presente na URL ou sessão
+    const hashTab = (window.location.hash || '').replace('#', '').trim();
+    if (['carteira', 'lancamentos', 'proventos'].includes(hashTab)) {
+        switchTab(hashTab);
+    }
 });
 
 // ============================================
@@ -360,6 +366,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ============================================
 function switchTab(tab) {
     currentTab = tab;
+    try {
+        if (window.location.hash !== `#${tab}`) {
+            history.replaceState(null, '', `#${tab}`);
+        }
+    } catch (e) {}
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tab);
     });
@@ -1225,8 +1237,89 @@ function extractDataCom(note) {
     return match ? match[1].trim() : null;
 }
 
+// ============================================
+// AUXILIARES ROBUSTOS PARA PROVENTOS
+// ============================================
+function getDividendISODate(d) {
+    if (!d || !d.date) return '';
+    let s = String(d.date).trim();
+    if (s.includes('T')) s = s.split('T')[0];
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const parts = s.split('/');
+        const day = parts[0].padStart(2, '0');
+        const month = parts[1].padStart(2, '0');
+        const year = parts[2];
+        return `${year}-${month}-${day}`;
+    }
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) {
+        const parts = s.split('-');
+        const year = parts[0];
+        const month = parts[1].padStart(2, '0');
+        const day = parts[2].padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+        const yr = dt.getFullYear();
+        const mo = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0');
+        return `${yr}-${mo}-${day}`;
+    }
+    return s;
+}
+
+function getDividendYearMonth(d) {
+    const iso = getDividendISODate(d);
+    if (!iso || iso.length < 7) return { year: null, month: null, yearMonth: null };
+    const parts = iso.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-indexed (0=Jan, 11=Dez)
+    if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
+        return { year: null, month: null, yearMonth: null };
+    }
+    return {
+        year: year,
+        month: month,
+        yearMonth: `${parts[0]}-${parts[1]}`
+    };
+}
+
+function getDividendTotalValue(d) {
+    if (!d) return 0;
+    if (d.total_value !== undefined && d.total_value !== null && d.total_value !== '') {
+        const val = parseBrazilianNumber(d.total_value);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    const qty = parseBrazilianNumber(d.quantity);
+    const unit = parseBrazilianNumber(d.unit_value);
+    const calc = qty * unit;
+    return (!isNaN(calc) && calc > 0) ? calc : 0;
+}
+
+function getDividendUnitValue(d) {
+    if (!d) return 0;
+    if (d.unit_value !== undefined && d.unit_value !== null && d.unit_value !== '') {
+        const val = parseBrazilianNumber(d.unit_value);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    const total = getDividendTotalValue(d);
+    const qty = parseBrazilianNumber(d.quantity);
+    if (qty > 0 && total > 0) return total / qty;
+    return 0;
+}
+
+function getDividendQuantity(d) {
+    if (!d) return 0;
+    const qty = parseBrazilianNumber(d.quantity);
+    if (!isNaN(qty) && qty > 0) return qty;
+    const total = getDividendTotalValue(d);
+    const unit = getDividendUnitValue(d);
+    if (unit > 0 && total > 0) return Math.round(total / unit);
+    return 0;
+}
+
 function populateProventosFilterDropdowns() {
-    const tickers = [...new Set(allDividends.map(d => d.ticker.toUpperCase()))].sort();
+    const tickers = [...new Set(allDividends.map(d => (d.ticker || '').toUpperCase().trim()).filter(Boolean))].sort();
 
     const tickerSelects = [
         document.getElementById('provChartTickerSelect'),
@@ -1248,8 +1341,8 @@ function populateProventosFilterDropdowns() {
     if (yearSelect) {
         const currentYear = new Date().getFullYear();
         const yearsSet = new Set(allDividends.map(d => {
-            const yr = parseInt(d.date.substring(0, 4), 10);
-            return isNaN(yr) ? null : yr;
+            const ym = getDividendYearMonth(d);
+            return ym.year;
         }).filter(Boolean));
         yearsSet.add(currentYear);
         const years = Array.from(yearsSet).sort((a, b) => b - a);
@@ -1268,6 +1361,10 @@ function populateProventosFilterDropdowns() {
 // ============================================
 async function loadDividends() {
     try {
+        if (!currentUser || !currentUser.id) {
+            console.warn('⚠️ loadDividends chamado sem usuário autenticado.');
+            return;
+        }
         const { data, error } = await supabaseClient
             .from('dividends')
             .select('*')
@@ -1284,6 +1381,7 @@ async function loadDividends() {
         renderDividendsPieChart();
         renderProventosHistoryTable();
         renderProventosListTable();
+        updateSummary();
 
     } catch (error) {
         console.error('❌ Erro ao carregar proventos:', error);
@@ -1295,7 +1393,7 @@ async function loadDividends() {
 // UPDATE PROVENTOS SUMMARY
 // ============================================
 function updateProventosSummary() {
-    const totalAll = allDividends.reduce((sum, d) => sum + Number(d.total_value), 0);
+    const totalAll = allDividends.reduce((sum, d) => sum + getDividendTotalValue(d), 0);
     const totalAllEl = document.getElementById('provTotalAll');
     if (totalAllEl) totalAllEl.textContent = formatCurrency(totalAll);
 
@@ -1310,10 +1408,13 @@ function updateProventosSummary() {
     // Last 12 months: from 11 months ago to current month
     const now = new Date();
     const cutoffDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    const cutoffStr = cutoffDate.toISOString().substring(0, 10);
+    const cutoffStr = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, '0')}-01`;
 
-    const last12MDivs = allDividends.filter(d => d.date >= cutoffStr);
-    const total12M = last12MDivs.reduce((sum, d) => sum + Number(d.total_value), 0);
+    const last12MDivs = allDividends.filter(d => {
+        const iso = getDividendISODate(d);
+        return iso && iso >= cutoffStr;
+    });
+    const total12M = last12MDivs.reduce((sum, d) => sum + getDividendTotalValue(d), 0);
     const total12MEl = document.getElementById('provTotal12M');
     if (total12MEl) total12MEl.textContent = formatCurrency(total12M);
 
@@ -1331,7 +1432,7 @@ function updateProventosSummary() {
     if (goalPctEl) goalPctEl.textContent = `${goalPct.toFixed(2).replace('.', ',')}%`;
 
     const progressBar = document.getElementById('provGoalProgressBar');
-    if (progressBar) progressBar.style.width = `${Math.min(goalPct, 100)}%`;
+    if (progressBar) progressBar.style.width = `${Math.min(Math.max(goalPct, 0), 100)}%`;
 }
 
 function updateDividendsSummary() {
@@ -1370,13 +1471,15 @@ function renderProventosHistoryTable() {
     const todayISO = new Date().toISOString().substring(0, 10);
 
     const filtered = allDividends.filter(d => {
-        if (tickerFilter !== 'ALL' && d.ticker.toUpperCase() !== tickerFilter) return false;
+        const ticker = (d.ticker || '').toUpperCase().trim();
+        if (tickerFilter !== 'ALL' && ticker !== tickerFilter) return false;
         if (classFilter !== 'ALL') {
-            const cls = getAssetClassForTicker(d.ticker);
+            const cls = getAssetClassForTicker(ticker);
             if (cls !== classFilter) return false;
         }
-        if (statusFilter === 'recebidos' && d.date > todayISO) return false;
-        if (statusFilter === 'a_receber' && d.date <= todayISO) return false;
+        const iso = getDividendISODate(d);
+        if (statusFilter === 'recebidos' && iso > todayISO) return false;
+        if (statusFilter === 'a_receber' && iso <= todayISO) return false;
         return true;
     });
 
@@ -1396,13 +1499,12 @@ function renderProventosHistoryTable() {
     // Build matrix: year -> 12 months array
     const matrix = {};
     filtered.forEach(d => {
-        const parts = d.date.split('-');
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        if (!matrix[year]) {
-            matrix[year] = new Array(12).fill(0);
+        const ym = getDividendYearMonth(d);
+        if (ym.year === null || ym.month === null || ym.month < 0 || ym.month > 11) return;
+        if (!matrix[ym.year]) {
+            matrix[ym.year] = new Array(12).fill(0);
         }
-        matrix[year][month] += Number(d.total_value);
+        matrix[ym.year][ym.month] += getDividendTotalValue(d);
     });
 
     const years = Object.keys(matrix).map(Number).sort((a, b) => b - a);
@@ -1410,13 +1512,14 @@ function renderProventosHistoryTable() {
 
     const rowsHtml = years.map(year => {
         const months = matrix[year];
-        const yearTotal = months.reduce((sum, val) => sum + val, 0);
+        const yearTotal = months.reduce((sum, val) => sum + (Number(val) || 0), 0);
         grandTotal += yearTotal;
         const yearAvg = yearTotal / 12;
 
         const monthsHtml = months.map(val => {
-            const displayVal = val > 0 ? formatNumber(val, 2) : '0,00';
-            const cellClass = val > 0 ? 'matrix-active-cell' : '';
+            const num = Number(val) || 0;
+            const displayVal = num > 0 ? formatNumber(num, 2) : '0,00';
+            const cellClass = num > 0 ? 'matrix-active-cell' : '';
             return `<td class="${cellClass}">${displayVal}</td>`;
         }).join('');
 
@@ -1424,8 +1527,8 @@ function renderProventosHistoryTable() {
             <tr>
                 <td><strong>${year}</strong></td>
                 ${monthsHtml}
-                <td><strong>${formatNumber(yearAvg, 2)}</strong></td>
-                <td><strong>${formatNumber(yearTotal, 2)}</strong></td>
+                <td class="col-media"><strong>${formatNumber(yearAvg, 2)}</strong></td>
+                <td class="col-total"><strong>${formatNumber(yearTotal, 2)}</strong></td>
             </tr>
         `;
     }).join('');
@@ -1450,19 +1553,20 @@ function renderProventosListTable() {
     const todayISO = new Date().toISOString().substring(0, 10);
 
     const filtered = allDividends.filter(d => {
+        const ym = getDividendYearMonth(d);
         if (yearFilter !== 'ALL') {
-            const yr = d.date.substring(0, 4);
-            if (yr !== yearFilter) return false;
+            if (!ym.year || String(ym.year) !== String(yearFilter)) return false;
         }
-        if (tickerFilter !== 'ALL' && d.ticker.toUpperCase() !== tickerFilter) return false;
+        const ticker = (d.ticker || '').toUpperCase().trim();
+        if (tickerFilter !== 'ALL' && ticker !== tickerFilter) return false;
         if (classFilter !== 'ALL') {
-            const cls = getAssetClassForTicker(d.ticker);
+            const cls = getAssetClassForTicker(ticker);
             if (cls !== classFilter) return false;
         }
         return true;
     });
 
-    const sumTotal = filtered.reduce((acc, d) => acc + Number(d.total_value), 0);
+    const sumTotal = filtered.reduce((acc, d) => acc + getDividendTotalValue(d), 0);
     const pill = document.getElementById('provListTotalPill');
     if (pill) pill.textContent = `Total ${formatCurrency(sumTotal)}`;
 
@@ -1479,35 +1583,40 @@ function renderProventosListTable() {
     }
 
     body.innerHTML = filtered.map(d => {
-        const cls = getAssetClassForTicker(d.ticker);
+        const ticker = (d.ticker || '').toUpperCase().trim();
+        const cls = getAssetClassForTicker(ticker);
         const iconCls = getIconForClass(cls);
-        const isPaid = d.date <= todayISO;
+        const isoDate = getDividendISODate(d);
+        const isPaid = isoDate <= todayISO;
         const statusBadge = isPaid
             ? `<span class="prov-status-badge paid"><i class="fas fa-check-circle"></i> Pago</span>`
             : `<span class="prov-status-badge pending"><i class="fas fa-clock"></i> A Receber</span>`;
 
         const dataCom = extractDataCom(d.note);
         const dataComDisplay = dataCom ? formatDate(dataCom) : '-';
-        const datePayDisplay = formatDate(d.date);
+        const datePayDisplay = formatDate(isoDate || d.date);
 
-        const totalVal = Number(d.total_value);
-        const netVal = (d.type && d.type.toUpperCase().includes('JCP')) ? totalVal * 0.85 : totalVal;
+        const totalVal = getDividendTotalValue(d);
+        const unitVal = getDividendUnitValue(d);
+        const qtyVal = getDividendQuantity(d);
+        const isJCP = (d.type && String(d.type).toUpperCase().includes('JCP'));
+        const netVal = isJCP ? totalVal * 0.85 : totalVal;
 
         return `
             <tr>
                 <td>
                     <div class="prov-ticker-cell">
                         <div class="prov-ticker-icon"><i class="${iconCls}"></i></div>
-                        <span class="prov-ticker-name">${d.ticker}</span>
+                        <span class="prov-ticker-name">${ticker}</span>
                     </div>
                 </td>
-                <td>${cls}</td>
+                <td><span class="prov-class-badge">${cls}</span></td>
                 <td>${statusBadge}</td>
                 <td>${d.type || 'Dividendo'}</td>
                 <td>${dataComDisplay}</td>
                 <td>${datePayDisplay}</td>
-                <td>${formatNumber(d.quantity)}</td>
-                <td>${formatCurrency(d.unit_value)}</td>
+                <td>${formatNumber(qtyVal)}</td>
+                <td>${formatCurrency(unitVal)}</td>
                 <td><strong>${formatCurrency(totalVal)}</strong></td>
                 <td><strong>${formatCurrency(netVal)}</strong></td>
                 <td style="text-align:right;">
@@ -2580,9 +2689,10 @@ function renderDividendsChart() {
 
     // Filter dividends based on selected class & ticker
     const filtered = allDividends.filter(d => {
-        if (proventosChartTicker !== 'ALL' && d.ticker.toUpperCase() !== proventosChartTicker) return false;
+        const ticker = (d.ticker || '').toUpperCase().trim();
+        if (proventosChartTicker !== 'ALL' && ticker !== proventosChartTicker) return false;
         if (proventosChartClass !== 'ALL') {
-            const cls = getAssetClassForTicker(d.ticker);
+            const cls = getAssetClassForTicker(ticker);
             if (cls !== proventosChartClass) return false;
         }
         return true;
@@ -2602,7 +2712,10 @@ function renderDividendsChart() {
                 monthKeys.push(`${yr}-${String(m).padStart(2, '0')}`);
             }
         } else if (proventosChartPeriod === 'ALL') {
-            const setMonths = new Set(filtered.map(d => d.date.substring(0, 7)));
+            const setMonths = new Set(filtered.map(d => {
+                const ym = getDividendYearMonth(d);
+                return ym.yearMonth;
+            }).filter(Boolean));
             if (setMonths.size === 0) {
                 for (let i = 11; i >= 0; i--) {
                     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -2628,9 +2741,11 @@ function renderDividendsChart() {
             let rec = 0;
             let aRec = 0;
             filtered.forEach(d => {
-                if (d.date.substring(0, 7) === m) {
-                    const val = Number(d.total_value);
-                    if (d.date <= todayISO) {
+                const ym = getDividendYearMonth(d);
+                if (ym.yearMonth === m) {
+                    const val = getDividendTotalValue(d);
+                    const iso = getDividendISODate(d);
+                    if (iso <= todayISO) {
                         rec += val;
                     } else {
                         aRec += val;
@@ -2644,7 +2759,10 @@ function renderDividendsChart() {
     } else {
         // Yearly periodicity
         const currentYear = new Date().getFullYear();
-        const yearSet = new Set(filtered.map(d => parseInt(d.date.substring(0, 4), 10)).filter(Boolean));
+        const yearSet = new Set(filtered.map(d => {
+            const ym = getDividendYearMonth(d);
+            return ym.year;
+        }).filter(Boolean));
         yearSet.add(currentYear);
         const sortedYears = Array.from(yearSet).sort((a, b) => a - b);
 
@@ -2652,11 +2770,12 @@ function renderDividendsChart() {
         sortedYears.forEach(yr => {
             let rec = 0;
             let aRec = 0;
-            const yrStr = String(yr);
             filtered.forEach(d => {
-                if (d.date.substring(0, 4) === yrStr) {
-                    const val = Number(d.total_value);
-                    if (d.date <= todayISO) {
+                const ym = getDividendYearMonth(d);
+                if (ym.year === yr) {
+                    const val = getDividendTotalValue(d);
+                    const iso = getDividendISODate(d);
+                    if (iso <= todayISO) {
                         rec += val;
                     } else {
                         aRec += val;
@@ -2786,13 +2905,23 @@ function renderDividendsPieChart() {
     // Filter last 12 months
     const now = new Date();
     const cutoffDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    const cutoffStr = cutoffDate.toISOString().substring(0, 10);
-    const last12MDivs = allDividends.filter(d => d.date >= cutoffStr);
+    const cutoffStr = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+    let relevantDivs = allDividends.filter(d => {
+        const iso = getDividendISODate(d);
+        return iso && iso >= cutoffStr;
+    });
+
+    // Fallback para todos os proventos se o último ano estiver vazio
+    if (relevantDivs.length === 0 && allDividends.length > 0) {
+        relevantDivs = allDividends;
+    }
 
     const byTicker = {};
-    last12MDivs.forEach(d => {
-        const t = d.ticker.toUpperCase();
-        byTicker[t] = (byTicker[t] || 0) + Number(d.total_value);
+    relevantDivs.forEach(d => {
+        const t = (d.ticker || '').toUpperCase().trim();
+        if (!t) return;
+        byTicker[t] = (byTicker[t] || 0) + getDividendTotalValue(d);
     });
 
     const sorted = Object.entries(byTicker).sort((a, b) => b[1] - a[1]);
@@ -2808,7 +2937,7 @@ function renderDividendsPieChart() {
 
     if (legendContainer) {
         if (sorted.length === 0) {
-            legendContainer.innerHTML = '<span style="font-size:11px;color:var(--color-text-muted);">Sem proventos em 12 meses</span>';
+            legendContainer.innerHTML = '<span style="font-size:11px;color:var(--color-text-muted);">Sem proventos registrados</span>';
         } else {
             legendContainer.innerHTML = sorted.slice(0, 3).map((item, idx) => {
                 const pct = total12M > 0 ? ((item[1] / total12M) * 100).toFixed(2).replace('.', ',') : '0,00';
