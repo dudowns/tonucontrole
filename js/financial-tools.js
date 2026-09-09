@@ -1102,7 +1102,6 @@
                                     <div>
                                         <div style="display:flex; align-items:center; gap:6px;">
                                             <strong style="font-size:13px; color:#0f172a;">${c.name}</strong>
-                                            ${catLimit > 0 ? `<span style="background:#ede9fe; color:#6c5ce7; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:700;"><i class="fas fa-bullseye"></i> Limite: ${formatMoney(catLimit)}</span>` : ''}
                                         </div>
                                         <div style="font-size:11px; color:#64748b;">
                                             ${c.type === 'income' ? '🟢 Receita' : '🔴 Despesa'}
@@ -1122,10 +1121,7 @@
                         }).join('')}
                     </div>
 
-                    <div style="padding:14px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
-                        <button class="btn btn-outline btn-sm" onclick="window.TonuBudget?.openBudgetModal(); document.getElementById('tonuCategoriesModal').remove();">
-                            <i class="fas fa-sliders-h"></i> Ajustar Todos os Limites
-                        </button>
+                    <div style="padding:14px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; align-items:center; background:#f8fafc;">
                         <button class="btn btn-outline btn-sm" onclick="document.getElementById('tonuCategoriesModal').remove()">Fechar</button>
                     </div>
                 </div>
@@ -1159,20 +1155,10 @@
 
                         <div>
                             <label style="font-size:12px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Tipo</label>
-                            <select id="catEditType" onchange="document.getElementById('catEditBudgetBox').style.display = this.value === 'expense' ? 'block' : 'none';" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; font-size:14px;">
+                            <select id="catEditType" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; font-size:14px;">
                                 <option value="expense" ${type === 'expense' ? 'selected' : ''}>🔴 Despesa</option>
                                 <option value="income" ${type === 'income' ? 'selected' : ''}>🟢 Receita</option>
                             </select>
-                        </div>
-
-                        <!-- LIMITE MENSAL DE GASTOS -->
-                        <div id="catEditBudgetBox" style="background:#f8fafc; padding:12px; border-radius:12px; border:1px dashed #cbd5e1; display:${type === 'expense' ? 'block' : 'none'};">
-                            <label style="font-size:12px; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                                <i class="fas fa-bullseye" style="color:#6c5ce7;"></i> Limite Mensal de Gastos (R$)
-                                <span style="font-size:11px; font-weight:normal; color:#64748b;">(Opcional)</span>
-                            </label>
-                            <p style="font-size:11px; color:#64748b; margin:0 0 6px 0;">Receba uma notificação automática ao se aproximar ou ultrapassar este valor.</p>
-                            <input type="number" step="10" min="0" id="catEditBudgetLimit" value="${currentLimit > 0 ? currentLimit : ''}" placeholder="Ex: 100.00" style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; font-size:14px; font-weight:700; color:#0f172a;">
                         </div>
 
                         <div>
@@ -1242,8 +1228,8 @@
                     }
                 }
 
-                // Save or update budget limit if configured
-                if (window.TonuBudget) {
+                // Save or update budget limit if configured in this modal
+                if (budgetLimitInput && window.TonuBudget) {
                     window.TonuBudget.setCategoryBudget(userId, savedId || name, limitVal, name);
                 }
 

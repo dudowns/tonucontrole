@@ -158,11 +158,6 @@
                         <i class="fas fa-bell" aria-hidden="true"></i>
                         <span class="notif-badge hidden" id="notifBadgeCount">0</span>
                     </button>
-                    <button class="btn btn-outline" type="button"
-                        onclick="window.TonuBudget?.openBudgetModal()"
-                        title="Definir e acompanhar limites por categoria" aria-label="Limites por Categoria">
-                        <i class="fas fa-bullseye" aria-hidden="true"></i> Limites
-                    </button>
                     <button class="btn btn-outline"
                         onclick="window.TonuBankImporterInstance.selectAndImportFile(loadTransactions)"
                         title="Importar arquivo CSV ou OFX de extrato bancário" aria-label="Importar extrato bancário">
@@ -410,7 +405,7 @@
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <label for="tCategory" style="margin-bottom:0;">Categoria *</label>
                             <button type="button" onclick="window.TonuCategoryManagerInstance?.showManagerModal(loadCategories)" style="background:none; border:none; color:var(--primary-color,#6c5ce7); font-size:11px; font-weight:600; cursor:pointer; padding:0; display:flex; align-items:center; gap:4px;">
-                                <i class="fas fa-cog"></i> Gerenciar & Limites
+                                <i class="fas fa-cog"></i> Gerenciar Categorias
                             </button>
                         </div>
                         <select id="tCategory" class="form-control" required aria-required="true">

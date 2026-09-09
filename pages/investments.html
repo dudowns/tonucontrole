@@ -382,99 +382,281 @@
                 </div>
 
                 <!-- ==========================================
-                TAB: PROVENTOS
+                TAB: PROVENTOS (MODELO INVESTIDOR 10)
                 ========================================== -->
                 <div class="tab-content" id="tab-proventos" role="tabpanel" aria-labelledby="tab-proventos">
-                    <div class="dividends-grid">
-                        <div class="card-stat success">
-                            <div class="stat-icon success"><i class="fas fa-money-bill-wave" aria-hidden="true"></i>
-                            </div>
-                            <div class="stat-info">
-                                <div class="stat-label">Total Proventos</div>
-                                <div class="stat-value" id="divTotalAmount">R$ 0,00</div>
-                            </div>
-                        </div>
-                        <div class="card-stat info">
-                            <div class="stat-icon info"><i class="fas fa-calendar-alt" aria-hidden="true"></i></div>
-                            <div class="stat-info">
-                                <div class="stat-label">Último mês</div>
-                                <div class="stat-value" id="divLastMonth">R$ 0,00</div>
-                            </div>
-                        </div>
-                        <div class="card-stat warning">
-                            <div class="stat-icon warning"><i class="fas fa-trophy" aria-hidden="true"></i></div>
-                            <div class="stat-info">
-                                <div class="stat-label">Top Proventos</div>
-                                <div class="stat-value" id="divTopTicker" style="font-size:14px;">-</div>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="proventos-container">
+                        <!-- Top Row: Resumo + Evolução de Proventos -->
+                        <div class="proventos-top-row">
+                            <!-- Card 1: Resumo -->
+                            <div class="proventos-summary-card" id="cardProventosResumo">
+                                <div class="card-header-clean" style="margin-bottom: 14px;">
+                                    <h3>Resumo</h3>
+                                </div>
 
-                    <div class="charts-row">
-                        <div class="chart-panel">
-                            <div class="card-header">
-                                <h3>📈 Evolução de Proventos</h3>
-                                <span class="badge">Mensal</span>
-                            </div>
-                            <div class="chart-wrap">
-                                <canvas id="dividendsChart" role="img"
-                                    aria-label="Gráfico de evolução de proventos"></canvas>
-                            </div>
-                        </div>
-                        <div class="chart-panel">
-                            <div class="card-header">
-                                <h3>🍩 Proventos por Ativo</h3>
-                                <span class="badge">Distribuição</span>
-                            </div>
-                            <div class="chart-wrap" style="display: flex; align-items: center; justify-content: center;">
-                                <canvas id="dividendsPieChart"
-                                    style="max-width: 155px; max-height: 155px; margin: 0 auto;" role="img"
-                                    aria-label="Gráfico de distribuição de proventos"></canvas>
-                            </div>
-                        </div>
-                    </div>
+                                <!-- Média Mensal (últ. 12 meses) -->
+                                <div class="summary-metric-group">
+                                    <div class="metric-header">
+                                        <span>Média Mensal (últ. 12 meses)</span>
+                                        <span class="metric-pct" id="provGoalPct">0,00%</span>
+                                    </div>
+                                    <div class="metric-val-main">
+                                        <span id="provMonthlyAvg">R$ 0,00</span>
+                                        <span class="metric-goal" id="provGoalTarget">/ R$ 500,00</span>
+                                        <button type="button" class="btn-info-circle" onclick="openMonthlyGoalModal()" title="Definir meta mensal de proventos" aria-label="Alterar meta">
+                                            <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                    <div class="metric-progress-bar">
+                                        <div class="metric-progress-fill" id="provGoalProgressBar" style="width: 0%;"></div>
+                                    </div>
+                                </div>
 
-                    <div class="card">
-                        <div class="card-header">
-                            <div>
-                                <h3 style="font-size:14px;">Histórico de Proventos</h3>
-                                <p class="text-muted text-sm" style="font-size:11px;color:#b2bec3;">Dividendos, JCP e
-                                    rendimentos</p>
+                                <div class="summary-metric-divider"></div>
+
+                                <!-- Total de 12 meses -->
+                                <div class="summary-metric-group">
+                                    <div class="metric-header">
+                                        <span>Total de 12 meses <i class="fas fa-info-circle text-muted" title="Soma dos proventos nos últimos 12 meses" aria-hidden="true"></i></span>
+                                    </div>
+                                    <div class="metric-val-large" id="provTotal12M">R$ 0,00</div>
+                                </div>
+
+                                <div class="summary-metric-divider"></div>
+
+                                <!-- Total da carteira -->
+                                <div class="summary-metric-group">
+                                    <div class="metric-header">
+                                        <span>Total da carteira <i class="fas fa-info-circle text-muted" title="Total acumulado de proventos em toda a história da carteira" aria-hidden="true"></i></span>
+                                    </div>
+                                    <div class="metric-val-large" id="provTotalAll">R$ 0,00</div>
+                                </div>
+
+                                <div class="summary-metric-divider"></div>
+
+                                <!-- Distribuição de proventos em 12 meses -->
+                                <div class="summary-distribution-group">
+                                    <div class="metric-header">
+                                        <span>Distribuição de proventos em 12 meses</span>
+                                    </div>
+                                    <div class="distribution-body">
+                                        <div class="distribution-chart-box">
+                                            <canvas id="dividendsPieChart" role="img" aria-label="Distribuição de proventos"></canvas>
+                                        </div>
+                                        <div class="distribution-legend" id="provTopTickersList">
+                                            <span style="font-size:11px;color:var(--color-text-muted);">Sem proventos registrados</span>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-ver-todos" id="btnVerTodosTickers" onclick="openAllTickersDistributionModal()">Ver todos</button>
+                                </div>
                             </div>
-                            <div style="display:flex;gap:6px;">
-                                <button class="btn btn-ghost btn-sm" onclick="loadDividends()" title="Atualizar"
-                                    style="font-size:11px;" aria-label="Atualizar proventos">
-                                    <i class="fas fa-sync-alt" aria-hidden="true"></i>
-                                </button>
-                                <button class="btn btn-primary btn-sm" onclick="openDividendModal()"
-                                    style="font-size:11px;" aria-label="Registrar provento">
-                                    <i class="fas fa-plus" aria-hidden="true"></i> Registrar
-                                </button>
+
+                            <!-- Card 2: Evolução de Proventos -->
+                            <div class="proventos-evolution-card" id="cardEvolucaoProventos">
+                                <div class="evolution-header">
+                                    <h3 class="evolution-title">Evolução de Proventos</h3>
+                                    <div class="evolution-controls">
+                                        <!-- Mensal / Anual Segmented Control -->
+                                        <div class="segmented-control" id="provPeriodicityToggle" role="group" aria-label="Periodicidade">
+                                            <button type="button" class="seg-btn active" id="segBtnMonthly" onclick="setProventosPeriodicity('monthly')">Mensal</button>
+                                            <button type="button" class="seg-btn" id="segBtnYearly" onclick="setProventosPeriodicity('yearly')">Anual</button>
+                                        </div>
+
+                                        <!-- Filtro Período / Data -->
+                                        <div class="select-with-icon">
+                                            <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                                            <select id="provChartPeriodSelect" onchange="onProventosChartFilterChange()" aria-label="Filtrar período do gráfico">
+                                                <option value="12M" selected>Últimos 12 meses</option>
+                                                <option value="CURRENT_YEAR">Ano atual</option>
+                                                <option value="ALL">Todo o período</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Filtro Tipo de Ativo -->
+                                        <div class="select-with-icon">
+                                            <i class="fas fa-tags" aria-hidden="true"></i>
+                                            <select id="provChartClassSelect" onchange="onProventosChartFilterChange()" aria-label="Filtrar classe no gráfico">
+                                                <option value="ALL">Tipo de ativo</option>
+                                                <option value="Ações">Ações</option>
+                                                <option value="FIIs">FIIs</option>
+                                                <option value="ETFs">ETFs</option>
+                                                <option value="Tesouro">Tesouro / Renda Fixa</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Filtro Ativo -->
+                                        <div class="select-with-icon">
+                                            <i class="fas fa-dollar-sign" aria-hidden="true"></i>
+                                            <select id="provChartTickerSelect" onchange="onProventosChartFilterChange()" aria-label="Filtrar ativo no gráfico">
+                                                <option value="ALL">Ativos</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Legend: Proventos recebidos & a receber -->
+                                <div class="evolution-legend">
+                                    <div class="legend-item">
+                                        <span class="legend-box" style="background:#0984E3;"></span>
+                                        <span>Proventos recebidos</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <span class="legend-box" style="background:#74B9FF;"></span>
+                                        <span>Proventos a receber <i class="fas fa-info-circle text-muted" title="Proventos futuros a receber no mês" aria-hidden="true"></i></span>
+                                    </div>
+                                </div>
+
+                                <!-- Chart Wrap -->
+                                <div class="evolution-chart-wrap">
+                                    <canvas id="dividendsChart" role="img" aria-label="Gráfico de evolução de proventos"></canvas>
+                                </div>
+
+                                <!-- Click note -->
+                                <div class="evolution-footer-hint">
+                                    <span>Você pode clicar nas barras para visualizar os detalhes de cada mês.</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="transactions-table-wrap">
-                            <table class="transactions-table" role="table">
-                                <thead role="rowgroup">
-                                    <tr role="row">
-                                        <th role="columnheader">Data</th>
-                                        <th role="columnheader">Ativo</th>
-                                        <th role="columnheader">Classe</th>
-                                        <th role="columnheader">Tipo</th>
-                                        <th role="columnheader">Qtd</th>
-                                        <th role="columnheader">Valor/Unid</th>
-                                        <th role="columnheader">Total</th>
-                                        <th role="columnheader">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="dividendsBody" role="rowgroup">
-                                    <tr role="row">
-                                        <td colspan="8"
-                                            style="text-align:center;padding:20px 0;color:#b2bec3;font-size:13px;">
-                                            <span class="spinner"></span> Carregando...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+
+                        <!-- Row 2: Histórico mensal -->
+                        <div class="proventos-section-card" id="cardHistoricoMensal">
+                            <div class="section-card-header">
+                                <div class="header-left">
+                                    <h3 class="section-title">Histórico mensal</h3>
+                                </div>
+                                <div class="header-right">
+                                    <div class="badge-total-pill" id="provHistoryTotalPill">Total R$ 0,00</div>
+                                    <!-- Filtro Status -->
+                                    <div class="select-with-icon">
+                                        <i class="fas fa-calendar-check" aria-hidden="true"></i>
+                                        <select id="provHistoryStatusSelect" onchange="renderProventosHistoryTable()" aria-label="Filtrar status histórico">
+                                            <option value="recebidos" selected>Recebidos</option>
+                                            <option value="a_receber">A receber</option>
+                                            <option value="todos">Todos</option>
+                                        </select>
+                                    </div>
+                                    <!-- Filtro Classe -->
+                                    <div class="select-with-icon">
+                                        <i class="fas fa-tags" aria-hidden="true"></i>
+                                        <select id="provHistoryClassSelect" onchange="renderProventosHistoryTable()" aria-label="Filtrar classe histórico">
+                                            <option value="ALL">Tipo de ativo</option>
+                                            <option value="Ações">Ações</option>
+                                            <option value="FIIs">FIIs</option>
+                                            <option value="ETFs">ETFs</option>
+                                            <option value="Tesouro">Tesouro / Renda Fixa</option>
+                                        </select>
+                                    </div>
+                                    <!-- Filtro Ativo -->
+                                    <div class="select-with-icon">
+                                        <i class="fas fa-dollar-sign" aria-hidden="true"></i>
+                                        <select id="provHistoryTickerSelect" onchange="renderProventosHistoryTable()" aria-label="Filtrar ativo histórico">
+                                            <option value="ALL">Ativos</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive-wrapper">
+                                <table class="proventos-matrix-table" id="provMatrixTable" role="table" aria-label="Histórico mensal de proventos">
+                                    <thead role="rowgroup">
+                                        <tr role="row">
+                                            <th role="columnheader">Ano <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                            <th role="columnheader">Jan</th>
+                                            <th role="columnheader">Fev</th>
+                                            <th role="columnheader">Mar</th>
+                                            <th role="columnheader">Abr</th>
+                                            <th role="columnheader">Mai</th>
+                                            <th role="columnheader">Jun</th>
+                                            <th role="columnheader">Jul</th>
+                                            <th role="columnheader">Ago</th>
+                                            <th role="columnheader">Set</th>
+                                            <th role="columnheader">Out</th>
+                                            <th role="columnheader">Nov</th>
+                                            <th role="columnheader">Dez</th>
+                                            <th role="columnheader">Média <i class="fas fa-info-circle" title="Média dos meses com proventos" aria-hidden="true"></i></th>
+                                            <th role="columnheader">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="provMatrixBody" role="rowgroup">
+                                        <tr role="row">
+                                            <td colspan="15" style="text-align:center;padding:20px 0;color:var(--color-text-muted);">
+                                                Carregando histórico...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Row 3: Meus proventos -->
+                        <div class="proventos-section-card" id="cardMeusProventos">
+                            <div class="section-card-header">
+                                <div class="header-left">
+                                    <h3 class="section-title">Meus proventos</h3>
+                                </div>
+                                <div class="header-right">
+                                    <div class="badge-total-pill" id="provListTotalPill">Total R$ 0,00</div>
+                                    <!-- Filtro Ano -->
+                                    <div class="select-with-icon">
+                                        <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                                        <select id="provListYearSelect" onchange="renderProventosListTable()" aria-label="Filtrar ano proventos">
+                                            <option value="ALL">Todos os anos</option>
+                                        </select>
+                                    </div>
+                                    <!-- Filtro Classe -->
+                                    <div class="select-with-icon">
+                                        <i class="fas fa-tags" aria-hidden="true"></i>
+                                        <select id="provListClassSelect" onchange="renderProventosListTable()" aria-label="Filtrar classe proventos">
+                                            <option value="ALL">Tipo de ativo</option>
+                                            <option value="Ações">Ações</option>
+                                            <option value="FIIs">FIIs</option>
+                                            <option value="ETFs">ETFs</option>
+                                            <option value="Tesouro">Tesouro / Renda Fixa</option>
+                                        </select>
+                                    </div>
+                                    <!-- Filtro Ativo -->
+                                    <div class="select-with-icon">
+                                        <i class="fas fa-dollar-sign" aria-hidden="true"></i>
+                                        <select id="provListTickerSelect" onchange="renderProventosListTable()" aria-label="Filtrar ativo proventos">
+                                            <option value="ALL">Ativos</option>
+                                        </select>
+                                    </div>
+                                    <!-- Botões Atualizar & Registrar -->
+                                    <button type="button" class="btn btn-ghost btn-sm" onclick="loadDividends()" title="Atualizar dados" aria-label="Atualizar proventos">
+                                        <i class="fas fa-sync-alt" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" aria-label="Registrar provento" style="font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                                        <i class="fas fa-plus" aria-hidden="true"></i> Registrar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive-wrapper">
+                                <table class="proventos-transactions-table" id="provTransactionsTable" role="table" aria-label="Lista de transações de proventos">
+                                    <thead role="rowgroup">
+                                        <tr role="row">
+                                            <th role="columnheader">Ativo</th>
+                                            <th role="columnheader">Tipo de ativo</th>
+                                            <th role="columnheader">Status do pagamento</th>
+                                            <th role="columnheader">Tipo de pagamento</th>
+                                            <th role="columnheader">Data Com</th>
+                                            <th role="columnheader">Data Pagamento</th>
+                                            <th role="columnheader">Quantidade</th>
+                                            <th role="columnheader">Valor do div.</th>
+                                            <th role="columnheader">Valor total</th>
+                                            <th role="columnheader">Total líquido</th>
+                                            <th role="columnheader" style="text-align:right;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dividendsBody" role="rowgroup">
+                                        <tr role="row">
+                                            <td colspan="11" style="text-align:center;padding:30px 0;color:var(--color-text-muted);">
+                                                <span class="spinner"></span> Carregando proventos...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -611,9 +793,16 @@
                             <input type="text" id="divTotalValue" value="0,00" readonly>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="divDate">Data do Recebimento *</label>
-                        <input type="date" id="divDate" class="form-control" required aria-required="true">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="divDateCom">Data Com (opcional)</label>
+                            <input type="date" id="divDateCom" class="form-control">
+                            <small class="help-text">Data com direito ao provento</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="divDate">Data do Recebimento/Pagamento *</label>
+                            <input type="date" id="divDate" class="form-control" required aria-required="true">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="divNote">Observações (opcional)</label>
@@ -626,6 +815,68 @@
                     <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Salvar Provento</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ==========================================
+    MODAL - META MENSAL DE PROVENTOS
+    ========================================== -->
+    <div class="modal-overlay hidden" id="monthlyGoalModal" onclick="if(event.target === this) closeMonthlyGoalModal()"
+        role="dialog" aria-modal="true" aria-labelledby="goalModalTitle">
+        <div class="modal" style="max-width:400px;">
+            <div class="modal-header">
+                <div>
+                    <div class="sub"><i class="fas fa-bullseye" style="margin-right:4px;"></i> Planejamento</div>
+                    <h3 id="goalModalTitle">Meta Mensal de Proventos</h3>
+                </div>
+                <button type="button" class="modal-close" onclick="closeMonthlyGoalModal()" aria-label="Fechar modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form onsubmit="saveMonthlyGoal(event)">
+                <div class="modal-body">
+                    <p style="font-size:12px;color:var(--color-text-muted);margin-bottom:12px;">
+                        Defina o valor que você deseja receber mensalmente em proventos. A barra de progresso da tela de resumo será atualizada com base nesta meta.
+                    </p>
+                    <div class="form-group">
+                        <label for="goalInputValue">Valor da Meta Mensal (R$) *</label>
+                        <div class="input-prefix">
+                            <span>R$</span>
+                            <input type="text" id="goalInputValue" class="form-control" placeholder="500,00" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeMonthlyGoalModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Salvar Meta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================
+    MODAL - TODOS OS ATIVOS (DISTRIBUIÇÃO)
+    ========================================== -->
+    <div class="modal-overlay hidden" id="allTickersModal" onclick="if(event.target === this) closeAllTickersModal()"
+        role="dialog" aria-modal="true" aria-labelledby="allTickersModalTitle">
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header">
+                <div>
+                    <div class="sub"><i class="fas fa-chart-pie" style="margin-right:4px;"></i> Proventos dos Últimos 12 Meses</div>
+                    <h3 id="allTickersModalTitle">Distribuição por Ativo</h3>
+                </div>
+                <button type="button" class="modal-close" onclick="closeAllTickersModal()" aria-label="Fechar modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="max-height:360px; overflow-y:auto; padding:12px 16px;">
+                <div id="allTickersListContainer" style="display:flex; flex-direction:column; gap:8px;">
+                    <!-- Filled dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAllTickersModal()">Fechar</button>
+            </div>
         </div>
     </div>
 

@@ -1450,3 +1450,509 @@ body.dark-theme .input-prefix span {
     background: var(--color-bg);
     border-color: var(--color-border);
 }
+
+/* ============================================
+   PROVENTOS - MODELO INVESTIDOR 10
+   ============================================ */
+.proventos-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+.proventos-top-row {
+    display: grid;
+    grid-template-columns: 310px 1fr;
+    gap: 16px;
+    align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+    .proventos-top-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.proventos-summary-card,
+.proventos-evolution-card,
+.proventos-section-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    padding: 16px 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.card-header-clean h3,
+.evolution-title,
+.section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+}
+
+.summary-metric-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.metric-pct {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.metric-val-main {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.metric-goal {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+}
+
+.btn-info-circle {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-info-circle:hover {
+    color: var(--color-primary);
+}
+
+.metric-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--color-border);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.metric-progress-fill {
+    height: 100%;
+    background: #0984E3;
+    border-radius: 99px;
+    transition: width 0.3s ease;
+}
+
+.summary-metric-divider {
+    height: 1px;
+    background: var(--color-border);
+    margin: 12px 0;
+}
+
+.metric-val-large {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--color-text);
+    margin-top: 2px;
+}
+
+.summary-distribution-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.distribution-body {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.distribution-chart-box {
+    width: 105px;
+    height: 105px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.distribution-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    overflow: hidden;
+}
+
+.dist-legend-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 600;
+    gap: 6px;
+}
+
+.dist-ticker-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dist-color-box {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.dist-pct {
+    color: var(--color-text);
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.btn-ver-todos {
+    margin-top: 10px;
+    width: 100%;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.btn-ver-todos:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* EVOLUÇÃO DE PROVENTOS */
+.evolution-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.evolution-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.segmented-control {
+    display: inline-flex;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 2px;
+}
+
+.seg-btn {
+    border: none;
+    background: transparent;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.seg-btn.active {
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.select-with-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.select-with-icon select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 5px 24px 5px 26px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text);
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2364748b' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+}
+
+.select-with-icon i {
+    position: absolute;
+    left: 8px;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+}
+
+.evolution-legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-box {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+}
+
+.evolution-chart-wrap {
+    height: 250px;
+    position: relative;
+    width: 100%;
+}
+
+.evolution-footer-hint {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.evolution-footer-hint span {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 99px;
+    padding: 4px 14px;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+/* SECTION CARDS (HISTÓRICO MENSAL & MEUS PROVENTOS) */
+.section-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.badge-total-pill {
+    background: rgba(0, 184, 148, 0.12);
+    color: #00B894;
+    border: 1px solid rgba(0, 184, 148, 0.25);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.table-responsive-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* MATRIX TABLE */
+.proventos-matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 750px;
+}
+
+.proventos-matrix-table th {
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-weight: 600;
+    padding: 8px 6px;
+    text-align: center;
+    border-bottom: 1px solid var(--color-border);
+    white-space: nowrap;
+}
+
+.proventos-matrix-table th:first-child {
+    text-align: left;
+    padding-left: 12px;
+}
+
+.proventos-matrix-table td {
+    padding: 10px 6px;
+    text-align: center;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.proventos-matrix-table td:first-child {
+    text-align: left;
+    font-weight: 700;
+    padding-left: 12px;
+}
+
+.proventos-matrix-table td.col-total {
+    font-weight: 700;
+}
+
+.proventos-matrix-table td.col-media {
+    color: var(--color-text-muted);
+    font-weight: 600;
+}
+
+.proventos-matrix-table tr:hover td {
+    background: rgba(0, 0, 0, 0.015);
+}
+
+body.dark-theme .proventos-matrix-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* TRANSACTIONS TABLE */
+.proventos-transactions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 900px;
+}
+
+.proventos-transactions-table th {
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-weight: 600;
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+    white-space: nowrap;
+}
+
+.proventos-transactions-table td {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.proventos-transactions-table tr:hover td {
+    background: rgba(0, 0, 0, 0.015);
+}
+
+body.dark-theme .proventos-transactions-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.prov-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.prov-status-badge.paid {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.prov-status-badge.pending {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+body.dark-theme .prov-status-badge.paid {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+body.dark-theme .prov-status-badge.pending {
+    background: rgba(14, 165, 233, 0.15);
+    color: #38bdf8;
+    border-color: rgba(14, 165, 233, 0.3);
+}
+
+.prov-class-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+}
+
+.prov-ticker-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--color-text);
+}
