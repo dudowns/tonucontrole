@@ -2,7 +2,7 @@
 // TONUCONTROLE SERVICE WORKER
 // ============================================
 
-const CACHE_NAME = 'tonucontrole-v2.1.0';
+const CACHE_NAME = 'tonucontrole-v2.2.1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -70,16 +70,53 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data === 'skipWaiting') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   // Ignora requisições de API ou métodos não-GET
   if (event.request.method !== 'GET' || event.request.url.includes('/api/')) {
     return;
   }
 
+  // Scripts, estilos e documentos: Rede primeiro (Network-First) com fallback para cache
+  const url = event.request.url;
+  const isCodeOrDoc = event.request.destination === 'script' ||
+                      event.request.destination === 'style' ||
+                      event.request.destination === 'document' ||
+                      url.includes('.js') ||
+                      url.includes('.css') ||
+                      url.includes('.html');
+
+  if (isCodeOrDoc) {
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached;
+          if (event.request.headers.get('accept')?.includes('text/html')) {
+            return caches.match('/index.html');
+          }
+        });
+      })
+    );
+    return;
+  }
+
+  // Demais arquivos (imagens, fontes): Cache-First com atualização em segundo plano
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Tenta atualizar em background
         fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             caches.open(CACHE_NAME).then((cache) => {
@@ -101,10 +138,6 @@ self.addEventListener('fetch', (event) => {
         });
 
         return networkResponse;
-      }).catch(() => {
-        if (event.request.headers.get('accept')?.includes('text/html')) {
-          return caches.match('/index.html');
-        }
       });
     })
   );

@@ -1956,3 +1956,25 @@ body.dark-theme .prov-status-badge.pending {
     font-size: 11px;
     color: var(--color-text);
 }
+
+.prov-ticker-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.prov-ticker-name {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--color-text);
+}
+
+.matrix-active-cell {
+    font-weight: 600;
+    color: #0984E3 !important;
+}
+
+body.dark-theme .matrix-active-cell {
+    color: #74B9FF !important;
+}
+

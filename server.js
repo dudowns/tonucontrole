@@ -282,7 +282,10 @@ app.get('/api/download-zip', zipDownloadLimiter, (req, res) => {
 const staticOptions = {
     dotfiles: 'ignore',
     index: false,
-    maxAge: '1h'
+    maxAge: 0,
+    setHeaders: (res, path) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
 };
 
 app.use('/css', express.static(path.join(ROOT_DIR, 'css'), staticOptions));
