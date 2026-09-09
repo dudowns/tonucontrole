@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/theme.css">
     <link rel="stylesheet" href="../css/sidebar-patch.css">
-    <link rel="stylesheet" href="../css/investments.css?v=2.2.1">
+    <link rel="stylesheet" href="../css/investments.css?v=2.3.0">
     <link rel="stylesheet" href="../css/notifications.css">
     <link rel="stylesheet" href="../css/sync.css">
     <link rel="stylesheet" href="../css/sync-status.css">
@@ -342,9 +342,19 @@
         }
 
         .evolution-chart-wrap {
-            height: 250px;
+            height: 250px !important;
+            min-height: 250px !important;
+            max-height: 250px !important;
             position: relative;
             width: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .evolution-chart-wrap canvas {
+            display: block !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
         }
 
         .evolution-footer-hint {
@@ -797,7 +807,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="chart-wrap" style="position: relative;">
+                            <div class="chart-wrap" style="position: relative; height: 220px; max-height: 220px; width: 100%; overflow: hidden;">
                                 <div id="chartLoading" class="loading-overlay hidden">
                                     <span class="spinner"></span> Carregando gráfico...
                                 </div>
@@ -820,7 +830,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="chart-wrap" style="display: flex; align-items: center; justify-content: center; position: relative;">
+                            <div class="chart-wrap" style="display: flex; align-items: center; justify-content: center; position: relative; height: 220px; max-height: 220px; width: 100%; overflow: hidden;">
                                 <canvas id="pieChart" role="img" aria-label="Gráfico de ativos na carteira"></canvas>
                             </div>
                         </div>
@@ -913,6 +923,27 @@
                 ========================================== -->
                 <div class="tab-content" id="tab-proventos" role="tabpanel" aria-labelledby="tab-proventos">
                     <div class="proventos-container">
+                        <!-- Action Bar de Proventos com Botão de Demonstração -->
+                        <div class="proventos-action-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="badge-proventos-status" id="badgeProventosStatus" style="font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 99px; background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text-muted); display: inline-flex; align-items: center; gap: 6px;">
+                                    <i class="fas fa-coins" style="color: #0984E3;"></i>
+                                    <span id="badgeProventosStatusText">Painel de Proventos</span>
+                                </span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button type="button" class="btn btn-outline-demo btn-sm" id="btnDemoProventos" onclick="loadDemoDividends()" style="font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 8px; border: 1px solid #0984E3; background: rgba(9, 132, 227, 0.08); color: #0984E3; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;" title="Carregar proventos de demonstração para testar">
+                                    <i class="fas fa-magic"></i> Carregar Demonstração
+                                </button>
+                                <button type="button" class="btn btn-ghost btn-sm" id="btnClearDemoProventos" onclick="clearDemoDividends()" style="display: none; font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 8px; color: var(--color-danger); cursor: pointer;" title="Remover proventos de demonstração">
+                                    <i class="fas fa-trash-alt"></i> Limpar Demo
+                                </button>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" style="font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                                    <i class="fas fa-plus"></i> Novo Provento
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Top Row: Resumo + Evolução de Proventos -->
                         <div class="proventos-top-row">
                             <!-- Card 1: Resumo -->
@@ -1149,6 +1180,9 @@
                                         </select>
                                     </div>
                                     <!-- Botões Atualizar & Registrar -->
+                                    <button type="button" class="btn btn-outline-demo btn-sm" onclick="loadDemoDividends()" title="Carregar proventos de demonstração" aria-label="Demonstração" style="font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 6px; border: 1px solid #0984E3; background: rgba(9, 132, 227, 0.08); color: #0984E3; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fas fa-magic" aria-hidden="true"></i> Demo
+                                    </button>
                                     <button type="button" class="btn btn-ghost btn-sm" onclick="loadDividends()" title="Atualizar dados" aria-label="Atualizar proventos">
                                         <i class="fas fa-sync-alt" aria-hidden="true"></i>
                                     </button>
@@ -1416,15 +1450,15 @@
     SCRIPTS
     ========================================== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
     <script src="../js/supabase.js"></script>
     <script src="../js/core.js"></script>
     <script src="../js/security.js"></script>
     <script src="../js/financial-tools.js"></script>
     <script src="../js/sync.js"></script>
     <script src="../js/notifications.js"></script>
-    <script src="../js/investments.js?v=2.2.2"></script>
-    <script src="../js/sw-register.js?v=2.2.2"></script>
+    <script src="../js/investments.js?v=2.3.0"></script>
+    <script src="../js/sw-register.js?v=2.3.0"></script>
 
     <script>
         // ==========================================

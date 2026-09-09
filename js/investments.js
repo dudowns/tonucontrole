@@ -364,7 +364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ============================================
 // SWITCH TAB
 // ============================================
-function switchTab(tab) {
+async function switchTab(tab) {
     currentTab = tab;
     try {
         if (window.location.hash !== `#${tab}`) {
@@ -379,14 +379,20 @@ function switchTab(tab) {
         content.classList.toggle('active', content.id === `tab-${tab}`);
     });
     if (tab === 'proventos') {
-        populateProventosFilterDropdowns();
-        updateProventosSummary();
-        renderDividendsChart();
-        renderDividendsPieChart();
-        renderProventosHistoryTable();
-        renderProventosListTable();
+        if (!allDividends || allDividends.length === 0) {
+            await loadDividends();
+        } else {
+            populateProventosFilterDropdowns();
+            updateProventosSummary();
+            renderDividendsChart();
+            renderDividendsPieChart();
+            renderProventosHistoryTable();
+            renderProventosListTable();
+        }
     }
     if (tab === 'carteira') {
+        renderChart();
+        renderPieChart();
         const portfolioContainer = document.querySelector('.portfolio-container');
         if (portfolioContainer) {
             portfolioContainer.style.opacity = '0';
@@ -627,8 +633,10 @@ async function saveDividend(e) {
             finalNote = `[DataCom: ${dateCom}] ` + finalNote;
         }
 
+        const newId = 'div-' + Date.now();
         const data = {
-            user_id: currentUser.id,
+            id: newId,
+            user_id: currentUser ? currentUser.id : 'demo-user',
             ticker: ticker,
             quantity: quantity,
             unit_value: unitValue,
@@ -638,11 +646,42 @@ async function saveDividend(e) {
             note: finalNote.trim() || null
         };
 
-        const { error } = await supabaseClient
-            .from('dividends')
-            .insert([data]);
+        let supabaseSaved = false;
+        if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+            try {
+                const { data: dbData, error } = await supabaseClient
+                    .from('dividends')
+                    .insert([{
+                        user_id: currentUser.id,
+                        ticker: ticker,
+                        quantity: quantity,
+                        unit_value: unitValue,
+                        total_value: totalValue,
+                        date: date,
+                        type: type,
+                        note: finalNote.trim() || null
+                    }])
+                    .select();
 
-        if (error) throw error;
+                if (!error) {
+                    supabaseSaved = true;
+                    if (dbData && dbData[0]) {
+                        data.id = dbData[0].id;
+                    }
+                } else {
+                    console.warn('⚠️ Supabase insert warning, salvando localmente:', error.message);
+                }
+            } catch (dbErr) {
+                console.warn('⚠️ Supabase insert catch, fallback local:', dbErr);
+            }
+        }
+
+        // Salva e atualiza o cache local
+        allDividends = [data, ...allDividends.filter(d => d.id !== data.id)];
+        const storageKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(allDividends));
+        } catch (e) {}
 
         showToast(`✅ Provento de ${ticker} registrado com sucesso!`, 'success');
         closeDividendModal();
@@ -688,13 +727,24 @@ async function deleteDividend(id) {
     if (!confirm('Tem certeza que deseja excluir este provento?')) return;
 
     try {
-        const { error } = await supabaseClient
-            .from('dividends')
-            .delete()
-            .eq('id', id)
-            .eq('user_id', currentUser.id);
+        if (currentUser && currentUser.id && !String(id).startsWith('demo-') && !String(id).startsWith('div-')) {
+            try {
+                await supabaseClient
+                    .from('dividends')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', currentUser.id);
+            } catch (err) {
+                console.warn('⚠️ Supabase delete warning:', err);
+            }
+        }
 
-        if (error) throw error;
+        allDividends = allDividends.filter(d => String(d.id) !== String(id));
+        const storageKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(allDividends));
+        } catch (e) {}
+
         showToast('✅ Provento excluído com sucesso!', 'success');
         await loadDividends();
         updateSummary();
@@ -1357,23 +1407,194 @@ function populateProventosFilterDropdowns() {
 }
 
 // ============================================
+// SISTEMA DE DEMONSTRAÇÃO DE PROVENTOS
+// ============================================
+function updateDemoUIState(isDemo) {
+    const btnClear = document.getElementById('btnClearDemoProventos');
+    const badgeText = document.getElementById('badgeProventosStatusText');
+    const btnDemo = document.getElementById('btnDemoProventos');
+
+    if (btnClear) {
+        btnClear.style.display = isDemo ? 'inline-flex' : 'none';
+    }
+    if (badgeText) {
+        badgeText.textContent = isDemo ? 'Demonstração Ativa' : 'Painel de Proventos';
+        badgeText.style.color = isDemo ? '#0984E3' : 'inherit';
+    }
+    if (btnDemo) {
+        btnDemo.innerHTML = isDemo
+            ? '<i class="fas fa-redo"></i> Recarregar Demo'
+            : '<i class="fas fa-magic"></i> Carregar Demonstração';
+    }
+}
+
+function generateDemoDividends() {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth(); // 0-indexed
+
+    const list = [];
+    let idCounter = 1;
+
+    function addDiv(ticker, type, qty, unit, yr, mo, day, note = '') {
+        const monthStr = String(mo + 1).padStart(2, '0');
+        const dayStr = String(day).padStart(2, '0');
+        const dateStr = `${yr}-${monthStr}-${dayStr}`;
+        const total = parseFloat((qty * unit).toFixed(2));
+        list.push({
+            id: 'demo-' + (idCounter++),
+            ticker: ticker,
+            type: type,
+            quantity: qty,
+            unit_value: unit,
+            total_value: total,
+            date: dateStr,
+            note: note,
+            is_demo: true
+        });
+    }
+
+    // Gerar proventos de demonstração em uma janela de 15 meses (12 passados + corrente + 2 futuros)
+    for (let offset = -12; offset <= 2; offset++) {
+        const targetDate = new Date(curYear, curMonth + offset, 15);
+        const yr = targetDate.getFullYear();
+        const mo = targetDate.getMonth();
+
+        // MXRF11 (FII de papel - Rendimento todo mês)
+        addDiv('MXRF11', 'Rendimento', 300, 0.10, yr, mo, 15, `DataCom: ${yr}-${String(mo === 0 ? 12 : mo).padStart(2, '0')}-30`);
+
+        // HGLG11 (FII de galpão - Rendimento todo mês)
+        addDiv('HGLG11', 'Rendimento', 60, 1.10, yr, mo, 14, `DataCom: ${yr}-${String(mo === 0 ? 12 : mo).padStart(2, '0')}-30`);
+
+        // XPML11 (FII de Shopping - bimestral)
+        if (mo % 2 === 0) {
+            addDiv('XPML11', 'Rendimento', 40, 0.88, yr, mo, 20, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-05`);
+        }
+
+        // ITUB4 (JCP mensal padrão Itaú)
+        addDiv('ITUB4', 'JCP', 500, 0.0176, yr, mo, 1, `DataCom: ${yr}-${String(mo === 0 ? 12 : mo).padStart(2, '0')}-30`);
+
+        // PETR4 (Petrobras - trimestral expressivo)
+        if (mo === 2 || mo === 5 || mo === 8 || mo === 10) {
+            const petrType = mo % 2 === 0 ? 'Dividendo' : 'JCP';
+            const petrUnit = mo % 2 === 0 ? 1.80 : 1.15;
+            addDiv('PETR4', petrType, 200, petrUnit, yr, mo, 22, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-10`);
+        }
+
+        // VALE3 (Vale - Março e Agosto)
+        if (mo === 2 || mo === 7) {
+            const valeType = mo === 2 ? 'Dividendo' : 'JCP';
+            addDiv('VALE3', valeType, 120, 2.45, yr, mo, 18, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-05`);
+        }
+
+        // BBAS3 (Banco do Brasil - Fevereiro e Agosto)
+        if (mo === 1 || mo === 7) {
+            addDiv('BBAS3', 'JCP', 150, 1.05, yr, mo, 28, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-15`);
+        }
+    }
+
+    return list.sort((a, b) => (b.date > a.date ? 1 : -1));
+}
+
+async function loadDemoDividends() {
+    try {
+        const demoData = generateDemoDividends();
+        allDividends = demoData;
+
+        const storageKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(demoData));
+            localStorage.setItem('tonucontrole_is_demo_dividends', 'true');
+        } catch (e) {}
+
+        updateDemoUIState(true);
+        populateProventosFilterDropdowns();
+        updateProventosSummary();
+        renderDividendsChart();
+        renderDividendsPieChart();
+        renderProventosHistoryTable();
+        renderProventosListTable();
+        updateSummary();
+
+        showToast('✨ Demonstração de proventos carregada com sucesso!', 'success');
+    } catch (e) {
+        console.error('❌ Erro ao gerar demonstração:', e);
+        showToast('❌ Erro ao carregar dados de demonstração', 'error');
+    }
+}
+
+async function clearDemoDividends() {
+    try {
+        const storageKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
+        try {
+            localStorage.removeItem(storageKey);
+            localStorage.removeItem('tonucontrole_is_demo_dividends');
+        } catch (e) {}
+
+        allDividends = [];
+        updateDemoUIState(false);
+
+        await loadDividends();
+        showToast('🧹 Dados de demonstração removidos.', 'info');
+    } catch (e) {
+        console.error('❌ Erro ao limpar demonstração:', e);
+    }
+}
+
+// ============================================
 // LOAD DIVIDENDS
 // ============================================
 async function loadDividends() {
     try {
         if (!currentUser || !currentUser.id) {
-            console.warn('⚠️ loadDividends chamado sem usuário autenticado.');
-            return;
+            try {
+                if (typeof supabaseClient !== 'undefined' && supabaseClient?.auth) {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (user) currentUser = user;
+                }
+            } catch (e) {}
         }
-        const { data, error } = await supabaseClient
-            .from('dividends')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .order('date', { ascending: false });
 
-        if (error) throw error;
-        allDividends = data || [];
-        console.log('📊 Proventos carregados:', allDividends.length);
+        let loaded = [];
+        let fetchedFromDb = false;
+
+        if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('dividends')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('date', { ascending: false });
+
+                if (!error && data && data.length > 0) {
+                    loaded = data;
+                    fetchedFromDb = true;
+                }
+            } catch (err) {
+                console.warn('⚠️ Consulta Supabase falhou, usando fallback local:', err);
+            }
+        }
+
+        const storageKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
+        const isDemo = localStorage.getItem('tonucontrole_is_demo_dividends') === 'true';
+
+        if (!fetchedFromDb) {
+            try {
+                const cached = localStorage.getItem(storageKey);
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        allDividends = loaded;
+        const hasDemoActive = isDemo || allDividends.some(d => d.is_demo);
+        updateDemoUIState(hasDemoActive);
+
+        console.log('📊 Proventos prontos para visualização:', allDividends.length);
 
         populateProventosFilterDropdowns();
         updateProventosSummary();
@@ -1486,8 +1707,15 @@ function renderProventosHistoryTable() {
     if (filtered.length === 0) {
         body.innerHTML = `
             <tr>
-                <td colspan="15" style="text-align:center;padding:24px 0;color:var(--color-text-muted);">
-                    Nenhum provento encontrado para os filtros selecionados
+                <td colspan="15" style="text-align:center;padding:32px 16px;color:var(--color-text-muted);">
+                    <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                        <i class="fas fa-calendar-alt" style="font-size:24px; opacity:0.4;"></i>
+                        <span style="font-size:13px; font-weight:600; color:var(--color-text);">Nenhum histórico disponível</span>
+                        <span style="font-size:12px;">Cadastre proventos ou carregue uma demonstração para ver a matriz mensal completa.</span>
+                        <button type="button" class="btn btn-outline-demo btn-sm" onclick="loadDemoDividends()" style="margin-top:6px;">
+                            <i class="fas fa-magic"></i> Carregar Demonstração
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -1573,9 +1801,18 @@ function renderProventosListTable() {
     if (filtered.length === 0) {
         body.innerHTML = `
             <tr>
-                <td colspan="11" class="text-center text-muted" style="text-align:center;padding:36px 0;">
+                <td colspan="11" class="text-center text-muted" style="text-align:center;padding:36px 16px;">
                     <div style="font-size:32px;margin-bottom:8px;">💰</div>
-                    Nenhum provento encontrado
+                    <div style="font-size:14px;font-weight:600;color:var(--color-text);margin-bottom:4px;">Nenhum provento encontrado</div>
+                    <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:14px;">Registre seus proventos ou carregue dados de demonstração para explorar o painel.</div>
+                    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()">
+                            <i class="fas fa-plus"></i> Registrar Provento
+                        </button>
+                        <button type="button" class="btn btn-outline-demo btn-sm" onclick="loadDemoDividends()">
+                            <i class="fas fa-magic"></i> Carregar Demonstração
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -2341,6 +2578,7 @@ function renderChart() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                resizeDelay: 50,
                 plugins: {
                     legend: { display: false }
                 },
@@ -2398,6 +2636,7 @@ function renderChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            resizeDelay: 50,
             categoryPercentage: 0.7,
             barPercentage: 0.85,
             maxBarThickness: 52,
@@ -2584,6 +2823,7 @@ function renderPieChart() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                resizeDelay: 50,
                 plugins: {
                     legend: { display: false },
                     tooltip: { enabled: false }
@@ -2608,6 +2848,7 @@ function renderPieChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            resizeDelay: 50,
             cutout: '64%',
             plugins: {
                 legend: {
@@ -2815,6 +3056,7 @@ function renderDividendsChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            resizeDelay: 50,
             interaction: {
                 mode: 'index',
                 intersect: false
@@ -2969,6 +3211,7 @@ function renderDividendsPieChart() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                resizeDelay: 50,
                 cutout: '65%',
                 plugins: {
                     legend: { display: false },
@@ -2998,6 +3241,7 @@ function renderDividendsPieChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            resizeDelay: 50,
             cutout: '65%',
             plugins: {
                 legend: {
@@ -3120,5 +3364,9 @@ window.closeAllTickersModal = closeAllTickersModal;
 window.filterMeusProventosByChartClick = filterMeusProventosByChartClick;
 window.populateProventosFilterDropdowns = populateProventosFilterDropdowns;
 window.updateProventosSummary = updateProventosSummary;
+window.loadDemoDividends = loadDemoDividends;
+window.clearDemoDividends = clearDemoDividends;
+window.updateDemoUIState = updateDemoUIState;
+window.generateDemoDividends = generateDemoDividends;
 
-console.log('✅ Investments.js carregado com labels MM/AA!');
+console.log('✅ Investments.js carregado com sistema de demonstração e anti-expansão!');

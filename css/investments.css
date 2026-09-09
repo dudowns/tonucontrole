@@ -276,6 +276,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-height: 0;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -291,6 +292,7 @@
     padding: 10px 16px;
     border-bottom: 1px solid var(--color-border-light);
     background: var(--color-surface);
+    flex-shrink: 0;
 }
 
 .chart-panel .card-header h3 {
@@ -315,16 +317,20 @@
 }
 
 .chart-panel .chart-wrap {
-    min-height: 200px;
-    height: 200px;
-    padding: 10px 14px;
+    height: 220px !important;
+    min-height: 220px !important;
+    max-height: 220px !important;
+    padding: 8px 12px;
     position: relative;
-    flex: 1;
+    width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .chart-panel .chart-wrap canvas {
-    width: 100% !important;
-    height: 100% !important;
+    display: block !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
 }
 
 .period-filter {
@@ -1272,8 +1278,10 @@ body.dark-theme .loading-overlay {
     }
 
     .chart-panel .chart-wrap {
-        height: 200px;
-        min-height: 200px;
+        height: 200px !important;
+        min-height: 200px !important;
+        max-height: 200px !important;
+        overflow: hidden;
     }
 }
 
@@ -1363,9 +1371,11 @@ body.dark-theme .loading-overlay {
     }
 
     .chart-panel .chart-wrap {
-        height: 180px;
-        min-height: 180px;
+        height: 180px !important;
+        min-height: 180px !important;
+        max-height: 180px !important;
         padding: 8px 12px;
+        overflow: hidden;
     }
 }
 
@@ -1588,10 +1598,20 @@ body.dark-theme .input-prefix span {
 }
 
 .distribution-chart-box {
-    width: 105px;
-    height: 105px;
+    width: 105px !important;
+    height: 105px !important;
+    max-width: 105px !important;
+    max-height: 105px !important;
     position: relative;
     flex-shrink: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.distribution-chart-box canvas {
+    display: block !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
 }
 
 .distribution-legend {
@@ -1750,9 +1770,19 @@ body.dark-theme .input-prefix span {
 }
 
 .evolution-chart-wrap {
-    height: 250px;
+    height: 250px !important;
+    min-height: 250px !important;
+    max-height: 250px !important;
     position: relative;
     width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.evolution-chart-wrap canvas {
+    display: block !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
 }
 
 .evolution-footer-hint {
