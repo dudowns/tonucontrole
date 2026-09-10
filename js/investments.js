@@ -450,19 +450,70 @@ async function refreshDashboard() {
 
 async function loadTransactions() {
     try {
-        const { data, error } = await supabaseClient
-            .from('investments')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .order('date', { ascending: true });
+        let loaded = [];
+        let fetchedFromDb = false;
 
-        if (error) throw error;
-        allTransactions = data || [];
-        console.log('📊 Transações carregadas:', allTransactions.length);
+        if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+            try {
+                let { data, error } = await supabaseClient
+                    .from('investments')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('date', { ascending: true });
+
+                if (!error && data && data.length > 0) {
+                    loaded = data;
+                    fetchedFromDb = true;
+                } else {
+                    const fallback = await supabaseClient
+                        .from('investments')
+                        .select('*')
+                        .order('date', { ascending: true });
+                    if (!fallback.error && fallback.data && fallback.data.length > 0) {
+                        const userFiltered = fallback.data.filter(inv => !inv.user_id || inv.user_id === currentUser.id);
+                        if (userFiltered.length > 0) {
+                            loaded = userFiltered;
+                            fetchedFromDb = true;
+                        }
+                    }
+                }
+            } catch (dbErr) {
+                console.warn('⚠️ Falha ao buscar transações de investimento do Supabase:', dbErr);
+            }
+        }
+
+        if (fetchedFromDb && loaded.length > 0) {
+            allTransactions = loaded;
+            localStorage.removeItem('tonu_is_demo_active');
+            updateGlobalDemoUI(false);
+            console.log('📊 Transações reais carregadas do backend:', allTransactions.length);
+            return;
+        }
+
+        const isDemo = localStorage.getItem('tonu_is_demo_active') === 'true';
+        const dismissed = localStorage.getItem('tonu_demo_dismissed') === 'true';
+        if (isDemo || !dismissed) {
+            allTransactions = generateDemoTransactions();
+            applyDemoQuotes();
+            updateGlobalDemoUI(true);
+            console.log('📊 Transações de demonstração ativas:', allTransactions.length);
+        } else {
+            allTransactions = [];
+            updateGlobalDemoUI(false);
+        }
 
     } catch (error) {
         console.error('❌ Erro ao carregar transações:', error);
-        allTransactions = [];
+        const dismissed = localStorage.getItem('tonu_demo_dismissed') === 'true';
+        if (!dismissed || localStorage.getItem('tonu_is_demo_active') === 'true') {
+            allTransactions = generateDemoTransactions();
+            applyDemoQuotes();
+            localStorage.setItem('tonu_is_demo_active', 'true');
+            updateGlobalDemoUI(true);
+        } else {
+            allTransactions = [];
+            updateGlobalDemoUI(false);
+        }
     }
 }
 
@@ -1407,8 +1458,28 @@ function populateProventosFilterDropdowns() {
 }
 
 // ============================================
-// SISTEMA DE DEMONSTRAÇÃO DE PROVENTOS
+// SISTEMA DE DEMONSTRAÇÃO COMPLETA (CARTEIRA + PROVENTOS)
 // ============================================
+function updateGlobalDemoUI(isDemo) {
+    const banner = document.getElementById('demoModeBanner');
+    const toggleBtn = document.getElementById('btnToggleDemoMode');
+    const btnText = document.getElementById('demoBtnText');
+
+    if (banner) {
+        banner.style.display = isDemo ? 'flex' : 'none';
+    }
+
+    if (toggleBtn) {
+        toggleBtn.classList.toggle('active', isDemo);
+    }
+
+    if (btnText) {
+        btnText.textContent = isDemo ? 'Demonstração Ativa' : 'Demonstração';
+    }
+
+    updateDemoUIState(isDemo);
+}
+
 function updateDemoUIState(isDemo) {
     const btnClear = document.getElementById('btnClearDemoProventos');
     const badgeText = document.getElementById('badgeProventosStatusText');
@@ -1425,6 +1496,309 @@ function updateDemoUIState(isDemo) {
         btnDemo.innerHTML = isDemo
             ? '<i class="fas fa-redo"></i> Recarregar Demo'
             : '<i class="fas fa-magic"></i> Carregar Demonstração';
+    }
+}
+
+function generateDemoTransactions() {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth(); // 0-indexed
+
+    function makeDate(monthsAgo, day = 10) {
+        const d = new Date(curYear, curMonth - monthsAgo, day, 12, 0, 0);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    return [
+        // Tesouro Direto Selic
+        {
+            id: 'demo-tx-1',
+            ticker: 'Tesouro Selic 2029',
+            asset_class: 'Tesouro',
+            type: 'Compra',
+            quantity: 1,
+            unit_price: 14500.00,
+            total_value: 14500.00,
+            date: makeDate(13, 5),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(13, 5)
+        },
+        // MXRF11 (FII de papel)
+        {
+            id: 'demo-tx-2',
+            ticker: 'MXRF11',
+            asset_class: 'FIIs',
+            type: 'Compra',
+            quantity: 300,
+            unit_price: 10.10,
+            total_value: 3030.00,
+            date: makeDate(13, 12),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(13, 12)
+        },
+        {
+            id: 'demo-tx-3',
+            ticker: 'MXRF11',
+            asset_class: 'FIIs',
+            type: 'Compra',
+            quantity: 200,
+            unit_price: 10.25,
+            total_value: 2050.00,
+            date: makeDate(7, 15),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(7, 15)
+        },
+        // ITUB4 (Ações Itaú)
+        {
+            id: 'demo-tx-4',
+            ticker: 'ITUB4',
+            asset_class: 'Ações',
+            type: 'Compra',
+            quantity: 150,
+            unit_price: 28.90,
+            total_value: 4335.00,
+            date: makeDate(12, 8),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(12, 8)
+        },
+        {
+            id: 'demo-tx-5',
+            ticker: 'ITUB4',
+            asset_class: 'Ações',
+            type: 'Compra',
+            quantity: 150,
+            unit_price: 31.00,
+            total_value: 4650.00,
+            date: makeDate(8, 14),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(8, 14)
+        },
+        {
+            id: 'demo-tx-6',
+            ticker: 'ITUB4',
+            asset_class: 'Ações',
+            type: 'Compra',
+            quantity: 100,
+            unit_price: 33.20,
+            total_value: 3320.00,
+            date: makeDate(4, 18),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(4, 18)
+        },
+        // PETR4 (Ações Petrobras)
+        {
+            id: 'demo-tx-7',
+            ticker: 'PETR4',
+            asset_class: 'Ações',
+            type: 'Compra',
+            quantity: 100,
+            unit_price: 31.50,
+            total_value: 3150.00,
+            date: makeDate(11, 11),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(11, 11)
+        },
+        {
+            id: 'demo-tx-8',
+            ticker: 'PETR4',
+            asset_class: 'Ações',
+            type: 'Compra',
+            quantity: 100,
+            unit_price: 34.00,
+            total_value: 3400.00,
+            date: makeDate(7, 20),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(7, 20)
+        },
+        {
+            id: 'demo-tx-9',
+            ticker: 'PETR4',
+            asset_class: 'Ações',
+            type: 'Compra',
+            quantity: 100,
+            unit_price: 36.20,
+            total_value: 3620.00,
+            date: makeDate(3, 16),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(3, 16)
+        },
+        // HGLG11 (FII Logístico)
+        {
+            id: 'demo-tx-10',
+            ticker: 'HGLG11',
+            asset_class: 'FIIs',
+            type: 'Compra',
+            quantity: 40,
+            unit_price: 157.00,
+            total_value: 6280.00,
+            date: makeDate(11, 22),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(11, 22)
+        },
+        {
+            id: 'demo-tx-11',
+            ticker: 'HGLG11',
+            asset_class: 'FIIs',
+            type: 'Compra',
+            quantity: 20,
+            unit_price: 160.00,
+            total_value: 3200.00,
+            date: makeDate(5, 10),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(5, 10)
+        },
+        // VALE3 (Ações Vale)
+        {
+            id: 'demo-tx-12',
+            ticker: 'VALE3',
+            asset_class: 'Ações',
+            type: 'Compra',
+            quantity: 80,
+            unit_price: 64.00,
+            total_value: 5120.00,
+            date: makeDate(10, 7),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(10, 7)
+        },
+        {
+            id: 'demo-tx-13',
+            ticker: 'VALE3',
+            asset_class: 'Ações',
+            type: 'Compra',
+            quantity: 50,
+            unit_price: 60.50,
+            total_value: 3025.00,
+            date: makeDate(6, 25),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(6, 25)
+        },
+        // IVVB11 (ETF S&P 500)
+        {
+            id: 'demo-tx-14',
+            ticker: 'IVVB11',
+            asset_class: 'ETFs',
+            type: 'Compra',
+            quantity: 20,
+            unit_price: 275.00,
+            total_value: 5500.00,
+            date: makeDate(10, 19),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(10, 19)
+        },
+        {
+            id: 'demo-tx-15',
+            ticker: 'IVVB11',
+            asset_class: 'ETFs',
+            type: 'Compra',
+            quantity: 15,
+            unit_price: 305.00,
+            total_value: 4575.00,
+            date: makeDate(5, 12),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(5, 12)
+        },
+        // XPML11 (FII Shopping)
+        {
+            id: 'demo-tx-16',
+            ticker: 'XPML11',
+            asset_class: 'FIIs',
+            type: 'Compra',
+            quantity: 50,
+            unit_price: 102.00,
+            total_value: 5100.00,
+            date: makeDate(9, 14),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(9, 14)
+        },
+        {
+            id: 'demo-tx-17',
+            ticker: 'XPML11',
+            asset_class: 'FIIs',
+            type: 'Compra',
+            quantity: 30,
+            unit_price: 106.00,
+            total_value: 3180.00,
+            date: makeDate(4, 28),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(4, 28)
+        },
+        // WEGE3 (Ações WEG)
+        {
+            id: 'demo-tx-18',
+            ticker: 'WEGE3',
+            asset_class: 'Ações',
+            type: 'Compra',
+            quantity: 120,
+            unit_price: 42.00,
+            total_value: 5040.00,
+            date: makeDate(9, 26),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(9, 26)
+        },
+        {
+            id: 'demo-tx-19',
+            ticker: 'WEGE3',
+            asset_class: 'Ações',
+            type: 'Compra',
+            quantity: 80,
+            unit_price: 46.50,
+            total_value: 3720.00,
+            date: makeDate(4, 20),
+            user_id: currentUser ? currentUser.id : 'demo',
+            created_at: makeDate(4, 20)
+        }
+    ];
+}
+
+function applyDemoQuotes() {
+    const demoQuoteMap = {
+        'PETR4': { price: 38.65, changePct: 1.18, previousClose: 38.20, simulated: false, source: 'Demo' },
+        'VALE3': { price: 59.40, changePct: -0.42, previousClose: 59.65, simulated: false, source: 'Demo' },
+        'ITUB4': { price: 35.95, changePct: 0.85, previousClose: 35.65, simulated: false, source: 'Demo' },
+        'WEGE3': { price: 53.45, changePct: 1.45, previousClose: 52.68, simulated: false, source: 'Demo' },
+        'MXRF11': { price: 10.45, changePct: 0.10, previousClose: 10.44, simulated: false, source: 'Demo' },
+        'HGLG11': { price: 164.80, changePct: 0.25, previousClose: 164.39, simulated: false, source: 'Demo' },
+        'XPML11': { price: 112.50, changePct: 0.40, previousClose: 112.05, simulated: false, source: 'Demo' },
+        'IVVB11': { price: 334.00, changePct: 0.60, previousClose: 332.01, simulated: false, source: 'Demo' },
+        'TESOURO SELIC 2029': { price: 16240.00, changePct: 0.04, previousClose: 16233.50, simulated: false, source: 'Demo' }
+    };
+
+    for (const [tk, q] of Object.entries(demoQuoteMap)) {
+        quotes.set(tk, q);
+        quotes.set(`${tk}.SA`, q);
+    }
+
+    // Preenche histórico mensal para alimentar o gráfico de evolução dos últimos 14 meses
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+
+    const tickers = ['PETR4', 'VALE3', 'ITUB4', 'WEGE3', 'MXRF11', 'HGLG11', 'XPML11', 'IVVB11'];
+    const priceCurves = {
+        'PETR4': [30.2, 30.8, 31.5, 32.2, 33.1, 33.9, 34.5, 35.2, 36.0, 36.4, 37.1, 37.8, 38.2, 38.65],
+        'VALE3': [66.0, 65.2, 64.0, 63.5, 62.4, 61.5, 60.5, 60.0, 59.5, 58.8, 58.2, 58.9, 59.1, 59.4],
+        'ITUB4': [28.0, 28.5, 29.0, 29.8, 30.5, 31.2, 31.9, 32.5, 33.2, 33.9, 34.5, 35.1, 35.6, 35.95],
+        'WEGE3': [40.0, 41.2, 42.0, 43.1, 44.5, 45.8, 47.0, 48.2, 49.5, 50.8, 51.5, 52.2, 53.0, 53.45],
+        'MXRF11': [10.12, 10.15, 10.18, 10.20, 10.22, 10.25, 10.28, 10.30, 10.33, 10.36, 10.39, 10.42, 10.44, 10.45],
+        'HGLG11': [157.0, 157.5, 158.0, 158.8, 159.5, 160.2, 161.0, 161.8, 162.5, 163.2, 164.0, 164.4, 164.6, 164.8],
+        'XPML11': [102.0, 102.8, 103.5, 104.2, 105.0, 106.0, 107.2, 108.5, 109.8, 110.5, 111.2, 111.8, 112.2, 112.5],
+        'IVVB11': [275.0, 280.0, 286.0, 292.0, 298.0, 305.0, 310.0, 316.0, 322.0, 326.0, 329.0, 331.0, 332.5, 334.0]
+    };
+
+    for (const tk of tickers) {
+        const histMap = {};
+        const curve = priceCurves[tk];
+        for (let i = 0; i < 14; i++) {
+            const d = new Date(curYear, curMonth - (13 - i), 1);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            histMap[`${y}-${m}`] = curve[i];
+        }
+        historicalMonthlyQuotes.set(tk, histMap);
+        historicalMonthlyQuotes.set(`${tk}.SA`, histMap);
     }
 }
 
@@ -1461,30 +1835,30 @@ function generateDemoDividends() {
         const mo = targetDate.getMonth();
 
         // MXRF11 (FII de papel - Rendimento todo mês)
-        addDiv('MXRF11', 'Rendimento', 300, 0.10, yr, mo, 15, `DataCom: ${yr}-${String(mo === 0 ? 12 : mo).padStart(2, '0')}-30`);
+        addDiv('MXRF11', 'Rendimento', 500, 0.10, yr, mo, 15, `DataCom: ${yr}-${String(mo === 0 ? 12 : mo).padStart(2, '0')}-30`);
 
         // HGLG11 (FII de galpão - Rendimento todo mês)
         addDiv('HGLG11', 'Rendimento', 60, 1.10, yr, mo, 14, `DataCom: ${yr}-${String(mo === 0 ? 12 : mo).padStart(2, '0')}-30`);
 
         // XPML11 (FII de Shopping - bimestral)
         if (mo % 2 === 0) {
-            addDiv('XPML11', 'Rendimento', 40, 0.88, yr, mo, 20, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-05`);
+            addDiv('XPML11', 'Rendimento', 80, 0.90, yr, mo, 20, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-05`);
         }
 
         // ITUB4 (JCP mensal padrão Itaú)
-        addDiv('ITUB4', 'JCP', 500, 0.0176, yr, mo, 1, `DataCom: ${yr}-${String(mo === 0 ? 12 : mo).padStart(2, '0')}-30`);
+        addDiv('ITUB4', 'JCP', 400, 0.0176, yr, mo, 1, `DataCom: ${yr}-${String(mo === 0 ? 12 : mo).padStart(2, '0')}-30`);
 
         // PETR4 (Petrobras - trimestral expressivo)
         if (mo === 2 || mo === 5 || mo === 8 || mo === 10) {
             const petrType = mo % 2 === 0 ? 'Dividendo' : 'JCP';
             const petrUnit = mo % 2 === 0 ? 1.80 : 1.15;
-            addDiv('PETR4', petrType, 200, petrUnit, yr, mo, 22, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-10`);
+            addDiv('PETR4', petrType, 300, petrUnit, yr, mo, 22, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-10`);
         }
 
         // VALE3 (Vale - Março e Agosto)
         if (mo === 2 || mo === 7) {
             const valeType = mo === 2 ? 'Dividendo' : 'JCP';
-            addDiv('VALE3', valeType, 120, 2.45, yr, mo, 18, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-05`);
+            addDiv('VALE3', valeType, 130, 2.45, yr, mo, 18, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-05`);
         }
 
         // BBAS3 (Banco do Brasil - Fevereiro e Agosto)
@@ -1496,50 +1870,95 @@ function generateDemoDividends() {
     return list.sort((a, b) => (b.date > a.date ? 1 : -1));
 }
 
-async function loadDemoDividends() {
+async function loadAllDemoData(showUserToast = true) {
     try {
-        const demoData = generateDemoDividends();
-        allDividends = demoData;
+        localStorage.setItem('tonu_is_demo_active', 'true');
+        localStorage.removeItem('tonu_demo_dismissed');
 
+        allTransactions = generateDemoTransactions();
+        applyDemoQuotes();
+
+        allDividends = generateDemoDividends();
         const storageKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
         try {
-            localStorage.setItem(storageKey, JSON.stringify(demoData));
+            localStorage.setItem(storageKey, JSON.stringify(allDividends));
             localStorage.setItem('tonucontrole_is_demo_dividends', 'true');
         } catch (e) {}
 
-        updateDemoUIState(true);
+        updateGlobalDemoUI(true);
+
+        buildPositions();
+        decoratePositions();
+        updateSummary();
+        updateClassCounts();
+        renderTable();
+        renderTransactions();
+        updateQuoteStatus();
+        renderChart();
+        renderPieChart();
+
         populateProventosFilterDropdowns();
         updateProventosSummary();
         renderDividendsChart();
         renderDividendsPieChart();
         renderProventosHistoryTable();
         renderProventosListTable();
-        updateSummary();
 
-        showToast('✨ Demonstração de proventos carregada com sucesso!', 'success');
+        if (showUserToast) {
+            showToast('✨ Demonstração completa carregada com sucesso!', 'success');
+        }
     } catch (e) {
-        console.error('❌ Erro ao gerar demonstração:', e);
-        showToast('❌ Erro ao carregar dados de demonstração', 'error');
+        console.error('❌ Erro ao carregar demonstração completa:', e);
+        showToast('Erro ao carregar dados de demonstração', 'error');
     }
 }
 
-async function clearDemoDividends() {
+async function clearAllDemoData() {
     try {
+        localStorage.removeItem('tonu_is_demo_active');
+        localStorage.setItem('tonu_demo_dismissed', 'true');
+        localStorage.removeItem('tonucontrole_is_demo_dividends');
         const storageKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
-        try {
-            localStorage.removeItem(storageKey);
-            localStorage.removeItem('tonucontrole_is_demo_dividends');
-        } catch (e) {}
+        try { localStorage.removeItem(storageKey); } catch (e) {}
 
+        updateGlobalDemoUI(false);
+
+        allTransactions = [];
         allDividends = [];
-        updateDemoUIState(false);
+        positions = [];
 
+        await refreshDashboard();
         await loadDividends();
-        showToast('🧹 Dados de demonstração removidos.', 'info');
+
+        showToast('🧹 Demonstração desativada. Carteira zerada.', 'info');
     } catch (e) {
         console.error('❌ Erro ao limpar demonstração:', e);
     }
 }
+
+function toggleGlobalDemoMode() {
+    const isDemo = localStorage.getItem('tonu_is_demo_active') === 'true';
+    if (isDemo) {
+        clearAllDemoData();
+    } else {
+        loadAllDemoData(true);
+    }
+}
+
+async function loadDemoDividends() {
+    return loadAllDemoData(true);
+}
+
+async function clearDemoDividends() {
+    return clearAllDemoData();
+}
+
+// Expondo globalmente para chamadas inline do HTML
+window.loadAllDemoData = loadAllDemoData;
+window.clearAllDemoData = clearAllDemoData;
+window.toggleGlobalDemoMode = toggleGlobalDemoMode;
+window.loadDemoDividends = loadDemoDividends;
+window.clearDemoDividends = clearDemoDividends;
 
 // ============================================
 // LOAD DIVIDENDS
@@ -1558,17 +1977,30 @@ async function loadDividends() {
         let loaded = [];
         let fetchedFromDb = false;
 
-        if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+        if (typeof supabaseClient !== 'undefined') {
             try {
-                const { data, error } = await supabaseClient
-                    .from('dividends')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .order('date', { ascending: false });
+                let query = supabaseClient.from('dividends').select('*').order('date', { ascending: false });
+                if (currentUser && currentUser.id) {
+                    query = query.eq('user_id', currentUser.id);
+                }
+                const { data, error } = await query;
 
                 if (!error && data && data.length > 0) {
                     loaded = data;
                     fetchedFromDb = true;
+                } else {
+                    // Fallback sem filtro user_id caso RLS gerencie a autenticação ou backend compartilhado
+                    const { data: fallbackData, error: fbErr } = await supabaseClient
+                        .from('dividends')
+                        .select('*')
+                        .order('date', { ascending: false });
+                    if (!fbErr && fallbackData && fallbackData.length > 0) {
+                        const filtered = currentUser?.id ? fallbackData.filter(d => !d.user_id || d.user_id === currentUser.id) : fallbackData;
+                        if (filtered.length > 0) {
+                            loaded = filtered;
+                            fetchedFromDb = true;
+                        }
+                    }
                 }
             } catch (err) {
                 console.warn('⚠️ Consulta Supabase falhou, usando fallback local:', err);
@@ -1576,22 +2008,56 @@ async function loadDividends() {
         }
 
         const storageKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
-        const isDemo = localStorage.getItem('tonucontrole_is_demo_dividends') === 'true';
+        const isDemo = localStorage.getItem('tonu_is_demo_active') === 'true' || localStorage.getItem('tonucontrole_is_demo_dividends') === 'true';
 
-        if (!fetchedFromDb) {
-            try {
-                const cached = localStorage.getItem(storageKey);
+        // Sempre busca e mescla com proventos salvos localmente
+        try {
+            const keysToCheck = [
+                storageKey,
+                `tonu_dividends_${currentUser ? currentUser.id : 'demo'}`,
+                'tonucontrole_dividends_demo',
+                'tonu_dividends'
+            ];
+            const seenKeys = new Set(loaded.map(d => `${d.ticker}_${d.date}_${d.total_value}`));
+
+            keysToCheck.forEach(k => {
+                const cached = localStorage.getItem(k);
                 if (cached) {
-                    const parsed = JSON.parse(cached);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        loaded = parsed;
-                    }
+                    try {
+                        const parsed = JSON.parse(cached);
+                        if (Array.isArray(parsed)) {
+                            parsed.forEach(p => {
+                                const uk = `${p.ticker}_${p.date}_${p.total_value}`;
+                                if (!seenKeys.has(uk) && (!p.is_demo || loaded.length === 0)) {
+                                    loaded.push(p);
+                                    seenKeys.add(uk);
+                                }
+                            });
+                        }
+                    } catch (pe) {}
                 }
+            });
+        } catch (e) {}
+
+        // Se realmente não houver proventos e demo estiver explicitamente ativo
+        const dismissed = localStorage.getItem('tonu_demo_dismissed') === 'true';
+        if (loaded.length === 0 && (isDemo || !dismissed)) {
+            loaded = generateDemoDividends();
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(loaded));
+                localStorage.setItem('tonucontrole_is_demo_dividends', 'true');
+            } catch (e) {}
+        } else if (loaded.length > 0 && loaded.some(d => !d.is_demo)) {
+            // Remove demo se o usuário tiver dados reais
+            loaded = loaded.filter(d => !d.is_demo);
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(loaded));
+                localStorage.removeItem('tonucontrole_is_demo_dividends');
             } catch (e) {}
         }
 
         allDividends = loaded;
-        const hasDemoActive = isDemo || allDividends.some(d => d.is_demo);
+        const hasDemoActive = allDividends.length > 0 && allDividends.every(d => d.is_demo);
         updateDemoUIState(hasDemoActive);
 
         console.log('📊 Proventos prontos para visualização:', allDividends.length);
@@ -1685,7 +2151,7 @@ function renderProventosHistoryTable() {
     const body = document.getElementById('provMatrixBody');
     if (!body) return;
 
-    const statusFilter = document.getElementById('provHistoryStatusSelect')?.value || 'recebidos';
+    const statusFilter = document.getElementById('provHistoryStatusSelect')?.value || 'todos';
     const classFilter = document.getElementById('provHistoryClassSelect')?.value || 'ALL';
     const tickerFilter = document.getElementById('provHistoryTickerSelect')?.value || 'ALL';
 
@@ -2143,11 +2609,16 @@ function renderTable() {
         container.innerHTML = `
             <div class="empty-state">
                 <span class="empty-icon">📊</span>
-                <h3>Nenhum investimento</h3>
-                <p>Registre sua primeira compra para começar.</p>
-                <button class="btn btn-primary" onclick="openOperationModal()" style="margin-top:var(--space-md);">
-                    <i class="fas fa-plus"></i> Nova operação
-                </button>
+                <h3>Sua carteira está zerada</h3>
+                <p>Registre sua primeira compra para começar ou explore o novo design com a demonstração.</p>
+                <div style="display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="openOperationModal()" style="font-size:13px;" aria-label="Nova operação">
+                        <i class="fas fa-plus"></i> Nova operação
+                    </button>
+                    <button class="btn btn-outline-demo" onclick="loadAllDemoData(true)" style="font-size:13px;" aria-label="Carregar demonstração completa">
+                        <i class="fas fa-magic"></i> Carregar Demonstração
+                    </button>
+                </div>
             </div>
         `;
         return;
@@ -2232,9 +2703,18 @@ function renderTransactions() {
     if (allTransactions.length === 0) {
         body.innerHTML = `
             <tr>
-                <td colspan="8" class="text-center text-muted" style="text-align:center;padding:30px 0;">
-                    <span style="font-size:40px;display:block;margin-bottom:10px;">📭</span>
-                    Nenhum lançamento registrado
+                <td colspan="8" class="text-center text-muted" style="text-align:center;padding:32px 16px;">
+                    <div style="font-size:32px;margin-bottom:8px;">📭</div>
+                    <div style="font-size:14px;font-weight:600;color:var(--color-text);margin-bottom:4px;">Nenhum lançamento registrado</div>
+                    <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:14px;">Registre suas operações ou carregue a demonstração para explorar o histórico.</div>
+                    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="openOperationModal()">
+                            <i class="fas fa-plus"></i> Nova Operação
+                        </button>
+                        <button type="button" class="btn btn-outline-demo btn-sm" onclick="loadAllDemoData(true)">
+                            <i class="fas fa-magic"></i> Carregar Demonstração
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;

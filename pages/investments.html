@@ -701,6 +701,9 @@
                         <i class="fas fa-bell" aria-hidden="true"></i>
                         <span class="notif-badge hidden" id="notifBadgeCount">0</span>
                     </button>
+                    <button id="btnToggleDemoMode" class="btn-demo-toggle" type="button" onclick="toggleGlobalDemoMode()" title="Ativar ou desativar dados de demonstração">
+                        <i class="fas fa-magic" aria-hidden="true"></i> <span id="demoBtnText">Demonstração</span>
+                    </button>
                     <button class="btn btn-primary" onclick="openOperationModal()" aria-label="Nova operação">
                         <i class="fas fa-plus" aria-hidden="true"></i> Operação
                     </button>
@@ -714,6 +717,22 @@
             CONTEÚDO - COMPLETO
             ========================================== -->
             <div class="content" id="main-content">
+                <!-- Banner de Modo Demonstração -->
+                <div id="demoModeBanner" class="demo-banner" style="display: none;">
+                    <div class="demo-banner-content">
+                        <span class="demo-badge"><i class="fas fa-magic" aria-hidden="true"></i> MODO DEMONSTRAÇÃO</span>
+                        <span>Você está visualizando uma carteira de exemplo com ações, FIIs, Tesouro, ETFs e proventos para testar o novo design.</span>
+                    </div>
+                    <div class="demo-banner-actions">
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearAllDemoData()" style="font-size: 11px; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;" aria-label="Limpar demonstração">
+                            <i class="fas fa-eye-slash" aria-hidden="true"></i> Limpar Dados
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="loadAllDemoData(true)" style="font-size: 11px; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;" aria-label="Recarregar demonstração">
+                            <i class="fas fa-redo" aria-hidden="true"></i> Recarregar Demo
+                        </button>
+                    </div>
+                </div>
+
                 <div class="investments-grid">
                     <div class="card-stat primary">
                         <div class="stat-icon primary"><i class="fas fa-coins" aria-hidden="true"></i></div>
@@ -860,12 +879,18 @@
                         <div class="asset-list" id="assetList">
                             <div class="empty-state">
                                 <span class="empty-icon">📊</span>
-                                <h3>Nenhum investimento</h3>
-                                <p>Registre sua primeira compra para começar.</p>
-                                <button class="btn btn-primary" onclick="openOperationModal()"
-                                    style="margin-top:8px; font-size:13px;" aria-label="Nova operação">
-                                    <i class="fas fa-plus" aria-hidden="true"></i> Nova operação
-                                </button>
+                                <h3>Sua carteira está zerada</h3>
+                                <p>Registre sua primeira compra para começar ou explore o novo design com a demonstração.</p>
+                                <div style="display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+                                    <button class="btn btn-primary" onclick="openOperationModal()"
+                                        style="font-size:13px;" aria-label="Nova operação">
+                                        <i class="fas fa-plus" aria-hidden="true"></i> Nova operação
+                                    </button>
+                                    <button class="btn btn-outline-demo" onclick="loadAllDemoData(true)"
+                                        style="font-size:13px;" aria-label="Carregar demonstração completa">
+                                        <i class="fas fa-magic" aria-hidden="true"></i> Carregar Demonstração
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div class="quote-status">
@@ -1088,9 +1113,9 @@
                                     <div class="select-with-icon">
                                         <i class="fas fa-calendar-check" aria-hidden="true"></i>
                                         <select id="provHistoryStatusSelect" onchange="renderProventosHistoryTable()" aria-label="Filtrar status histórico">
-                                            <option value="recebidos" selected>Recebidos</option>
+                                            <option value="todos" selected>Todos os status</option>
+                                            <option value="recebidos">Recebidos</option>
                                             <option value="a_receber">A receber</option>
-                                            <option value="todos">Todos</option>
                                         </select>
                                     </div>
                                     <!-- Filtro Classe -->

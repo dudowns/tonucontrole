@@ -730,6 +730,135 @@ window.changeMonth = changeMonth;
 window.goToCurrentMonth = goToCurrentMonth;
 
 // ============================================
+// AUXILIARES DE TRANSAÇÕES UNIFICADAS & SYNC
+// ============================================
+async function getUnifiedTransactions(startDate, endDate) {
+    const list = [];
+    const seenIds = new Set();
+
+    // 1. Supabase
+    if (supabaseClient && currentUser && currentUser.id) {
+        try {
+            let { data, error } = await supabaseClient
+                .from('transactions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .gte('date', startDate)
+                .lte('date', endDate);
+
+            if (error || !data) {
+                const res = await supabaseClient
+                    .from('transactions')
+                    .select('*')
+                    .gte('date', startDate)
+                    .lte('date', endDate);
+                if (res.data) data = res.data;
+            }
+
+            if (data && Array.isArray(data)) {
+                data.forEach(t => {
+                    const key = String(t.id);
+                    if (!seenIds.has(key)) {
+                        list.push(t);
+                        seenIds.add(key);
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao consultar transações no Supabase:', e);
+        }
+    }
+
+    // 2. Cache Local (localStorage)
+    if (currentUser && currentUser.id) {
+        try {
+            const localKey = 'tonu_transactions_' + currentUser.id;
+            const cached = localStorage.getItem(localKey);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed)) {
+                    parsed.forEach(t => {
+                        if (t.date && t.date >= startDate && t.date <= endDate) {
+                            const key = String(t.id);
+                            const signature = `${(t.description || '').trim().toLowerCase()}_${Math.round(Number(t.amount || 0) * 100)}_${t.date}`;
+                            const isDuplicate = list.some(ex => {
+                                if (String(ex.id) === key) return true;
+                                const exSig = `${(ex.description || '').trim().toLowerCase()}_${Math.round(Number(ex.amount || 0) * 100)}_${ex.date}`;
+                                return exSig === signature;
+                            });
+
+                            if (!isDuplicate) {
+                                list.push(t);
+                                seenIds.add(key);
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao ler cache local de transações:', e);
+        }
+    }
+
+    return list;
+}
+
+async function syncLocalTransactionsToSupabase() {
+    if (!supabaseClient || !currentUser || !currentUser.id) return;
+    try {
+        const localKey = 'tonu_transactions_' + currentUser.id;
+        const cached = localStorage.getItem(localKey);
+        if (!cached) return;
+        const list = JSON.parse(cached);
+        if (!Array.isArray(list) || list.length === 0) return;
+
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        let modified = false;
+
+        for (let i = 0; i < list.length; i++) {
+            const t = list[i];
+            if (!t.id || !uuidRegex.test(String(t.id))) {
+                const newUuid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() :
+                    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                        return v.toString(16);
+                    });
+
+                const payload = {
+                    id: newUuid,
+                    user_id: currentUser.id,
+                    description: t.description || 'Sem descrição',
+                    amount: Number(t.amount || 0),
+                    type: t.type || 'expense',
+                    date: t.date || new Date().toISOString().substring(0, 10),
+                    paid: t.paid !== false
+                };
+                if (t.category_id && uuidRegex.test(String(t.category_id))) {
+                    payload.category_id = t.category_id;
+                }
+
+                try {
+                    const { error } = await supabaseClient.from('transactions').insert([payload]);
+                    if (!error) {
+                        list[i].id = newUuid;
+                        modified = true;
+                    }
+                } catch (insErr) {
+                    console.warn('Erro ao sincronizar transação local com backend:', insErr);
+                }
+            }
+        }
+
+        if (modified) {
+            localStorage.setItem(localKey, JSON.stringify(list));
+            console.log('✅ Transações locais sincronizadas com o backend com sucesso.');
+        }
+    } catch (e) {
+        console.warn('Erro no sync de transações locais:', e);
+    }
+}
+
+// ============================================
 // CARREGAR DASHBOARD
 // ============================================
 async function loadDashboard() {
@@ -754,67 +883,53 @@ async function loadDashboard() {
     const lastDayPrevStr = formatDateKey(yearPrev, monthPrev, lastDayPrev);
 
     try {
-        // BUSCAR TRANSAÇÕES DO MÊS ATUAL (PAGAS)
-        const { data: current, error: err1 } = await supabaseClient
-            .from('transactions')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .eq('paid', true)
-            .gte('date', firstDay)
-            .lte('date', lastDayStr);
+        // Dispara sincronização em segundo plano
+        syncLocalTransactionsToSupabase();
 
-        if (err1) console.error('Erro ao buscar transacoes atuais:', err1);
+        const currentTxs = await getUnifiedTransactions(firstDay, lastDayStr);
+        const prevTxs = await getUnifiedTransactions(firstDayPrev, lastDayPrevStr);
 
-        // BUSCAR TRANSAÇÕES DO MÊS ANTERIOR (PAGAS)
-        const { data: previous, error: err2 } = await supabaseClient
-            .from('transactions')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .eq('paid', true)
-            .gte('date', firstDayPrev)
-            .lte('date', lastDayPrevStr);
-
-        if (err2) console.error('Erro ao buscar transacoes anteriores:', err2);
-
-        // BUSCAR CONTAS NÃO PAGAS DO MÊS ATUAL (A PAGAR)
-        const { data: bills, error: err3 } = await supabaseClient
-            .from('transactions')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .eq('type', 'expense')
-            .eq('paid', false)
-            .gte('date', firstDay)
-            .lte('date', lastDayStr);
-
-        if (err3) console.error('Erro ao buscar contas a pagar:', err3);
-
-        // CALCULAR RECEITAS E DESPESAS DO MÊS ATUAL
         let currentIncome = 0;
         let currentExpense = 0;
         let prevIncome = 0;
         let prevExpense = 0;
+        const bills = [];
 
-        if (current) {
-            current.forEach(t => {
-                if (t.type === 'income') currentIncome += Number(t.amount || 0);
-                else if (t.type === 'expense') currentExpense += Number(t.amount || 0);
-            });
-        }
+        currentTxs.forEach(t => {
+            const amt = Number(t.amount || 0);
+            if (isNaN(amt) || amt <= 0) return;
+            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1);
 
-        if (previous) {
-            previous.forEach(t => {
-                if (t.type === 'income') prevIncome += Number(t.amount || 0);
-                else if (t.type === 'expense') prevExpense += Number(t.amount || 0);
-            });
-        }
+            if (t.type === 'income') {
+                currentIncome += amt;
+            } else if (t.type === 'expense') {
+                if (isPaid) {
+                    currentExpense += amt;
+                } else {
+                    bills.push(t);
+                }
+            }
+        });
+
+        prevTxs.forEach(t => {
+            const amt = Number(t.amount || 0);
+            if (isNaN(amt) || amt <= 0) return;
+            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1);
+
+            if (t.type === 'income') {
+                prevIncome += amt;
+            } else if (t.type === 'expense' && isPaid) {
+                prevExpense += amt;
+            }
+        });
 
         const balance = currentIncome - currentExpense;
 
         // CALCULAR CONTAS A PAGAR DO MÊS
-        const billsCount = bills?.length || 0;
-        const billsTotal = bills?.reduce((s, t) => s + Number(t.amount || 0), 0) || 0;
+        const billsCount = bills.length;
+        const billsTotal = bills.reduce((s, t) => s + Number(t.amount || 0), 0);
         const todayStr = getToday();
-        const overdueBills = bills ? bills.filter(b => b.date && b.date < todayStr) : [];
+        const overdueBills = bills.filter(b => b.date && b.date < todayStr);
         const overdueCount = overdueBills.length;
 
         console.log(`📋 Resumo do mês: Receitas: R$ ${currentIncome} | Despesas: R$ ${currentExpense} | Saldo: R$ ${balance} | Contas a pagar: ${billsCount} (R$ ${billsTotal})`);
@@ -975,41 +1090,32 @@ async function loadRecentTransactions() {
             </div>
         `;
 
-        const { data, error } = await supabaseClient
-            .from('transactions')
-            .select('*, categories(name, icon, color)')
-            .eq('user_id', currentUser.id)
-            .eq('paid', true)
-            .gte('date', firstDay)
-            .lte('date', lastDayStr)
-            .order('date', { ascending: false })
-            .limit(50);
-
-        if (error) throw error;
+        const allTxs = await getUnifiedTransactions(firstDay, lastDayStr);
+        // Ordena pela data mais recente
+        allTxs.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
         // REMOVER DUPLICATAS
         const groupedByKey = new Map();
 
-        for (const tx of (data || [])) {
+        for (const tx of allTxs) {
             // 🔥 APLICA A SANITIZAÇÃO COMPLETA
-            let desc = sanitizeReportText(tx.description);
+            let desc = sanitizeReportText(tx.description || '');
             // REMOVE "(pago)" e limpa espaços extras
             desc = desc.replace(/\s*\(pago\)\s*/gi, '').trim();
             // REMOVE CARACTERES ESTRANHOS ISOLADOS QUE SOBRAREM
             desc = desc.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)]/g, '').trim();
 
-            const amountKey = Math.round(Number(tx.amount) * 100);
-            const catKey = tx.category_id || 'null';
-            const uniqueKey = desc.toLowerCase() + '_' + amountKey + '_' + catKey;
+            const amountKey = Math.round(Number(tx.amount || 0) * 100);
+            const catKey = tx.category_id || tx.category || 'null';
+            const uniqueKey = desc.toLowerCase() + '_' + amountKey + '_' + catKey + '_' + (tx.date || '');
 
-            if (!groupedByKey.has(uniqueKey) ||
-                new Date(tx.date) > new Date(groupedByKey.get(uniqueKey).date)) {
+            if (!groupedByKey.has(uniqueKey)) {
                 groupedByKey.set(uniqueKey, tx);
             }
         }
 
         const uniqueTransactions = Array.from(groupedByKey.values());
-        const recentTransactions = uniqueTransactions.slice(0, 7);
+        const recentTransactions = uniqueTransactions.slice(0, 10);
 
         const countEl = document.getElementById('txCountBadge') || document.getElementById('txCount');
         if (countEl) {
@@ -1020,8 +1126,8 @@ async function loadRecentTransactions() {
             container.innerHTML = `
                 <div class="empty-transactions">
                     <span class="empty-icon">📭</span>
-                    <h4>Nenhuma transacao</h4>
-                    <p>Adicione sua primeira transacao para começar a acompanhar suas financas</p>
+                    <h4>Nenhuma transação</h4>
+                    <p>Adicione sua primeira transação para começar a acompanhar suas finanças</p>
                 </div>
             `;
             return;
@@ -1033,18 +1139,19 @@ async function loadRecentTransactions() {
             const cls = isIncome ? 'income' : 'expense';
 
             let category = null;
-            if (t.categories) {
+            if (t.categories && typeof t.categories === 'object') {
                 category = t.categories;
-            } else if (t.category_id) {
-                const cat = categories.find(c => c.id === t.category_id);
-                if (cat) category = cat;
+            } else if (t.category_id && categories && categories.length > 0) {
+                category = categories.find(c => c.id === t.category_id);
+            } else if (t.category && categories && categories.length > 0) {
+                category = categories.find(c => c.name === t.category);
             }
 
-            const catIcon = category?.icon || 'fa-tag';
-            const catColor = category?.color || '#6C5CE7';
-            const catName = category?.name || 'Sem categoria';
+            const catIcon = category?.icon || (isIncome ? 'fa-arrow-down' : 'fa-tag');
+            const catColor = category?.color || (isIncome ? '#10B981' : '#EF4444');
+            const catName = category?.name || (isIncome ? 'Receita' : 'Despesa');
 
-            let displayDesc = sanitizeReportText(t.description);
+            let displayDesc = sanitizeReportText(t.description || '');
             displayDesc = displayDesc.replace(/\s*\(pago\)\s*/gi, '').trim();
             displayDesc = displayDesc.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)]/g, '').trim();
 
@@ -1055,7 +1162,7 @@ async function loadRecentTransactions() {
                             <i class="fas ${catIcon}"></i>
                         </div>
                         <div class="tx-info">
-                            <strong>${stripHTML(displayDesc)}</strong>
+                            <strong>${stripHTML(displayDesc || catName)}</strong>
                             <div class="tx-meta">
                                 <span>${formatDate(t.date)}</span>
                                 <span class="tx-category" style="color:${catColor};background:${catColor}15;">
@@ -1423,16 +1530,8 @@ async function loadCategoryChart() {
     const lastDayStr = formatDateKey(year, month, lastDay);
 
     try {
-        const { data, error } = await supabaseClient
-            .from('transactions')
-            .select('amount, category_id, description')
-            .eq('user_id', currentUser.id)
-            .eq('type', 'expense')
-            .eq('paid', true)
-            .gte('date', firstDay)
-            .lte('date', lastDayStr);
-
-        if (error) throw error;
+        const txs = await getUnifiedTransactions(firstDay, lastDayStr);
+        const data = txs.filter(t => t.type === 'expense' && (t.paid === true || t.paid === 'true' || t.paid === 1));
 
         if (categoryChart) {
             categoryChart.destroy();
@@ -1787,8 +1886,7 @@ async function loadMonthlyChart() {
     try {
         const months = [];
         const fullLabels = [];
-        const incomes = [];
-        const expenses = [];
+        const monthRanges = [];
 
         for (let i = periodCount - 1; i >= 0; i--) {
             const d = new Date();
@@ -1808,27 +1906,36 @@ async function loadMonthlyChart() {
             const monthFullName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
             fullLabels.push(monthFullName.charAt(0).toUpperCase() + monthFullName.slice(1));
 
-            const { data, error } = await supabaseClient
-                .from('transactions')
-                .select('type, amount')
-                .eq('user_id', currentUser.id)
-                .eq('paid', true)
-                .gte('date', firstDay)
-                .lte('date', lastDayStr);
+            monthRanges.push({ firstDay, lastDayStr });
+        }
 
-            if (error) throw error;
+        const minDate = monthRanges[0].firstDay;
+        const maxDate = monthRanges[monthRanges.length - 1].lastDayStr;
+        const periodTxs = await getUnifiedTransactions(minDate, maxDate);
 
+        const incomes = [];
+        const expenses = [];
+
+        monthRanges.forEach(({ firstDay, lastDayStr }) => {
             let inc = 0;
             let exp = 0;
-            if (data) {
-                data.forEach(t => {
-                    if (t.type === 'income') inc += Number(t.amount || 0);
-                    else if (t.type === 'expense') exp += Number(t.amount || 0);
-                });
-            }
+
+            periodTxs.forEach(t => {
+                if (t.date && t.date >= firstDay && t.date <= lastDayStr) {
+                    const amt = Number(t.amount || 0);
+                    if (isNaN(amt) || amt <= 0) return;
+                    if (t.type === 'income') {
+                        inc += amt;
+                    } else if (t.type === 'expense') {
+                        const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1);
+                        if (isPaid) exp += amt;
+                    }
+                }
+            });
+
             incomes.push(inc);
             expenses.push(exp);
-        }
+        });
 
         // ATUALIZA RESUMO NO CARD (APENAS RECEITAS E DESPESAS)
         const totalInc = incomes.reduce((a, b) => a + b, 0);

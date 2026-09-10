@@ -281,11 +281,29 @@
                 }
             }
 
-            // Fallback to local storage if offline or empty
-            if (txs.length === 0 && currentUser) {
+            // Mescla sempre com o cache local para não perder nenhuma transação criada localmente
+            if (currentUser) {
                 const local = localStorage.getItem('tonu_transactions_' + currentUser.id);
                 if (local) {
-                    try { txs = JSON.parse(local); } catch {}
+                    try {
+                        const parsed = JSON.parse(local);
+                        if (Array.isArray(parsed)) {
+                            const seenIds = new Set(txs.map(t => String(t.id)));
+                            parsed.forEach(lt => {
+                                const key = String(lt.id);
+                                const sig = `${(lt.description || '').trim().toLowerCase()}_${Math.round(Number(lt.amount || 0) * 100)}_${lt.date}`;
+                                const exists = txs.some(ex => {
+                                    if (String(ex.id) === key) return true;
+                                    const exSig = `${(ex.description || '').trim().toLowerCase()}_${Math.round(Number(ex.amount || 0) * 100)}_${ex.date}`;
+                                    return exSig === sig;
+                                });
+                                if (!exists) {
+                                    txs.push(lt);
+                                    seenIds.add(key);
+                                }
+                            });
+                        }
+                    } catch (pe) {}
                 }
             }
 
@@ -749,6 +767,17 @@
                 }
                 if (window.showToast) window.showToast('Transação atualizada com sucesso! ✅', 'success');
             } else {
+                const genUuid = () => {
+                    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                        try { return crypto.randomUUID(); } catch (e) {}
+                    }
+                    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                        return v.toString(16);
+                    });
+                };
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
                 if (generateFuture && installmentsTotal > installmentCurrent) {
                     // Geração em lote das parcelas futuras
                     const batch = [];
@@ -758,7 +787,7 @@
                         const monthOffset = i - installmentCurrent;
                         const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
                         const itemPaid = (i === installmentCurrent) ? paid : false;
-                        const txId = 'tx_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 4);
+                        const txId = genUuid();
 
                         batch.push({
                             ...baseTransactionData,
@@ -774,25 +803,45 @@
                     }
 
                     if (window.supabaseClient) {
-                        await window.supabaseClient
-                            .from('transactions')
-                            .insert(batch);
+                        try {
+                            const payloadBatch = batch.map(item => {
+                                const copy = { ...item };
+                                if (!copy.category_id || !uuidRegex.test(String(copy.category_id))) {
+                                    delete copy.category_id;
+                                }
+                                return copy;
+                            });
+                            await window.supabaseClient
+                                .from('transactions')
+                                .insert(payloadBatch);
+                        } catch (insErr) {
+                            console.warn('Erro ao inserir parcelas no Supabase:', insErr);
+                        }
                     }
 
                     // Prepend to allTransactions
                     batch.forEach(item => allTransactions.unshift(item));
                     if (window.showToast) window.showToast(`Lançamento parcelado criado com ${batch.length} parcelas registradas! 📦`, 'success');
                 } else {
+                    const newId = genUuid();
                     const newTx = {
                         ...baseTransactionData,
-                        id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                        id: newId,
                         created_at: new Date().toISOString()
                     };
 
                     if (window.supabaseClient) {
-                        await window.supabaseClient
-                            .from('transactions')
-                            .insert([newTx]);
+                        try {
+                            const payload = { ...newTx };
+                            if (!payload.category_id || !uuidRegex.test(String(payload.category_id))) {
+                                delete payload.category_id;
+                            }
+                            await window.supabaseClient
+                                .from('transactions')
+                                .insert([payload]);
+                        } catch (insErr) {
+                            console.warn('Erro ao inserir transação no Supabase:', insErr);
+                        }
                     }
 
                     allTransactions.unshift(newTx);
