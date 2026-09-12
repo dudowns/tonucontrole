@@ -36,8 +36,33 @@ function formatDateKey(year, month, day) {
     return year + '-' + m + '-' + d;
 }
 
+function normalizeDateOnly(dateVal) {
+    if (!dateVal) return '';
+    const str = String(dateVal).trim();
+    // YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
+    const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) {
+        return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+    }
+    // DD/MM/YYYY
+    const brMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (brMatch) {
+        return `${brMatch[3]}-${brMatch[2].padStart(2, '0')}-${brMatch[1].padStart(2, '0')}`;
+    }
+    try {
+        const d = new Date(dateVal);
+        if (!isNaN(d.getTime())) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+    } catch {}
+    return str.substring(0, 10);
+}
+
 function getMonthName(month) {
-    const months = ['Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
+    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
     ];
     return months[month];
@@ -100,11 +125,13 @@ function parseBrazilianNumber(value) {
 
 function formatDate(date, format = 'short') {
     if (!date) return '--/--/----';
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return '--/--/----';
-    if (format === 'short') {
-        return d.toLocaleDateString('pt-BR');
+    const str = String(date).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+        const parts = str.substring(0, 10).split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return str || '--/--/----';
     return d.toLocaleDateString('pt-BR');
 }
 
@@ -679,7 +706,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Inicializando Dashboard...');
 
     try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
+        let user = null;
+        if (window.supabaseOffline) {
+            user = await window.supabaseOffline.isAuthenticated();
+        }
+        if (!user && supabaseClient && supabaseClient.auth) {
+            const { data: { user: authUser } } = await supabaseClient.auth.getUser();
+            user = authUser;
+        }
+        if (!user) {
+            const offlineUser = localStorage.getItem('tonu_offline_session');
+            if (offlineUser) {
+                try { user = JSON.parse(offlineUser); } catch (_) {}
+            }
+        }
         if (!user) {
             window.location.href = '../index.html';
             return;
@@ -688,8 +728,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('✅ Usuario autenticado:', currentUser.email);
     } catch (e) {
         console.error('❌ Erro na autenticacao:', e);
-        window.location.href = '../index.html';
-        return;
+        const offlineUser = localStorage.getItem('tonu_offline_session');
+        if (offlineUser) {
+            try { currentUser = JSON.parse(offlineUser); } catch (_) {}
+        }
+        if (!currentUser) {
+            window.location.href = '../index.html';
+            return;
+        }
     }
 
     await loadUserProfile();
@@ -735,33 +781,61 @@ window.goToCurrentMonth = goToCurrentMonth;
 async function getUnifiedTransactions(startDate, endDate) {
     const list = [];
     const seenIds = new Set();
+    const seenSignatures = new Set();
 
-    // 1. Supabase
+    const normStart = normalizeDateOnly(startDate);
+    const normEnd = normalizeDateOnly(endDate);
+
+    const checkAndAdd = (t) => {
+        if (!t || typeof t !== 'object') return false;
+        const key = t.id ? String(t.id) : null;
+        if (key && seenIds.has(key)) return false;
+
+        const amt = Math.abs(Number(t.amount || 0));
+        const desc = (t.description || '').trim().toLowerCase();
+        const dateStr = normalizeDateOnly(t.date);
+        const sig = `${desc}_${Math.round(amt * 100)}_${dateStr}_${t.type || 'expense'}`;
+
+        if (seenSignatures.has(sig)) return false;
+
+        // Verifica se a transação está dentro do período solicitado
+        if (dateStr) {
+            if (normStart && dateStr < normStart) return false;
+            if (normEnd && dateStr > normEnd) return false;
+        }
+
+        if (key) seenIds.add(key);
+        seenSignatures.add(sig);
+        list.push(t);
+        return true;
+    };
+
+    // 1. Supabase (se autenticado e online)
     if (supabaseClient && currentUser && currentUser.id) {
         try {
             let { data, error } = await supabaseClient
                 .from('transactions')
-                .select('*')
+                .select('*, categories(id, name, icon, color)')
                 .eq('user_id', currentUser.id)
-                .gte('date', startDate)
-                .lte('date', endDate);
+                .gte('date', normStart)
+                .lte('date', normEnd);
 
-            if (error || !data) {
-                const res = await supabaseClient
+            if (error) {
+                // Fallback para select padrão se a relação de categorias falhar
+                const fallback = await supabaseClient
                     .from('transactions')
                     .select('*')
-                    .gte('date', startDate)
-                    .lte('date', endDate);
-                if (res.data) data = res.data;
+                    .eq('user_id', currentUser.id)
+                    .gte('date', normStart)
+                    .lte('date', normEnd);
+                if (!fallback.error && fallback.data) {
+                    data = fallback.data;
+                }
             }
 
             if (data && Array.isArray(data)) {
                 data.forEach(t => {
-                    const key = String(t.id);
-                    if (!seenIds.has(key)) {
-                        list.push(t);
-                        seenIds.add(key);
-                    }
+                    checkAndAdd(t);
                 });
             }
         } catch (e) {
@@ -770,33 +844,25 @@ async function getUnifiedTransactions(startDate, endDate) {
     }
 
     // 2. Cache Local (localStorage)
+    const localKeys = [];
     if (currentUser && currentUser.id) {
-        try {
-            const localKey = 'tonu_transactions_' + currentUser.id;
-            const cached = localStorage.getItem(localKey);
-            if (cached) {
-                const parsed = JSON.parse(cached);
-                if (Array.isArray(parsed)) {
-                    parsed.forEach(t => {
-                        if (t.date && t.date >= startDate && t.date <= endDate) {
-                            const key = String(t.id);
-                            const signature = `${(t.description || '').trim().toLowerCase()}_${Math.round(Number(t.amount || 0) * 100)}_${t.date}`;
-                            const isDuplicate = list.some(ex => {
-                                if (String(ex.id) === key) return true;
-                                const exSig = `${(ex.description || '').trim().toLowerCase()}_${Math.round(Number(ex.amount || 0) * 100)}_${ex.date}`;
-                                return exSig === signature;
-                            });
+        localKeys.push('tonu_transactions_' + currentUser.id);
+    }
+    localKeys.push('tonu_transactions_offline_user');
+    localKeys.push('tonu_transactions');
 
-                            if (!isDuplicate) {
-                                list.push(t);
-                                seenIds.add(key);
-                            }
-                        }
-                    });
-                }
+    for (const key of localKeys) {
+        try {
+            const cached = localStorage.getItem(key);
+            if (!cached) continue;
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed)) {
+                parsed.forEach(t => {
+                    checkAndAdd(t);
+                });
             }
         } catch (e) {
-            console.warn('⚠️ Erro ao ler cache local de transações:', e);
+            console.warn(`⚠️ Erro ao ler cache local (${key}):`, e);
         }
     }
 
@@ -815,23 +881,35 @@ async function syncLocalTransactionsToSupabase() {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         let modified = false;
 
+        // Busca IDs já existentes no Supabase para não duplicar
+        const { data: remoteData } = await supabaseClient
+            .from('transactions')
+            .select('id')
+            .eq('user_id', currentUser.id);
+
+        const remoteIds = new Set((remoteData || []).map(r => String(r.id)));
+
         for (let i = 0; i < list.length; i++) {
             const t = list[i];
-            if (!t.id || !uuidRegex.test(String(t.id))) {
-                const newUuid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() :
+            if (!t) continue;
+            const currentId = String(t.id || '');
+            if (!remoteIds.has(currentId)) {
+                const txId = (uuidRegex.test(currentId)) ? currentId : (
+                    (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() :
                     'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
                         const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
                         return v.toString(16);
-                    });
+                    })
+                );
 
                 const payload = {
-                    id: newUuid,
+                    id: txId,
                     user_id: currentUser.id,
                     description: t.description || 'Sem descrição',
-                    amount: Number(t.amount || 0),
+                    amount: Math.abs(Number(t.amount || 0)),
                     type: t.type || 'expense',
-                    date: t.date || new Date().toISOString().substring(0, 10),
-                    paid: t.paid !== false
+                    date: normalizeDateOnly(t.date) || new Date().toISOString().substring(0, 10),
+                    paid: (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined)
                 };
                 if (t.category_id && uuidRegex.test(String(t.category_id))) {
                     payload.category_id = t.category_id;
@@ -840,7 +918,8 @@ async function syncLocalTransactionsToSupabase() {
                 try {
                     const { error } = await supabaseClient.from('transactions').insert([payload]);
                     if (!error) {
-                        list[i].id = newUuid;
+                        list[i].id = txId;
+                        remoteIds.add(txId);
                         modified = true;
                     }
                 } catch (insErr) {
@@ -884,10 +963,10 @@ async function loadDashboard() {
 
     try {
         // Dispara sincronização em segundo plano
-        syncLocalTransactionsToSupabase();
+        syncLocalTransactionsToSupabase().catch(e => console.warn('Sync bg error:', e));
 
-        const currentTxs = await getUnifiedTransactions(firstDay, lastDayStr);
-        const prevTxs = await getUnifiedTransactions(firstDayPrev, lastDayPrevStr);
+        const currentTxs = (await getUnifiedTransactions(firstDay, lastDayStr)) || [];
+        const prevTxs = (await getUnifiedTransactions(firstDayPrev, lastDayPrevStr)) || [];
 
         let currentIncome = 0;
         let currentExpense = 0;
@@ -896,9 +975,10 @@ async function loadDashboard() {
         const bills = [];
 
         currentTxs.forEach(t => {
-            const amt = Number(t.amount || 0);
+            if (!t) return;
+            const amt = Math.abs(Number(t.amount || 0));
             if (isNaN(amt) || amt <= 0) return;
-            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1);
+            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined);
 
             if (t.type === 'income') {
                 currentIncome += amt;
@@ -912,9 +992,10 @@ async function loadDashboard() {
         });
 
         prevTxs.forEach(t => {
-            const amt = Number(t.amount || 0);
+            if (!t) return;
+            const amt = Math.abs(Number(t.amount || 0));
             if (isNaN(amt) || amt <= 0) return;
-            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1);
+            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined);
 
             if (t.type === 'income') {
                 prevIncome += amt;
@@ -927,9 +1008,9 @@ async function loadDashboard() {
 
         // CALCULAR CONTAS A PAGAR DO MÊS
         const billsCount = bills.length;
-        const billsTotal = bills.reduce((s, t) => s + Number(t.amount || 0), 0);
+        const billsTotal = bills.reduce((s, t) => s + (t ? Math.abs(Number(t.amount || 0)) : 0), 0);
         const todayStr = getToday();
-        const overdueBills = bills.filter(b => b.date && b.date < todayStr);
+        const overdueBills = bills.filter(b => b && b.date && normalizeDateOnly(b.date) < todayStr);
         const overdueCount = overdueBills.length;
 
         console.log(`📋 Resumo do mês: Receitas: R$ ${currentIncome} | Despesas: R$ ${currentExpense} | Saldo: R$ ${balance} | Contas a pagar: ${billsCount} (R$ ${billsTotal})`);
@@ -967,7 +1048,11 @@ async function loadDashboard() {
         }
 
         // CARREGA INVESTIMENTOS NO CARD 4
-        loadInvestedSummary();
+        try {
+            await loadInvestedSummary();
+        } catch (invErr) {
+            console.warn('Erro ao carregar resumo de investimentos:', invErr);
+        }
 
         // TENDÊNCIAS
         const incomeTrend = prevIncome > 0 ? ((currentIncome - prevIncome) / prevIncome * 100) : 0;
@@ -1014,15 +1099,28 @@ async function loadDashboard() {
             }
         }
 
-        await checkOverdueBills();
-        await loadRecentTransactions();
-        await generateDashboardInsights();
+        try {
+            await checkOverdueBills();
+        } catch (bErr) {
+            console.warn('Erro ao checar contas atrasadas:', bErr);
+        }
+
+        try {
+            await loadRecentTransactions();
+        } catch (rErr) {
+            console.warn('Erro ao carregar transações recentes:', rErr);
+        }
+
+        try {
+            await generateDashboardInsights();
+        } catch (gErr) {
+            console.warn('Erro ao gerar insights:', gErr);
+        }
 
         console.log('✅ Dashboard atualizado!');
 
     } catch (error) {
         console.error('❌ Erro ao carregar dashboard:', error);
-        showToast('Erro ao carregar dados', 'error');
     }
 }
 
@@ -1090,14 +1188,20 @@ async function loadRecentTransactions() {
             </div>
         `;
 
-        const allTxs = await getUnifiedTransactions(firstDay, lastDayStr);
-        // Ordena pela data mais recente
-        allTxs.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        const allTxs = (await getUnifiedTransactions(firstDay, lastDayStr)) || [];
+        // Ordena pela data mais recente de forma segura
+        allTxs.sort((a, b) => {
+            const da = normalizeDateOnly(a?.date);
+            const db = normalizeDateOnly(b?.date);
+            if (da === db) return 0;
+            return da < db ? 1 : -1;
+        });
 
         // REMOVER DUPLICATAS
         const groupedByKey = new Map();
 
         for (const tx of allTxs) {
+            if (!tx) continue;
             // 🔥 APLICA A SANITIZAÇÃO COMPLETA
             let desc = sanitizeReportText(tx.description || '');
             // REMOVE "(pago)" e limpa espaços extras
@@ -1107,7 +1211,8 @@ async function loadRecentTransactions() {
 
             const amountKey = Math.round(Number(tx.amount || 0) * 100);
             const catKey = tx.category_id || tx.category || 'null';
-            const uniqueKey = desc.toLowerCase() + '_' + amountKey + '_' + catKey + '_' + (tx.date || '');
+            const dateKey = normalizeDateOnly(tx.date);
+            const uniqueKey = tx.id ? String(tx.id) : (desc.toLowerCase() + '_' + amountKey + '_' + catKey + '_' + dateKey);
 
             if (!groupedByKey.has(uniqueKey)) {
                 groupedByKey.set(uniqueKey, tx);
@@ -1531,22 +1636,29 @@ async function loadCategoryChart() {
 
     try {
         const txs = await getUnifiedTransactions(firstDay, lastDayStr);
-        const data = txs.filter(t => t.type === 'expense' && (t.paid === true || t.paid === 'true' || t.paid === 1));
+        const data = (txs || []).filter(t => t && t.type === 'expense' && (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined));
 
         if (categoryChart) {
             categoryChart.destroy();
             categoryChart = null;
         }
 
-        const { data: cats } = await supabaseClient
-            .from('categories')
-            .select('id, name, color')
-            .eq('user_id', currentUser.id);
+        let cats = null;
+        if (supabaseClient && currentUser && currentUser.id) {
+            try {
+                const res = await supabaseClient
+                    .from('categories')
+                    .select('id, name, color')
+                    .eq('user_id', currentUser.id);
+                cats = res.data;
+            } catch (_) {}
+        }
+        const categoryList = (cats && cats.length > 0) ? cats : (categories || []);
 
         const categoryMap = {};
-        if (cats && cats.length > 0) {
-            cats.forEach(c => {
-                categoryMap[c.id] = c;
+        if (categoryList && categoryList.length > 0) {
+            categoryList.forEach(c => {
+                if (c && c.id) categoryMap[c.id] = c;
             });
         }
 
@@ -1920,14 +2032,16 @@ async function loadMonthlyChart() {
             let inc = 0;
             let exp = 0;
 
-            periodTxs.forEach(t => {
-                if (t.date && t.date >= firstDay && t.date <= lastDayStr) {
-                    const amt = Number(t.amount || 0);
+            (periodTxs || []).forEach(t => {
+                if (!t) return;
+                const tDate = normalizeDateOnly(t.date);
+                if (tDate && tDate >= firstDay && tDate <= lastDayStr) {
+                    const amt = Math.abs(Number(t.amount || 0));
                     if (isNaN(amt) || amt <= 0) return;
                     if (t.type === 'income') {
                         inc += amt;
                     } else if (t.type === 'expense') {
-                        const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1);
+                        const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined);
                         if (isPaid) exp += amt;
                     }
                 }
@@ -2093,6 +2207,7 @@ async function loadInsights() {
     container.innerHTML = '<p style="text-align:center;padding:12px 0;color:rgba(255,255,255,0.7);">🔍 Analisando...</p>';
 
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() + currentMonthOffset);
     const year = d.getFullYear();
     const month = d.getMonth();
@@ -2101,21 +2216,13 @@ async function loadInsights() {
     const lastDayStr = formatDateKey(year, month, lastDay);
 
     try {
-        const { data, error } = await supabaseClient
-            .from('transactions')
-            .select('*, categories(name)')
-            .eq('user_id', currentUser.id)
-            .eq('paid', true)
-            .eq('is_bill', false)
-            .gte('date', firstDay)
-            .lte('date', lastDayStr);
-
-        if (error) throw error;
+        const rawData = await getUnifiedTransactions(firstDay, lastDayStr);
+        const data = (rawData || []).filter(t => t && (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined));
 
         if (!data || data.length === 0) {
             container.innerHTML = `
                 <div class="insight-item info">
-                    📝 Adicione transacoes este mes para receber insights personalizados
+                    📝 Adicione transações este mês para receber insights personalizados
                 </div>
             `;
             return;
@@ -2126,12 +2233,21 @@ async function loadInsights() {
         const categoriesObj = {};
 
         data.forEach(t => {
+            const amt = Math.abs(Number(t.amount || 0));
             if (t.type === 'income') {
-                income += Number(t.amount);
+                income += amt;
             } else {
-                expense += Number(t.amount);
-                const name = t.categories?.name || 'Outros';
-                categoriesObj[name] = (categoriesObj[name] || 0) + Number(t.amount);
+                expense += amt;
+                let name = 'Outros';
+                if (t.categories && typeof t.categories === 'object' && t.categories.name) {
+                    name = t.categories.name;
+                } else if (t.category) {
+                    name = t.category;
+                } else if (t.category_id && categories && categories.length > 0) {
+                    const match = categories.find(c => c.id === t.category_id);
+                    if (match) name = match.name;
+                }
+                categoriesObj[name] = (categoriesObj[name] || 0) + amt;
             }
         });
 
@@ -2159,11 +2275,11 @@ async function loadInsights() {
 
         if (income > 0 && balance > 0) {
             const savings = ((balance / income) * 100).toFixed(0);
-            html += '<div class="insight-item success">💰 Voce economizou ' + savings + '% da sua renda este mes</div>';
+            html += '<div class="insight-item success">💰 Você economizou ' + savings + '% da sua renda este mês</div>';
         }
 
         const txCount = data.length;
-        html += '<div class="insight-item info">📋 ' + txCount + ' transacoes registradas este mes</div>';
+        html += '<div class="insight-item info">📋 ' + txCount + ' transações registradas este mês</div>';
 
         container.innerHTML = html;
 

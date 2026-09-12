@@ -28,8 +28,7 @@ function createZipArchive(options = {}) {
 const app = express();
 
 // A porta 3000 é estritamente exigida pelo proxy reverso do Google AI Studio.
-// Permite APP_PORT para ambientes externos caso necessário.
-const PORT = process.env.APP_PORT || 3000;
+const PORT = 3000;
 const ROOT_DIR = __dirname;
 
 // ============================================
