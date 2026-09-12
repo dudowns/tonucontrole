@@ -312,6 +312,11 @@
             }
         });
 
+        // Total a Pagar = o que resta pagar no mês (pendentes + atrasadas)
+        const remainingToPay = pending;
+        const normalPending = Math.max(0, pending - overdue);
+        const normalPendingCount = Math.max(0, pendingCount - overdueCount);
+
         // Atualizar textos dos cards
         const elTotal = document.getElementById('billsStatTotal');
         const elTotalCount = document.getElementById('billsStatTotalCount');
@@ -322,17 +327,18 @@
         const elOverdue = document.getElementById('billsStatOverdue');
         const elOverdueCount = document.getElementById('billsStatOverdueCount');
 
-        if (elTotal) elTotal.textContent = formatCurrency(total);
-        if (elTotalCount) elTotalCount.textContent = `${totalCount} ${totalCount === 1 ? 'conta' : 'contas'}`;
+        if (elTotal) elTotal.textContent = formatCurrency(remainingToPay);
+        if (elTotalCount) elTotalCount.textContent = `${pendingCount} ${pendingCount === 1 ? 'a pagar' : 'a pagar'}`;
         if (elPaid) elPaid.textContent = formatCurrency(paid);
         if (elPaidCount) elPaidCount.textContent = `${paidCount} ${paidCount === 1 ? 'paga' : 'pagas'}`;
-        if (elPending) elPending.textContent = formatCurrency(pending);
-        if (elPendingCount) elPendingCount.textContent = `${pendingCount} ${pendingCount === 1 ? 'a vencer' : 'a vencer'}`;
+        if (elPending) elPending.textContent = formatCurrency(normalPending);
+        if (elPendingCount) elPendingCount.textContent = `${normalPendingCount} ${normalPendingCount === 1 ? 'a vencer' : 'a vencer'}`;
         if (elOverdue) elOverdue.textContent = formatCurrency(overdue);
         if (elOverdueCount) elOverdueCount.textContent = `${overdueCount} ${overdueCount === 1 ? 'atrasada' : 'atrasadas'}`;
 
         // Progresso do mês
-        const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+        const totalBillsMonth = paid + pending;
+        const pct = totalBillsMonth > 0 ? Math.min(100, Math.round((paid / totalBillsMonth) * 100)) : 0;
         const elPct = document.getElementById('billsProgressPct');
         const elBar = document.getElementById('billsProgressBar');
 
@@ -383,6 +389,24 @@
         }
     };
 
+    window.setStatusTab = function(status) {
+        const statusSelect = document.getElementById('billFilterStatus');
+        if (statusSelect) {
+            statusSelect.value = status;
+        }
+        applyFiltersAndRender();
+    };
+
+    function syncStatusTabs(currentStatus) {
+        document.querySelectorAll('.tab-status-btn').forEach(btn => {
+            const isMatch = btn.dataset.status === currentStatus;
+            btn.classList.toggle('active', isMatch);
+            btn.style.background = isMatch ? 'var(--color-surface, #fff)' : 'transparent';
+            btn.style.color = isMatch ? 'var(--color-primary, #6c5ce7)' : 'var(--color-text-muted, #64748b)';
+            btn.style.boxShadow = isMatch ? '0 1px 3px rgba(0,0,0,0.08)' : 'none';
+        });
+    }
+
     // ============================================
     // FILTROS E RENDERIZAÇÃO
     // ============================================
@@ -393,7 +417,10 @@
         const catSelect = document.getElementById('billFilterCategory');
 
         if (searchInput) searchInput.addEventListener('input', applyFiltersAndRender);
-        if (statusSelect) statusSelect.addEventListener('change', applyFiltersAndRender);
+        if (statusSelect) statusSelect.addEventListener('change', () => {
+            syncStatusTabs(statusSelect.value);
+            applyFiltersAndRender();
+        });
         if (recSelect) recSelect.addEventListener('change', applyFiltersAndRender);
         if (catSelect) catSelect.addEventListener('change', applyFiltersAndRender);
     }
@@ -405,7 +432,8 @@
         const catSelect = document.getElementById('billFilterCategory');
 
         const query = (searchInput?.value || '').toLowerCase().trim();
-        const status = statusSelect?.value || 'all';
+        const status = statusSelect?.value || 'pending';
+        syncStatusTabs(status);
         const recurrenceFilter = recSelect?.value || 'all';
         const categoryId = catSelect?.value || 'all';
         const todayStr = getTodayString();
@@ -580,6 +608,37 @@
         applyFiltersAndRender();
         updateSummaryCards(allBills);
 
+        // Atualizar cache de contas local
+        const mStr = String(currentMonth + 1).padStart(2, '0');
+        const billsCacheKey = `tonu_bills_cache_${currentUser.id}_${currentYear}_${mStr}`;
+        try {
+            localStorage.setItem(billsCacheKey, JSON.stringify(allBills));
+        } catch (e) {}
+
+        // Sincronizar cache de transações (localStorage) para que
+        // ao navegar para Transações ou Dashboard, já apareça lançada como despesa paga
+        try {
+            const txsKey = `tonu_transactions_${currentUser.id}`;
+            const localTxsRaw = localStorage.getItem(txsKey);
+            let localTxs = localTxsRaw ? JSON.parse(localTxsRaw) : [];
+            const idx = localTxs.findIndex(t => String(t.id) === String(id));
+            if (idx >= 0) {
+                localTxs[idx].paid = newPaidStatus;
+                localTxs[idx].paid_date = newPaidDate;
+                localTxs[idx].updated_at = new Date().toISOString();
+            } else if (newPaidStatus) {
+                localTxs.unshift({
+                    ...bill,
+                    paid: true,
+                    paid_date: newPaidDate,
+                    updated_at: new Date().toISOString()
+                });
+            }
+            localStorage.setItem(txsKey, JSON.stringify(localTxs));
+        } catch (e) {
+            console.warn('⚠️ Erro ao atualizar cache local de transações:', e);
+        }
+
         try {
             if (window.supabaseClient) {
                 const { error } = await window.supabaseClient
@@ -594,7 +653,7 @@
                 if (error) throw error;
             }
 
-            showToast(newPaidStatus ? 'Conta marcada como PAGA! ✅' : 'Conta retornou para PENDENTE ⏳', 'success');
+            showToast(newPaidStatus ? 'Conta paga e lançada nas transações com sucesso! ✅' : 'Conta retornou para PENDENTE ⏳', 'success');
 
             if (window.checkNotifications) {
                 window.checkNotifications();
@@ -604,6 +663,7 @@
             console.error('❌ Erro ao atualizar status da conta:', err);
             // Reverter se falhar
             bill.paid = !newPaidStatus;
+            bill.paid_date = !newPaidStatus ? getTodayString() : null;
             applyFiltersAndRender();
             updateSummaryCards(allBills);
             showToast('Erro ao atualizar status: ' + err.message, 'error');

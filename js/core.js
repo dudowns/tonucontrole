@@ -327,6 +327,22 @@ function formatDateKey(year, month, day) {
     return year + '-' + m + '-' + d;
 }
 
+function isTransactionPaid(t) {
+    if (!t) return false;
+    if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+    if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+    return (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+}
+
+function isTxPaid(t) {
+    return isTransactionPaid(t);
+}
+
+if (typeof window !== 'undefined') {
+    window.isTransactionPaid = isTransactionPaid;
+    window.isTxPaid = isTxPaid;
+}
+
 // ============================================
 // 5. SIDEBAR
 // ============================================

@@ -61,6 +61,17 @@ function normalizeDateOnly(dateVal) {
     return str.substring(0, 10);
 }
 
+function isTransactionPaid(t) {
+    if (!t) return false;
+    if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+    if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+    return (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+}
+
+function isTxPaid(t) {
+    return isTransactionPaid(t);
+}
+
 function getMonthName(month) {
     const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -909,7 +920,7 @@ async function syncLocalTransactionsToSupabase() {
                     amount: Math.abs(Number(t.amount || 0)),
                     type: t.type || 'expense',
                     date: normalizeDateOnly(t.date) || new Date().toISOString().substring(0, 10),
-                    paid: (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined)
+                    paid: isTransactionPaid(t)
                 };
                 if (t.category_id && uuidRegex.test(String(t.category_id))) {
                     payload.category_id = t.category_id;
@@ -1646,7 +1657,7 @@ async function loadCategoryChart() {
 
     try {
         const txs = await getUnifiedTransactions(firstDay, lastDayStr);
-        const data = (txs || []).filter(t => t && t.type === 'expense' && (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined));
+        const data = (txs || []).filter(t => t && t.type === 'expense' && isTransactionPaid(t));
 
         if (categoryChart) {
             categoryChart.destroy();
@@ -2048,11 +2059,12 @@ async function loadMonthlyChart() {
                 if (tDate && tDate >= firstDay && tDate <= lastDayStr) {
                     const amt = Math.abs(Number(t.amount || 0));
                     if (isNaN(amt) || amt <= 0) return;
+                    if (!isTransactionPaid(t)) return;
+
                     if (t.type === 'income') {
                         inc += amt;
                     } else if (t.type === 'expense') {
-                        const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined);
-                        if (isPaid) exp += amt;
+                        exp += amt;
                     }
                 }
             });
@@ -2227,7 +2239,7 @@ async function loadInsights() {
 
     try {
         const rawData = await getUnifiedTransactions(firstDay, lastDayStr);
-        const data = (rawData || []).filter(t => t && (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined));
+        const data = (rawData || []).filter(t => t && isTransactionPaid(t));
 
         if (!data || data.length === 0) {
             container.innerHTML = `
@@ -2785,8 +2797,15 @@ async function openCashFlowModal() {
         const txs = txRes.data || [];
         const bills = billsRes.data || [];
 
-        const totalIncome = txs.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount || 0), 0);
-        const totalExpense = txs.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const isTxPaid = t => {
+            if (!t) return false;
+            if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+            if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+            return (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+        };
+
+        const totalIncome = txs.filter(t => t.type === 'income' && isTxPaid(t)).reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const totalExpense = txs.filter(t => t.type === 'expense' && isTxPaid(t)).reduce((sum, t) => sum + Number(t.amount || 0), 0);
         const currentBalance = totalIncome - totalExpense;
 
         window.TonuCashFlow.showCashFlowModal(currentBalance, txs, bills);

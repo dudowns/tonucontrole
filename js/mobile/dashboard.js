@@ -93,12 +93,22 @@ async function loadMobileData() {
     }
 }
 
+function isTxPaid(t) {
+    if (!t) return false;
+    if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+    if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+    return (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+}
+
 // ============================================
 // RENDER RESUMO
 // ============================================
 function renderSummary() {
     let income = 0, expense = 0;
+    let paidCount = 0;
     allTransactions.forEach(t => {
+        if (!isTxPaid(t)) return;
+        paidCount++;
         if (t.type === "income") income += Number(t.amount);
         else if (t.type === "expense") expense += Number(t.amount);
     });
@@ -133,7 +143,7 @@ function renderSummary() {
             <div class="card-icon count"><i class="fas fa-receipt"></i></div>
             <div class="card-info">
                 <div class="card-label">Transações</div>
-                <div class="card-value">${allTransactions.length}</div>
+                <div class="card-value">${paidCount}</div>
             </div>
         </div>
     `;
@@ -146,7 +156,7 @@ function renderCategoryBars() {
     const container = document.getElementById("categoryBarsContainer");
     if (!container) return;
 
-    const expenses = allTransactions.filter(t => t.type === "expense");
+    const expenses = allTransactions.filter(t => t.type === "expense" && isTxPaid(t));
     if (expenses.length === 0) {
         container.innerHTML = "";
         return;
@@ -205,7 +215,7 @@ function renderCategoryBars() {
 function renderTransactions() {
     const container = document.getElementById("mobileTransactions");
 
-    const recent = allTransactions.slice(0, 10);
+    const recent = allTransactions.filter(t => isTxPaid(t)).slice(0, 10);
 
     if (recent.length === 0) {
         container.innerHTML = `

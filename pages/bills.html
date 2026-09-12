@@ -181,10 +181,10 @@
                         <input type="text" id="billFilterSearch" class="form-control" placeholder="Buscar conta por nome ou fornecedor...">
                     </div>
                     <select id="billFilterStatus" class="form-control">
-                        <option value="all">Todos os status</option>
-                        <option value="pending">Apenas Pendentes / A Vencer</option>
+                        <option value="pending" selected>Apenas Pendentes / A Vencer</option>
                         <option value="overdue">Apenas Atrasadas ⚠️</option>
                         <option value="paid">Apenas Pagas ✅</option>
+                        <option value="all">Todas as contas</option>
                     </select>
                     <select id="billFilterRecurrence" class="form-control">
                         <option value="all">Todas as formas de pagamento</option>
@@ -219,10 +219,17 @@
 
                 <!-- LISTA DE CONTAS -->
                 <div class="card" style="background:var(--color-surface,#fff); border-radius:12px; border:1px solid var(--color-border,#e2e8f0); overflow:hidden; box-shadow:var(--shadow-sm);">
-                    <div style="padding:14px 18px; border-bottom:1px solid var(--color-border,#e2e8f0); display:flex; justify-content:space-between; align-items:center;">
-                        <h3 style="font-size:15px; font-weight:700; margin:0; display:flex; align-items:center; gap:8px;">
-                            <i class="fas fa-list" style="color:var(--color-primary);"></i> Contas do Período
-                        </h3>
+                    <div style="padding:14px 18px; border-bottom:1px solid var(--color-border,#e2e8f0); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                            <h3 style="font-size:15px; font-weight:700; margin:0; display:flex; align-items:center; gap:8px;">
+                                <i class="fas fa-list" style="color:var(--color-primary);"></i> Contas do Período
+                            </h3>
+                            <div class="status-tab-group" style="display:inline-flex; gap:4px; background:var(--color-bg,#f1f5f9); padding:3px; border-radius:8px; border:1px solid var(--color-border,#e2e8f0);">
+                                <button type="button" class="tab-status-btn active" id="tabStatusPending" data-status="pending" onclick="setStatusTab('pending')" style="border:none; background:var(--color-surface,#fff); color:var(--color-primary,#6c5ce7); font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.08); transition:all 0.2s;">Pendentes</button>
+                                <button type="button" class="tab-status-btn" id="tabStatusPaid" data-status="paid" onclick="setStatusTab('paid')" style="border:none; background:transparent; font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px; cursor:pointer; color:var(--color-text-muted,#64748b); transition:all 0.2s;">Pagas ✅</button>
+                                <button type="button" class="tab-status-btn" id="tabStatusAll" data-status="all" onclick="setStatusTab('all')" style="border:none; background:transparent; font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px; cursor:pointer; color:var(--color-text-muted,#64748b); transition:all 0.2s;">Todas</button>
+                            </div>
+                        </div>
                         <span id="billsCountBadge" style="font-size:12px; color:var(--color-text-muted,#94a3b8);">0 registros</span>
                     </div>
                     <div id="billsContainer" style="min-height:220px;">
