@@ -387,6 +387,13 @@
         return { icon, color, name };
     }
 
+    function isTransactionPaid(t) {
+        if (!t) return false;
+        if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+        if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+        return true;
+    }
+
     // Render transactions list
     function renderTransactions(transactions) {
         const container = document.getElementById('transactionsList') || document.getElementById('transactionsContainer');
@@ -396,12 +403,14 @@
             const selDate = getSelectedMonthDate();
             const monthName = MONTH_NAMES[selDate.getMonth()];
             const yearNum = selDate.getFullYear();
+            const statusVal = document.getElementById('filterStatus')?.value || 'paid';
+            const statusLabel = statusVal === 'paid' ? 'pagas' : (statusVal === 'pending' ? 'pendentes' : '');
             container.innerHTML = `
                 <div class="empty-state" style="text-align:center;padding:48px 16px;">
                     <div style="font-size:48px;margin-bottom:12px;">📅</div>
-                    <h3 style="font-size:18px;font-weight:600;margin-bottom:6px;">Nenhuma transação em ${monthName} de ${yearNum}</h3>
+                    <h3 style="font-size:18px;font-weight:600;margin-bottom:6px;">Nenhuma transação ${statusLabel} em ${monthName} de ${yearNum}</h3>
                     <p style="color:var(--color-text-muted,#94a3b8);font-size:14px;margin-bottom:16px;">
-                        Não foram encontradas transações para este mês ou com os filtros aplicados.
+                        Não foram encontradas transações ${statusLabel} para este mês ou com os filtros aplicados.
                     </p>
                     <button class="btn btn-primary" onclick="openModal()">
                         <i class="fas fa-plus"></i> Nova Transação
@@ -418,6 +427,10 @@
             const typeColor = isIncome ? '#00b894' : '#ff7675';
             const amountPrefix = isIncome ? '+ ' : '- ';
             const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
+            const isPaid = isTransactionPaid(t);
+            const statusBadge = isPaid
+                ? `<span class="badge-paid" style="font-size:10px; padding:1px 6px; background:#e6fcf5; color:#0ca678; border-radius:4px; font-weight:600;"><i class="fas fa-check" style="font-size:9px;"></i> ${isIncome ? 'Recebido' : 'Pago'}</span>`
+                : `<span class="badge-pending" style="font-size:10px; padding:1px 6px; background:#fff3cd; color:#856404; border-radius:4px; font-weight:600;"><i class="fas fa-clock" style="font-size:9px;"></i> Pendente</span>`;
 
             html += `
                 <div class="transaction-card" onclick="openModal('${sanitize(t.id)}')">
@@ -433,7 +446,7 @@
                             <span>${formatDateDisplay(t.date)}</span>
                             <span>•</span>
                             <span>${sanitize(catInfo.name)}</span>
-                            ${t.paid === false ? '<span class="badge-pending" style="font-size:10px; padding:1px 6px; background:#fff3cd; color:#856404; border-radius:4px;">Pendente</span>' : ''}
+                            ${statusBadge}
                         </div>
                     </div>
                     <div class="t-amount" style="font-weight:700; font-size:15px; color:${typeColor}; text-align:right; flex-shrink:0;">
@@ -503,7 +516,7 @@
         const type = document.getElementById('filterType')?.value || '';
         const recurrenceFilter = document.getElementById('filterRecurrence')?.value || 'all';
         const cat = document.getElementById('filterCategory')?.value || '';
-        const status = document.getElementById('filterStatus')?.value || '';
+        const status = document.getElementById('filterStatus')?.value || 'paid';
         const dateStart = document.getElementById('filterDateStart')?.value || '';
         const dateEnd = document.getElementById('filterDateEnd')?.value || '';
         const minAmount = parseFloat(document.getElementById('filterMinAmount')?.value);
@@ -545,8 +558,11 @@
             }
 
             if (cat && cat !== 'all' && cat !== '' && t.category !== cat) return false;
-            if (status === 'paid' && t.paid === false) return false;
-            if (status === 'pending' && t.paid !== false) return false;
+
+            // Status: 'paid' (padrão - apenas pagas), 'pending' (apenas pendentes) ou 'all' (todas)
+            const isPaid = isTransactionPaid(t);
+            if (status === 'paid' && !isPaid) return false;
+            if (status === 'pending' && isPaid) return false;
 
             const amt = parseFloat(t.amount) || 0;
             if (!isNaN(minAmount) && amt < minAmount) return false;
@@ -570,7 +586,12 @@
 
         const totalCountDisplay = document.getElementById('totalCountDisplay');
         if (totalCountDisplay) {
-            const monthTotal = allTransactions.filter(t => getTxYearMonth(t.date) === selectedYearMonth).length;
+            const monthTotal = allTransactions.filter(t => {
+                if (getTxYearMonth(t.date) !== selectedYearMonth) return false;
+                if (status === 'paid') return isTransactionPaid(t);
+                if (status === 'pending') return !isTransactionPaid(t);
+                return true;
+            }).length;
             totalCountDisplay.textContent = String(monthTotal);
         }
     }

@@ -224,6 +224,12 @@
                             placeholder="Buscar por descrição ou #tag..." oninput="filterTransactions()"
                             aria-label="Buscar transações">
                     </div>
+                    <select id="filterStatus" class="form-control" onchange="filterTransactions()" style="width: auto; font-weight: 600;"
+                        aria-label="Filtrar por status de pagamento">
+                        <option value="paid" selected>✅ Apenas Pagas</option>
+                        <option value="all">📋 Todas as transações</option>
+                        <option value="pending">⏳ Apenas Pendentes</option>
+                    </select>
                     <select id="filterType" class="form-control" onchange="filterTransactions()" style="width: auto;"
                         aria-label="Filtrar por tipo">
                         <option value="all">Todos os tipos</option>

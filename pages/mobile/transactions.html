@@ -100,6 +100,11 @@
             <i class="fas fa-search"></i>
             <input type="text" id="searchInput" placeholder="Buscar..." oninput="filterTransactions()">
         </div>
+        <select id="filterStatus" onchange="filterTransactions()" style="font-weight:600;">
+            <option value="paid" selected>Pagas</option>
+            <option value="all">Todas</option>
+            <option value="pending">Pendentes</option>
+        </select>
         <select id="filterType" onchange="filterTransactions()">
             <option value="all">Todos</option>
             <option value="income">Receitas</option>
@@ -315,15 +320,27 @@ function renderTransactions() {
         return;
     }
 
+    function isTransactionPaid(t) {
+        if (!t) return false;
+        if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+        if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+        return true;
+    }
+
     container.innerHTML = filteredTransactions.map(t => {
         const isIncome = t.type === "income";
         const cat = categories.find(c => c.id === t.category_id);
         const color = cat?.color || (isIncome ? "#00B894" : "#FF7675");
         const icon = cat?.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
+        const isPaid = isTransactionPaid(t);
 
         let badge = "";
-        if (t.is_bill) badge += `<span style="font-size:9px; background:#fff3cd; color:#856404; padding:2px 6px; border-radius:4px; margin-left:4px;">Conta</span>`;
-        if (t.is_bill && !t.paid) badge += `<span style="font-size:9px; background:#f8d7da; color:#721c24; padding:2px 6px; border-radius:4px; margin-left:4px;">Pendente</span>`;
+        if (t.is_bill) badge += `<span style="font-size:9px; background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; margin-left:4px;">Conta</span>`;
+        if (isPaid) {
+            badge += `<span style="font-size:9px; background:#d4edda; color:#155724; padding:2px 6px; border-radius:4px; margin-left:4px;">${isIncome ? 'Recebido' : 'Pago'}</span>`;
+        } else {
+            badge += `<span style="font-size:9px; background:#fff3cd; color:#856404; padding:2px 6px; border-radius:4px; margin-left:4px;">Pendente</span>`;
+        }
 
         return `
             <div class="mobile-transaction" style="display:flex; justify-content:space-between; align-items:center;">
@@ -350,12 +367,19 @@ function renderTransactions() {
 }
 
 function filterTransactions() {
-    const search = document.getElementById("searchInput").value.toLowerCase();
-    const type = document.getElementById("filterType").value;
+    const search = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
+    const type = document.getElementById("filterType")?.value || "all";
+    const status = document.getElementById("filterStatus")?.value || "paid";
 
     filteredTransactions = allTransactions.filter(t => {
-        const matchSearch = t.description.toLowerCase().includes(search);
+        const desc = (t.description || "").toLowerCase();
+        const matchSearch = !search || desc.includes(search);
         const matchType = type === "all" || t.type === type;
+        const isPaid = isTransactionPaid(t);
+
+        if (status === "paid" && !isPaid) return false;
+        if (status === "pending" && isPaid) return false;
+
         return matchSearch && matchType;
     });
 

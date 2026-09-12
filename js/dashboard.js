@@ -978,10 +978,12 @@ async function loadDashboard() {
             if (!t) return;
             const amt = Math.abs(Number(t.amount || 0));
             if (isNaN(amt) || amt <= 0) return;
-            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined);
+            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
 
             if (t.type === 'income') {
-                currentIncome += amt;
+                if (isPaid) {
+                    currentIncome += amt;
+                }
             } else if (t.type === 'expense') {
                 if (isPaid) {
                     currentExpense += amt;
@@ -995,10 +997,10 @@ async function loadDashboard() {
             if (!t) return;
             const amt = Math.abs(Number(t.amount || 0));
             if (isNaN(amt) || amt <= 0) return;
-            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || t.paid === undefined);
+            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
 
             if (t.type === 'income') {
-                prevIncome += amt;
+                if (isPaid) prevIncome += amt;
             } else if (t.type === 'expense' && isPaid) {
                 prevExpense += amt;
             }
@@ -1189,8 +1191,16 @@ async function loadRecentTransactions() {
         `;
 
         const allTxs = (await getUnifiedTransactions(firstDay, lastDayStr)) || [];
+        // Filtra para exibir apenas transações já pagas/recebidas
+        const paidTxs = allTxs.filter(t => {
+            if (!t) return false;
+            if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+            if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+            return true;
+        });
+
         // Ordena pela data mais recente de forma segura
-        allTxs.sort((a, b) => {
+        paidTxs.sort((a, b) => {
             const da = normalizeDateOnly(a?.date);
             const db = normalizeDateOnly(b?.date);
             if (da === db) return 0;
@@ -1200,7 +1210,7 @@ async function loadRecentTransactions() {
         // REMOVER DUPLICATAS
         const groupedByKey = new Map();
 
-        for (const tx of allTxs) {
+        for (const tx of paidTxs) {
             if (!tx) continue;
             // 🔥 APLICA A SANITIZAÇÃO COMPLETA
             let desc = sanitizeReportText(tx.description || '');
