@@ -334,55 +334,10 @@
 }
 
 /* ============================================
-   MODAL OVERLAY & MODAL DIALOG REFORÇADO
+   MODAL OVERLAY & MODAL DIALOG - Herda de theme.css
    ============================================ */
-.modal-overlay {
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    background: rgba(15, 23, 42, 0.65) !important;
-    backdrop-filter: blur(4px) !important;
-    z-index: 99999 !important;
-    display: none !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 20px !important;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-}
-
-.modal-overlay.active {
-    display: flex !important;
-    opacity: 1 !important;
-}
-
-.modal {
-    background: var(--color-surface, #ffffff) !important;
-    border-radius: 16px !important;
-    width: 100% !important;
-    max-width: 520px !important;
-    max-height: 90vh !important;
-    overflow-y: auto !important;
-    box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.35) !important;
-    border: 1px solid var(--color-border, #e2e8f0) !important;
-    position: relative !important;
-    z-index: 100000 !important;
-    margin: 0 auto !important;
-    transform: scale(0.95) translateY(10px);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.modal-overlay.active .modal {
-    transform: scale(1) translateY(0);
-}
-
 .modal.hidden {
     display: none !important;
-}
-
-body.no-scroll {
-    overflow: hidden !important;
 }
 
 /* ============================================

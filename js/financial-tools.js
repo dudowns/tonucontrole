@@ -1070,49 +1070,49 @@
             const cats = categories || [];
 
             const modalHtml = `
-            <div id="tonuCategoriesModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.8); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px); font-family:'Inter',sans-serif;">
-                <div style="background:#ffffff; border-radius:20px; max-width:640px; width:100%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); border:1px solid #e2e8f0; overflow:hidden;">
+            <div id="tonuCategoriesModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.65); z-index:999999; display:flex; align-items:center; justify-content:center; padding:12px; backdrop-filter:blur(8px); font-family:'Inter',sans-serif;">
+                <div style="background:#ffffff; border-radius:16px; max-width:480px; width:100%; max-height:calc(100vh - 24px); display:flex; flex-direction:column; box-shadow:0 20px 45px -10px rgba(0,0,0,0.25); border:1px solid #e2e8f0; overflow:hidden;">
                     
-                    <div style="padding:20px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="padding:12px 18px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                         <div>
-                            <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:0 0 4px 0;">
-                                <i class="fas fa-tags" style="color:#6c5ce7; margin-right:8px;"></i> Gerenciar Categorias
+                            <h3 style="font-size:15px; font-weight:700; color:#0f172a; margin:0 0 2px 0;">
+                                <i class="fas fa-tags" style="color:#6c5ce7; margin-right:6px;"></i> Gerenciar Categorias
                             </h3>
-                            <p style="font-size:12px; color:#64748b; margin:0;">Crie ou personalize suas categorias com cores e ícones exclusivos.</p>
+                            <p style="font-size:11px; color:#64748b; margin:0;">Crie ou personalize suas categorias com cores e ícones exclusivos.</p>
                         </div>
-                        <button onclick="document.getElementById('tonuCategoriesModal').remove()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">&times;</button>
+                        <button onclick="document.getElementById('tonuCategoriesModal').remove()" style="background:#f8fafc; border:1px solid #e2e8f0; width:28px; height:28px; border-radius:8px; font-size:14px; cursor:pointer; color:#64748b; display:flex; align-items:center; justify-content:center;">&times;</button>
                     </div>
 
-                    <div style="padding:14px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:13px; color:#64748b;">${cats.length} categorias cadastradas</span>
-                        <button class="btn btn-primary btn-sm" onclick="TonuCategoryManager.showEditModal(null, '${user.id}')">
+                    <div style="padding:10px 18px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:11.5px; color:#64748b; font-weight:600;">${cats.length} categorias cadastradas</span>
+                        <button class="btn btn-primary btn-sm" style="min-height:30px; height:30px; font-size:11.5px; padding:4px 12px; border-radius:8px;" onclick="TonuCategoryManager.showEditModal(null, '${user.id}')">
                             <i class="fas fa-plus"></i> Nova Categoria
                         </button>
                     </div>
 
-                    <div style="flex:1; overflow-y:auto; padding:16px 24px; max-height:420px; display:flex; flex-direction:column; gap:8px;">
+                    <div style="flex:1; overflow-y:auto; padding:12px 18px; max-height:380px; display:flex; flex-direction:column; gap:6px;">
                         ${cats.map(c => {
                             const catLimit = window.TonuBudget ? window.TonuBudget.getLimitForCategory(user.id, c.id, c.name) : 0;
                             return `
-                            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px;">
-                                <div style="display:flex; align-items:center; gap:12px;">
-                                    <div style="width:36px; height:36px; border-radius:10px; background:${c.color || '#6c5ce7'}; color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:15px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px;">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div style="width:30px; height:30px; border-radius:8px; background:${c.color || '#6c5ce7'}; color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:13px;">
                                         <i class="fas ${c.icon || 'fa-tag'}"></i>
                                     </div>
                                     <div>
                                         <div style="display:flex; align-items:center; gap:6px;">
-                                            <strong style="font-size:13px; color:#0f172a;">${c.name}</strong>
+                                            <strong style="font-size:12px; color:#0f172a;">${c.name}</strong>
                                         </div>
-                                        <div style="font-size:11px; color:#64748b;">
+                                        <div style="font-size:10px; color:#64748b;">
                                             ${c.type === 'income' ? '🟢 Receita' : '🔴 Despesa'}
                                         </div>
                                     </div>
                                 </div>
-                                <div style="display:flex; gap:6px;">
-                                    <button class="btn btn-ghost btn-icon-sm" onclick="TonuCategoryManager.showEditModal('${c.id}', '${user.id}', '${c.name.replace(/'/g, "\\'")}', '${c.type}', '${c.icon}', '${c.color}')" title="Editar">
+                                <div style="display:flex; gap:4px;">
+                                    <button class="btn btn-ghost btn-icon-sm" style="width:28px; height:28px; font-size:11px;" onclick="TonuCategoryManager.showEditModal('${c.id}', '${user.id}', '${c.name.replace(/'/g, "\\'")}', '${c.type}', '${c.icon}', '${c.color}')" title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="btn btn-danger btn-icon-sm" onclick="TonuCategoryManager.deleteCategory('${c.id}', '${user.id}')" title="Excluir">
+                                    <button class="btn btn-danger btn-icon-sm" style="width:28px; height:28px; font-size:11px;" onclick="TonuCategoryManager.deleteCategory('${c.id}', '${user.id}')" title="Excluir">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -1121,8 +1121,8 @@
                         }).join('')}
                     </div>
 
-                    <div style="padding:14px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; align-items:center; background:#f8fafc;">
-                        <button class="btn btn-outline btn-sm" onclick="document.getElementById('tonuCategoriesModal').remove()">Fechar</button>
+                    <div style="padding:10px 18px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; align-items:center; background:#f8fafc;">
+                        <button class="btn btn-secondary" style="min-height:34px; height:34px; font-size:12.5px; padding:6px 14px; border-radius:8px;" onclick="document.getElementById('tonuCategoriesModal').remove()">Fechar</button>
                     </div>
                 </div>
             </div>
@@ -1141,41 +1141,41 @@
             const currentLimit = window.TonuBudget ? window.TonuBudget.getLimitForCategory(userId, id, name) : 0;
 
             const modalHtml = `
-            <div id="categoryEditSubModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.85); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px); font-family:'Inter',sans-serif;">
-                <div style="background:#ffffff; border-radius:20px; max-width:440px; width:100%; padding:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); border:1px solid #e2e8f0;">
-                    <h3 style="font-size:17px; font-weight:800; color:#0f172a; margin:0 0 16px 0;">
+            <div id="categoryEditSubModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.7); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:12px; backdrop-filter:blur(8px); font-family:'Inter',sans-serif;">
+                <div style="background:#ffffff; border-radius:16px; max-width:420px; width:100%; padding:16px 18px; box-shadow:0 20px 45px -10px rgba(0,0,0,0.3); border:1px solid #e2e8f0;">
+                    <h3 style="font-size:15px; font-weight:700; color:#0f172a; margin:0 0 12px 0;">
                         ${isEdit ? 'Editar Categoria' : 'Nova Categoria'}
                     </h3>
 
-                    <div style="display:flex; flex-direction:column; gap:14px;">
+                    <div style="display:flex; flex-direction:column; gap:9px;">
                         <div>
-                            <label style="font-size:12px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Nome da Categoria</label>
-                            <input type="text" id="catEditName" value="${name}" placeholder="Ex: Delivery, Mercado, Lazer..." style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; font-size:14px;">
+                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:3px;">Nome da Categoria</label>
+                            <input type="text" id="catEditName" value="${name}" placeholder="Ex: Delivery, Mercado, Lazer..." style="width:100%; padding:6px 10px; border-radius:8px; border:1.5px solid #cbd5e1; font-size:12.5px; height:34px; box-sizing:border-box;">
                         </div>
 
                         <div>
-                            <label style="font-size:12px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Tipo</label>
-                            <select id="catEditType" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; font-size:14px;">
+                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:3px;">Tipo</label>
+                            <select id="catEditType" style="width:100%; padding:6px 10px; border-radius:8px; border:1.5px solid #cbd5e1; font-size:12.5px; height:34px; box-sizing:border-box;">
                                 <option value="expense" ${type === 'expense' ? 'selected' : ''}>🔴 Despesa</option>
                                 <option value="income" ${type === 'income' ? 'selected' : ''}>🟢 Receita</option>
                             </select>
                         </div>
 
                         <div>
-                            <label style="font-size:12px; font-weight:600; color:#64748b; display:block; margin-bottom:6px;">Escolha a Cor</label>
-                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Escolha a Cor</label>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                 ${instance.colorList.map(c => `
-                                    <span onclick="document.querySelectorAll('.cat-color-choice').forEach(e=>e.style.outline='none'); this.style.outline='3px solid #0f172a'; document.getElementById('catEditSelectedColor').value='${c}';" class="cat-color-choice" style="width:28px; height:28px; border-radius:50%; background:${c}; cursor:pointer; display:inline-block; ${c === color ? 'outline:3px solid #0f172a;' : ''}"></span>
+                                    <span onclick="document.querySelectorAll('.cat-color-choice').forEach(e=>e.style.outline='none'); this.style.outline='2.5px solid #0f172a'; document.getElementById('catEditSelectedColor').value='${c}';" class="cat-color-choice" style="width:24px; height:24px; border-radius:50%; background:${c}; cursor:pointer; display:inline-block; ${c === color ? 'outline:2.5px solid #0f172a;' : ''}"></span>
                                 `).join('')}
                             </div>
                             <input type="hidden" id="catEditSelectedColor" value="${color}">
                         </div>
 
                         <div>
-                            <label style="font-size:12px; font-weight:600; color:#64748b; display:block; margin-bottom:6px;">Escolha o Ícone</label>
-                            <div style="display:flex; gap:8px; flex-wrap:wrap; max-height:100px; overflow-y:auto; padding:4px;">
+                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Escolha o Ícone</label>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; max-height:85px; overflow-y:auto; padding:2px;">
                                 ${instance.iconList.map(ic => `
-                                    <button type="button" onclick="document.querySelectorAll('.cat-icon-choice').forEach(e=>e.style.borderColor='#cbd5e1'); this.style.borderColor='#6c5ce7'; this.style.background='#f0edff'; document.getElementById('catEditSelectedIcon').value='${ic}';" class="cat-icon-choice" style="width:34px; height:34px; border-radius:8px; border:1px solid ${ic === icon ? '#6c5ce7' : '#cbd5e1'}; background:${ic === icon ? '#f0edff' : '#ffffff'}; color:#0f172a; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px;">
+                                    <button type="button" onclick="document.querySelectorAll('.cat-icon-choice').forEach(e=>e.style.borderColor='#cbd5e1'); this.style.borderColor='#6c5ce7'; this.style.background='#f0edff'; document.getElementById('catEditSelectedIcon').value='${ic}';" class="cat-icon-choice" style="width:30px; height:30px; border-radius:6px; border:1px solid ${ic === icon ? '#6c5ce7' : '#cbd5e1'}; background:${ic === icon ? '#f0edff' : '#ffffff'}; color:#0f172a; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px;">
                                         <i class="fas ${ic}"></i>
                                     </button>
                                 `).join('')}
@@ -1184,9 +1184,9 @@
                         </div>
                     </div>
 
-                    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-                        <button class="btn btn-outline btn-sm" onclick="document.getElementById('categoryEditSubModal').remove()">Cancelar</button>
-                        <button class="btn btn-primary btn-sm" onclick="TonuCategoryManager.saveCategory('${id || ''}', '${userId}')">
+                    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid #e2e8f0;">
+                        <button class="btn btn-secondary" style="min-height:34px; height:34px; font-size:12.5px; padding:6px 14px; border-radius:8px;" onclick="document.getElementById('categoryEditSubModal').remove()">Cancelar</button>
+                        <button class="btn btn-primary" style="min-height:34px; height:34px; font-size:12.5px; padding:6px 14px; border-radius:8px;" onclick="TonuCategoryManager.saveCategory('${id || ''}', '${userId}')">
                             <i class="fas fa-save"></i> Salvar
                         </button>
                     </div>
