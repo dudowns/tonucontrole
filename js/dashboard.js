@@ -1316,7 +1316,7 @@ async function loadRecentTransactions() {
 }
 
 // ============================================
-// 💡 INSIGHTS FINANCEIROS INTELIGENTES DO DASHBOARD
+// 💡 DIAGNÓSTICO FINANCEIRO 360º DO DASHBOARD (MÊS A MÊS - TODAS AS ABAS)
 // ============================================
 async function generateDashboardInsights() {
     const container = document.getElementById('dashboardInsightsBody');
@@ -1328,53 +1328,32 @@ async function generateDashboardInsights() {
         d.setMonth(d.getMonth() + currentMonthOffset);
         const year = d.getFullYear();
         const month = d.getMonth();
+        const mStr = String(month + 1).padStart(2, '0');
+        const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
         const firstDay = formatDateKey(year, month, 1);
-        const lastDayStr = formatDateKey(year, month, getLastDayOfMonth(year, month));
+        const lastDayNum = getLastDayOfMonth(year, month);
+        const lastDayStr = formatDateKey(year, month, lastDayNum);
+        const todayStr = (typeof getToday === 'function') ? getToday() : new Date().toISOString().split('T')[0];
 
-        let txs = [];
-        if (supabaseClient && currentUser) {
-            try {
-                const { data } = await supabaseClient
-                    .from('transactions')
-                    .select('*, categories(name, icon, color)')
-                    .eq('user_id', currentUser.id)
-                    .eq('paid', true)
-                    .gte('date', firstDay)
-                    .lte('date', lastDayStr);
-                if (data) txs = data;
-            } catch (e) {
-                console.warn('Erro ao buscar transações para insights:', e);
-            }
+        // Atualizar badge do mês no cabeçalho
+        const badgeEl = document.getElementById('insightsMonthBadge');
+        if (badgeEl) {
+            badgeEl.textContent = capitalizedMonth;
         }
 
-        if (txs.length === 0 && currentUser) {
-            try {
-                const localData = localStorage.getItem('tonu_transactions_' + currentUser.id);
-                if (localData) {
-                    const parsed = JSON.parse(localData);
-                    txs = parsed.filter(t => t.paid && t.date >= firstDay && t.date <= lastDayStr);
-                }
-            } catch {}
-        }
+        // 1. CARREGAR TRANSAÇÕES DO MÊS (Receitas, Despesas e Contas)
+        const allMonthTxs = (await getUnifiedTransactions(firstDay, lastDayStr)) || [];
 
-        let totalIncome = 0;
-        let totalExpense = 0;
-        const categoryMap = {};
+        const paidIncomeTxs = allMonthTxs.filter(t => t && t.type === 'income' && isTxPaid(t));
+        const totalIncome = paidIncomeTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
 
-        txs.forEach(t => {
-            const amt = Number(t.amount || 0);
-            if (t.type === 'income') {
-                totalIncome += amt;
-            } else if (t.type === 'expense') {
-                totalExpense += amt;
-                const catName = t.categories?.name || 'Outros';
-                categoryMap[catName] = (categoryMap[catName] || 0) + amt;
-            }
-        });
+        const paidExpenseTxs = allMonthTxs.filter(t => t && t.type === 'expense' && isTxPaid(t));
+        const totalExpense = paidExpenseTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
 
         const netBalance = totalIncome - totalExpense;
 
-        // Análise 1: Taxa de Poupança / Margem
+        // Análise: Taxa de Poupança
         let savingsRate = 0;
         let savingsLabel = 'Sem receitas registradas';
         let savingsClass = 'info';
@@ -1401,7 +1380,14 @@ async function generateDashboardInsights() {
             savingsBadge = 'Atenção';
         }
 
-        // Análise 2: Maior Categoria de Despesa
+        // Análise: Maior Centro de Custo
+        const categoryMap = {};
+        paidExpenseTxs.forEach(t => {
+            const amt = Math.abs(Number(t.amount || 0));
+            const catName = t.categories?.name || 'Outros';
+            categoryMap[catName] = (categoryMap[catName] || 0) + amt;
+        });
+
         let topCategory = 'Nenhuma';
         let topCatAmount = 0;
         let topCatPct = 0;
@@ -1415,18 +1401,164 @@ async function generateDashboardInsights() {
             topCatPct = Math.round((topCatAmount / totalExpense) * 100);
         }
 
-        // Análise 3: Ritmo de Gasto Diário
-        const isCurrentMonth = currentMonthOffset === 0;
-        const todayDay = isCurrentMonth ? Math.min(new Date().getDate(), getLastDayOfMonth(year, month)) : getLastDayOfMonth(year, month);
-        const dailyBurnRate = todayDay > 0 ? (totalExpense / todayDay) : 0;
-        const daysInMonth = getLastDayOfMonth(year, month);
-        const projectedExpense = dailyBurnRate * daysInMonth;
+        // 2. CARREGAR CONTAS A PAGAR DO MÊS (Bills)
+        let monthBills = allMonthTxs.filter(t => t && t.is_bill && t.type === 'expense');
+        if (monthBills.length === 0 && currentUser) {
+            try {
+                const cacheKey = `tonu_bills_cache_${currentUser.id}_${year}_${mStr}`;
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (Array.isArray(parsed)) monthBills = parsed;
+                }
+            } catch {}
+        }
 
-        // Análise 4: Limites por Categoria (TonuBudget)
+        const totalBillsCount = monthBills.length;
+        const paidBills = monthBills.filter(b => isTxPaid(b));
+        const pendingBills = monthBills.filter(b => !isTxPaid(b));
+        const totalBillsAmount = monthBills.reduce((s, b) => s + Math.abs(Number(b.amount || 0)), 0);
+        const pendingBillsAmount = pendingBills.reduce((s, b) => s + Math.abs(Number(b.amount || 0)), 0);
+        const overdueBills = pendingBills.filter(b => {
+            const bDate = normalizeDateOnly(b.date);
+            return bDate && bDate < todayStr;
+        });
+
+        // 3. CARREGAR INVESTIMENTOS E PROVENTOS DO MÊS
+        let monthInvestments = [];
+        if (supabaseClient && currentUser) {
+            try {
+                const { data } = await supabaseClient
+                    .from('investments')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .gte('date', firstDay)
+                    .lte('date', lastDayStr);
+                if (data && Array.isArray(data)) monthInvestments = data;
+            } catch (e) {
+                console.warn('Erro ao consultar investimentos do mês:', e);
+            }
+        }
+        if (monthInvestments.length === 0 && currentUser) {
+            try {
+                const localInv = localStorage.getItem('tonu_investments_' + currentUser.id) || localStorage.getItem('tonu_investments');
+                if (localInv) {
+                    const parsed = JSON.parse(localInv);
+                    if (Array.isArray(parsed)) {
+                        monthInvestments = parsed.filter(i => {
+                            const iDate = normalizeDateOnly(i.date);
+                            return iDate >= firstDay && iDate <= lastDayStr;
+                        });
+                    }
+                }
+            } catch {}
+        }
+
+        const buyInvs = monthInvestments.filter(i => {
+            const t = String(i.type || '').toUpperCase();
+            return t === 'BUY' || t === 'COMPRA';
+        });
+        const totalAportes = buyInvs.reduce((s, i) => {
+            const val = Number(i.total_value) || (Number(i.price || 0) * Number(i.quantity || 0));
+            return s + (val > 0 ? val : 0);
+        }, 0);
+
+        let monthDividends = [];
+        if (supabaseClient && currentUser) {
+            try {
+                const { data } = await supabaseClient
+                    .from('dividends')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .gte('date', firstDay)
+                    .lte('date', lastDayStr);
+                if (data && Array.isArray(data)) monthDividends = data;
+            } catch (e) {
+                console.warn('Erro ao consultar proventos do mês:', e);
+            }
+        }
+        if (monthDividends.length === 0) {
+            try {
+                const divKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
+                const cachedDivs = localStorage.getItem(divKey) || localStorage.getItem('tonucontrole_dividends');
+                if (cachedDivs) {
+                    const parsed = JSON.parse(cachedDivs);
+                    if (Array.isArray(parsed)) {
+                        monthDividends = parsed.filter(d => {
+                            const dDate = normalizeDateOnly(d.payment_date || d.date);
+                            return dDate >= firstDay && dDate <= lastDayStr && !d.is_demo && !String(d.id || '').startsWith('demo-');
+                        });
+                    }
+                }
+            } catch {}
+        }
+
+        const totalDividends = monthDividends.reduce((s, d) => {
+            const val = Number(d.total_value) || (Number(d.unit_value || 0) * Number(d.quantity || 0));
+            return s + (val > 0 ? val : 0);
+        }, 0);
+
+        let passiveCoveragePct = 0;
+        if (totalBillsAmount > 0) {
+            passiveCoveragePct = Math.round((totalDividends / totalBillsAmount) * 100);
+        } else if (totalExpense > 0) {
+            passiveCoveragePct = Math.round((totalDividends / totalExpense) * 100);
+        }
+
+        // 4. CARREGAR METAS FINANCEIRAS (Goals)
+        let allGoals = [];
+        if (supabaseClient && currentUser) {
+            try {
+                const { data } = await supabaseClient
+                    .from('goals')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+                if (data && Array.isArray(data)) allGoals = data;
+            } catch (e) {
+                console.warn('Erro ao buscar metas:', e);
+            }
+        }
+        if (allGoals.length === 0 && currentUser) {
+            try {
+                const localGoals = localStorage.getItem('tonu_goals_' + currentUser.id) || localStorage.getItem('tonu_goals_cache');
+                if (localGoals) {
+                    const parsed = JSON.parse(localGoals);
+                    if (Array.isArray(parsed)) allGoals = parsed;
+                }
+            } catch {}
+        }
+
+        const activeGoals = allGoals.filter(g => !g.completed && (Number(g.current_amount) || 0) < (Number(g.target_amount) || 0));
+
+        let nearestGoal = null;
+        let highestProgress = -1;
+        activeGoals.forEach(g => {
+            const cur = Number(g.current_amount || 0);
+            const tgt = Number(g.target_amount || 0);
+            if (tgt > 0) {
+                const pct = (cur / tgt) * 100;
+                if (pct > highestProgress) {
+                    highestProgress = pct;
+                    nearestGoal = {
+                        title: g.title,
+                        current: cur,
+                        target: tgt,
+                        pct: Math.min(99, Math.round(pct)),
+                        remaining: Math.max(0, tgt - cur)
+                    };
+                }
+            }
+        });
+
+        // 5. CAPACIDADE LIVRE REAL PARA APORTE / RESERVA
+        const safeFreeCash = totalIncome - (totalExpense + pendingBillsAmount);
+
+        // 6. LIMITES ORÇAMENTÁRIOS (TonuBudget)
         let budgetAlert = null;
         if (window.TonuBudget && currentUser) {
             try {
-                const budgetProgress = window.TonuBudget.calculateCategoryProgress(currentUser.id, txs, categories || []);
+                const budgetProgress = window.TonuBudget.calculateCategoryProgress(currentUser.id, allMonthTxs, categories || []);
                 const exceeded = budgetProgress.filter(b => b.isExceeded);
                 const warned = budgetProgress.filter(b => b.isWarning && !b.isExceeded);
 
@@ -1448,48 +1580,179 @@ async function generateDashboardInsights() {
             }
         }
 
-        // Dica dinâmica inteligente
-        let smartTip = '';
-        if (totalIncome === 0 && totalExpense === 0) {
-            smartTip = '<strong>Comece registrando suas receitas e despesas!</strong><p>Cadastre suas contas do mês para desbloquear diagnósticos automatizados de saúde financeira.</p>';
-        } else if (netBalance < 0) {
-            smartTip = `<strong>Atenção ao fluxo negativo:</strong><p>Suas despesas superaram suas receitas em <strong>${formatCurrency(Math.abs(netBalance))}</strong> este mês. Revise gastos com <em>${topCategory}</em> (${topCatPct}% das saídas) para reequilibrar o mês.</p>`;
-        } else if (topCatPct >= 40) {
-            smartTip = `<strong>Concentração de despesa em ${topCategory}:</strong><p>Essa categoria consome <strong>${topCatPct}%</strong> de todos os seus gastos. Pequenas economias aqui terão o maior impacto no seu saldo final.</p>`;
-        } else if (savingsRate >= 20) {
-            smartTip = `<strong>Ótimo ritmo de poupança!</strong><p>Você guardou <strong>${savingsRate}%</strong> da sua renda este mês. Que tal destinar uma parte desse superávit para sua reserva de emergência ou metas?</p>`;
+        // 7. CÁLCULO DE AÇÕES ESTRATÉGICAS (Como diminuir gastos & investir mais)
+        const saving15 = topCatAmount > 0 ? Math.round(topCatAmount * 0.15) : 0;
+        const annualSaving = saving15 * 12;
+
+        let savingTipHTML = '';
+        if (topCatAmount > 0) {
+            const destination = nearestGoal ? `acelerar a meta de <strong>${stripHTML(nearestGoal.title)}</strong>` : 'aumentar seus aportes em investimentos';
+            savingTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-scissors" style="color:#ef4444;"></i>
+                    <div>
+                        <strong>Redução em ${stripHTML(topCategory)}:</strong>
+                        Economizar 15% nessa categoria libera <strong>${formatCurrency(saving15)}/mês</strong> (${formatCurrency(annualSaving)} ao ano) para ${destination}.
+                    </div>
+                </div>
+            `;
         } else {
-            smartTip = `<strong>Ritmo estável no mês:</strong><p>Sua média diária de saídas é de <strong>${formatCurrency(dailyBurnRate)}/dia</strong>. Mantendo esse controle, sua projeção de fechamento é de ${formatCurrency(projectedExpense)}.</p>`;
+            savingTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-receipt" style="color:#6c5ce7;"></i>
+                    <div>
+                        <strong>Controle de despesas:</strong>
+                        Cadastre suas despesas diárias para identificar os centros de custo com maior potencial de economia.
+                    </div>
+                </div>
+            `;
         }
 
-        // Renderizar HTML
-        container.innerHTML = `
-            <!-- Bloco 1: Taxa de Poupança -->
-            <div class="insight-metric-block">
-                <div class="insight-metric-left">
-                    <div class="insight-metric-icon ${savingsClass}">
-                        <i class="fas ${savingsClass === 'success' ? 'fa-piggy-bank' : (savingsClass === 'danger' ? 'fa-triangle-exclamation' : 'fa-chart-pie')}"></i>
-                    </div>
-                    <div class="insight-metric-text">
-                        <span class="label">Taxa de Poupança</span>
-                        <span class="val">${savingsLabel}</span>
+        let capacityTipHTML = '';
+        if (safeFreeCash > 0) {
+            capacityTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-shield-alt" style="color:#10b981;"></i>
+                    <div>
+                        <strong>Capacidade livre para aporte:</strong>
+                        Após pagar e provisionar as contas (${formatCurrency(pendingBillsAmount)} pendentes), você tem <strong>${formatCurrency(safeFreeCash)} livres</strong> para investir com segurança.
                     </div>
                 </div>
-                <span class="insight-metric-badge badge badge-${savingsClass}">${savingsBadge}</span>
-            </div>
+            `;
+        } else if (pendingBillsAmount > 0) {
+            capacityTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-exclamation-circle" style="color:#f59e0b;"></i>
+                    <div>
+                        <strong>Atenção à liquidez:</strong>
+                        Suas contas a pagar somam <strong>${formatCurrency(pendingBillsAmount)}</strong> pendentes. Priorize quitar os vencimentos antes de realizar novas compras ou aportes.
+                    </div>
+                </div>
+            `;
+        } else {
+            capacityTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-wallet" style="color:#6c5ce7;"></i>
+                    <div>
+                        <strong>Fluxo equilibrado:</strong>
+                        Sem contas pendentes para o período. Mantenha os custos sob controle para preservar seu superávit.
+                    </div>
+                </div>
+            `;
+        }
 
-            <!-- Bloco 2: Maior Despesa do Mês -->
-            <div class="insight-metric-block">
-                <div class="insight-metric-left">
-                    <div class="insight-metric-icon ${topCatPct >= 40 ? 'warning' : 'info'}">
-                        <i class="fas fa-fire-flame-curved"></i>
-                    </div>
-                    <div class="insight-metric-text">
-                        <span class="label">Maior Centro de Custo</span>
-                        <span class="val">${topCategory} (${formatCurrency(topCatAmount)})</span>
+        let passiveTipHTML = '';
+        if (totalDividends > 0 && totalBillsAmount > 0) {
+            passiveTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-coins" style="color:#8b5cf6;"></i>
+                    <div>
+                        <strong>Liberdade Financeira:</strong>
+                        Seus proventos do mês cobrem <strong>${passiveCoveragePct}%</strong> das suas contas fixas. Reinvestir seus proventos acelerará a independência financeira.
                     </div>
                 </div>
-                <span class="insight-metric-badge badge badge-muted">${topCatPct}% das saídas</span>
+            `;
+        } else if (totalDividends > 0) {
+            passiveTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-coins" style="color:#8b5cf6;"></i>
+                    <div>
+                        <strong>Renda Passiva ativa:</strong>
+                        Você recebeu <strong>${formatCurrency(totalDividends)}</strong> em proventos neste mês. Cada novo aporte amplia os rendimentos futuros.
+                    </div>
+                </div>
+            `;
+        } else {
+            passiveTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-chart-line" style="color:#00b894;"></i>
+                    <div>
+                        <strong>Construção de Renda Passiva:</strong>
+                        Adicione ativos geradores de renda (FIIs ou Ações pagadoras) na aba de Investimentos para começar a receber dividendos que ajudam a pagar suas contas.
+                    </div>
+                </div>
+            `;
+        }
+
+        // RENDERIZAÇÃO COMPLETA DO DIAGNÓSTICO
+        container.innerHTML = `
+            <!-- PILARES DO APLICATIVO -->
+            <div class="insight-pillars-list">
+                <!-- Pilar 1: Renda Poupada & Taxa de Poupança -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon ${savingsClass}">
+                            <i class="fas ${savingsClass === 'success' ? 'fa-piggy-bank' : (savingsClass === 'danger' ? 'fa-triangle-exclamation' : 'fa-chart-pie')}"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Renda Poupada (${capitalizedMonth})</span>
+                            <span class="val">${formatCurrency(netBalance)}</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge badge-${savingsClass}">${savingsLabel}</span>
+                </div>
+
+                <!-- Pilar 2: Maior Centro de Custo -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon ${topCatPct >= 40 ? 'warning' : 'info'}">
+                            <i class="fas fa-fire-flame-curved"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Maior Centro de Custo</span>
+                            <span class="val">${stripHTML(topCategory)} (${formatCurrency(topCatAmount)})</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge badge-muted">${topCatPct}% das saídas</span>
+                </div>
+
+                <!-- Pilar 3: Contas a Pagar do Mês -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon ${overdueBills.length > 0 ? 'danger' : (pendingBills.length === 0 && totalBillsCount > 0 ? 'success' : 'warning')}">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Contas a Pagar</span>
+                            <span class="val">${paidBills.length} de ${totalBillsCount} pagas (${formatCurrency(pendingBillsAmount)} pendentes)</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge ${overdueBills.length > 0 ? 'badge-danger' : (pendingBills.length === 0 && totalBillsCount > 0 ? 'badge-success' : 'badge-warning')}">
+                        ${overdueBills.length > 0 ? overdueBills.length + ' em atraso' : (pendingBills.length === 0 && totalBillsCount > 0 ? 'Todas pagas' : pendingBills.length + ' a vencer')}
+                    </span>
+                </div>
+
+                <!-- Pilar 4: Investimentos & Proventos -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon purple">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Investimentos & Renda Passiva</span>
+                            <span class="val">${formatCurrency(totalDividends)} proventos • ${formatCurrency(totalAportes)} aportes</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge badge-primary" style="font-size:10px;">
+                        ${passiveCoveragePct > 0 ? passiveCoveragePct + '% das contas' : (totalAportes > 0 ? 'Aporte ativo' : 'Sem proventos')}
+                    </span>
+                </div>
+
+                <!-- Pilar 5: Metas Financeiras -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon teal">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Metas Financeiras</span>
+                            <span class="val">${activeGoals.length} ativa(s) • ${nearestGoal ? stripHTML(nearestGoal.title) : 'Sem metas ativas'}</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge badge-muted">
+                        ${nearestGoal ? nearestGoal.pct + '% concluído' : (activeGoals.length > 0 ? 'Em andamento' : 'Definir')}
+                    </span>
+                </div>
             </div>
 
             ${budgetAlert ? `
@@ -1497,7 +1760,7 @@ async function generateDashboardInsights() {
                 <div class="insight-metric-block" style="border-left: 3px solid ${budgetAlert.type === 'danger' ? '#EF4444' : '#F59E0B'};">
                     <div class="insight-metric-left">
                         <div class="insight-metric-icon ${budgetAlert.type}">
-                            <i class="fas fa-bullseye"></i>
+                            <i class="fas fa-triangle-exclamation"></i>
                         </div>
                         <div class="insight-metric-text">
                             <span class="label">Alerta de Tetos de Gastos</span>
@@ -1510,22 +1773,27 @@ async function generateDashboardInsights() {
                 </div>
             ` : ''}
 
-            <!-- Bloco 3: Dica Dinâmica Inteligente -->
-            <div class="insight-tip-box">
-                <div class="insight-tip-icon">
-                    <i class="fas fa-lightbulb"></i>
+            <!-- BLOCO ESTRATÉGICO: COMO DIMINUIR GASTOS & INVESTIR MAIS -->
+            <div class="insight-strategy-box">
+                <div class="insight-strategy-header">
+                    <i class="fas fa-bolt"></i>
+                    <span>Diagnóstico: Como Economizar e Investir Mais</span>
                 </div>
-                <div class="insight-tip-content">
-                    ${smartTip}
+                <div class="insight-strategy-items">
+                    ${savingTipHTML}
+                    ${capacityTipHTML}
+                    ${passiveTipHTML}
                 </div>
             </div>
 
-            <!-- Rodapé com Link Rápido -->
-            <div class="insight-footer-action">
-                <a href="settings.html" onclick="localStorage.setItem('tonu_settings_active_tab', 'budgets');" class="insight-footer-link">
-                    <span>Configurar limites e tetos</span>
-                    <i class="fas fa-arrow-right" style="font-size: 10px;"></i>
-                </a>
+            <!-- NAVEGAÇÃO RÁPIDA ENTRE ABAS -->
+            <div class="insight-quick-nav">
+                <span style="font-size:10.5px; color:var(--color-text-muted); font-weight:600; margin-right:2px;">Acesso:</span>
+                <a href="transactions.html"><i class="fas fa-exchange-alt"></i> Transações</a>
+                <a href="bills.html"><i class="fas fa-file-invoice"></i> Contas</a>
+                <a href="investments.html"><i class="fas fa-chart-line"></i> Investimentos</a>
+                <a href="goals.html"><i class="fas fa-bullseye"></i> Metas</a>
+                <a href="settings.html" onclick="localStorage.setItem('tonu_settings_active_tab', 'budgets');"><i class="fas fa-sliders-h"></i> Tetos</a>
             </div>
         `;
 
@@ -2856,6 +3124,7 @@ window.loadCategoryChart = loadCategoryChart;
 window.loadMonthlyChart = loadMonthlyChart;
 window.loadDashboard = loadDashboard;
 window.loadInsights = loadInsights;
+window.generateDashboardInsights = generateDashboardInsights;
 window.loadRecentTransactions = loadRecentTransactions;
 window.loadCategories = loadCategories;
 window.checkOverdueBills = checkOverdueBills;

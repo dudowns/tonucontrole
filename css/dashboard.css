@@ -1040,6 +1040,11 @@
     border-radius: 10px;
     padding: 10px 14px;
     gap: 10px;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.insight-metric-block:hover {
+    border-color: var(--color-border, #e2e8f0);
 }
 
 .insight-metric-left {
@@ -1050,8 +1055,8 @@
 }
 
 .insight-metric-icon {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -1078,6 +1083,16 @@
 .insight-metric-icon.info {
     background: #ede9fe;
     color: #6c5ce7;
+}
+
+.insight-metric-icon.teal {
+    background: #e6fffa;
+    color: #00b894;
+}
+
+.insight-metric-icon.purple {
+    background: #f3e8ff;
+    color: #8b5cf6;
 }
 
 .insight-metric-text {
@@ -1110,61 +1125,146 @@
     white-space: nowrap;
 }
 
-.insight-tip-box {
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.05), rgba(162, 155, 254, 0.05));
-    border: 1px solid rgba(108, 92, 231, 0.18);
-    border-radius: 10px;
-    padding: 12px 14px;
+/* Pilares do Diagnóstico 360 */
+.insight-pillars-list {
     display: flex;
-    gap: 10px;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.insight-tip-icon {
-    color: #6c5ce7;
-    font-size: 16px;
+.insight-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 4px;
+    margin-top: 2px;
+    border-top: 1px dashed var(--color-border-light, #e2e8f0);
+}
+
+.insight-section-heading span {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-muted, #94a3b8);
+}
+
+/* Caixa de Ações Estratégicas (Como diminuir gastos & investir mais) */
+.insight-strategy-box {
+    background: var(--color-bg, #f8fafc);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.insight-strategy-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-primary, #6c5ce7);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.insight-strategy-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.insight-strategy-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--color-text, #334155);
+}
+
+.insight-strategy-item i {
     margin-top: 2px;
     flex-shrink: 0;
-}
-
-.insight-tip-content {
-    font-size: 12px;
-    line-height: 1.45;
-    color: var(--color-text, #1e293b);
-}
-
-.insight-tip-content strong {
-    color: #6c5ce7;
-}
-
-.insight-tip-content p {
-    margin: 4px 0 0 0;
-    color: var(--color-text-muted, #64748b);
     font-size: 11px;
 }
 
-.insight-footer-action {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: auto;
-    padding-top: 4px;
-}
-
-.insight-footer-link {
-    font-size: 11px;
+.insight-strategy-item strong {
+    color: var(--color-text, #0f172a);
     font-weight: 600;
-    color: var(--color-primary, #6c5ce7);
+}
+
+/* Barra de Acesso Rápido às Abas */
+.insight-quick-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+    border-top: 1px solid var(--color-border-light, #f1f5f9);
+}
+
+.insight-quick-nav a {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--color-text-muted, #64748b);
     text-decoration: none;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--color-bg, #f1f5f9);
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 8px;
-    border-radius: 6px;
-    transition: background 0.15s;
+    gap: 4px;
+    transition: all 0.15s;
 }
 
-.insight-footer-link:hover {
-    background: rgba(108, 92, 231, 0.08);
+.insight-quick-nav a:hover {
+    background: rgba(108, 92, 231, 0.12);
+    color: var(--color-primary, #6c5ce7);
+}
+
+/* Dark Theme Support */
+body.dark-theme .insights-card {
+    background: var(--color-surface, #1e293b);
+    border-color: var(--color-border, #334155);
+}
+
+body.dark-theme .insights-card .card-header {
+    background: var(--color-surface-hover, #0f172a);
+    border-color: var(--color-border, #334155);
+}
+
+body.dark-theme .insight-metric-block {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-theme .insight-metric-text .val {
+    color: var(--color-text, #f8fafc);
+}
+
+body.dark-theme .insight-strategy-box {
+    background: rgba(108, 92, 231, 0.06);
+    border-color: rgba(108, 92, 231, 0.3);
+}
+
+body.dark-theme .insight-strategy-item {
+    color: #cbd5e1;
+}
+
+body.dark-theme .insight-strategy-item strong {
+    color: #f1f5f9;
+}
+
+body.dark-theme .insight-quick-nav a {
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+}
+
+body.dark-theme .insight-quick-nav a:hover {
+    background: rgba(108, 92, 231, 0.25);
+    color: #a29bfe;
 }
 
 /* DROPDOWN DE FERRAMENTAS NA TOPBAR */
