@@ -738,10 +738,13 @@ async function saveOperation(e) {
 async function saveDividend(e) {
     if (e) e.preventDefault();
 
-    const btn = e.target.querySelector('button[type="submit"]');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Salvando...';
+    const form = document.getElementById('dividendForm') || (e?.target?.tagName === 'FORM' ? e.target : e?.target?.closest('form'));
+    const btn = (form ? form.querySelector('button[type="submit"]') : null) || e?.target?.querySelector?.('button[type="submit"]') || document.querySelector('#dividendForm button[type="submit"]');
+    const originalText = btn ? btn.innerHTML : '<i class="fas fa-check"></i> Salvar Provento';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Salvando...';
+    }
 
     try {
         const ticker = document.getElementById('divTicker')?.value.toUpperCase().trim() || '';
@@ -758,29 +761,37 @@ async function saveDividend(e) {
 
         if (!ticker) {
             showToast('❌ Digite o ticker do ativo', 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
             return;
         }
 
         if (!quantity || quantity <= 0) {
             showToast('❌ Digite uma quantidade válida', 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
             return;
         }
 
         if (!unitValue || unitValue <= 0) {
             showToast('❌ Digite um valor por unidade válido', 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
             return;
         }
 
         if (!date) {
             showToast('❌ Selecione a data do recebimento', 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
             return;
         }
 
@@ -789,7 +800,7 @@ async function saveDividend(e) {
             finalNote = `[DataCom: ${dateCom}] ` + finalNote;
         }
 
-        const editId = form.dataset.editId;
+        const editId = form ? form.dataset.editId : null;
         const newId = editId || ('div-' + Date.now());
         const data = {
             id: newId,
@@ -853,7 +864,7 @@ async function saveDividend(e) {
         } catch (e) {}
 
         showToast(editId ? `✅ Provento de ${ticker} atualizado!` : `✅ Provento de ${ticker} registrado com sucesso!`, 'success');
-        delete form.dataset.editId;
+        if (form) delete form.dataset.editId;
         closeDividendModal();
         await loadDividends();
         updateSummary();
@@ -862,8 +873,10 @@ async function saveDividend(e) {
         console.error('❌ Erro ao salvar provento:', error);
         showToast('❌ Erro ao salvar provento', 'error');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     }
 }
 

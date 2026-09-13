@@ -10,6 +10,36 @@ console.log('🎯 Goals.js carregado');
 let currentUser = null;
 let allGoals = [];
 let isProcessing = false;
+let currentFilter = 'all';
+let currentSearch = '';
+
+// Mapeamento de categorias visuais para metas
+const GOAL_CATEGORY_MAP = {
+    emergency: { label: 'Reserva de Emergência', icon: 'fa-shield-alt', emoji: '🛡️', color: '#00B894' },
+    travel: { label: 'Viagem & Lazer', icon: 'fa-plane-departure', emoji: '✈️', color: '#0984E3' },
+    vehicle: { label: 'Veículo', icon: 'fa-car', emoji: '🚗', color: '#E17055' },
+    home: { label: 'Imóvel / Casa', icon: 'fa-home', emoji: '🏠', color: '#6C5CE7' },
+    education: { label: 'Educação', icon: 'fa-graduation-cap', emoji: '🎓', color: '#A29BFE' },
+    investment: { label: 'Investimentos', icon: 'fa-chart-line', emoji: '📈', color: '#10B981' },
+    purchase: { label: 'Compras', icon: 'fa-shopping-bag', emoji: '📱', color: '#FDCB6E' },
+    other: { label: 'Objetivo Geral', icon: 'fa-bullseye', emoji: '🎯', color: '#6C5CE7' }
+};
+
+// Tenta inferir categoria com base no título se não estiver explícito
+function resolveGoalCategory(goal) {
+    if (goal.category && GOAL_CATEGORY_MAP[goal.category]) {
+        return { key: goal.category, ...GOAL_CATEGORY_MAP[goal.category] };
+    }
+    const t = (goal.title || '').toLowerCase();
+    if (t.includes('reserva') || t.includes('emergência') || t.includes('segurança')) return { key: 'emergency', ...GOAL_CATEGORY_MAP.emergency };
+    if (t.includes('viagem') || t.includes('férias') || t.includes('praia') || t.includes('euro') || t.includes('dólar') || t.includes('passagem')) return { key: 'travel', ...GOAL_CATEGORY_MAP.travel };
+    if (t.includes('carro') || t.includes('moto') || t.includes('veículo') || t.includes('cnh') || t.includes('auto')) return { key: 'vehicle', ...GOAL_CATEGORY_MAP.vehicle };
+    if (t.includes('casa') || t.includes('apê') || t.includes('apartamento') || t.includes('imóvel') || t.includes('reforma') || t.includes('obra')) return { key: 'home', ...GOAL_CATEGORY_MAP.home };
+    if (t.includes('curso') || t.includes('faculdade') || t.includes('pós') || t.includes('estudo') || t.includes('livro') || t.includes('mba')) return { key: 'education', ...GOAL_CATEGORY_MAP.education };
+    if (t.includes('invest') || t.includes('ação') || t.includes('fii') || t.includes('aposentadoria') || t.includes('renda passiva') || t.includes('patrimônio')) return { key: 'investment', ...GOAL_CATEGORY_MAP.investment };
+    if (t.includes('celular') || t.includes('iphone') || t.includes('macbook') || t.includes('notebook') || t.includes('compra') || t.includes('tv')) return { key: 'purchase', ...GOAL_CATEGORY_MAP.purchase };
+    return { key: 'other', ...GOAL_CATEGORY_MAP.other };
+}
 
 // ============================================
 // INICIALIZAÇÃO
@@ -54,7 +84,8 @@ async function loadGoals() {
             const cached = await window.tonuSync.getCachedGoals?.();
             if (cached && cached.length > 0) {
                 allGoals = cached;
-                renderGoals(allGoals);
+                updateGoalsStats(allGoals);
+                renderFilteredGoals();
                 return;
             }
         }
@@ -80,7 +111,8 @@ async function loadGoals() {
         }
 
         allGoals = data || [];
-        renderGoals(allGoals);
+        updateGoalsStats(allGoals);
+        renderFilteredGoals();
 
     } catch (error) {
         console.error('❌ Erro ao carregar metas:', error);
@@ -88,17 +120,141 @@ async function loadGoals() {
     }
 }
 
+// ============================================
+// ATUALIZAR ESTATÍSTICAS E CONTADORES DO TOPO
+// ============================================
+function updateGoalsStats(goals) {
+    const totalAccumulated = goals.reduce((acc, g) => acc + (Number(g.current_amount) || 0), 0);
+    const globalTarget = goals.reduce((acc, g) => acc + (Number(g.target_amount) || 0), 0);
+    const completedCount = goals.filter(g => g.completed || (g.target_amount > 0 && g.current_amount >= g.target_amount)).length;
+    const activeCount = goals.length - completedCount;
+    const almostCount = goals.filter(g => {
+        const pct = g.target_amount > 0 ? (g.current_amount / g.target_amount) * 100 : 0;
+        return pct >= 75 && !g.completed && pct < 100;
+    }).length;
+
+    const globalPct = globalTarget > 0 ? Math.min(100, Math.round((totalAccumulated / globalTarget) * 100)) : 0;
+    const remainingGlobal = Math.max(0, globalTarget - totalAccumulated);
+
+    // Elementos do DOM
+    const elAccumulated = document.getElementById('statsTotalAccumulated');
+    const elTarget = document.getElementById('statsGlobalTarget');
+    const elCompleted = document.getElementById('statsCompletedCount');
+    const elPct = document.getElementById('statsGlobalProgressPct');
+    const elBar = document.getElementById('statsGlobalProgressBar');
+    const elRem = document.getElementById('statsRemainingGlobal');
+
+    if (elAccumulated) elAccumulated.textContent = formatCurrency(totalAccumulated);
+    if (elTarget) elTarget.textContent = formatCurrency(globalTarget);
+    if (elCompleted) elCompleted.textContent = `${completedCount} de ${goals.length}`;
+    if (elPct) elPct.textContent = `${globalPct}%`;
+    if (elBar) elBar.style.width = `${globalPct}%`;
+    if (elRem) {
+        elRem.textContent = remainingGlobal > 0
+            ? `Faltam ${formatCurrency(remainingGlobal)} para alcançar todos os sonhos`
+            : `🏆 Parabéns! Todos os objetivos globais foram atingidos!`;
+    }
+
+    // Atualizar Badges das abas de filtro
+    const bAll = document.getElementById('badgeFilterAll');
+    const bActive = document.getElementById('badgeFilterActive');
+    const bAlmost = document.getElementById('badgeFilterAlmost');
+    const bCompleted = document.getElementById('badgeFilterCompleted');
+
+    if (bAll) bAll.textContent = goals.length;
+    if (bActive) bActive.textContent = activeCount;
+    if (bAlmost) bAlmost.textContent = almostCount;
+    if (bCompleted) bCompleted.textContent = completedCount;
+}
+
+// ============================================
+// CONTROLES DE FILTRO E PESQUISA
+// ============================================
+function setGoalsFilter(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.goal-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+    });
+    renderFilteredGoals();
+}
+
+function handleGoalsSearch(event) {
+    currentSearch = (event.target.value || '').trim().toLowerCase();
+    const clearBtn = document.getElementById('goalsSearchClearBtn');
+    if (clearBtn) {
+        clearBtn.classList.toggle('hidden', currentSearch.length === 0);
+    }
+    renderFilteredGoals();
+}
+
+function clearGoalsSearch() {
+    const input = document.getElementById('goalsSearchInput');
+    if (input) {
+        input.value = '';
+        currentSearch = '';
+    }
+    const clearBtn = document.getElementById('goalsSearchClearBtn');
+    if (clearBtn) clearBtn.classList.add('hidden');
+    renderFilteredGoals();
+}
+
+function renderFilteredGoals() {
+    let list = [...allGoals];
+
+    // Aplicar Filtro de Status
+    if (currentFilter === 'active') {
+        list = list.filter(g => !g.completed && (g.target_amount <= 0 || (g.current_amount < g.target_amount)));
+    } else if (currentFilter === 'almost') {
+        list = list.filter(g => {
+            const pct = g.target_amount > 0 ? (g.current_amount / g.target_amount) * 100 : 0;
+            return pct >= 75 && !g.completed && pct < 100;
+        });
+    } else if (currentFilter === 'completed') {
+        list = list.filter(g => g.completed || (g.target_amount > 0 && g.current_amount >= g.target_amount));
+    }
+
+    // Aplicar Filtro de Busca
+    if (currentSearch) {
+        list = list.filter(g => {
+            const titleMatch = (g.title || '').toLowerCase().includes(currentSearch);
+            const targetMatch = String(g.target_amount || '').includes(currentSearch);
+            const currentMatch = String(g.current_amount || '').includes(currentSearch);
+            return titleMatch || targetMatch || currentMatch;
+        });
+    }
+
+    renderGoals(list);
+}
+
+// ============================================
+// RENDERIZAÇÃO DOS CARDS REDESENHADOS
+// ============================================
 function renderGoals(goals) {
     const container = document.getElementById('goalsContainer');
     if (!container) return;
 
     if (goals.length === 0) {
+        if (allGoals.length > 0 && (currentFilter !== 'all' || currentSearch)) {
+            container.innerHTML = `
+                <div class="empty-state" style="grid-column:1/-1;padding:40px 16px;">
+                    <span class="empty-icon">🔍</span>
+                    <h3>Nenhuma meta encontrada</h3>
+                    <p>Nenhuma meta corresponde ao filtro ou termo pesquisado.</p>
+                    <button class="btn btn-secondary" onclick="clearGoalsSearch(); setGoalsFilter('all');" style="margin-top:10px; font-size:12.5px;">
+                        <i class="fas fa-undo"></i> Limpar filtros
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
         container.innerHTML = `
             <div class="empty-state" style="grid-column:1/-1;padding:40px 16px;">
                 <span class="empty-icon">🎯</span>
                 <h3>Nenhuma meta ainda</h3>
                 <p>Defina seus objetivos financeiros e acompanhe seu progresso!</p>
-                <button class="btn btn-primary" onclick="openModal()" style="margin-top:10px; font-size:13px;">
+                <button class="btn btn-primary" onclick="openModal()" style="margin-top:10px; font-size:13px;"
+                    aria-label="Criar primeira meta">
                     <i class="fas fa-plus"></i> Criar primeira meta
                 </button>
             </div>
@@ -111,65 +267,108 @@ function renderGoals(goals) {
             ? Math.min(100, (g.current_amount / g.target_amount) * 100)
             : 0;
         const isCompleted = g.completed || percent >= 99.99;
-
-        const deadline = g.deadline ? formatDate(g.deadline) : 'Sem prazo';
-        const daysLeft = g.deadline
-            ? Math.ceil((new Date(g.deadline) - new Date()) / (1000 * 60 * 60 * 24))
-            : null;
-
-        const color = g.color || '#6C5CE7';
-        const emoji = isCompleted ? '🏆' : '🎯';
         const pctDisplay = Math.round(percent);
+        const remaining = Math.max(0, (g.target_amount || 0) - (g.current_amount || 0));
 
-        let deadlineDisplay = deadline;
-        if (daysLeft !== null && daysLeft > 0 && !isCompleted) {
-            deadlineDisplay = `⏰ ${daysLeft} dias`;
-        } else if (daysLeft !== null && daysLeft <= 0 && !isCompleted) {
-            deadlineDisplay = '⏰ Prazo expirado';
+        const catInfo = resolveGoalCategory(g);
+        const color = g.color || catInfo.color || '#6C5CE7';
+
+        // Análise de prazo e cálculo de aporte mensal necessário
+        let deadlineLabel = 'Sem prazo definido';
+        let monthlyNeedText = '';
+        if (g.deadline) {
+            const now = new Date();
+            const targetDate = new Date(g.deadline);
+            const daysDiff = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24));
+            const monthsDiff = Math.max(1, Math.ceil(daysDiff / 30.4));
+
+            if (isCompleted) {
+                deadlineLabel = `🏆 Concluída`;
+            } else if (daysDiff > 0) {
+                deadlineLabel = `⏰ ${daysDiff} dias restantes (${formatDate(g.deadline)})`;
+                if (remaining > 0 && monthsDiff >= 1) {
+                    const monthlyNeed = remaining / monthsDiff;
+                    monthlyNeedText = `Aporte sugerido: <strong>${formatCurrency(monthlyNeed)}/mês</strong> (${monthsDiff} meses)`;
+                }
+            } else {
+                deadlineLabel = `⚠️ Prazo expirou em ${formatDate(g.deadline)}`;
+            }
         }
 
         return `
             <div class="goal-card ${isCompleted ? 'completed' : ''}" 
-                 style="border-left-color:${color};"
+                 style="--goal-accent-color: ${color};"
                  onclick="editGoal('${g.id}')">
-                <div class="goal-header">
-                    <h3>${stripHTML(g.title)}</h3>
-                    <span class="goal-emoji">${emoji}</span>
-                </div>
                 
-                <div class="goal-amounts">
-                    <span>Atual: <strong>${formatCurrency(g.current_amount)}</strong></span>
-                    <span>Meta: <strong>${formatCurrency(g.target_amount)}</strong></span>
-                </div>
-                
-                <div class="goal-progress">
-                    <div class="progress-label">
-                        <span>${pctDisplay}% concluído</span>
-                        <span>${isCompleted ? '✅ Concluída!' : ''}</span>
+                <!-- TOP HEADER -->
+                <div class="goal-card-top">
+                    <div class="goal-badge-icon" style="background: ${color}20; color: ${color};">
+                        <i class="fas ${catInfo.icon}"></i>
                     </div>
-                    <div class="progress">
-                        <div class="progress-bar ${isCompleted ? 'success' : ''}" style="width:${pctDisplay}%;background:${color};"></div>
+                    <div class="goal-title-wrap">
+                        <div class="goal-category-tag">
+                            <span>${catInfo.emoji} ${catInfo.label}</span>
+                        </div>
+                        <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
+                    </div>
+                    <span class="goal-status-badge ${isCompleted ? 'completed-badge' : 'in-progress'}">
+                        ${isCompleted ? '🏆 Concluída' : `${pctDisplay}%`}
+                    </span>
+                </div>
+
+                <!-- VALORES PRINCIPAIS -->
+                <div class="goal-finance-row">
+                    <div class="goal-val-box">
+                        <span class="goal-val-label">Valor Poupado</span>
+                        <span class="goal-val-current">${formatCurrency(g.current_amount)}</span>
+                    </div>
+                    <div class="goal-val-box" style="text-align: right;">
+                        <span class="goal-val-label">Meta Total</span>
+                        <span class="goal-val-target">${formatCurrency(g.target_amount)}</span>
                     </div>
                 </div>
-                
-                <div class="goal-footer">
-                    <span>📅 ${deadlineDisplay}</span>
-                    <span>${isCompleted ? '🏆 Meta alcançada!' : ''}</span>
+
+                <!-- PROGRESS TRACK -->
+                <div class="goal-progress-box">
+                    <div class="goal-progress-meta">
+                        <span>${isCompleted ? '🎉 100% atingido!' : `Faltam ${formatCurrency(remaining)}`}</span>
+                        <span class="goal-progress-pct">${pctDisplay}%</span>
+                    </div>
+                    <div class="goal-progress-track">
+                        <div class="goal-progress-fill ${isCompleted ? 'completed' : ''}" style="width: ${pctDisplay}%;"></div>
+                    </div>
                 </div>
-                
-                <div class="goal-actions" onclick="event.stopPropagation();">
+
+                <!-- ESTIMATIVA / HORIZONTE -->
+                <div class="goal-insight-pill">
+                    <div style="display:flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>${deadlineLabel}</span>
+                    </div>
+                    ${monthlyNeedText ? `<div>${monthlyNeedText}</div>` : ''}
+                </div>
+
+                <!-- AÇÕES RÁPIDAS -->
+                <div class="goal-actions-bar" onclick="event.stopPropagation();">
                     ${!isCompleted ? `
-                        <button class="btn btn-success btn-sm btn-add-value" onclick="openAddValue('${g.id}')" title="Aportar valor">
+                        <button type="button" class="btn-card-action btn-deposit" onclick="openAddValue('${g.id}')" title="Fazer um aporte nesta meta">
                             <i class="fas fa-plus"></i> Aportar
                         </button>
-                        <button type="button" class="btn-complete-quick" onclick="quickCompleteGoal('${g.id}')" title="Concluir meta agora!">
+                        <button type="button" class="btn-card-action btn-withdraw" onclick="openWithdrawModal('${g.id}')" title="Resgatar ou ajustar valor">
+                            <i class="fas fa-minus"></i> Resgatar
+                        </button>
+                        <button type="button" class="btn-card-icon-only quick-check" onclick="quickCompleteGoal('${g.id}')" title="Marcar como 100% Concluída!">
                             <i class="fas fa-check"></i>
                         </button>
-                    ` : ''}
-                    <button class="btn btn-ghost btn-icon-sm" onclick="editGoal('${g.id}')" title="Editar">
-                        <i class="fas fa-edit"></i>
+                    ` : `
+                        <button type="button" class="btn-card-action btn-withdraw" onclick="openWithdrawModal('${g.id}')" title="Ajustar ou reabrir meta com resgate">
+                            <i class="fas fa-hand-holding-usd"></i> Movimentar
+                        </button>
+                    `}
+                    <button type="button" class="btn-card-icon-only" onclick="editGoal('${g.id}')" title="Editar detalhes">
+                        <i class="fas fa-pen"></i>
                     </button>
-                    <button class="btn btn-danger btn-icon-sm" onclick="deleteGoal('${g.id}')" title="Excluir">
+                    <button type="button" class="btn-card-icon-only danger" onclick="deleteGoal('${g.id}')" title="Excluir meta">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -199,6 +398,7 @@ function openModal(id = null) {
     document.getElementById('editId').value = '';
     document.getElementById('gCurrent').value = '';
     document.getElementById('gDeadline').value = '';
+    document.getElementById('gCategory').value = 'other';
     document.getElementById('gColor').value = '#6C5CE7';
     document.getElementById('gCompleted').checked = false;
     deleteBtn.classList.add('hidden');
@@ -224,6 +424,9 @@ function openModal(id = null) {
             document.getElementById('gTarget').value = formatNumberInput(goal.target_amount);
             document.getElementById('gCurrent').value = formatNumberInput(goal.current_amount || 0);
             document.getElementById('gDeadline').value = goal.deadline || '';
+            const catInfo = resolveGoalCategory(goal);
+            const catElem = document.getElementById('gCategory');
+            if (catElem) catElem.value = goal.category || catInfo.key || 'other';
             document.getElementById('gColor').value = goal.color || '#6C5CE7';
             document.getElementById('gCompleted').checked = goal.completed || false;
             title.textContent = 'Editar Meta';
@@ -278,6 +481,7 @@ async function saveGoal(event) {
     const target = parseNumberInput(document.getElementById('gTarget').value);
     const current = parseNumberInput(document.getElementById('gCurrent').value);
     const deadline = document.getElementById('gDeadline').value || null;
+    const category = document.getElementById('gCategory') ? document.getElementById('gCategory').value : 'other';
     const color = document.getElementById('gColor').value;
     const completed = document.getElementById('gCompleted').checked || (current >= target);
 
@@ -304,6 +508,7 @@ async function saveGoal(event) {
         target_amount: target,
         current_amount: current,
         deadline: deadline,
+        category: category,
         color: color,
         completed: completed,
         updated_at: new Date().toISOString()
@@ -350,6 +555,24 @@ async function saveGoal(event) {
             result = await supabaseClient
                 .from('goals')
                 .insert([secureData]);
+        }
+
+        // Se o banco não tiver a coluna 'category' (PGRST204), tenta salvar sem esse campo
+        if (result.error && (result.error.code === 'PGRST204' || (result.error.message && result.error.message.includes('category')))) {
+            console.warn('⚠️ Coluna category não encontrada no Supabase, salvando sem category...');
+            const fallbackData = { ...secureData };
+            delete fallbackData.category;
+            if (editId) {
+                result = await supabaseClient
+                    .from('goals')
+                    .update(fallbackData)
+                    .eq('id', editId)
+                    .eq('user_id', currentUser.id);
+            } else {
+                result = await supabaseClient
+                    .from('goals')
+                    .insert([fallbackData]);
+            }
         }
 
         if (result.error) {
@@ -482,6 +705,131 @@ function closeAddValue() {
     document.getElementById('addValueModal')?.classList.add('hidden');
 }
 
+// ============================================
+// MODAL DE RESGATE / AJUSTE DE VALOR DA META
+// ============================================
+function openWithdrawModal(id) {
+    if (isProcessing) {
+        showToast('Aguarde a operação atual terminar...', 'warning');
+        return;
+    }
+
+    const goal = allGoals.find(g => g.id === id);
+    if (!goal) return;
+
+    if (!goal.current_amount || goal.current_amount <= 0) {
+        showToast('Esta meta não possui saldo acumulado para resgate.', 'info');
+        return;
+    }
+
+    document.body.classList.add('no-scroll');
+
+    const form = document.getElementById('withdrawForm');
+    form.reset();
+
+    document.getElementById('withdrawGoalId').value = goal.id;
+    document.getElementById('withdrawGoalTitle').textContent = goal.title;
+    document.getElementById('withdrawCurrent').textContent = formatCurrency(goal.current_amount);
+    document.getElementById('withdrawAmount').value = '';
+    document.getElementById('withdrawAmount').focus();
+
+    if (window.TonuCSRF) {
+        let csrfInput = document.getElementById('csrfTokenWithdraw');
+        if (!csrfInput) {
+            csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.id = 'csrfTokenWithdraw';
+            csrfInput.name = '_csrf';
+            form.appendChild(csrfInput);
+        }
+        csrfInput.value = window.TonuCSRF.get();
+    }
+
+    document.getElementById('withdrawOverlay').classList.add('active');
+    document.getElementById('withdrawModal').classList.remove('hidden');
+}
+
+function closeWithdrawModal() {
+    document.body.classList.remove('no-scroll');
+    document.getElementById('withdrawOverlay')?.classList.remove('active');
+    document.getElementById('withdrawModal')?.classList.add('hidden');
+}
+
+async function submitWithdraw(event) {
+    event.preventDefault();
+
+    if (isProcessing) {
+        showToast('Aguarde a operação atual terminar...', 'warning');
+        return;
+    }
+
+    const id = document.getElementById('withdrawGoalId').value;
+    const amount = parseNumberInput(document.getElementById('withdrawAmount').value);
+
+    if (!amount || amount <= 0) {
+        showToast('Digite um valor de resgate válido!', 'error');
+        return;
+    }
+
+    const goal = allGoals.find(g => g.id === id);
+    if (!goal) return;
+
+    if (amount > goal.current_amount) {
+        showToast(`O valor não pode ser maior que o saldo atual (${formatCurrency(goal.current_amount)})!`, 'error');
+        return;
+    }
+
+    const newAmount = Math.max(0, goal.current_amount - amount);
+    const completed = newAmount >= goal.target_amount;
+
+    const btn = event.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    isProcessing = true;
+    btn.innerHTML = '<span class="spinner"></span> Processando...';
+
+    try {
+        const data = {
+            current_amount: newAmount,
+            completed: completed,
+            updated_at: new Date().toISOString()
+        };
+
+        const secureData = window.TonuCSRF ? window.TonuCSRF.secureRequest(data) : data;
+
+        if (!navigator.onLine && window.tonuSync) {
+            await window.tonuSync.enqueue('UPDATE_GOAL', { id: id, ...secureData });
+            showToast('📦 Resgate efetuado localmente! Sincronização pendente.', 'success');
+            closeWithdrawModal();
+            await loadGoals();
+            btn.disabled = false;
+            isProcessing = false;
+            btn.innerHTML = originalText;
+            return;
+        }
+
+        const { error } = await supabaseClient
+            .from('goals')
+            .update(secureData)
+            .eq('id', id)
+            .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+
+        showToast(`💸 Resgate de ${formatCurrency(amount)} realizado com sucesso!`, 'success');
+        closeWithdrawModal();
+        await loadGoals();
+
+    } catch (error) {
+        console.error('❌ Erro ao resgatar valor:', error);
+        showToast('Erro ao resgatar valor', 'error');
+    } finally {
+        btn.disabled = false;
+        isProcessing = false;
+        btn.innerHTML = originalText;
+    }
+}
+
 // Ouvinte global para tecla ESC fechar modais de metas e overlay de comemoração
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
@@ -493,6 +841,11 @@ document.addEventListener('keydown', function (e) {
         const addOverlay = document.getElementById('addValueOverlay');
         if (addOverlay && addOverlay.classList.contains('active')) {
             closeAddValue();
+            return;
+        }
+        const withdrawOverlay = document.getElementById('withdrawOverlay');
+        if (withdrawOverlay && withdrawOverlay.classList.contains('active')) {
+            closeWithdrawModal();
             return;
         }
         const goalOverlay = document.getElementById('modalOverlay');
@@ -929,6 +1282,12 @@ window.deleteGoal = deleteGoal;
 window.openAddValue = openAddValue;
 window.closeAddValue = closeAddValue;
 window.submitAddValue = submitAddValue;
+window.openWithdrawModal = openWithdrawModal;
+window.closeWithdrawModal = closeWithdrawModal;
+window.submitWithdraw = submitWithdraw;
+window.setGoalsFilter = setGoalsFilter;
+window.handleGoalsSearch = handleGoalsSearch;
+window.clearGoalsSearch = clearGoalsSearch;
 window.quickCompleteGoal = quickCompleteGoal;
 window.triggerCelebration = triggerCelebration;
 window.dismissCelebration = dismissCelebration;

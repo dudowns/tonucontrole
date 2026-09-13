@@ -360,25 +360,100 @@ body.dark-theme .bill-card.overdue {
 /* ==========================================
    METAS
    ========================================== */
+body.dark-theme .goals-hero-card {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .hero-stat-item.highlight {
+    background: rgba(30, 41, 59, 0.6) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .hero-stat-value {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .hero-stat-sub {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .hero-stat-bar {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+body.dark-theme .goals-tabs {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .goal-tab-btn {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .goal-tab-btn:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .goal-tab-btn.active {
+    background: #6C5CE7 !important;
+    color: #ffffff !important;
+}
+
+body.dark-theme .search-input-box input {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-text) !important;
+}
+
 body.dark-theme .goal-card {
     background: var(--color-surface) !important;
     border-color: var(--color-border) !important;
 }
 
-body.dark-theme .goal-card .goal-header h3 {
+body.dark-theme .goal-card-title {
     color: var(--color-text) !important;
 }
 
-body.dark-theme .goal-card .goal-amounts {
-    color: var(--color-text-muted) !important;
-}
-
-body.dark-theme .goal-card .goal-amounts strong {
+body.dark-theme .goal-val-current {
     color: var(--color-text) !important;
 }
 
-body.dark-theme .goal-card .goal-footer {
+body.dark-theme .goal-progress-track {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .goal-insight-pill {
+    background: rgba(30, 41, 59, 0.6) !important;
+    border-color: var(--color-border) !important;
     color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .goal-insight-pill strong {
+    color: var(--color-text) !important;
+}
+
+body.dark-theme .goal-actions-bar {
+    border-top-color: var(--color-border) !important;
+}
+
+body.dark-theme .btn-card-action.btn-withdraw {
+    background: rgba(30, 41, 59, 0.6) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+}
+
+body.dark-theme .btn-card-icon-only {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .btn-card-icon-only:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--color-text) !important;
 }
 
 /* ==========================================

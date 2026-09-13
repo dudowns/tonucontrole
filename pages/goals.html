@@ -179,6 +179,83 @@
             CONTEÚDO - COMPLETO
             ========================================== -->
             <div class="content" id="main-content">
+                <!-- HERO / STATS BAR DE METAS -->
+                <section class="goals-hero-card" id="goalsHeroStats" aria-label="Resumo Geral das Metas">
+                    <div class="hero-stats-grid">
+                        <div class="hero-stat-item">
+                            <div class="hero-stat-icon purple">
+                                <i class="fas fa-wallet"></i>
+                            </div>
+                            <div class="hero-stat-data">
+                                <span class="hero-stat-label">Total Poupado</span>
+                                <strong class="hero-stat-value" id="statsTotalAccumulated">R$ 0,00</strong>
+                            </div>
+                        </div>
+
+                        <div class="hero-stat-item">
+                            <div class="hero-stat-icon blue">
+                                <i class="fas fa-bullseye"></i>
+                            </div>
+                            <div class="hero-stat-data">
+                                <span class="hero-stat-label">Objetivo Global</span>
+                                <strong class="hero-stat-value" id="statsGlobalTarget">R$ 0,00</strong>
+                            </div>
+                        </div>
+
+                        <div class="hero-stat-item">
+                            <div class="hero-stat-icon green">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <div class="hero-stat-data">
+                                <span class="hero-stat-label">Metas Concluídas</span>
+                                <strong class="hero-stat-value" id="statsCompletedCount">0 de 0</strong>
+                            </div>
+                        </div>
+
+                        <div class="hero-stat-item highlight">
+                            <div class="hero-stat-progress-wrap">
+                                <div class="hero-stat-progress-header">
+                                    <span class="hero-stat-label">Progresso Geral</span>
+                                    <strong class="hero-stat-pct" id="statsGlobalProgressPct">0%</strong>
+                                </div>
+                                <div class="hero-stat-bar">
+                                    <div class="hero-stat-bar-fill" id="statsGlobalProgressBar" style="width: 0%;"></div>
+                                </div>
+                                <span class="hero-stat-sub" id="statsRemainingGlobal">Faltam R$ 0,00 para todas as metas</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- BARRA DE FILTROS E PESQUISA -->
+                <div class="goals-toolbar">
+                    <div class="goals-tabs" role="tablist" aria-label="Filtrar metas">
+                        <button type="button" class="goal-tab-btn active" data-filter="all" onclick="setGoalsFilter('all')">
+                            Todas <span class="tab-badge" id="badgeFilterAll">0</span>
+                        </button>
+                        <button type="button" class="goal-tab-btn" data-filter="active" onclick="setGoalsFilter('active')">
+                            Em Andamento <span class="tab-badge" id="badgeFilterActive">0</span>
+                        </button>
+                        <button type="button" class="goal-tab-btn" data-filter="almost" onclick="setGoalsFilter('almost')">
+                            Quase Lá (&gt;75%) <span class="tab-badge" id="badgeFilterAlmost">0</span>
+                        </button>
+                        <button type="button" class="goal-tab-btn" data-filter="completed" onclick="setGoalsFilter('completed')">
+                            Concluídas 🏆 <span class="tab-badge" id="badgeFilterCompleted">0</span>
+                        </button>
+                    </div>
+
+                    <div class="goals-search-wrap">
+                        <div class="search-input-box">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="goalsSearchInput" placeholder="Buscar por título ou valor..." oninput="handleGoalsSearch(event)" aria-label="Pesquisar metas">
+                            <button type="button" class="search-clear-btn hidden" id="goalsSearchClearBtn" onclick="clearGoalsSearch()" title="Limpar busca">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GRID DE CARDS DE METAS -->
                 <div class="goals-grid" id="goalsContainer">
                     <div class="empty-state" style="grid-column:1/-1;padding:40px 16px;">
                         <span class="empty-icon">🎯</span>
@@ -234,21 +311,39 @@
                             <input type="date" id="gDeadline" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label for="gColor">Cor da Meta</label>
-                            <select id="gColor" class="form-control">
-                                <option value="#6C5CE7">🟣 Roxo (Padrão)</option>
-                                <option value="#00B894">🟢 Verde</option>
-                                <option value="#0984E3">🔵 Azul</option>
-                                <option value="#FDCB6E">🟡 Amarelo</option>
-                                <option value="#FF7675">🔴 Vermelho</option>
-                                <option value="#E17055">🟠 Laranja</option>
-                                <option value="#A29BFE">🟪 Lilás</option>
+                            <label for="gCategory">Categoria do Objetivo</label>
+                            <select id="gCategory" class="form-control">
+                                <option value="emergency">🛡️ Reserva de Emergência</option>
+                                <option value="travel">✈️ Viagem & Lazer</option>
+                                <option value="vehicle">🚗 Veículo (Carro / Moto)</option>
+                                <option value="home">🏠 Imóvel / Casa Própria</option>
+                                <option value="education">🎓 Educação & Estudos</option>
+                                <option value="investment">📈 Aposentadoria & Investimentos</option>
+                                <option value="purchase">📱 Compras & Eletrônicos</option>
+                                <option value="other" selected>🎯 Outro Objetivo</option>
                             </select>
                         </div>
                     </div>
-                    <div class="checkbox-group" style="padding: 6px 10px; background: var(--color-bg, #f8fafc); border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0);">
-                        <input type="checkbox" id="gCompleted">
-                        <label for="gCompleted" style="margin:0; font-size:12px; font-weight:600; cursor:pointer;">Meta já concluída 🏆</label>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="gColor">Cor de Destaque</label>
+                            <select id="gColor" class="form-control">
+                                <option value="#6C5CE7">🟣 Roxo (Padrão)</option>
+                                <option value="#00B894">🟢 Verde Esmeralda</option>
+                                <option value="#0984E3">🔵 Azul Real</option>
+                                <option value="#FDCB6E">🟡 Ouro / Amarelo</option>
+                                <option value="#FF7675">🔴 Coral / Vermelho</option>
+                                <option value="#E17055">🟠 Laranja Queimado</option>
+                                <option value="#A29BFE">🟪 Lilás Suave</option>
+                                <option value="#10B981">🌲 Verde Floresta</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display:flex; flex-direction:column; justify-content:flex-end;">
+                            <div class="checkbox-group" style="padding: 10px 12px; background: var(--color-bg, #f8fafc); border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0); margin:0;">
+                                <input type="checkbox" id="gCompleted">
+                                <label for="gCompleted" style="margin:0; font-size:12px; font-weight:600; cursor:pointer;">Meta já concluída 🏆</label>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -299,6 +394,45 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeAddValue()">Cancelar</button>
                     <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Confirmar Aporte</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================
+    MODAL - RESGATE / AJUSTE DE VALOR DA META
+    ========================================== -->
+    <div class="modal-overlay" id="withdrawOverlay" onclick="if(event.target === this) closeWithdrawModal()" role="dialog"
+        aria-modal="true" aria-labelledby="withdrawTitle">
+        <div class="modal hidden" id="withdrawModal">
+            <div class="modal-header">
+                <div>
+                    <div class="sub"><i class="fas fa-hand-holding-usd" style="margin-right:4px;"></i> Resgate de Meta</div>
+                    <h3 id="withdrawTitle">Resgatar / Retirar Valor</h3>
+                </div>
+                <button type="button" class="modal-close" onclick="closeWithdrawModal()" aria-label="Fechar modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form id="withdrawForm" onsubmit="submitWithdraw(event)" novalidate>
+                <input type="hidden" id="withdrawGoalId">
+                <div class="modal-body">
+                    <div class="form-group" style="padding: 8px 12px; background: var(--color-bg, #f8fafc); border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0); margin-bottom: 9px;">
+                        <span style="font-size: 10.5px; text-transform: uppercase; font-weight: 700; color: var(--color-text-muted, #64748b); letter-spacing: 0.05em; display: block; margin-bottom: 2px;">Meta Selecionada</span>
+                        <strong id="withdrawGoalTitle" style="font-size: 13.5px; color: var(--color-text, #0f172a); font-weight: 700;"></strong>
+                    </div>
+                    <div class="form-group">
+                        <label for="withdrawAmount">Valor do Resgate (R$) *</label>
+                        <input type="text" id="withdrawAmount" class="form-control" placeholder="0,00" required
+                            aria-required="true" autofocus>
+                    </div>
+                    <div class="form-group" style="background: var(--color-bg, #f8fafc); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0); display: flex; justify-content: space-between; align-items: center; margin-bottom: 0;">
+                        <span style="font-size: 11.5px; color: var(--color-text-muted, #64748b);">Saldo Disponível na Meta: <strong id="withdrawCurrent" style="color: var(--color-text, #0f172a);">R$ 0,00</strong></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeWithdrawModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" style="background:#ef4444; border-color:#ef4444;"><i class="fas fa-minus"></i> Confirmar Resgate</button>
                 </div>
             </form>
         </div>
