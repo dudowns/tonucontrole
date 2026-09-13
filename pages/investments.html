@@ -948,23 +948,17 @@
                 ========================================== -->
                 <div class="tab-content" id="tab-proventos" role="tabpanel" aria-labelledby="tab-proventos">
                     <div class="proventos-container">
-                        <!-- Action Bar de Proventos com Botão de Demonstração -->
-                        <div class="proventos-action-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="badge-proventos-status" id="badgeProventosStatus" style="font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 99px; background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text-muted); display: inline-flex; align-items: center; gap: 6px;">
-                                    <i class="fas fa-coins" style="color: #0984E3;"></i>
+                        <!-- Action Bar de Proventos -->
+                        <div class="proventos-action-bar">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="badge-proventos-status" id="badgeProventosStatus" style="font-size: 10.5px; font-weight: 600; padding: 3px 8px; border-radius: 99px; background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text-muted); display: inline-flex; align-items: center; gap: 5px;">
+                                    <i class="fas fa-coins" style="color: #0984E3; font-size: 10px;"></i>
                                     <span id="badgeProventosStatusText">Painel de Proventos</span>
                                 </span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <button type="button" class="btn btn-outline-demo btn-sm" id="btnDemoProventos" onclick="loadDemoDividends()" style="font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 8px; border: 1px solid #0984E3; background: rgba(9, 132, 227, 0.08); color: #0984E3; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;" title="Carregar proventos de demonstração para testar">
-                                    <i class="fas fa-magic"></i> Carregar Demonstração
-                                </button>
-                                <button type="button" class="btn btn-ghost btn-sm" id="btnClearDemoProventos" onclick="clearDemoDividends()" style="display: none; font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 8px; color: var(--color-danger); cursor: pointer;" title="Remover proventos de demonstração">
-                                    <i class="fas fa-trash-alt"></i> Limpar Demo
-                                </button>
-                                <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" style="font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
-                                    <i class="fas fa-plus"></i> Novo Provento
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" style="font-size: 10.5px; font-weight: 600; padding: 3px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; height: 26px;">
+                                    <i class="fas fa-plus" style="font-size: 9px;"></i> Novo Provento
                                 </button>
                             </div>
                         </div>
@@ -973,7 +967,7 @@
                         <div class="proventos-top-row">
                             <!-- Card 1: Resumo -->
                             <div class="proventos-summary-card" id="cardProventosResumo">
-                                <div class="card-header-clean" style="margin-bottom: 14px;">
+                                <div class="card-header-clean" style="margin-bottom: 8px;">
                                     <h3>Resumo</h3>
                                 </div>
 
@@ -1205,14 +1199,11 @@
                                         </select>
                                     </div>
                                     <!-- Botões Atualizar & Registrar -->
-                                    <button type="button" class="btn btn-outline-demo btn-sm" onclick="loadDemoDividends()" title="Carregar proventos de demonstração" aria-label="Demonstração" style="font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 6px; border: 1px solid #0984E3; background: rgba(9, 132, 227, 0.08); color: #0984E3; display: inline-flex; align-items: center; gap: 4px;">
-                                        <i class="fas fa-magic" aria-hidden="true"></i> Demo
-                                    </button>
-                                    <button type="button" class="btn btn-ghost btn-sm" onclick="loadDividends()" title="Atualizar dados" aria-label="Atualizar proventos">
+                                    <button type="button" class="btn btn-ghost btn-sm" onclick="loadDividends()" title="Atualizar dados" aria-label="Atualizar proventos" style="padding: 2px 6px; height: 24px; font-size: 10px;">
                                         <i class="fas fa-sync-alt" aria-hidden="true"></i>
                                     </button>
-                                    <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" aria-label="Registrar provento" style="font-weight:600; display:inline-flex; align-items:center; gap:6px;">
-                                        <i class="fas fa-plus" aria-hidden="true"></i> Registrar
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" aria-label="Registrar provento" style="font-size: 10px; font-weight: 600; padding: 2px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; height: 24px;">
+                                        <i class="fas fa-plus" style="font-size: 8.5px;" aria-hidden="true"></i> Registrar
                                     </button>
                                 </div>
                             </div>
@@ -1347,9 +1338,10 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="divTicker">Ativo *</label>
-                        <input type="text" id="divTicker" class="form-control" placeholder="Ex: HGLG11, PETR4" required
-                            aria-required="true">
-                        <small class="help-text">Digite o ticker do ativo</small>
+                        <input type="text" id="divTicker" class="form-control" placeholder="Ex: HGLG11, PETR4" list="userHeldTickersList" required
+                            aria-required="true" oninput="onDividendTickerInput(event)">
+                        <datalist id="userHeldTickersList"></datalist>
+                        <small class="help-text" id="divTickerHint">Digite o ticker do ativo ou selecione da sua carteira</small>
                     </div>
                     <div class="form-group">
                         <label for="divType">Tipo de Provento *</label>
@@ -1364,12 +1356,12 @@
                         <div class="form-group">
                             <label for="divQuantity">Quantidade *</label>
                             <input type="number" id="divQuantity" class="form-control" placeholder="100" step="any"
-                                min="0" required aria-required="true">
+                                min="0" required aria-required="true" oninput="calcDividendTotal()">
                         </div>
                         <div class="form-group">
                             <label for="divUnitValue">Valor por Unidade (R$) *</label>
                             <input type="text" id="divUnitValue" class="form-control" placeholder="0,50" required
-                                aria-required="true">
+                                aria-required="true" oninput="calcDividendTotal()">
                         </div>
                     </div>
                     <div class="form-group">

@@ -226,11 +226,70 @@ function closeOperationModal() {
 // ============================================
 // PROVENTO MODAL
 // ============================================
+function populateUserHeldTickers() {
+    const datalist = document.getElementById('userHeldTickersList');
+    if (!datalist) return;
+    datalist.innerHTML = '';
+
+    if (Array.isArray(positions) && positions.length > 0) {
+        positions.forEach(pos => {
+            const ticker = (pos.ticker || '').toUpperCase().trim();
+            if (!ticker) return;
+            const opt = document.createElement('option');
+            opt.value = ticker;
+            opt.label = `${pos.quantity || 0} cotas/ações em custódia`;
+            datalist.appendChild(opt);
+        });
+    }
+}
+
+function onDividendTickerInput(e) {
+    const ticker = (e.target.value || '').toUpperCase().trim();
+    const hint = document.getElementById('divTickerHint');
+    const typeSelect = document.getElementById('divType');
+    const qtyInput = document.getElementById('divQuantity');
+
+    if (!ticker) {
+        if (hint) hint.textContent = 'Digite o ticker do ativo ou selecione da sua carteira';
+        return;
+    }
+
+    const pos = Array.isArray(positions) ? positions.find(p => (p.ticker || '').toUpperCase() === ticker) : null;
+
+    if (pos) {
+        if (hint) {
+            hint.innerHTML = `<span style="color:#00B894;"><i class="fas fa-check-circle"></i> Na sua carteira: <strong>${pos.quantity} cotas/ações</strong></span>`;
+        }
+        if (qtyInput && (!qtyInput.value || qtyInput.dataset.autoFilled === 'true')) {
+            qtyInput.value = pos.quantity;
+            qtyInput.dataset.autoFilled = 'true';
+            calcDividendTotal();
+        }
+    } else {
+        if (hint) hint.textContent = 'Ativo fora da carteira atual (será registrado normalmente)';
+    }
+
+    if (typeSelect && (!typeSelect.dataset.userChanged || typeSelect.dataset.userChanged === 'false')) {
+        const cls = typeof inferClass === 'function' ? inferClass(ticker) : '';
+        if (cls === 'FII' || ticker.endsWith('11')) {
+            typeSelect.value = 'Rendimento';
+        } else {
+            typeSelect.value = 'Dividendo';
+        }
+    }
+}
+window.onDividendTickerInput = onDividendTickerInput;
+window.populateUserHeldTickers = populateUserHeldTickers;
+
 function openDividendModal(id = null) {
     const form = document.getElementById('dividendForm');
     if (form) form.reset();
     const titleEl = document.getElementById('dividendModalTitle');
     const submitBtn = form?.querySelector('button[type="submit"]');
+    populateUserHeldTickers();
+
+    const hint = document.getElementById('divTickerHint');
+    if (hint) hint.textContent = 'Digite o ticker do ativo ou selecione da sua carteira';
 
     if (id) {
         const item = allDividends.find(d => String(d.id) === String(id));
@@ -240,7 +299,11 @@ function openDividendModal(id = null) {
             if (form) form.dataset.editId = id;
             if (document.getElementById('divTicker')) document.getElementById('divTicker').value = item.ticker || '';
             if (document.getElementById('divType')) document.getElementById('divType').value = item.type || 'Dividendo';
-            if (document.getElementById('divQuantity')) document.getElementById('divQuantity').value = getDividendQuantity(item) || '';
+            if (document.getElementById('divQuantity')) {
+                const qEl = document.getElementById('divQuantity');
+                qEl.value = getDividendQuantity(item) || '';
+                delete qEl.dataset.autoFilled;
+            }
             if (document.getElementById('divUnitValue')) {
                 const uVal = getDividendUnitValue(item) || 0;
                 document.getElementById('divUnitValue').value = uVal.toFixed(2).replace('.', ',');
@@ -273,6 +336,8 @@ function openDividendModal(id = null) {
     if (dateComInput) dateComInput.value = '';
     const totalEl = document.getElementById('divTotalValue');
     if (totalEl) totalEl.value = '';
+    const qInput = document.getElementById('divQuantity');
+    if (qInput) delete qInput.dataset.autoFilled;
     openModal('dividendModal');
 }
 
@@ -2135,7 +2200,7 @@ async function loadDividends() {
                         if (Array.isArray(parsed)) {
                             parsed.forEach(p => {
                                 const uk = `${p.ticker}_${p.date}_${p.total_value}`;
-                                if (!seenKeys.has(uk) && (!p.is_demo || loaded.length === 0)) {
+                                if (!seenKeys.has(uk) && !p.is_demo && !String(p.id || '').startsWith('demo-')) {
                                     loaded.push(p);
                                     seenKeys.add(uk);
                                 }
@@ -2146,26 +2211,14 @@ async function loadDividends() {
             });
         } catch (e) {}
 
-        // Se realmente não houver proventos e demo estiver explicitamente ativo
-        const dismissed = localStorage.getItem('tonu_demo_dismissed') === 'true';
-        if (loaded.length === 0 && (isDemo || !dismissed)) {
-            loaded = generateDemoDividends();
-            try {
-                localStorage.setItem(storageKey, JSON.stringify(loaded));
-                localStorage.setItem('tonucontrole_is_demo_dividends', 'true');
-            } catch (e) {}
-        } else if (loaded.length > 0 && loaded.some(d => !d.is_demo)) {
-            // Remove demo se o usuário tiver dados reais
-            loaded = loaded.filter(d => !d.is_demo);
-            try {
-                localStorage.setItem(storageKey, JSON.stringify(loaded));
-                localStorage.removeItem('tonucontrole_is_demo_dividends');
-            } catch (e) {}
-        }
+        // Remove quaisquer proventos de demonstração residuais
+        loaded = loaded.filter(d => !d.is_demo && !String(d.id || '').startsWith('demo-'));
+        try {
+            localStorage.removeItem('tonucontrole_is_demo_dividends');
+        } catch (e) {}
 
         allDividends = loaded;
-        const hasDemoActive = allDividends.length > 0 && allDividends.every(d => d.is_demo);
-        updateDemoUIState(hasDemoActive);
+        updateDemoUIState(false);
 
         console.log('📊 Proventos prontos para visualização:', allDividends.length);
 
@@ -2328,9 +2381,9 @@ function renderProventosHistoryTable() {
                     <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
                         <i class="fas fa-calendar-alt" style="font-size:24px; opacity:0.4;"></i>
                         <span style="font-size:13px; font-weight:600; color:var(--color-text);">Nenhum histórico disponível</span>
-                        <span style="font-size:12px;">Cadastre proventos ou carregue uma demonstração para ver a matriz mensal completa.</span>
-                        <button type="button" class="btn btn-outline-demo btn-sm" onclick="loadDemoDividends()" style="margin-top:6px;">
-                            <i class="fas fa-magic"></i> Carregar Demonstração
+                        <span style="font-size:12px;">Cadastre seus proventos para acompanhar a matriz mensal por ano e ativo.</span>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" style="margin-top:6px; font-size:11px; padding:4px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="fas fa-plus"></i> Novo Provento
                         </button>
                     </div>
                 </td>
@@ -2477,13 +2530,10 @@ function renderProventosListTable() {
                 <td colspan="11" class="text-center text-muted" style="text-align:center;padding:36px 16px;">
                     <div style="font-size:32px;margin-bottom:8px;">💰</div>
                     <div style="font-size:14px;font-weight:600;color:var(--color-text);margin-bottom:4px;">Nenhum provento encontrado</div>
-                    <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:14px;">Registre seus proventos ou carregue dados de demonstração para explorar o painel.</div>
+                    <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:14px;">Registre seus proventos recebidos ou a receber para acompanhar os rendimentos da sua carteira.</div>
                     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" style="font-size:11px; padding:5px 14px; border-radius:6px; display:inline-flex; align-items:center; gap:5px;">
                             <i class="fas fa-plus"></i> Registrar Provento
-                        </button>
-                        <button type="button" class="btn btn-outline-demo btn-sm" onclick="loadDemoDividends()">
-                            <i class="fas fa-magic"></i> Carregar Demonstração
                         </button>
                     </div>
                 </td>
