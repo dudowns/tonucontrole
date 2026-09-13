@@ -80,6 +80,22 @@ function formatCurrency(value) {
     }
 }
 
+function formatNumber(value, decimals) {
+    if (decimals === undefined || decimals === null) decimals = 2;
+    if (value === null || value === undefined || value === '') value = 0;
+    var num = Number(value);
+    if (isNaN(num)) num = 0;
+    try {
+        return num.toLocaleString('pt-BR', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    } catch (e) {
+        return num.toFixed(decimals).replace('.', ',');
+    }
+}
+window.formatNumber = formatNumber;
+
 function formatDate(date, format) {
     format = format || 'short';
     if (!date) return '--/--/----';

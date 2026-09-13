@@ -1113,9 +1113,9 @@
                                     <div class="select-with-icon">
                                         <i class="fas fa-calendar-check" aria-hidden="true"></i>
                                         <select id="provHistoryStatusSelect" onchange="renderProventosHistoryTable()" aria-label="Filtrar status histórico">
-                                            <option value="todos" selected>Todos os status</option>
-                                            <option value="recebidos">Recebidos</option>
+                                            <option value="recebidos" selected>Recebidos</option>
                                             <option value="a_receber">A receber</option>
+                                            <option value="todos">Todos os status</option>
                                         </select>
                                     </div>
                                     <!-- Filtro Classe -->
@@ -1143,7 +1143,7 @@
                                 <table class="proventos-matrix-table" id="provMatrixTable" role="table" aria-label="Histórico mensal de proventos">
                                     <thead role="rowgroup">
                                         <tr role="row">
-                                            <th role="columnheader">Ano <i class="fas fa-sort" aria-hidden="true"></i></th>
+                                            <th role="columnheader" onclick="toggleMatrixSort('year')" style="cursor:pointer;" title="Ordenar por Ano">Ano <i class="fas fa-sort" id="sortIconMatrixYear" aria-hidden="true"></i></th>
                                             <th role="columnheader">Jan</th>
                                             <th role="columnheader">Fev</th>
                                             <th role="columnheader">Mar</th>
@@ -1156,8 +1156,8 @@
                                             <th role="columnheader">Out</th>
                                             <th role="columnheader">Nov</th>
                                             <th role="columnheader">Dez</th>
-                                            <th role="columnheader">Média <i class="fas fa-info-circle" title="Média dos meses com proventos" aria-hidden="true"></i></th>
-                                            <th role="columnheader">Total</th>
+                                            <th role="columnheader" onclick="toggleMatrixSort('media')" style="cursor:pointer;" title="Ordenar por Média">Média <i class="fas fa-info-circle" title="Média dos meses" aria-hidden="true"></i> <i class="fas fa-sort" id="sortIconMatrixMedia" aria-hidden="true"></i></th>
+                                            <th role="columnheader" onclick="toggleMatrixSort('total')" style="cursor:pointer;" title="Ordenar por Total">Total <i class="fas fa-sort" id="sortIconMatrixTotal" aria-hidden="true"></i></th>
                                         </tr>
                                     </thead>
                                     <tbody id="provMatrixBody" role="rowgroup">
@@ -1221,16 +1221,16 @@
                                 <table class="proventos-transactions-table" id="provTransactionsTable" role="table" aria-label="Lista de transações de proventos">
                                     <thead role="rowgroup">
                                         <tr role="row">
-                                            <th role="columnheader">Ativo</th>
-                                            <th role="columnheader">Tipo de ativo</th>
-                                            <th role="columnheader">Status do pagamento</th>
-                                            <th role="columnheader">Tipo de pagamento</th>
-                                            <th role="columnheader">Data Com</th>
-                                            <th role="columnheader">Data Pagamento</th>
-                                            <th role="columnheader">Quantidade</th>
-                                            <th role="columnheader">Valor do div.</th>
-                                            <th role="columnheader">Valor total</th>
-                                            <th role="columnheader">Total líquido</th>
+                                            <th role="columnheader" onclick="toggleProvListSort('ticker')" style="cursor:pointer;">Ativo <i class="fas fa-sort" id="sortIconProvTicker" aria-hidden="true"></i></th>
+                                            <th role="columnheader" onclick="toggleProvListSort('class')" style="cursor:pointer;">Tipo de ativo <i class="fas fa-sort" id="sortIconProvClass" aria-hidden="true"></i></th>
+                                            <th role="columnheader" onclick="toggleProvListSort('status')" style="cursor:pointer;">Status do pagamento <i class="fas fa-sort" id="sortIconProvStatus" aria-hidden="true"></i></th>
+                                            <th role="columnheader" onclick="toggleProvListSort('type')" style="cursor:pointer;">Tipo de pagamento <i class="fas fa-sort" id="sortIconProvType" aria-hidden="true"></i></th>
+                                            <th role="columnheader" onclick="toggleProvListSort('dataCom')" style="cursor:pointer;">Data Com <i class="fas fa-sort" id="sortIconProvDataCom" aria-hidden="true"></i></th>
+                                            <th role="columnheader" onclick="toggleProvListSort('date')" style="cursor:pointer;">Data Pagamento <i class="fas fa-sort" id="sortIconProvDate" aria-hidden="true"></i></th>
+                                            <th role="columnheader" onclick="toggleProvListSort('quantity')" style="cursor:pointer;">Quantidade <i class="fas fa-sort" id="sortIconProvQty" aria-hidden="true"></i></th>
+                                            <th role="columnheader" onclick="toggleProvListSort('unitValue')" style="cursor:pointer;">Valor do div. <i class="fas fa-sort" id="sortIconProvUnitVal" aria-hidden="true"></i></th>
+                                            <th role="columnheader" onclick="toggleProvListSort('totalValue')" style="cursor:pointer;">Valor total <i class="fas fa-sort" id="sortIconProvTotalVal" aria-hidden="true"></i></th>
+                                            <th role="columnheader" onclick="toggleProvListSort('netValue')" style="cursor:pointer;">Total líquido <i class="fas fa-sort" id="sortIconProvNetVal" aria-hidden="true"></i></th>
                                             <th role="columnheader" style="text-align:right;">Ações</th>
                                         </tr>
                                     </thead>

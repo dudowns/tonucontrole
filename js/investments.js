@@ -226,9 +226,47 @@ function closeOperationModal() {
 // ============================================
 // PROVENTO MODAL
 // ============================================
-function openDividendModal() {
+function openDividendModal(id = null) {
     const form = document.getElementById('dividendForm');
     if (form) form.reset();
+    const titleEl = document.getElementById('dividendModalTitle');
+    const submitBtn = form?.querySelector('button[type="submit"]');
+
+    if (id) {
+        const item = allDividends.find(d => String(d.id) === String(id));
+        if (item) {
+            if (titleEl) titleEl.textContent = 'Editar Provento';
+            if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-save"></i> Atualizar Provento';
+            if (form) form.dataset.editId = id;
+            if (document.getElementById('divTicker')) document.getElementById('divTicker').value = item.ticker || '';
+            if (document.getElementById('divType')) document.getElementById('divType').value = item.type || 'Dividendo';
+            if (document.getElementById('divQuantity')) document.getElementById('divQuantity').value = getDividendQuantity(item) || '';
+            if (document.getElementById('divUnitValue')) {
+                const uVal = getDividendUnitValue(item) || 0;
+                document.getElementById('divUnitValue').value = uVal.toFixed(2).replace('.', ',');
+            }
+            const dataCom = extractDataCom(item);
+            if (document.getElementById('divDateCom')) {
+                document.getElementById('divDateCom').value = dataCom || '';
+            }
+            if (document.getElementById('divDate')) {
+                document.getElementById('divDate').value = getDividendISODate(item) || item.date || '';
+            }
+            if (document.getElementById('divTotalValue')) {
+                document.getElementById('divTotalValue').value = formatCurrency(getDividendTotalValue(item));
+            }
+            if (document.getElementById('divNote')) {
+                const cleanNote = (item.note || '').replace(/\[?DataCom:\s*[^\]\s;]+\]?\s*/i, '').trim();
+                document.getElementById('divNote').value = cleanNote;
+            }
+            openModal('dividendModal');
+            return;
+        }
+    }
+
+    if (titleEl) titleEl.textContent = 'Registrar Provento';
+    if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Provento';
+    if (form) delete form.dataset.editId;
     const dateInput = document.getElementById('divDate');
     if (dateInput) dateInput.value = getToday();
     const dateComInput = document.getElementById('divDateCom');
@@ -239,6 +277,8 @@ function openDividendModal() {
 }
 
 function closeDividendModal() {
+    const form = document.getElementById('dividendForm');
+    if (form) delete form.dataset.editId;
     closeModal('dividendModal');
 }
 
@@ -684,7 +724,8 @@ async function saveDividend(e) {
             finalNote = `[DataCom: ${dateCom}] ` + finalNote;
         }
 
-        const newId = 'div-' + Date.now();
+        const editId = form.dataset.editId;
+        const newId = editId || ('div-' + Date.now());
         const data = {
             id: newId,
             user_id: currentUser ? currentUser.id : 'demo-user',
@@ -697,8 +738,25 @@ async function saveDividend(e) {
             note: finalNote.trim() || null
         };
 
-        let supabaseSaved = false;
-        if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+        if (editId && currentUser && currentUser.id && typeof supabaseClient !== 'undefined' && !String(editId).startsWith('demo-') && !String(editId).startsWith('div-')) {
+            try {
+                await supabaseClient
+                    .from('dividends')
+                    .update({
+                        ticker: ticker,
+                        quantity: quantity,
+                        unit_value: unitValue,
+                        total_value: totalValue,
+                        date: date,
+                        type: type,
+                        note: finalNote.trim() || null
+                    })
+                    .eq('id', editId)
+                    .eq('user_id', currentUser.id);
+            } catch (err) {
+                console.warn('⚠️ Supabase update warning:', err);
+            }
+        } else if (!editId && currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
             try {
                 const { data: dbData, error } = await supabaseClient
                     .from('dividends')
@@ -714,13 +772,8 @@ async function saveDividend(e) {
                     }])
                     .select();
 
-                if (!error) {
-                    supabaseSaved = true;
-                    if (dbData && dbData[0]) {
-                        data.id = dbData[0].id;
-                    }
-                } else {
-                    console.warn('⚠️ Supabase insert warning, salvando localmente:', error.message);
+                if (!error && dbData && dbData[0]) {
+                    data.id = dbData[0].id;
                 }
             } catch (dbErr) {
                 console.warn('⚠️ Supabase insert catch, fallback local:', dbErr);
@@ -728,13 +781,14 @@ async function saveDividend(e) {
         }
 
         // Salva e atualiza o cache local
-        allDividends = [data, ...allDividends.filter(d => d.id !== data.id)];
+        allDividends = [data, ...allDividends.filter(d => String(d.id) !== String(data.id))];
         const storageKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
         try {
             localStorage.setItem(storageKey, JSON.stringify(allDividends));
         } catch (e) {}
 
-        showToast(`✅ Provento de ${ticker} registrado com sucesso!`, 'success');
+        showToast(editId ? `✅ Provento de ${ticker} atualizado!` : `✅ Provento de ${ticker} registrado com sucesso!`, 'success');
+        delete form.dataset.editId;
         closeDividendModal();
         await loadDividends();
         updateSummary();
@@ -1332,10 +1386,35 @@ function getIconForClass(cls) {
     }
 }
 
-function extractDataCom(note) {
-    if (!note) return null;
-    const match = note.match(/\[DataCom:\s*([^\]]+)\]/i);
+function extractDataCom(input) {
+    if (!input) return null;
+    if (typeof input === 'object') {
+        if (input.data_com) return input.data_com;
+        if (input.dataCom) return input.dataCom;
+        input = input.note;
+    }
+    if (!input || typeof input !== 'string') return null;
+    const match = input.match(/\[?DataCom:\s*([^\]\s;,]+)\]?/i);
     return match ? match[1].trim() : null;
+}
+
+function formatPtBrDate(dateStr) {
+    if (!dateStr) return '-';
+    let s = String(dateStr).split('T')[0].trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        const parts = s.split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    try {
+        const dt = new Date(s + 'T12:00:00');
+        if (!isNaN(dt.getTime())) {
+            const day = String(dt.getDate()).padStart(2, '0');
+            const month = String(dt.getMonth() + 1).padStart(2, '0');
+            return `${day}/${month}/${dt.getFullYear()}`;
+        }
+    } catch (e) {}
+    return s;
 }
 
 // ============================================
@@ -1448,11 +1527,21 @@ function populateProventosFilterDropdowns() {
         yearsSet.add(currentYear);
         const years = Array.from(yearsSet).sort((a, b) => b - a);
 
-        const currentVal = yearSelect.value || 'ALL';
+        const currentVal = yearSelect.value;
         yearSelect.innerHTML = `<option value="ALL">Todos os anos</option>` +
             years.map(y => `<option value="${y}">${y}</option>`).join('');
-        if (years.map(String).includes(String(currentVal)) || currentVal === 'ALL') {
+
+        if (!yearSelect.dataset.userInteracted) {
+            yearSelect.value = years.includes(currentYear) ? String(currentYear) : 'ALL';
+        } else if (years.map(String).includes(String(currentVal)) || currentVal === 'ALL') {
             yearSelect.value = currentVal;
+        }
+
+        if (!yearSelect.dataset.listenerAttached) {
+            yearSelect.addEventListener('change', () => {
+                yearSelect.dataset.userInteracted = 'true';
+            });
+            yearSelect.dataset.listenerAttached = 'true';
         }
     }
 }
@@ -1803,10 +1892,6 @@ function applyDemoQuotes() {
 }
 
 function generateDemoDividends() {
-    const now = new Date();
-    const curYear = now.getFullYear();
-    const curMonth = now.getMonth(); // 0-indexed
-
     const list = [];
     let idCounter = 1;
 
@@ -1828,44 +1913,66 @@ function generateDemoDividends() {
         });
     }
 
-    // Gerar proventos de demonstração em uma janela de 15 meses (12 passados + corrente + 2 futuros)
-    for (let offset = -12; offset <= 2; offset++) {
-        const targetDate = new Date(curYear, curMonth + offset, 15);
-        const yr = targetDate.getFullYear();
-        const mo = targetDate.getMonth();
+    // === ANO 2026 ===
+    // Exatamente como nos prints do usuário:
+    // KNCR11 - 2 cotas @ 1,15 = R$ 2,30 (DataCom: 31/08/2026, Pagamento: 14/09/2026) -> A Receber
+    addDiv('KNCR11', 'Dividendos', 2, 1.15, 2026, 8, 14, '[DataCom: 2026-08-31]');
+    // GGRC11 - 15 cotas @ 0,10 = R$ 1,50 (DataCom: 01/09/2026, Pagamento: 09/09/2026) -> Pago
+    addDiv('GGRC11', 'Dividendos', 15, 0.10, 2026, 8, 9, '[DataCom: 2026-09-01]');
+    // RZTR11 - 1 cota @ 0,85 = R$ 0,85 (DataCom: 31/08/2026, Pagamento: 08/09/2026) -> Pago
+    addDiv('RZTR11', 'Dividendos', 1, 0.85, 2026, 8, 8, '[DataCom: 2026-08-31]');
 
-        // MXRF11 (FII de papel - Rendimento todo mês)
-        addDiv('MXRF11', 'Rendimento', 500, 0.10, yr, mo, 15, `DataCom: ${yr}-${String(mo === 0 ? 12 : mo).padStart(2, '0')}-30`);
+    // Agosto 2026: Total 4,23
+    addDiv('HGLG11', 'Rendimento', 3, 1.10, 2026, 7, 14, '[DataCom: 2026-07-31]'); // 3.30
+    addDiv('MXRF11', 'Rendimento', 5, 0.09, 2026, 7, 15, '[DataCom: 2026-07-31]'); // 0.45
+    addDiv('XPML11', 'Rendimento', 1, 0.48, 2026, 7, 20, '[DataCom: 2026-07-31]'); // 0.48
 
-        // HGLG11 (FII de galpão - Rendimento todo mês)
-        addDiv('HGLG11', 'Rendimento', 60, 1.10, yr, mo, 14, `DataCom: ${yr}-${String(mo === 0 ? 12 : mo).padStart(2, '0')}-30`);
+    // Julho 2026: Total 0,90
+    addDiv('MXRF11', 'Rendimento', 10, 0.09, 2026, 6, 15, '[DataCom: 2026-06-30]'); // 0.90
 
-        // XPML11 (FII de Shopping - bimestral)
-        if (mo % 2 === 0) {
-            addDiv('XPML11', 'Rendimento', 80, 0.90, yr, mo, 20, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-05`);
-        }
+    // Maio 2026: Total 7,54
+    addDiv('PETR4', 'Dividendo', 2, 1.75, 2026, 4, 20, '[DataCom: 2026-04-25]'); // 3.50
+    addDiv('HGLG11', 'Rendimento', 3, 1.10, 2026, 4, 14, '[DataCom: 2026-04-30]'); // 3.30
+    addDiv('ITUB4', 'JCP', 37, 0.02, 2026, 4, 2, '[DataCom: 2026-03-31]'); // 0.74
 
-        // ITUB4 (JCP mensal padrão Itaú)
-        addDiv('ITUB4', 'JCP', 400, 0.0176, yr, mo, 1, `DataCom: ${yr}-${String(mo === 0 ? 12 : mo).padStart(2, '0')}-30`);
+    // Abril 2026: Total 3,74
+    addDiv('VALE3', 'Dividendo', 1, 3.74, 2026, 3, 15, '[DataCom: 2026-03-20]'); // 3.74
 
-        // PETR4 (Petrobras - trimestral expressivo)
-        if (mo === 2 || mo === 5 || mo === 8 || mo === 10) {
-            const petrType = mo % 2 === 0 ? 'Dividendo' : 'JCP';
-            const petrUnit = mo % 2 === 0 ? 1.80 : 1.15;
-            addDiv('PETR4', petrType, 300, petrUnit, yr, mo, 22, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-10`);
-        }
+    // Março 2026: Total 2,84
+    addDiv('BBAS3', 'JCP', 2, 1.42, 2026, 2, 27, '[DataCom: 2026-02-21]'); // 2.84
 
-        // VALE3 (Vale - Março e Agosto)
-        if (mo === 2 || mo === 7) {
-            const valeType = mo === 2 ? 'Dividendo' : 'JCP';
-            addDiv('VALE3', valeType, 130, 2.45, yr, mo, 18, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-05`);
-        }
+    // === ANO 2025 === (Total 54,89 | Média 4,57 exatamente como no print do usuário)
+    addDiv('MXRF11', 'Rendimento', 15, 0.09, 2025, 0, 15, '[DataCom: 2024-12-30]'); // 1.35
+    addDiv('ITUB4', 'JCP', 18, 0.02, 2025, 1, 3, '[DataCom: 2024-12-30]'); // 0.36
+    addDiv('PETR4', 'Dividendo', 3, 2.00, 2025, 2, 20, '[DataCom: 2025-02-28]'); // 6.00
+    addDiv('ITUB4', 'JCP', 18, 0.02, 2025, 3, 2, '[DataCom: 2025-02-28]'); // 0.36
+    addDiv('HGLG11', 'Rendimento', 3, 1.10, 2025, 4, 15, '[DataCom: 2025-04-30]'); // 3.30 + 0.02
+    addDiv('ITUB4', 'JCP', 1, 0.02, 2025, 4, 5, '[DataCom: 2025-03-31]');
+    addDiv('VALE3', 'Dividendo', 1, 2.51, 2025, 6, 18, '[DataCom: 2025-06-30]'); // 2.51
+    addDiv('BBAS3', 'JCP', 5, 2.10, 2025, 8, 26, '[DataCom: 2025-08-15]'); // 10.50
+    addDiv('PETR4', 'Dividendo', 8, 2.12375, 2025, 10, 20, '[DataCom: 2025-10-31]'); // 16.99
+    addDiv('VALE3', 'JCP', 5, 2.70, 2025, 11, 19, '[DataCom: 2025-11-28]'); // 13.50
 
-        // BBAS3 (Banco do Brasil - Fevereiro e Agosto)
-        if (mo === 1 || mo === 7) {
-            addDiv('BBAS3', 'JCP', 150, 1.05, yr, mo, 28, `DataCom: ${yr}-${String(mo + 1).padStart(2, '0')}-15`);
-        }
-    }
+    // === ANO 2024 === (Total 62,30)
+    addDiv('MXRF11', 'Rendimento', 32, 0.10, 2024, 1, 15, '[DataCom: 2024-01-31]'); // 3.20
+    addDiv('HGLG11', 'Rendimento', 5, 1.10, 2024, 2, 14, '[DataCom: 2024-02-29]'); // 5.50
+    addDiv('XPML11', 'Rendimento', 6, 0.80, 2024, 4, 20, '[DataCom: 2024-04-30]'); // 4.80
+    addDiv('ITUB4', 'JCP', 200, 0.031, 2024, 6, 1, '[DataCom: 2024-05-31]'); // 6.20
+    addDiv('BBAS3', 'JCP', 4, 2.10, 2024, 7, 28, '[DataCom: 2024-07-31]'); // 8.40
+    addDiv('PETR4', 'Dividendo', 4, 2.80, 2024, 9, 21, '[DataCom: 2024-09-30]'); // 11.20
+    addDiv('VALE3', 'Dividendo', 5, 4.60, 2024, 11, 20, '[DataCom: 2024-11-29]'); // 23.00
+
+    // === ANO 2023 === (Total 51,40)
+    addDiv('MXRF11', 'Rendimento', 41, 0.10, 2023, 2, 15, '[DataCom: 2023-02-28]'); // 4.10
+    addDiv('HGLG11', 'Rendimento', 6, 1.20, 2023, 5, 14, '[DataCom: 2023-05-31]'); // 7.20
+    addDiv('PETR4', 'Dividendo', 4, 3.075, 2023, 7, 18, '[DataCom: 2023-07-31]'); // 12.30
+    addDiv('BBAS3', 'JCP', 5, 2.36, 2023, 10, 28, '[DataCom: 2023-10-31]'); // 11.80
+    addDiv('VALE3', 'Dividendo', 4, 4.00, 2023, 11, 20, '[DataCom: 2023-11-30]'); // 16.00
+
+    // === ANO 2022 === (Total 34,44)
+    addDiv('MXRF11', 'Rendimento', 54, 0.10074, 2022, 5, 15, '[DataCom: 2022-05-31]'); // 5.44
+    addDiv('PETR4', 'Dividendo', 4, 2.50, 2022, 7, 20, '[DataCom: 2022-07-29]'); // 10.00
+    addDiv('VALE3', 'Dividendo', 5, 3.80, 2022, 11, 20, '[DataCom: 2022-11-30]'); // 19.00
 
     return list.sort((a, b) => (b.date > a.date ? 1 : -1));
 }
@@ -2147,11 +2254,39 @@ function onProventosChartFilterChange() {
     renderDividendsChart();
 }
 
+let matrixSortField = 'year';
+let matrixSortAsc = false;
+
+function toggleMatrixSort(field) {
+    if (matrixSortField === field) {
+        matrixSortAsc = !matrixSortAsc;
+    } else {
+        matrixSortField = field;
+        matrixSortAsc = false;
+    }
+    renderProventosHistoryTable();
+}
+window.toggleMatrixSort = toggleMatrixSort;
+
+let provListSortField = 'date';
+let provListSortAsc = false;
+
+function toggleProvListSort(field) {
+    if (provListSortField === field) {
+        provListSortAsc = !provListSortAsc;
+    } else {
+        provListSortField = field;
+        provListSortAsc = (field === 'ticker' || field === 'class' || field === 'type') ? true : false;
+    }
+    renderProventosListTable();
+}
+window.toggleProvListSort = toggleProvListSort;
+
 function renderProventosHistoryTable() {
     const body = document.getElementById('provMatrixBody');
     if (!body) return;
 
-    const statusFilter = document.getElementById('provHistoryStatusSelect')?.value || 'todos';
+    const statusFilter = document.getElementById('provHistoryStatusSelect')?.value || 'recebidos';
     const classFilter = document.getElementById('provHistoryClassSelect')?.value || 'ALL';
     const tickerFilter = document.getElementById('provHistoryTickerSelect')?.value || 'ALL';
 
@@ -2169,6 +2304,22 @@ function renderProventosHistoryTable() {
         if (statusFilter === 'a_receber' && iso <= todayISO) return false;
         return true;
     });
+
+    // Atualiza ícones de ordenação na tabela matriz
+    const updateSortIcon = (id, field, asc) => {
+        const icon = document.getElementById(id);
+        if (!icon) return;
+        if (matrixSortField === field) {
+            icon.className = asc ? 'fas fa-sort-up' : 'fas fa-sort-down';
+            icon.style.color = '#0984E3';
+        } else {
+            icon.className = 'fas fa-sort';
+            icon.style.color = '';
+        }
+    };
+    updateSortIcon('sortIconMatrixYear', 'year', matrixSortAsc);
+    updateSortIcon('sortIconMatrixMedia', 'media', matrixSortAsc);
+    updateSortIcon('sortIconMatrixTotal', 'total', matrixSortAsc);
 
     if (filtered.length === 0) {
         body.innerHTML = `
@@ -2201,16 +2352,46 @@ function renderProventosHistoryTable() {
         matrix[ym.year][ym.month] += getDividendTotalValue(d);
     });
 
-    const years = Object.keys(matrix).map(Number).sort((a, b) => b - a);
-    let grandTotal = 0;
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth(); // 0-indexed
 
-    const rowsHtml = years.map(year => {
+    let yearRows = Object.keys(matrix).map(y => {
+        const year = Number(y);
         const months = matrix[year];
         const yearTotal = months.reduce((sum, val) => sum + (Number(val) || 0), 0);
-        grandTotal += yearTotal;
-        const yearAvg = yearTotal / 12;
+        
+        let divisor = 12;
+        if (year === curYear) {
+            divisor = Math.max(1, curMonth + 1);
+        }
+        const yearAvg = yearTotal / divisor;
 
-        const monthsHtml = months.map(val => {
+        return {
+            year,
+            months,
+            yearTotal,
+            yearAvg
+        };
+    });
+
+    let grandTotal = yearRows.reduce((acc, r) => acc + r.yearTotal, 0);
+
+    // Ordenação
+    yearRows.sort((a, b) => {
+        let diff = 0;
+        if (matrixSortField === 'media') {
+            diff = a.yearAvg - b.yearAvg;
+        } else if (matrixSortField === 'total') {
+            diff = a.yearTotal - b.yearTotal;
+        } else {
+            diff = a.year - b.year;
+        }
+        return matrixSortAsc ? diff : -diff;
+    });
+
+    const rowsHtml = yearRows.map(r => {
+        const monthsHtml = r.months.map(val => {
             const num = Number(val) || 0;
             const displayVal = num > 0 ? formatNumber(num, 2) : '0,00';
             const cellClass = num > 0 ? 'matrix-active-cell' : '';
@@ -2219,10 +2400,10 @@ function renderProventosHistoryTable() {
 
         return `
             <tr>
-                <td><strong>${year}</strong></td>
+                <td><strong>${r.year}</strong></td>
                 ${monthsHtml}
-                <td class="col-media"><strong>${formatNumber(yearAvg, 2)}</strong></td>
-                <td class="col-total"><strong>${formatNumber(yearTotal, 2)}</strong></td>
+                <td class="col-media"><strong>${formatNumber(r.yearAvg, 2)}</strong></td>
+                <td class="col-total"><strong>${formatNumber(r.yearTotal, 2)}</strong></td>
             </tr>
         `;
     }).join('');
@@ -2246,7 +2427,7 @@ function renderProventosListTable() {
 
     const todayISO = new Date().toISOString().substring(0, 10);
 
-    const filtered = allDividends.filter(d => {
+    let filtered = allDividends.filter(d => {
         const ym = getDividendYearMonth(d);
         if (yearFilter !== 'ALL') {
             if (!ym.year || String(ym.year) !== String(yearFilter)) return false;
@@ -2258,6 +2439,32 @@ function renderProventosListTable() {
             if (cls !== classFilter) return false;
         }
         return true;
+    });
+
+    // Atualiza ícones de ordenação na tabela de lista
+    const listSortIcons = {
+        ticker: 'sortIconProvTicker',
+        class: 'sortIconProvClass',
+        status: 'sortIconProvStatus',
+        type: 'sortIconProvType',
+        dataCom: 'sortIconProvDataCom',
+        date: 'sortIconProvDate',
+        quantity: 'sortIconProvQty',
+        unitValue: 'sortIconProvUnitVal',
+        totalValue: 'sortIconProvTotalVal',
+        netValue: 'sortIconProvNetVal'
+    };
+
+    Object.entries(listSortIcons).forEach(([field, iconId]) => {
+        const icon = document.getElementById(iconId);
+        if (!icon) return;
+        if (provListSortField === field) {
+            icon.className = provListSortAsc ? 'fas fa-sort-up' : 'fas fa-sort-down';
+            icon.style.color = '#0984E3';
+        } else {
+            icon.className = 'fas fa-sort';
+            icon.style.color = '';
+        }
     });
 
     const sumTotal = filtered.reduce((acc, d) => acc + getDividendTotalValue(d), 0);
@@ -2285,6 +2492,59 @@ function renderProventosListTable() {
         return;
     }
 
+    // Ordenação dos proventos
+    filtered.sort((a, b) => {
+        let cmp = 0;
+        const tickerA = (a.ticker || '').toUpperCase();
+        const tickerB = (b.ticker || '').toUpperCase();
+        const dateA = getDividendISODate(a) || a.date || '';
+        const dateB = getDividendISODate(b) || b.date || '';
+        const dataComA = extractDataCom(a) || '';
+        const dataComB = extractDataCom(b) || '';
+        const totalA = getDividendTotalValue(a);
+        const totalB = getDividendTotalValue(b);
+        const isJCPA = (a.type && String(a.type).toUpperCase().includes('JCP'));
+        const isJCPB = (b.type && String(b.type).toUpperCase().includes('JCP'));
+        const netA = isJCPA ? totalA * 0.85 : totalA;
+        const netB = isJCPB ? totalB * 0.85 : totalB;
+
+        switch (provListSortField) {
+            case 'ticker':
+                cmp = tickerA.localeCompare(tickerB);
+                break;
+            case 'class':
+                cmp = getAssetClassForTicker(tickerA).localeCompare(getAssetClassForTicker(tickerB));
+                break;
+            case 'status':
+                cmp = (dateA <= todayISO ? 0 : 1) - (dateB <= todayISO ? 0 : 1);
+                break;
+            case 'type':
+                cmp = (a.type || '').localeCompare(b.type || '');
+                break;
+            case 'dataCom':
+                cmp = dataComA.localeCompare(dataComB);
+                break;
+            case 'date':
+                cmp = dateA.localeCompare(dateB);
+                break;
+            case 'quantity':
+                cmp = getDividendQuantity(a) - getDividendQuantity(b);
+                break;
+            case 'unitValue':
+                cmp = getDividendUnitValue(a) - getDividendUnitValue(b);
+                break;
+            case 'totalValue':
+                cmp = totalA - totalB;
+                break;
+            case 'netValue':
+                cmp = netA - netB;
+                break;
+            default:
+                cmp = dateA.localeCompare(dateB);
+        }
+        return provListSortAsc ? cmp : -cmp;
+    });
+
     body.innerHTML = filtered.map(d => {
         const ticker = (d.ticker || '').toUpperCase().trim();
         const cls = getAssetClassForTicker(ticker);
@@ -2292,12 +2552,12 @@ function renderProventosListTable() {
         const isoDate = getDividendISODate(d);
         const isPaid = isoDate <= todayISO;
         const statusBadge = isPaid
-            ? `<span class="prov-status-badge paid"><i class="fas fa-check-circle"></i> Pago</span>`
-            : `<span class="prov-status-badge pending"><i class="fas fa-clock"></i> A Receber</span>`;
+            ? `<span class="prov-status-badge paid"><i class="fas fa-money-bill-wave"></i> Pago</span>`
+            : `<span class="prov-status-badge pending"><i class="far fa-credit-card"></i> A Receber</span>`;
 
-        const dataCom = extractDataCom(d.note);
-        const dataComDisplay = dataCom ? formatDate(dataCom) : '-';
-        const datePayDisplay = formatDate(isoDate || d.date);
+        const dataCom = extractDataCom(d);
+        const dataComDisplay = dataCom ? formatPtBrDate(dataCom) : '-';
+        const datePayDisplay = formatPtBrDate(isoDate || d.date);
 
         const totalVal = getDividendTotalValue(d);
         const unitVal = getDividendUnitValue(d);
@@ -2313,17 +2573,20 @@ function renderProventosListTable() {
                         <span class="prov-ticker-name">${ticker}</span>
                     </div>
                 </td>
-                <td><span class="prov-class-badge">${cls}</span></td>
+                <td><span class="prov-class-badge"><i class="${iconCls}"></i> ${cls}</span></td>
                 <td>${statusBadge}</td>
-                <td>${d.type || 'Dividendo'}</td>
-                <td>${dataComDisplay}</td>
-                <td>${datePayDisplay}</td>
-                <td>${formatNumber(qtyVal)}</td>
-                <td>${formatCurrency(unitVal)}</td>
-                <td><strong>${formatCurrency(totalVal)}</strong></td>
-                <td><strong>${formatCurrency(netVal)}</strong></td>
+                <td>${d.type || 'Dividendos'}</td>
+                <td class="text-center">${dataComDisplay}</td>
+                <td class="text-center">${datePayDisplay}</td>
+                <td class="text-right">${formatNumber(qtyVal, 2)}</td>
+                <td class="text-right">${formatCurrency(unitVal)}</td>
+                <td class="text-right"><strong>${formatCurrency(totalVal)}</strong></td>
+                <td class="text-right"><strong>${formatCurrency(netVal)}</strong></td>
                 <td style="text-align:right;">
-                    <div class="actions" style="justify-content:flex-end;">
+                    <div class="actions" style="justify-content:flex-end; gap:6px;">
+                        <button type="button" class="btn btn-ghost btn-icon-sm" onclick="openDividendModal('${d.id}')" title="Editar provento" aria-label="Editar provento">
+                            <i class="fas fa-pencil-alt"></i>
+                        </button>
                         <button type="button" class="btn btn-danger btn-icon-sm" onclick="deleteDividend('${d.id}')" title="Excluir provento" aria-label="Excluir provento">
                             <i class="fas fa-trash"></i>
                         </button>

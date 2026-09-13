@@ -1722,53 +1722,57 @@ body.dark-theme .input-prefix span {
     width: 100%;
     border-collapse: collapse;
     font-size: 12px;
-    min-width: 750px;
+    min-width: 820px;
 }
 
 .proventos-matrix-table th {
     background: var(--color-bg);
     color: var(--color-text-muted);
     font-weight: 600;
-    padding: 8px 6px;
-    text-align: center;
+    padding: 10px 8px;
+    text-align: right;
     border-bottom: 1px solid var(--color-border);
     white-space: nowrap;
+    user-select: none;
 }
 
 .proventos-matrix-table th:first-child {
     text-align: left;
-    padding-left: 12px;
+    padding-left: 14px;
 }
 
 .proventos-matrix-table td {
-    padding: 10px 6px;
-    text-align: center;
+    padding: 11px 8px;
+    text-align: right;
     border-bottom: 1px solid var(--color-border);
-    color: var(--color-text);
+    color: var(--color-text-muted);
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
 
 .proventos-matrix-table td:first-child {
     text-align: left;
     font-weight: 700;
-    padding-left: 12px;
+    color: var(--color-text);
+    padding-left: 14px;
 }
 
 .proventos-matrix-table td.col-total {
     font-weight: 700;
+    color: var(--color-text);
 }
 
 .proventos-matrix-table td.col-media {
-    color: var(--color-text-muted);
+    color: var(--color-text);
     font-weight: 600;
 }
 
 .proventos-matrix-table tr:hover td {
-    background: rgba(0, 0, 0, 0.015);
+    background: rgba(0, 0, 0, 0.02);
 }
 
 body.dark-theme .proventos-matrix-table tr:hover td {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.03);
 }
 
 /* TRANSACTIONS TABLE */
@@ -1776,17 +1780,28 @@ body.dark-theme .proventos-matrix-table tr:hover td {
     width: 100%;
     border-collapse: collapse;
     font-size: 12px;
-    min-width: 900px;
+    min-width: 960px;
 }
 
 .proventos-transactions-table th {
     background: var(--color-bg);
     color: var(--color-text-muted);
     font-weight: 600;
-    padding: 10px 12px;
+    padding: 11px 12px;
     text-align: left;
     border-bottom: 1px solid var(--color-border);
     white-space: nowrap;
+    user-select: none;
+}
+
+.proventos-transactions-table th.text-right,
+.proventos-transactions-table td.text-right {
+    text-align: right;
+}
+
+.proventos-transactions-table th.text-center,
+.proventos-transactions-table td.text-center {
+    text-align: center;
 }
 
 .proventos-transactions-table td {
@@ -1795,60 +1810,64 @@ body.dark-theme .proventos-matrix-table tr:hover td {
     color: var(--color-text);
     vertical-align: middle;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
 
 .proventos-transactions-table tr:hover td {
-    background: rgba(0, 0, 0, 0.015);
+    background: rgba(0, 0, 0, 0.02);
 }
 
 body.dark-theme .proventos-transactions-table tr:hover td {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .prov-status-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: 6px;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 99px;
     font-size: 11px;
     font-weight: 700;
+    white-space: nowrap;
 }
 
 .prov-status-badge.paid {
-    background: #dcfce7;
-    color: #15803d;
-    border: 1px solid #bbf7d0;
+    background: rgba(0, 184, 148, 0.12);
+    color: #00B894;
+    border: 1px solid rgba(0, 184, 148, 0.28);
 }
 
 .prov-status-badge.pending {
-    background: #e0f2fe;
-    color: #0369a1;
-    border: 1px solid #bae6fd;
+    background: rgba(9, 132, 227, 0.10);
+    color: #0984E3;
+    border: 1px solid rgba(9, 132, 227, 0.25);
 }
 
 body.dark-theme .prov-status-badge.paid {
-    background: rgba(34, 197, 94, 0.15);
-    color: #4ade80;
-    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(0, 184, 148, 0.18);
+    color: #55efc4;
+    border-color: rgba(0, 184, 148, 0.35);
 }
 
 body.dark-theme .prov-status-badge.pending {
-    background: rgba(14, 165, 233, 0.15);
-    color: #38bdf8;
-    border-color: rgba(14, 165, 233, 0.3);
+    background: rgba(9, 132, 227, 0.20);
+    color: #74b9ff;
+    border-color: rgba(9, 132, 227, 0.35);
 }
 
 .prov-class-badge {
     display: inline-flex;
     align-items: center;
-    padding: 2px 7px;
+    gap: 5px;
+    padding: 3px 8px;
     border-radius: 6px;
-    font-size: 10px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 600;
     background: var(--color-bg);
-    color: var(--color-text-muted);
+    color: var(--color-text);
     border: 1px solid var(--color-border);
+    white-space: nowrap;
 }
 
 .prov-ticker-icon {
