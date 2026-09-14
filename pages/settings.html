@@ -8,6 +8,7 @@
         content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
 
     <meta name="theme-color" content="#6C5CE7">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TonuControle">
@@ -517,6 +518,17 @@
 
                             <div class="notif-switch-row">
                                 <div class="notif-switch-info">
+                                    <strong>Alertar Proventos Creditados e a Receber</strong>
+                                    <small>Receba avisos instantâneos quando dividendos e rendimentos caírem hoje ou nos próximos dias.</small>
+                                </div>
+                                <label class="custom-toggle">
+                                    <input type="checkbox" id="toggleRemindDividends" onchange="updateNotificationSettings()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="notif-switch-row">
+                                <div class="notif-switch-info">
                                     <strong>Som e Vibração nos Alertas</strong>
                                     <small>Tocar tom audível suave e vibrar o dispositivo ao disparar notificações.</small>
                                 </div>
@@ -771,6 +783,24 @@
                                 </button>
                                 <button class="btn btn-outline" onclick="exportData()" aria-label="Exportar transações CSV">
                                     <i class="fas fa-file-csv" aria-hidden="true"></i> Exportar Transações (CSV)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- CARD: CACHE & DADOS TEMPORÁRIOS -->
+                        <div class="settings-card" id="cacheSettingsCard">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon warning">
+                                    <i class="fas fa-broom" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Memória & Cache Local</h3>
+                                    <p>Limpe caches de cotações, dados de demonstração e rascunhos temporários salvos no navegador sem apagar suas transações ou configurações salvas.</p>
+                                </div>
+                            </div>
+                            <div class="settings-actions" style="margin-top:8px;">
+                                <button id="btnClearLocalCache" class="btn btn-outline" onclick="clearLocalCache()" aria-label="Limpar Cache Local">
+                                    <i class="fas fa-broom" aria-hidden="true"></i> Limpar Cache Local
                                 </button>
                             </div>
                         </div>

@@ -514,7 +514,15 @@ async function saveGoal(event) {
         updated_at: new Date().toISOString()
     };
 
-    const secureData = window.TonuCSRF ? window.TonuCSRF.secureRequest(data) : data;
+    // Validação local de CSRF sem poluir colunas do banco de dados
+    const formCsrf = event.target.querySelector('input[name="_csrf"]')?.value;
+    if (window.TonuCSRF && formCsrf && !window.TonuCSRF.validate(formCsrf)) {
+        console.warn('⚠️ Token CSRF inválido ou expirado');
+    }
+
+    const payload = { ...data };
+    delete payload._csrf;
+    delete payload._timestamp;
 
     const btn = event.target.querySelector('button[type="submit"]');
     const originalText = btn.innerHTML;
@@ -527,10 +535,10 @@ async function saveGoal(event) {
 
         if (!navigator.onLine && window.tonuSync) {
             if (editId) {
-                await window.tonuSync.enqueue('UPDATE_GOAL', { id: editId, ...secureData });
+                await window.tonuSync.enqueue('UPDATE_GOAL', { id: editId, ...payload });
             } else {
-                secureData.created_at = new Date().toISOString();
-                await window.tonuSync.enqueue('INSERT_GOAL', secureData);
+                payload.created_at = new Date().toISOString();
+                await window.tonuSync.enqueue('INSERT_GOAL', payload);
             }
             showToast('📦 Meta salva localmente! Sincronização pendente.', 'success');
             closeModal();
@@ -547,20 +555,20 @@ async function saveGoal(event) {
         if (editId) {
             result = await supabaseClient
                 .from('goals')
-                .update(secureData)
+                .update(payload)
                 .eq('id', editId)
                 .eq('user_id', currentUser.id);
         } else {
-            secureData.created_at = new Date().toISOString();
+            payload.created_at = new Date().toISOString();
             result = await supabaseClient
                 .from('goals')
-                .insert([secureData]);
+                .insert([payload]);
         }
 
         // Se o banco não tiver a coluna 'category' (PGRST204), tenta salvar sem esse campo
         if (result.error && (result.error.code === 'PGRST204' || (result.error.message && result.error.message.includes('category')))) {
             console.warn('⚠️ Coluna category não encontrada no Supabase, salvando sem category...');
-            const fallbackData = { ...secureData };
+            const fallbackData = { ...payload };
             delete fallbackData.category;
             if (editId) {
                 result = await supabaseClient
@@ -789,16 +797,14 @@ async function submitWithdraw(event) {
     btn.innerHTML = '<span class="spinner"></span> Processando...';
 
     try {
-        const data = {
+        const payload = {
             current_amount: newAmount,
             completed: completed,
             updated_at: new Date().toISOString()
         };
 
-        const secureData = window.TonuCSRF ? window.TonuCSRF.secureRequest(data) : data;
-
         if (!navigator.onLine && window.tonuSync) {
-            await window.tonuSync.enqueue('UPDATE_GOAL', { id: id, ...secureData });
+            await window.tonuSync.enqueue('UPDATE_GOAL', { id: id, ...payload });
             showToast('📦 Resgate efetuado localmente! Sincronização pendente.', 'success');
             closeWithdrawModal();
             await loadGoals();
@@ -810,7 +816,7 @@ async function submitWithdraw(event) {
 
         const { error } = await supabaseClient
             .from('goals')
-            .update(secureData)
+            .update(payload)
             .eq('id', id)
             .eq('user_id', currentUser.id);
 
@@ -884,16 +890,14 @@ async function submitAddValue(event) {
     btn.innerHTML = '<span class="spinner"></span> Salvando...';
 
     try {
-        const data = {
+        const payload = {
             current_amount: newAmount,
             completed: completed,
             updated_at: new Date().toISOString()
         };
 
-        const secureData = window.TonuCSRF ? window.TonuCSRF.secureRequest(data) : data;
-
         if (!navigator.onLine && window.tonuSync) {
-            await window.tonuSync.enqueue('UPDATE_GOAL', { id: id, ...secureData });
+            await window.tonuSync.enqueue('UPDATE_GOAL', { id: id, ...payload });
             showToast('📦 Valor adicionado localmente! Sincronização pendente.', 'success');
             closeAddValue();
             await loadGoals();
@@ -908,7 +912,7 @@ async function submitAddValue(event) {
 
         const { error } = await supabaseClient
             .from('goals')
-            .update(secureData)
+            .update(payload)
             .eq('id', id)
             .eq('user_id', currentUser.id);
 
@@ -951,16 +955,14 @@ async function quickCompleteGoal(id) {
     isProcessing = true;
 
     try {
-        const data = {
+        const payload = {
             current_amount: goal.target_amount,
             completed: true,
             updated_at: new Date().toISOString()
         };
 
-        const secureData = window.TonuCSRF ? window.TonuCSRF.secureRequest(data) : data;
-
         if (!navigator.onLine && window.tonuSync) {
-            await window.tonuSync.enqueue('UPDATE_GOAL', { id: id, ...secureData });
+            await window.tonuSync.enqueue('UPDATE_GOAL', { id: id, ...payload });
             showToast('📦 Meta concluída localmente! Sincronização pendente.', 'success');
             await loadGoals();
             triggerCelebration(goal.title, goal.target_amount);
@@ -970,7 +972,7 @@ async function quickCompleteGoal(id) {
 
         const { error } = await supabaseClient
             .from('goals')
-            .update(secureData)
+            .update(payload)
             .eq('id', id)
             .eq('user_id', currentUser.id);
 

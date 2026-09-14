@@ -6,7 +6,9 @@ create table public.dividends (
   quantity numeric(10, 4) not null,
   unit_value numeric(10, 4) not null,
   total_value numeric(10, 2) not null,
+  net_value numeric(10, 2) null,
   date date not null,
+  date_com date null,
   created_at timestamp with time zone null default now(),
   updated_at timestamp with time zone null default now(),
   note text null,
@@ -23,7 +25,11 @@ create table public.dividends (
         ]
       )
     )
-  )
+  ),
+  constraint dividends_total_value_check check (
+    abs(total_value - (quantity * unit_value)) <= 0.01
+  ),
+  constraint dividends_user_ticker_date_type_unique unique (user_id, ticker, date, type)
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_dividends_user_id on public.dividends using btree (user_id) TABLESPACE pg_default;

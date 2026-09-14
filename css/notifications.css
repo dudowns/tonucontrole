@@ -664,6 +664,20 @@
     color: #4338ca;
 }
 
+.notif-tag-success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+body.dark-theme .notif-tag-success {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+}
+
+.notif-item.paid-today {
+    border-left: 3px solid #00B894;
+}
+
 .notif-dismiss-btn {
     background: transparent;
     border: none;
@@ -726,6 +740,10 @@
     padding: 12px 16px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
     border: 1px solid #e2e8f0;
+}
+
+.floating-alert-inner.success {
+    border-left: 5px solid #00B894;
 }
 
 body.dark-theme .floating-alert-inner {

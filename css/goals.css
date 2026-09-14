@@ -8,10 +8,10 @@
 .goals-hero-card {
     background: var(--color-surface, #ffffff);
     border: 1px solid var(--color-border, #e2e8f0);
-    border-radius: 14px;
-    padding: 16px 20px;
-    margin-bottom: 16px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
     position: relative;
     overflow: hidden;
 }
@@ -28,25 +28,25 @@
 
 .hero-stats-grid {
     display: grid;
-    grid-template-columns: 1.1fr 1.1fr 1fr 1.8fr;
-    gap: 16px;
+    grid-template-columns: 1.1fr 1.1fr 1fr 1.6fr;
+    gap: 12px;
     align-items: center;
 }
 
 .hero-stat-item {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
 }
 
 .hero-stat-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 13px;
     flex-shrink: 0;
 }
 
@@ -72,17 +72,17 @@
 }
 
 .hero-stat-label {
-    font-size: 11.5px;
+    font-size: 10px;
     font-weight: 600;
     color: var(--color-text-muted, #64748b);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 2px;
+    letter-spacing: 0.03em;
+    margin-bottom: 1px;
 }
 
 .hero-stat-value {
-    font-size: 16px;
-    font-weight: 800;
+    font-size: 14px;
+    font-weight: 700;
     color: var(--color-text, #0f172a);
     white-space: nowrap;
     overflow: hidden;
@@ -92,8 +92,8 @@
 .hero-stat-item.highlight {
     background: var(--color-bg, #f8fafc);
     border: 1px solid var(--color-border, #e2e8f0);
-    border-radius: 10px;
-    padding: 10px 14px;
+    border-radius: 8px;
+    padding: 6px 10px;
     display: block;
 }
 
@@ -105,22 +105,22 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 3px;
 }
 
 .hero-stat-pct {
-    font-size: 13px;
+    font-size: 11.5px;
     font-weight: 800;
     color: #6C5CE7;
 }
 
 .hero-stat-bar {
     width: 100%;
-    height: 8px;
+    height: 6px;
     background: var(--color-border, #e2e8f0);
     border-radius: 999px;
     overflow: hidden;
-    margin-bottom: 6px;
+    margin-bottom: 3px;
 }
 
 .hero-stat-bar-fill {
@@ -131,7 +131,7 @@
 }
 
 .hero-stat-sub {
-    font-size: 11px;
+    font-size: 9.5px;
     color: var(--color-text-muted, #64748b);
     display: block;
     white-space: nowrap;
@@ -266,21 +266,21 @@
    ============================================ */
 .goals-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 12px;
 }
 
 /* ============================================
-   CARD DE META PREMIUM
+   CARD DE META PREMIUM (COMPACTO & LEVE)
    ============================================ */
 .goal-card {
     background: var(--color-surface, #ffffff);
-    border-radius: 14px;
-    padding: 16px 18px;
+    border-radius: 12px;
+    padding: 12px 14px;
     border: 1px solid var(--color-border, #e2e8f0);
-    border-top: 4px solid var(--goal-accent-color, #6C5CE7);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    border-top: 3px solid var(--goal-accent-color, #6C5CE7);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     display: flex;
     flex-direction: column;
@@ -288,13 +288,13 @@
 }
 
 .goal-card:hover {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    transform: translateY(-3px);
-    border-color: rgba(108, 92, 231, 0.3);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+    border-color: rgba(108, 92, 231, 0.25);
 }
 
 .goal-card.completed {
-    background: linear-gradient(180deg, var(--color-surface, #ffffff) 0%, rgba(0, 184, 148, 0.06) 100%);
+    background: linear-gradient(180deg, var(--color-surface, #ffffff) 0%, rgba(0, 184, 148, 0.05) 100%);
     border-top-color: #00B894;
 }
 
@@ -302,18 +302,18 @@
 .goal-card-top {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 10px;
+    margin-bottom: 8px;
 }
 
 .goal-badge-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
+    font-size: 14px;
     flex-shrink: 0;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
@@ -327,16 +327,16 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 10.5px;
+    font-size: 9.5px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     color: var(--color-text-muted, #64748b);
-    margin-bottom: 3px;
+    margin-bottom: 2px;
 }
 
 .goal-card-title {
-    font-size: 14.5px;
+    font-size: 13.5px;
     font-weight: 700;
     color: var(--color-text, #0f172a);
     margin: 0;
@@ -347,9 +347,9 @@
 }
 
 .goal-status-badge {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    padding: 3px 8px;
+    padding: 2px 7px;
     border-radius: 999px;
     white-space: nowrap;
     flex-shrink: 0;
@@ -370,7 +370,7 @@
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .goal-val-box {
@@ -379,7 +379,7 @@
 }
 
 .goal-val-label {
-    font-size: 10.5px;
+    font-size: 9.5px;
     font-weight: 600;
     color: var(--color-text-muted, #64748b);
     text-transform: uppercase;
@@ -387,41 +387,41 @@
 }
 
 .goal-val-current {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 800;
     color: var(--color-text, #0f172a);
 }
 
 .goal-val-target {
-    font-size: 12.5px;
+    font-size: 11.5px;
     font-weight: 700;
     color: var(--color-text-muted, #64748b);
 }
 
 /* PROGRESSO ESTILIZADO */
 .goal-progress-box {
-    margin: 6px 0 10px 0;
+    margin: 4px 0 8px 0;
 }
 
 .goal-progress-meta {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     color: var(--color-text-muted, #64748b);
-    margin-bottom: 5px;
+    margin-bottom: 4px;
 }
 
 .goal-progress-pct {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
     color: var(--goal-accent-color, #6C5CE7);
 }
 
 .goal-progress-track {
     width: 100%;
-    height: 9px;
+    height: 6px;
     background: var(--color-bg, #f1f5f9);
     border: 1px solid var(--color-border, #e2e8f0);
     border-radius: 999px;
@@ -444,20 +444,20 @@
 .goal-insight-pill {
     background: var(--color-bg, #f8fafc);
     border: 1px solid var(--color-border, #e2e8f0);
-    border-radius: 8px;
-    padding: 7px 10px;
-    font-size: 11px;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 10px;
     color: var(--color-text-muted, #475569);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 6px;
+    margin-bottom: 8px;
 }
 
 .goal-insight-pill i {
     color: var(--goal-accent-color, #6C5CE7);
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .goal-insight-pill strong {
@@ -468,8 +468,8 @@
 .goal-actions-bar {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding-top: 10px;
+    gap: 5px;
+    padding-top: 8px;
     border-top: 1px solid var(--color-border, #f1f5f9);
 }
 
@@ -477,11 +477,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    height: 32px;
-    font-size: 11.5px;
+    gap: 4px;
+    height: 28px;
+    font-size: 11px;
     font-weight: 700;
-    border-radius: 8px;
+    border-radius: 7px;
     border: 1px solid transparent;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -492,7 +492,7 @@
     flex: 1.2;
     background: #00B894;
     color: #ffffff;
-    box-shadow: 0 2px 6px rgba(0, 184, 148, 0.25);
+    box-shadow: 0 1px 4px rgba(0, 184, 148, 0.2);
 }
 
 .btn-card-action.btn-deposit:hover {
@@ -514,16 +514,16 @@
 }
 
 .btn-card-icon-only {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
     border: 1px solid var(--color-border, #e2e8f0);
     background: var(--color-surface, #ffffff);
     color: var(--color-text-muted, #64748b);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 11.5px;
+    font-size: 10.5px;
     cursor: pointer;
     transition: all 0.15s ease;
 }

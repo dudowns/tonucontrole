@@ -408,6 +408,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         currentUser = user;
         console.log('✅ Usuário autenticado:', currentUser.email);
+
+        // Limpeza automática de dados de demonstração residuais ao carregar
+        if (localStorage.getItem('tonu_is_demo_active') !== 'true') {
+            localStorage.removeItem('tonu_is_demo_active');
+            localStorage.removeItem('tonucontrole_is_demo_dividends');
+            localStorage.removeItem('tonucontrole_dividends_demo');
+            localStorage.removeItem('tonu_dividends_demo');
+            localStorage.removeItem('tonu_demo_transactions');
+        }
     } catch (e) {
         console.error('❌ Erro na autenticação:', e);
         window.location.href = '../index.html';
@@ -596,8 +605,7 @@ async function loadTransactions() {
         }
 
         const isDemo = localStorage.getItem('tonu_is_demo_active') === 'true';
-        const dismissed = localStorage.getItem('tonu_demo_dismissed') === 'true';
-        if (isDemo || !dismissed) {
+        if (isDemo) {
             allTransactions = generateDemoTransactions();
             applyDemoQuotes();
             updateGlobalDemoUI(true);
@@ -605,15 +613,15 @@ async function loadTransactions() {
         } else {
             allTransactions = [];
             updateGlobalDemoUI(false);
+            console.log('📊 Nenhuma transação registrada. Pronto para novos lançamentos.');
         }
 
     } catch (error) {
         console.error('❌ Erro ao carregar transações:', error);
-        const dismissed = localStorage.getItem('tonu_demo_dismissed') === 'true';
-        if (!dismissed || localStorage.getItem('tonu_is_demo_active') === 'true') {
+        const isDemo = localStorage.getItem('tonu_is_demo_active') === 'true';
+        if (isDemo) {
             allTransactions = generateDemoTransactions();
             applyDemoQuotes();
-            localStorage.setItem('tonu_is_demo_active', 'true');
             updateGlobalDemoUI(true);
         } else {
             allTransactions = [];
@@ -757,7 +765,6 @@ async function saveDividend(e) {
 
         const quantity = parseNumberInput(quantityStr);
         const unitValue = parsePriceInput(unitValueStr);
-        const totalValue = quantity * unitValue;
 
         if (!ticker) {
             showToast('❌ Digite o ticker do ativo', 'error');
@@ -795,6 +802,27 @@ async function saveDividend(e) {
             return;
         }
 
+        // Validação de consistência matemática: total_value = quantity * unit_value com margem de 0.01
+        const expectedTotal = parseFloat((quantity * unitValue).toFixed(2));
+        let totalValInput = parsePriceInput(document.getElementById('divTotalValue')?.value || '0');
+        if (totalValInput <= 0) {
+            totalValInput = expectedTotal;
+        }
+
+        if (Math.abs(totalValInput - expectedTotal) > 0.01) {
+            showToast(`❌ Inconsistência de valores: Total (R$ ${totalValInput.toFixed(2)}) não confere com Quantidade × Unitário (R$ ${expectedTotal.toFixed(2)})`, 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            return;
+        }
+
+        const totalValue = expectedTotal;
+        // Cálculo de valor líquido (JCP retém 15% na fonte; Dividendos e Rendimentos são isentos)
+        const isJCP = type && String(type).toUpperCase().includes('JCP');
+        const netValue = isJCP ? parseFloat((totalValue * 0.85).toFixed(2)) : totalValue;
+
         let finalNote = note ? note.trim() : '';
         if (dateCom) {
             finalNote = `[DataCom: ${dateCom}] ` + finalNote;
@@ -809,46 +837,76 @@ async function saveDividend(e) {
             quantity: quantity,
             unit_value: unitValue,
             total_value: totalValue,
+            net_value: netValue,
             date: date,
+            date_com: dateCom || null,
             type: type,
             note: finalNote.trim() || null
         };
 
         if (editId && currentUser && currentUser.id && typeof supabaseClient !== 'undefined' && !String(editId).startsWith('demo-') && !String(editId).startsWith('div-')) {
             try {
-                await supabaseClient
+                const updatePayload = {
+                    ticker: ticker,
+                    quantity: quantity,
+                    unit_value: unitValue,
+                    total_value: totalValue,
+                    net_value: netValue,
+                    date: date,
+                    date_com: dateCom || null,
+                    type: type,
+                    note: finalNote.trim() || null
+                };
+
+                let res = await supabaseClient
                     .from('dividends')
-                    .update({
-                        ticker: ticker,
-                        quantity: quantity,
-                        unit_value: unitValue,
-                        total_value: totalValue,
-                        date: date,
-                        type: type,
-                        note: finalNote.trim() || null
-                    })
+                    .update(updatePayload)
                     .eq('id', editId)
                     .eq('user_id', currentUser.id);
+
+                if (res.error && res.error.code === 'PGRST204') {
+                    delete updatePayload.net_value;
+                    delete updatePayload.date_com;
+                    await supabaseClient
+                        .from('dividends')
+                        .update(updatePayload)
+                        .eq('id', editId)
+                        .eq('user_id', currentUser.id);
+                }
             } catch (err) {
                 console.warn('⚠️ Supabase update warning:', err);
             }
         } else if (!editId && currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
             try {
-                const { data: dbData, error } = await supabaseClient
+                const insertPayload = {
+                    user_id: currentUser.id,
+                    ticker: ticker,
+                    quantity: quantity,
+                    unit_value: unitValue,
+                    total_value: totalValue,
+                    net_value: netValue,
+                    date: date,
+                    date_com: dateCom || null,
+                    type: type,
+                    note: finalNote.trim() || null
+                };
+
+                let { data: dbData, error } = await supabaseClient
                     .from('dividends')
-                    .insert([{
-                        user_id: currentUser.id,
-                        ticker: ticker,
-                        quantity: quantity,
-                        unit_value: unitValue,
-                        total_value: totalValue,
-                        date: date,
-                        type: type,
-                        note: finalNote.trim() || null
-                    }])
+                    .insert([insertPayload])
                     .select();
 
-                if (!error && dbData && dbData[0]) {
+                if (error && error.code === 'PGRST204') {
+                    delete insertPayload.net_value;
+                    delete insertPayload.date_com;
+                    const retry = await supabaseClient
+                        .from('dividends')
+                        .insert([insertPayload])
+                        .select();
+                    dbData = retry.data;
+                }
+
+                if (dbData && dbData[0]) {
                     data.id = dbData[0].id;
                 }
             } catch (dbErr) {
@@ -868,6 +926,9 @@ async function saveDividend(e) {
         closeDividendModal();
         await loadDividends();
         updateSummary();
+        if (typeof window.checkNotifications === 'function') {
+            window.checkNotifications();
+        }
 
     } catch (error) {
         console.error('❌ Erro ao salvar provento:', error);
@@ -1467,6 +1528,7 @@ function getIconForClass(cls) {
 function extractDataCom(input) {
     if (!input) return null;
     if (typeof input === 'object') {
+        if (input.date_com) return input.date_com;
         if (input.data_com) return input.data_com;
         if (input.dataCom) return input.dataCom;
         input = input.note;
@@ -2199,10 +2261,11 @@ async function loadDividends() {
         try {
             const keysToCheck = [
                 storageKey,
-                `tonu_dividends_${currentUser ? currentUser.id : 'demo'}`,
-                'tonucontrole_dividends_demo',
-                'tonu_dividends'
+                `tonu_dividends_${currentUser ? currentUser.id : 'demo'}`
             ];
+            if (isDemo) {
+                keysToCheck.push('tonucontrole_dividends_demo', 'tonu_dividends');
+            }
             const seenKeys = new Set(loaded.map(d => `${d.ticker}_${d.date}_${d.total_value}`));
 
             keysToCheck.forEach(k => {
@@ -2213,7 +2276,8 @@ async function loadDividends() {
                         if (Array.isArray(parsed)) {
                             parsed.forEach(p => {
                                 const uk = `${p.ticker}_${p.date}_${p.total_value}`;
-                                if (!seenKeys.has(uk) && !p.is_demo && !String(p.id || '').startsWith('demo-')) {
+                                const isDemoItem = p.is_demo || String(p.id || '').startsWith('demo-');
+                                if (!seenKeys.has(uk) && (!isDemoItem || isDemo)) {
                                     loaded.push(p);
                                     seenKeys.add(uk);
                                 }
@@ -2224,14 +2288,17 @@ async function loadDividends() {
             });
         } catch (e) {}
 
-        // Remove quaisquer proventos de demonstração residuais
-        loaded = loaded.filter(d => !d.is_demo && !String(d.id || '').startsWith('demo-'));
-        try {
-            localStorage.removeItem('tonucontrole_is_demo_dividends');
-        } catch (e) {}
+        // Remove quaisquer proventos de demonstração se não estiver explicitamente em modo demo
+        if (!isDemo) {
+            loaded = loaded.filter(d => !d.is_demo && !String(d.id || '').startsWith('demo-'));
+            try {
+                localStorage.removeItem('tonucontrole_is_demo_dividends');
+                localStorage.removeItem('tonu_is_demo_active');
+            } catch (e) {}
+        }
 
         allDividends = loaded;
-        updateDemoUIState(false);
+        updateDemoUIState(isDemo);
 
         console.log('📊 Proventos prontos para visualização:', allDividends.length);
 
@@ -2242,6 +2309,9 @@ async function loadDividends() {
         renderProventosHistoryTable();
         renderProventosListTable();
         updateSummary();
+        if (typeof window.checkNotifications === 'function') {
+            window.checkNotifications();
+        }
 
     } catch (error) {
         console.error('❌ Erro ao carregar proventos:', error);
@@ -2626,7 +2696,9 @@ function renderProventosListTable() {
         const unitVal = getDividendUnitValue(d);
         const qtyVal = getDividendQuantity(d);
         const isJCP = (d.type && String(d.type).toUpperCase().includes('JCP'));
-        const netVal = isJCP ? totalVal * 0.85 : totalVal;
+        const netVal = (d.net_value !== undefined && d.net_value !== null && Number(d.net_value) > 0)
+            ? Number(d.net_value)
+            : (isJCP ? totalVal * 0.85 : totalVal);
 
         return `
             <tr>
@@ -2643,8 +2715,18 @@ function renderProventosListTable() {
                 <td class="text-center">${datePayDisplay}</td>
                 <td class="text-right">${formatNumber(qtyVal, 2)}</td>
                 <td class="text-right">${formatCurrency(unitVal)}</td>
-                <td class="text-right"><strong>${formatCurrency(totalVal)}</strong></td>
-                <td class="text-right"><strong>${formatCurrency(netVal)}</strong></td>
+                <td class="text-right prov-col-bruto">
+                    <div class="prov-val-bruto-wrap">
+                        <span class="prov-val-bruto">${formatCurrency(totalVal)}</span>
+                        <span class="prov-val-sublabel">Bruto</span>
+                    </div>
+                </td>
+                <td class="text-right prov-col-liquido">
+                    <div class="prov-val-liquido-wrap">
+                        <span class="prov-val-liquido ${isJCP ? 'is-jcp' : 'is-exempt'}">${formatCurrency(netVal)}</span>
+                        ${isJCP ? '<span class="prov-tax-pill" title="JCP sujeito a 15% de IR retido na fonte"><i class="fas fa-percent"></i> -15% IR</span>' : '<span class="prov-tax-pill isento" title="Isento de Imposto de Renda"><i class="fas fa-check"></i> Líquido</span>'}
+                    </div>
+                </td>
                 <td style="text-align:right;">
                     <div class="actions" style="justify-content:flex-end; gap:6px;">
                         <button type="button" class="btn btn-ghost btn-icon-sm" onclick="openDividendModal('${d.id}')" title="Editar provento" aria-label="Editar provento">

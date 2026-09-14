@@ -1167,9 +1167,13 @@ class WebShareTargetHandler {
                 notes: notes || 'Importado via Web Share'
             };
 
+            // Validação CSRF local sem poluir o payload do banco
             if (window.TonuCSRF) {
-                secureData = window.TonuCSRF.secureRequest(secureData);
+                window.TonuCSRF.validate();
             }
+
+            delete secureData._csrf;
+            delete secureData._timestamp;
 
             if (!navigator.onLine) {
                 if (window.tonuSync) {
@@ -1339,6 +1343,53 @@ window.setCachedCategories = setCachedCategories;
 window.TonuVirtualScroller = TonuVirtualScroller;
 window.webShareTarget = new WebShareTargetHandler();
 
+// ============================================
+// LIMPEZA AUTOMÁTICA DE DEMO E CACHES OBSOLETOS
+// ============================================
+function purgeDemoAndTemporaryStorage(force = false) {
+    try {
+        const demoKeys = [
+            'tonu_is_demo_active',
+            'tonucontrole_is_demo_dividends',
+            'tonucontrole_dividends_demo',
+            'tonu_dividends_demo',
+            'tonu_demo_transactions',
+            'tonu_demo_data'
+        ];
+        
+        let hasAuth = false;
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i) || '';
+                if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
+                    hasAuth = true;
+                    break;
+                }
+            }
+        } catch (e) {}
+
+        if (hasAuth || force) {
+            demoKeys.forEach(k => {
+                if (localStorage.getItem(k) !== null) {
+                    localStorage.removeItem(k);
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('⚠️ Falha ao verificar ou limpar cache demo:', e);
+    }
+}
+
+// Executar limpeza automática de resíduos demo ao carregar
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => purgeDemoAndTemporaryStorage());
+    } else {
+        purgeDemoAndTemporaryStorage();
+    }
+}
+
+window.purgeDemoAndTemporaryStorage = purgeDemoAndTemporaryStorage;
 window.navigateTo = navigateTo;
 window.animatePageIn = animatePageIn;
 window.addStaggerToCards = addStaggerToCards;

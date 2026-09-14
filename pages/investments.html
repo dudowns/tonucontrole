@@ -719,16 +719,16 @@
             ========================================== -->
             <div class="content" id="main-content">
                 <!-- Banner de Modo Demonstração -->
-                <div id="demoModeBanner" class="demo-banner" style="display: none;">
+                <div id="demoModeBanner" class="demo-banner" style="display: none;" role="alert" aria-live="polite">
                     <div class="demo-banner-content">
-                        <span class="demo-badge"><i class="fas fa-magic" aria-hidden="true"></i> MODO DEMONSTRAÇÃO</span>
-                        <span>Você está visualizando uma carteira de exemplo com ações, FIIs, Tesouro, ETFs e proventos para testar o novo design.</span>
+                        <span class="demo-badge"><i class="fas fa-exclamation-circle" aria-hidden="true"></i> MODO DEMONSTRAÇÃO</span>
+                        <span><strong>Atenção:</strong> Você está visualizando dados fictícios de demonstração. Operações e proventos reais estão preservados.</span>
                     </div>
                     <div class="demo-banner-actions">
-                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearAllDemoData()" style="font-size: 11px; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;" aria-label="Limpar demonstração">
-                            <i class="fas fa-eye-slash" aria-hidden="true"></i> Limpar Dados
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearAllDemoData()" style="font-size: 11px; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" aria-label="Sair do modo demonstração">
+                            <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair do Modo Demo
                         </button>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="loadAllDemoData(true)" style="font-size: 11px; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;" aria-label="Recarregar demonstração">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="loadAllDemoData(true)" style="font-size: 11px; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" aria-label="Recarregar demonstração">
                             <i class="fas fa-redo" aria-hidden="true"></i> Recarregar Demo
                         </button>
                     </div>

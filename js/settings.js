@@ -412,6 +412,7 @@ function renderNotificationSettingsUI() {
     const permStatusText = document.getElementById('notifPermStatusText');
     const permActionRow = document.getElementById('notifPermissionActionRow');
     const toggleOverdue = document.getElementById('toggleRemindOverdue');
+    const toggleDividends = document.getElementById('toggleRemindDividends');
     const toggleSound = document.getElementById('toggleNotifSound');
 
     if (togglePush) {
@@ -432,6 +433,7 @@ function renderNotificationSettingsUI() {
     }
 
     if (toggleOverdue) toggleOverdue.checked = !!settings.remindOverdue;
+    if (toggleDividends) toggleDividends.checked = settings.remindDividends !== false;
     if (toggleSound) toggleSound.checked = !!settings.sound;
 
     const days = settings.remindDaysBefore || [0, 1, 2, 3];
@@ -501,10 +503,12 @@ function toggleReminderDay(day) {
 function updateNotificationSettings() {
     if (!window.billNotificationManager) return;
     const remindOverdue = document.getElementById('toggleRemindOverdue')?.checked ?? true;
+    const remindDividends = document.getElementById('toggleRemindDividends')?.checked ?? true;
     const sound = document.getElementById('toggleNotifSound')?.checked ?? true;
 
     window.billNotificationManager.saveSettings({
         remindOverdue,
+        remindDividends,
         sound,
         vibrate: sound
     });
@@ -895,6 +899,47 @@ async function exportData() {
 }
 
 // ============================================
+// LIMPAR CACHE LOCAL & DADOS DE DEMONSTRAÇÃO
+// ============================================
+async function clearLocalCache() {
+    const btn = document.getElementById('btnClearLocalCache');
+    const originalText = btn ? btn.innerHTML : '<i class="fas fa-broom"></i> Limpar Cache Local';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Limpando...';
+    }
+
+    try {
+        let removedCount = 0;
+        if (typeof window.purgeDemoAndTemporaryStorage === 'function') {
+            removedCount = window.purgeDemoAndTemporaryStorage();
+        } else {
+            const keys = Object.keys(localStorage);
+            keys.forEach(k => {
+                if (k.includes('demo') || k.includes('cache') || k.includes('temp') || k.includes('draft') || k.startsWith('quotes_cache_') || k.startsWith('tonu_quotes_')) {
+                    localStorage.removeItem(k);
+                    removedCount++;
+                }
+            });
+        }
+
+        try {
+            sessionStorage.clear();
+        } catch (e) {}
+
+        showToast(`✅ Cache local limpo com sucesso! (${removedCount} itens removidos)`, 'success');
+    } catch (err) {
+        console.error('❌ Erro ao limpar cache local:', err);
+        showToast('Erro ao limpar cache local', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+
+// ============================================
 // LIMPAR DADOS (COM CONFIRMAÇÃO)
 // ============================================
 async function clearAllData() {
@@ -1036,6 +1081,7 @@ window.removeAvatar = removeAvatar;
 window.loadProfile = loadProfile;
 window.changeCurrency = changeCurrency;
 window.exportData = exportData;
+window.clearLocalCache = clearLocalCache;
 window.clearAllData = clearAllData;
 window.loadStats = loadStats;
 window.handleRegisterBiometrics = handleRegisterBiometrics;

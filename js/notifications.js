@@ -95,6 +95,29 @@
         }
     }
 
+    function getLocalISODate(d = new Date()) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function getDividendISODate(d) {
+        if (!d) return '';
+        const raw = d.date || d.payment_date || d.date_payment;
+        if (!raw) return '';
+        let s = String(raw).trim();
+        if (s.includes('T')) s = s.split('T')[0];
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+            const parts = s.split('/');
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            const year = parts[2];
+            return `${year}-${month}-${day}`;
+        }
+        return s;
+    }
+
     // Web Audio API Synthesizer Chime
     function playChime() {
         try {
@@ -348,6 +371,12 @@
                 try { localStorage.setItem('tonu_settings_active_tab', 'budgets'); } catch {}
                 return;
             }
+            if (notif.id && notif.id.startsWith('dividend_')) {
+                if (typeof window.switchTab === 'function') {
+                    window.switchTab('proventos');
+                    return;
+                }
+            }
             if (notif.link && notif.link !== '#') {
                 window.location.href = notif.link;
             }
@@ -378,9 +407,9 @@
 
         container.innerHTML = itemsToShow.map(n => {
             const isRead = !!readIds[n.id];
-            const badgeClass = n.type === 'danger' ? 'overdue' : (n.type === 'warning' ? 'due-today' : 'due-soon');
-            const iconBg = n.type === 'danger' ? '#FF7675' : (n.type === 'warning' ? '#FDCB6E' : '#6C5CE7');
-            const tagLabel = n.tag || (n.type === 'danger' ? 'Atrasada' : (n.type === 'warning' ? 'Atenção' : 'Aviso'));
+            const badgeClass = n.type === 'danger' ? 'overdue' : (n.type === 'warning' ? 'due-today' : (n.type === 'success' ? 'paid-today' : 'due-soon'));
+            const iconBg = n.type === 'danger' ? '#FF7675' : (n.type === 'warning' ? '#FDCB6E' : (n.type === 'success' ? '#00B894' : '#6C5CE7'));
+            const tagLabel = n.tag || (n.type === 'danger' ? 'Atrasada' : (n.type === 'warning' ? 'Atenção' : (n.type === 'success' ? 'Recebido' : 'Aviso')));
 
             return `
                 <div class="notif-item ${badgeClass} ${isRead ? 'read' : 'unread'}" onclick="window.handleNotificationClick('${n.id}')">
@@ -430,7 +459,8 @@
 
         const isDanger = notif.type === 'danger';
         const isWarning = notif.type === 'warning';
-        const color = isDanger ? '#FF7675' : (isWarning ? '#FDCB6E' : '#6C5CE7');
+        const isSuccess = notif.type === 'success';
+        const color = isDanger ? '#FF7675' : (isWarning ? '#FDCB6E' : (isSuccess ? '#00B894' : '#6C5CE7'));
 
         banner.innerHTML = `
             <div class="floating-alert-inner ${notif.type}">
@@ -463,11 +493,11 @@
         }, 7000);
     }
 
-    // Check system notifications (due bills, budget overruns, goals)
+    // Check system notifications (due bills, budget overruns, goals, dividends)
     async function checkNotifications() {
         notifications = [];
         const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
+        const todayStr = getLocalISODate(today);
         const dismissed = getDismissedIds();
 
         try {
@@ -692,6 +722,136 @@
                 } catch {}
             }
 
+            // 4. Check Dividends / Proventos (Recebidos hoje ou a receber em breve)
+            const notifSettings = window.billNotificationManager ? window.billNotificationManager.settings : {};
+            const remindDividends = notifSettings.remindDividends !== false;
+
+            if (remindDividends) {
+                let divList = [];
+
+                if (user && window.supabaseClient) {
+                    try {
+                        const { data: dbDivs } = await window.supabaseClient
+                            .from('dividends')
+                            .select('*')
+                            .eq('user_id', user.id);
+                        if (dbDivs && dbDivs.length > 0) {
+                            divList = dbDivs;
+                        }
+                    } catch (e) {
+                        console.warn('Fallback para proventos locais ao checar notificações:', e);
+                    }
+                }
+
+                if (divList.length === 0) {
+                    const localDivs = localStorage.getItem('tonucontrole_dividends_' + userId) ||
+                                      localStorage.getItem('tonu_dividends_' + userId) ||
+                                      localStorage.getItem('tonu_dividends');
+                    if (localDivs) {
+                        try {
+                            const parsed = JSON.parse(localDivs);
+                            if (Array.isArray(parsed)) divList = parsed;
+                        } catch {}
+                    }
+                }
+
+                // Se houver allDividends no escopo global (ex: tela de investimentos)
+                if (divList.length === 0 && Array.isArray(window.allDividends) && window.allDividends.length > 0) {
+                    divList = window.allDividends;
+                }
+
+                const pushedDividendsKey = 'tonu_pushed_dividends_' + todayStr;
+                let pushedToday = {};
+                try {
+                    pushedToday = JSON.parse(localStorage.getItem(pushedDividendsKey) || '{}');
+                } catch {}
+
+                divList.forEach(div => {
+                    const payIso = getDividendISODate(div);
+                    if (!payIso) return;
+
+                    const ticker = (div.ticker || 'ATIVO').toUpperCase();
+                    const typeLabel = div.type || 'Provento';
+                    const divKey = div.id || `${ticker}_${payIso}_${div.total_value}`;
+
+                    // Calcular valor líquido se for JCP ou net_value
+                    let totalVal = 0;
+                    if (div.net_value !== undefined && div.net_value !== null && Number(div.net_value) > 0) {
+                        totalVal = Number(div.net_value);
+                    } else if (div.total_value !== undefined && div.total_value !== null && Number(div.total_value) > 0) {
+                        const raw = Number(div.total_value);
+                        const isJCP = typeLabel.toUpperCase().includes('JCP');
+                        totalVal = isJCP ? raw * 0.85 : raw;
+                    } else if (div.quantity && div.unit_value) {
+                        const calc = Number(div.quantity) * Number(div.unit_value);
+                        const isJCP = typeLabel.toUpperCase().includes('JCP');
+                        totalVal = isJCP ? calc * 0.85 : calc;
+                    }
+
+                    // A) Provento Creditado HOJE
+                    if (payIso === todayStr) {
+                        const notifId = 'dividend_paid_' + divKey;
+                        if (!dismissed[notifId]) {
+                            const item = {
+                                id: notifId,
+                                type: 'success',
+                                tag: 'Creditado Hoje',
+                                icon: 'fa-money-bill-wave',
+                                title: `Provento creditado: ${ticker}`,
+                                message: `Você recebeu ${formatCurrency(totalVal)} referente a ${div.quantity ? div.quantity + ' cotas/ações de ' : ''}${ticker} (${typeLabel}) hoje!`,
+                                link: 'investments.html#proventos',
+                                actionBtnText: 'Ver Proventos'
+                            };
+                            notifications.unshift(item);
+
+                            // Alerta visual / sonoro / push se ainda não disparado hoje
+                            if (!pushedToday[divKey]) {
+                                pushedToday[divKey] = Date.now();
+                                try {
+                                    localStorage.setItem(pushedDividendsKey, JSON.stringify(pushedToday));
+                                } catch {}
+
+                                if (window.billNotificationManager?.settings?.sound) {
+                                    window.billNotificationManager.playChime();
+                                }
+                                showPremiumNotificationBanner(item);
+
+                                if ('Notification' in window && Notification.permission === 'granted' && window.billNotificationManager?.settings?.enabled) {
+                                    try {
+                                        new Notification(`💰 Provento Creditado: ${ticker}`, {
+                                            body: `Você recebeu ${formatCurrency(totalVal)} de ${ticker} (${typeLabel}) hoje!`,
+                                            icon: '/icons/icon-192x192.png'
+                                        });
+                                    } catch (err) {}
+                                }
+                            }
+                        }
+                    } else {
+                        // B) Provento a Receber nos próximos dias (1 a 5 dias)
+                        const dueTime = new Date(payIso + 'T00:00:00').getTime();
+                        const nowTime = new Date(todayStr + 'T00:00:00').getTime();
+                        const diffDays = Math.round((dueTime - nowTime) / (1000 * 60 * 60 * 24));
+
+                        if (diffDays >= 1 && diffDays <= 5) {
+                            const notifId = 'dividend_upcoming_' + divKey;
+                            if (!dismissed[notifId]) {
+                                const item = {
+                                    id: notifId,
+                                    type: 'info',
+                                    tag: diffDays === 1 ? 'Cai Amanhã' : `Cai em ${diffDays}d`,
+                                    icon: 'fa-calendar-check',
+                                    title: `Provento a receber: ${ticker}`,
+                                    message: `Previsão de crédito de ${formatCurrency(totalVal)} (${typeLabel}) em ${formatDate(payIso)} (${diffDays === 1 ? 'amanhã' : 'em ' + diffDays + ' dias'}).`,
+                                    link: 'investments.html#proventos',
+                                    actionBtnText: 'Ver Proventos'
+                                };
+                                notifications.push(item);
+                            }
+                        }
+                    }
+                });
+            }
+
         } catch (err) {
             console.warn('⚠️ Erro ao checar notificações:', err);
         }
@@ -725,6 +885,7 @@
             enabled: true,
             remindDaysBefore: [0, 1, 2, 3],
             remindOverdue: true,
+            remindDividends: true,
             sound: true,
             vibrate: true
         },
