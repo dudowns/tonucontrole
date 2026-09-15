@@ -1918,6 +1918,251 @@
     }
 
     // ==========================================================================
+    // 7. MOTOR INTELIGENTE DE DESDUPLICAÇÃO DE TRANSAÇÕES E CONTAS
+    // ==========================================================================
+    class TonuDeduplicationManager {
+        constructor() {
+            this.cleaningInProgress = false;
+        }
+
+        normalizeDate(dateVal) {
+            if (!dateVal) return '';
+            const str = String(dateVal).trim();
+            const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+            if (isoMatch) {
+                return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+            }
+            const brMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+            if (brMatch) {
+                return `${brMatch[3]}-${brMatch[2].padStart(2, '0')}-${brMatch[1].padStart(2, '0')}`;
+            }
+            try {
+                const d = new Date(dateVal);
+                if (!isNaN(d.getTime())) {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}`;
+                }
+            } catch (e) {}
+            return str.substring(0, 10);
+        }
+
+        normalizeDescription(desc) {
+            if (!desc) return '';
+            let d = String(desc).toLowerCase();
+            // Remove tags HTML
+            d = d.replace(/<[^>]*>/g, ' ');
+            // Remove menções a (pago), [pago], - pago, pago no início ou fim
+            d = d.replace(/\s*[\(\[]\s*pago\s*[\)\]]\s*/gi, ' ');
+            d = d.replace(/^pago\s*[:\-]?\s*/gi, '');
+            d = d.replace(/\s*-\s*pago\s*$/gi, '');
+            d = d.replace(/\s+pago\s*$/gi, '');
+            // Remove indicações de parcela no final: (1/10), [1/10], 1/10
+            d = d.replace(/\s*[\(\[]\s*\d+\s*\/\s*\d+\s*[\)\]]\s*$/gi, '');
+            d = d.replace(/\s+\d+\s*\/\s*\d+\s*$/gi, '');
+            // Remove caracteres estranhos repetidos
+            d = d.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,]/g, ' ');
+            // Remove espaços extras
+            d = d.replace(/\s+/g, ' ').trim();
+            return d;
+        }
+
+        cleanDisplayDescription(desc) {
+            if (!desc) return 'Sem descrição';
+            let d = String(desc);
+            d = d.replace(/\s*[\(\[]\s*pago\s*[\)\]]\s*/gi, ' ');
+            d = d.replace(/\s*-\s*pago\s*$/gi, '');
+            d = d.replace(/\s+pago\s*$/gi, '');
+            return d.replace(/\s+/g, ' ').trim() || 'Sem descrição';
+        }
+
+        areDuplicates(t1, t2) {
+            if (!t1 || !t2) return false;
+            // 1. Mesmo ID
+            if (t1.id && t2.id && String(t1.id) === String(t2.id)) return true;
+
+            // Tipo deve bater (income vs expense)
+            const type1 = t1.type || 'expense';
+            const type2 = t2.type || 'expense';
+            if (type1 !== type2) return false;
+
+            // Valor deve ser idêntico (centavos)
+            const amt1 = Math.round(Math.abs(Number(t1.amount || 0)) * 100);
+            const amt2 = Math.round(Math.abs(Number(t2.amount || 0)) * 100);
+            if (amt1 !== amt2 || amt1 === 0) return false;
+
+            // Descrição normalizada deve bater
+            const desc1 = this.normalizeDescription(t1.description);
+            const desc2 = this.normalizeDescription(t2.description);
+            if (!desc1 || !desc2) return false;
+            if (desc1 !== desc2) return false;
+
+            // Datas e Período
+            const d1 = this.normalizeDate(t1.date);
+            const d2 = this.normalizeDate(t2.date);
+            const ym1 = d1 ? d1.substring(0, 7) : '';
+            const ym2 = d2 ? d2.substring(0, 7) : '';
+
+            // Se estão em meses diferentes, não são duplicatas
+            if (ym1 && ym2 && ym1 !== ym2) return false;
+
+            // Se têm a mesma data exata (mesmo dia), são duplicatas
+            if (d1 && d2 && d1 === d2) return true;
+
+            // Se um é conta (is_bill: true) e o outro é transação (is_bill: false ou nulo) no mesmo mês:
+            // é exatamente o caso de uma conta e seu lançamento duplicado
+            const isBill1 = !!(t1.is_bill === true || t1.is_bill === 'true' || t1.is_bill === 1);
+            const isBill2 = !!(t2.is_bill === true || t2.is_bill === 'true' || t2.is_bill === 1);
+            if (isBill1 !== isBill2) return true;
+
+            // Se um deles tem "(pago)" ou "pago" na descrição original:
+            const raw1 = String(t1.description || '').toLowerCase();
+            const raw2 = String(t2.description || '').toLowerCase();
+            if (raw1.includes('pago') || raw2.includes('pago')) return true;
+
+            // Se ambos são parcelados ou um deles é parcelado e o outro tem o mesmo nome no mesmo mês
+            const hasInst1 = (t1.installments && t1.installments > 1) || /\(\d+\/\d+\)/.test(raw1);
+            const hasInst2 = (t2.installments && t2.installments > 1) || /\(\d+\/\d+\)/.test(raw2);
+            if (hasInst1 || hasInst2) {
+                if (t1.current_installment && t2.current_installment) {
+                    return t1.current_installment === t2.current_installment;
+                }
+                return true;
+            }
+
+            // Se estão no mesmo mês e a diferença em dias é pequena (<= 7 dias, ex: vencimento vs pagamento)
+            if (d1 && d2) {
+                const time1 = new Date(d1).getTime();
+                const time2 = new Date(d2).getTime();
+                if (!isNaN(time1) && !isNaN(time2)) {
+                    const diffDays = Math.abs(time1 - time2) / (1000 * 60 * 60 * 24);
+                    if (diffDays <= 7) return true;
+                }
+            }
+
+            return false;
+        }
+
+        scoreTransaction(t) {
+            let score = 0;
+            const desc = String(t.description || '');
+            const rawDesc = desc.toLowerCase();
+
+            // O usuário prefere o lançamento parcelado original com "(X/Y)"
+            const isInstallment = (t.installments && t.installments > 1) || /\(\d+\/\d+\)/.test(desc);
+            if (isInstallment) score += 30;
+
+            // Transação normal tem preferência sobre conta (is_bill) em telas de transações/dashboard
+            const isBill = !!(t.is_bill === true || t.is_bill === 'true' || t.is_bill === 1);
+            if (!isBill) score += 20;
+
+            // Descrição limpa sem "(pago)"
+            if (!rawDesc.includes('(pago)') && !rawDesc.endsWith('pago')) score += 10;
+
+            // Categoria associada
+            if (t.category_id || (t.categories && typeof t.categories === 'object')) score += 5;
+
+            // Status pago ativo
+            if (t.paid === true || t.paid === 'true' || t.paid === 1) score += 3;
+
+            // Possui notas ou tags
+            if (t.notes) score += 2;
+            if (t.tags) score += 2;
+
+            return score;
+        }
+
+        deduplicate(transactions, options = {}) {
+            if (!Array.isArray(transactions) || transactions.length <= 1) {
+                return { cleanList: transactions || [], removedDuplicates: [] };
+            }
+
+            const groups = [];
+
+            // Agrupa itens duplicados
+            for (const item of transactions) {
+                if (!item) continue;
+                let foundGroup = false;
+                for (const group of groups) {
+                    if (this.areDuplicates(group[0], item)) {
+                        group.push(item);
+                        foundGroup = true;
+                        break;
+                    }
+                }
+                if (!foundGroup) {
+                    groups.push([item]);
+                }
+            }
+
+            const cleanList = [];
+            const removedDuplicates = [];
+
+            for (const group of groups) {
+                if (group.length === 1) {
+                    cleanList.push(group[0]);
+                    continue;
+                }
+
+                // Ordena pelo maior score para escolher o canônico
+                group.sort((a, b) => this.scoreTransaction(b) - this.scoreTransaction(a));
+
+                const canonical = { ...group[0] };
+                const duplicates = group.slice(1);
+
+                // Se alguma duplicata estava marcada como paga, garante que o canônico fica como pago
+                const anyPaid = group.some(t => t.paid === true || t.paid === 'true' || t.paid === 1);
+                if (anyPaid) {
+                    canonical.paid = true;
+                    const paidItem = group.find(t => t.paid_date);
+                    if (paidItem && !canonical.paid_date) {
+                        canonical.paid_date = paidItem.paid_date;
+                    }
+                }
+
+                cleanList.push(canonical);
+                duplicates.forEach(d => removedDuplicates.push(d));
+            }
+
+            // Se solicitado e houver duplicatas que são cópias descartáveis, faz a limpeza no Supabase
+            if (options.autoCleanRemote && removedDuplicates.length > 0 && window.supabaseClient && options.userId) {
+                this.cleanupRemoteDuplicates(removedDuplicates, options.userId);
+            }
+
+            return { cleanList, removedDuplicates };
+        }
+
+        async cleanupRemoteDuplicates(removedDuplicates, userId) {
+            if (this.cleaningInProgress) return;
+            this.cleaningInProgress = true;
+            try {
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                // Exclui do Supabase apenas duplicatas que NÃO são contas originais de bills.html
+                const idsToDelete = removedDuplicates
+                    .filter(d => !d.is_bill && d.id && uuidRegex.test(String(d.id)))
+                    .map(d => String(d.id));
+
+                if (idsToDelete.length > 0 && window.supabaseClient) {
+                    const { error } = await window.supabaseClient
+                        .from('transactions')
+                        .delete()
+                        .in('id', idsToDelete)
+                        .eq('user_id', userId);
+
+                    if (!error) {
+                        console.log(`🧹 ${idsToDelete.length} transações duplicadas removidas permanentemente do Supabase.`);
+                    }
+                }
+            } catch (err) {
+                console.warn('⚠️ Erro ao limpar transações duplicadas remotas:', err);
+            } finally {
+                this.cleaningInProgress = false;
+            }
+        }
+    }
+
+    // ==========================================================================
     // INSTANCIAÇÃO GLOBAL
     // ==========================================================================
     window.TonuBudget = new TonuBudgetManager();
@@ -1930,6 +2175,7 @@
     window.TonuBackupInstance = new TonuBackupManager();
     window.TonuBackup = window.TonuBackupInstance;
     window.TonuInstallments = new TonuInstallmentManager();
+    window.TonuDeduplicate = new TonuDeduplicationManager();
 
     console.log('⚡ TonuControle Financial Intelligence Suite unificada com sucesso!');
 })();

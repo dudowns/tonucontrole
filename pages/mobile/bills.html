@@ -612,7 +612,7 @@ async function togglePaid(id) {
     updateStats();
     renderBills();
 
-    // Sincronizar cache local de transações para que reflita no Início e Transações
+    // Atualiza status se já existir no cache de transações (sem criar duplicata)
     try {
         const txsKey = `tonu_transactions_${currentUser.id}`;
         const localTxsRaw = localStorage.getItem(txsKey);
@@ -622,15 +622,8 @@ async function togglePaid(id) {
             localTxs[idx].paid = newStatus;
             localTxs[idx].paid_date = paidDate;
             localTxs[idx].updated_at = new Date().toISOString();
-        } else if (newStatus) {
-            localTxs.unshift({
-                ...bill,
-                paid: true,
-                paid_date: paidDate,
-                updated_at: new Date().toISOString()
-            });
+            localStorage.setItem(txsKey, JSON.stringify(localTxs));
         }
-        localStorage.setItem(txsKey, JSON.stringify(localTxs));
     } catch (e) {
         console.warn('Erro ao atualizar cache local:', e);
     }

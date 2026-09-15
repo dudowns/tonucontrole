@@ -82,7 +82,15 @@ async function loadMobileData() {
 
         if (error) throw error;
 
-        allTransactions = data || [];
+        let loadedData = data || [];
+        if (window.TonuDeduplicate) {
+            loadedData = window.TonuDeduplicate.deduplicate(loadedData, {
+                autoCleanRemote: true,
+                userId: currentUser?.id
+            }).cleanList;
+        }
+
+        allTransactions = loadedData;
         console.log("📊 Mobile: Transações carregadas:", allTransactions.length);
 
         renderSummary();
@@ -233,6 +241,7 @@ function renderTransactions() {
         const cat = categories.find(c => c.id === t.category_id);
         const color = cat?.color || (isIncome ? "#00B894" : "#FF7675");
         const icon = cat?.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
+        const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
 
         return `
             <div class="mobile-transaction" onclick="window.location.href='transactions.html'">
@@ -241,7 +250,7 @@ function renderTransactions() {
                         <i class="fas ${icon}"></i>
                     </div>
                     <div class="tx-info">
-                        <strong>${t.description}</strong>
+                        <strong>${displayDesc}</strong>
                         <small>${formatDate(t.date)}</small>
                     </div>
                 </div>

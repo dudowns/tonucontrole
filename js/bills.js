@@ -615,8 +615,7 @@
             localStorage.setItem(billsCacheKey, JSON.stringify(allBills));
         } catch (e) {}
 
-        // Sincronizar cache de transações (localStorage) para que
-        // ao navegar para Transações ou Dashboard, já apareça lançada como despesa paga
+        // Atualiza status se já existir no cache de transações (sem criar duplicata desnecessária)
         try {
             const txsKey = `tonu_transactions_${currentUser.id}`;
             const localTxsRaw = localStorage.getItem(txsKey);
@@ -626,15 +625,8 @@
                 localTxs[idx].paid = newPaidStatus;
                 localTxs[idx].paid_date = newPaidDate;
                 localTxs[idx].updated_at = new Date().toISOString();
-            } else if (newPaidStatus) {
-                localTxs.unshift({
-                    ...bill,
-                    paid: true,
-                    paid_date: newPaidDate,
-                    updated_at: new Date().toISOString()
-                });
+                localStorage.setItem(txsKey, JSON.stringify(localTxs));
             }
-            localStorage.setItem(txsKey, JSON.stringify(localTxs));
         } catch (e) {
             console.warn('⚠️ Erro ao atualizar cache local de transações:', e);
         }

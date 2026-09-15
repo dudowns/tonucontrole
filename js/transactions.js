@@ -291,19 +291,27 @@
                             const seenIds = new Set(txs.map(t => String(t.id)));
                             parsed.forEach(lt => {
                                 const key = String(lt.id);
-                                const sig = `${(lt.description || '').trim().toLowerCase()}_${Math.round(Number(lt.amount || 0) * 100)}_${lt.date}`;
-                                const exists = txs.some(ex => {
-                                    if (String(ex.id) === key) return true;
-                                    const exSig = `${(ex.description || '').trim().toLowerCase()}_${Math.round(Number(ex.amount || 0) * 100)}_${ex.date}`;
-                                    return exSig === sig;
-                                });
-                                if (!exists) {
+                                if (!seenIds.has(key)) {
                                     txs.push(lt);
                                     seenIds.add(key);
                                 }
                             });
                         }
                     } catch (pe) {}
+                }
+            }
+
+            // 🔥 APLICA A DESDUPLICAÇÃO INTELIGENTE (remove duplicatas, unifica status e limpa banco)
+            if (window.TonuDeduplicate) {
+                const dedupResult = window.TonuDeduplicate.deduplicate(txs, {
+                    autoCleanRemote: true,
+                    userId: currentUser?.id
+                });
+                txs = dedupResult.cleanList;
+
+                // Atualiza cache local com a lista limpa e sem duplicatas
+                if (currentUser && currentUser.id) {
+                    localStorage.setItem('tonu_transactions_' + currentUser.id, JSON.stringify(txs));
                 }
             }
 
@@ -432,6 +440,9 @@
                 ? `<span class="badge-paid" style="font-size:10px; padding:1px 6px; background:#e6fcf5; color:#0ca678; border-radius:4px; font-weight:600;"><i class="fas fa-check" style="font-size:9px;"></i> ${isIncome ? 'Recebido' : 'Pago'}</span>`
                 : `<span class="badge-pending" style="font-size:10px; padding:1px 6px; background:#fff3cd; color:#856404; border-radius:4px; font-weight:600;"><i class="fas fa-clock" style="font-size:9px;"></i> Pendente</span>`;
 
+            const rawDesc = t.description || 'Sem descrição';
+            const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(rawDesc) : rawDesc;
+
             html += `
                 <div class="transaction-card" onclick="openModal('${sanitize(t.id)}')">
                     <div class="t-icon" style="background:${catInfo.color}20; color:${catInfo.color}; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:16px;" title="${sanitize(catInfo.name)}">
@@ -439,7 +450,7 @@
                     </div>
                     <div class="t-info" style="flex:1; min-width:0; margin-left:12px;">
                         <div style="font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                            ${sanitize(t.description || 'Sem descrição')}
+                            ${sanitize(displayDesc)}
                         </div>
                         ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
                         <div style="font-size:12px; color:var(--color-text-muted,#94a3b8); display:flex; gap:8px; align-items:center; margin-top:2px;">

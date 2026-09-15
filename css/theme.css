@@ -1414,52 +1414,6 @@ textarea.form-control {
 }
 
 /* ============================================
-   20. BOTÃO DE INSTALAÇÃO PWA
-   ============================================ */
-.pwa-install-btn {
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(9, 132, 227, 0.12)) !important;
-    border: 1px solid rgba(108, 92, 231, 0.35) !important;
-    color: #6C5CE7 !important;
-    padding: 0 12px !important;
-    height: 38px !important;
-    border-radius: 10px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 7px !important;
-    cursor: pointer !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
-    transition: all 0.2s ease !important;
-    position: relative !important;
-    text-decoration: none !important;
-    white-space: nowrap !important;
-}
-
-.pwa-install-btn:hover {
-    background: #6C5CE7 !important;
-    color: #ffffff !important;
-    border-color: #6C5CE7 !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3) !important;
-}
-
-.pwa-install-btn i {
-    font-size: 13px !important;
-    color: inherit !important;
-}
-
-@media (max-width: 640px) {
-    .pwa-install-btn .pwa-btn-label {
-        display: none !important;
-    }
-    .pwa-install-btn {
-        width: 38px !important;
-        padding: 0 !important;
-    }
-}
-
-/* ============================================
    TRANSIÇÕES ENTRE TELAS
    ============================================ */
 

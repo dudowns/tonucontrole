@@ -702,9 +702,6 @@
                         <i class="fas fa-bell" aria-hidden="true"></i>
                         <span class="notif-badge hidden" id="notifBadgeCount">0</span>
                     </button>
-                    <button id="btnToggleDemoMode" class="btn-demo-toggle" type="button" onclick="toggleGlobalDemoMode()" title="Ativar ou desativar dados de demonstração">
-                        <i class="fas fa-magic" aria-hidden="true"></i> <span id="demoBtnText">Demonstração</span>
-                    </button>
                     <button class="btn btn-primary" onclick="openOperationModal()" aria-label="Nova operação">
                         <i class="fas fa-plus" aria-hidden="true"></i> Operação
                     </button>
@@ -718,22 +715,6 @@
             CONTEÚDO - COMPLETO
             ========================================== -->
             <div class="content" id="main-content">
-                <!-- Banner de Modo Demonstração -->
-                <div id="demoModeBanner" class="demo-banner" style="display: none;" role="alert" aria-live="polite">
-                    <div class="demo-banner-content">
-                        <span class="demo-badge"><i class="fas fa-exclamation-circle" aria-hidden="true"></i> MODO DEMONSTRAÇÃO</span>
-                        <span><strong>Atenção:</strong> Você está visualizando dados fictícios de demonstração. Operações e proventos reais estão preservados.</span>
-                    </div>
-                    <div class="demo-banner-actions">
-                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearAllDemoData()" style="font-size: 11px; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" aria-label="Sair do modo demonstração">
-                            <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair do Modo Demo
-                        </button>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="loadAllDemoData(true)" style="font-size: 11px; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" aria-label="Recarregar demonstração">
-                            <i class="fas fa-redo" aria-hidden="true"></i> Recarregar Demo
-                        </button>
-                    </div>
-                </div>
-
                 <div class="investments-grid">
                     <div class="card-stat primary">
                         <div class="stat-icon primary"><i class="fas fa-coins" aria-hidden="true"></i></div>
@@ -881,15 +862,11 @@
                             <div class="empty-state">
                                 <span class="empty-icon">📊</span>
                                 <h3>Sua carteira está zerada</h3>
-                                <p>Registre sua primeira compra para começar ou explore o novo design com a demonstração.</p>
+                                <p>Registre sua primeira compra para acompanhar a rentabilidade e proventos da sua carteira.</p>
                                 <div style="display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
                                     <button class="btn btn-primary" onclick="openOperationModal()"
                                         style="font-size:13px;" aria-label="Nova operação">
                                         <i class="fas fa-plus" aria-hidden="true"></i> Nova operação
-                                    </button>
-                                    <button class="btn btn-outline-demo" onclick="loadAllDemoData(true)"
-                                        style="font-size:13px;" aria-label="Carregar demonstração completa">
-                                        <i class="fas fa-magic" aria-hidden="true"></i> Carregar Demonstração
                                     </button>
                                 </div>
                             </div>

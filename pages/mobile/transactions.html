@@ -299,6 +299,13 @@ async function loadTransactions() {
             }
         }
 
+        if (window.TonuDeduplicate) {
+            txs = window.TonuDeduplicate.deduplicate(txs, {
+                autoCleanRemote: true,
+                userId: currentUser?.id
+            }).cleanList;
+        }
+
         allTransactions = txs;
         filterTransactions();
     } catch (error) {
@@ -342,6 +349,8 @@ function renderTransactions() {
             badge += `<span style="font-size:9px; background:#fff3cd; color:#856404; padding:2px 6px; border-radius:4px; margin-left:4px;">Pendente</span>`;
         }
 
+        const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
+
         return `
             <div class="mobile-transaction" style="display:flex; justify-content:space-between; align-items:center;">
                 <div class="tx-left" style="display:flex; align-items:center; gap:10px; flex:1;">
@@ -349,7 +358,7 @@ function renderTransactions() {
                         <i class="fas ${icon}"></i>
                     </div>
                     <div class="tx-info">
-                        <strong>${t.description} ${badge}</strong>
+                        <strong>${displayDesc} ${badge}</strong>
                         <small style="display:block; color:#94a3b8; font-size:11px;">${formatDate(t.date)} • ${cat?.name || 'Geral'}</small>
                     </div>
                 </div>

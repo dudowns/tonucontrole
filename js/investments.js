@@ -409,14 +409,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentUser = user;
         console.log('✅ Usuário autenticado:', currentUser.email);
 
-        // Limpeza automática de dados de demonstração residuais ao carregar
-        if (localStorage.getItem('tonu_is_demo_active') !== 'true') {
-            localStorage.removeItem('tonu_is_demo_active');
-            localStorage.removeItem('tonucontrole_is_demo_dividends');
-            localStorage.removeItem('tonucontrole_dividends_demo');
-            localStorage.removeItem('tonu_dividends_demo');
-            localStorage.removeItem('tonu_demo_transactions');
-        }
+        // Limpeza de qualquer dado ou flag de demonstração residual
+        localStorage.removeItem('tonu_is_demo_active');
+        localStorage.removeItem('tonucontrole_is_demo_dividends');
+        localStorage.removeItem('tonucontrole_dividends_demo');
+        localStorage.removeItem('tonu_dividends_demo');
+        localStorage.removeItem('tonu_demo_transactions');
     } catch (e) {
         console.error('❌ Erro na autenticação:', e);
         window.location.href = '../index.html';
@@ -3018,13 +3016,10 @@ function renderTable() {
             <div class="empty-state">
                 <span class="empty-icon">📊</span>
                 <h3>Sua carteira está zerada</h3>
-                <p>Registre sua primeira compra para começar ou explore o novo design com a demonstração.</p>
+                <p>Registre sua primeira compra para acompanhar a rentabilidade e proventos da sua carteira.</p>
                 <div style="display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
                     <button class="btn btn-primary" onclick="openOperationModal()" style="font-size:13px;" aria-label="Nova operação">
                         <i class="fas fa-plus"></i> Nova operação
-                    </button>
-                    <button class="btn btn-outline-demo" onclick="loadAllDemoData(true)" style="font-size:13px;" aria-label="Carregar demonstração completa">
-                        <i class="fas fa-magic"></i> Carregar Demonstração
                     </button>
                 </div>
             </div>
@@ -3114,13 +3109,10 @@ function renderTransactions() {
                 <td colspan="8" class="text-center text-muted" style="text-align:center;padding:32px 16px;">
                     <div style="font-size:32px;margin-bottom:8px;">📭</div>
                     <div style="font-size:14px;font-weight:600;color:var(--color-text);margin-bottom:4px;">Nenhum lançamento registrado</div>
-                    <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:14px;">Registre suas operações ou carregue a demonstração para explorar o histórico.</div>
+                    <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:14px;">Registre suas operações para acompanhar seu histórico de compras e vendas.</div>
                     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
                         <button type="button" class="btn btn-primary btn-sm" onclick="openOperationModal()">
                             <i class="fas fa-plus"></i> Nova Operação
-                        </button>
-                        <button type="button" class="btn btn-outline-demo btn-sm" onclick="loadAllDemoData(true)">
-                            <i class="fas fa-magic"></i> Carregar Demonstração
                         </button>
                     </div>
                 </td>

@@ -877,6 +877,15 @@ async function getUnifiedTransactions(startDate, endDate) {
         }
     }
 
+    // 3. Aplica desduplicação inteligente unificada (remove duplicatas, unifica 'pago' e parcelas)
+    if (window.TonuDeduplicate) {
+        const dedupResult = window.TonuDeduplicate.deduplicate(list, {
+            autoCleanRemote: true,
+            userId: currentUser?.id
+        });
+        return dedupResult.cleanList;
+    }
+
     return list;
 }
 
@@ -892,50 +901,73 @@ async function syncLocalTransactionsToSupabase() {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         let modified = false;
 
-        // Busca IDs já existentes no Supabase para não duplicar
+        // Busca transações existentes no Supabase com detalhes para evitar criar duplicatas
         const { data: remoteData } = await supabaseClient
             .from('transactions')
-            .select('id')
+            .select('id, description, amount, date, type, is_bill')
             .eq('user_id', currentUser.id);
 
-        const remoteIds = new Set((remoteData || []).map(r => String(r.id)));
+        const remoteList = remoteData || [];
+        const remoteIds = new Set(remoteList.map(r => String(r.id)));
 
         for (let i = 0; i < list.length; i++) {
             const t = list[i];
             if (!t) continue;
+            // NUNCA faz upload de contas (is_bill: true) como transação genérica via sync de transações
+            if (t.is_bill === true || t.is_bill === 'true' || t.is_bill === 1) continue;
+
             const currentId = String(t.id || '');
-            if (!remoteIds.has(currentId)) {
-                const txId = (uuidRegex.test(currentId)) ? currentId : (
-                    (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() :
-                    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-                        return v.toString(16);
-                    })
-                );
+            if (remoteIds.has(currentId)) continue;
 
-                const payload = {
-                    id: txId,
-                    user_id: currentUser.id,
-                    description: t.description || 'Sem descrição',
-                    amount: Math.abs(Number(t.amount || 0)),
-                    type: t.type || 'expense',
-                    date: normalizeDateOnly(t.date) || new Date().toISOString().substring(0, 10),
-                    paid: isTransactionPaid(t)
-                };
-                if (t.category_id && uuidRegex.test(String(t.category_id))) {
-                    payload.category_id = t.category_id;
-                }
+            // Verifica se já existe no banco com mesma descrição, valor e data para não duplicar
+            const normDesc = window.TonuDeduplicate ? window.TonuDeduplicate.normalizeDescription(t.description) : (t.description || '').toLowerCase().trim();
+            const amtCents = Math.round(Math.abs(Number(t.amount || 0)) * 100);
+            const dateNorm = normalizeDateOnly(t.date);
 
-                try {
-                    const { error } = await supabaseClient.from('transactions').insert([payload]);
-                    if (!error) {
-                        list[i].id = txId;
-                        remoteIds.add(txId);
-                        modified = true;
-                    }
-                } catch (insErr) {
-                    console.warn('Erro ao sincronizar transação local com backend:', insErr);
+            const existingMatch = remoteList.find(r => {
+                const rDesc = window.TonuDeduplicate ? window.TonuDeduplicate.normalizeDescription(r.description) : (r.description || '').toLowerCase().trim();
+                const rAmt = Math.round(Math.abs(Number(r.amount || 0)) * 100);
+                const rDate = normalizeDateOnly(r.date);
+                return rDesc === normDesc && rAmt === amtCents && rDate === dateNorm;
+            });
+
+            if (existingMatch) {
+                list[i].id = existingMatch.id;
+                remoteIds.add(String(existingMatch.id));
+                modified = true;
+                continue;
+            }
+
+            const txId = (uuidRegex.test(currentId)) ? currentId : (
+                (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() :
+                'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                })
+            );
+
+            const payload = {
+                id: txId,
+                user_id: currentUser.id,
+                description: t.description || 'Sem descrição',
+                amount: Math.abs(Number(t.amount || 0)),
+                type: t.type || 'expense',
+                date: normalizeDateOnly(t.date) || new Date().toISOString().substring(0, 10),
+                paid: isTransactionPaid(t)
+            };
+            if (t.category_id && uuidRegex.test(String(t.category_id))) {
+                payload.category_id = t.category_id;
+            }
+
+            try {
+                const { error } = await supabaseClient.from('transactions').insert([payload]);
+                if (!error) {
+                    list[i].id = txId;
+                    remoteIds.add(txId);
+                    modified = true;
                 }
+            } catch (insErr) {
+                console.warn('Erro ao sincronizar transação local com backend:', insErr);
             }
         }
 
@@ -1218,29 +1250,15 @@ async function loadRecentTransactions() {
             return da < db ? 1 : -1;
         });
 
-        // REMOVER DUPLICATAS
-        const groupedByKey = new Map();
-
-        for (const tx of paidTxs) {
-            if (!tx) continue;
-            // 🔥 APLICA A SANITIZAÇÃO COMPLETA
-            let desc = sanitizeReportText(tx.description || '');
-            // REMOVE "(pago)" e limpa espaços extras
-            desc = desc.replace(/\s*\(pago\)\s*/gi, '').trim();
-            // REMOVE CARACTERES ESTRANHOS ISOLADOS QUE SOBRAREM
-            desc = desc.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)]/g, '').trim();
-
-            const amountKey = Math.round(Number(tx.amount || 0) * 100);
-            const catKey = tx.category_id || tx.category || 'null';
-            const dateKey = normalizeDateOnly(tx.date);
-            const uniqueKey = tx.id ? String(tx.id) : (desc.toLowerCase() + '_' + amountKey + '_' + catKey + '_' + dateKey);
-
-            if (!groupedByKey.has(uniqueKey)) {
-                groupedByKey.set(uniqueKey, tx);
-            }
+        // 🔥 REMOVER DUPLICATAS USANDO O MOTOR INTELIGENTE
+        let uniqueTransactions = paidTxs;
+        if (window.TonuDeduplicate) {
+            uniqueTransactions = window.TonuDeduplicate.deduplicate(paidTxs, {
+                autoCleanRemote: true,
+                userId: currentUser?.id
+            }).cleanList;
         }
 
-        const uniqueTransactions = Array.from(groupedByKey.values());
         const recentTransactions = uniqueTransactions.slice(0, 10);
 
         const countEl = document.getElementById('txCountBadge') || document.getElementById('txCount');
@@ -1277,9 +1295,10 @@ async function loadRecentTransactions() {
             const catColor = category?.color || (isIncome ? '#10B981' : '#EF4444');
             const catName = category?.name || (isIncome ? 'Receita' : 'Despesa');
 
-            let displayDesc = sanitizeReportText(t.description || '');
-            displayDesc = displayDesc.replace(/\s*\(pago\)\s*/gi, '').trim();
-            displayDesc = displayDesc.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)]/g, '').trim();
+            let displayDesc = window.TonuDeduplicate
+                ? window.TonuDeduplicate.cleanDisplayDescription(t.description || '')
+                : sanitizeReportText(t.description || '').replace(/\s*\(pago\)\s*/gi, '').trim();
+            displayDesc = displayDesc.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)\/]/g, '').trim();
 
             return `
                 <div class="transaction-item">
