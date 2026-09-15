@@ -20,8 +20,9 @@
     <link rel="stylesheet" href="../../css/mobile.css">
     <link rel="stylesheet" href="../../css/notifications.css">
     <link rel="stylesheet" href="../../css/sync-status.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { padding-bottom: 72px; }
+        body { padding-bottom: 76px; }
         .skip-link {
             position: absolute; top: -100%; left: 50%; transform: translateX(-50%);
             padding: 12px 24px; background: #6C5CE7; color: #fff; border-radius: 8px;
@@ -65,7 +66,7 @@
 
 <!-- CONTEÚDO -->
 <main class="mobile-content" id="main-content">
-    <!-- BALANÇO E CARDS -->
+    <!-- BALANÇO HERO & CARDS -->
     <div id="summaryContainer"></div>
 
     <!-- AÇÕES RÁPIDAS -->
@@ -82,15 +83,24 @@
             <i class="fas fa-file-invoice-dollar" style="color: #FDCB6E;"></i>
             <span>Contas</span>
         </a>
+        <a href="investments.html" class="quick-action-btn">
+            <i class="fas fa-chart-line" style="color: #6C5CE7;"></i>
+            <span>Investir</span>
+        </a>
         <a href="goals.html" class="quick-action-btn">
             <i class="fas fa-bullseye" style="color: #0984E3;"></i>
             <span>Metas</span>
         </a>
-        <a href="investments.html" class="quick-action-btn">
-            <i class="fas fa-chart-line" style="color: #6C5CE7;"></i>
-            <span>Investimentos</span>
-        </a>
     </div>
+
+    <!-- GRÁFICO INTERATIVO MOBILE (FLUXO & CATEGORIAS) -->
+    <div id="mobileChartContainer"></div>
+
+    <!-- DIAGNÓSTICO 360º & INSIGHTS MOBILE -->
+    <div id="mobileInsightsContainer"></div>
+
+    <!-- METAS EM DESTAQUE MOBILE -->
+    <div id="mobileGoalsContainer"></div>
 
     <!-- CATEGORIAS EM DESTAQUE -->
     <div id="categoryBarsContainer"></div>
@@ -103,10 +113,15 @@
     <div id="mobileTransactions">
         <div style="text-align:center;padding:20px;">
             <span class="spinner"></span>
-            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando...</p>
+            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando dados...</p>
         </div>
     </div>
 </main>
+
+<!-- FLOATING ACTION BUTTON (NOVA TRANSAÇÃO) -->
+<button class="mobile-fab" onclick="openQuickAddModal('expense')" aria-label="Nova Transação" title="Nova Transação">
+    <i class="fas fa-plus"></i>
+</button>
 
 <!-- BOTTOM SHEET MODAL (ADICIONAR TRANSAÇÃO RÁPIDA) -->
 <div class="mobile-modal-overlay" id="quickAddModal" onclick="closeQuickAddModal(event)">
@@ -166,17 +181,14 @@
     </div>
 </div>
 
-<!-- BOTTOM NAV -->
+<!-- BOTTOM NAV (6 DESTINOS ESSENCIAIS) -->
 <nav class="bottom-nav">
     <a href="dashboard.html" class="active"><i class="fas fa-home"></i><span>Início</span></a>
-    <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
-    <div class="nav-center">
-        <button class="btn-add" onclick="openAddTransaction()" aria-label="Nova transação">
-            <i class="fas fa-plus"></i>
-        </button>
-    </div>
+    <a href="transactions.html"><i class="fas fa-receipt"></i><span>Extrato</span></a>
     <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
-    <a href="settings.html"><i class="fas fa-cog"></i><span>Config.</span></a>
+    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investir</span></a>
+    <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Ajustes</span></a>
 </nav>
 
 <!-- TOAST -->

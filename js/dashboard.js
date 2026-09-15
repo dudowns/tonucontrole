@@ -215,21 +215,63 @@ function sanitizeReportText(rawText) {
     return cleaned.trim();
 }
 
+// Lista de Units/Ações brasileiras que terminam em 11 (mas são AÇÕES, não FIIs)
+const KNOWN_STOCK_UNITS = new Set([
+    'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
+    'SULA11', 'TIET11', 'BIDI11', 'RPMG11', 'MODL11', 'IGTI11', 'VVAR11', 'STBP11',
+    'AESB11', 'ELET11', 'PPLA11', 'ALLD11', 'ENEV11', 'BMEB11', 'BMGB11', 'BRAP11',
+    'CAMB11', 'CURY11', 'EMAE11', 'LCAM11', 'MOVI11', 'ODPV11', 'PARD11', 'RANI11',
+    'RAPT11', 'SIMH11', 'TRIS11', 'TUPY11', 'VAMO11', 'VBBR11', 'VULC11', 'WHRL11'
+]);
+
+// Lista de ETFs brasileiros negociados na B3 terminados em 11
+const KNOWN_ETFS = new Set([
+    'BOVA11', 'SMAL11', 'IVVB11', 'HASH11', 'XINA11', 'GOLD11', 'NASD11', 'SPXI11',
+    'WRLD11', 'DIVO11', 'MATB11', 'FIND11', 'BRAX11', 'PIBB11', 'ECOO11', 'ISUS11',
+    'GENB11', 'ACWI11', 'BBSD11', 'TECB11', 'DNAI11', 'MILL11', 'SHOT11', 'REVE11',
+    'BBOV11', 'USTK11', 'HTEK11', 'BDEF11', 'BDIV11', 'NSDV11', 'QETH11', 'QBTC11',
+    'CRPT11', 'DEFI11', 'WEB311', 'META11', 'NFTS11', 'BLOK11', 'ETHE11', 'BITH11'
+]);
+
 function inferClass(ticker) {
-    const tk = ticker.toUpperCase();
-    if (/^(KN|HGLG|MXRF|GGRC|RZTR|XPLG|VISC|BTLG|CPTS|IRDM|BCFF|MALL|HFOF|XPML|KNSC|RECR|HGRE|TRXF|TGAR|VILG|RECT|RBRF|RBRP|MCCI|PVBI|VRTA|ALZR|LVBI|JSRE|PATL|DEVA|RBVA|HCTR|VINO|URPR|SNFF|BARI|HSAF|KORE|MCHF|VGIP|VGIR|RBRY|KNIP|KNRI|KNCR)/.test(tk)) {
-        return 'FIIs';
+    if (!ticker) return 'Acoes';
+    const tk = ticker.toUpperCase().trim();
+
+    // 1. Ações Units terminadas em 11 (ex: TAEE11, SANB11, SAPR11, KLBN11, ALUP11)
+    if (KNOWN_STOCK_UNITS.has(tk)) {
+        return 'Acoes';
     }
-    if (/^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) {
+
+    // 2. ETFs
+    if (KNOWN_ETFS.has(tk) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) {
         return 'ETFs';
     }
+
+    // 3. Tesouro Direto
     if (/^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC)/.test(tk)) {
         return 'Tesouro';
     }
+
+    // 4. BDRs
+    if (tk.endsWith('34') || tk.endsWith('35')) {
+        return 'BDRs';
+    }
+
+    // 5. Ações padrão B3 (ON, PN com finais 2, 3, 4, 5, 6 ou fracionário F)
+    if (/^[A-Z]{4}[23456]F?$/.test(tk)) {
+        return 'Acoes';
+    }
+
+    // 6. FIIs (fundos imobiliários terminados em 11 ou 11B ou prefixos conhecidos)
+    if (/^(KN|HGLG|MXRF|GGRC|RZTR|XPLG|VISC|BTLG|CPTS|IRDM|BCFF|MALL|HFOF|XPML|KNSC|RECR|HGRE|TRXF|TGAR|VILG|RECT|RBRF|RBRP|MCCI|PVBI|VRTA|ALZR|LVBI|JSRE|PATL|DEVA|RBVA|HCTR|VINO|URPR|SNFF|BARI|HSAF|KORE|MCHF|VGIP|VGIR|RBRY|KNIP|KNRI|KNCR)/.test(tk) || tk.endsWith('11') || tk.endsWith('11B')) {
+        return 'FIIs';
+    }
+
     if (/^[A-Z]{3,4}$/.test(tk) && !/^(FII|ETF|TESOURO)/.test(tk)) {
         return 'Acoes';
     }
-    return null;
+
+    return 'Acoes';
 }
 
 function normalizeClass(cls) {
@@ -238,8 +280,9 @@ function normalizeClass(cls) {
     if (upper === 'FII' || upper === 'FIIS') return 'FIIs';
     if (upper === 'ETF' || upper === 'ETFS') return 'ETFs';
     if (upper === 'TESOURO' || upper === 'TESOURO DIRETO') return 'Tesouro';
-    if (upper === 'ACAO' || upper === 'ACOES' || upper === 'ACOES') return 'Acoes';
-    if (['Acoes', 'FIIs', 'ETFs', 'Tesouro'].includes(cls)) return cls;
+    if (upper === 'BDR' || upper === 'BDRS') return 'BDRs';
+    if (upper === 'ACAO' || upper === 'ACOES' || upper === 'AÇÕES' || upper === 'AÇÃO') return 'Acoes';
+    if (['Acoes', 'FIIs', 'ETFs', 'Tesouro', 'BDRs'].includes(cls)) return cls;
     return 'Acoes';
 }
 
@@ -415,7 +458,13 @@ function buildPositions() {
         const ticker = tx.ticker?.toUpperCase().trim() || '';
         if (!ticker) continue;
 
-        const cls = normalizeClass(tx.asset_class || inferClass(ticker) || 'Acoes');
+        let rawCls = tx.asset_class;
+        if (KNOWN_STOCK_UNITS.has(ticker)) {
+            rawCls = 'Acoes';
+        } else if (KNOWN_ETFS.has(ticker)) {
+            rawCls = 'ETFs';
+        }
+        const cls = normalizeClass(rawCls || inferClass(ticker) || 'Acoes');
 
         if (!grouped.has(ticker)) {
             grouped.set(ticker, {

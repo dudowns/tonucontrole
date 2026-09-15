@@ -7,6 +7,12 @@ console.log("📱 Mobile Dashboard carregado");
 let currentUser = null;
 let allTransactions = [];
 let categories = [];
+let allBills = [];
+let allDividends = [];
+let allGoals = [];
+let mobileChartInstance = null;
+let currentChartMode = 'categories';
+let isBalanceHidden = localStorage.getItem('tonu_hide_balance') === 'true';
 
 // ============================================
 // INICIALIZAÇÃO
@@ -62,7 +68,7 @@ async function loadCategories() {
 }
 
 // ============================================
-// CARREGAR DADOS MOBILE
+// CARREGAR DADOS MOBILE UNIFICADOS
 // ============================================
 async function loadMobileData() {
     try {
@@ -72,7 +78,8 @@ async function loadMobileData() {
         const firstDay = `${year}-${month}-01`;
         const lastDay = `${year}-${month}-${new Date(year, today.getMonth() + 1, 0).getDate()}`;
 
-        const { data, error } = await supabaseClient
+        // 1. Transações
+        const txPromise = supabaseClient
             .from("transactions")
             .select("*")
             .eq("user_id", currentUser.id)
@@ -80,20 +87,55 @@ async function loadMobileData() {
             .lte("date", lastDay)
             .order("date", { ascending: false });
 
-        if (error) throw error;
+        // 2. Contas
+        const billsPromise = supabaseClient
+            .from("bills")
+            .select("*")
+            .eq("user_id", currentUser.id);
 
-        let loadedData = data || [];
+        // 3. Proventos
+        const divPromise = supabaseClient
+            .from("dividends")
+            .select("*")
+            .eq("user_id", currentUser.id);
+
+        // 4. Metas
+        const goalsPromise = supabaseClient
+            .from("goals")
+            .select("*")
+            .eq("user_id", currentUser.id);
+
+        const [txRes, billsRes, divRes, goalsRes] = await Promise.all([
+            txPromise,
+            billsPromise,
+            divPromise,
+            goalsPromise
+        ]);
+
+        let loadedData = txRes.data || [];
         if (window.TonuDeduplicate) {
             loadedData = window.TonuDeduplicate.deduplicate(loadedData, {
                 autoCleanRemote: true,
                 userId: currentUser?.id
             }).cleanList;
         }
-
         allTransactions = loadedData;
-        console.log("📊 Mobile: Transações carregadas:", allTransactions.length);
+
+        allBills = billsRes.data || [];
+        allDividends = divRes.data || [];
+        allGoals = goalsRes.data || [];
+
+        console.log("📊 Mobile: Dados unificados prontos:", {
+            transacoes: allTransactions.length,
+            contas: allBills.length,
+            proventos: allDividends.length,
+            metas: allGoals.length
+        });
 
         renderSummary();
+        renderMobileChart();
+        renderMobileInsights();
+        renderMobileGoals();
         renderCategoryBars();
         renderTransactions();
     } catch (error) {
@@ -108,8 +150,15 @@ function isTxPaid(t) {
     return (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
 }
 
+// Alternar visibilidade do saldo
+function toggleBalanceVisibility() {
+    isBalanceHidden = !isBalanceHidden;
+    localStorage.setItem('tonu_hide_balance', isBalanceHidden ? 'true' : 'false');
+    renderSummary();
+}
+
 // ============================================
-// RENDER RESUMO
+// RENDER RESUMO HERO + GRID
 // ============================================
 function renderSummary() {
     let income = 0, expense = 0;
@@ -122,36 +171,427 @@ function renderSummary() {
     });
     const balance = income - expense;
 
+    // Contas pendentes do mês
+    const today = new Date();
+    const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    const pendingBills = allBills.filter(b => {
+        const isPaid = (b.paid === true || b.paid === 'true' || b.paid === 1);
+        const billMonth = (b.due_date || '').substring(0, 7);
+        return !isPaid && (!billMonth || billMonth === currentMonthPrefix);
+    });
+    const pendingBillsAmount = pendingBills.reduce((acc, b) => acc + (Number(b.amount) || 0), 0);
+
+    // Proventos do mês
+    const currentMonthDividends = allDividends.filter(d => {
+        const divMonth = (d.payment_date || d.date || '').substring(0, 7);
+        return divMonth === currentMonthPrefix;
+    });
+    const totalDividends = currentMonthDividends.reduce((acc, d) => acc + (Number(d.amount || d.total_amount) || 0), 0);
+
+    const mask = (val) => isBalanceHidden ? '••••••' : val;
+
     const container = document.getElementById("summaryContainer");
+    if (!container) return;
+
     container.innerHTML = `
-        <div class="mobile-card">
-            <div class="card-icon income"><i class="fas fa-arrow-up"></i></div>
-            <div class="card-info">
-                <div class="card-label">Receitas</div>
-                <div class="card-value">${formatCurrency(income)}</div>
+        <!-- HERO CARD FINTECH -->
+        <div class="mobile-hero-balance">
+            <div class="mobile-hero-top">
+                <span class="label"><i class="fas fa-wallet"></i> Saldo Disponível</span>
+                <button class="eye-toggle-btn" onclick="toggleBalanceVisibility()" title="${isBalanceHidden ? 'Mostrar Saldo' : 'Ocultar Saldo'}" aria-label="Alternar visibilidade do saldo">
+                    <i class="fas ${isBalanceHidden ? 'fa-eye-slash' : 'fa-eye'}"></i>
+                </button>
             </div>
-        </div>
-        <div class="mobile-card">
-            <div class="card-icon expense"><i class="fas fa-arrow-down"></i></div>
-            <div class="card-info">
-                <div class="card-label">Despesas</div>
-                <div class="card-value">${formatCurrency(expense)}</div>
+            <div class="mobile-hero-value">
+                ${mask(formatCurrency(balance))}
             </div>
-        </div>
-        <div class="mobile-card">
-            <div class="card-icon balance"><i class="fas fa-wallet"></i></div>
-            <div class="card-info">
-                <div class="card-label">Saldo</div>
-                <div class="card-value" style="color:${balance >= 0 ? '#00B894' : '#FF7675'}">
-                    ${formatCurrency(balance)}
+            <div class="mobile-hero-footer">
+                <div class="mobile-hero-stat">
+                    <span class="stat-label"><i class="fas fa-arrow-up" style="color:#4ade80;"></i> Entradas</span>
+                    <span class="stat-value income">${mask(formatCurrency(income))}</span>
+                </div>
+                <div class="mobile-hero-stat">
+                    <span class="stat-label"><i class="fas fa-arrow-down" style="color:#fca5a5;"></i> Saídas</span>
+                    <span class="stat-value expense">${mask(formatCurrency(expense))}</span>
                 </div>
             </div>
         </div>
-        <div class="mobile-card">
-            <div class="card-icon count"><i class="fas fa-receipt"></i></div>
-            <div class="card-info">
-                <div class="card-label">Transações</div>
-                <div class="card-value">${paidCount}</div>
+
+        <!-- GRID DE INDICADORES RÁPIDOS -->
+        <div class="mobile-grid">
+            <div class="mobile-card">
+                <div class="card-icon bills"><i class="fas fa-file-invoice-dollar"></i></div>
+                <div class="card-info">
+                    <div class="card-label">Contas Pendentes</div>
+                    <div class="card-value" style="color: ${pendingBills.length > 0 ? '#d97706' : '#10b981'}">
+                        ${mask(formatCurrency(pendingBillsAmount))}
+                    </div>
+                </div>
+            </div>
+            <div class="mobile-card">
+                <div class="card-icon balance" style="background:#8b5cf6;"><i class="fas fa-coins"></i></div>
+                <div class="card-info">
+                    <div class="card-label">Proventos Mês</div>
+                    <div class="card-value" style="color: #8b5cf6;">
+                        ${mask(formatCurrency(totalDividends))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ============================================
+// RENDER GRÁFICO INTERATIVO MOBILE (CHART.JS)
+// ============================================
+function setMobileChartMode(mode) {
+    currentChartMode = mode;
+    renderMobileChart();
+}
+
+function renderMobileChart() {
+    const container = document.getElementById("mobileChartContainer");
+    if (!container) return;
+
+    if (typeof Chart === 'undefined') {
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="mobile-chart-card">
+            <div class="mobile-chart-header">
+                <div class="mobile-chart-title">
+                    <i class="fas fa-chart-pie" style="color:#6C5CE7;"></i> Visão Gráfica
+                </div>
+                <div class="mobile-chart-toggle">
+                    <button class="mobile-chart-btn ${currentChartMode === 'categories' ? 'active' : ''}" onclick="setMobileChartMode('categories')">
+                        Categorias
+                    </button>
+                    <button class="mobile-chart-btn ${currentChartMode === 'flow' ? 'active' : ''}" onclick="setMobileChartMode('flow')">
+                        Fluxo
+                    </button>
+                </div>
+            </div>
+            <div class="mobile-chart-container">
+                <canvas id="mobileChartCanvas"></canvas>
+            </div>
+        </div>
+    `;
+
+    const canvas = document.getElementById("mobileChartCanvas");
+    if (!canvas) return;
+
+    if (mobileChartInstance) {
+        mobileChartInstance.destroy();
+        mobileChartInstance = null;
+    }
+
+    const ctx = canvas.getContext("2d");
+
+    if (currentChartMode === 'categories') {
+        const expenses = allTransactions.filter(t => t.type === "expense" && isTxPaid(t));
+        const catMap = {};
+        expenses.forEach(t => {
+            const catId = t.category_id || "outros";
+            const amt = Number(t.amount) || 0;
+            if (!catMap[catId]) catMap[catId] = 0;
+            catMap[catId] += amt;
+        });
+
+        const sorted = Object.entries(catMap)
+            .map(([id, amount]) => {
+                const cat = categories.find(c => c.id === id);
+                return {
+                    name: cat?.name || "Outros",
+                    color: cat?.color || "#6C5CE7",
+                    amount: amount
+                };
+            })
+            .sort((a, b) => b.amount - a.amount)
+            .slice(0, 5);
+
+        if (sorted.length === 0) {
+            ctx.font = "12px Inter, sans-serif";
+            ctx.fillStyle = "#94a3b8";
+            ctx.textAlign = "center";
+            ctx.fillText("Nenhuma despesa para exibir", canvas.width / 2, 80);
+            return;
+        }
+
+        mobileChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: sorted.map(s => s.name),
+                datasets: [{
+                    data: sorted.map(s => s.amount),
+                    backgroundColor: sorted.map(s => s.color),
+                    borderWidth: 2,
+                    borderColor: document.body.classList.contains('dark-theme') ? '#1e293b' : '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 10,
+                            font: { size: 10, family: 'Inter' },
+                            color: document.body.classList.contains('dark-theme') ? '#cbd5e1' : '#475569'
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ` ${context.label}: ${formatCurrency(context.parsed)}`;
+                            }
+                        }
+                    }
+                },
+                cutout: '68%'
+            }
+        });
+    } else {
+        // Fluxo: Entradas vs Saídas
+        let inc = 0, exp = 0;
+        allTransactions.forEach(t => {
+            if (!isTxPaid(t)) return;
+            if (t.type === 'income') inc += Number(t.amount);
+            else if (t.type === 'expense') exp += Number(t.amount);
+        });
+
+        mobileChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Entradas', 'Saídas', 'Líquido'],
+                datasets: [{
+                    data: [inc, exp, Math.max(0, inc - exp)],
+                    backgroundColor: ['#10b981', '#ef4444', '#6c5ce7'],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ` ${formatCurrency(context.parsed.y)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            font: { size: 9 },
+                            callback: function(v) {
+                                return 'R$ ' + v;
+                            }
+                        }
+                    },
+                    x: {
+                        ticks: { font: { size: 10 } }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// ============================================
+// RENDER DIAGNÓSTICO 360º MOBILE
+// ============================================
+function renderMobileInsights() {
+    const container = document.getElementById("mobileInsightsContainer");
+    if (!container) return;
+
+    let income = 0, expense = 0;
+    const catExpenses = {};
+
+    allTransactions.forEach(t => {
+        if (!isTxPaid(t)) return;
+        const amt = Number(t.amount) || 0;
+        if (t.type === "income") income += amt;
+        else if (t.type === "expense") {
+            expense += amt;
+            const cid = t.category_id || "outros";
+            catExpenses[cid] = (catExpenses[cid] || 0) + amt;
+        }
+    });
+
+    const savings = income - expense;
+    const savingsRate = income > 0 ? Math.round((savings / income) * 100) : 0;
+
+    // Maior Categoria
+    let topCatName = "Nenhum gasto";
+    let topCatAmount = 0;
+    let topCatPercent = 0;
+
+    const sortedCats = Object.entries(catExpenses).sort((a, b) => b[1] - a[1]);
+    if (sortedCats.length > 0) {
+        const top = sortedCats[0];
+        topCatAmount = top[1];
+        topCatPercent = expense > 0 ? Math.round((top[1] / expense) * 100) : 0;
+        const found = categories.find(c => c.id === top[0]);
+        topCatName = found ? found.name : "Outros";
+    }
+
+    // Contas
+    const today = new Date();
+    const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    const monthBills = allBills.filter(b => (b.due_date || '').substring(0, 7) === currentMonthPrefix);
+    const paidBills = monthBills.filter(b => b.paid === true || b.paid === 'true' || b.paid === 1);
+    const pendingBillsAmount = monthBills
+        .filter(b => !(b.paid === true || b.paid === 'true' || b.paid === 1))
+        .reduce((a, b) => a + (Number(b.amount) || 0), 0);
+
+    // Proventos
+    const monthDivs = allDividends.filter(d => (d.payment_date || d.date || '').substring(0, 7) === currentMonthPrefix);
+    const totalDivs = monthDivs.reduce((a, d) => a + (Number(d.amount || d.total_amount) || 0), 0);
+
+    // Badge Poupança
+    let rateClass = "info";
+    let rateLabel = `${savingsRate}% Guardado`;
+    if (savingsRate >= 20) {
+        rateClass = "success";
+        rateLabel = `${savingsRate}% Excelente`;
+    } else if (savingsRate > 0) {
+        rateClass = "warning";
+        rateLabel = `${savingsRate}% Regular`;
+    } else {
+        rateClass = "danger";
+        rateLabel = `${savingsRate}% Déficit`;
+    }
+
+    container.innerHTML = `
+        <div class="mobile-insights-card">
+            <div class="mobile-insights-header">
+                <div class="mobile-insights-title">
+                    <i class="fas fa-compass" style="color:#6C5CE7;"></i> Diagnóstico 360º
+                </div>
+                <span class="mobile-insights-pill">Inteligência Financeira</span>
+            </div>
+
+            <!-- 1. Taxa de Poupança -->
+            <div class="mobile-insight-row">
+                <div class="mobile-insight-left">
+                    <div class="mobile-insight-icon ${rateClass}">
+                        <i class="fas fa-piggy-bank"></i>
+                    </div>
+                    <div class="mobile-insight-text">
+                        <span class="title">Taxa de Poupança</span>
+                        <span class="detail">${formatCurrency(Math.max(0, savings))} poupados</span>
+                    </div>
+                </div>
+                <span class="mobile-insight-badge" style="background:${rateClass === 'success' ? '#dcfce7' : (rateClass === 'danger' ? '#fee2e2' : '#fef3c7')}; color:${rateClass === 'success' ? '#15803d' : (rateClass === 'danger' ? '#b91c1c' : '#b45309')}">
+                    ${rateLabel}
+                </span>
+            </div>
+
+            <!-- 2. Maior Gasto -->
+            <div class="mobile-insight-row">
+                <div class="mobile-insight-left">
+                    <div class="mobile-insight-icon warning">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <div class="mobile-insight-text">
+                        <span class="title">Maior Despesa</span>
+                        <span class="detail">${topCatName} (${formatCurrency(topCatAmount)})</span>
+                    </div>
+                </div>
+                <span class="mobile-insight-badge" style="background:#fef3c7; color:#b45309;">
+                    ${topCatPercent}% do total
+                </span>
+            </div>
+
+            <!-- 3. Contas do Mês -->
+            <div class="mobile-insight-row">
+                <div class="mobile-insight-left">
+                    <div class="mobile-insight-icon info">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <div class="mobile-insight-text">
+                        <span class="title">Contas do Mês</span>
+                        <span class="detail">${paidBills.length} de ${monthBills.length || 0} pagas</span>
+                    </div>
+                </div>
+                <span class="mobile-insight-badge" style="background:#ede9fe; color:#6d28d9;">
+                    ${formatCurrency(pendingBillsAmount)} pendente
+                </span>
+            </div>
+
+            <!-- 4. Renda Passiva / Proventos -->
+            <div class="mobile-insight-row">
+                <div class="mobile-insight-left">
+                    <div class="mobile-insight-icon purple">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="mobile-insight-text">
+                        <span class="title">Renda Passiva</span>
+                        <span class="detail">${monthDivs.length} proventos recebidos</span>
+                    </div>
+                </div>
+                <span class="mobile-insight-badge" style="background:#f3e8ff; color:#7e22ce;">
+                    ${formatCurrency(totalDivs)}
+                </span>
+            </div>
+
+            <!-- DICA ESTRATÉGICA -->
+            <div class="mobile-insight-tip">
+                <i class="fas fa-lightbulb"></i>
+                <div>
+                    <strong>Dica Estratégica:</strong> 
+                    ${topCatPercent > 35 
+                        ? `A categoria <strong>${topCatName}</strong> consome ${topCatPercent}% do seu orçamento. Reduzir 15% nela liberará cerca de <strong>${formatCurrency(topCatAmount * 0.15)}</strong> para seus aportes!`
+                        : `Mantenha suas reservas e invista continuamente os proventos recebidos para acelerar a bola de neve da liberdade financeira!`}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ============================================
+// RENDER METAS NO MOBILE
+// ============================================
+function renderMobileGoals() {
+    const container = document.getElementById("mobileGoalsContainer");
+    if (!container) return;
+
+    if (!allGoals || allGoals.length === 0) {
+        container.innerHTML = "";
+        return;
+    }
+
+    const goal = allGoals[0]; // Primeira meta
+    const target = Number(goal.target_amount || goal.target || 0);
+    const current = Number(goal.current_amount || goal.current || 0);
+    const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+    const remaining = Math.max(0, target - current);
+
+    container.innerHTML = `
+        <div class="category-bars-card" style="margin-bottom:14px;">
+            <div class="category-bars-header">
+                <h3><i class="fas fa-bullseye" style="color:#0984E3; margin-right:6px;"></i> Meta Prioritária</h3>
+                <a href="goals.html" style="font-size:11px; color:#6C5CE7; font-weight:600; text-decoration:none;">Ver todas →</a>
+            </div>
+            <div class="category-bar-item" style="margin-top:6px;">
+                <div class="category-bar-info">
+                    <span class="cat-name"><strong>${goal.title || goal.name || 'Minha Meta'}</strong></span>
+                    <span class="cat-amount">${percent}%</span>
+                </div>
+                <div class="category-bar-track" style="height:8px; border-radius:4px; margin:6px 0;">
+                    <div class="category-bar-fill" style="width: ${percent}%; background: linear-gradient(90deg, #0984E3, #6C5CE7); border-radius:4px;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--color-text-muted, #94a3b8);">
+                    <span>Atual: ${formatCurrency(current)}</span>
+                    <span>Falta: ${formatCurrency(remaining)}</span>
+                </div>
             </div>
         </div>
     `;
