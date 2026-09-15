@@ -1094,48 +1094,179 @@ textarea.form-control {
 }
 
 /* ============================================
-   14. TOAST
+   14. TOAST (MODERNO COM BARRA DE TEMPO & ÍCONES)
    ============================================ */
 .toast {
     position: fixed;
-    bottom: var(--space-lg);
-    right: var(--space-lg);
-    z-index: var(--z-toast);
-    padding: var(--space-md) var(--space-lg);
-    background: var(--color-surface);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-xl);
-    font-weight: 600;
-    font-size: var(--font-size-md);
-    border-left: 4px solid var(--color-primary);
-    animation: toastIn 0.3s ease;
-    max-width: 420px;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000000;
+    min-width: 280px;
+    max-width: 440px;
+    background: var(--color-surface, #ffffff);
+    color: var(--color-text, #0f172a);
+    border-radius: 12px;
+    box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--color-border, #e2e8f0);
+    overflow: hidden;
     display: flex;
-    align-items: center;
-    gap: var(--space-sm);
+    flex-direction: column;
+    padding: 0;
+    font-size: 13px;
+    animation: toastSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    backdrop-filter: blur(8px);
 }
 
 .toast.hidden {
-    display: none;
+    display: none !important;
 }
 
-.toast.success {
-    border-left-color: var(--color-success);
+.toast-body {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
 }
 
-.toast.error {
-    border-left-color: var(--color-danger);
+.toast-icon {
+    font-size: 16px;
+    flex-shrink: 0;
 }
 
-@keyframes toastIn {
+.toast-text {
+    flex: 1;
+    font-weight: 600;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.toast-action-btn {
+    background: var(--color-primary, #6c5ce7);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 9px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s ease;
+}
+
+.toast-action-btn:hover {
+    opacity: 0.9;
+}
+
+.toast-close-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-muted, #94a3b8);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease;
+}
+
+.toast-close-btn:hover {
+    color: var(--color-text, #0f172a);
+}
+
+.toast-progress-track {
+    width: 100%;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+body.dark-theme .toast-progress-track {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.toast-progress-bar {
+    height: 100%;
+    width: 100%;
+    background: var(--toast-accent, #6c5ce7);
+    transition: width 3.2s linear;
+}
+
+.toast.toast-success {
+    --toast-accent: #00b894;
+    border-left: 3.5px solid #00b894;
+}
+.toast.toast-success .toast-icon {
+    color: #00b894;
+}
+
+.toast.toast-error {
+    --toast-accent: #ff7675;
+    border-left: 3.5px solid #ff7675;
+}
+.toast.toast-error .toast-icon {
+    color: #ff7675;
+}
+
+.toast.toast-warning {
+    --toast-accent: #fdcb6e;
+    border-left: 3.5px solid #fdcb6e;
+}
+.toast.toast-warning .toast-icon {
+    color: #e17055;
+}
+
+.toast.toast-info {
+    --toast-accent: #0984e3;
+    border-left: 3.5px solid #0984e3;
+}
+.toast.toast-info .toast-icon {
+    color: #0984e3;
+}
+
+@keyframes toastSlideIn {
     from {
-        transform: translateY(20px);
+        transform: translateY(20px) scale(0.96);
         opacity: 0;
     }
-
     to {
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
         opacity: 1;
+    }
+}
+
+@media (max-width: 640px) {
+    .toast {
+        left: 16px;
+        right: 16px;
+        bottom: 20px;
+        max-width: calc(100% - 32px);
+    }
+}
+
+/* ============================================
+   SKELETON SHIMMER (ESTADO DE CARREGAMENTO FLUIDO)
+   ============================================ */
+.skeleton-shimmer {
+    background: linear-gradient(90deg, var(--color-bg, #f1f5f9) 25%, var(--color-surface, #e2e8f0) 50%, var(--color-bg, #f1f5f9) 75%);
+    background-size: 200% 100%;
+    animation: skeletonShimmer 1.5s infinite ease-in-out;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+body.dark-theme .skeleton-shimmer {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.04) 75%);
+    background-size: 200% 100%;
+}
+
+@keyframes skeletonShimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
     }
 }
 
@@ -1326,11 +1457,30 @@ textarea.form-control {
         font-size: 14px !important;
     }
 
+    .modal-overlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+
     .modal {
         max-width: 100% !important;
-        max-height: calc(100vh - 16px) !important;
-        border-radius: 14px !important;
-        margin: auto !important;
+        width: 100% !important;
+        max-height: 88vh !important;
+        border-radius: 20px 20px 0 0 !important;
+        margin: 0 !important;
+        animation: modalSlideUpMobile 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    .modal::before {
+        content: '';
+        display: block;
+        width: 38px;
+        height: 4px;
+        border-radius: 99px;
+        background: var(--color-border, #cbd5e1);
+        margin: 8px auto 2px auto;
+        opacity: 0.8;
     }
 
     .modal-header {
@@ -1350,6 +1500,162 @@ textarea.form-control {
         width: 100% !important;
         justify-content: center !important;
     }
+}
+
+@keyframes modalSlideUpMobile {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   COMMAND PALETTE / BUSCA RÁPIDA (CTRL+K)
+   ============================================ */
+.quick-cmd-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(5px);
+    z-index: 1000050;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 10vh;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+
+.quick-cmd-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.quick-cmd-box {
+    background: var(--color-surface, #ffffff);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--color-border, #e2e8f0);
+    overflow: hidden;
+    transform: translateY(-10px) scale(0.98);
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    margin: 0 16px;
+}
+
+.quick-cmd-overlay.active .quick-cmd-box {
+    transform: translateY(0) scale(1);
+}
+
+.quick-cmd-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border, #e2e8f0);
+    gap: 10px;
+}
+
+.quick-cmd-header i {
+    color: var(--color-text-muted, #94a3b8);
+    font-size: 15px;
+}
+
+.quick-cmd-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--color-text, #0f172a);
+    font-family: inherit;
+}
+
+.quick-cmd-input::placeholder {
+    color: var(--color-text-muted, #94a3b8);
+}
+
+.quick-cmd-kbd {
+    background: var(--color-bg, #f1f5f9);
+    border: 1px solid var(--color-border, #cbd5e1);
+    border-radius: 5px;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 6px;
+    color: var(--color-text-muted, #64748b);
+    line-height: 1;
+}
+
+.quick-cmd-list {
+    max-height: 330px;
+    overflow-y: auto;
+    padding: 6px;
+    list-style: none;
+    margin: 0;
+}
+
+.quick-cmd-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--color-text, #0f172a);
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.12s ease;
+}
+
+.quick-cmd-item:hover,
+.quick-cmd-item.selected {
+    background: var(--color-bg, #f1f5f9);
+    color: var(--color-primary, #6c5ce7);
+}
+
+.quick-cmd-item-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.quick-cmd-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: rgba(108, 92, 231, 0.1);
+    color: var(--color-primary, #6c5ce7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.quick-cmd-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-text-muted, #94a3b8);
+    background: var(--color-bg, #f8fafc);
+    border: 1px solid var(--color-border, #e2e8f0);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.quick-cmd-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: var(--color-bg, #f8fafc);
+    border-top: 1px solid var(--color-border, #e2e8f0);
+    font-size: 11px;
+    color: var(--color-text-muted, #64748b);
 }
 
 /* ============================================

@@ -1798,6 +1798,41 @@ body.dark-theme .proventos-matrix-table tr:hover td {
     border-collapse: collapse;
     font-size: 9.5px;
     min-width: 680px;
+    transition: font-size 0.15s ease;
+}
+
+/* Modo Confortável (Alternador de Densidade) */
+.proventos-transactions-table.is-comfortable {
+    font-size: 11px;
+}
+
+.proventos-transactions-table.is-comfortable th {
+    padding: 7px 9px;
+    font-size: 10.5px;
+}
+
+.proventos-transactions-table.is-comfortable td {
+    padding: 7px 9px;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.proventos-transactions-table.is-comfortable .prov-ticker-name {
+    font-size: 11.5px;
+}
+
+.proventos-transactions-table.is-comfortable .prov-val-bruto {
+    font-size: 11px;
+}
+
+.proventos-transactions-table.is-comfortable .prov-val-liquido {
+    font-size: 11.5px;
+}
+
+.proventos-transactions-table.is-comfortable .btn-icon-sm {
+    width: 24px;
+    height: 24px;
+    font-size: 9.5px;
 }
 
 .proventos-transactions-table th {

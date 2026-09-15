@@ -2210,6 +2210,11 @@ window.clearDemoDividends = clearDemoDividends;
 // ============================================
 async function loadDividends() {
     try {
+        const dBody = document.getElementById('dividendsBody');
+        if (dBody && typeof renderTableSkeleton === 'function') {
+            renderTableSkeleton(dBody, 4, 11);
+        }
+
         if (!currentUser || !currentUser.id) {
             try {
                 if (typeof supabaseClient !== 'undefined' && supabaseClient?.auth) {
@@ -4248,5 +4253,45 @@ window.loadDemoDividends = loadDemoDividends;
 window.clearDemoDividends = clearDemoDividends;
 window.updateDemoUIState = updateDemoUIState;
 window.generateDemoDividends = generateDemoDividends;
+
+function toggleProvTableDensity() {
+    const table = document.getElementById('provTransactionsTable');
+    const icon = document.getElementById('iconProvDensity');
+    if (!table) return;
+
+    const isComfortable = table.classList.toggle('is-comfortable');
+    if (icon) {
+        icon.className = isComfortable ? 'fas fa-expand-alt' : 'fas fa-compress-alt';
+    }
+    try {
+        localStorage.setItem('tonu_prov_density', isComfortable ? 'comfortable' : 'compact');
+    } catch(e) {}
+
+    if (window.showToast) {
+        window.showToast(isComfortable ? 'Tabela ampliada (Modo Confortável)' : 'Tabela compactada (Modo Compacto)', 'info');
+    }
+}
+window.toggleProvTableDensity = toggleProvTableDensity;
+
+function initProvTableDensity() {
+    try {
+        const saved = localStorage.getItem('tonu_prov_density');
+        const table = document.getElementById('provTransactionsTable');
+        const icon = document.getElementById('iconProvDensity');
+        if (saved === 'comfortable' && table) {
+            table.classList.add('is-comfortable');
+            if (icon) icon.className = 'fas fa-expand-alt';
+        }
+    } catch(e) {}
+}
+window.initProvTableDensity = initProvTableDensity;
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initProvTableDensity);
+    } else {
+        initProvTableDensity();
+    }
+}
 
 console.log('✅ Investments.js carregado com sistema de demonstração e anti-expansão!');

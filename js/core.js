@@ -16,34 +16,81 @@ window.APP_CONFIG = {
 };
 
 // ============================================
-// 1. TOAST
+// 1. TOAST PREMIUM (COM PROGRESSO, ÍCONES E UNDO)
 // ============================================
-function showToast(message, type) {
+function showToast(message, type, actionText, onAction) {
     type = type || 'info';
     var toast = document.getElementById('toast');
     if (!toast) {
-        console.warn('Toast não encontrado');
-        alert(message);
-        return;
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast hidden';
+        document.body.appendChild(toast);
     }
 
-    var colors = {
-        info: '#0984E3',
-        success: '#00B894',
-        error: '#FF7675',
-        warning: '#FDCB6E'
+    var icons = {
+        info: 'fa-info-circle',
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle'
     };
 
-    toast.textContent = message;
-    toast.style.background = colors[type] || colors.info;
-    toast.style.color = '#fff';
-    toast.className = 'toast show';
+    toast.style.background = '';
+    toast.style.color = '';
+    toast.className = 'toast toast-' + type;
+
+    var iconClass = icons[type] || icons.info;
+    var actionHtml = '';
+    if (actionText && typeof onAction === 'function') {
+        actionHtml = '<button type="button" class="toast-action-btn" id="toastActionBtn">' + actionText + '</button>';
+    }
+
+    toast.innerHTML = 
+        '<div class="toast-body">' +
+            '<i class="fas ' + iconClass + ' toast-icon" aria-hidden="true"></i>' +
+            '<span class="toast-text">' + message + '</span>' +
+            actionHtml +
+            '<button type="button" class="toast-close-btn" aria-label="Fechar notificação" onclick="hideToast()">&times;</button>' +
+        '</div>' +
+        '<div class="toast-progress-track">' +
+            '<div class="toast-progress-bar" id="toastProgressBar" style="width: 100%;"></div>' +
+        '</div>';
+
+    if (actionText && typeof onAction === 'function') {
+        var actionBtn = document.getElementById('toastActionBtn');
+        if (actionBtn) {
+            actionBtn.onclick = function() {
+                hideToast();
+                try { onAction(); } catch(err) { console.error('Erro ao executar ação do toast:', err); }
+            };
+        }
+    }
+
+    setTimeout(function() {
+        var bar = document.getElementById('toastProgressBar');
+        if (bar) {
+            bar.style.width = '0%';
+        }
+    }, 40);
 
     clearTimeout(toast._timeout);
     toast._timeout = setTimeout(function () {
-        toast.className = 'toast hidden';
-    }, 3000);
+        hideToast();
+    }, 3300);
 }
+
+function hideToast() {
+    var toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(15px) scale(0.95)';
+    setTimeout(function() {
+        toast.className = 'toast hidden';
+        toast.style.opacity = '';
+        toast.style.transform = '';
+    }, 220);
+}
+window.hideToast = hideToast;
 
 // ============================================
 // 2. FORMATAÇÃO
@@ -1396,4 +1443,301 @@ window.addStaggerToCards = addStaggerToCards;
 window.addStaggerToList = addStaggerToList;
 window.applyStagger = applyStagger;
 
-console.log('✅ Core.js configurado com transições e animações!');
+// ============================================
+// SKELETON HELPERS (ESTADOS DE CARREGAMENTO)
+// ============================================
+function renderTableSkeleton(tbodyElement, rows = 5, cols = 6) {
+    if (!tbodyElement) return;
+    let html = '';
+    for (let r = 0; r < rows; r++) {
+        html += '<tr class="skeleton-row" role="row">';
+        for (let c = 0; c < cols; c++) {
+            const width = Math.min(95, Math.max(35, 45 + Math.floor(Math.sin((r + 1) * (c + 2)) * 30 + 20)));
+            html += `<td style="padding: 7px 8px; vertical-align: middle;"><div class="skeleton-shimmer" style="width: ${width}%; height: 14px; border-radius: 4px;"></div></td>`;
+        }
+        html += '</tr>';
+    }
+    tbodyElement.innerHTML = html;
+}
+window.renderTableSkeleton = renderTableSkeleton;
+
+// ============================================
+// FECHAMENTO UNIVERSAL DE MODAIS (ESC & CLICKS)
+// ============================================
+function closeAnyActiveModal() {
+    let closed = false;
+
+    // Fecha Quick Search se aberto
+    const quickOverlay = document.getElementById('quickCmdOverlay');
+    if (quickOverlay && quickOverlay.classList.contains('active')) {
+        closeQuickSearch();
+        closed = true;
+    }
+
+    // Procura modais visíveis
+    const modalOverlays = document.querySelectorAll('.modal-overlay:not(.hidden), .modal-overlay.active, .modal-overlay.show, .mobile-modal-overlay.active');
+    modalOverlays.forEach(overlay => {
+        if (overlay.id === 'dividendModal' && window.closeDividendModal) {
+            window.closeDividendModal();
+            closed = true;
+        } else if (overlay.id === 'operationModal' && window.closeOperationModal) {
+            window.closeOperationModal();
+            closed = true;
+        } else if (overlay.id === 'monthlyGoalModal' && window.closeMonthlyGoalModal) {
+            window.closeMonthlyGoalModal();
+            closed = true;
+        } else if (overlay.id === 'billModalOverlay' && window.closeBillModal) {
+            window.closeBillModal();
+            closed = true;
+        } else if (overlay.id === 'allTickersModal' && window.closeAllTickersModal) {
+            window.closeAllTickersModal();
+            closed = true;
+        } else if (overlay.id === 'addValueOverlay' && window.closeAddValue) {
+            window.closeAddValue();
+            closed = true;
+        } else if (overlay.id === 'withdrawOverlay' && window.closeWithdrawModal) {
+            window.closeWithdrawModal();
+            closed = true;
+        } else if (window.closeModal) {
+            window.closeModal();
+            closed = true;
+        } else {
+            overlay.classList.remove('active', 'show');
+            overlay.classList.add('hidden');
+            overlay.style.display = 'none';
+            closed = true;
+        }
+    });
+
+    return closed;
+}
+window.closeAnyActiveModal = closeAnyActiveModal;
+
+// ============================================
+// PALETA DE COMANDOS & NAVEGAÇÃO RÁPIDA (CTRL+K)
+// ============================================
+const QUICK_COMMANDS = [
+    { title: 'Visão Geral / Painel', icon: 'fa-chart-pie', badge: 'Página', action: () => navigateToPage('dashboard.html') },
+    { title: 'Transações & Extrato', icon: 'fa-exchange-alt', badge: 'Página', action: () => navigateToPage('transactions.html') },
+    { title: 'Contas a Pagar & Lembretes', icon: 'fa-file-invoice-dollar', badge: 'Página', action: () => navigateToPage('bills.html') },
+    { title: 'Metas & Sonhos', icon: 'fa-bullseye', badge: 'Página', action: () => navigateToPage('goals.html') },
+    { title: 'Investimentos & Proventos', icon: 'fa-chart-line', badge: 'Página', action: () => navigateToPage('investments.html') },
+    { title: 'Configurações do Sistema', icon: 'fa-cog', badge: 'Página', action: () => navigateToPage('settings.html') },
+    { 
+        title: 'Nova Transação', 
+        icon: 'fa-plus-circle', 
+        badge: 'Ação', 
+        action: () => {
+            if (window.openModal) {
+                window.openModal();
+            } else {
+                navigateToPage('transactions.html?action=new');
+            }
+        } 
+    },
+    { 
+        title: 'Registrar Provento', 
+        icon: 'fa-hand-holding-usd', 
+        badge: 'Ação', 
+        action: () => {
+            if (window.openDividendModal) {
+                window.openDividendModal();
+            } else {
+                navigateToPage('investments.html?action=dividend');
+            }
+        } 
+    },
+    { 
+        title: 'Alternar Modo Escuro / Claro', 
+        icon: 'fa-adjust', 
+        badge: 'Tema', 
+        action: () => {
+            if (window.toggleTheme) window.toggleTheme();
+        } 
+    }
+];
+
+function navigateToPage(target) {
+    const isInsidePages = window.location.pathname.includes('/pages/');
+    const url = isInsidePages ? target : 'pages/' + target;
+    window.location.href = url;
+}
+
+function openQuickSearch() {
+    let overlay = document.getElementById('quickCmdOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'quickCmdOverlay';
+        overlay.className = 'quick-cmd-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', 'Busca Rápida de Comandos');
+        overlay.onclick = function(e) {
+            if (e.target === overlay) closeQuickSearch();
+        };
+
+        overlay.innerHTML = `
+            <div class="quick-cmd-box" onclick="event.stopPropagation()">
+                <div class="quick-cmd-header">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    <input type="text" id="quickCmdInput" class="quick-cmd-input" placeholder="Buscar página ou ação rápida..." autocomplete="off" />
+                    <span class="quick-cmd-kbd">ESC</span>
+                </div>
+                <ul class="quick-cmd-list" id="quickCmdList"></ul>
+                <div class="quick-cmd-footer">
+                    <span>Navegue com as setas <strong style="font-size:10px;">&uarr; &darr;</strong> e pressione <strong style="font-size:10px;">Enter</strong></span>
+                    <span>Atalho: <strong>Ctrl + K</strong></span>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const input = overlay.querySelector('#quickCmdInput');
+        if (input) {
+            input.addEventListener('input', () => filterQuickCommands(input.value));
+            input.addEventListener('keydown', handleQuickCommandKeys);
+        }
+    }
+
+    renderQuickCommands(QUICK_COMMANDS);
+    overlay.classList.add('active');
+    setTimeout(() => {
+        const input = document.getElementById('quickCmdInput');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+    }, 50);
+}
+window.openQuickSearch = openQuickSearch;
+
+function closeQuickSearch() {
+    const overlay = document.getElementById('quickCmdOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+}
+window.closeQuickSearch = closeQuickSearch;
+
+let selectedCmdIndex = 0;
+let filteredCommands = [];
+
+function renderQuickCommands(commands) {
+    filteredCommands = commands;
+    selectedCmdIndex = 0;
+    const list = document.getElementById('quickCmdList');
+    if (!list) return;
+
+    if (commands.length === 0) {
+        list.innerHTML = '<li style="padding: 24px; text-align: center; color: var(--color-text-muted); font-size: 13px;">Nenhum comando encontrado</li>';
+        return;
+    }
+
+    list.innerHTML = commands.map((cmd, idx) => `
+        <li class="quick-cmd-item ${idx === 0 ? 'selected' : ''}" data-index="${idx}" onclick="executeQuickCommand(${idx})">
+            <div class="quick-cmd-item-left">
+                <span class="quick-cmd-icon"><i class="fas ${cmd.icon}"></i></span>
+                <span>${cmd.title}</span>
+            </div>
+            <span class="quick-cmd-badge">${cmd.badge}</span>
+        </li>
+    `).join('');
+}
+
+function filterQuickCommands(query) {
+    const term = (query || '').toLowerCase().trim();
+    if (!term) {
+        renderQuickCommands(QUICK_COMMANDS);
+        return;
+    }
+    const filtered = QUICK_COMMANDS.filter(c => 
+        c.title.toLowerCase().includes(term) || 
+        c.badge.toLowerCase().includes(term)
+    );
+    renderQuickCommands(filtered);
+}
+
+function handleQuickCommandKeys(e) {
+    const list = document.getElementById('quickCmdList');
+    if (!list || filteredCommands.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedCmdIndex = (selectedCmdIndex + 1) % filteredCommands.length;
+        updateSelectedCmdItem();
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedCmdIndex = (selectedCmdIndex - 1 + filteredCommands.length) % filteredCommands.length;
+        updateSelectedCmdItem();
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        executeQuickCommand(selectedCmdIndex);
+    }
+}
+
+function updateSelectedCmdItem() {
+    const items = document.querySelectorAll('.quick-cmd-item');
+    items.forEach((item, idx) => {
+        if (idx === selectedCmdIndex) {
+            item.classList.add('selected');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('selected');
+        }
+    });
+}
+
+function executeQuickCommand(index) {
+    const cmd = filteredCommands[index];
+    if (cmd && typeof cmd.action === 'function') {
+        closeQuickSearch();
+        try {
+            cmd.action();
+        } catch (err) {
+            console.error('Erro ao executar comando rápido:', err);
+        }
+    }
+}
+window.executeQuickCommand = executeQuickCommand;
+
+// Ouvinte global para teclado
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeAnyActiveModal();
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        const overlay = document.getElementById('quickCmdOverlay');
+        if (overlay && overlay.classList.contains('active')) {
+            closeQuickSearch();
+        } else {
+            openQuickSearch();
+        }
+    }
+});
+
+// Injeta botão de busca rápida no topbar de todas as páginas
+function injectQuickSearchButton() {
+    const topbarActions = document.querySelector('.topbar-actions');
+    if (!topbarActions || document.getElementById('btnQuickSearchTrigger')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'btnQuickSearchTrigger';
+    btn.type = 'button';
+    btn.className = 'theme-toggle-btn';
+    btn.title = 'Busca Rápida e Comandos (Ctrl + K)';
+    btn.setAttribute('aria-label', 'Busca rápida');
+    btn.onclick = openQuickSearch;
+    btn.innerHTML = '<i class="fas fa-search" aria-hidden="true"></i>';
+
+    topbarActions.insertBefore(btn, topbarActions.firstChild);
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', injectQuickSearchButton);
+    } else {
+        injectQuickSearchButton();
+    }
+}
+
+console.log('✅ Core.js configurado com transições, busca rápida e animações!');

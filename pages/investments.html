@@ -1177,6 +1177,9 @@
                                         </select>
                                     </div>
                                     <!-- Botões Atualizar & Registrar -->
+                                    <button type="button" class="btn btn-ghost btn-sm" id="btnToggleProvDensity" onclick="toggleProvTableDensity()" title="Alternar densidade da tabela (Compacto / Confortável)" aria-label="Alternar densidade da tabela" style="padding: 2px 6px; height: 24px; font-size: 10px;">
+                                        <i class="fas fa-compress-alt" id="iconProvDensity" aria-hidden="true"></i>
+                                    </button>
                                     <button type="button" class="btn btn-ghost btn-sm" onclick="loadDividends()" title="Atualizar dados" aria-label="Atualizar proventos" style="padding: 2px 6px; height: 24px; font-size: 10px;">
                                         <i class="fas fa-sync-alt" aria-hidden="true"></i>
                                     </button>
@@ -1204,10 +1207,31 @@
                                         </tr>
                                     </thead>
                                     <tbody id="dividendsBody" role="rowgroup">
-                                        <tr role="row">
-                                            <td colspan="11" style="text-align:center;padding:30px 0;color:var(--color-text-muted);">
-                                                <span class="spinner"></span> Carregando proventos...
-                                            </td>
+                                        <tr class="skeleton-row" role="row">
+                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 75%; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 60%; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 50%; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 65%; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:center;"><div class="skeleton-shimmer" style="width: 70px; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:center;"><div class="skeleton-shimmer" style="width: 70px; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 40px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 55px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 65px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 65px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 45px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
+                                        </tr>
+                                        <tr class="skeleton-row" role="row">
+                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 65%; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 55%; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 45%; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 70%; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:center;"><div class="skeleton-shimmer" style="width: 70px; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:center;"><div class="skeleton-shimmer" style="width: 70px; height: 14px; border-radius: 4px;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 40px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 55px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 65px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 65px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
+                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 45px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
                                         </tr>
                                     </tbody>
                                 </table>
