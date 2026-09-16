@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#6C5CE7">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="../../manifest.json">
     <link rel="apple-touch-icon" href="../../icons/icon-192x192.png">
-    <title>Investimentos - Mobile</title>
+    <title>TonuControle - Investimentos Mobile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -15,110 +17,223 @@
     <link rel="stylesheet" href="../../css/dark-theme.css">
     <link rel="stylesheet" href="../../css/mobile.css">
     <style>
-        body { padding-bottom: 80px; background: var(--color-bg, #f0f2f5); }
-        .patrimony-hero-card {
+        body { padding-bottom: 84px; background: var(--color-bg, #f8fafc); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* HERO RESUMO DE CARTEIRA */
+        .invest-hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .invest-hero-card {
             background: var(--color-surface, #ffffff);
-            border-radius: var(--radius-lg, 16px);
-            padding: 18px 20px;
+            border-radius: 14px;
+            padding: 12px 14px;
             border: 1px solid var(--color-border, #e2e8f0);
-            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05));
-            margin-bottom: 16px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         }
-        .patrimony-hero-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #6C5CE7, #a29bfe);
+        .invest-hero-card.full-width {
+            grid-column: span 2;
+            background: linear-gradient(135deg, rgba(108, 92, 231, 0.08), rgba(162, 155, 254, 0.12));
+            border-color: rgba(108, 92, 231, 0.2);
         }
-        .patrimony-hero-card .label {
-            font-size: 11px;
+        .invest-hero-card .hero-label {
+            font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--color-text-light, #64748b);
+            letter-spacing: 0.5px;
+            color: var(--color-text-muted, #64748b);
             margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        .patrimony-hero-card .value {
-            font-size: 24px;
+        .invest-hero-card .hero-value {
+            font-size: 18px;
             font-weight: 800;
-            color: var(--color-primary, #6C5CE7);
-            letter-spacing: -0.02em;
+            color: var(--color-text, #0f172a);
+            letter-spacing: -0.3px;
         }
-        .section-title {
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--color-text, #1e293b);
-            margin: 16px 0 8px 4px;
+        .invest-hero-card.full-width .hero-value {
+            font-size: 24px;
+            color: #6C5CE7;
+        }
+
+        /* FILTROS CHIPS */
+        .chip-filters {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            margin-bottom: 12px;
+            scrollbar-width: none;
+        }
+        .chip-filters::-webkit-scrollbar { display: none; }
+        .chip-btn {
+            border: 1px solid var(--color-border, #e2e8f0);
+            background: var(--color-surface, #ffffff);
+            color: var(--color-text-muted, #64748b);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 999px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .chip-btn.active {
+            background: #6C5CE7;
+            color: #ffffff;
+            border-color: #6C5CE7;
+        }
+
+        /* CARD DE ATIVO EM CUSTÓDIA */
+        .asset-card {
+            background: var(--color-surface, #ffffff);
+            border-radius: 14px;
+            padding: 12px 14px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .asset-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .asset-ticker {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--color-text, #0f172a);
             display: flex;
             align-items: center;
             gap: 6px;
         }
-        .invest-card {
-            background: var(--color-surface, #ffffff);
-            border-radius: var(--radius-md, 12px);
-            padding: 14px 16px;
-            border: 1px solid var(--color-border, #e2e8f0);
-            margin-bottom: 10px;
-            box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.04));
-            transition: transform 0.15s ease;
-        }
-        .invest-card:active {
-            transform: scale(0.99);
-        }
-        .invest-card .invest-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .invest-card .invest-ticker {
-            font-size: 15px;
-            font-weight: 800;
-            color: var(--color-text, #1e293b);
-        }
-        .invest-card .invest-class {
-            font-size: 10px;
-            font-weight: 600;
+        .asset-class-badge {
+            font-size: 9.5px;
+            font-weight: 700;
             padding: 2px 7px;
-            border-radius: 9999px;
+            border-radius: 999px;
             background: var(--color-bg, #f1f5f9);
-            color: var(--color-text-muted, #94a3b8);
-            border: 1px solid var(--color-border, #e2e8f0);
-            margin-left: 6px;
-        }
-        .invest-card .invest-values {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid var(--color-border-light, #f1f5f9);
-            font-size: 11px;
             color: var(--color-text-muted, #64748b);
         }
-        .invest-card .badge-type {
+        .asset-total {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--color-text, #0f172a);
+        }
+        .asset-details-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            padding-top: 8px;
+            border-top: 1px solid var(--color-border, #f1f5f9);
+            font-size: 11px;
+        }
+        .asset-details-item .lbl {
+            font-size: 9.5px;
+            color: var(--color-text-muted, #94a3b8);
+            display: block;
+        }
+        .asset-details-item .val {
+            font-weight: 700;
+            color: var(--color-text, #334155);
+        }
+
+        /* CARD DE OPERAÇÃO / LANÇAMENTO */
+        .op-card {
+            background: var(--color-surface, #ffffff);
+            border-radius: 14px;
+            padding: 12px 14px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .op-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .op-badge {
             font-size: 10px;
             font-weight: 700;
             padding: 2px 8px;
-            border-radius: 9999px;
+            border-radius: 999px;
         }
-        .invest-card .badge-type.buy {
-            background: rgba(0, 184, 148, 0.12);
-            color: #00B894;
+        .op-badge.buy { background: rgba(0, 184, 148, 0.12); color: #00B894; }
+        .op-badge.sell { background: rgba(255, 118, 117, 0.12); color: #FF7675; }
+        .op-badge.div { background: rgba(108, 92, 231, 0.12); color: #6C5CE7; }
+        .op-card-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--color-text-muted, #64748b);
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid var(--color-border, #f1f5f9);
         }
-        .invest-card .badge-type.sell {
-            background: rgba(255, 118, 117, 0.12);
-            color: #FF7675;
+        .op-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .op-btn {
+            border: none;
+            background: transparent;
+            color: var(--color-text-muted, #94a3b8);
+            font-size: 13px;
+            padding: 4px;
+            cursor: pointer;
+        }
+        .op-btn:hover { color: #6C5CE7; }
+        .op-btn.del:hover { color: #FF7675; }
+
+        /* BARRA SUPERIOR DE AÇÃO */
+        .tab-action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .tab-action-bar h2 {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-text, #0f172a);
+            margin: 0;
+        }
+        .btn-add-primary {
+            background: #6C5CE7;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(108, 92, 231, 0.3);
+        }
+        .btn-add-primary:active { transform: scale(0.96); }
+
+        .spinner-center {
+            text-align: center;
+            padding: 30px;
+            color: #94a3b8;
+            font-size: 13px;
         }
     </style>
 </head>
 <body>
 
+<!-- TOPBAR -->
 <header class="mobile-topbar">
     <div class="topbar-header">
         <div class="topbar-left">
@@ -130,35 +245,266 @@
             <button onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
         </div>
     </div>
-    <div class="greeting">📈 Investimentos</div>
+    <div class="greeting">📈 Gestão de Investimentos</div>
 </header>
 
-<main class="mobile-content" style="padding: 14px 16px;">
-    <div class="patrimony-hero-card">
-        <div class="label"><i class="fas fa-wallet" style="margin-right:4px;"></i> Patrimônio em Ativos</div>
-        <div class="value" id="patrimonyTotal">R$ 0,00</div>
+<main class="mobile-content" style="padding: 12px 14px;">
+
+    <!-- TABS PRINCIPAIS: CARTEIRA, LANÇAMENTOS, PROVENTOS -->
+    <div class="mobile-tabs">
+        <button class="mobile-tab-btn active" id="tabBtnCarteira" onclick="switchInvestTab('carteira')">
+            <i class="fas fa-briefcase"></i> Carteira
+        </button>
+        <button class="mobile-tab-btn" id="tabBtnLancamentos" onclick="switchInvestTab('lancamentos')">
+            <i class="fas fa-list-ul"></i> Lançamentos
+        </button>
+        <button class="mobile-tab-btn" id="tabBtnProventos" onclick="switchInvestTab('proventos')">
+            <i class="fas fa-money-bill-wave"></i> Proventos
+        </button>
     </div>
-    <div class="section-title">
-        <i class="fas fa-clock-rotate-left"></i> Últimas Operações
-    </div>
-    <div id="investmentsContainer">
-        <div style="text-align:center;padding:24px;">
-            <span class="spinner"></span>
-            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando investimentos...</p>
+
+    <!-- ==========================================
+         ABA 1: CARTEIRA (VISÃO GERAL & ATIVOS)
+         ========================================== -->
+    <div id="tabContentCarteira" class="tab-content active">
+        <div class="invest-hero-grid">
+            <div class="invest-hero-card full-width">
+                <div class="hero-label"><i class="fas fa-wallet"></i> Patrimônio Atual em Ativos</div>
+                <div class="hero-value" id="cardPatrimonioTotal">R$ 0,00</div>
+            </div>
+            <div class="invest-hero-card">
+                <div class="hero-label"><i class="fas fa-coins"></i> Total Investido</div>
+                <div class="hero-value" id="cardTotalInvestido">R$ 0,00</div>
+            </div>
+            <div class="invest-hero-card">
+                <div class="hero-label"><i class="fas fa-hand-holding-usd"></i> Proventos Recebidos</div>
+                <div class="hero-value" id="cardProventosTotal" style="color: #8b5cf6;">R$ 0,00</div>
+            </div>
+        </div>
+
+        <div class="chip-filters">
+            <button class="chip-btn active" onclick="filterAssetClass('all', this)">Todos</button>
+            <button class="chip-btn" onclick="filterAssetClass('Ações', this)">Ações</button>
+            <button class="chip-btn" onclick="filterAssetClass('FIIs', this)">FIIs</button>
+            <button class="chip-btn" onclick="filterAssetClass('Renda Fixa', this)">Renda Fixa</button>
+            <button class="chip-btn" onclick="filterAssetClass('ETFs', this)">ETFs</button>
+            <button class="chip-btn" onclick="filterAssetClass('Cripto', this)">Cripto</button>
+        </div>
+
+        <div class="tab-action-bar">
+            <h2>Meus Ativos em Custódia</h2>
+            <button class="btn-add-primary" onclick="openAddOperationModal()">
+                <i class="fas fa-plus"></i> Nova Operação
+            </button>
+        </div>
+
+        <div id="positionsListContainer">
+            <div class="spinner-center">
+                <span class="spinner"></span>
+                <p style="margin-top:8px;">Calculando custódia real...</p>
+            </div>
         </div>
     </div>
+
+    <!-- ==========================================
+         ABA 2: LANÇAMENTOS (COMPRAS E VENDAS)
+         ========================================== -->
+    <div id="tabContentLancamentos" class="tab-content">
+        <div class="tab-action-bar">
+            <h2>Histórico de Operações</h2>
+            <button class="btn-add-primary" onclick="openAddOperationModal()">
+                <i class="fas fa-plus"></i> Nova Operação
+            </button>
+        </div>
+
+        <div class="chip-filters">
+            <button class="chip-btn active" onclick="filterOpType('all', this)">Todas</button>
+            <button class="chip-btn" onclick="filterOpType('Compra', this)">Compras</button>
+            <button class="chip-btn" onclick="filterOpType('Venda', this)">Vendas</button>
+        </div>
+
+        <div id="operationsListContainer">
+            <div class="spinner-center">
+                <span class="spinner"></span>
+                <p style="margin-top:8px;">Carregando operações...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         ABA 3: PROVENTOS (DIVIDENDOS & JCP)
+         ========================================== -->
+    <div id="tabContentProventos" class="tab-content">
+        <div class="invest-hero-grid">
+            <div class="invest-hero-card">
+                <div class="hero-label"><i class="fas fa-receipt"></i> Total Histórico</div>
+                <div class="hero-value" id="cardDivHistorico" style="color: #8b5cf6;">R$ 0,00</div>
+            </div>
+            <div class="invest-hero-card">
+                <div class="hero-label"><i class="fas fa-calendar-alt"></i> Este Mês</div>
+                <div class="hero-value" id="cardDivMes" style="color: #10b981;">R$ 0,00</div>
+            </div>
+        </div>
+
+        <div class="tab-action-bar">
+            <h2>Proventos Recebidos</h2>
+            <button class="btn-add-primary" onclick="openAddDividendModal()">
+                <i class="fas fa-plus"></i> Novo Provento
+            </button>
+        </div>
+
+        <div id="dividendsListContainer">
+            <div class="spinner-center">
+                <span class="spinner"></span>
+                <p style="margin-top:8px;">Carregando proventos...</p>
+            </div>
+        </div>
+    </div>
+
 </main>
 
-<!-- FLOATING ACTION BUTTON (NOVO INVESTIMENTO) -->
-<button class="mobile-fab" onclick="openAddInvestment()" aria-label="Novo Investimento" title="Novo Investimento">
-    <i class="fas fa-plus"></i>
-</button>
+<!-- MODAL: NOVA / EDITAR OPERAÇÃO -->
+<div class="mobile-modal-overlay" id="modalOperation" onclick="closeModalOperation(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <h3 id="opModalTitle">Nova Operação</h3>
+            <button class="sheet-close-btn" onclick="closeModalOperation()"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="opForm" onsubmit="handleOpSubmit(event)">
+            <input type="hidden" id="opEditId" value="">
+            <div class="type-toggle-group">
+                <button type="button" class="type-toggle-btn active expense" id="toggleOpBuy" onclick="setOpType('Compra')">
+                    <i class="fas fa-arrow-up"></i> Compra
+                </button>
+                <button type="button" class="type-toggle-btn income" id="toggleOpSell" onclick="setOpType('Venda')">
+                    <i class="fas fa-arrow-down"></i> Venda
+                </button>
+            </div>
+            <input type="hidden" id="opType" value="Compra">
 
-<!-- BOTTOM NAV (6 DESTINOS ESSENCIAIS) -->
+            <div class="sheet-form-group">
+                <label>Ticker / Código (Ex: PETR4, MXRF11, Tesouro Selic)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-tag"></i>
+                    <input type="text" id="opTicker" class="sheet-input" placeholder="Ex: PETR4" style="text-transform: uppercase;" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Classe do Ativo</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-layer-group"></i>
+                    <select id="opClass" class="sheet-input" required>
+                        <option value="Ações">Ações</option>
+                        <option value="FIIs">Fundos Imobiliários (FIIs)</option>
+                        <option value="Renda Fixa">Renda Fixa / Tesouro</option>
+                        <option value="ETFs">ETFs</option>
+                        <option value="Cripto">Criptomoedas</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="sheet-form-group">
+                    <label>Quantidade</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-hashtag"></i>
+                        <input type="number" step="any" min="0.0001" id="opQty" class="sheet-input" placeholder="100" oninput="calcOpTotal()" required>
+                    </div>
+                </div>
+                <div class="sheet-form-group">
+                    <label>Preço Unitário (R$)</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-dollar-sign"></i>
+                        <input type="number" step="0.01" min="0.01" id="opPrice" class="sheet-input" placeholder="0,00" oninput="calcOpTotal()" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Valor Total (R$)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-calculator"></i>
+                    <input type="number" step="0.01" min="0.01" id="opTotal" class="sheet-input" placeholder="0,00" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Data da Operação</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-calendar"></i>
+                    <input type="date" id="opDate" class="sheet-input" required>
+                </div>
+            </div>
+
+            <button type="submit" class="sheet-submit-btn" id="opSubmitBtn">Salvar Operação</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: NOVO PROVENTO -->
+<div class="mobile-modal-overlay" id="modalDividend" onclick="closeModalDividend(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <h3>Novo Provento</h3>
+            <button class="sheet-close-btn" onclick="closeModalDividend()"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="divForm" onsubmit="handleDivSubmit(event)">
+            <div class="sheet-form-group">
+                <label>Ticker / Código (Ex: PETR4, MXRF11)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-tag"></i>
+                    <input type="text" id="divTicker" class="sheet-input" placeholder="Ex: MXRF11" style="text-transform: uppercase;" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Tipo de Provento</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-coins"></i>
+                    <select id="divType" class="sheet-input" required>
+                        <option value="Dividendo">Dividendo</option>
+                        <option value="JCP">Juros sobre Capital Próprio (JCP)</option>
+                        <option value="Rendimento">Rendimento</option>
+                        <option value="Amortização">Amortização</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Valor Total Líquido Recebido (R$)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-dollar-sign"></i>
+                    <input type="number" step="0.01" min="0.01" id="divAmount" class="sheet-input" placeholder="0,00" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Data de Pagamento</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-calendar"></i>
+                    <input type="date" id="divDate" class="sheet-input" required>
+                </div>
+            </div>
+
+            <button type="submit" class="sheet-submit-btn" id="divSubmitBtn">Salvar Provento</button>
+        </form>
+    </div>
+</div>
+
+<!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
 <nav class="bottom-nav">
     <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
     <a href="transactions.html"><i class="fas fa-receipt"></i><span>Extrato</span></a>
     <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <div class="nav-center">
+        <button type="button" class="nav-add-btn" onclick="openAddOperationModal()" aria-label="Nova Operação" title="Nova Operação">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
     <a href="investments.html" class="active"><i class="fas fa-chart-line"></i><span>Investir</span></a>
     <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
     <a href="settings.html"><i class="fas fa-cog"></i><span>Ajustes</span></a>
@@ -173,7 +519,12 @@
 <script src="../../js/sync.js"></script>
 <script>
 let currentUser = null;
-let investments = [];
+let allRawInvestments = [];
+let allRawDividends = [];
+let activePositions = [];
+let currentAssetFilter = 'all';
+let currentOpFilter = 'all';
+let currentTab = 'carteira';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const savedTheme = localStorage.getItem("tonu_theme") || "light";
@@ -187,146 +538,540 @@ document.addEventListener("DOMContentLoaded", async () => {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) { window.location.href = "../../index.html"; return; }
         currentUser = user;
-        await loadInvestments();
+        
+        // Define data de hoje nos forms
+        const todayStr = new Date().toISOString().split("T")[0];
+        document.getElementById("opDate").value = todayStr;
+        document.getElementById("divDate").value = todayStr;
+
+        await loadAllInvestmentData();
     } catch (e) {
-        console.error("Erro:", e);
+        console.error("Erro auth:", e);
         window.location.href = "../../index.html";
     }
 });
 
-async function loadInvestments() {
+// ============================================
+// CARREGAR DADOS DO SUPABASE
+// ============================================
+async function loadAllInvestmentData() {
     try {
-        // Buscar ativos da carteira
-        const { data, error } = await supabaseClient
+        // 1. Operações (investments) ordenadas cronologicamente
+        const { data: invData, error: invErr } = await supabaseClient
             .from("investments")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .order("date", { ascending: true });
+
+        if (invErr) console.warn("Aviso busca investimentos:", invErr);
+        allRawInvestments = invData || [];
+
+        // 2. Proventos (dividends)
+        const { data: divData, error: divErr } = await supabaseClient
+            .from("dividends")
             .select("*")
             .eq("user_id", currentUser.id)
             .order("date", { ascending: false });
 
-        if (error) throw error;
-        investments = data || [];
-        renderInvestments();
-        calculatePatrimony();
-    } catch (error) {
-        console.error("Erro:", error);
+        if (divErr) console.warn("Aviso busca proventos:", divErr);
+        allRawDividends = divData || [];
+
+        // 3. Calcula custódia real e correta
+        computeRealPositions();
+
+        // 4. Renderiza as abas
+        renderPositions();
+        renderOperations();
+        renderDividends();
+        updateSummaryHero();
+    } catch (err) {
+        console.error("Erro ao carregar dados de investimento:", err);
+        showToast("Erro ao carregar dados", "error");
     }
 }
 
-function calculatePatrimony() {
-    // Agrupa por ticker
-    const grouped = {};
-    investments.forEach(inv => {
-        if (!grouped[inv.ticker]) {
-            grouped[inv.ticker] = { quantity: 0, totalCost: 0 };
+// ============================================
+// CÁLCULO RIGOROSO E EXATO DE CUSTÓDIA
+// ============================================
+function computeRealPositions() {
+    // Ordena rigorosamente cronológico para processar compra -> venda na ordem certa
+    const sorted = [...allRawInvestments].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const map = new Map();
+
+    sorted.forEach(t => {
+        const ticker = (t.ticker || '').toUpperCase().trim();
+        if (!ticker) return;
+
+        if (!map.has(ticker)) {
+            map.set(ticker, {
+                ticker: ticker,
+                asset_class: t.asset_class || 'Ações',
+                quantity: 0,
+                costBasis: 0,
+                averageCost: 0,
+                totalTransactions: 0
+            });
         }
-        if (inv.type === "Compra") {
-            grouped[inv.ticker].quantity += inv.quantity;
-            grouped[inv.ticker].totalCost += inv.total_value;
-        } else if (inv.type === "Venda") {
-            const avgCost = grouped[inv.ticker].quantity > 0 
-                ? grouped[inv.ticker].totalCost / grouped[inv.ticker].quantity 
-                : 0;
-            grouped[inv.ticker].quantity -= inv.quantity;
-            grouped[inv.ticker].totalCost -= avgCost * inv.quantity;
+
+        const pos = map.get(ticker);
+        const qty = parseFloat(t.quantity) || 0;
+        const total = parseFloat(t.total_value || t.amount || (qty * (parseFloat(t.price) || 0))) || 0;
+        const type = (t.type || '').toLowerCase();
+
+        pos.totalTransactions++;
+
+        if (type.includes('compra') || type.includes('buy')) {
+            pos.costBasis += total;
+            pos.quantity += qty;
+            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+        } else if (type.includes('venda') || type.includes('sell')) {
+            const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+            const costOfSold = avg * qty;
+            pos.costBasis = Math.max(0, pos.costBasis - costOfSold);
+            pos.quantity = Math.max(0, pos.quantity - qty);
+            if (pos.quantity <= 0.0001) {
+                pos.quantity = 0;
+                pos.costBasis = 0;
+                pos.averageCost = 0;
+            } else {
+                pos.averageCost = pos.costBasis / pos.quantity;
+            }
         }
     });
 
-    let total = 0;
-    let totalInvested = 0;
-    for (const [ticker, data] of Object.entries(grouped)) {
-        if (data.quantity > 0) {
-            // Valor aproximado (preço médio)
-            const avgPrice = data.quantity > 0 ? data.totalCost / data.quantity : 0;
-            total += data.totalCost;
-            totalInvested += data.totalCost;
-        }
-    }
-
-    document.getElementById("patrimonyTotal").textContent = formatCurrency(total);
+    // Filtra APENAS quem tem cotas ativas! Se vendeu tudo, NÃO aparece e valor é 0!
+    activePositions = Array.from(map.values()).filter(p => p.quantity > 0.0001);
 }
 
-function renderInvestments() {
-    const container = document.getElementById("investmentsContainer");
+// ============================================
+// ATUALIZAR RESUMOS HERO
+// ============================================
+function updateSummaryHero() {
+    let totalInvestido = 0;
+    let totalPatrimonio = 0;
 
-    if (investments.length === 0) {
+    activePositions.forEach(p => {
+        totalInvestido += p.costBasis;
+        totalPatrimonio += p.costBasis; // Base de custo (ou cotação)
+    });
+
+    let totalDivsHistorico = 0;
+    let totalDivsMes = 0;
+    const currentMonthPrefix = new Date().toISOString().substring(0, 7);
+
+    allRawDividends.forEach(d => {
+        const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
+        totalDivsHistorico += val;
+        if ((d.date || d.payment_date || '').substring(0, 7) === currentMonthPrefix) {
+            totalDivsMes += val;
+        }
+    });
+
+    document.getElementById("cardPatrimonioTotal").textContent = formatCurrency(totalPatrimonio);
+    document.getElementById("cardTotalInvestido").textContent = formatCurrency(totalInvestido);
+    document.getElementById("cardProventosTotal").textContent = formatCurrency(totalDivsHistorico);
+
+    const divHistEl = document.getElementById("cardDivHistorico");
+    if (divHistEl) divHistEl.textContent = formatCurrency(totalDivsHistorico);
+    const divMesEl = document.getElementById("cardDivMes");
+    if (divMesEl) divMesEl.textContent = formatCurrency(totalDivsMes);
+}
+
+// ============================================
+// RENDERIZAR ATIVOS EM CUSTÓDIA
+// ============================================
+function renderPositions() {
+    const container = document.getElementById("positionsListContainer");
+    if (!container) return;
+
+    let filtered = activePositions;
+    if (currentAssetFilter !== 'all') {
+        filtered = activePositions.filter(p => p.asset_class === currentAssetFilter);
+    }
+
+    if (filtered.length === 0) {
         container.innerHTML = `
-            <div class="mobile-empty">
-                <span class="empty-icon">📈</span>
-                <h3>Nenhum investimento</h3>
-                <p>Registre sua primeira operação</p>
+            <div style="text-align:center; padding:30px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
+                <i class="fas fa-chart-pie" style="font-size:32px; color:#a29bfe; margin-bottom:10px; display:block;"></i>
+                <h3 style="font-size:14px; font-weight:700; color:var(--color-text,#0f172a); margin-bottom:4px;">Nenhum ativo em custódia</h3>
+                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">Registre sua primeira compra para acompanhar seus investimentos.</p>
+                <button class="btn-add-primary" style="margin:0 auto;" onclick="openAddOperationModal()">
+                    <i class="fas fa-plus"></i> Adicionar Operação
+                </button>
             </div>
         `;
         return;
     }
 
-    // Mostrar apenas os 5 mais recentes
-    const recent = investments.slice(0, 10);
-
-    container.innerHTML = recent.map(inv => {
-        const isBuy = inv.type === "Compra";
-        const sign = isBuy ? "+" : "-";
-        const color = isBuy ? "#00B894" : "#FF7675";
-
+    container.innerHTML = filtered.map(pos => {
+        const formattedQty = pos.quantity % 1 === 0 ? pos.quantity.toFixed(0) : pos.quantity.toFixed(4);
         return `
-            <div class="invest-card">
-                <div class="invest-header">
+            <div class="asset-card">
+                <div class="asset-card-top">
                     <div>
-                        <span class="invest-ticker">${inv.ticker}</span>
-                        <span class="invest-class">${inv.asset_class || 'Ações'}</span>
+                        <span class="asset-ticker">${pos.ticker}</span>
+                        <span class="asset-class-badge">${pos.asset_class}</span>
                     </div>
-                    <span style="font-size:12px;font-weight:600;color:${color}">
-                        ${sign} ${formatCurrency(inv.total_value)}
-                    </span>
+                    <span class="asset-total">${formatCurrency(pos.costBasis)}</span>
                 </div>
-                <div class="invest-values">
-                    <span>${inv.quantity} un. • ${formatDate(inv.date)}</span>
-                    <span class="badge-type ${isBuy ? 'buy' : 'sell'}">${isBuy ? 'Compra' : 'Venda'}</span>
+                <div class="asset-details-grid">
+                    <div class="asset-details-item">
+                        <span class="lbl">Quantidade</span>
+                        <span class="val">${formattedQty} cotas</span>
+                    </div>
+                    <div class="asset-details-item">
+                        <span class="lbl">Preço Médio</span>
+                        <span class="val">${formatCurrency(pos.averageCost)}</span>
+                    </div>
+                    <div class="asset-details-item">
+                        <span class="lbl">Posição</span>
+                        <span class="val" style="color:#10b981;">Ativa</span>
+                    </div>
                 </div>
             </div>
         `;
     }).join("");
 }
 
-function openAddInvestment() {
-    showToast("Função em desenvolvimento", "info");
+// ============================================
+// RENDERIZAR LANÇAMENTOS (OPERAÇÕES)
+// ============================================
+function renderOperations() {
+    const container = document.getElementById("operationsListContainer");
+    if (!container) return;
+
+    // Ordena decrescente para ver as mais recentes no topo
+    let list = [...allRawInvestments].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    if (currentOpFilter !== 'all') {
+        list = list.filter(op => (op.type || '').toLowerCase().includes(currentOpFilter.toLowerCase()));
+    }
+
+    if (list.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:30px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
+                <i class="fas fa-list-ul" style="font-size:32px; color:#a29bfe; margin-bottom:10px; display:block;"></i>
+                <p style="font-size:12px; color:#94a3b8;">Nenhuma operação encontrada.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = list.map(op => {
+        const isBuy = (op.type || '').toLowerCase().includes('compra') || (op.type || '').toLowerCase().includes('buy');
+        const badgeClass = isBuy ? 'buy' : 'sell';
+        const badgeText = isBuy ? 'Compra' : 'Venda';
+        const total = parseFloat(op.total_value || op.amount || (op.quantity * op.price)) || 0;
+
+        return `
+            <div class="op-card">
+                <div class="op-card-top">
+                    <div>
+                        <strong style="font-size:14px; color:var(--color-text,#0f172a);">${op.ticker}</strong>
+                        <span class="op-badge ${badgeClass}" style="margin-left:6px;">${badgeText}</span>
+                    </div>
+                    <strong style="font-size:13px; color:${isBuy ? '#10b981' : '#ef4444'};">
+                        ${isBuy ? '+' : '-'} ${formatCurrency(total)}
+                    </strong>
+                </div>
+                <div class="op-card-bottom">
+                    <span>${op.quantity} un. @ ${formatCurrency(op.price)} • ${formatDate(op.date)}</span>
+                    <div class="op-actions">
+                        <button class="op-btn" onclick="editOperation('${op.id}')" title="Editar"><i class="fas fa-pen"></i></button>
+                        <button class="op-btn del" onclick="deleteOperation('${op.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
 }
 
-function formatCurrency(value) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(value);
+// ============================================
+// RENDERIZAR PROVENTOS
+// ============================================
+function renderDividends() {
+    const container = document.getElementById("dividendsListContainer");
+    if (!container) return;
+
+    if (allRawDividends.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:30px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
+                <i class="fas fa-hand-holding-usd" style="font-size:32px; color:#a29bfe; margin-bottom:10px; display:block;"></i>
+                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">Nenhum provento registrado ainda.</p>
+                <button class="btn-add-primary" style="margin:0 auto;" onclick="openAddDividendModal()">
+                    <i class="fas fa-plus"></i> Novo Provento
+                </button>
+            </div>
+        `;
+        return;
     }
-    if (value === null || value === undefined || value === '') value = 0;
-    if (typeof value === 'string') {
-        const cleaned = value.replace(/[R$\s]/g, '');
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-            value = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (cleaned.includes(',')) {
-            value = cleaned.replace(',', '.');
-        }
-        value = parseFloat(value);
+
+    container.innerHTML = allRawDividends.map(d => {
+        const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
+        return `
+            <div class="op-card">
+                <div class="op-card-top">
+                    <div>
+                        <strong style="font-size:14px; color:var(--color-text,#0f172a);">${d.ticker}</strong>
+                        <span class="op-badge div" style="margin-left:6px;">${d.type || 'Dividendo'}</span>
+                    </div>
+                    <strong style="font-size:13px; color:#8b5cf6;">
+                        + ${formatCurrency(val)}
+                    </strong>
+                </div>
+                <div class="op-card-bottom">
+                    <span>Pago em: ${formatDate(d.date || d.payment_date)}</span>
+                    <div class="op-actions">
+                        <button class="op-btn del" onclick="deleteDividend('${d.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+// ============================================
+// NAVEGAÇÃO DE ABAS
+// ============================================
+function switchInvestTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll(".mobile-tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+
+    if (tab === 'carteira') {
+        document.getElementById("tabBtnCarteira").classList.add("active");
+        document.getElementById("tabContentCarteira").classList.add("active");
+    } else if (tab === 'lancamentos') {
+        document.getElementById("tabBtnLancamentos").classList.add("active");
+        document.getElementById("tabContentLancamentos").classList.add("active");
+    } else if (tab === 'proventos') {
+        document.getElementById("tabBtnProventos").classList.add("active");
+        document.getElementById("tabContentProventos").classList.add("active");
     }
-    const num = Number(value) || 0;
+}
+
+function filterAssetClass(cls, btn) {
+    currentAssetFilter = cls;
+    document.querySelectorAll("#tabContentCarteira .chip-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    renderPositions();
+}
+
+function filterOpType(type, btn) {
+    currentOpFilter = type;
+    document.querySelectorAll("#tabContentLancamentos .chip-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    renderOperations();
+}
+
+// ============================================
+// MODAL & HANDLER: OPERAÇÃO (COMPRA / VENDA)
+// ============================================
+function openAddOperationModal() {
+    document.getElementById("opModalTitle").textContent = "Nova Operação";
+    document.getElementById("opEditId").value = "";
+    document.getElementById("opTicker").value = "";
+    document.getElementById("opQty").value = "";
+    document.getElementById("opPrice").value = "";
+    document.getElementById("opTotal").value = "";
+    document.getElementById("opDate").value = new Date().toISOString().split("T")[0];
+    setOpType("Compra");
+    document.getElementById("modalOperation").classList.add("active");
+}
+
+function closeModalOperation(e) {
+    if (e && e.target && e.target !== e.currentTarget) return;
+    document.getElementById("modalOperation").classList.remove("active");
+}
+
+function setOpType(type) {
+    document.getElementById("opType").value = type;
+    const buyBtn = document.getElementById("toggleOpBuy");
+    const sellBtn = document.getElementById("toggleOpSell");
+    if (type === 'Compra') {
+        buyBtn.classList.add("active");
+        sellBtn.classList.remove("active");
+    } else {
+        sellBtn.classList.add("active");
+        buyBtn.classList.remove("active");
+    }
+}
+
+function calcOpTotal() {
+    const q = parseFloat(document.getElementById("opQty").value) || 0;
+    const p = parseFloat(document.getElementById("opPrice").value) || 0;
+    if (q > 0 && p > 0) {
+        document.getElementById("opTotal").value = (q * p).toFixed(2);
+    }
+}
+
+async function handleOpSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById("opSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+
+    const editId = document.getElementById("opEditId").value;
+    const type = document.getElementById("opType").value;
+    const ticker = document.getElementById("opTicker").value.trim().toUpperCase();
+    const assetClass = document.getElementById("opClass").value;
+    const qty = parseFloat(document.getElementById("opQty").value) || 0;
+    const price = parseFloat(document.getElementById("opPrice").value) || 0;
+    const total = parseFloat(document.getElementById("opTotal").value) || (qty * price);
+    const date = document.getElementById("opDate").value;
+
+    const payload = {
+        user_id: currentUser.id,
+        ticker: ticker,
+        type: type,
+        asset_class: assetClass,
+        quantity: qty,
+        price: price,
+        total_value: total,
+        date: date
+    };
+
     try {
-        const formatted = new Intl.NumberFormat("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(num);
-        return formatted.replace(/\u00A0/g, ' ');
-    } catch {
-        const isNegative = num < 0;
-        const parts = Math.abs(num).toFixed(2).split('.');
-        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const res = 'R$ ' + intPart + ',' + parts[1];
-        return isNegative ? '-' + res : res;
+        if (editId) {
+            const { error } = await supabaseClient
+                .from("investments")
+                .update(payload)
+                .eq("id", editId)
+                .eq("user_id", currentUser.id);
+            if (error) throw error;
+            showToast("Operação atualizada!", "success");
+        } else {
+            const { error } = await supabaseClient
+                .from("investments")
+                .insert([payload]);
+            if (error) throw error;
+            showToast("Operação registrada com sucesso!", "success");
+        }
+
+        closeModalOperation();
+        await loadAllInvestmentData();
+    } catch (err) {
+        console.error("Erro ao salvar operação:", err);
+        showToast("Erro ao salvar: " + err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Salvar Operação";
     }
 }
 
-function formatDate(date) {
-    if (!date) return "--/--/----";
-    const d = new Date(date);
-    return d.toLocaleDateString("pt-BR");
+function editOperation(id) {
+    const op = allRawInvestments.find(o => String(o.id) === String(id));
+    if (!op) return;
+
+    document.getElementById("opModalTitle").textContent = "Editar Operação";
+    document.getElementById("opEditId").value = op.id;
+    document.getElementById("opTicker").value = op.ticker;
+    document.getElementById("opClass").value = op.asset_class || "Ações";
+    document.getElementById("opQty").value = op.quantity;
+    document.getElementById("opPrice").value = op.price;
+    document.getElementById("opTotal").value = op.total_value;
+    document.getElementById("opDate").value = (op.date || '').split("T")[0];
+    setOpType(op.type || "Compra");
+    document.getElementById("modalOperation").classList.add("active");
+}
+
+async function deleteOperation(id) {
+    if (!confirm("Tem certeza que deseja excluir esta operação?")) return;
+    try {
+        const { error } = await supabaseClient
+            .from("investments")
+            .delete()
+            .eq("id", id)
+            .eq("user_id", currentUser.id);
+        if (error) throw error;
+        showToast("Operação excluída!", "success");
+        await loadAllInvestmentData();
+    } catch (err) {
+        showToast("Erro ao excluir: " + err.message, "error");
+    }
+}
+
+// ============================================
+// MODAL & HANDLER: PROVENTO
+// ============================================
+function openAddDividendModal() {
+    document.getElementById("divTicker").value = "";
+    document.getElementById("divAmount").value = "";
+    document.getElementById("divDate").value = new Date().toISOString().split("T")[0];
+    document.getElementById("modalDividend").classList.add("active");
+}
+
+function closeModalDividend(e) {
+    if (e && e.target && e.target !== e.currentTarget) return;
+    document.getElementById("modalDividend").classList.remove("active");
+}
+
+async function handleDivSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById("divSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+
+    const ticker = document.getElementById("divTicker").value.trim().toUpperCase();
+    const type = document.getElementById("divType").value;
+    const amount = parseFloat(document.getElementById("divAmount").value) || 0;
+    const date = document.getElementById("divDate").value;
+
+    const payload = {
+        user_id: currentUser.id,
+        ticker: ticker,
+        type: type,
+        total_value: amount,
+        amount: amount,
+        net_value: amount,
+        date: date
+    };
+
+    try {
+        const { error } = await supabaseClient
+            .from("dividends")
+            .insert([payload]);
+        if (error) throw error;
+        showToast("Provento salvo com sucesso!", "success");
+        closeModalDividend();
+        await loadAllInvestmentData();
+    } catch (err) {
+        showToast("Erro ao salvar provento: " + err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Salvar Provento";
+    }
+}
+
+async function deleteDividend(id) {
+    if (!confirm("Tem certeza que deseja excluir este provento?")) return;
+    try {
+        const { error } = await supabaseClient
+            .from("dividends")
+            .delete()
+            .eq("id", id)
+            .eq("user_id", currentUser.id);
+        if (error) throw error;
+        showToast("Provento excluído!", "success");
+        await loadAllInvestmentData();
+    } catch (err) {
+        showToast("Erro ao excluir: " + err.message, "error");
+    }
+}
+
+// ============================================
+// UTILITÁRIOS
+// ============================================
+function formatCurrency(val) {
+    const num = parseFloat(val) || 0;
+    return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatDate(dStr) {
+    if (!dStr) return "--/--/----";
+    const parts = dStr.split("T")[0].split("-");
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return new Date(dStr).toLocaleDateString("pt-BR");
 }
 
 function toggleTheme() {
@@ -336,7 +1081,7 @@ function toggleTheme() {
     if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
 }
 
-function showToast(msg, type) {
+function showToast(msg, type = "info") {
     const toast = document.getElementById("toast");
     if (!toast) return;
     toast.textContent = msg;

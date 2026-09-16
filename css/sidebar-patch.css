@@ -46,9 +46,9 @@
 
 /* 🔥 LOGO PNG NO LUGAR DO 💰 */
 .sidebar-brand .brand-icon {
-    width: 28px !important;
-    height: 28px !important;
-    border-radius: 8px !important;
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 9px !important;
     overflow: hidden !important;
     flex-shrink: 0 !important;
     background: rgba(255, 255, 255, 0.18) !important;
@@ -57,14 +57,29 @@
     justify-content: center !important;
     position: relative !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-    transition: transform 0.65s cubic-bezier(0.34, 1.45, 0.64, 1), box-shadow 0.35s ease !important;
-    animation: brandIconFloat 4s ease-in-out infinite alternate !important;
+    transition: transform 0.5s cubic-bezier(0.34, 1.45, 0.64, 1), box-shadow 0.35s ease !important;
+    animation: sidebarVolante90 5.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite !important;
+    transform-origin: center center !important;
+    will-change: transform !important;
 }
 
 .sidebar-brand:hover .brand-icon,
 .sidebar-brand .brand-icon:hover {
-    transform: rotate(180deg) scale(1.15) !important;
-    box-shadow: 0 6px 18px rgba(108, 92, 231, 0.45) !important;
+    animation-play-state: paused !important;
+    transform: rotate(90deg) scale(1.15) !important;
+    box-shadow: 0 8px 20px rgba(108, 92, 231, 0.5) !important;
+}
+
+@keyframes sidebarVolante90 {
+    0% { transform: translateY(0px) rotate(0deg); }
+    8% { transform: translateY(0px) rotate(0deg); }
+    32% { transform: translateY(-2px) rotate(90deg); }
+    44% { transform: translateY(-2px) rotate(90deg); }
+    58% { transform: translateY(0px) rotate(0deg); }
+    66% { transform: translateY(0px) rotate(0deg); }
+    84% { transform: translateY(-2px) rotate(-90deg); }
+    92% { transform: translateY(-2px) rotate(-90deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
 }
 
 .sidebar-brand .brand-icon::after {

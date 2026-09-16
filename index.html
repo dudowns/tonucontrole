@@ -191,9 +191,29 @@
             flex-direction: column;
             align-items: center;
             width: 100%;
-            max-width: 310px;
-            padding: 20px;
+            max-width: 320px;
+            padding: 24px;
             animation: splashCoreIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            transition: all 0.3s ease;
+        }
+
+        @media (min-width: 768px) {
+            .splash-core {
+                max-width: 390px;
+                padding: 44px 38px;
+                background: rgba(255, 255, 255, 0.78);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border: 1px solid rgba(255, 255, 255, 0.85);
+                border-radius: 32px;
+                box-shadow: 0 24px 60px -12px rgba(108, 92, 231, 0.18), 0 0 0 1px rgba(108, 92, 231, 0.05);
+            }
+
+            body.dark-theme .splash-core {
+                background: rgba(30, 30, 45, 0.78);
+                border-color: rgba(255, 255, 255, 0.12);
+                box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.55);
+            }
         }
 
         @keyframes splashCoreIn {
@@ -245,8 +265,8 @@
             }
         }
 
-        /* 🚗 Animação Volante 180°: esterçamento suave meia-volta (180°) para a direita, volta ao centro, meia-volta para a esquerda (-180°) e retorno */
-        @keyframes volanteSpin180 {
+        /* 🚗 Animação Volante 90°: rotação suave de volante até 90° para a direita, volta ao centro, até -90° para a esquerda e retorno */
+        @keyframes volanteSpin90 {
             0% {
                 transform: translateY(0px) rotate(0deg);
             }
@@ -254,10 +274,10 @@
                 transform: translateY(0px) rotate(0deg);
             }
             32% {
-                transform: translateY(-6px) rotate(180deg);
+                transform: translateY(-5px) rotate(90deg);
             }
-            42% {
-                transform: translateY(-6px) rotate(180deg);
+            44% {
+                transform: translateY(-5px) rotate(90deg);
             }
             58% {
                 transform: translateY(0px) rotate(0deg);
@@ -266,17 +286,17 @@
                 transform: translateY(0px) rotate(0deg);
             }
             84% {
-                transform: translateY(-6px) rotate(-180deg);
+                transform: translateY(-5px) rotate(-90deg);
             }
             92% {
-                transform: translateY(-6px) rotate(-180deg);
+                transform: translateY(-5px) rotate(-90deg);
             }
             100% {
                 transform: translateY(0px) rotate(0deg);
             }
         }
 
-        @-webkit-keyframes volanteSpin180 {
+        @-webkit-keyframes volanteSpin90 {
             0% {
                 -webkit-transform: translateY(0px) rotate(0deg);
             }
@@ -284,10 +304,10 @@
                 -webkit-transform: translateY(0px) rotate(0deg);
             }
             32% {
-                -webkit-transform: translateY(-6px) rotate(180deg);
+                -webkit-transform: translateY(-5px) rotate(90deg);
             }
-            42% {
-                -webkit-transform: translateY(-6px) rotate(180deg);
+            44% {
+                -webkit-transform: translateY(-5px) rotate(90deg);
             }
             58% {
                 -webkit-transform: translateY(0px) rotate(0deg);
@@ -296,14 +316,22 @@
                 -webkit-transform: translateY(0px) rotate(0deg);
             }
             84% {
-                -webkit-transform: translateY(-6px) rotate(-180deg);
+                -webkit-transform: translateY(-5px) rotate(-90deg);
             }
             92% {
-                -webkit-transform: translateY(-6px) rotate(-180deg);
+                -webkit-transform: translateY(-5px) rotate(-90deg);
             }
             100% {
                 -webkit-transform: translateY(0px) rotate(0deg);
             }
+        }
+
+        /* Alias para retrocompatibilidade */
+        @keyframes volanteSpin180 {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            35% { transform: translateY(-5px) rotate(90deg); }
+            55% { transform: translateY(0px) rotate(0deg); }
+            85% { transform: translateY(-5px) rotate(-90deg); }
         }
 
         .splash-logo-wrapper {
@@ -317,8 +345,8 @@
             position: relative;
             z-index: 1;
             transform-origin: center center;
-            animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite, splashLogoAuraPulse 3.4s ease-in-out infinite alternate;
-            -webkit-animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite, splashLogoAuraPulse 3.4s ease-in-out infinite alternate;
+            animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite, splashLogoAuraPulse 3.4s ease-in-out infinite alternate;
+            -webkit-animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite, splashLogoAuraPulse 3.4s ease-in-out infinite alternate;
         }
 
         /* Efeito de brilho de luz transversal passando pelo logo */
@@ -568,54 +596,14 @@
                 transition-duration: 0.01ms !important;
             }
 
+            /* Manter a animação elegante de volante 90° nos logos como assinatura de marca */
             .splash-logo-wrapper,
-            .splash-logo-wrapper::after,
-            .splash-logo-wrapper .logo-img,
-            .splash-logo-bg,
-            .splash-ambient-orb,
-            .splash-ripple-pulse,
-            .welcome-ambient-orb,
             .welcome-logo,
-            .welcome-logo::after,
-            .welcome-logo-glow,
-            .welcome-logo img,
             .mobile-logo-box,
-            .mobile-logo-box::after,
-            .mobile-logo-glow,
-            .badge-pulse-dot,
-            .feature-icon-wrap {
-                animation: none !important;
-            }
-
-            .splash-logo-wrapper .logo-img {
-                animation: none !important;
-            }
-
-            .splash-logo-bg {
-                animation: none !important;
-            }
-
-            .login-container {
-                animation: none !important;
-            }
-
-            .welcome-logo {
-                animation: none !important;
-            }
-
-            .btn-primary,
-            .btn-social,
-            .feature {
-                transition: none !important;
-            }
-
-            .feature {
-                opacity: 1 !important;
-                animation: none !important;
-            }
-
-            .login-side {
-                animation: none !important;
+            #logoAnimado,
+            #loginLogo {
+                animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite !important;
+                -webkit-animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite !important;
             }
         }
 
@@ -796,8 +784,8 @@
             border: 2px solid rgba(255, 255, 255, 0.4);
             box-shadow: 0 16px 36px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.5);
             transform-origin: center center;
-            animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
-            -webkit-animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+            animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+            -webkit-animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
             position: relative;
             z-index: 1;
             cursor: pointer;
@@ -882,7 +870,8 @@
             }
         }
 
-        .welcome-logo img {
+        .welcome-logo img,
+        #loginLogo {
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -891,6 +880,9 @@
             z-index: 1;
             transform-origin: center center;
             border-radius: inherit;
+            animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite !important;
+            -webkit-animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite !important;
+            will-change: transform;
         }
 
         .welcome-title {
@@ -1172,8 +1164,8 @@
             border: 2px solid rgba(108, 92, 231, 0.25);
             box-shadow: 0 10px 24px -4px rgba(108, 92, 231, 0.3);
             transform-origin: center center;
-            animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
-            -webkit-animation: volanteSpin180 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+            animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+            -webkit-animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
             position: relative;
             z-index: 1;
             transition: box-shadow 0.4s ease;
@@ -1924,7 +1916,7 @@
                 <div class="splash-ripple-pulse delayed" aria-hidden="true"></div>
                 <div class="splash-logo-wrapper">
                     <div class="splash-logo-bg"></div>
-                    <img src="/tonucontrole/icons/logo.png" alt="TonuControle" class="logo-img" id="logoAnimado">
+                    <img src="./icons/logo.png" onerror="this.onerror=null; this.src='/icons/logo.png'" alt="TonuControle" class="logo-img" id="logoAnimado">
                 </div>
             </div>
 
@@ -1971,7 +1963,7 @@
                 <div class="welcome-logo-container">
                     <div class="welcome-logo-glow"></div>
                     <div class="welcome-logo">
-                        <img src="/tonucontrole/icons/logo.png" alt="TonuControle" id="loginLogo">
+                        <img src="./icons/logo.png" onerror="this.onerror=null; this.src='/icons/logo.png'" alt="TonuControle" id="loginLogo">
                     </div>
                 </div>
 
@@ -2021,7 +2013,7 @@
                 <div class="mobile-logo-container">
                     <div class="mobile-logo-glow" aria-hidden="true"></div>
                     <div class="mobile-logo-box">
-                        <img src="/tonucontrole/icons/logo.png" alt="TonuControle">
+                        <img src="./icons/logo.png" onerror="this.onerror=null; this.src='/icons/logo.png'" alt="TonuControle">
                     </div>
                 </div>
                 <h2>Tonu<span>Controle</span></h2>

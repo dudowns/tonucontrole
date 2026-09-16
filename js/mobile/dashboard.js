@@ -87,11 +87,28 @@ async function loadMobileData() {
             .lte("date", lastDay)
             .order("date", { ascending: false });
 
-        // 2. Contas
-        const billsPromise = supabaseClient
-            .from("bills")
-            .select("*")
-            .eq("user_id", currentUser.id);
+        // 2. Contas (busca transações do tipo conta ou tabela bills se existir)
+        const billsPromise = (async () => {
+            try {
+                const { data } = await supabaseClient
+                    .from("transactions")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .eq("type", "expense")
+                    .eq("is_bill", true)
+                    .gte("date", firstDay)
+                    .lte("date", lastDay);
+                if (data && data.length > 0) return { data };
+            } catch (e) {}
+            try {
+                return await supabaseClient
+                    .from("bills")
+                    .select("*")
+                    .eq("user_id", currentUser.id);
+            } catch (e) {
+                return { data: [] };
+            }
+        })();
 
         // 3. Proventos
         const divPromise = supabaseClient
@@ -121,9 +138,9 @@ async function loadMobileData() {
         }
         allTransactions = loadedData;
 
-        allBills = billsRes.data || [];
-        allDividends = divRes.data || [];
-        allGoals = goalsRes.data || [];
+        allBills = billsRes?.data || [];
+        allDividends = divRes?.data || [];
+        allGoals = goalsRes?.data || [];
 
         console.log("📊 Mobile: Dados unificados prontos:", {
             transacoes: allTransactions.length,
@@ -258,11 +275,67 @@ function renderMobileChart() {
         return;
     }
 
+    // Calcula dados de despesas por categoria
+    const expenses = allTransactions.filter(t => t.type === "expense" && isTxPaid(t));
+    const catMap = {};
+    expenses.forEach(t => {
+        const catId = t.category_id || "outros";
+        const amt = Number(t.amount) || 0;
+        if (!catMap[catId]) catMap[catId] = 0;
+        catMap[catId] += amt;
+    });
+
+    const sorted = Object.entries(catMap)
+        .map(([id, amount]) => {
+            const cat = categories.find(c => c.id === id);
+            return {
+                id: id,
+                name: cat?.name || "Outros",
+                icon: cat?.icon || "fa-tag",
+                color: cat?.color || "#6C5CE7",
+                amount: amount
+            };
+        })
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 6);
+
+    const totalExpensesAmount = sorted.reduce((sum, item) => sum + item.amount, 0);
+
+    // Gera lista de categorias integrada abaixo do gráfico
+    let categoriesHtml = "";
+    if (currentChartMode === 'categories' && sorted.length > 0) {
+        categoriesHtml = `
+            <div class="mobile-chart-categories">
+                ${sorted.map(item => {
+                    const pct = totalExpensesAmount > 0 ? Math.round((item.amount / totalExpensesAmount) * 100) : 0;
+                    return `
+                        <div class="mobile-cat-row">
+                            <div class="cat-row-top">
+                                <span class="cat-row-name">
+                                    <span class="cat-dot" style="background:${item.color};"></span>
+                                    <i class="fas ${item.icon}" style="color:${item.color}; font-size:11px; margin-right:2px;"></i>
+                                    ${item.name}
+                                </span>
+                                <span class="cat-row-amount">
+                                    <strong>${formatCurrency(item.amount)}</strong>
+                                    <small>(${pct}%)</small>
+                                </span>
+                            </div>
+                            <div class="cat-progress-track">
+                                <div class="cat-progress-fill" style="width: ${pct}%; background: ${item.color};"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
     container.innerHTML = `
         <div class="mobile-chart-card">
             <div class="mobile-chart-header">
                 <div class="mobile-chart-title">
-                    <i class="fas fa-chart-pie" style="color:#6C5CE7;"></i> Visão Gráfica
+                    <i class="fas fa-chart-pie" style="color:#6C5CE7;"></i> Visão Gráfica de Gastos
                 </div>
                 <div class="mobile-chart-toggle">
                     <button class="mobile-chart-btn ${currentChartMode === 'categories' ? 'active' : ''}" onclick="setMobileChartMode('categories')">
@@ -273,9 +346,16 @@ function renderMobileChart() {
                     </button>
                 </div>
             </div>
-            <div class="mobile-chart-container">
+            <div class="mobile-chart-container" style="position:relative; height: 190px;">
                 <canvas id="mobileChartCanvas"></canvas>
+                ${currentChartMode === 'categories' && sorted.length > 0 ? `
+                    <div class="chart-center-total">
+                        <span class="center-label">Total Gasto</span>
+                        <span class="center-value">${formatCurrency(totalExpensesAmount)}</span>
+                    </div>
+                ` : ''}
             </div>
+            ${categoriesHtml}
         </div>
     `;
 
@@ -290,27 +370,6 @@ function renderMobileChart() {
     const ctx = canvas.getContext("2d");
 
     if (currentChartMode === 'categories') {
-        const expenses = allTransactions.filter(t => t.type === "expense" && isTxPaid(t));
-        const catMap = {};
-        expenses.forEach(t => {
-            const catId = t.category_id || "outros";
-            const amt = Number(t.amount) || 0;
-            if (!catMap[catId]) catMap[catId] = 0;
-            catMap[catId] += amt;
-        });
-
-        const sorted = Object.entries(catMap)
-            .map(([id, amount]) => {
-                const cat = categories.find(c => c.id === id);
-                return {
-                    name: cat?.name || "Outros",
-                    color: cat?.color || "#6C5CE7",
-                    amount: amount
-                };
-            })
-            .sort((a, b) => b.amount - a.amount)
-            .slice(0, 5);
-
         if (sorted.length === 0) {
             ctx.font = "12px Inter, sans-serif";
             ctx.fillStyle = "#94a3b8";
@@ -335,12 +394,7 @@ function renderMobileChart() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'right',
-                        labels: {
-                            boxWidth: 10,
-                            font: { size: 10, family: 'Inter' },
-                            color: document.body.classList.contains('dark-theme') ? '#cbd5e1' : '#475569'
-                        }
+                        display: false
                     },
                     tooltip: {
                         callbacks: {
@@ -350,7 +404,7 @@ function renderMobileChart() {
                         }
                     }
                 },
-                cutout: '68%'
+                cutout: '72%'
             }
         });
     } else {
@@ -442,18 +496,33 @@ function renderMobileInsights() {
         topCatName = found ? found.name : "Outros";
     }
 
-    // Contas
+    // Contas do Mês
     const today = new Date();
     const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-    const monthBills = allBills.filter(b => (b.due_date || '').substring(0, 7) === currentMonthPrefix);
-    const paidBills = monthBills.filter(b => b.paid === true || b.paid === 'true' || b.paid === 1);
-    const pendingBillsAmount = monthBills
-        .filter(b => !(b.paid === true || b.paid === 'true' || b.paid === 1))
-        .reduce((a, b) => a + (Number(b.amount) || 0), 0);
+
+    // 1) Transações com flag is_bill
+    let monthBills = allTransactions.filter(t => 
+        t.type === "expense" && 
+        (t.is_bill === true || t.is_bill === 'true' || t.is_bill === 1)
+    );
+
+    // 2) Se não houver com is_bill, verificar na lista allBills carregada
+    if (monthBills.length === 0 && Array.isArray(allBills) && allBills.length > 0) {
+        monthBills = allBills.filter(b => (b.date || b.due_date || '').substring(0, 7) === currentMonthPrefix);
+    }
+
+    // 3) Se ainda não houver marcadas como conta, usar as despesas gerais do mês como contas correntes
+    if (monthBills.length === 0) {
+        monthBills = allTransactions.filter(t => t.type === "expense");
+    }
+
+    const paidBills = monthBills.filter(b => isTxPaid(b));
+    const pendingBills = monthBills.filter(b => !isTxPaid(b));
+    const pendingBillsAmount = pendingBills.reduce((a, b) => a + (Number(b.amount) || 0), 0);
 
     // Proventos
     const monthDivs = allDividends.filter(d => (d.payment_date || d.date || '').substring(0, 7) === currentMonthPrefix);
-    const totalDivs = monthDivs.reduce((a, d) => a + (Number(d.amount || d.total_amount) || 0), 0);
+    const totalDivs = monthDivs.reduce((a, d) => a + (Number(d.amount || d.total_amount || d.net_value) || 0), 0);
 
     // Badge Poupança
     let rateClass = "info";
@@ -514,7 +583,7 @@ function renderMobileInsights() {
             <div class="mobile-insight-row">
                 <div class="mobile-insight-left">
                     <div class="mobile-insight-icon info">
-                        <i class="fas fa-receipt"></i>
+                        <i class="fas fa-file-invoice-dollar"></i>
                     </div>
                     <div class="mobile-insight-text">
                         <span class="title">Contas do Mês</span>
@@ -522,7 +591,7 @@ function renderMobileInsights() {
                     </div>
                 </div>
                 <span class="mobile-insight-badge" style="background:#ede9fe; color:#6d28d9;">
-                    ${formatCurrency(pendingBillsAmount)} pendente
+                    ${pendingBillsAmount > 0 ? `${formatCurrency(pendingBillsAmount)} pendente` : 'Tudo em dia! ✨'}
                 </span>
             </div>
 
@@ -598,63 +667,11 @@ function renderMobileGoals() {
 }
 
 // ============================================
-// RENDER CATEGORIAS EM BARRA
+// RENDER CATEGORIAS EM BARRA (INTEGRADO AO GRÁFICO)
 // ============================================
 function renderCategoryBars() {
     const container = document.getElementById("categoryBarsContainer");
-    if (!container) return;
-
-    const expenses = allTransactions.filter(t => t.type === "expense" && isTxPaid(t));
-    if (expenses.length === 0) {
-        container.innerHTML = "";
-        return;
-    }
-
-    const catMap = {};
-    let totalExpense = 0;
-
-    expenses.forEach(t => {
-        const catId = t.category_id || "outros";
-        const amt = Number(t.amount) || 0;
-        totalExpense += amt;
-        if (!catMap[catId]) catMap[catId] = 0;
-        catMap[catId] += amt;
-    });
-
-    const sortedCats = Object.entries(catMap)
-        .map(([catId, amount]) => {
-            const cat = categories.find(c => c.id === catId);
-            return {
-                id: catId,
-                name: cat?.name || "Outros",
-                icon: cat?.icon || "fa-tag",
-                color: cat?.color || "#FF7675",
-                amount: amount,
-                percent: totalExpense > 0 ? Math.round((amount / totalExpense) * 100) : 0
-            };
-        })
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 4);
-
-    container.innerHTML = `
-        <div class="category-bars-card">
-            <div class="category-bars-header">
-                <h3><i class="fas fa-chart-pie" style="color:#6C5CE7; margin-right:6px;"></i> Gastos por Categoria</h3>
-                <span>${sortedCats.length} categorias</span>
-            </div>
-            ${sortedCats.map(cat => `
-                <div class="category-bar-item">
-                    <div class="category-bar-info">
-                        <span class="cat-name"><i class="fas ${cat.icon}" style="color:${cat.color}"></i> ${cat.name}</span>
-                        <span class="cat-amount">${formatCurrency(cat.amount)} <small style="color:#94a3b8; font-weight:normal;">(${cat.percent}%)</small></span>
-                    </div>
-                    <div class="category-bar-track">
-                        <div class="category-bar-fill" style="width: ${cat.percent}%; background: ${cat.color};"></div>
-                    </div>
-                </div>
-            `).join("")}
-        </div>
-    `;
+    if (container) container.innerHTML = "";
 }
 
 // ============================================

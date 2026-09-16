@@ -17,16 +17,20 @@ body {
 }
 
 /* ==========================================
-   TOPBAR MOBILE
+   TOPBAR MOBILE (BRANCA COM ÍCONES ESCUROS)
    ========================================== */
 .mobile-topbar {
-    background: linear-gradient(135deg, #6C5CE7, #A29BFE);
-    color: white;
-    padding: 12px 16px 10px;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 10px 16px 10px;
     position: sticky;
     top: 0;
     z-index: 100;
     width: 100%;
+    border-bottom: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .mobile-topbar .topbar-header {
@@ -42,61 +46,114 @@ body {
 }
 
 .mobile-topbar .topbar-left .app-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.15);
+    background: #ffffff;
+    border: 1.5px solid rgba(108, 92, 231, 0.25);
+    box-shadow: 0 2px 8px rgba(108, 92, 231, 0.15);
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: volanteSpin90 5.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+    -webkit-animation: volanteSpin90 5.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+    transform-origin: center center;
 }
 
 .mobile-topbar .topbar-left .app-icon img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
+    transform-origin: center center;
 }
 
 .mobile-topbar .topbar-left h1 {
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 800;
+    color: #0f172a !important;
     margin: 0;
+    letter-spacing: -0.3px;
 }
 
 .mobile-topbar .topbar-left h1 span {
-    color: #FFEAA7;
+    color: #6C5CE7;
 }
 
 .mobile-topbar .topbar-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .mobile-topbar .topbar-actions button {
-    background: rgba(255, 255, 255, 0.12);
-    border: none;
-    color: white;
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
     cursor: pointer;
-    font-size: 15px;
-    transition: all 0.2s;
+    font-size: 14px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.mobile-topbar .topbar-actions button i {
+    color: #0f172a !important;
+    font-size: 15px;
+    transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .mobile-topbar .topbar-actions button:hover {
-    background: rgba(255, 255, 255, 0.25);
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+}
+
+.mobile-topbar .topbar-actions button:hover i {
+    color: #6C5CE7 !important;
 }
 
 .mobile-topbar .greeting {
     font-size: 12px;
-    opacity: 0.9;
-    margin-top: 4px;
-    padding-left: 42px;
+    color: #64748b !important;
+    font-weight: 500;
+    margin-top: 3px;
+    padding-left: 44px;
+}
+
+body.dark-theme .mobile-topbar {
+    background: #1e1e2d !important;
+    border-bottom-color: #2d3748 !important;
+    color: #f8fafc !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.dark-theme .mobile-topbar .topbar-left h1 {
+    color: #f8fafc !important;
+}
+
+body.dark-theme .mobile-topbar .topbar-actions button {
+    background: #28293d !important;
+    border-color: #3b3c54 !important;
+    color: #cbd5e1 !important;
+    box-shadow: none !important;
+}
+
+body.dark-theme .mobile-topbar .topbar-actions button i {
+    color: #cbd5e1 !important;
+}
+
+body.dark-theme .mobile-topbar .greeting {
+    color: #94a3b8 !important;
 }
 
 /* ==========================================
@@ -292,24 +349,24 @@ body {
 }
 
 /* ==========================================
-   BOTTOM NAVIGATION (MODERNA - 6 ITENS)
+   BOTTOM NAVIGATION (MODERNA COM BOTÃO CENTRAL +)
    ========================================== */
 .bottom-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--color-surface, rgba(255, 255, 255, 0.96));
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border-top: 1px solid rgba(226, 232, 240, 0.9);
+    border-top: 1px solid var(--color-border, #e2e8f0);
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around;
     align-items: center;
-    padding: 6px 2px calc(6px + env(safe-area-inset-bottom, 0px));
+    padding: 4px 2px calc(4px + env(safe-area-inset-bottom, 0px));
     z-index: 999;
-    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.05);
-    height: 60px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+    height: 62px;
     box-sizing: border-box;
 }
 
@@ -331,13 +388,13 @@ body {
 }
 
 .bottom-nav a i {
-    font-size: 17px;
+    font-size: 16px;
     line-height: 1;
     transition: transform 0.15s ease;
 }
 
 .bottom-nav a span {
-    font-size: 10px;
+    font-size: 9.5px;
     line-height: 1.1;
     letter-spacing: -0.2px;
     white-space: nowrap;
@@ -354,29 +411,237 @@ body {
     transform: translateY(-1px);
 }
 
-/* FLOATING ACTION BUTTON (MOBILE FAB) */
-.mobile-fab {
-    position: fixed;
-    bottom: 74px;
-    right: 18px;
-    width: 48px;
-    height: 48px;
+.bottom-nav .nav-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    flex-shrink: 0;
+}
+
+.bottom-nav .nav-add-btn {
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: linear-gradient(135deg, #6C5CE7, #8B5CF6);
     color: #ffffff;
     border: none;
-    box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
+    box-shadow: 0 4px 14px rgba(108, 92, 231, 0.45);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
+    font-size: 18px;
     cursor: pointer;
-    z-index: 990;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+    margin-top: -14px;
 }
 
-.mobile-fab:active {
+.bottom-nav .nav-add-btn:active {
     transform: scale(0.92);
+    box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+}
+
+body.dark-theme .bottom-nav {
+    background: rgba(30, 30, 45, 0.96);
+    border-top-color: #2d3748;
+}
+
+/* FLOATING ACTION BUTTON DESATIVADO (SUBSTITUÍDO PELO MENU INFERIOR) */
+.mobile-fab {
+    display: none !important;
+}
+
+/* ==========================================
+   TABS MOBILE SEGMENTADAS
+   ========================================== */
+.mobile-tabs {
+    display: flex;
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.mobile-tab-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 8px 6px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-muted, #64748b);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+}
+
+.mobile-tab-btn.active {
+    background: #6C5CE7;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(108, 92, 231, 0.25);
+}
+
+body.dark-theme .mobile-tabs {
+    background: #1e1e2d;
+    border-color: #2d3748;
+}
+
+/* ==========================================
+   CENTRO DO GRÁFICO DE ROSCA & CATEGORIAS UNIFICADAS
+   ========================================== */
+.chart-center-total {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+}
+
+.chart-center-total .center-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-text-muted, #94a3b8);
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.chart-center-total .center-value {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--color-text, #0f172a);
+    display: block;
+    line-height: 1.2;
+}
+
+.mobile-chart-categories {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border, #e2e8f0);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mobile-cat-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cat-row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+}
+
+.cat-row-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: var(--color-text, #1e293b);
+}
+
+.cat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.cat-row-amount {
+    font-size: 11.5px;
+    color: var(--color-text-muted, #64748b);
+}
+
+.cat-row-amount strong {
+    color: var(--color-text, #1e293b);
+}
+
+.cat-progress-track {
+    width: 100%;
+    height: 6px;
+    background: var(--color-bg, #f1f5f9);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.cat-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.4s ease;
+}
+
+/* ==========================================
+   BOTÕES DE AÇÃO DOS CARDS DE METAS
+   ========================================== */
+.goal-card-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border, #f1f5f9);
+}
+
+.goal-card-actions-sub {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.btn-goal-action {
+    padding: 7px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    background: var(--color-bg, #f8fafc);
+    color: var(--color-text, #334155);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+}
+
+.btn-goal-action:active {
+    transform: scale(0.96);
+}
+
+.btn-goal-action.primary {
+    background: rgba(108, 92, 231, 0.1);
+    border-color: rgba(108, 92, 231, 0.25);
+    color: #6C5CE7;
+}
+
+.btn-goal-action.success {
+    background: rgba(0, 184, 148, 0.1);
+    border-color: rgba(0, 184, 148, 0.25);
+    color: #00B894;
+}
+
+.btn-goal-action.warning {
+    background: rgba(253, 203, 110, 0.15);
+    border-color: rgba(253, 203, 110, 0.3);
+    color: #b45309;
+}
+
+.btn-goal-action.danger {
+    background: rgba(255, 118, 117, 0.1);
+    border-color: rgba(255, 118, 117, 0.25);
+    color: #e11d48;
 }
 
 /* ==========================================
