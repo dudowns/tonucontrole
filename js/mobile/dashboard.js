@@ -6,6 +6,7 @@ console.log("📱 Mobile Dashboard carregado");
 
 let currentUser = null;
 let allTransactions = [];
+let previousMonthTransactions = [];
 let categories = [];
 let allBills = [];
 let allDividends = [];
@@ -107,7 +108,14 @@ async function loadMobileData() {
         const firstDay = `${year}-${month}-01`;
         const lastDay = `${year}-${month}-${new Date(year, today.getMonth() + 1, 0).getDate()}`;
 
-        // 1. Transações
+        // Mês anterior (para cálculo de MoM)
+        const prevDate = new Date(year, today.getMonth() - 1, 1);
+        const prevYear = prevDate.getFullYear();
+        const prevMonth = String(prevDate.getMonth() + 1).padStart(2, "0");
+        const prevFirstDay = `${prevYear}-${prevMonth}-01`;
+        const prevLastDay = `${prevYear}-${prevMonth}-${new Date(prevYear, prevDate.getMonth() + 1, 0).getDate()}`;
+
+        // 1. Transações do mês atual
         const txPromise = supabaseClient
             .from("transactions")
             .select("*")
@@ -116,10 +124,30 @@ async function loadMobileData() {
             .lte("date", lastDay)
             .order("date", { ascending: false });
 
-        // 2. Contas (busca transações do tipo conta ou tabela bills se existir)
+        // 2. Transações do mês anterior (para MoM)
+        const prevTxPromise = supabaseClient
+            .from("transactions")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .gte("date", prevFirstDay)
+            .lte("date", prevLastDay)
+            .order("date", { ascending: false });
+
+        // 3. Contas (busca na tabela bills e mescla com transações com flag is_bill)
         const billsPromise = (async () => {
+            let combinedBills = [];
             try {
-                const { data } = await supabaseClient
+                const { data: bData } = await supabaseClient
+                    .from("bills")
+                    .select("*")
+                    .eq("user_id", currentUser.id);
+                if (Array.isArray(bData)) {
+                    combinedBills.push(...bData);
+                }
+            } catch (e) {}
+
+            try {
+                const { data: txBills } = await supabaseClient
                     .from("transactions")
                     .select("*")
                     .eq("user_id", currentUser.id)
@@ -127,32 +155,33 @@ async function loadMobileData() {
                     .eq("is_bill", true)
                     .gte("date", firstDay)
                     .lte("date", lastDay);
-                if (data && data.length > 0) return { data };
+                if (Array.isArray(txBills)) {
+                    txBills.forEach(tb => {
+                        if (!combinedBills.some(cb => cb.id === tb.id)) {
+                            combinedBills.push(tb);
+                        }
+                    });
+                }
             } catch (e) {}
-            try {
-                return await supabaseClient
-                    .from("bills")
-                    .select("*")
-                    .eq("user_id", currentUser.id);
-            } catch (e) {
-                return { data: [] };
-            }
+
+            return { data: combinedBills };
         })();
 
-        // 3. Proventos
+        // 4. Proventos
         const divPromise = supabaseClient
             .from("dividends")
             .select("*")
             .eq("user_id", currentUser.id);
 
-        // 4. Metas
+        // 5. Metas
         const goalsPromise = supabaseClient
             .from("goals")
             .select("*")
             .eq("user_id", currentUser.id);
 
-        const [txRes, billsRes, divRes, goalsRes] = await Promise.all([
+        const [txRes, prevTxRes, billsRes, divRes, goalsRes] = await Promise.all([
             txPromise,
+            prevTxPromise,
             billsPromise,
             divPromise,
             goalsPromise
@@ -166,6 +195,7 @@ async function loadMobileData() {
             }).cleanList;
         }
         allTransactions = loadedData;
+        previousMonthTransactions = prevTxRes?.data || [];
 
         allBills = billsRes?.data || [];
         allDividends = divRes?.data || [];
@@ -173,6 +203,7 @@ async function loadMobileData() {
 
         console.log("📊 Mobile: Dados unificados prontos:", {
             transacoes: allTransactions.length,
+            transacoesMesAnterior: previousMonthTransactions.length,
             contas: allBills.length,
             proventos: allDividends.length,
             metas: allGoals.length
@@ -217,12 +248,24 @@ function renderSummary() {
     });
     const balance = income - expense;
 
+    // Cálculo Mês a Mês (MoM)
+    let prevIncome = 0, prevExpense = 0;
+    previousMonthTransactions.forEach(t => {
+        if (!isTxPaid(t)) return;
+        if (t.type === "income") prevIncome += Number(t.amount) || 0;
+        else if (t.type === "expense") prevExpense += Number(t.amount) || 0;
+    });
+
+    const hasPrevData = previousMonthTransactions.length > 0 && (prevIncome > 0 || prevExpense > 0);
+    const expenseDiffPct = prevExpense > 0 ? Math.round(((expense - prevExpense) / prevExpense) * 100) : 0;
+    const incomeDiffPct = prevIncome > 0 ? Math.round(((income - prevIncome) / prevIncome) * 100) : 0;
+
     // Contas pendentes do mês
     const today = new Date();
     const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
     const pendingBills = allBills.filter(b => {
         const isPaid = (b.paid === true || b.paid === 'true' || b.paid === 1);
-        const billMonth = (b.due_date || '').substring(0, 7);
+        const billMonth = (b.due_date || b.date || '').substring(0, 7);
         return !isPaid && (!billMonth || billMonth === currentMonthPrefix);
     });
     const pendingBillsAmount = pendingBills.reduce((acc, b) => acc + (Number(b.amount) || 0), 0);
@@ -255,10 +298,18 @@ function renderSummary() {
                 <div class="mobile-hero-stat">
                     <span class="stat-label"><i class="fas fa-arrow-up" style="color:#4ade80;"></i> Entradas</span>
                     <span class="stat-value income">${mask(formatCurrency(income))}</span>
+                    ${hasPrevData ? `
+                        <span class="stat-mom" style="font-size:10px; font-weight:700; color:${incomeDiffPct >= 0 ? '#4ade80' : '#fca5a5'}; margin-top:3px; display:flex; align-items:center; gap:2px;">
+                            <i class="fas fa-arrow-${incomeDiffPct >= 0 ? 'up' : 'down'}"></i> ${incomeDiffPct >= 0 ? '+' : ''}${incomeDiffPct}% vs mês ant.
+                        </span>` : ''}
                 </div>
                 <div class="mobile-hero-stat">
                     <span class="stat-label"><i class="fas fa-arrow-down" style="color:#fca5a5;"></i> Saídas</span>
                     <span class="stat-value expense">${mask(formatCurrency(expense))}</span>
+                    ${hasPrevData ? `
+                        <span class="stat-mom" style="font-size:10px; font-weight:700; color:${expenseDiffPct <= 0 ? '#4ade80' : '#fca5a5'}; margin-top:3px; display:flex; align-items:center; gap:2px;">
+                            <i class="fas fa-arrow-${expenseDiffPct <= 0 ? 'down' : 'up'}"></i> ${expenseDiffPct > 0 ? '+' : ''}${expenseDiffPct}% vs mês ant.
+                        </span>` : ''}
                 </div>
             </div>
         </div>
@@ -550,41 +601,82 @@ function renderMobileInsights() {
     const today = new Date();
     const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
-    // 1) Transações com flag is_bill
-    let monthBills = allTransactions.filter(t => 
+    // 1) Contas de allBills cujo vencimento é deste mês (ou sem data informada)
+    let monthBills = [];
+    if (Array.isArray(allBills) && allBills.length > 0) {
+        monthBills = allBills.filter(b => {
+            const bDate = b.due_date || b.date || '';
+            return !bDate || bDate.substring(0, 7) === currentMonthPrefix;
+        });
+    }
+
+    // 2) Transações do tipo conta do mês atual
+    const txBills = allTransactions.filter(t => 
         t.type === "expense" && 
         (t.is_bill === true || t.is_bill === 'true' || t.is_bill === 1)
     );
+    txBills.forEach(tb => {
+        if (!monthBills.some(mb => mb.id === tb.id || (mb.title === tb.description && mb.amount == tb.amount))) {
+            monthBills.push(tb);
+        }
+    });
 
-    // 2) Se não houver com is_bill, verificar na lista allBills carregada
-    if (monthBills.length === 0 && Array.isArray(allBills) && allBills.length > 0) {
-        monthBills = allBills.filter(b => (b.date || b.due_date || '').substring(0, 7) === currentMonthPrefix);
-    }
-
-    // 3) Se ainda não houver marcadas como conta, usar as despesas gerais do mês como contas correntes
+    // 3) Se não houver contas explícitas cadastradas, verificar despesas fixas conhecidas
     if (monthBills.length === 0) {
-        monthBills = allTransactions.filter(t => t.type === "expense");
+        const fixedExpenses = allTransactions.filter(t => 
+            t.type === "expense" && (
+                t.is_recurring === true || t.is_recurring === 1 ||
+                (t.category && /moradia|aluguel|luz|energia|agua|internet|condom[íi]nio|plano|assinatura/i.test(t.category)) ||
+                (t.description && /aluguel|luz|energia|agua|internet|fatura|condom[íi]nio|plano|assinatura|mensalidade/i.test(t.description))
+            )
+        );
+        if (fixedExpenses.length > 0) {
+            monthBills = fixedExpenses;
+        }
     }
 
+    const hasBills = monthBills.length > 0;
     const paidBills = monthBills.filter(b => isTxPaid(b));
     const pendingBills = monthBills.filter(b => !isTxPaid(b));
     const pendingBillsAmount = pendingBills.reduce((a, b) => a + (Number(b.amount) || 0), 0);
+
+    const billsDetail = hasBills ? `${paidBills.length} de ${monthBills.length} pagas` : 'Nenhuma conta pendente';
+    const billsBadgeText = hasBills 
+        ? (pendingBills.length > 0 ? `${formatCurrency(pendingBillsAmount)} pendente` : '100% quitadas ✨')
+        : 'Tudo em dia! ✨';
+    const billsBadgeClass = hasBills && pendingBills.length > 0 ? 'badge-danger' : 'badge-success';
 
     // Proventos
     const monthDivs = allDividends.filter(d => (d.payment_date || d.date || '').substring(0, 7) === currentMonthPrefix);
     const totalDivs = monthDivs.reduce((a, d) => a + (Number(d.amount || d.total_amount || d.net_value) || 0), 0);
 
+    // MoM (Mês a Mês)
+    let prevIncome = 0, prevExpense = 0;
+    previousMonthTransactions.forEach(t => {
+        if (!isTxPaid(t)) return;
+        if (t.type === "income") prevIncome += Number(t.amount) || 0;
+        else if (t.type === "expense") prevExpense += Number(t.amount) || 0;
+    });
+
+    const hasPrevData = previousMonthTransactions.length > 0 && (prevIncome > 0 || prevExpense > 0);
+    const expenseDiffPct = prevExpense > 0 ? Math.round(((expense - prevExpense) / prevExpense) * 100) : 0;
+    const momSavingsGood = expenseDiffPct <= 0;
+
     // Badge Poupança
     let rateClass = "info";
+    let rateBadgeClass = "badge-info";
     let rateLabel = `${savingsRate}% Guardado`;
     if (savingsRate >= 20) {
         rateClass = "success";
+        rateBadgeClass = "badge-success";
         rateLabel = `${savingsRate}% Excelente`;
     } else if (savingsRate > 0) {
         rateClass = "warning";
+        rateBadgeClass = "badge-warning";
         rateLabel = `${savingsRate}% Regular`;
     } else {
         rateClass = "danger";
+        rateBadgeClass = "badge-danger";
         rateLabel = `${savingsRate}% Déficit`;
     }
 
@@ -608,12 +700,32 @@ function renderMobileInsights() {
                         <span class="detail">${formatCurrency(Math.max(0, savings))} poupados</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:${rateClass === 'success' ? '#dcfce7' : (rateClass === 'danger' ? '#fee2e2' : '#fef3c7')}; color:${rateClass === 'success' ? '#15803d' : (rateClass === 'danger' ? '#b91c1c' : '#b45309')}">
+                <span class="mobile-insight-badge ${rateBadgeClass}">
                     ${rateLabel}
                 </span>
             </div>
 
-            <!-- 2. Maior Gasto -->
+            <!-- 2. Evolução Mês a Mês (MoM) -->
+            <div class="mobile-insight-row">
+                <div class="mobile-insight-left">
+                    <div class="mobile-insight-icon ${hasPrevData ? (momSavingsGood ? 'success' : 'danger') : 'info'}">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="mobile-insight-text">
+                        <span class="title">Evolução Mensal (MoM)</span>
+                        <span class="detail">${hasPrevData 
+                            ? `${momSavingsGood ? 'Economizou' : 'Aumentou'} ${Math.abs(expenseDiffPct)}% vs mês ant.`
+                            : 'Histórico em consolidação'}</span>
+                    </div>
+                </div>
+                <span class="mobile-insight-badge ${hasPrevData ? (momSavingsGood ? 'badge-success' : 'badge-danger') : 'badge-neutral'}">
+                    ${hasPrevData 
+                        ? `${momSavingsGood ? '↓ ' : '↑ '}${Math.abs(expenseDiffPct)}% gastos`
+                        : '1º Mês'}
+                </span>
+            </div>
+
+            <!-- 3. Maior Gasto -->
             <div class="mobile-insight-row">
                 <div class="mobile-insight-left">
                     <div class="mobile-insight-icon warning">
@@ -624,12 +736,12 @@ function renderMobileInsights() {
                         <span class="detail">${topCatName} (${formatCurrency(topCatAmount)})</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#fef3c7; color:#b45309;">
+                <span class="mobile-insight-badge badge-warning">
                     ${topCatPercent}% do total
                 </span>
             </div>
 
-            <!-- 3. Contas do Mês -->
+            <!-- 4. Contas do Mês -->
             <div class="mobile-insight-row">
                 <div class="mobile-insight-left">
                     <div class="mobile-insight-icon info">
@@ -637,15 +749,15 @@ function renderMobileInsights() {
                     </div>
                     <div class="mobile-insight-text">
                         <span class="title">Contas do Mês</span>
-                        <span class="detail">${paidBills.length} de ${monthBills.length || 0} pagas</span>
+                        <span class="detail">${billsDetail}</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#ede9fe; color:#6d28d9;">
-                    ${pendingBillsAmount > 0 ? `${formatCurrency(pendingBillsAmount)} pendente` : 'Tudo em dia! ✨'}
+                <span class="mobile-insight-badge ${billsBadgeClass}">
+                    ${billsBadgeText}
                 </span>
             </div>
 
-            <!-- 4. Renda Passiva / Proventos -->
+            <!-- 5. Renda Passiva / Proventos -->
             <div class="mobile-insight-row">
                 <div class="mobile-insight-left">
                     <div class="mobile-insight-icon purple">
@@ -656,7 +768,7 @@ function renderMobileInsights() {
                         <span class="detail">${monthDivs.length} proventos recebidos</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#f3e8ff; color:#7e22ce;">
+                <span class="mobile-insight-badge badge-purple">
                     ${formatCurrency(totalDivs)}
                 </span>
             </div>

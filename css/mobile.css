@@ -22,7 +22,10 @@ body {
 .mobile-topbar {
     background: #ffffff !important;
     color: #0f172a !important;
-    padding: 10px 16px 10px;
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
+    padding-bottom: 10px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
     position: sticky;
     top: 0;
     z-index: 100;
@@ -31,6 +34,7 @@ body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    box-sizing: border-box;
 }
 
 .mobile-topbar .topbar-header {
@@ -160,8 +164,9 @@ body.dark-theme .mobile-topbar .greeting {
    CONTEÚDO MOBILE
    ========================================== */
 .mobile-content {
-    padding: 12px 14px;
+    padding: 12px 14px calc(80px + env(safe-area-inset-bottom, 0px)) 14px;
     max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* Cards de resumo - GRID 2x2 */
@@ -363,10 +368,14 @@ body.dark-theme .mobile-topbar .greeting {
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 4px 2px calc(4px + env(safe-area-inset-bottom, 0px));
+    padding-top: 4px;
+    padding-left: max(4px, env(safe-area-inset-left, 0px));
+    padding-right: max(4px, env(safe-area-inset-right, 0px));
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
     z-index: 999;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
-    height: 62px;
+    min-height: calc(58px + env(safe-area-inset-bottom, 0px));
+    height: auto;
     box-sizing: border-box;
 }
 
@@ -380,11 +389,14 @@ body.dark-theme .mobile-topbar .greeting {
     color: var(--color-text-muted, #94a3b8);
     text-decoration: none;
     gap: 3px;
-    padding: 3px 1px;
+    padding: 6px 2px;
+    min-height: 44px;
     transition: color 0.15s ease, transform 0.1s ease;
     min-width: 0;
     flex: 1;
     border-radius: 8px;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .bottom-nav a i {
@@ -816,12 +828,15 @@ body.dark-theme .mobile-tabs {
     border-radius: 24px 24px 0 0;
     width: 100%;
     max-width: 520px;
-    max-height: 90vh;
+    max-height: min(90vh, calc(100dvh - 30px));
     overflow-y: auto;
-    padding: 16px 20px calc(20px + env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 16px 20px calc(24px + env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--color-border, rgba(0, 0, 0, 0.05));
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
 }
 
 .mobile-modal-overlay.active .mobile-modal-sheet {
@@ -853,15 +868,18 @@ body.dark-theme .mobile-tabs {
 .sheet-close-btn {
     background: #f1f5f9;
     border: none;
-    width: 32px;
-    height: 32px;
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #64748b;
-    font-size: 14px;
+    font-size: 15px;
     cursor: pointer;
+    touch-action: manipulation;
 }
 
 .sheet-form-group {
@@ -893,13 +911,15 @@ body.dark-theme .mobile-tabs {
 
 .sheet-input {
     width: 100%;
-    padding: 10px 12px 10px 36px;
-    border-radius: 10px;
+    padding: 12px 14px 12px 38px;
+    border-radius: 12px;
     border: 1px solid var(--color-border, #e2e8f0);
     background: var(--color-surface, #ffffff);
     color: var(--color-text, #1e293b);
-    font-size: 13px;
+    font-size: 16px !important; /* Previne zoom automático involuntário no iOS Safari */
     font-family: inherit;
+    min-height: 44px;
+    box-sizing: border-box;
 }
 
 .sheet-input:focus {
@@ -916,19 +936,21 @@ body.dark-theme .mobile-tabs {
 
 .type-toggle-btn {
     flex: 1;
-    padding: 10px;
-    border-radius: 10px;
+    padding: 12px;
+    min-height: 44px;
+    border-radius: 12px;
     border: 2px solid transparent;
     background: #f1f5f9;
     color: #64748b;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 14px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     transition: all 0.2s;
+    touch-action: manipulation;
 }
 
 .type-toggle-btn.active.expense {
@@ -1279,6 +1301,7 @@ body.dark-theme .sheet-drag-handle {
     border: 1px solid var(--color-border, #e2e8f0);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
     margin-bottom: 14px;
+    box-sizing: border-box;
 }
 
 .mobile-insights-header {
@@ -1315,7 +1338,8 @@ body.dark-theme .sheet-drag-handle {
     border-radius: 10px;
     margin-bottom: 6px;
     border: 1px solid var(--color-border-light, #f1f5f9);
-    gap: 8px;
+    gap: 6px;
+    min-width: 0;
 }
 
 .mobile-insight-left {
@@ -1346,6 +1370,7 @@ body.dark-theme .sheet-drag-handle {
 .mobile-insight-text {
     min-width: 0;
     flex: 1;
+    overflow: hidden;
 }
 
 .mobile-insight-text .title {
@@ -1366,12 +1391,106 @@ body.dark-theme .sheet-drag-handle {
 }
 
 .mobile-insight-badge {
-    font-size: 9px;
+    font-size: 9.5px;
     font-weight: 700;
-    padding: 2px 6px;
+    padding: 3px 7px;
     border-radius: 6px;
     white-space: nowrap;
     flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.mobile-insight-badge.badge-success { background: #dcfce7; color: #15803d; }
+.mobile-insight-badge.badge-danger  { background: #fee2e2; color: #b91c1c; }
+.mobile-insight-badge.badge-warning { background: #fef3c7; color: #b45309; }
+.mobile-insight-badge.badge-info    { background: #ede9fe; color: #6d28d9; }
+.mobile-insight-badge.badge-purple  { background: #f3e8ff; color: #7e22ce; }
+.mobile-insight-badge.badge-neutral { background: #f1f5f9; color: #475569; }
+
+body.dark-theme .mobile-insights-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-theme .mobile-insight-row {
+    background: #0f172a;
+    border-color: #1e293b;
+}
+
+body.dark-theme .mobile-insights-pill {
+    background: rgba(162, 155, 254, 0.15);
+    color: #A29BFE;
+}
+
+body.dark-theme .mobile-insight-tip {
+    background: rgba(108, 92, 231, 0.12);
+    border-color: rgba(108, 92, 231, 0.3);
+    color: #cbd5e1;
+}
+
+body.dark-theme .mobile-insight-badge.badge-success {
+    background: rgba(16, 185, 129, 0.2) !important;
+    color: #34d399 !important;
+    border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+body.dark-theme .mobile-insight-badge.badge-danger {
+    background: rgba(239, 68, 68, 0.2) !important;
+    color: #f87171 !important;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+body.dark-theme .mobile-insight-badge.badge-warning {
+    background: rgba(245, 158, 11, 0.2) !important;
+    color: #fbbf24 !important;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+body.dark-theme .mobile-insight-badge.badge-info {
+    background: rgba(108, 92, 231, 0.2) !important;
+    color: #a5b4fc !important;
+    border: 1px solid rgba(165, 180, 252, 0.35);
+}
+
+body.dark-theme .mobile-insight-badge.badge-purple {
+    background: rgba(168, 85, 247, 0.2) !important;
+    color: #c084fc !important;
+    border: 1px solid rgba(192, 132, 252, 0.35);
+}
+
+body.dark-theme .mobile-insight-badge.badge-neutral {
+    background: rgba(100, 116, 139, 0.2) !important;
+    color: #94a3b8 !important;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+@media (max-width: 375px) {
+    .mobile-insights-card {
+        padding: 10px 12px;
+    }
+    .mobile-insight-row {
+        padding: 6px 8px;
+        gap: 4px;
+    }
+    .mobile-insight-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 10px;
+    }
+    .mobile-insight-text .title {
+        font-size: 9px;
+    }
+    .mobile-insight-text .detail {
+        font-size: 10px;
+    }
+    .mobile-insight-badge {
+        font-size: 8.5px;
+        padding: 2px 5px;
+    }
+    .mobile-insight-tip {
+        padding: 7px 9px;
+        font-size: 10px;
+    }
 }
 
 .mobile-insight-tip {
@@ -1401,37 +1520,53 @@ body.dark-theme .sheet-drag-handle {
 .mobile-tabs-scroll {
     display: flex;
     overflow-x: auto;
-    gap: 6px;
-    padding: 6px 14px 10px 14px;
+    overflow-y: hidden;
+    gap: 8px;
+    padding: 8px 14px 12px 14px;
     -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 .mobile-tabs-scroll::-webkit-scrollbar {
     display: none;
 }
 
+.mobile-tab-pill,
 .mobile-tab-chip {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 6px 12px;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    min-height: 44px;
     border-radius: 999px;
     background: var(--color-surface, #ffffff);
     border: 1px solid var(--color-border, #e2e8f0);
     color: var(--color-text-muted, #64748b);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     flex-shrink: 0;
+    scroll-snap-align: start;
+    user-select: none;
+    touch-action: manipulation;
 }
 
+.mobile-tab-pill:active,
+.mobile-tab-chip:active {
+    transform: scale(0.96);
+}
+
+.mobile-tab-pill.active,
 .mobile-tab-chip.active {
     background: #6C5CE7;
     color: #ffffff;
     border-color: #6C5CE7;
-    box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+    box-shadow: 0 3px 10px rgba(108, 92, 231, 0.35);
 }
 
 .mobile-settings-section {

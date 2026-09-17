@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -189,7 +189,11 @@
 <main class="mobile-content">
     <!-- PERFIL -->
     <div class="mobile-settings-profile" id="profileSection">
-        <div class="mobile-avatar" id="userAvatar">U</div>
+        <div class="mobile-avatar-wrapper" onclick="triggerMobileAvatarUpload()" style="position:relative; cursor:pointer;" title="Alterar foto de perfil">
+            <div class="mobile-avatar" id="userAvatar" style="overflow:hidden; display:flex; align-items:center; justify-content:center; background-size:cover; background-position:center;">U</div>
+            <div class="avatar-edit-badge" style="position:absolute; bottom:-2px; right:-2px; width:22px; height:22px; background:#6C5CE7; color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; border:2px solid var(--color-surface, #fff); box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-camera"></i></div>
+        </div>
+        <input type="file" id="mobileAvatarInput" accept="image/png,image/jpeg,image/webp,image/jpg" style="display:none;" onchange="handleMobileAvatarSelect(event)">
         <div class="mobile-profile-details">
             <div class="mobile-user-name" id="userName">Usuário</div>
             <div class="mobile-user-email" id="userEmail">email@exemplo.com</div>
@@ -239,6 +243,23 @@
                 <div class="right">
                     <span id="themeStatus">Desativado</span>
                     <i class="fas fa-adjust"></i>
+                </div>
+            </div>
+
+            <div class="settings-item">
+                <div class="left">
+                    <div class="item-icon-box amber"><i class="fas fa-coins"></i></div>
+                    <div>
+                        <div class="item-text-title">Moeda do Sistema</div>
+                        <div class="item-text-sub">Símbolo e formatação dos valores</div>
+                    </div>
+                </div>
+                <div class="right">
+                    <select id="mobileCurrencySelect" onchange="changeMobileCurrency(this.value)" style="padding:6px 10px; border-radius:8px; border:1px solid var(--color-border, #cbd5e1); background:var(--color-surface, #fff); font-size:13px; font-weight:600; color:inherit; cursor:pointer;">
+                        <option value="BRL">BRL (R$)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                    </select>
                 </div>
             </div>
 
@@ -436,13 +457,23 @@
             </div>
             <div class="settings-item" onclick="clearLocalCache()">
                 <div class="left">
-                    <div class="item-icon-box red"><i class="fas fa-trash"></i></div>
+                    <div class="item-icon-box amber"><i class="fas fa-broom"></i></div>
                     <div>
-                        <div class="item-text-title" style="color:#FF7675;">Limpar Cache Local</div>
-                        <div class="item-text-sub">Recarregar dados direto do servidor</div>
+                        <div class="item-text-title">Limpar Cache Temporário</div>
+                        <div class="item-text-sub">Liberar espaço e recarregar dados da nuvem</div>
                     </div>
                 </div>
-                <div class="right"><i class="fas fa-broom"></i></div>
+                <div class="right"><i class="fas fa-redo"></i></div>
+            </div>
+            <div class="settings-item" onclick="openRiskZoneModal()" style="border-left: 3px solid #FF7675;">
+                <div class="left">
+                    <div class="item-icon-box red"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div>
+                        <div class="item-text-title" style="color:#FF7675; font-weight:700;">Zona de Risco: Excluir Tudo</div>
+                        <div class="item-text-sub">Apagar todas as transações, contas e metas</div>
+                    </div>
+                </div>
+                <div class="right"><i class="fas fa-chevron-right" style="color:#FF7675;"></i></div>
             </div>
         </div>
     </div>
@@ -470,11 +501,6 @@
     </div>
 </main>
 
-<!-- FLOATING ACTION BUTTON (VOLTAR AO INÍCIO) -->
-<button class="mobile-fab" onclick="window.location.href='dashboard.html'" aria-label="Ir para Dashboard" title="Ir para Dashboard">
-    <i class="fas fa-home"></i>
-</button>
-
 <!-- BOTTOM NAV (6 DESTINOS ESSENCIAIS) -->
 <nav class="bottom-nav">
     <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
@@ -484,6 +510,39 @@
     <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
     <a href="settings.html" class="active"><i class="fas fa-cog"></i><span>Ajustes</span></a>
 </nav>
+
+<!-- MODAL DE CONFIRMAÇÃO DUPLA: ZONA DE RISCO -->
+<div class="mobile-modal-overlay" id="riskZoneModal">
+    <div class="mobile-modal-sheet" style="border-top: 4px solid #FF7675;">
+        <div class="sheet-header">
+            <div class="sheet-title" style="color:#FF7675; display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-exclamation-triangle"></i> Zona de Risco
+            </div>
+            <button class="sheet-close-btn" onclick="closeRiskZoneModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="sheet-body" style="padding:16px 20px 28px;">
+            <p style="font-size:13px; color:var(--color-text,#333); line-height:1.5; margin-bottom:12px;">
+                Você está prestes a <strong>apagar permanentemente</strong> todos os seus lançamentos, contas a pagar, metas e investimentos.
+            </p>
+            <div style="background:rgba(255,118,117,0.1); border:1px solid rgba(255,118,117,0.3); border-radius:10px; padding:12px; font-size:12px; color:#d63031; margin-bottom:16px; line-height:1.4;">
+                <i class="fas fa-info-circle"></i> <strong>Esta ação é irreversível.</strong> Seus dados na nuvem e no celular serão totalmente excluídos.
+            </div>
+            <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--color-text-muted,#64748b);">
+                Digite <span style="color:#d63031; font-weight:800; user-select:all;">EXCLUIR</span> para confirmar:
+            </label>
+            <input type="text" id="confirmDeleteInput" placeholder="EXCLUIR" oninput="checkDeleteConfirmation(this.value)" autocomplete="off" autocapitalize="characters" style="width:100%; padding:10px 14px; font-size:14px; font-weight:700; text-transform:uppercase; border:2px solid var(--color-border,#e2e8f0); border-radius:10px; margin-bottom:16px; color:inherit; background:var(--color-surface,#fff);">
+            
+            <div style="display:flex; gap:10px;">
+                <button type="button" onclick="closeRiskZoneModal()" class="btn" style="flex:1; padding:12px; border-radius:10px; border:1px solid var(--color-border,#e2e8f0); background:transparent; font-weight:600; font-size:13px; cursor:pointer;">
+                    Cancelar
+                </button>
+                <button type="button" id="btnConfirmDeleteData" onclick="executeFullDataWipe()" disabled style="flex:1; padding:12px; border-radius:10px; border:none; background:#FF7675; color:white; font-weight:700; font-size:13px; opacity:0.4; cursor:not-allowed;">
+                    <i class="fas fa-trash-alt"></i> Apagar Tudo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- TOAST -->
 <div id="toast" class="toast hidden"></div>
@@ -518,6 +577,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("mobileBudgetInput").value = savedBudget;
     }
 
+    // Moeda do Sistema
+    const savedCurrency = localStorage.getItem("tonu_currency") || "BRL";
+    const curSelect = document.getElementById("mobileCurrencySelect");
+    if (curSelect) curSelect.value = savedCurrency;
+
     // PIN status
     const pin = localStorage.getItem("tonu_security_pin");
     document.getElementById("pinStatusText").textContent = pin ? "Ativo (4 dígitos)" : "Desativado";
@@ -529,11 +593,201 @@ document.addEventListener("DOMContentLoaded", async () => {
             const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuário";
             document.getElementById("userName").textContent = name;
             document.getElementById("userEmail").textContent = user.email;
-            const avatar = document.getElementById("userAvatar");
-            if (avatar) avatar.textContent = name.charAt(0).toUpperCase();
+            
+            // Carrega foto de perfil salva
+            loadMobileAvatar(user, name);
         }
     } catch (e) { console.error("Erro ao carregar usuário:", e); }
 });
+
+function loadMobileAvatar(user, name) {
+    const avatarEl = document.getElementById("userAvatar");
+    if (!avatarEl) return;
+    const initial = (name || "U").charAt(0).toUpperCase();
+    const storedAvatar = localStorage.getItem("tonu_avatar_" + user.id) || user.user_metadata?.avatar_url;
+    if (storedAvatar) {
+        avatarEl.innerHTML = `<img src="${storedAvatar}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" />`;
+        avatarEl.style.background = "transparent";
+    } else {
+        avatarEl.textContent = initial;
+    }
+}
+
+function triggerMobileAvatarUpload() {
+    const input = document.getElementById("mobileAvatarInput");
+    if (input) input.click();
+}
+
+async function handleMobileAvatarSelect(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+        showMobileToast("Selecione um arquivo de imagem válido.", "error");
+        return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+        showMobileToast("A foto deve ter no máximo 10MB.", "error");
+        return;
+    }
+
+    showMobileToast("📸 Otimizando foto de perfil...", "info");
+
+    try {
+        const compressedDataUrl = await resizeImageToSquare(file, 240, 240);
+        const userId = currentUser ? currentUser.id : "user";
+        localStorage.setItem("tonu_avatar_" + userId, compressedDataUrl);
+
+        const avatarEl = document.getElementById("userAvatar");
+        if (avatarEl) {
+            avatarEl.innerHTML = `<img src="${compressedDataUrl}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" />`;
+            avatarEl.style.background = "transparent";
+        }
+
+        // Salva nos metadados do Supabase Auth e na tabela profiles
+        if (currentUser && window.supabaseClient) {
+            try {
+                await supabaseClient.auth.updateUser({
+                    data: { avatar_url: compressedDataUrl }
+                });
+            } catch (e) {}
+
+            try {
+                await supabaseClient
+                    .from("profiles")
+                    .update({ avatar_url: compressedDataUrl })
+                    .eq("id", currentUser.id);
+            } catch (e) {}
+        }
+
+        if (navigator.vibrate) navigator.vibrate(30);
+        showMobileToast("Foto de perfil atualizada com sucesso! 📸", "success");
+    } catch (err) {
+        console.error(err);
+        showMobileToast("Erro ao processar imagem.", "error");
+    } finally {
+        event.target.value = "";
+    }
+}
+
+function resizeImageToSquare(file, targetWidth = 240, targetHeight = 240) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                const ctx = canvas.getContext("2d");
+                const minSide = Math.min(img.width, img.height);
+                const sx = (img.width - minSide) / 2;
+                const sy = (img.height - minSide) / 2;
+                ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, targetWidth, targetHeight);
+                try {
+                    resolve(canvas.toDataURL("image/webp", 0.85));
+                } catch (err) {
+                    resolve(canvas.toDataURL("image/jpeg", 0.85));
+                }
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+function changeMobileCurrency(val) {
+    localStorage.setItem("tonu_currency", val);
+    if (currentUser && window.supabaseClient) {
+        supabaseClient.from("profiles").update({ currency: val }).eq("id", currentUser.id).catch(() => {});
+    }
+    window.dispatchEvent(new CustomEvent("tonu_currency_changed", { detail: { currency: val } }));
+    if (navigator.vibrate) navigator.vibrate(20);
+    showMobileToast(`Moeda alterada para ${val} com sucesso! 💱`, "success");
+}
+
+// ZONA DE RISCO - CONFIRMAÇÃO DUPLA
+function openRiskZoneModal() {
+    const modal = document.getElementById("riskZoneModal");
+    const input = document.getElementById("confirmDeleteInput");
+    const btn = document.getElementById("btnConfirmDeleteData");
+    if (input) input.value = "";
+    if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = "0.4";
+        btn.style.cursor = "not-allowed";
+    }
+    if (modal) {
+        modal.classList.add("active");
+        if (window.TonuBackHandler) window.TonuBackHandler.pushModal(closeRiskZoneModal);
+    }
+}
+
+function closeRiskZoneModal() {
+    const modal = document.getElementById("riskZoneModal");
+    if (modal) modal.classList.remove("active");
+}
+
+function checkDeleteConfirmation(val) {
+    const btn = document.getElementById("btnConfirmDeleteData");
+    if (!btn) return;
+    const isMatch = (val || "").trim().toUpperCase() === "EXCLUIR";
+    btn.disabled = !isMatch;
+    btn.style.opacity = isMatch ? "1" : "0.4";
+    btn.style.cursor = isMatch ? "pointer" : "not-allowed";
+}
+
+async function executeFullDataWipe() {
+    const btn = document.getElementById("btnConfirmDeleteData");
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Apagando...';
+    }
+
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+    try {
+        if (currentUser && window.supabaseClient) {
+            const tables = ['transactions', 'bills', 'goals', 'investments', 'dividends', 'monthly_budgets'];
+            for (const table of tables) {
+                try {
+                    await supabaseClient.from(table).delete().eq('user_id', currentUser.id);
+                } catch (e) {
+                    console.warn(`Erro ao limpar ${table}:`, e);
+                }
+            }
+        }
+
+        // Limpa caches locais
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('tonu_') || key.includes('cache') || key.includes('transactions') || key.includes('bills'))) {
+                // Preserva apenas tema e sessão
+                if (key !== 'tonu_theme' && key !== 'tonu_security_pin' && key !== 'tonu_device_mode') {
+                    keysToRemove.push(key);
+                }
+            }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+
+        showMobileToast("Todos os dados foram excluídos com sucesso! 🗑️", "success");
+        closeRiskZoneModal();
+        setTimeout(() => {
+            window.location.reload();
+        }, 1200);
+    } catch (err) {
+        console.error("Erro ao apagar dados:", err);
+        showMobileToast("Erro ao concluir exclusão dos dados.", "error");
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-trash-alt"></i> Apagar Tudo';
+        }
+    }
+}
 
 function switchMobileSettingsTab(tab, btn) {
     document.querySelectorAll(".mobile-tab-pill").forEach(p => p.classList.remove("active"));

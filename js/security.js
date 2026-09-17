@@ -624,6 +624,31 @@
             events.forEach(evt => {
                 window.addEventListener(evt, () => this.resetInactivityTimer(), { passive: true });
             });
+
+            // Bloquear ao alternar de aplicativo ou suspender a tela no mobile
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    this.backgroundTimestamp = Date.now();
+                } else {
+                    const elapsed = Date.now() - (this.backgroundTimestamp || 0);
+                    // Se ficou em background por mais de 30 segundos e tem PIN, bloqueia imediatamente
+                    if (this.hasPin() && elapsed > 30000) {
+                        this.lockApp();
+                    }
+                }
+            });
+
+            // Capturar digitação do teclado físico ou teclado numérico
+            window.addEventListener('keydown', (e) => {
+                if (!this.isLocked) return;
+                if (/^[0-9]$/.test(e.key)) {
+                    e.preventDefault();
+                    this.handlePinInput(e.key);
+                } else if (e.key === 'Backspace') {
+                    e.preventDefault();
+                    this.handlePinBackspace();
+                }
+            });
         }
 
         resetInactivityTimer() {
@@ -664,12 +689,14 @@
         lockApp() {
             this.isLocked = true;
             sessionStorage.removeItem('tonu_session_unlocked');
+            document.body.style.overflow = 'hidden';
             this.renderPinLockModal();
         }
 
         unlockApp() {
             this.isLocked = false;
             sessionStorage.setItem('tonu_session_unlocked', 'true');
+            document.body.style.overflow = '';
             const modal = document.getElementById('tonuPinLockModal');
             if (modal) modal.remove();
             this.resetInactivityTimer();
@@ -681,42 +708,45 @@
 
             this.enteredPin = '';
             this.pinAttempts = 0;
+            document.body.style.overflow = 'hidden';
+
+            const logoutAction = "if(typeof window.logout === 'function'){ window.logout(); } else { const base = window.location.pathname.includes('/pages/mobile/') ? '../../index.html' : (window.location.pathname.includes('/pages/') ? '../index.html' : 'index.html'); window.location.href = base; }";
 
             const modalHtml = `
-            <div id="tonuPinLockModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.92); z-index:99999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(10px); font-family:'Inter',sans-serif;">
-                <div style="background:#ffffff; border-radius:24px; max-width:360px; width:100%; padding:32px 24px; text-align:center; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+            <div id="tonuPinLockModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.95); z-index:99999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; touch-action:manipulation;">
+                <div style="background:#ffffff; border-radius:24px; max-width:360px; width:100%; padding:32px 24px; text-align:center; box-shadow:0 25px 50px -12px rgba(0,0,0,0.6); box-sizing:border-box;">
                     <div style="width:64px; height:64px; border-radius:50%; background:rgba(108,92,231,0.12); color:#6c5ce7; display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 16px auto;">
                         <i class="fas fa-lock"></i>
                     </div>
                     <h2 style="font-size:20px; font-weight:800; color:#0f172a; margin:0 0 6px 0;">Aplicativo Bloqueado</h2>
-                    <p style="font-size:13px; color:#64748b; margin:0 0 24px 0;" id="pinLockMessage">Digite o seu PIN de segurança para continuar</p>
+                    <p style="font-size:13px; color:#64748b; margin:0 0 24px 0;" id="pinLockMessage">Digite o seu PIN de 4 dígitos para continuar</p>
 
-                    <div id="pinDotsDisplay" style="display:flex; justify-content:center; gap:12px; margin-bottom:28px;">
+                    <div id="pinDotsDisplay" style="display:flex; justify-content:center; gap:14px; margin-bottom:28px;">
                         <span class="pin-dot" style="width:14px; height:14px; border-radius:50%; border:2px solid #cbd5e1; display:inline-block; transition:all 0.2s;"></span>
                         <span class="pin-dot" style="width:14px; height:14px; border-radius:50%; border:2px solid #cbd5e1; display:inline-block; transition:all 0.2s;"></span>
                         <span class="pin-dot" style="width:14px; height:14px; border-radius:50%; border:2px solid #cbd5e1; display:inline-block; transition:all 0.2s;"></span>
                         <span class="pin-dot" style="width:14px; height:14px; border-radius:50%; border:2px solid #cbd5e1; display:inline-block; transition:all 0.2s;"></span>
                     </div>
 
-                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; max-width:260px; margin:0 auto;">
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; max-width:280px; margin:0 auto;">
                         ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => `
-                            <button type="button" onclick="TonuSecurity.handlePinInput('${num}')" style="height:54px; font-size:20px; font-weight:700; border-radius:14px; border:1px solid #e2e8f0; background:#f8fafc; color:#0f172a; cursor:pointer; transition:all 0.15s;">
+                            <button type="button" onclick="TonuSecurity.handlePinInput('${num}')" style="height:56px; font-size:22px; font-weight:700; border-radius:14px; border:1px solid #e2e8f0; background:#f8fafc; color:#0f172a; cursor:pointer; transition:all 0.12s; touch-action:manipulation;">
                                 ${num}
                             </button>
                         `).join('')}
-                        <button type="button" onclick="TonuSecurity.handleBiometricQuickUnlock()" style="height:54px; font-size:18px; border-radius:14px; border:1px solid #e2e8f0; background:#f0edff; color:#6c5ce7; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Desbloquear com Biometria">
+                        <button type="button" onclick="TonuSecurity.handleBiometricQuickUnlock()" style="height:56px; font-size:20px; border-radius:14px; border:1px solid #e2e8f0; background:#f0edff; color:#6c5ce7; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation;" title="Desbloquear com Biometria">
                             <i class="fas fa-fingerprint"></i>
                         </button>
-                        <button type="button" onclick="TonuSecurity.handlePinInput('0')" style="height:54px; font-size:20px; font-weight:700; border-radius:14px; border:1px solid #e2e8f0; background:#f8fafc; color:#0f172a; cursor:pointer;">
+                        <button type="button" onclick="TonuSecurity.handlePinInput('0')" style="height:56px; font-size:22px; font-weight:700; border-radius:14px; border:1px solid #e2e8f0; background:#f8fafc; color:#0f172a; cursor:pointer; touch-action:manipulation;">
                             0
                         </button>
-                        <button type="button" onclick="TonuSecurity.handlePinBackspace()" style="height:54px; font-size:18px; border-radius:14px; border:1px solid #e2e8f0; background:#f8fafc; color:#e17055; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Apagar">
+                        <button type="button" onclick="TonuSecurity.handlePinBackspace()" style="height:56px; font-size:20px; border-radius:14px; border:1px solid #e2e8f0; background:#f8fafc; color:#e17055; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation;" title="Apagar">
                             <i class="fas fa-backspace"></i>
                         </button>
                     </div>
 
                     <div style="margin-top:24px;">
-                        <button type="button" onclick="if(window.logout){ window.logout(); } else { window.location.href='../index.html'; }" style="background:none; border:none; color:#94a3b8; font-size:12px; cursor:pointer; text-decoration:underline;">
+                        <button type="button" onclick="${logoutAction}" style="background:none; border:none; color:#94a3b8; font-size:13px; min-height:44px; padding:8px; cursor:pointer; text-decoration:underline;">
                             Sair da conta
                         </button>
                     </div>
