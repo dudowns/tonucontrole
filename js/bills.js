@@ -602,6 +602,11 @@
         const newPaidStatus = !bill.paid;
         const newPaidDate = newPaidStatus ? getTodayString() : null;
 
+        // Feedback tátil instantâneo no clique
+        if (window.triggerHaptic) {
+            window.triggerHaptic(newPaidStatus ? 'success' : 'medium');
+        }
+
         // Atualização otimista na tela
         bill.paid = newPaidStatus;
         bill.paid_date = newPaidDate;

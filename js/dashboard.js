@@ -1421,6 +1421,135 @@ async function generateDashboardInsights() {
 
         const netBalance = totalIncome - totalExpense;
 
+        // 1.1 CARREGAR DADOS DO MÊS ANTERIOR (MoM - Comparativo Mês a Mês)
+        const dPrev = new Date();
+        dPrev.setDate(1);
+        dPrev.setMonth(dPrev.getMonth() + currentMonthOffset - 1);
+        const prevYear = dPrev.getFullYear();
+        const prevMonth = dPrev.getMonth();
+        const prevLastDay = getLastDayOfMonth(prevYear, prevMonth);
+        const prevFirstDay = formatDateKey(prevYear, prevMonth, 1);
+        const prevLastDayStr = formatDateKey(prevYear, prevMonth, prevLastDay);
+        const prevMonthName = dPrev.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+        const capitalizedPrevMonth = prevMonthName.charAt(0).toUpperCase() + prevMonthName.slice(1);
+
+        let allPrevMonthTxs = [];
+        try {
+            allPrevMonthTxs = (await getUnifiedTransactions(prevFirstDay, prevLastDayStr)) || [];
+        } catch (e) {
+            console.warn('Não foi possível carregar dados do mês anterior para MoM:', e);
+        }
+
+        const prevPaidIncomeTxs = allPrevMonthTxs.filter(t => t && t.type === 'income' && isTxPaid(t));
+        const prevTotalIncome = prevPaidIncomeTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+
+        const prevPaidExpenseTxs = allPrevMonthTxs.filter(t => t && t.type === 'expense' && isTxPaid(t));
+        const prevTotalExpense = prevPaidExpenseTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+
+        const prevNetBalance = prevTotalIncome - prevTotalExpense;
+        const hasPrevData = (prevTotalIncome > 0 || prevTotalExpense > 0);
+
+        // Variação MoM de Despesas
+        let expenseDiff = totalExpense - prevTotalExpense;
+        let expenseDiffPct = prevTotalExpense > 0 ? Math.round(((totalExpense - prevTotalExpense) / prevTotalExpense) * 100) : 0;
+        let expenseDiffClass = 'neutral';
+        let expenseDiffIcon = 'fa-minus';
+        let expenseDiffLabel = 'Sem referência';
+
+        if (hasPrevData) {
+            if (expenseDiff < 0) {
+                // Gastou menos = Economia/Sucesso
+                expenseDiffClass = 'success';
+                expenseDiffIcon = 'fa-arrow-down';
+                expenseDiffLabel = `${Math.abs(expenseDiffPct)}% economia (-${formatCurrency(Math.abs(expenseDiff))})`;
+            } else if (expenseDiff > 0) {
+                // Gastou mais = Atenção
+                expenseDiffClass = 'danger';
+                expenseDiffIcon = 'fa-arrow-up';
+                expenseDiffLabel = `+${expenseDiffPct}% (+${formatCurrency(expenseDiff)})`;
+            } else {
+                expenseDiffClass = 'neutral';
+                expenseDiffIcon = 'fa-equals';
+                expenseDiffLabel = 'Estável vs mês anterior';
+            }
+        }
+
+        // Variação MoM de Receitas
+        let incomeDiff = totalIncome - prevTotalIncome;
+        let incomeDiffPct = prevTotalIncome > 0 ? Math.round(((totalIncome - prevTotalIncome) / prevTotalIncome) * 100) : 0;
+        let incomeDiffClass = 'neutral';
+        let incomeDiffIcon = 'fa-minus';
+        let incomeDiffLabel = 'Sem referência';
+
+        if (hasPrevData) {
+            if (incomeDiff > 0) {
+                incomeDiffClass = 'success';
+                incomeDiffIcon = 'fa-arrow-up';
+                incomeDiffLabel = `+${incomeDiffPct}% (+${formatCurrency(incomeDiff)})`;
+            } else if (incomeDiff < 0) {
+                incomeDiffClass = 'danger';
+                incomeDiffIcon = 'fa-arrow-down';
+                incomeDiffLabel = `${incomeDiffPct}% (${formatCurrency(incomeDiff)})`;
+            } else {
+                incomeDiffClass = 'neutral';
+                incomeDiffIcon = 'fa-equals';
+                incomeDiffLabel = 'Estável';
+            }
+        }
+
+        // Variação MoM de Saldo / Renda Poupada
+        let balanceDiff = netBalance - prevNetBalance;
+        let balanceDiffClass = balanceDiff >= 0 ? 'success' : 'danger';
+        let balanceDiffIcon = balanceDiff >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down';
+        let balanceDiffLabel = hasPrevData ? (balanceDiff >= 0 ? `+${formatCurrency(balanceDiff)}` : `${formatCurrency(balanceDiff)}`) : 'Sem referência';
+
+        let momStatusBadge = 'info';
+        let momStatusText = `vs. ${capitalizedPrevMonth}`;
+        if (hasPrevData) {
+            if (expenseDiff < 0 && balanceDiff >= 0) {
+                momStatusBadge = 'success';
+                momStatusText = '🎯 Mês mais econômico';
+            } else if (expenseDiff > 0 && balanceDiff < 0) {
+                momStatusBadge = 'warning';
+                momStatusText = `⚠️ Despesas acima de ${capitalizedPrevMonth}`;
+            }
+        }
+
+        let momStrategyTip = '';
+        if (hasPrevData) {
+            if (expenseDiff < 0) {
+                momStrategyTip = `
+                    <div class="insight-strategy-item">
+                        <i class="fas fa-trophy" style="color:#10b981;"></i>
+                        <div>
+                            <strong>Evolução MoM (vs. ${capitalizedPrevMonth}):</strong>
+                            Você reduziu suas despesas em <strong>${formatCurrency(Math.abs(expenseDiff))}</strong> (${Math.abs(expenseDiffPct)}% de economia). Continue direcionando esse excedente para acelerar suas metas!
+                        </div>
+                    </div>
+                `;
+            } else if (expenseDiff > 0) {
+                momStrategyTip = `
+                    <div class="insight-strategy-item">
+                        <i class="fas fa-chart-line" style="color:#ef4444;"></i>
+                        <div>
+                            <strong>Evolução MoM (vs. ${capitalizedPrevMonth}):</strong>
+                            Seus gastos aumentaram <strong>${formatCurrency(expenseDiff)}</strong> (+${expenseDiffPct}%) em relação a ${capitalizedPrevMonth}. Avalie os centros de custo para recuperar sua margem de economia.
+                        </div>
+                    </div>
+                `;
+            } else {
+                momStrategyTip = `
+                    <div class="insight-strategy-item">
+                        <i class="fas fa-equals" style="color:#6c5ce7;"></i>
+                        <div>
+                            <strong>Evolução MoM (vs. ${capitalizedPrevMonth}):</strong>
+                            Gastos mantidos exatamente no mesmo patamar de ${capitalizedPrevMonth} (${formatCurrency(totalExpense)}). Disciplina orçamentária estável!
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
         // Análise: Taxa de Poupança
         let savingsRate = 0;
         let savingsLabel = 'Sem receitas registradas';
@@ -1841,6 +1970,34 @@ async function generateDashboardInsights() {
                 </div>
             ` : ''}
 
+            <!-- BLOCO COMPARATIVO MÊS A MÊS (MoM) -->
+            <div class="insight-mom-box">
+                <div class="insight-mom-header">
+                    <div class="insight-mom-title">
+                        <i class="fas fa-chart-simple"></i>
+                        <span>Comparativo Mês a Mês (vs. ${capitalizedPrevMonth})</span>
+                    </div>
+                    <span class="badge badge-${momStatusBadge}" style="font-size: 10px;">${momStatusText}</span>
+                </div>
+                <div class="insight-mom-grid">
+                    <div class="insight-mom-item">
+                        <span class="label">Despesas</span>
+                        <span class="val">${formatCurrency(totalExpense)}</span>
+                        <span class="diff ${expenseDiffClass}"><i class="fas ${expenseDiffIcon}"></i> ${expenseDiffLabel}</span>
+                    </div>
+                    <div class="insight-mom-item">
+                        <span class="label">Receitas</span>
+                        <span class="val">${formatCurrency(totalIncome)}</span>
+                        <span class="diff ${incomeDiffClass}"><i class="fas ${incomeDiffIcon}"></i> ${incomeDiffLabel}</span>
+                    </div>
+                    <div class="insight-mom-item">
+                        <span class="label">Renda Poupada</span>
+                        <span class="val">${formatCurrency(netBalance)}</span>
+                        <span class="diff ${balanceDiffClass}"><i class="fas ${balanceDiffIcon}"></i> ${balanceDiffLabel}</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- BLOCO ESTRATÉGICO: COMO DIMINUIR GASTOS & INVESTIR MAIS -->
             <div class="insight-strategy-box">
                 <div class="insight-strategy-header">
@@ -1848,6 +2005,7 @@ async function generateDashboardInsights() {
                     <span>Diagnóstico: Como Economizar e Investir Mais</span>
                 </div>
                 <div class="insight-strategy-items">
+                    ${momStrategyTip}
                     ${savingTipHTML}
                     ${capacityTipHTML}
                     ${passiveTipHTML}
@@ -1922,55 +2080,67 @@ function loadChartsLazy() {
     observer.observe(chartContainer);
 }
 
-function getCategoryStyle(name, index) {
-    const n = (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-    if (n.includes('aliment') || n.includes('comida') || n.includes('mercado') || n.includes('restaurante') || n
-        .includes('ifood') || n.includes('lanche')) {
-        return { color: '#EF4444', icon: 'fa-circle' };
-    }
-    if (n.includes('transport') || n.includes('uber') || n.includes('combustivel') || n.includes('gasolina') || n
-        .includes('carro') || n.includes('onibus') || n.includes('veiculo')) {
-        return { color: '#38BDF8', icon: 'fa-circle' };
-    }
-    if (n.includes('moradia') || n.includes('casa') || n.includes('aluguel') || n.includes('condominio') || n
-        .includes('iptu') || n.includes('luz') || n.includes('agua') || n.includes('energia')) {
-        return { color: '#8B5CF6', icon: 'fa-circle' };
-    }
-    if (n.includes('saude') || n.includes('farmacia') || n.includes('medico') || n.includes('hospital') || n
-        .includes('consulta') || n.includes('drogaria') || n.includes('dentista')) {
-        return { color: '#EC4899', icon: 'fa-heart' };
-    }
-    if (n.includes('lazer') || n.includes('viagem') || n.includes('cinema') || n.includes('passeio') || n
-        .includes('bar') || n.includes('festa') || n.includes('hotel')) {
-        return { color: '#F59E0B', icon: 'fa-circle' };
-    }
-    if (n.includes('educa') || n.includes('escola') || n.includes('faculdade') || n.includes('curso') || n
-        .includes('livro') || n.includes('estudo')) {
-        return { color: '#06B6D4', icon: 'fa-diamond' };
-    }
-    if (n.includes('assinat') || n.includes('stream') || n.includes('netflix') || n.includes('spotify') || n
-        .includes('internet') || n.includes('software')) {
-        return { color: '#475569', icon: 'fa-circle' };
-    }
-    if (n.includes('salar') || n.includes('renda') || n.includes('invest') || n.includes('servico') || n
-        .includes('trabalho') || n.includes('imposto')) {
-        return { color: '#10B981', icon: 'fa-circle' };
+function getCategoryStyle(name, index, cat) {
+    if (typeof window !== 'undefined' && window.getBackendCategoryStyle) {
+        return window.getBackendCategoryStyle(name, cat);
     }
 
-    const defaultPalette = [
-        { color: '#EF4444', icon: 'fa-circle' },
-        { color: '#38BDF8', icon: 'fa-circle' },
-        { color: '#8B5CF6', icon: 'fa-circle' },
-        { color: '#EC4899', icon: 'fa-heart' },
-        { color: '#F59E0B', icon: 'fa-circle' },
-        { color: '#06B6D4', icon: 'fa-diamond' },
-        { color: '#475569', icon: 'fa-circle' },
-        { color: '#10B981', icon: 'fa-circle' },
-        { color: '#94A3B8', icon: 'fa-circle' },
-        { color: '#6366F1', icon: 'fa-circle' }
-    ];
-    return defaultPalette[index % defaultPalette.length];
+    if (cat && cat.color && typeof cat.color === 'string' && cat.color.startsWith('#')) {
+        return {
+            color: cat.color,
+            icon: cat.icon || 'fa-tag',
+            name: cat.name || name || 'Outros'
+        };
+    }
+
+    const n = (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+    if (n.includes('contas') || n.includes('basica') || n.includes('energia') || n.includes('luz') || n.includes('agua') || n.includes('gas') || n.includes('boleto')) {
+        return { color: '#0984E3', icon: 'fa-bolt', name: '⚡ Contas Básicas' };
+    }
+    if (n.includes('lazer') || n.includes('jogo') || n.includes('game') || n.includes('cinema') || n.includes('viagem') || n.includes('passeio') || n.includes('hotel') || n.includes('festa')) {
+        return { color: '#A29BFE', icon: 'fa-gamepad', name: '🎮 Lazer' };
+    }
+    if (n.includes('saude') || n.includes('farmacia') || n.includes('medic') || n.includes('hospital') || n.includes('drogaria') || n.includes('dentista') || n.includes('consulta')) {
+        return { color: '#FF6B6B', icon: 'fa-heartbeat', name: '❤️ Saúde' };
+    }
+    if (n.includes('educa') || n.includes('escola') || n.includes('faculdade') || n.includes('curso') || n.includes('livro') || n.includes('estudo')) {
+        return { color: '#0984E3', icon: 'fa-book', name: '📚 Educação' };
+    }
+    if (n.includes('emprestim') || n.includes('divida') || n.includes('financiamento') || n.includes('parcela')) {
+        return { color: '#D63031', icon: 'fa-hand-holding-usd', name: '🤝 Empréstimos' };
+    }
+    if (n.includes('cartao') || n.includes('credito') || n.includes('fatura') || n.includes('anuidade')) {
+        return { color: '#E17055', icon: 'fa-credit-card', name: '💳 Cartão de Crédito' };
+    }
+    if (n.includes('moradia') || n.includes('casa') || n.includes('aluguel') || n.includes('condominio') || n.includes('iptu')) {
+        return { color: '#E17055', icon: 'fa-home', name: '🏠 Moradia' };
+    }
+    if (n.includes('comunic') || n.includes('wifi') || n.includes('internet') || n.includes('celular') || n.includes('telefone') || n.includes('stream') || n.includes('assinat')) {
+        return { color: '#636E72', icon: 'fa-wifi', name: '📡 Comunicação' };
+    }
+    if (n.includes('aliment') || n.includes('comida') || n.includes('mercado') || n.includes('supermercado') || n.includes('restaurante') || n.includes('ifood') || n.includes('lanche')) {
+        return { color: '#FF6B6B', icon: 'fa-utensils', name: '🍔 Alimentação' };
+    }
+    if (n.includes('transport') || n.includes('uber') || n.includes('combustivel') || n.includes('gasolina') || n.includes('carro') || n.includes('onibus') || n.includes('veiculo')) {
+        return { color: '#FDCB6E', icon: 'fa-car', name: '🚗 Transporte' };
+    }
+    if (n.includes('salar') || n.includes('remuner') || n.includes('provento')) {
+        return { color: '#00B894', icon: 'fa-money-bill-wave', name: '💰 Salário' };
+    }
+    if (n.includes('invest') || n.includes('dividend') || n.includes('rendimento') || n.includes('acao') || n.includes('fii')) {
+        return { color: '#00CEC9', icon: 'fa-chart-line', name: '💼 Investimentos' };
+    }
+    if (n.includes('bico') || n.includes('extra') || n.includes('freela')) {
+        return { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' };
+    }
+
+    const defaultBackendColors = ['#0984E3', '#A29BFE', '#FF6B6B', '#FDCB6E', '#E17055', '#D63031', '#636E72', '#00B894', '#00CEC9', '#B2BEC3'];
+    return {
+        color: defaultBackendColors[(index || 0) % defaultBackendColors.length],
+        icon: 'fa-tag',
+        name: name || '📦 Outros'
+    };
 }
 
 // ============================================
@@ -2005,17 +2175,34 @@ async function loadCategoryChart() {
             try {
                 const res = await supabaseClient
                     .from('categories')
-                    .select('id, name, color')
-                    .eq('user_id', currentUser.id);
+                    .select('id, name, color, icon')
+                    .or(`user_id.eq.${currentUser.id},is_default.eq.true,user_id.is.null`);
                 cats = res.data;
-            } catch (_) {}
+            } catch (_) {
+                try {
+                    const res2 = await supabaseClient
+                        .from('categories')
+                        .select('id, name, color, icon')
+                        .eq('user_id', currentUser.id);
+                    cats = res2.data;
+                } catch (_) {}
+            }
         }
         const categoryList = (cats && cats.length > 0) ? cats : (categories || []);
 
         const categoryMap = {};
+        const categoryNameMap = {};
         if (categoryList && categoryList.length > 0) {
             categoryList.forEach(c => {
-                if (c && c.id) categoryMap[c.id] = c;
+                if (c) {
+                    if (c.id) categoryMap[c.id] = c;
+                    if (c.name) {
+                        const clean = c.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                        categoryNameMap[clean] = c;
+                        const noEmoji = clean.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+                        if (noEmoji) categoryNameMap[noEmoji] = c;
+                    }
+                }
             });
         }
 
@@ -2024,19 +2211,30 @@ async function loadCategoryChart() {
         if (data && data.length > 0) {
             data.forEach(t => {
                 const catId = t.category_id;
-                let name = 'Outros';
+                let cat = null;
 
                 if (catId && categoryMap[catId]) {
-                    name = categoryMap[catId].name || 'Outros';
-                } else {
-                    const desc = t.description || '';
-                    name = desc ? desc.substring(0, 20) : 'Outros';
+                    cat = categoryMap[catId];
+                } else if (t.categories && typeof t.categories === 'object' && (t.categories.name || t.categories.color)) {
+                    cat = t.categories;
+                } else if (t.category) {
+                    const clean = t.category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                    cat = categoryNameMap[clean];
+                    if (!cat) {
+                        const noEmoji = clean.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+                        cat = categoryNameMap[noEmoji];
+                    }
                 }
 
+                const name = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : 'Outros');
+                const style = getCategoryStyle(name, 0, cat);
+
                 if (!groups[name]) {
-                    groups[name] = { total: 0 };
+                    groups[name] = { total: 0, color: style.color, icon: style.icon, name: name };
                 }
                 groups[name].total += Number(t.amount);
+                if (style.color) groups[name].color = style.color;
+                if (style.icon) groups[name].icon = style.icon;
             });
         }
 
@@ -2049,11 +2247,11 @@ async function loadCategoryChart() {
         const icons = [];
 
         sortedEntries.forEach(([key, valObj], idx) => {
-            const style = getCategoryStyle(key, idx);
+            const fallbackStyle = getCategoryStyle(key, idx);
             labels.push(key);
             values.push(valObj.total);
-            colors.push(style.color);
-            icons.push(style.icon);
+            colors.push(valObj.color || fallbackStyle.color);
+            icons.push(valObj.icon || fallbackStyle.icon);
         });
 
         const total = values.reduce((a, b) => a + b, 0);
@@ -2080,14 +2278,19 @@ async function loadCategoryChart() {
                     const icon = displayIcons[idx];
 
                     return `
-                        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 4px;font-size:11px;border-bottom:1px solid var(--color-border-light,#f1f5f9);">
-                            <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-                                <span style="color:${color};font-size:9px;flex-shrink:0;width:14px;text-align:center;">
-                                    <i class="fas ${icon}"></i>
-                                </span>
-                                <span style="font-weight:500;color:var(--color-text,#1e293b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;font-size:10px;">${stripHTML(label)}</span>
+                        <div style="display:flex;flex-direction:column;gap:3px;padding:4px 4px;font-size:11px;border-bottom:1px solid var(--color-border-light,#f1f5f9);">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                                <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                                    <span style="color:${color};font-size:10px;flex-shrink:0;width:14px;text-align:center;">
+                                        <i class="fas ${icon}"></i>
+                                    </span>
+                                    <span style="font-weight:600;color:var(--color-text,#1e293b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85px;font-size:11px;">${stripHTML(label)}</span>
+                                </div>
+                                <span style="font-weight:700;color:var(--color-text,#1e293b);font-size:11px;flex-shrink:0;">${pct}%</span>
                             </div>
-                            <span style="font-weight:700;color:var(--color-text,#1e293b);font-size:10px;flex-shrink:0;">${pct}%</span>
+                            <div style="width:100%;height:4px;background:rgba(148,163,184,0.18);border-radius:3px;overflow:hidden;">
+                                <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;transition:width 0.4s ease;"></div>
+                            </div>
                         </div>
                     `;
                 }).join('');
@@ -2096,14 +2299,19 @@ async function loadCategoryChart() {
                     const otherTotal = values.slice(maxDisplay).reduce((a, b) => a + b, 0);
                     const otherPct = total > 0 ? Math.round((otherTotal / total) * 100) : 0;
                     legendContainer.innerHTML += `
-                        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 4px;font-size:10px;border-top:1px solid var(--color-border-light,#f1f5f9);margin-top:2px;padding-top:4px;">
-                            <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-                                <span style="color:#94a3b8;font-size:9px;flex-shrink:0;width:14px;text-align:center;">
-                                    <i class="fas fa-ellipsis-h"></i>
-                                </span>
-                                <span style="color:#94a3b8;font-size:10px;">Outros (${labels.length - maxDisplay})</span>
+                        <div style="display:flex;flex-direction:column;gap:3px;padding:4px 4px;font-size:10px;border-top:1px solid var(--color-border-light,#f1f5f9);margin-top:2px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                                <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                                    <span style="color:#94a3b8;font-size:9px;flex-shrink:0;width:14px;text-align:center;">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </span>
+                                    <span style="color:#94a3b8;font-size:10px;font-weight:500;">Outros (${labels.length - maxDisplay})</span>
+                                </div>
+                                <span style="color:#94a3b8;font-size:10px;font-weight:700;">${otherPct}%</span>
                             </div>
-                            <span style="color:#94a3b8;font-size:10px;">${otherPct}%</span>
+                            <div style="width:100%;height:3px;background:rgba(148,163,184,0.15);border-radius:2px;overflow:hidden;">
+                                <div style="width:${otherPct}%;height:100%;background:#94a3b8;border-radius:2px;"></div>
+                            </div>
                         </div>
                     `;
                 }
@@ -2648,25 +2856,16 @@ async function loadInsights() {
 }
 
 // ============================================
-// TOAST
+// TOAST (Delega para o sistema unificado em core.js)
 // ============================================
-function showToast(message, type) {
-    type = type || 'info';
+function showToast(message, type, actionText, onAction) {
+    if (window.showToast && window.showToast !== showToast) {
+        return window.showToast(message, type, actionText, onAction);
+    }
     const toast = document.getElementById('toast');
     if (!toast) return;
-
-    const colors = {
-        info: '#0984E3',
-        success: '#00B894',
-        error: '#FF7675',
-        warning: '#FDCB6E'
-    };
-
     toast.textContent = message;
-    toast.style.background = colors[type] || colors.info;
-    toast.style.color = '#fff';
     toast.className = 'toast show';
-
     clearTimeout(toast._timeout);
     toast._timeout = setTimeout(() => {
         toast.className = 'toast hidden';

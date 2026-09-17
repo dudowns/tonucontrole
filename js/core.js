@@ -16,7 +16,31 @@ window.APP_CONFIG = {
 };
 
 // ============================================
-// 1. TOAST PREMIUM (COM PROGRESSO, ÍCONES E UNDO)
+// 1. HAPTIC FEEDBACK (VIBRAÇÃO TÁTIL PARA AÇÕES CRÍTICAS)
+// ============================================
+function triggerHaptic(type) {
+    try {
+        if (typeof navigator === 'undefined' || !('vibrate' in navigator)) return;
+        type = type || 'medium';
+        var patterns = {
+            light: 20,
+            medium: 40,
+            heavy: [50, 35, 50],
+            success: [35, 45, 35],
+            error: [60, 40, 60],
+            warning: [40, 30, 40],
+            info: 25
+        };
+        var pattern = patterns[type] !== undefined ? patterns[type] : 35;
+        navigator.vibrate(pattern);
+    } catch (e) {
+        // Fallback seguro se vibrate não for suportado ou for restrito no iframe
+    }
+}
+window.triggerHaptic = triggerHaptic;
+
+// ============================================
+// 2. TOAST PREMIUM (COM PROGRESSO, PAUSE NO HOVER & SWIPE TO DISMISS)
 // ============================================
 function showToast(message, type, actionText, onAction) {
     type = type || 'info';
@@ -28,6 +52,9 @@ function showToast(message, type, actionText, onAction) {
         document.body.appendChild(toast);
     }
 
+    // Feedback tátil automático correspondente ao tipo
+    triggerHaptic(type);
+
     var icons = {
         info: 'fa-info-circle',
         success: 'fa-check-circle',
@@ -35,8 +62,12 @@ function showToast(message, type, actionText, onAction) {
         warning: 'fa-exclamation-triangle'
     };
 
+    // Limpar estados anteriores de transform/opacidade
     toast.style.background = '';
     toast.style.color = '';
+    toast.style.transform = '';
+    toast.style.opacity = '';
+    toast.style.transition = '';
     toast.className = 'toast toast-' + type;
 
     var iconClass = icons[type] || icons.info;
@@ -66,31 +97,158 @@ function showToast(message, type, actionText, onAction) {
         }
     }
 
+    // Controle de tempo com pausa (Pause on Hover)
+    var TOTAL_DURATION = 3500;
+    var remainingTime = TOTAL_DURATION;
+    var startTimestamp = Date.now();
+    var isPaused = false;
+
+    clearTimeout(toast._timeout);
+
+    function startTimer(duration) {
+        clearTimeout(toast._timeout);
+        startTimestamp = Date.now();
+        toast._timeout = setTimeout(function () {
+            hideToast();
+        }, duration);
+    }
+
+    // Iniciar animação da barra de progresso
     setTimeout(function() {
         var bar = document.getElementById('toastProgressBar');
         if (bar) {
+            bar.style.transition = 'width ' + (remainingTime / 1000) + 's linear';
             bar.style.width = '0%';
         }
     }, 40);
 
-    clearTimeout(toast._timeout);
-    toast._timeout = setTimeout(function () {
-        hideToast();
-    }, 3300);
+    startTimer(remainingTime);
+
+    // ============================================
+    // RECURSO 1: PAUSE TOAST ON HOVER
+    // ============================================
+    function pauseToast() {
+        if (isPaused) return;
+        isPaused = true;
+        clearTimeout(toast._timeout);
+        var elapsed = Date.now() - startTimestamp;
+        remainingTime = Math.max(600, remainingTime - elapsed);
+
+        var bar = document.getElementById('toastProgressBar');
+        if (bar) {
+            var currentWidth = window.getComputedStyle(bar).width;
+            bar.style.transition = 'none';
+            bar.style.width = currentWidth;
+        }
+    }
+
+    function resumeToast() {
+        if (!isPaused || toast.classList.contains('hidden')) return;
+        isPaused = false;
+
+        var bar = document.getElementById('toastProgressBar');
+        if (bar) {
+            bar.style.transition = 'width ' + (remainingTime / 1000) + 's linear';
+            bar.style.width = '0%';
+        }
+        startTimer(remainingTime);
+    }
+
+    toast.onmouseenter = pauseToast;
+    toast.onmouseleave = resumeToast;
+
+    // ============================================
+    // RECURSO 2: SWIPE TO DISMISS NO MOBILE
+    // ============================================
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var touchCurrentX = 0;
+    var isSwiping = false;
+
+    toast.ontouchstart = function(e) {
+        if (!e.touches || e.touches.length !== 1) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchCurrentX = touchStartX;
+        isSwiping = false;
+        pauseToast();
+        toast.style.transition = 'none';
+    };
+
+    toast.ontouchmove = function(e) {
+        if (!e.touches || e.touches.length !== 1) return;
+        touchCurrentX = e.touches[0].clientX;
+        var deltaX = touchCurrentX - touchStartX;
+        var deltaY = e.touches[0].clientY - touchStartY;
+
+        // Ativa o swipe apenas se o movimento for prioritariamente horizontal
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 8) {
+            isSwiping = true;
+            if (e.cancelable) e.preventDefault();
+            var opacity = Math.max(0.2, 1 - (Math.abs(deltaX) / 240));
+            toast.style.transform = 'translateX(' + deltaX + 'px)';
+            toast.style.opacity = String(opacity);
+        }
+    };
+
+    toast.ontouchend = function(e) {
+        if (!isSwiping) {
+            resumeToast();
+            return;
+        }
+        var deltaX = touchCurrentX - touchStartX;
+        toast.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease';
+
+        // Limiar para descartar (65px)
+        if (Math.abs(deltaX) > 65) {
+            var direction = deltaX > 0 ? '125%' : '-125%';
+            toast.style.transform = 'translateX(' + direction + ')';
+            toast.style.opacity = '0';
+            triggerHaptic('light');
+            setTimeout(function() {
+                hideToast();
+            }, 220);
+        } else {
+            // Retorna suavemente à posição original se não atingiu o limiar
+            toast.style.transform = '';
+            toast.style.opacity = '';
+            setTimeout(function() {
+                resumeToast();
+            }, 220);
+        }
+        isSwiping = false;
+    };
+
+    toast.ontouchcancel = function() {
+        toast.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+        toast.style.transform = '';
+        toast.style.opacity = '';
+        resumeToast();
+        isSwiping = false;
+    };
 }
 
 function hideToast() {
     var toast = document.getElementById('toast');
     if (!toast) return;
+    clearTimeout(toast._timeout);
+    toast.onmouseenter = null;
+    toast.onmouseleave = null;
+    toast.ontouchstart = null;
+    toast.ontouchmove = null;
+    toast.ontouchend = null;
+    toast.ontouchcancel = null;
     toast.style.opacity = '0';
     toast.style.transform = 'translateY(15px) scale(0.95)';
     setTimeout(function() {
         toast.className = 'toast hidden';
         toast.style.opacity = '';
         toast.style.transform = '';
+        toast.style.transition = '';
     }, 220);
 }
 window.hideToast = hideToast;
+window.showToast = showToast;
 
 // ============================================
 // 2. FORMATAÇÃO
@@ -678,10 +836,90 @@ function isDesktop() {
 // ============================================
 // 12. CORES PARA GRÁFICOS
 // ============================================
+// 12. CORES E CONFIGURAÇÃO DE CATEGORIAS (BACKEND)
+// ============================================
+var BACKEND_CATEGORY_CONFIG = {
+    'contas basicas': { color: '#0984E3', icon: 'fa-bolt', name: '⚡ Contas Básicas' },
+    'lazer': { color: '#A29BFE', icon: 'fa-gamepad', name: '🎮 Lazer' },
+    'saude': { color: '#FF6B6B', icon: 'fa-heartbeat', name: '❤️ Saúde' },
+    'educacao': { color: '#0984E3', icon: 'fa-book', name: '📚 Educação' },
+    'emprestimos': { color: '#D63031', icon: 'fa-hand-holding-usd', name: '🤝 Empréstimos' },
+    'outros': { color: '#B2BEC3', icon: 'fa-tag', name: '📦 Outros' },
+    'cartao de credito': { color: '#E17055', icon: 'fa-credit-card', name: '💳 Cartão de Crédito' },
+    'moradia': { color: '#E17055', icon: 'fa-home', name: '🏠 Moradia' },
+    'comunicacao': { color: '#636E72', icon: 'fa-wifi', name: '📡 Comunicação' },
+    'alimentacao': { color: '#FF6B6B', icon: 'fa-utensils', name: '🍔 Alimentação' },
+    'transporte': { color: '#FDCB6E', icon: 'fa-car', name: '🚗 Transporte' },
+    'salario': { color: '#00B894', icon: 'fa-money-bill-wave', name: '💰 Salário' },
+    'investimentos': { color: '#00CEC9', icon: 'fa-chart-line', name: '💼 Investimentos' },
+    'bico / extra': { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' },
+    'bico': { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' },
+    'extra': { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' }
+};
+
+function getBackendCategoryStyle(name, cat) {
+    if (cat && cat.color && typeof cat.color === 'string' && cat.color.startsWith('#')) {
+        return {
+            color: cat.color,
+            icon: cat.icon || 'fa-tag',
+            name: cat.name || name || 'Outros'
+        };
+    }
+
+    const n = (name || '').toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+
+    if (n.includes('contas') || n.includes('basica') || n.includes('energia') || n.includes('luz') || n.includes('agua') || n.includes('gas') || n.includes('boleto')) {
+        return { color: '#0984E3', icon: 'fa-bolt', name: '⚡ Contas Básicas' };
+    }
+    if (n.includes('lazer') || n.includes('jogo') || n.includes('game') || n.includes('cinema') || n.includes('viagem') || n.includes('passeio') || n.includes('hotel') || n.includes('festa')) {
+        return { color: '#A29BFE', icon: 'fa-gamepad', name: '🎮 Lazer' };
+    }
+    if (n.includes('saude') || n.includes('farmacia') || n.includes('medic') || n.includes('hospital') || n.includes('drogaria') || n.includes('dentista') || n.includes('consulta')) {
+        return { color: '#FF6B6B', icon: 'fa-heartbeat', name: '❤️ Saúde' };
+    }
+    if (n.includes('educa') || n.includes('escola') || n.includes('faculdade') || n.includes('curso') || n.includes('livro') || n.includes('estudo')) {
+        return { color: '#0984E3', icon: 'fa-book', name: '📚 Educação' };
+    }
+    if (n.includes('emprestim') || n.includes('divida') || n.includes('financiamento') || n.includes('parcela')) {
+        return { color: '#D63031', icon: 'fa-hand-holding-usd', name: '🤝 Empréstimos' };
+    }
+    if (n.includes('cartao') || n.includes('credito') || n.includes('fatura') || n.includes('anuidade')) {
+        return { color: '#E17055', icon: 'fa-credit-card', name: '💳 Cartão de Crédito' };
+    }
+    if (n.includes('moradia') || n.includes('casa') || n.includes('aluguel') || n.includes('condominio') || n.includes('iptu')) {
+        return { color: '#E17055', icon: 'fa-home', name: '🏠 Moradia' };
+    }
+    if (n.includes('comunic') || n.includes('wifi') || n.includes('internet') || n.includes('celular') || n.includes('telefone') || n.includes('stream') || n.includes('assinat')) {
+        return { color: '#636E72', icon: 'fa-wifi', name: '📡 Comunicação' };
+    }
+    if (n.includes('aliment') || n.includes('comida') || n.includes('mercado') || n.includes('supermercado') || n.includes('restaurante') || n.includes('ifood') || n.includes('lanche')) {
+        return { color: '#FF6B6B', icon: 'fa-utensils', name: '🍔 Alimentação' };
+    }
+    if (n.includes('transport') || n.includes('uber') || n.includes('combustivel') || n.includes('gasolina') || n.includes('carro') || n.includes('onibus') || n.includes('veiculo')) {
+        return { color: '#FDCB6E', icon: 'fa-car', name: '🚗 Transporte' };
+    }
+    if (n.includes('salar') || n.includes('remuner') || n.includes('provento')) {
+        return { color: '#00B894', icon: 'fa-money-bill-wave', name: '💰 Salário' };
+    }
+    if (n.includes('invest') || n.includes('dividend') || n.includes('rendimento') || n.includes('acao') || n.includes('fii')) {
+        return { color: '#00CEC9', icon: 'fa-chart-line', name: '💼 Investimentos' };
+    }
+    if (n.includes('bico') || n.includes('extra') || n.includes('freela')) {
+        return { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' };
+    }
+
+    return { color: '#B2BEC3', icon: 'fa-tag', name: name || '📦 Outros' };
+}
+
+window.getBackendCategoryStyle = getBackendCategoryStyle;
+window.BACKEND_CATEGORY_CONFIG = BACKEND_CATEGORY_CONFIG;
+
 var chartColors = [
-    '#6C5CE7', '#00B894', '#FF7675', '#FDCB6E', '#0984E3',
-    '#E17055', '#A29BFE', '#55EFC4', '#FAB1A0', '#FFEAA7',
-    '#74B9FF', '#FD79A8', '#00CEC9', '#6C5CE7', '#2D3436'
+    '#0984E3', '#A29BFE', '#FF6B6B', '#FDCB6E', '#E17055',
+    '#D63031', '#636E72', '#00B894', '#00CEC9', '#B2BEC3'
 ];
 
 function getChartColors(count) {
@@ -719,14 +957,19 @@ async function createDefaultCategories(userId) {
         }
 
         var defaultCategories = [
-            { user_id: userId, name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF7675' },
-            { user_id: userId, name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#FDCB6E' },
-            { user_id: userId, name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#E17055' },
-            { user_id: userId, name: '❤️ Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#FF6B6B' },
+            { user_id: userId, name: '⚡ Contas Básicas', type: 'expense', icon: 'fa-bolt', color: '#0984E3' },
             { user_id: userId, name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#A29BFE' },
+            { user_id: userId, name: '❤️ Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#FF6B6B' },
             { user_id: userId, name: '📚 Educação', type: 'expense', icon: 'fa-book', color: '#0984E3' },
-            { user_id: userId, name: '📱 Assinaturas', type: 'expense', icon: 'fa-credit-card', color: '#636E72' },
+            { user_id: userId, name: '🤝 Empréstimos', type: 'expense', icon: 'fa-hand-holding-usd', color: '#D63031' },
+            { user_id: userId, name: '💳 Cartão de Crédito', type: 'expense', icon: 'fa-credit-card', color: '#E17055' },
+            { user_id: userId, name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#E17055' },
+            { user_id: userId, name: '📡 Comunicação', type: 'expense', icon: 'fa-wifi', color: '#636E72' },
+            { user_id: userId, name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF6B6B' },
+            { user_id: userId, name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#FDCB6E' },
             { user_id: userId, name: '💰 Salário', type: 'income', icon: 'fa-money-bill-wave', color: '#00B894' },
+            { user_id: userId, name: '💼 Investimentos', type: 'income', icon: 'fa-chart-line', color: '#00CEC9' },
+            { user_id: userId, name: '🛵 Bico / Extra', type: 'income', icon: 'fa-gift', color: '#00B894' },
             { user_id: userId, name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#B2BEC3' }
         ];
 

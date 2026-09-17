@@ -353,9 +353,13 @@
             });
         }
 
-        let icon = cat?.icon;
-        let color = cat?.color || defaultColor;
-        let name = cat?.name || t.category || (isIncome ? 'Receita' : 'Despesa');
+        const backendStyle = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
+            ? window.getBackendCategoryStyle(t.category || cat?.name, cat)
+            : null;
+
+        let icon = cat?.icon || backendStyle?.icon;
+        let color = cat?.color || backendStyle?.color || defaultColor;
+        let name = cat?.name || backendStyle?.name || t.category || (isIncome ? 'Receita' : 'Despesa');
 
         if (!icon) {
             const catLower = (t.category || '').toLowerCase();

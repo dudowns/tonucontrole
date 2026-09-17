@@ -97,37 +97,79 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #f0f2f5;
-            padding: 16px;
+            background-color: #f6f8fc;
+            background-image: 
+                radial-gradient(at 15% 15%, rgba(108, 92, 231, 0.12) 0px, transparent 50%),
+                radial-gradient(at 85% 85%, rgba(0, 206, 201, 0.10) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(162, 155, 254, 0.06) 0px, transparent 65%),
+                radial-gradient(rgba(108, 92, 231, 0.08) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px;
+            padding: 24px 16px;
+            position: relative;
+            overflow-x: hidden;
+            color: #1e293b;
+        }
+
+        /* Ambient floating orbs for page background */
+        .page-ambient-orb {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(80px);
+            z-index: 0;
+        }
+
+        .page-ambient-orb.orb-top-left {
+            width: 480px;
+            height: 480px;
+            top: -150px;
+            left: -150px;
+            background: radial-gradient(circle, rgba(108, 92, 231, 0.18) 0%, transparent 70%);
+            animation: ambientDrift1 14s ease-in-out infinite alternate;
+        }
+
+        .page-ambient-orb.orb-bottom-right {
+            width: 480px;
+            height: 480px;
+            bottom: -150px;
+            right: -150px;
+            background: radial-gradient(circle, rgba(0, 206, 201, 0.15) 0%, transparent 70%);
+            animation: ambientDrift2 16s ease-in-out infinite alternate;
+        }
+
+        @keyframes ambientDrift1 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(50px, 40px) scale(1.15); }
+        }
+
+        @keyframes ambientDrift2 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(-40px, -50px) scale(1.12); }
         }
 
         /* ==========================================
-           SPLASH SCREEN
+           SPLASH SCREEN - EXPERIÊNCIA ELEVADA
            ========================================== */
         #splashScreen {
             position: fixed;
             inset: 0;
             z-index: 999999;
-            background: radial-gradient(circle at center, #ffffff 0%, #f4f6fb 100%) !important;
+            background: radial-gradient(circle at 50% 40%, #ffffff 0%, #f1f4f9 100%) !important;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
-                transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
-                visibility 0.6s;
-            will-change: transform, opacity;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
         }
 
         #splashScreen.hidden {
             opacity: 0;
-            transform: scale(1.05);
             visibility: hidden;
             pointer-events: none;
         }
@@ -185,8 +227,7 @@
 
         .splash-core {
             position: relative;
-            z-index: 1;
-            text-align: center;
+            z-index: 2;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -232,7 +273,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 18px auto;
+            margin: 0 auto 16px auto;
         }
 
         /* Concentric radar pulse rings */
@@ -345,53 +386,8 @@
             position: relative;
             z-index: 1;
             transform-origin: center center;
-            animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite, splashLogoAuraPulse 3.4s ease-in-out infinite alternate;
-            -webkit-animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite, splashLogoAuraPulse 3.4s ease-in-out infinite alternate;
-        }
-
-        /* Efeito de brilho de luz transversal passando pelo logo */
-        .splash-logo-wrapper::after {
-            content: '';
-            position: absolute;
-            top: -60%;
-            left: -80%;
-            width: 50%;
-            height: 220%;
-            background: linear-gradient(
-                90deg,
-                transparent 0%,
-                rgba(255, 255, 255, 0.35) 40%,
-                rgba(255, 255, 255, 0.85) 50%,
-                rgba(255, 255, 255, 0.35) 60%,
-                transparent 100%
-            );
-            transform: rotate(26deg);
-            pointer-events: none;
-            z-index: 3;
-            animation: splashLogoGlint 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-        }
-
-        @keyframes splashLogoGlint {
-            0%, 25% {
-                transform: translateX(0) rotate(26deg);
-                opacity: 0;
-            }
-            30% {
-                opacity: 1;
-            }
-            58%, 100% {
-                transform: translateX(420%) rotate(26deg);
-                opacity: 0;
-            }
-        }
-
-        @keyframes splashLogoAuraPulse {
-            0% {
-                box-shadow: 0 14px 32px -8px rgba(108, 92, 231, 0.25), 0 0 0 1px rgba(108, 92, 231, 0.1);
-            }
-            100% {
-                box-shadow: 0 20px 42px -4px rgba(108, 92, 231, 0.45), 0 0 22px rgba(129, 236, 236, 0.35), 0 0 0 2px rgba(108, 92, 231, 0.2);
-            }
+            animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+            -webkit-animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
         }
 
         .splash-logo-wrapper .splash-logo-bg {
@@ -404,7 +400,9 @@
             z-index: 0;
         }
 
-        .splash-logo-wrapper .logo-img {
+        .splash-logo-wrapper .logo-img,
+        .splash-logo-wrapper img,
+        #logoAnimado {
             position: relative;
             z-index: 1;
             width: 100%;
@@ -413,6 +411,9 @@
             display: block;
             transform-origin: center center;
             border-radius: inherit;
+            animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite !important;
+            -webkit-animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite !important;
+            will-change: transform;
         }
 
         @keyframes pulseGlow {
@@ -434,64 +435,54 @@
             letter-spacing: -0.025em;
         }
 
-        .splash-title span {
-            background: linear-gradient(135deg, #6c5ce7 0%, #8c7ae6 50%, #4834d4 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: splashTitleShimmer 3.2s ease-in-out infinite alternate;
+        body.dark-theme .splash-title {
+            color: #ffffff !important;
         }
 
-        @keyframes splashTitleShimmer {
-            0% {
-                filter: brightness(1) drop-shadow(0 0 0 rgba(108, 92, 231, 0));
-            }
-            100% {
-                filter: brightness(1.25) drop-shadow(0 3px 10px rgba(108, 92, 231, 0.35));
-            }
+        .splash-title span {
+            color: #6C5CE7;
         }
 
         .splash-subtitle {
-            font-size: 12px;
+            font-size: 11.5px;
             color: #64748b !important;
             font-weight: 600;
-            margin: 0 0 24px 0;
+            margin: 0 0 20px 0;
             letter-spacing: 0.08em;
             text-transform: uppercase;
         }
 
+        body.dark-theme .splash-subtitle {
+            color: #94a3b8 !important;
+        }
+
         .progress-box {
             width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
+            max-width: 250px;
         }
 
         .progress-header {
-            width: 100%;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 11px;
+            margin-bottom: 7px;
         }
 
         .splash-status-text {
             color: #64748b;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
-            transition: color 0.3s ease;
         }
 
         .splash-percent {
             color: #6c5ce7;
             font-weight: 700;
             font-variant-numeric: tabular-nums;
+            font-size: 11px;
         }
 
         .progress-bar-bg {
-            width: 100%;
             height: 7px;
             background: rgba(108, 92, 231, 0.08);
             border: 1px solid rgba(108, 92, 231, 0.12);
@@ -508,7 +499,6 @@
             background-size: 200% 100%;
             border-radius: 99px;
             transition: width 0.15s ease-out;
-            position: relative;
             animation: progressShimmerWave 2s linear infinite;
         }
 
@@ -521,34 +511,10 @@
             }
         }
 
-        .progress-sparkle {
-            position: absolute;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 7px;
-            height: 7px;
-            background: #ffffff;
-            border-radius: 50%;
-            box-shadow: 0 0 6px 1.5px rgba(255, 255, 255, 0.9), 0 0 10px 3px rgba(108, 92, 231, 0.7);
-            animation: sparklePulse 1.2s ease-in-out infinite;
-        }
-
-        @keyframes sparklePulse {
-            0%, 100% {
-                opacity: 0.7;
-                transform: translateY(-50%) scale(0.9);
-            }
-            50% {
-                opacity: 1;
-                transform: translateY(-50%) scale(1.35);
-            }
-        }
-
         .splash-footer-brand {
             position: absolute;
             bottom: 24px;
-            font-size: 12px;
+            font-size: 11px;
             color: #64748b;
             font-weight: 600;
             display: flex;
@@ -560,30 +526,11 @@
             border-radius: 99px;
             box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
             backdrop-filter: blur(8px);
-            animation: footerBrandFloat 3.5s ease-in-out infinite alternate;
-        }
-
-        @keyframes footerBrandFloat {
-            0% {
-                transform: translateY(0);
-            }
-            100% {
-                transform: translateY(-4px);
-            }
         }
 
         .splash-footer-brand i {
             color: #6c5ce7;
-            animation: shieldGlow 2.5s ease-in-out infinite;
-        }
-
-        @keyframes shieldGlow {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.15);
-            }
+            font-size: 11px;
         }
 
         /* ==========================================
@@ -767,14 +714,14 @@
         .welcome-logo-container {
             position: relative;
             display: inline-block;
-            margin-bottom: 22px;
+            margin-bottom: 24px;
         }
 
         .welcome-logo {
-            width: 82px;
-            height: 82px;
+            width: 80px;
+            height: 80px;
             background: rgba(255, 255, 255, 0.18);
-            border-radius: 24px;
+            border-radius: 22px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -788,86 +735,6 @@
             -webkit-animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
             position: relative;
             z-index: 1;
-            cursor: pointer;
-            transition: box-shadow 0.4s ease;
-        }
-
-        /* Efeito de reflexo de luz transversal (glint / shimmer) */
-        .welcome-logo::after {
-            content: '';
-            position: absolute;
-            top: -60%;
-            left: -80%;
-            width: 50%;
-            height: 220%;
-            background: linear-gradient(
-                90deg,
-                transparent 0%,
-                rgba(255, 255, 255, 0.35) 40%,
-                rgba(255, 255, 255, 0.9) 50%,
-                rgba(255, 255, 255, 0.35) 60%,
-                transparent 100%
-            );
-            transform: rotate(26deg);
-            pointer-events: none;
-            z-index: 3;
-            animation: welcomeLogoGlint 3.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-        }
-
-        @keyframes welcomeLogoGlint {
-            0%, 28% {
-                transform: translateX(0) rotate(26deg);
-                opacity: 0;
-            }
-            34% {
-                opacity: 1;
-            }
-            64%, 100% {
-                transform: translateX(430%) rotate(26deg);
-                opacity: 0;
-            }
-        }
-
-        .welcome-logo:hover {
-            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3), 0 0 32px rgba(255, 234, 167, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
-            animation-duration: 2.8s !important;
-        }
-
-        .welcome-logo:active {
-            transform: scale(0.96) !important;
-        }
-
-        .welcome-logo-glow {
-            position: absolute;
-            inset: -12px;
-            background: conic-gradient(from 0deg, #ffeaa7, #6c5ce7, #00cec9, #a29bfe, #ffeaa7);
-            border-radius: 36px;
-            filter: blur(14px);
-            animation: welcomeGlowSpin 7s linear infinite, welcomeHaloGlow 3.5s ease-in-out infinite alternate;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        @keyframes welcomeGlowSpin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        @keyframes welcomeHaloGlow {
-            0% {
-                opacity: 0.35;
-                filter: blur(12px);
-                transform: scale(0.92);
-            }
-            100% {
-                opacity: 0.8;
-                filter: blur(16px);
-                transform: scale(1.15);
-            }
         }
 
         .welcome-logo img,
@@ -886,118 +753,25 @@
         }
 
         .welcome-title {
-            font-size: 35px;
+            font-size: 36px;
             font-weight: 800;
-            margin-bottom: 8px;
-            letter-spacing: -0.025em;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
             line-height: 1.15;
             text-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            animation: welcomeTitleSlide 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        @keyframes welcomeTitleSlide {
-            0% {
-                opacity: 0;
-                transform: translateY(18px);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         .welcome-title span {
             color: #ffeaa7;
             display: inline-block;
-            position: relative;
-            background: linear-gradient(135deg, #fff3b0 0%, #ffd064 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: goldGleam 3s ease-in-out infinite alternate;
-        }
-
-        @keyframes goldGleam {
-            0% {
-                filter: brightness(1) drop-shadow(0 0 0 rgba(255, 234, 167, 0));
-            }
-            100% {
-                filter: brightness(1.22) drop-shadow(0 2px 14px rgba(255, 234, 167, 0.5));
-            }
         }
 
         .welcome-desc {
             font-size: 15px;
-            color: rgba(255, 255, 255, 0.92);
+            color: rgba(255, 255, 255, 0.9);
             line-height: 1.6;
             max-width: 360px;
-            margin-bottom: 16px;
-            animation: welcomeDescIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
-        }
-
-        @keyframes welcomeDescIn {
-            0% {
-                opacity: 0;
-                transform: translateY(14px);
-            }
-            100% {
-                opacity: 0.92;
-                transform: translateY(0);
-            }
-        }
-
-        /* Pill Badge */
-        .welcome-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 14px;
-            background: rgba(255, 255, 255, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            border-radius: 99px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #ffffff;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            margin-bottom: 22px;
-            width: fit-content;
-            animation: welcomeBadgeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
-        }
-
-        @keyframes welcomeBadgeIn {
-            0% {
-                opacity: 0;
-                transform: translateY(12px) scale(0.95);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        .badge-pulse-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #55efc4;
-            box-shadow: 0 0 0 0 rgba(85, 239, 196, 0.7);
-            animation: badgeDotPing 2s infinite;
-        }
-
-        @keyframes badgeDotPing {
-            0% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(85, 239, 196, 0.7);
-            }
-            70% {
-                transform: scale(1);
-                box-shadow: 0 0 0 8px rgba(85, 239, 196, 0);
-            }
-            100% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(85, 239, 196, 0);
-            }
+            margin-bottom: 28px;
         }
 
         .welcome-features {
@@ -1143,7 +917,7 @@
         .login-side .mobile-logo {
             display: none;
             text-align: center;
-            margin-bottom: 22px;
+            margin-bottom: 24px;
         }
 
         .mobile-logo-container {
@@ -1153,59 +927,21 @@
         }
 
         .mobile-logo-box {
-            width: 58px;
-            height: 58px;
+            width: 56px;
+            height: 56px;
             background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(162, 155, 254, 0.22));
-            border-radius: 18px;
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
             border: 2px solid rgba(108, 92, 231, 0.25);
-            box-shadow: 0 10px 24px -4px rgba(108, 92, 231, 0.3);
+            box-shadow: 0 10px 24px -4px rgba(108, 92, 231, 0.25);
             transform-origin: center center;
             animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
             -webkit-animation: volanteSpin90 4.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
             position: relative;
             z-index: 1;
-            transition: box-shadow 0.4s ease;
-        }
-
-        .mobile-logo-box:hover {
-            animation-duration: 2.8s !important;
-        }
-
-        .mobile-logo-box::after {
-            content: '';
-            position: absolute;
-            top: -60%;
-            left: -80%;
-            width: 50%;
-            height: 220%;
-            background: linear-gradient(
-                90deg,
-                transparent 0%,
-                rgba(255, 255, 255, 0.4) 40%,
-                rgba(255, 255, 255, 0.9) 50%,
-                rgba(255, 255, 255, 0.4) 60%,
-                transparent 100%
-            );
-            transform: rotate(26deg);
-            pointer-events: none;
-            z-index: 3;
-            animation: welcomeLogoGlint 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-        }
-
-        .mobile-logo-glow {
-            position: absolute;
-            inset: -8px;
-            background: conic-gradient(from 0deg, #ffeaa7, #6c5ce7, #00cec9, #a29bfe, #ffeaa7);
-            border-radius: 26px;
-            filter: blur(10px);
-            opacity: 0.45;
-            animation: welcomeGlowSpin 7s linear infinite, welcomeHaloGlow 3.2s ease-in-out infinite alternate;
-            z-index: 0;
-            pointer-events: none;
         }
 
         .mobile-logo-box img {
@@ -1397,7 +1133,7 @@
            ========================================== */
         .btn-primary {
             width: 100%;
-            padding: 15px;
+            padding: 14px;
             border: none;
             border-radius: 12px;
             background: linear-gradient(135deg, #6C5CE7, #a29bfe);
@@ -1413,36 +1149,6 @@
             justify-content: center;
             gap: 8px;
             margin-top: 4px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-primary::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: linear-gradient(90deg,
-                    transparent 0%,
-                    rgba(255, 255, 255, 0.1) 30%,
-                    rgba(255, 255, 255, 0.3) 50%,
-                    rgba(255, 255, 255, 0.1) 70%,
-                    transparent 100%);
-            background-size: 200% 100%;
-            animation: sparkle 4s ease-in-out infinite;
-            pointer-events: none;
-        }
-
-        @keyframes sparkle {
-            0% {
-                background-position: -200% center;
-            }
-
-            100% {
-                background-position: 200% center;
-            }
         }
 
         .btn-primary:hover {
@@ -1811,12 +1517,13 @@
             }
 
             .splash-logo-wrapper {
-                width: 64px;
-                height: 64px;
+                width: 80px;
+                height: 80px;
+                border-radius: 22px;
             }
 
             .splash-title {
-                font-size: 20px;
+                font-size: 32px;
             }
         }
 
@@ -1835,24 +1542,18 @@
             }
 
             .welcome-title {
-                font-size: 22px;
+                font-size: 24px;
             }
 
             .welcome-desc {
                 font-size: 13px;
-                margin-bottom: 12px;
-            }
-
-            .welcome-badge {
-                padding: 4px 10px;
-                font-size: 11px;
-                margin-bottom: 14px;
+                margin-bottom: 16px;
             }
 
             .welcome-logo {
-                width: 56px;
-                height: 56px;
-                border-radius: 16px;
+                width: 64px;
+                height: 64px;
+                border-radius: 18px;
             }
 
             .login-side {
@@ -1880,12 +1581,13 @@
             }
 
             .splash-logo-wrapper {
-                width: 56px;
-                height: 56px;
+                width: 72px;
+                height: 72px;
+                border-radius: 20px;
             }
 
             .splash-title {
-                font-size: 18px;
+                font-size: 28px;
             }
         }
 
@@ -1937,8 +1639,9 @@
         </div>
 
         <div class="splash-footer-brand">
+            <span class="footer-live-dot"></span>
             <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
-            <span>Conexão Segura</span>
+            <span>Criptografia Ponta a Ponta</span>
         </div>
     </div>
 
@@ -1961,7 +1664,6 @@
 
             <div class="welcome-content">
                 <div class="welcome-logo-container">
-                    <div class="welcome-logo-glow"></div>
                     <div class="welcome-logo">
                         <img src="./icons/logo.png" onerror="this.onerror=null; this.src='/icons/logo.png'" alt="TonuControle" id="loginLogo">
                     </div>
@@ -1969,11 +1671,6 @@
 
                 <h1 class="welcome-title">Bem-vindo ao<br><span>TonuControle</span></h1>
                 <p class="welcome-desc">Gerencie suas finanças com simplicidade, segurança e controle inteligente.</p>
-
-                <div class="welcome-badge">
-                    <span class="badge-pulse-dot"></span>
-                    <span>100% Criptografado &amp; Seguro</span>
-                </div>
 
                 <div class="welcome-features">
                     <div class="feature">
@@ -2011,7 +1708,6 @@
         <div class="login-side">
             <div class="mobile-logo">
                 <div class="mobile-logo-container">
-                    <div class="mobile-logo-glow" aria-hidden="true"></div>
                     <div class="mobile-logo-box">
                         <img src="./icons/logo.png" onerror="this.onerror=null; this.src='/icons/logo.png'" alt="TonuControle">
                     </div>
@@ -2055,9 +1751,7 @@
                     <a onclick="resetPassword()" role="button" tabindex="0">Esqueceu a senha?</a>
                 </div>
 
-                <button type="submit" class="btn-primary" id="loginBtn">
-                    <span>Entrar</span>
-                </button>
+                <button type="submit" class="btn-primary" id="loginBtn">Entrar</button>
 
                 <button type="button" class="btn-biometric" id="biometricLoginBtn" onclick="handleBiometricLogin()"
                     aria-label="Login com biometria">
@@ -2095,9 +1789,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-primary" id="registerBtn">
-                    <span>Criar Conta</span>
-                </button>
+                <button type="submit" class="btn-primary" id="registerBtn">Criar Conta</button>
             </form>
 
             <div class="divider" role="separator">

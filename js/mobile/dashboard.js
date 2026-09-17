@@ -53,13 +53,42 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ============================================
 async function loadCategories() {
     try {
-        const { data, error } = await supabaseClient
-            .from("categories")
-            .select("*")
-            .eq("user_id", currentUser.id);
+        let loaded = null;
+        try {
+            const { data, error } = await supabaseClient
+                .from("categories")
+                .select("*")
+                .or(`user_id.eq.${currentUser.id},is_default.eq.true,user_id.is.null`)
+                .order("name");
+            if (!error && data && data.length > 0) loaded = data;
+        } catch (_) {
+            const { data, error } = await supabaseClient
+                .from("categories")
+                .select("*")
+                .eq("user_id", currentUser.id);
+            if (!error && data && data.length > 0) loaded = data;
+        }
 
-        if (error) throw error;
-        categories = data || [];
+        if (loaded && loaded.length > 0) {
+            categories = loaded;
+        } else {
+            categories = [
+                { id: 'cat_contas', name: '⚡ Contas Básicas', type: 'expense', icon: 'fa-bolt', color: '#0984E3' },
+                { id: 'cat_lazer', name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#A29BFE' },
+                { id: 'cat_saude', name: '❤️ Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#FF6B6B' },
+                { id: 'cat_educacao', name: '📚 Educação', type: 'expense', icon: 'fa-book', color: '#0984E3' },
+                { id: 'cat_emprestimos', name: '🤝 Empréstimos', type: 'expense', icon: 'fa-hand-holding-usd', color: '#D63031' },
+                { id: 'cat_cartao', name: '💳 Cartão de Crédito', type: 'expense', icon: 'fa-credit-card', color: '#E17055' },
+                { id: 'cat_moradia', name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#E17055' },
+                { id: 'cat_comunicacao', name: '📡 Comunicação', type: 'expense', icon: 'fa-wifi', color: '#636E72' },
+                { id: 'cat_alimentacao', name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF6B6B' },
+                { id: 'cat_transporte', name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#FDCB6E' },
+                { id: 'cat_salario', name: '💰 Salário', type: 'income', icon: 'fa-money-bill-wave', color: '#00B894' },
+                { id: 'cat_investimentos', name: '💼 Investimentos', type: 'income', icon: 'fa-chart-line', color: '#00CEC9' },
+                { id: 'cat_bico', name: '🛵 Bico / Extra', type: 'income', icon: 'fa-gift', color: '#00B894' },
+                { id: 'cat_outros', name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#B2BEC3' }
+            ];
+        }
         console.log("✅ Categorias carregadas:", categories.length);
     } catch (e) {
         console.error("❌ Erro ao carregar categorias:", e);
@@ -279,23 +308,44 @@ function renderMobileChart() {
     const expenses = allTransactions.filter(t => t.type === "expense" && isTxPaid(t));
     const catMap = {};
     expenses.forEach(t => {
-        const catId = t.category_id || "outros";
+        let cat = null;
+        if (t.category_id && categories && categories.length > 0) {
+            cat = categories.find(c => c.id === t.category_id);
+        }
+        if (!cat && t.categories && typeof t.categories === 'object') {
+            cat = t.categories;
+        }
+        if (!cat && t.category && categories && categories.length > 0) {
+            const clean = t.category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+            cat = categories.find(c => {
+                const cClean = (c.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                return cClean === clean || cClean.includes(clean) || clean.includes(cClean);
+            });
+        }
+
+        const name = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : "Outros");
+        const style = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
+            ? window.getBackendCategoryStyle(name, cat)
+            : { color: cat?.color || '#0984E3', icon: cat?.icon || 'fa-tag', name: name };
+
+        const groupKey = cat?.id || name;
         const amt = Number(t.amount) || 0;
-        if (!catMap[catId]) catMap[catId] = 0;
-        catMap[catId] += amt;
+
+        if (!catMap[groupKey]) {
+            catMap[groupKey] = {
+                id: groupKey,
+                name: name,
+                icon: style.icon,
+                color: style.color,
+                amount: 0
+            };
+        }
+        catMap[groupKey].amount += amt;
+        if (style.color) catMap[groupKey].color = style.color;
+        if (style.icon) catMap[groupKey].icon = style.icon;
     });
 
-    const sorted = Object.entries(catMap)
-        .map(([id, amount]) => {
-            const cat = categories.find(c => c.id === id);
-            return {
-                id: id,
-                name: cat?.name || "Outros",
-                icon: cat?.icon || "fa-tag",
-                color: cat?.color || "#6C5CE7",
-                amount: amount
-            };
-        })
+    const sorted = Object.values(catMap)
         .sort((a, b) => b.amount - a.amount)
         .slice(0, 6);
 
@@ -695,9 +745,19 @@ function renderTransactions() {
 
     container.innerHTML = recent.map(t => {
         const isIncome = t.type === "income";
-        const cat = categories.find(c => c.id === t.category_id);
-        const color = cat?.color || (isIncome ? "#00B894" : "#FF7675");
-        const icon = cat?.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
+        let cat = null;
+        if (t.category_id && categories && categories.length > 0) {
+            cat = categories.find(c => c.id === t.category_id);
+        }
+        if (!cat && t.categories && typeof t.categories === 'object') {
+            cat = t.categories;
+        }
+        const style = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
+            ? window.getBackendCategoryStyle(t.category || t.description, cat)
+            : { color: cat?.color || (isIncome ? "#00B894" : "#FF6B6B"), icon: cat?.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag") };
+
+        const color = cat?.color || style.color || (isIncome ? "#00B894" : "#FF6B6B");
+        const icon = cat?.icon || style.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
         const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
 
         return `

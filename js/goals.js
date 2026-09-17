@@ -596,6 +596,7 @@ async function saveGoal(event) {
         }
 
         showToast(editId ? 'Meta atualizada! 🎯' : 'Meta criada! 🎯', 'success');
+        if (window.triggerHaptic) window.triggerHaptic('success');
         closeModal();
         await loadGoals();
         if (completed && !wasCompleted) {
@@ -920,6 +921,7 @@ async function submitAddValue(event) {
 
         const msg = completed ? '🎉 Meta concluída! Parabéns!' : `💰 ${formatCurrency(amount)} adicionado!`;
         showToast(msg, 'success');
+        if (window.triggerHaptic) window.triggerHaptic(completed ? 'heavy' : 'success');
         closeAddValue();
         await loadGoals();
         if (completed) {
@@ -1193,6 +1195,10 @@ function triggerCelebration(title, amount) {
 
     overlay.classList.add('active');
     document.body.classList.add('no-scroll');
+
+    if (window.triggerHaptic) {
+        window.triggerHaptic('heavy');
+    }
 
     playCelebrationSound();
     startCelebrationCanvas();
