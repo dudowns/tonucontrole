@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -270,10 +270,7 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
-            <button onclick="openModal()" title="Adicionar Conta" style="background:#6C5CE7;color:#fff;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;border:none;">
-                <i class="fas fa-plus"></i> Nova
-            </button>
+            <button onclick="toggleTheme()" title="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
         </div>
     </div>
     <div class="greeting">Gestão de Vencimentos</div>
@@ -380,16 +377,16 @@
     </div>
 </div>
 
-<!-- FLOATING ACTION BUTTON (NOVA CONTA) -->
-<button class="mobile-fab" onclick="openModal()" aria-label="Nova Conta" title="Nova Conta">
-    <i class="fas fa-plus"></i>
-</button>
-
-<!-- BOTTOM NAV (6 DESTINOS ESSENCIAIS) -->
+<!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
 <nav class="bottom-nav">
     <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
     <a href="transactions.html"><i class="fas fa-receipt"></i><span>Extrato</span></a>
     <a href="bills.html" class="active"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <div class="nav-center">
+        <button type="button" class="nav-add-btn" onclick="openModal()" aria-label="Nova Conta" title="Nova Conta">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
     <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investir</span></a>
     <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
     <a href="settings.html"><i class="fas fa-cog"></i><span>Ajustes</span></a>
@@ -557,7 +554,7 @@ function renderBills() {
             <div style="text-align:center;padding:36px 14px;">
                 <span style="font-size:36px;">📋</span>
                 <p style="font-size:14px;font-weight:600;margin:8px 0 2px 0;">Nenhuma conta ${label} no período</p>
-                <p style="font-size:12px;color:#94a3b8;margin:0;">Toque em "+ Nova" para cadastrar</p>
+                <p style="font-size:12px;color:#94a3b8;margin:0;">Toque no botão central "+" para cadastrar</p>
             </div>
         `;
         return;

@@ -253,10 +253,7 @@
                          ========================================== -->
                     <div class="settings-tabs-wrapper">
                         <div class="settings-nav-tabs" role="tablist" aria-label="Categorias de configuração">
-                            <button class="settings-tab-btn active" data-tab="all" onclick="switchSettingsCategory('all', this)" role="tab" aria-selected="true">
-                                <i class="fas fa-layer-group" aria-hidden="true"></i> Todas as Seções
-                            </button>
-                            <button class="settings-tab-btn" data-tab="general" onclick="switchSettingsCategory('general', this)" role="tab" aria-selected="false">
+                            <button class="settings-tab-btn active" data-tab="general" onclick="switchSettingsCategory('general', this)" role="tab" aria-selected="true">
                                 <i class="fas fa-sliders-h" aria-hidden="true"></i> Geral & Visual
                             </button>
                             <button class="settings-tab-btn" data-tab="budgets" onclick="switchSettingsCategory('budgets', this)" role="tab" aria-selected="false">
@@ -912,14 +909,12 @@
                 setTimeout(window.renderSettingsBudgets, 300);
             }
 
-            const requestedTab = localStorage.getItem('tonu_settings_active_tab');
-            if (requestedTab) {
-                const targetBtn = document.querySelector(`.settings-tab-btn[data-tab="${requestedTab}"]`);
-                if (targetBtn) {
-                    switchSettingsCategory(requestedTab, targetBtn);
-                }
-                localStorage.removeItem('tonu_settings_active_tab');
+            const requestedTab = localStorage.getItem('tonu_settings_active_tab') || 'general';
+            const targetBtn = document.querySelector(`.settings-tab-btn[data-tab="${requestedTab}"]`);
+            if (targetBtn) {
+                switchSettingsCategory(requestedTab, targetBtn);
             }
+            localStorage.removeItem('tonu_settings_active_tab');
             console.log('✅ Settings.html repaginado com sucesso!');
         });
     </script>
