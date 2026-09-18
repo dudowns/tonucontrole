@@ -615,7 +615,7 @@ function computeRealPositions() {
 
         const pos = map.get(ticker);
         const qty = parseFloat(t.quantity) || 0;
-        const total = parseFloat(t.total_value || t.amount || (qty * (parseFloat(t.price) || 0))) || 0;
+        const total = parseFloat(t.total_value || t.amount || (qty * (parseFloat(t.unit_price) || 0))) || 0;
         const type = (t.type || '').toLowerCase();
 
         pos.totalTransactions++;
@@ -775,7 +775,7 @@ function renderOperations() {
                     </strong>
                 </div>
                 <div class="op-card-bottom">
-                    <span>${op.quantity} un. @ ${formatCurrency(op.price)} • ${formatDate(op.date)}</span>
+                    <span>${op.quantity} un. @ ${formatCurrency(op.unit_price)} • ${formatDate(op.date)}</span>
                     <div class="op-actions">
                         <button class="op-btn" onclick="editOperation('${op.id}')" title="Editar"><i class="fas fa-pen"></i></button>
                         <button class="op-btn del" onclick="deleteOperation('${op.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
@@ -926,7 +926,7 @@ async function handleOpSubmit(e) {
         type: type,
         asset_class: assetClass,
         quantity: qty,
-        price: price,
+        unit_price: price,
         total_value: total,
         date: date
     };
@@ -968,7 +968,7 @@ function editOperation(id) {
     document.getElementById("opTicker").value = op.ticker;
     document.getElementById("opClass").value = op.asset_class || "Ações";
     document.getElementById("opQty").value = op.quantity;
-    document.getElementById("opPrice").value = op.price;
+    document.getElementById("opPrice").value = op.unit_price || op.price || '';
     document.getElementById("opTotal").value = op.total_value;
     document.getElementById("opDate").value = (op.date || '').split("T")[0];
     setOpType(op.type || "Compra");

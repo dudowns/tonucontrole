@@ -2,7 +2,7 @@
 // TONUCONTROLE SERVICE WORKER
 // ============================================
 
-const CACHE_NAME = 'tonucontrole-v2.2.3';
+const CACHE_NAME = 'tonucontrole-v2.2.4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -20,6 +20,7 @@ const ASSETS_TO_CACHE = [
   '/icons/logo.png',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
+  '/js/device-router.js',
   '/js/supabase.js',
   '/js/core.js',
   '/js/security.js',

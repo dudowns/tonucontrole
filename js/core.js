@@ -258,7 +258,7 @@ function formatCurrency(value) {
         value = 0;
     }
     if (typeof value === 'string') {
-        var cleaned = value.replace(/[R$€\$\s]/g, '');
+        var cleaned = value.replace(/[R$\s]/g, '');
         if (cleaned.includes(',') && cleaned.includes('.')) {
             cleaned = cleaned.replace(/\./g, '').replace(',', '.');
         } else if (cleaned.includes(',')) {
@@ -268,30 +268,19 @@ function formatCurrency(value) {
     }
     var num = Number(value);
     if (isNaN(num)) num = 0;
-
-    var cur = 'BRL';
     try {
-        cur = localStorage.getItem('tonu_currency') || 'BRL';
-    } catch (e) {}
-
-    var locale = 'pt-BR';
-    if (cur === 'USD') locale = 'en-US';
-    else if (cur === 'EUR') locale = 'de-DE';
-
-    try {
-        var formatted = new Intl.NumberFormat(locale, {
+        var formatted = new Intl.NumberFormat('pt-BR', {
             style: 'currency',
-            currency: cur,
+            currency: 'BRL',
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(num);
         return formatted.replace(/\u00A0/g, ' ');
     } catch (error) {
-        var prefix = cur === 'USD' ? '$ ' : (cur === 'EUR' ? '€ ' : 'R$ ');
         var isNegative = num < 0;
         var parts = Math.abs(num).toFixed(2).split('.');
         var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        var res = prefix + intPart + ',' + parts[1];
+        var res = 'R$ ' + intPart + ',' + parts[1];
         return isNegative ? '-' + res : res;
     }
 }
@@ -1994,94 +1983,4 @@ if (typeof document !== 'undefined') {
     }
 }
 
-// ============================================
-// GESTÃO DO BACK BUTTON (ANDROID & NAVEGADOR MOBILE)
-// ============================================
-(function initMobileBackButton() {
-    if (typeof window === 'undefined') return;
-
-    let lastBackPressedTime = 0;
-    let modalStack = [];
-
-    window.TonuBackHandler = {
-        pushModal: function(closeFn) {
-            try {
-                window.history.pushState({ tonu_modal: true, depth: modalStack.length + 1 }, '');
-                modalStack.push(closeFn);
-            } catch (e) {
-                console.warn('TonuBackHandler push error:', e);
-            }
-        },
-        popModal: function() {
-            if (modalStack.length > 0) {
-                modalStack.pop();
-            }
-        }
-    };
-
-    window.addEventListener('popstate', function(event) {
-        // 1. Verifica se há funções de fechamento de modal registradas na pilha
-        if (modalStack.length > 0) {
-            const closeFn = modalStack.pop();
-            if (typeof closeFn === 'function') {
-                try {
-                    closeFn();
-                    return;
-                } catch (err) {
-                    console.warn('Erro ao fechar modal da pilha:', err);
-                }
-            }
-        }
-
-        // 2. Busca elementos de modal/sheet visíveis no DOM
-        const activeOverlays = document.querySelectorAll('.mobile-modal-overlay.active, .modal.active, .sheet-overlay.active, .mobile-filter-sheet.active, .modal-backdrop.show');
-        if (activeOverlays.length > 0) {
-            const topModal = activeOverlays[activeOverlays.length - 1];
-            topModal.classList.remove('active', 'show');
-            if (window.navigator && typeof window.navigator.vibrate === 'function') {
-                window.navigator.vibrate(20);
-            }
-            return;
-        }
-
-        // 3. Se estiver em sub-páginas mobile e não houver histórico anterior, vai para dashboard
-        const currentPath = window.location.pathname;
-        const isMobileSubPage = currentPath.includes('/mobile/') && 
-            !currentPath.includes('dashboard.html') && 
-            !currentPath.includes('index');
-
-        if (isMobileSubPage) {
-            if (window.history.length <= 2) {
-                event.preventDefault();
-                window.location.href = 'dashboard.html';
-                return;
-            }
-        }
-
-        // 4. Se estiver no dashboard mobile, confirmação dupla para sair do app
-        const isDashboard = currentPath.includes('dashboard.html') || currentPath.endsWith('/') || currentPath.endsWith('/index.html');
-        if (isDashboard && window.history.state && window.history.state.root) {
-            const now = Date.now();
-            if (now - lastBackPressedTime < 2500) {
-                // Deixa sair
-                return;
-            } else {
-                lastBackPressedTime = now;
-                event.preventDefault();
-                window.history.pushState({ root: true }, '');
-                if (typeof showToast === 'function') {
-                    showToast('Toque novamente para fechar o app', 'info');
-                }
-            }
-        }
-    });
-
-    // Se estiver no dashboard, marca o estado raiz
-    if (window.location.pathname.includes('dashboard.html') || window.location.pathname.endsWith('/index.html')) {
-        try {
-            window.history.replaceState({ root: true }, '');
-        } catch (e) {}
-    }
-})();
-
-console.log('✅ Core.js configurado com transições, busca rápida, navegação Android e animações!');
+console.log('✅ Core.js configurado com transições, busca rápida e animações!');

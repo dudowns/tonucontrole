@@ -1970,6 +1970,34 @@ async function generateDashboardInsights() {
                 </div>
             ` : ''}
 
+            <!-- BLOCO COMPARATIVO MÊS A MÊS (MoM) -->
+            <div class="insight-mom-box">
+                <div class="insight-mom-header">
+                    <div class="insight-mom-title">
+                        <i class="fas fa-chart-simple"></i>
+                        <span>Comparativo Mês a Mês (vs. ${capitalizedPrevMonth})</span>
+                    </div>
+                    <span class="badge badge-${momStatusBadge}" style="font-size: 10px;">${momStatusText}</span>
+                </div>
+                <div class="insight-mom-grid">
+                    <div class="insight-mom-item">
+                        <span class="label">Despesas</span>
+                        <span class="val">${formatCurrency(totalExpense)}</span>
+                        <span class="diff ${expenseDiffClass}"><i class="fas ${expenseDiffIcon}"></i> ${expenseDiffLabel}</span>
+                    </div>
+                    <div class="insight-mom-item">
+                        <span class="label">Receitas</span>
+                        <span class="val">${formatCurrency(totalIncome)}</span>
+                        <span class="diff ${incomeDiffClass}"><i class="fas ${incomeDiffIcon}"></i> ${incomeDiffLabel}</span>
+                    </div>
+                    <div class="insight-mom-item">
+                        <span class="label">Renda Poupada</span>
+                        <span class="val">${formatCurrency(netBalance)}</span>
+                        <span class="diff ${balanceDiffClass}"><i class="fas ${balanceDiffIcon}"></i> ${balanceDiffLabel}</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- BLOCO ESTRATÉGICO: COMO DIMINUIR GASTOS & INVESTIR MAIS -->
             <div class="insight-strategy-box">
                 <div class="insight-strategy-header">
@@ -1977,6 +2005,7 @@ async function generateDashboardInsights() {
                     <span>Diagnóstico: Como Economizar e Investir Mais</span>
                 </div>
                 <div class="insight-strategy-items">
+                    ${momStrategyTip}
                     ${savingTipHTML}
                     ${capacityTipHTML}
                     ${passiveTipHTML}

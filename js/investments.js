@@ -173,8 +173,16 @@ function parseBrazilianNumber(value) {
         const parts = str.split('.');
         if (parts.length > 2) {
             str = parts.join('');
-        } else if (parts[1] && parts[1].length === 3 && Number(parts[0]) >= 1) {
-            str = parts[0] + parts[1];
+        } else if (parts[1] && parts[1].length === 2) {
+            // 1 ponto com 2 casas: decimal (mantém como está)
+        } else if (parts[1] && parts[1].length === 3) {
+            const beforeDigits = parts[0].length;
+            if (beforeDigits === 1) {
+                // Decimal (ex: "1.250" -> 1.25)
+            } else {
+                // Milhar (ex: "10.500" -> 10500)
+                str = parts[0] + parts[1];
+            }
         }
     }
 
@@ -735,7 +743,7 @@ async function saveOperation(e) {
             assetClass = inferClass(ticker) || 'Ações';
         }
 
-        const validClasses = ['Ações', 'FIIs', 'ETFs', 'Tesouro'];
+        const validClasses = ['Ações', 'FIIs', 'ETFs', 'Tesouro', 'BDRs'];
         if (!validClasses.includes(assetClass)) {
             assetClass = 'Ações';
         }

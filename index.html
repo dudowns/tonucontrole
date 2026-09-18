@@ -1935,9 +1935,9 @@
             const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
             const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(ua);
             const isTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-            const isSmall = window.innerWidth <= 768;
+            const isSmall = (window.innerWidth > 0 && window.innerWidth <= 820) || (window.screen && window.screen.width <= 820);
 
-            return isMobileUA || (isTouch && isSmall) || isSmall;
+            return isMobileUA || (isTouch && isSmall) || (window.innerWidth > 0 && window.innerWidth <= 768);
         }
 
         function getAppTargetUrl(page) {
@@ -2091,7 +2091,13 @@
                     statusText.innerText = 'Tudo pronto!';
 
                     setTimeout(() => {
-                        splash.classList.add('hidden');
+                        if (authenticatedUser) {
+                            var redirectUrl = getAppTargetUrl('dashboard.html');
+                            console.log('🚀 Usuário autenticado, direcionando automaticamente para:', redirectUrl);
+                            window.location.href = redirectUrl;
+                        } else {
+                            splash.classList.add('hidden');
+                        }
                     }, 400);
                 } else {
                     const currentPercent = Math.floor(progress);
