@@ -20,7 +20,7 @@
     <link rel="stylesheet" href="../../css/mobile.css">
     <link rel="stylesheet" href="../../css/notifications.css">
     <style>
-        body { padding-bottom: 85px; background: var(--color-bg, #f8fafc); }
+        body { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)); background: var(--color-bg, #f8fafc); }
         
         .month-bar {
             display: flex;
@@ -278,10 +278,15 @@
 
 <main class="mobile-content">
     <!-- NAVEGADOR DE MÊS -->
-    <div class="month-bar">
-        <button class="month-btn" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
-        <span class="month-title" id="monthTitle">Carregando...</span>
-        <button class="month-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+        <div class="month-bar" style="flex:1;">
+            <button class="month-btn" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+            <span class="month-title" id="monthTitle">Carregando...</span>
+            <button class="month-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <button type="button" class="btn-primary" onclick="openModal()" style="height:42px; padding:0 14px; border-radius:12px; font-weight:600; font-size:13px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; border:none; background:linear-gradient(135deg, #6C5CE7, #8B5CF6); color:#fff; cursor:pointer; box-shadow:0 3px 10px rgba(108,92,231,0.25);">
+            <i class="fas fa-plus"></i> Conta
+        </button>
     </div>
 
     <!-- CARDS DE RESUMO -->
@@ -377,16 +382,11 @@
     </div>
 </div>
 
-<!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
+<!-- BOTTOM NAV (6 DESTINOS ESSENCIAIS PADRONIZADOS) -->
 <nav class="bottom-nav">
     <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
     <a href="transactions.html"><i class="fas fa-receipt"></i><span>Extrato</span></a>
     <a href="bills.html" class="active"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
-    <div class="nav-center">
-        <button type="button" class="nav-add-btn" onclick="openModal()" aria-label="Nova Conta" title="Nova Conta">
-            <i class="fas fa-plus"></i>
-        </button>
-    </div>
     <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investir</span></a>
     <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
     <a href="settings.html"><i class="fas fa-cog"></i><span>Ajustes</span></a>

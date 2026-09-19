@@ -22,7 +22,7 @@
     <link rel="stylesheet" href="../../css/sync-status.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { padding-bottom: 76px; }
+        body { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
         .skip-link {
             position: absolute; top: -100%; left: 50%; transform: translateX(-50%);
             padding: 12px 24px; background: #6C5CE7; color: #fff; border-radius: 8px;

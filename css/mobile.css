@@ -354,28 +354,27 @@ body.dark-theme .mobile-topbar .greeting {
 }
 
 /* ==========================================
-   BOTTOM NAVIGATION (MODERNA COM BOTÃO CENTRAL +)
+   BOTTOM NAVIGATION (6 DESTINOS ESSENCIAIS PADRONIZADOS)
    ========================================== */
 .bottom-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    background: var(--color-surface, rgba(255, 255, 255, 0.96));
+    background: var(--color-surface, rgba(255, 255, 255, 0.98));
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border-top: 1px solid var(--color-border, #e2e8f0);
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding-top: 4px;
-    padding-left: max(4px, env(safe-area-inset-left, 0px));
-    padding-right: max(4px, env(safe-area-inset-right, 0px));
-    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+    padding-top: 6px;
+    padding-left: max(6px, env(safe-area-inset-left, 0px));
+    padding-right: max(6px, env(safe-area-inset-right, 0px));
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
     z-index: 999;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
-    min-height: calc(58px + env(safe-area-inset-bottom, 0px));
-    height: auto;
+    height: calc(62px + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
 }
 
@@ -389,8 +388,8 @@ body.dark-theme .mobile-topbar .greeting {
     color: var(--color-text-muted, #94a3b8);
     text-decoration: none;
     gap: 3px;
-    padding: 6px 2px;
-    min-height: 44px;
+    padding: 4px 2px;
+    height: 100%;
     transition: color 0.15s ease, transform 0.1s ease;
     min-width: 0;
     flex: 1;
