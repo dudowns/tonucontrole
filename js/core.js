@@ -7,6 +7,8 @@ console.log('✅ Core.js carregado');
 // ============================================
 // 0. CONFIGURAÇÕES GLOBAIS
 // ============================================
+window.TONU_JCP_TAX_RATE = 0.15; // Alíquota oficial de retenção de IR na fonte sobre JCP (15%)
+
 window.APP_CONFIG = {
     BRAPI_TOKEN: window.ENV?.BRAPI_TOKEN || 'n3pZmgKo5YZwJcNx1sfPSN',
     VERSION: '2.1.0',

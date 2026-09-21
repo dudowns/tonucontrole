@@ -776,16 +776,17 @@
 
                     // Calcular valor líquido se for JCP ou net_value
                     let totalVal = 0;
+                    const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : 0.15;
                     if (div.net_value !== undefined && div.net_value !== null && Number(div.net_value) > 0) {
                         totalVal = Number(div.net_value);
                     } else if (div.total_value !== undefined && div.total_value !== null && Number(div.total_value) > 0) {
                         const raw = Number(div.total_value);
                         const isJCP = typeLabel.toUpperCase().includes('JCP');
-                        totalVal = isJCP ? raw * 0.85 : raw;
+                        totalVal = isJCP ? raw * (1 - jcpTax) : raw;
                     } else if (div.quantity && div.unit_value) {
                         const calc = Number(div.quantity) * Number(div.unit_value);
                         const isJCP = typeLabel.toUpperCase().includes('JCP');
-                        totalVal = isJCP ? calc * 0.85 : calc;
+                        totalVal = isJCP ? calc * (1 - jcpTax) : calc;
                     }
 
                     // A) Provento Creditado HOJE

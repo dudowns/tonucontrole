@@ -62,7 +62,8 @@ create policy "Usuários podem inserir seus próprios eventos corporativos"
 
 create policy "Usuários podem atualizar seus próprios eventos corporativos"
   on public.corporate_events for update
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 create policy "Usuários podem excluir seus próprios eventos corporativos"
   on public.corporate_events for delete

@@ -154,11 +154,11 @@
 
                 <!-- Cards de Resumo (4 Pilares Financeiros - Compacto) -->
                 <div class="dashboard-grid" id="summaryGrid">
-                    <!-- 1. Saldo do Mês -->
-                    <div class="card-stat primary card-stat-balance" id="cardStatBalance" onclick="window.location.href='transactions.html'" style="cursor: pointer;" title="Clique para ver transações do mês">
+                    <!-- 1. Saldo Operacional -->
+                    <div class="card-stat primary card-stat-balance" id="cardStatBalance" onclick="window.location.href='transactions.html'" style="cursor: pointer;" title="Saldo das receitas recebidas menos despesas pagas no mês">
                         <div class="stat-icon primary"><i class="fas fa-wallet"></i></div>
                         <div class="stat-info">
-                            <div class="stat-label">Saldo do Mês</div>
+                            <div class="stat-label">Saldo Operacional</div>
                             <div class="stat-value" id="totalBalance">R$ 0,00</div>
                             <div class="stat-sub" id="balanceStatus">Calculando...</div>
                         </div>
@@ -180,7 +180,10 @@
                         <div class="stat-info">
                             <div class="stat-label">Total de Despesas</div>
                             <div class="stat-value" id="totalExpense">R$ 0,00</div>
-                            <div class="stat-sub" id="expenseTrend">+0% vs anterior</div>
+                            <div class="stat-sub" id="expenseTrend">
+                                <span>+0% vs anterior</span>
+                                <span id="expensePendingSub" class="expense-pending-sub" style="display:block; font-size:10px; margin-top:2px; opacity:0.9;"></span>
+                            </div>
                         </div>
                     </div>
 

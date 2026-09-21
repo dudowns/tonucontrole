@@ -1381,7 +1381,8 @@ async function handleDivSubmit(e) {
     }
 
     const isJCP = type && String(type).toUpperCase().includes("JCP");
-    const netValue = isJCP ? parseFloat((totalValue * 0.85).toFixed(2)) : totalValue;
+    const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : 0.15;
+    const netValue = isJCP ? parseFloat((totalValue * (1 - jcpTax)).toFixed(2)) : totalValue;
 
     const payload = {
         user_id: currentUser.id,

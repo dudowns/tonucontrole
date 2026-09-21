@@ -877,9 +877,10 @@ async function saveDividend(e) {
         }
 
         const totalValue = expectedTotal;
-        // Cálculo de valor líquido (JCP retém 15% na fonte; Dividendos e Rendimentos são isentos)
+        // Cálculo de valor líquido (JCP retém IR na fonte configurado em window.TONU_JCP_TAX_RATE; Dividendos e Rendimentos são isentos)
         const isJCP = type && String(type).toUpperCase().includes('JCP');
-        const netValue = isJCP ? parseFloat((totalValue * 0.85).toFixed(2)) : totalValue;
+        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : 0.15;
+        const netValue = isJCP ? parseFloat((totalValue * (1 - jcpTax)).toFixed(2)) : totalValue;
 
         let finalNote = note ? note.trim() : '';
         if (dateCom) {
@@ -2776,8 +2777,9 @@ function renderProventosListTable() {
         const totalB = getDividendTotalValue(b);
         const isJCPA = (a.type && String(a.type).toUpperCase().includes('JCP'));
         const isJCPB = (b.type && String(b.type).toUpperCase().includes('JCP'));
-        const netA = isJCPA ? totalA * 0.85 : totalA;
-        const netB = isJCPB ? totalB * 0.85 : totalB;
+        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : 0.15;
+        const netA = isJCPA ? totalA * (1 - jcpTax) : totalA;
+        const netB = isJCPB ? totalB * (1 - jcpTax) : totalB;
 
         switch (provListSortField) {
             case 'ticker':
@@ -2834,9 +2836,10 @@ function renderProventosListTable() {
         const unitVal = getDividendUnitValue(d);
         const qtyVal = getDividendQuantity(d);
         const isJCP = (d.type && String(d.type).toUpperCase().includes('JCP'));
+        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : 0.15;
         const netVal = (d.net_value !== undefined && d.net_value !== null && Number(d.net_value) > 0)
             ? Number(d.net_value)
-            : (isJCP ? totalVal * 0.85 : totalVal);
+            : (isJCP ? totalVal * (1 - jcpTax) : totalVal);
 
         return `
             <tr>
@@ -3311,21 +3314,49 @@ function renderTransactions() {
 // ============================================
 // AUXILIAR PARA ATUALIZAR POSIÇÕES SIMULADAS
 // ============================================
-function applyTxToSimulatedPortfolio(simulatedPortfolio, tx) {
-    if (!tx || !tx.ticker) return;
-    const ticker = tx.ticker.toUpperCase().trim();
-    const qty = parseBrazilianNumber(tx.quantity);
-    let price = parseBrazilianNumber(tx.unit_price);
-    let totalVal = parseBrazilianNumber(tx.total_value);
-    if (totalVal <= 0 && qty > 0 && price > 0) totalVal = qty * price;
-    if (price <= 0 && qty > 0 && totalVal > 0) price = totalVal / qty;
+function applyTxToSimulatedPortfolio(simulatedPortfolio, item) {
+    if (!item || !item.ticker) return;
+    const ticker = item.ticker.toUpperCase().trim();
 
     if (!simulatedPortfolio.has(ticker)) {
         simulatedPortfolio.set(ticker, { quantity: 0, costBasis: 0 });
     }
     const pos = simulatedPortfolio.get(ticker);
 
-    const typeLower = (tx.type || '').toLowerCase();
+    // SE FOR EVENTO CORPORATIVO (Split, Inplit, Bonificação, Subscrição, Amortização)
+    if (item.isCorporateEvent) {
+        const evType = (item.event_type || item.type || '').trim();
+        if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+            const ratioFrom = parseFloat(item.ratio_from) || 1;
+            const ratioTo = parseFloat(item.ratio_to) || 1;
+            if (ratioFrom > 0 && ratioTo > 0 && pos.quantity > 0) {
+                pos.quantity = pos.quantity * (ratioTo / ratioFrom);
+            }
+        } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+            const sharesReceived = parseFloat(item.bonus_shares || item.shares_received || 0);
+            const unitCost = parseFloat(item.bonus_unit_cost || item.unit_value || 0);
+            if (sharesReceived > 0) {
+                pos.quantity += sharesReceived;
+                pos.costBasis += (sharesReceived * unitCost);
+            }
+        } else if (evType === 'Amortização') {
+            const amortPerShare = parseFloat(item.amortization_per_share || item.unit_value || 0);
+            if (amortPerShare > 0 && pos.quantity > 0) {
+                const totalAmort = amortPerShare * pos.quantity;
+                pos.costBasis = Math.max(0, pos.costBasis - totalAmort);
+            }
+        }
+        return;
+    }
+
+    // TRANSAÇÃO DE COMPRA / VENDA NORMAL
+    const qty = parseBrazilianNumber(item.quantity);
+    let price = parseBrazilianNumber(item.unit_price);
+    let totalVal = parseBrazilianNumber(item.total_value);
+    if (totalVal <= 0 && qty > 0 && price > 0) totalVal = qty * price;
+    if (price <= 0 && qty > 0 && totalVal > 0) price = totalVal / qty;
+
+    const typeLower = (item.type || '').toLowerCase();
     const isBuy = typeLower === 'compra' || typeLower === 'buy';
 
     if (isBuy) {
@@ -3368,33 +3399,46 @@ function buildChartData() {
         return { labels: ['Agora'], invested: [0], gain: [0], total: [0] };
     }
 
-    // Filtra e ordena todas as transações cronologicamente (compras antes de vendas no mesmo dia)
-    const validTransactions = allTransactions
+    // 1. Normaliza e filtra transações
+    const normalizedTx = (allTransactions || [])
         .filter(tx => tx && tx.ticker && parseTxDate(tx.date))
-        .sort((a, b) => {
-            const da = parseTxDate(a.date).getTime();
-            const db = parseTxDate(b.date).getTime();
-            if (da !== db) return da - db;
-            const typeA = (a.type || '').toLowerCase();
-            const typeB = (b.type || '').toLowerCase();
-            const isBuyA = typeA === 'compra' || typeA === 'buy';
-            const isBuyB = typeB === 'compra' || typeB === 'buy';
-            if (isBuyA && !isBuyB) return -1;
-            if (!isBuyA && isBuyB) return 1;
-            return (a.created_at || '').localeCompare(b.created_at || '');
-        });
+        .map(tx => ({
+            ...tx,
+            isCorporateEvent: false,
+            parsedDate: parseTxDate(tx.date),
+            sortPriority: (tx.type || '').toLowerCase().includes('compra') || (tx.type || '').toLowerCase().includes('buy') ? 1 : 2
+        }));
 
-    if (validTransactions.length === 0) {
+    // 2. Normaliza e filtra eventos corporativos
+    const normalizedEvents = (allCorporateEvents || [])
+        .filter(ev => ev && ev.ticker && parseTxDate(ev.event_date || ev.date))
+        .map(ev => ({
+            ...ev,
+            isCorporateEvent: true,
+            parsedDate: parseTxDate(ev.event_date || ev.date),
+            sortPriority: 0 // Prioridade no início do pregão na Data Ex
+        }));
+
+    // 3. Mescla e ordena rigorosamente por cronologia
+    const validTimeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
+        const da = a.parsedDate.getTime();
+        const db = b.parsedDate.getTime();
+        if (da !== db) return da - db;
+        if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+        return (a.created_at || '').localeCompare(b.created_at || '');
+    });
+
+    if (validTimeline.length === 0) {
         return { labels: ['Agora'], invested: [0], gain: [0], total: [0] };
     }
 
-    // Filtra transações e posições pela classe selecionada no topo do gráfico, se aplicável
-    let activeTransactions = validTransactions;
+    // Filtra itens e posições pela classe selecionada no topo do gráfico, se aplicável
+    let activeTimeline = validTimeline;
     let activePositions = positions;
     if (selectedEvolutionClass && selectedEvolutionClass !== 'all') {
-        activeTransactions = validTransactions.filter(tx => {
-            const cleanTicker = (tx.ticker || '').toUpperCase().trim();
-            let rawCls = tx.asset_class;
+        activeTimeline = validTimeline.filter(item => {
+            const cleanTicker = (item.ticker || '').toUpperCase().trim();
+            let rawCls = item.asset_class;
             if (KNOWN_STOCK_UNITS.has(cleanTicker)) {
                 rawCls = 'Ações';
             } else if (KNOWN_ETFS.has(cleanTicker)) {
@@ -3406,7 +3450,7 @@ function buildChartData() {
         activePositions = positions.filter(p => p.assetClass === selectedEvolutionClass);
     }
 
-    if (activeTransactions.length === 0) {
+    if (activeTimeline.length === 0) {
         return { labels: ['Sem dados'], invested: [0], gain: [0], total: [0] };
     }
 
@@ -3414,8 +3458,8 @@ function buildChartData() {
     let start;
 
     if (selectedPeriod === 'all') {
-        const firstTxDate = parseTxDate(activeTransactions[0].date) || new Date(end.getFullYear(), end.getMonth() - 11, 1);
-        start = new Date(firstTxDate.getFullYear(), firstTxDate.getMonth(), 1);
+        const firstDate = activeTimeline[0].parsedDate || new Date(end.getFullYear(), end.getMonth() - 11, 1);
+        start = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
 
         const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
         if (diffMonths < 3) {
@@ -3442,28 +3486,28 @@ function buildChartData() {
         currentDate.setMonth(currentDate.getMonth() + 1);
     }
 
-    // Agrupa transações nos meses correspondentes e pré-acumula as anteriores
+    // Agrupa itens nos meses correspondentes e pré-acumula os anteriores
     const simulatedPortfolio = new Map();
-    const txByMonth = new Map();
+    const itemsByMonth = new Map();
 
-    for (const tx of activeTransactions) {
-        const d = parseTxDate(tx.date);
+    for (const item of activeTimeline) {
+        const d = item.parsedDate;
         if (!d) continue;
 
         if (d < start) {
-            applyTxToSimulatedPortfolio(simulatedPortfolio, tx);
+            applyTxToSimulatedPortfolio(simulatedPortfolio, item);
         } else {
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            if (!txByMonth.has(key)) {
-                txByMonth.set(key, []);
+            if (!itemsByMonth.has(key)) {
+                itemsByMonth.set(key, []);
             }
-            txByMonth.get(key).push(tx);
+            itemsByMonth.get(key).push(item);
         }
     }
 
     for (const month of allMonths) {
-        if (txByMonth.has(month.key)) {
-            month.transactions = txByMonth.get(month.key);
+        if (itemsByMonth.has(month.key)) {
+            month.transactions = itemsByMonth.get(month.key);
         }
     }
 

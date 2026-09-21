@@ -243,7 +243,7 @@ function renderSummary() {
         <!-- HERO CARD FINTECH -->
         <div class="mobile-hero-balance">
             <div class="mobile-hero-top">
-                <span class="label"><i class="fas fa-wallet"></i> Saldo Disponível</span>
+                <span class="label"><i class="fas fa-wallet"></i> Saldo Operacional</span>
                 <button class="eye-toggle-btn" onclick="toggleBalanceVisibility()" title="${isBalanceHidden ? 'Mostrar Saldo' : 'Ocultar Saldo'}" aria-label="Alternar visibilidade do saldo">
                     <i class="fas ${isBalanceHidden ? 'fa-eye-slash' : 'fa-eye'}"></i>
                 </button>
@@ -257,8 +257,9 @@ function renderSummary() {
                     <span class="stat-value income">${mask(formatCurrency(income))}</span>
                 </div>
                 <div class="mobile-hero-stat">
-                    <span class="stat-label"><i class="fas fa-arrow-down" style="color:#fca5a5;"></i> Saídas</span>
+                    <span class="stat-label"><i class="fas fa-arrow-down" style="color:#fca5a5;"></i> Saídas Pagas</span>
                     <span class="stat-value expense">${mask(formatCurrency(expense))}</span>
+                    ${pendingBillsAmount > 0 ? `<span style="font-size:9px; color:#fbbf24; margin-top:2px; display:block;">Falta pagar: ${mask(formatCurrency(pendingBillsAmount))}</span>` : ''}
                 </div>
             </div>
         </div>

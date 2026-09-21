@@ -1167,21 +1167,38 @@ async function loadDashboard() {
             }
         }
 
+        const expensePendingSubEl = document.getElementById('expensePendingSub');
         if (expenseTrendEl) {
-            if (prevExpense > 0) {
-                const sign = expenseTrend >= 0 ? '+' : '';
-                expenseTrendEl.textContent = sign + expenseTrend.toFixed(0) + '% vs anterior';
-                expenseTrendEl.className = 'stat-sub ' + (expenseTrend <= 0 ? 'text-success' : 'text-danger');
+            const trendText = prevExpense > 0 
+                ? (expenseTrend >= 0 ? '+' : '') + expenseTrend.toFixed(0) + '% vs anterior'
+                : 'Mês de referência';
+            const trendClass = prevExpense > 0 
+                ? (expenseTrend <= 0 ? 'text-success' : 'text-danger')
+                : '';
+
+            if (expensePendingSubEl) {
+                const trendSpan = expenseTrendEl.querySelector('span');
+                if (trendSpan) {
+                    trendSpan.textContent = trendText;
+                    trendSpan.className = trendClass;
+                }
+                if (billsTotal > 0) {
+                    expensePendingSubEl.innerHTML = `<i class="fas fa-clock" style="margin-right:2px;"></i> Falta pagar: <strong>${formatCurrency(billsTotal)}</strong>`;
+                    expensePendingSubEl.style.color = '#F59E0B';
+                } else {
+                    expensePendingSubEl.innerHTML = `<i class="fas fa-check-circle" style="margin-right:2px;"></i> Nenhuma pendência`;
+                    expensePendingSubEl.style.color = '#00B894';
+                }
             } else {
-                expenseTrendEl.textContent = 'Mês de referência';
-                expenseTrendEl.className = 'stat-sub';
+                expenseTrendEl.textContent = trendText;
+                expenseTrendEl.className = 'stat-sub ' + trendClass;
             }
         }
 
         if (balanceStatusEl) {
             const projected = balance - billsTotal;
             if (billsTotal > 0) {
-                balanceStatusEl.innerHTML = `<span>Previsto: <strong style="color:${projected >= 0 ? '#00B894' : '#FF7675'}">${formatCurrency(projected)}</strong></span>`;
+                balanceStatusEl.innerHTML = `<span>Previsto pós-contas: <strong style="color:${projected >= 0 ? '#00B894' : '#FF7675'}">${formatCurrency(projected)}</strong></span>`;
             } else {
                 if (balance > 0) {
                     balanceStatusEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-arrow-trend-up"></i> Positivo</span>`;
