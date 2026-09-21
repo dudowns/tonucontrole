@@ -250,16 +250,19 @@
 
 <main class="mobile-content" style="padding: 12px 14px;">
 
-    <!-- TABS PRINCIPAIS: CARTEIRA, LANÇAMENTOS, PROVENTOS -->
-    <div class="mobile-tabs">
+    <!-- TABS PRINCIPAIS: CARTEIRA, LANÇAMENTOS, PROVENTOS, EVENTOS -->
+    <div class="mobile-tabs" style="grid-template-columns: repeat(4, 1fr);">
         <button class="mobile-tab-btn active" id="tabBtnCarteira" onclick="switchInvestTab('carteira')">
             <i class="fas fa-briefcase"></i> Carteira
         </button>
         <button class="mobile-tab-btn" id="tabBtnLancamentos" onclick="switchInvestTab('lancamentos')">
-            <i class="fas fa-list-ul"></i> Lançamentos
+            <i class="fas fa-list-ul"></i> Operações
         </button>
         <button class="mobile-tab-btn" id="tabBtnProventos" onclick="switchInvestTab('proventos')">
             <i class="fas fa-money-bill-wave"></i> Proventos
+        </button>
+        <button class="mobile-tab-btn" id="tabBtnEventos" onclick="switchInvestTab('eventos')">
+            <i class="fas fa-bolt"></i> Eventos
         </button>
     </div>
 
@@ -361,6 +364,27 @@
         </div>
     </div>
 
+    <!-- ==========================================
+         ABA 4: EVENTOS CORPORATIVOS
+         ========================================== -->
+    <div id="tabContentEventos" class="tab-content">
+        <div class="tab-action-bar">
+            <h2>Eventos Corporativos</h2>
+            <button class="btn-add-primary" onclick="openAddCorporateEventModal()">
+                <i class="fas fa-plus"></i> Novo Evento
+            </button>
+        </div>
+        <p style="font-size:11px; color:#64748b; margin:-6px 0 12px 0;">
+            Desdobramentos, agrupamentos e bonificações ajustam seu preço médio e cotas automaticamente.
+        </p>
+        <div id="corporateEventsListContainer">
+            <div class="spinner-center">
+                <span class="spinner"></span>
+                <p style="margin-top:8px;">Carregando eventos...</p>
+            </div>
+        </div>
+    </div>
+
 </main>
 
 <!-- MODAL: NOVA / EDITAR OPERAÇÃO -->
@@ -368,7 +392,10 @@
     <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
         <div class="sheet-drag-handle"></div>
         <div class="sheet-header">
-            <h3 id="opModalTitle">Nova Operação</h3>
+            <div>
+                <div style="font-size:11px; color:#6C5CE7; font-weight:600;"><i class="fas fa-chart-line"></i> Carteira de Investimentos</div>
+                <h3 id="opModalTitle" style="margin:0;">Nova Operação</h3>
+            </div>
             <button class="sheet-close-btn" onclick="closeModalOperation()"><i class="fas fa-times"></i></button>
         </div>
         <form id="opForm" onsubmit="handleOpSubmit(event)">
@@ -384,58 +411,65 @@
             <input type="hidden" id="opType" value="Compra">
 
             <div class="sheet-form-group">
-                <label>Ticker / Código (Ex: PETR4, MXRF11, Tesouro Selic)</label>
+                <label>Ticker do Ativo *</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-tag"></i>
-                    <input type="text" id="opTicker" class="sheet-input" placeholder="Ex: PETR4" style="text-transform: uppercase;" required>
+                    <input type="text" id="opTicker" class="sheet-input" placeholder="Ex: PETR4, HGLG11, IVVB11" style="text-transform: uppercase;" maxlength="20" required>
                 </div>
+                <small style="font-size:10px; color:#64748b; margin-top:2px; display:block;">Código negociado na B3 ou Tesouro</small>
             </div>
 
             <div class="sheet-form-group">
-                <label>Classe do Ativo</label>
+                <label>Classe de Ativo *</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-layer-group"></i>
                     <select id="opClass" class="sheet-input" required>
-                        <option value="Ações">Ações</option>
-                        <option value="FIIs">Fundos Imobiliários (FIIs)</option>
-                        <option value="Renda Fixa">Renda Fixa / Tesouro</option>
-                        <option value="ETFs">ETFs</option>
-                        <option value="Cripto">Criptomoedas</option>
-                        <option value="Outros">Outros</option>
+                        <option value="Ações">📈 Ações</option>
+                        <option value="FIIs">🏢 FIIs</option>
+                        <option value="ETFs">📊 ETFs</option>
+                        <option value="Tesouro">🏛️ Tesouro Direto</option>
                     </select>
                 </div>
             </div>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                 <div class="sheet-form-group">
-                    <label>Quantidade</label>
+                    <label>Quantidade *</label>
                     <div class="sheet-input-wrapper">
                         <i class="fas fa-hashtag"></i>
-                        <input type="number" step="any" min="0.0001" id="opQty" class="sheet-input" placeholder="100" oninput="calcOpTotal()" required>
+                        <input type="number" step="any" min="0" id="opQty" class="sheet-input" placeholder="100" oninput="calcOpTotal()" required>
                     </div>
                 </div>
                 <div class="sheet-form-group">
-                    <label>Preço Unitário (R$)</label>
+                    <label>Preço Unitário (R$) *</label>
                     <div class="sheet-input-wrapper">
                         <i class="fas fa-dollar-sign"></i>
-                        <input type="number" step="0.01" min="0.01" id="opPrice" class="sheet-input" placeholder="0,00" oninput="calcOpTotal()" required>
+                        <input type="number" step="0.01" min="0.01" id="opPrice" class="sheet-input" placeholder="10,50" oninput="calcOpTotal()" required>
                     </div>
                 </div>
             </div>
 
             <div class="sheet-form-group">
-                <label>Valor Total (R$)</label>
-                <div class="sheet-input-wrapper">
+                <label>Valor Total da Operação</label>
+                <div class="sheet-input-wrapper" style="background:var(--color-bg,#f8fafc); opacity:0.9;">
                     <i class="fas fa-calculator"></i>
-                    <input type="number" step="0.01" min="0.01" id="opTotal" class="sheet-input" placeholder="0,00" required>
+                    <input type="text" id="opTotal" class="sheet-input" placeholder="0,00" readonly style="cursor:default; font-weight:600;">
                 </div>
             </div>
 
             <div class="sheet-form-group">
-                <label>Data da Operação</label>
+                <label>Data da Negociação *</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-calendar"></i>
                     <input type="date" id="opDate" class="sheet-input" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Observações (opcional)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-comment-alt"></i>
+                    <input type="text" id="opNote" class="sheet-input" placeholder="Ex: Corretora, taxa de corretagem, motivo">
                 </div>
             </div>
 
@@ -444,53 +478,196 @@
     </div>
 </div>
 
-<!-- MODAL: NOVO PROVENTO -->
+<!-- MODAL: NOVO / EDITAR PROVENTO -->
 <div class="mobile-modal-overlay" id="modalDividend" onclick="closeModalDividend(event)">
     <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
         <div class="sheet-drag-handle"></div>
         <div class="sheet-header">
-            <h3>Novo Provento</h3>
+            <div>
+                <div style="font-size:11px; color:#6C5CE7; font-weight:600;"><i class="fas fa-hand-holding-dollar"></i> Rendimentos & Proventos</div>
+                <h3 id="divModalTitle" style="margin:0;">Registrar Provento</h3>
+            </div>
             <button class="sheet-close-btn" onclick="closeModalDividend()"><i class="fas fa-times"></i></button>
         </div>
         <form id="divForm" onsubmit="handleDivSubmit(event)">
+            <input type="hidden" id="divEditId" value="">
             <div class="sheet-form-group">
-                <label>Ticker / Código (Ex: PETR4, MXRF11)</label>
+                <label>Ativo (Ticker) *</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-tag"></i>
-                    <input type="text" id="divTicker" class="sheet-input" placeholder="Ex: MXRF11" style="text-transform: uppercase;" required>
+                    <input type="text" id="divTicker" class="sheet-input" placeholder="Ex: HGLG11, PETR4" style="text-transform: uppercase;" required>
                 </div>
+                <small style="font-size:10px; color:#64748b; margin-top:2px; display:block;">Digite o ticker do ativo ou selecione da sua carteira</small>
             </div>
 
             <div class="sheet-form-group">
-                <label>Tipo de Provento</label>
+                <label>Tipo de Provento *</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-coins"></i>
                     <select id="divType" class="sheet-input" required>
-                        <option value="Dividendo">Dividendo</option>
-                        <option value="JCP">Juros sobre Capital Próprio (JCP)</option>
-                        <option value="Rendimento">Rendimento</option>
-                        <option value="Amortização">Amortização</option>
+                        <option value="Dividendo">💵 Dividendo</option>
+                        <option value="JCP">📊 JCP (Juros s/ Capital Próprio)</option>
+                        <option value="Rendimento">🏢 Rendimento (FIIs)</option>
+                        <option value="Bonificação">🎁 Bonificação</option>
                     </select>
                 </div>
             </div>
 
-            <div class="sheet-form-group">
-                <label>Valor Total Líquido Recebido (R$)</label>
-                <div class="sheet-input-wrapper">
-                    <i class="fas fa-dollar-sign"></i>
-                    <input type="number" step="0.01" min="0.01" id="divAmount" class="sheet-input" placeholder="0,00" required>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="sheet-form-group">
+                    <label>Quantidade *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-hashtag"></i>
+                        <input type="number" step="any" min="0" id="divQty" class="sheet-input" placeholder="100" oninput="calcDivTotal()" required>
+                    </div>
+                </div>
+                <div class="sheet-form-group">
+                    <label>Valor Unitário (R$) *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-dollar-sign"></i>
+                        <input type="number" step="0.0001" min="0.0001" id="divUnitValue" class="sheet-input" placeholder="0,50" oninput="calcDivTotal()" required>
+                    </div>
                 </div>
             </div>
 
             <div class="sheet-form-group">
-                <label>Data de Pagamento</label>
+                <label>Valor Total do Provento</label>
+                <div class="sheet-input-wrapper" style="background:var(--color-bg,#f8fafc); opacity:0.9;">
+                    <i class="fas fa-calculator"></i>
+                    <input type="text" id="divTotalValue" class="sheet-input" placeholder="0,00" readonly style="cursor:default; font-weight:600;">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="sheet-form-group">
+                    <label>Data Com (opcional)</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-calendar-check"></i>
+                        <input type="date" id="divDateCom" class="sheet-input">
+                    </div>
+                </div>
+                <div class="sheet-form-group">
+                    <label>Data Pagamento *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-calendar"></i>
+                        <input type="date" id="divDate" class="sheet-input" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Observações (opcional)</label>
                 <div class="sheet-input-wrapper">
-                    <i class="fas fa-calendar"></i>
-                    <input type="date" id="divDate" class="sheet-input" required>
+                    <i class="fas fa-comment-alt"></i>
+                    <input type="text" id="divNote" class="sheet-input" placeholder="Anotações adicionais...">
                 </div>
             </div>
 
             <button type="submit" class="sheet-submit-btn" id="divSubmitBtn">Salvar Provento</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: NOVO / EDITAR EVENTO CORPORATIVO -->
+<div class="mobile-modal-overlay" id="modalCorporateEvent" onclick="closeModalCorporateEvent(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <div>
+                <div style="font-size:11px; color:#6C5CE7; font-weight:600;"><i class="fas fa-bolt"></i> Evento de Mercado</div>
+                <h3 id="corpModalTitle" style="margin:0;">Evento Corporativo</h3>
+            </div>
+            <button class="sheet-close-btn" onclick="closeModalCorporateEvent()"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="corpForm" onsubmit="handleCorpSubmit(event)">
+            <input type="hidden" id="corpEditId" value="">
+            
+            <div class="sheet-form-group">
+                <label>Ativo (Ticker) *</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-tag"></i>
+                    <input type="text" id="corpTicker" class="sheet-input" placeholder="Ex: PETR4, MXRF11" style="text-transform: uppercase;" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Tipo de Evento *</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-bolt"></i>
+                    <select id="corpEventType" class="sheet-input" onchange="onMobileCorpTypeChange(this.value)" required>
+                        <option value="Desdobramento">⚡ Desdobramento (Split)</option>
+                        <option value="Agrupamento">🔄 Agrupamento (Inplit)</option>
+                        <option value="Bonificação">🎁 Bonificação em Ações</option>
+                        <option value="Subscrição">📝 Exercício de Subscrição</option>
+                        <option value="Amortização">📉 Amortização de Capital</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Ratio: De / Para -->
+            <div id="mobileCorpRatioFields" style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="sheet-form-group">
+                    <label>De (Cotas Anteriores) *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-hashtag"></i>
+                        <input type="number" step="any" min="0.0001" id="corpRatioFrom" class="sheet-input" value="1">
+                    </div>
+                </div>
+                <div class="sheet-form-group">
+                    <label>Para (Cotas Finais) *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-arrow-right"></i>
+                        <input type="number" step="any" min="0.0001" id="corpRatioTo" class="sheet-input" placeholder="Ex: 10">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bonificação -->
+            <div id="mobileCorpBonusFields" style="display:none; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="sheet-form-group">
+                    <label>Cotas Recebidas *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-gift"></i>
+                        <input type="number" step="any" min="0" id="corpBonusShares" class="sheet-input" placeholder="Ex: 10">
+                    </div>
+                </div>
+                <div class="sheet-form-group">
+                    <label>Custo Unitário (R$)</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-dollar-sign"></i>
+                        <input type="number" step="0.0001" min="0" id="corpBonusUnitCost" class="sheet-input" placeholder="Ex: 15,20">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Amortização -->
+            <div id="mobileCorpAmortizationFields" style="display:none;">
+                <div class="sheet-form-group">
+                    <label>Amortização por Cota (R$) *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-dollar-sign"></i>
+                        <input type="number" step="0.0001" min="0" id="corpAmortizationPerShare" class="sheet-input" placeholder="Ex: 2,50">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Data Ex do Evento *</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-calendar"></i>
+                    <input type="date" id="corpEventDate" class="sheet-input" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Observações (opcional)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-comment-alt"></i>
+                    <input type="text" id="corpNote" class="sheet-input" placeholder="Ex: Proporção 1:10, Fato Relevante">
+                </div>
+            </div>
+
+            <button type="submit" class="sheet-submit-btn" id="corpSubmitBtn">Salvar Evento</button>
         </form>
     </div>
 </div>
@@ -521,6 +698,7 @@
 let currentUser = null;
 let allRawInvestments = [];
 let allRawDividends = [];
+let allRawCorporateEvents = [];
 let activePositions = [];
 let currentAssetFilter = 'all';
 let currentOpFilter = 'all';
@@ -543,6 +721,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const todayStr = new Date().toISOString().split("T")[0];
         document.getElementById("opDate").value = todayStr;
         document.getElementById("divDate").value = todayStr;
+        const corpDateInput = document.getElementById("corpEventDate");
+        if (corpDateInput) corpDateInput.value = todayStr;
 
         await loadAllInvestmentData();
     } catch (e) {
@@ -576,13 +756,35 @@ async function loadAllInvestmentData() {
         if (divErr) console.warn("Aviso busca proventos:", divErr);
         allRawDividends = divData || [];
 
-        // 3. Calcula custódia real e correta
+        // 3. Eventos Corporativos (corporate_events)
+        let corpEvents = [];
+        try {
+            const { data: corpData, error: corpErr } = await supabaseClient
+                .from("corporate_events")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .order("event_date", { ascending: true });
+            if (!corpErr && corpData) {
+                corpEvents = corpData;
+            }
+        } catch (e) {}
+
+        if (corpEvents.length === 0) {
+            try {
+                const local = localStorage.getItem("tonu_corporate_events");
+                if (local) corpEvents = JSON.parse(local) || [];
+            } catch (e) {}
+        }
+        allRawCorporateEvents = corpEvents;
+
+        // 4. Calcula custódia real e correta (considerando splits, bonificações, etc.)
         computeRealPositions();
 
-        // 4. Renderiza as abas
+        // 5. Renderiza as abas
         renderPositions();
         renderOperations();
         renderDividends();
+        renderCorporateEventsList();
         updateSummaryHero();
     } catch (err) {
         console.error("Erro ao carregar dados de investimento:", err);
@@ -594,18 +796,41 @@ async function loadAllInvestmentData() {
 // CÁLCULO RIGOROSO E EXATO DE CUSTÓDIA
 // ============================================
 function computeRealPositions() {
-    // Ordena rigorosamente cronológico para processar compra -> venda na ordem certa
-    const sorted = [...allRawInvestments].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    // 1. Normaliza transações de compra/venda
+    const normalizedTx = [...allRawInvestments].map(t => ({
+        ...t,
+        isCorporateEvent: false,
+        sortDate: t.date || '1970-01-01',
+        sortPriority: (t.type || '').toLowerCase().includes('compra') ? 1 : 2
+    }));
+
+    // 2. Normaliza eventos corporativos
+    const normalizedEvents = (allRawCorporateEvents || []).map(ev => ({
+        ...ev,
+        isCorporateEvent: true,
+        sortDate: ev.event_date || ev.date || '1970-01-01',
+        sortPriority: 0 // Precedência no início do pregão na data ex
+    }));
+
+    // 3. Mescla e ordena rigorosamente por cronologia
+    const timeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
+        const da = new Date(a.sortDate + 'T12:00:00').getTime();
+        const db = new Date(b.sortDate + 'T12:00:00').getTime();
+        if (da !== db) return da - db;
+        if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+        return (a.created_at || '').localeCompare(b.created_at || '');
+    });
+
     const map = new Map();
 
-    sorted.forEach(t => {
-        const ticker = (t.ticker || '').toUpperCase().trim();
+    timeline.forEach(item => {
+        const ticker = (item.ticker || '').toUpperCase().trim();
         if (!ticker) return;
 
         if (!map.has(ticker)) {
             map.set(ticker, {
                 ticker: ticker,
-                asset_class: t.asset_class || 'Ações',
+                asset_class: item.asset_class || 'Ações',
                 quantity: 0,
                 costBasis: 0,
                 averageCost: 0,
@@ -614,9 +839,39 @@ function computeRealPositions() {
         }
 
         const pos = map.get(ticker);
-        const qty = parseFloat(t.quantity) || 0;
-        const total = parseFloat(t.total_value || t.amount || (qty * (parseFloat(t.unit_price) || 0))) || 0;
-        const type = (t.type || '').toLowerCase();
+
+        // SE FOR EVENTO CORPORATIVO
+        if (item.isCorporateEvent) {
+            const evType = (item.event_type || item.type || '').trim();
+            if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+                const rf = parseFloat(item.ratio_from) || 1;
+                const rt = parseFloat(item.ratio_to) || 1;
+                if (rf > 0 && rt > 0 && pos.quantity > 0) {
+                    pos.quantity = pos.quantity * (rt / rf);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+                const bShares = parseFloat(item.bonus_shares || item.shares_received || 0);
+                const bCost = parseFloat(item.bonus_unit_cost || item.unit_value || 0);
+                if (bShares > 0) {
+                    pos.quantity += bShares;
+                    pos.costBasis += (bShares * bCost);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Amortização') {
+                const amort = parseFloat(item.amortization_per_share || item.unit_value || 0);
+                if (amort > 0 && pos.quantity > 0) {
+                    pos.costBasis = Math.max(0, pos.costBasis - (amort * pos.quantity));
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            }
+            return;
+        }
+
+        // SE FOR OPERAÇÃO NORMAL (COMPRA / VENDA)
+        const qty = parseFloat(item.quantity) || 0;
+        const total = parseFloat(item.total_value || item.amount || (qty * (parseFloat(item.unit_price) || 0))) || 0;
+        const type = (item.type || '').toLowerCase();
 
         pos.totalTransactions++;
 
@@ -820,8 +1075,9 @@ function renderDividends() {
                     </strong>
                 </div>
                 <div class="op-card-bottom">
-                    <span>Pago em: ${formatDate(d.date || d.payment_date)}</span>
+                    <span>${d.quantity ? d.quantity + ' un. • ' : ''}Pago em: ${formatDate(d.date || d.payment_date)}</span>
                     <div class="op-actions">
+                        <button class="op-btn" onclick="editDividend('${d.id}')" title="Editar"><i class="fas fa-pen"></i></button>
                         <button class="op-btn del" onclick="deleteDividend('${d.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 </div>
@@ -847,6 +1103,10 @@ function switchInvestTab(tab) {
     } else if (tab === 'proventos') {
         document.getElementById("tabBtnProventos").classList.add("active");
         document.getElementById("tabContentProventos").classList.add("active");
+    } else if (tab === 'eventos') {
+        document.getElementById("tabBtnEventos")?.classList.add("active");
+        document.getElementById("tabContentEventos")?.classList.add("active");
+        renderCorporateEventsList();
     }
 }
 
@@ -900,8 +1160,26 @@ function setOpType(type) {
 function calcOpTotal() {
     const q = parseFloat(document.getElementById("opQty").value) || 0;
     const p = parseFloat(document.getElementById("opPrice").value) || 0;
-    if (q > 0 && p > 0) {
-        document.getElementById("opTotal").value = (q * p).toFixed(2);
+    const totalEl = document.getElementById("opTotal");
+    if (totalEl) {
+        if (q > 0 && p > 0) {
+            totalEl.value = (q * p).toFixed(2);
+        } else {
+            totalEl.value = "0,00";
+        }
+    }
+}
+
+function calcDivTotal() {
+    const q = parseFloat(document.getElementById("divQty").value) || 0;
+    const u = parseFloat(document.getElementById("divUnitValue").value) || 0;
+    const totalEl = document.getElementById("divTotalValue");
+    if (totalEl) {
+        if (q > 0 && u > 0) {
+            totalEl.value = (q * u).toFixed(2);
+        } else {
+            totalEl.value = "0,00";
+        }
     }
 }
 
@@ -917,8 +1195,35 @@ async function handleOpSubmit(e) {
     const assetClass = document.getElementById("opClass").value;
     const qty = parseFloat(document.getElementById("opQty").value) || 0;
     const price = parseFloat(document.getElementById("opPrice").value) || 0;
-    const total = parseFloat(document.getElementById("opTotal").value) || (qty * price);
+    const totalValInput = parseFloat(document.getElementById("opTotal").value) || 0;
+    const total = totalValInput > 0 ? totalValInput : (qty * price);
     const date = document.getElementById("opDate").value;
+    const note = document.getElementById("opNote").value.trim();
+
+    if (!ticker) {
+        showToast("Digite o ticker do ativo", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Operação";
+        return;
+    }
+    if (!qty || qty <= 0) {
+        showToast("Digite uma quantidade válida", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Operação";
+        return;
+    }
+    if (!price || price <= 0) {
+        showToast("Digite um preço unitário válido", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Operação";
+        return;
+    }
+    if (!date) {
+        showToast("Selecione a data da negociação", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Operação";
+        return;
+    }
 
     const payload = {
         user_id: currentUser.id,
@@ -928,7 +1233,8 @@ async function handleOpSubmit(e) {
         quantity: qty,
         unit_price: price,
         total_value: total,
-        date: date
+        date: date,
+        note: note || null
     };
 
     try {
@@ -971,6 +1277,7 @@ function editOperation(id) {
     document.getElementById("opPrice").value = op.unit_price || op.price || '';
     document.getElementById("opTotal").value = op.total_value;
     document.getElementById("opDate").value = (op.date || '').split("T")[0];
+    document.getElementById("opNote").value = op.note || '';
     setOpType(op.type || "Compra");
     document.getElementById("modalOperation").classList.add("active");
 }
@@ -995,9 +1302,16 @@ async function deleteOperation(id) {
 // MODAL & HANDLER: PROVENTO
 // ============================================
 function openAddDividendModal() {
+    document.getElementById("divModalTitle").textContent = "Registrar Provento";
+    document.getElementById("divEditId").value = "";
     document.getElementById("divTicker").value = "";
-    document.getElementById("divAmount").value = "";
+    document.getElementById("divType").value = "Dividendo";
+    document.getElementById("divQty").value = "";
+    document.getElementById("divUnitValue").value = "";
+    document.getElementById("divTotalValue").value = "";
+    document.getElementById("divDateCom").value = "";
     document.getElementById("divDate").value = new Date().toISOString().split("T")[0];
+    document.getElementById("divNote").value = "";
     document.getElementById("modalDividend").classList.add("active");
 }
 
@@ -1006,36 +1320,104 @@ function closeModalDividend(e) {
     document.getElementById("modalDividend").classList.remove("active");
 }
 
+function editDividend(id) {
+    const div = allRawDividends.find(d => String(d.id) === String(id));
+    if (!div) return;
+
+    document.getElementById("divModalTitle").textContent = "Editar Provento";
+    document.getElementById("divEditId").value = div.id;
+    document.getElementById("divTicker").value = div.ticker || "";
+    document.getElementById("divType").value = div.type || "Dividendo";
+    document.getElementById("divQty").value = div.quantity || "";
+    document.getElementById("divUnitValue").value = div.unit_value || "";
+    const total = div.total_value || div.amount || div.net_value || 0;
+    document.getElementById("divTotalValue").value = total ? parseFloat(total).toFixed(2) : "";
+    document.getElementById("divDateCom").value = div.date_com ? div.date_com.split("T")[0] : "";
+    document.getElementById("divDate").value = (div.date || div.payment_date || "").split("T")[0];
+    document.getElementById("divNote").value = div.note || "";
+    document.getElementById("modalDividend").classList.add("active");
+}
+
 async function handleDivSubmit(e) {
     e.preventDefault();
     const btn = document.getElementById("divSubmitBtn");
     btn.disabled = true;
     btn.textContent = "Salvando...";
 
+    const editId = document.getElementById("divEditId").value;
     const ticker = document.getElementById("divTicker").value.trim().toUpperCase();
     const type = document.getElementById("divType").value;
-    const amount = parseFloat(document.getElementById("divAmount").value) || 0;
+    const qty = parseFloat(document.getElementById("divQty").value) || 0;
+    const unitValue = parseFloat(document.getElementById("divUnitValue").value) || 0;
+    const totalValInput = parseFloat(document.getElementById("divTotalValue").value) || 0;
+    const totalValue = totalValInput > 0 ? totalValInput : (qty * unitValue);
+    const dateCom = document.getElementById("divDateCom").value;
     const date = document.getElementById("divDate").value;
+    const note = document.getElementById("divNote").value.trim();
+
+    if (!ticker) {
+        showToast("Digite o ticker do ativo", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Provento";
+        return;
+    }
+    if (!qty || qty <= 0) {
+        showToast("Digite uma quantidade válida", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Provento";
+        return;
+    }
+    if (!unitValue || unitValue <= 0) {
+        showToast("Digite um valor unitário válido", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Provento";
+        return;
+    }
+    if (!date) {
+        showToast("Selecione a data de pagamento", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Provento";
+        return;
+    }
+
+    const isJCP = type && String(type).toUpperCase().includes("JCP");
+    const netValue = isJCP ? parseFloat((totalValue * 0.85).toFixed(2)) : totalValue;
 
     const payload = {
         user_id: currentUser.id,
         ticker: ticker,
         type: type,
-        total_value: amount,
-        amount: amount,
-        net_value: amount,
-        date: date
+        quantity: qty,
+        unit_value: unitValue,
+        total_value: totalValue,
+        amount: totalValue,
+        net_value: netValue,
+        date: date,
+        date_com: dateCom || null,
+        note: note || null
     };
 
     try {
-        const { error } = await supabaseClient
-            .from("dividends")
-            .insert([payload]);
-        if (error) throw error;
-        showToast("Provento salvo com sucesso!", "success");
+        if (editId) {
+            const { error } = await supabaseClient
+                .from("dividends")
+                .update(payload)
+                .eq("id", editId)
+                .eq("user_id", currentUser.id);
+            if (error) throw error;
+            showToast("Provento atualizado!", "success");
+        } else {
+            const { error } = await supabaseClient
+                .from("dividends")
+                .insert([payload]);
+            if (error) throw error;
+            showToast("Provento salvo com sucesso!", "success");
+        }
+
         closeModalDividend();
         await loadAllInvestmentData();
     } catch (err) {
+        console.error("Erro ao salvar provento:", err);
         showToast("Erro ao salvar provento: " + err.message, "error");
     } finally {
         btn.disabled = false;
@@ -1057,6 +1439,238 @@ async function deleteDividend(id) {
     } catch (err) {
         showToast("Erro ao excluir: " + err.message, "error");
     }
+}
+
+// ============================================
+// EVENTOS CORPORATIVOS (MOBILE MODAL & CRUD)
+// ============================================
+function openAddCorporateEventModal() {
+    document.getElementById("corpModalTitle").textContent = "Novo Evento Corporativo";
+    document.getElementById("corpEditId").value = "";
+    document.getElementById("corpTicker").value = "";
+    document.getElementById("corpEventType").value = "Desdobramento";
+    document.getElementById("corpRatioFrom").value = "1";
+    document.getElementById("corpRatioTo").value = "";
+    document.getElementById("corpBonusShares").value = "";
+    document.getElementById("corpBonusUnitCost").value = "";
+    document.getElementById("corpAmortizationPerShare").value = "";
+    document.getElementById("corpEventDate").value = new Date().toISOString().split("T")[0];
+    document.getElementById("corpNote").value = "";
+    document.getElementById("corpSubmitBtn").textContent = "Salvar Evento";
+    onMobileCorpTypeChange("Desdobramento");
+
+    const modal = document.getElementById("modalCorporateEvent");
+    if (modal) modal.classList.add("active");
+}
+
+function editCorporateEvent(id) {
+    const ev = allRawCorporateEvents.find(e => e.id === id);
+    if (!ev) return;
+
+    document.getElementById("corpModalTitle").textContent = "Editar Evento";
+    document.getElementById("corpEditId").value = ev.id || "";
+    document.getElementById("corpTicker").value = ev.ticker || "";
+    document.getElementById("corpEventType").value = ev.event_type || "Desdobramento";
+    document.getElementById("corpRatioFrom").value = ev.ratio_from || "1";
+    document.getElementById("corpRatioTo").value = ev.ratio_to || "";
+    document.getElementById("corpBonusShares").value = ev.bonus_shares || "";
+    document.getElementById("corpBonusUnitCost").value = ev.bonus_unit_cost || "";
+    document.getElementById("corpAmortizationPerShare").value = ev.amortization_per_share || "";
+    document.getElementById("corpEventDate").value = ev.event_date ? ev.event_date.split("T")[0] : "";
+    document.getElementById("corpNote").value = ev.note || "";
+    document.getElementById("corpSubmitBtn").textContent = "Atualizar Evento";
+    onMobileCorpTypeChange(ev.event_type || "Desdobramento");
+
+    const modal = document.getElementById("modalCorporateEvent");
+    if (modal) modal.classList.add("active");
+}
+
+function closeModalCorporateEvent(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("sheet-close-btn") && !e.target.closest(".sheet-close-btn")) return;
+    const modal = document.getElementById("modalCorporateEvent");
+    if (modal) modal.classList.remove("active");
+}
+
+function onMobileCorpTypeChange(type) {
+    const ratioBox = document.getElementById("mobileCorpRatioFields");
+    const bonusBox = document.getElementById("mobileCorpBonusFields");
+    const amortBox = document.getElementById("mobileCorpAmortizationFields");
+
+    if (ratioBox) ratioBox.style.display = (type === "Desdobramento" || type === "Agrupamento") ? "grid" : "none";
+    if (bonusBox) bonusBox.style.display = (type === "Bonificação" || type === "Subscrição") ? "grid" : "none";
+    if (amortBox) amortBox.style.display = (type === "Amortização") ? "block" : "none";
+}
+
+async function handleCorpSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById("corpSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+
+    try {
+        const id = document.getElementById("corpEditId").value.trim();
+        const ticker = document.getElementById("corpTicker").value.trim().toUpperCase();
+        const eventType = document.getElementById("corpEventType").value.trim();
+        const eventDate = document.getElementById("corpEventDate").value;
+        const note = document.getElementById("corpNote").value.trim() || null;
+
+        if (!ticker || !eventDate) {
+            showToast("Informe o ticker e a data.", "error");
+            return;
+        }
+
+        const payload = {
+            user_id: currentUser.id,
+            ticker: ticker,
+            event_type: eventType,
+            event_date: eventDate,
+            note: note,
+            ratio_from: 1,
+            ratio_to: null,
+            bonus_shares: null,
+            bonus_unit_cost: 0,
+            amortization_per_share: null
+        };
+
+        if (eventType === "Desdobramento" || eventType === "Agrupamento") {
+            payload.ratio_from = parseFloat(document.getElementById("corpRatioFrom").value) || 1;
+            payload.ratio_to = parseFloat(document.getElementById("corpRatioTo").value) || 1;
+        } else if (eventType === "Bonificação" || eventType === "Subscrição") {
+            payload.bonus_shares = parseFloat(document.getElementById("corpBonusShares").value) || 0;
+            payload.bonus_unit_cost = parseFloat(document.getElementById("corpBonusUnitCost").value) || 0;
+        } else if (eventType === "Amortização") {
+            payload.amortization_per_share = parseFloat(document.getElementById("corpAmortizationPerShare").value) || 0;
+        }
+
+        let saved = false;
+        try {
+            if (id) {
+                const { error } = await supabaseClient
+                    .from("corporate_events")
+                    .update(payload)
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
+                if (!error) saved = true;
+            } else {
+                const { error } = await supabaseClient
+                    .from("corporate_events")
+                    .insert([payload]);
+                if (!error) saved = true;
+            }
+        } catch (dbErr) {}
+
+        if (!saved) {
+            let localList = [];
+            try {
+                localList = JSON.parse(localStorage.getItem("tonu_corporate_events") || "[]");
+            } catch (err) {}
+            if (id) {
+                localList = localList.map(item => item.id === id ? { ...item, ...payload } : item);
+            } else {
+                payload.id = "corp_" + Date.now();
+                payload.created_at = new Date().toISOString();
+                localList.push(payload);
+            }
+            localStorage.setItem("tonu_corporate_events", JSON.stringify(localList));
+        }
+
+        showToast(id ? "Evento atualizado!" : "Evento salvo com sucesso!", "success");
+        closeModalCorporateEvent();
+        await loadAllInvestmentData();
+    } catch (err) {
+        showToast("Erro ao salvar: " + err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Salvar Evento";
+    }
+}
+
+async function deleteCorporateEvent(id) {
+    if (!confirm("Deseja realmente remover este evento? Suas cotas e preço médio serão recalculados.")) return;
+    try {
+        try {
+            await supabaseClient
+                .from("corporate_events")
+                .delete()
+                .eq("id", id)
+                .eq("user_id", currentUser.id);
+        } catch (dbErr) {}
+
+        let localList = [];
+        try {
+            localList = JSON.parse(localStorage.getItem("tonu_corporate_events") || "[]");
+            localList = localList.filter(item => item.id !== id);
+            localStorage.setItem("tonu_corporate_events", JSON.stringify(localList));
+        } catch (e) {}
+
+        showToast("Evento excluído!", "success");
+        await loadAllInvestmentData();
+    } catch (err) {
+        showToast("Erro ao remover: " + err.message, "error");
+    }
+}
+
+function renderCorporateEventsList() {
+    const container = document.getElementById("corporateEventsListContainer");
+    if (!container) return;
+
+    if (!allRawCorporateEvents || allRawCorporateEvents.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:30px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
+                <i class="fas fa-bolt" style="font-size:32px; color:#a29bfe; margin-bottom:10px; display:block;"></i>
+                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">Nenhum evento corporativo cadastrado.</p>
+                <button class="btn-add-primary" style="margin:0 auto;" onclick="openAddCorporateEventModal()">
+                    <i class="fas fa-plus"></i> Novo Evento
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    const sorted = [...allRawCorporateEvents].sort((a, b) => (b.event_date || '').localeCompare(a.event_date || ''));
+
+    container.innerHTML = sorted.map(ev => {
+        const evType = ev.event_type || 'Desdobramento';
+        let detail = '--';
+        let impact = '--';
+
+        if (evType === 'Desdobramento' || evType === 'Agrupamento') {
+            const rf = ev.ratio_from || 1;
+            const rt = ev.ratio_to || 1;
+            detail = `Proporção ${rf} : ${rt}`;
+            impact = `PM ajustado em ${(rf / rt).toFixed(4)}x`;
+        } else if (evType === 'Bonificação') {
+            detail = `+${ev.bonus_shares || 0} cotas`;
+            impact = ev.bonus_unit_cost ? `Custo R$ ${parseFloat(ev.bonus_unit_cost).toFixed(2)}/un` : 'Gratuito';
+        } else if (evType === 'Subscrição') {
+            detail = `+${ev.bonus_shares || 0} cotas`;
+            impact = ev.bonus_unit_cost ? `Exercício R$ ${parseFloat(ev.bonus_unit_cost).toFixed(2)}/un` : 'Subscrição';
+        } else if (evType === 'Amortização') {
+            detail = `- R$ ${parseFloat(ev.amortization_per_share || 0).toFixed(2)}/cota`;
+            impact = 'Amortização de Capital';
+        }
+
+        return `
+            <div class="op-card">
+                <div class="op-card-top">
+                    <div>
+                        <strong style="font-size:14px; color:var(--color-text,#0f172a);">${ev.ticker}</strong>
+                        <span class="op-badge" style="margin-left:6px; background:rgba(108,92,231,0.12); color:#6C5CE7;">${evType}</span>
+                    </div>
+                    <strong style="font-size:12px; color:#6C5CE7;">
+                        ${detail}
+                    </strong>
+                </div>
+                <div class="op-card-bottom">
+                    <span>${impact} • Ex: ${formatDate(ev.event_date)}</span>
+                    <div class="op-actions">
+                        <button class="op-btn" onclick="editCorporateEvent('${ev.id}')" title="Editar"><i class="fas fa-pen"></i></button>
+                        <button class="op-btn del" onclick="deleteCorporateEvent('${ev.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
 }
 
 // ============================================

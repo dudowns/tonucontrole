@@ -709,6 +709,9 @@
                     <button class="btn btn-success" onclick="openDividendModal()" aria-label="Novo provento">
                         <i class="fas fa-coins" aria-hidden="true"></i> Provento
                     </button>
+                    <button class="btn btn-secondary" onclick="openCorporateEventModal()" aria-label="Evento Corporativo (Desdobramento/Bonificação)" title="Desdobramento, Agrupamento ou Bonificação" style="display:inline-flex; align-items:center; gap:6px;">
+                        <i class="fas fa-bolt" aria-hidden="true"></i> Evento
+                    </button>
                 </div>
             </header>
 
@@ -773,6 +776,11 @@
                             aria-selected="false">
                             <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
                             <span class="tab-label">Proventos</span>
+                        </button>
+                        <button class="tab-btn" data-tab="eventos" onclick="switchTab('eventos')" role="tab"
+                            aria-selected="false">
+                            <i class="fas fa-bolt" aria-hidden="true"></i>
+                            <span class="tab-label">Eventos</span>
                         </button>
                     </div>
                 </div>
@@ -1240,6 +1248,50 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ==========================================
+                TAB: EVENTOS CORPORATIVOS
+                ========================================== -->
+                <div class="tab-content" id="tab-eventos" role="tabpanel" aria-labelledby="tab-eventos">
+                    <div class="card" style="margin-bottom:20px;">
+                        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h3 style="display:flex; align-items:center; gap:8px;">
+                                    <i class="fas fa-bolt" style="color:var(--color-primary,#6C5CE7);"></i> Eventos Corporativos Cadastrados
+                                </h3>
+                                <p style="font-size:12px; color:var(--color-text-muted); margin:0;">
+                                    Desdobramentos, agrupamentos, bonificações e amortizações aplicados automaticamente no cálculo de preço médio e custódia.
+                                </p>
+                            </div>
+                            <button class="btn btn-primary" onclick="openCorporateEventModal()" style="display:inline-flex; align-items:center; gap:6px;">
+                                <i class="fas fa-plus"></i> Novo Evento
+                            </button>
+                        </div>
+                        <div class="table-container" style="margin-top:12px;">
+                            <table class="data-table" id="corporateEventsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Data Ex</th>
+                                        <th>Ticker</th>
+                                        <th>Tipo</th>
+                                        <th>Proporção / Detalhe</th>
+                                        <th>Impacto em Cotas</th>
+                                        <th>Custo / Amortização</th>
+                                        <th>Notas</th>
+                                        <th style="text-align:right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="corporateEventsBody">
+                                    <tr>
+                                        <td colspan="8" style="text-align:center; padding:30px; color:var(--color-text-muted);">
+                                            Nenhum evento corporativo cadastrado.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -1458,6 +1510,96 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeAllTickersModal()">Fechar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+    MODAL - EVENTO CORPORATIVO (DESDOBRAMENTO / BONIFICAÇÃO)
+    ========================================== -->
+    <div class="modal-overlay hidden" id="corporateEventModal" onclick="if(event.target === this) closeCorporateEventModal()"
+        role="dialog" aria-modal="true" aria-labelledby="corporateEventModalTitle">
+        <div class="modal" id="corporateEventModalContent" style="max-width:480px;">
+            <div class="modal-header">
+                <div>
+                    <div class="sub"><i class="fas fa-bolt" style="margin-right:4px;"></i> Evento de Mercado</div>
+                    <h3 id="corporateEventModalTitle">Evento Corporativo</h3>
+                </div>
+                <button type="button" class="modal-close" onclick="closeCorporateEventModal()" aria-label="Fechar modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form id="corporateEventForm" onsubmit="saveCorporateEvent(event)" novalidate>
+                <input type="hidden" id="corpEditId" value="">
+                <div class="modal-body">
+                    <p style="font-size:12px; color:var(--color-text-muted); margin-bottom:14px; line-height:1.4;">
+                        Ajuste seu histórico de cotas e preço médio sem distorcer lucros ou relatórios de IR.
+                    </p>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="corpTicker">Ticker do Ativo *</label>
+                            <input type="text" id="corpTicker" class="form-control" placeholder="Ex: PETR4, MXRF11" maxlength="20" required style="text-transform: uppercase;">
+                        </div>
+                        <div class="form-group">
+                            <label for="corpEventType">Tipo de Evento *</label>
+                            <select id="corpEventType" class="form-control" required onchange="onCorpEventTypeChange(this.value)">
+                                <option value="Desdobramento">⚡ Desdobramento (Split)</option>
+                                <option value="Agrupamento">🔄 Agrupamento (Inplit)</option>
+                                <option value="Bonificação">🎁 Bonificação em Ações</option>
+                                <option value="Subscrição">📝 Exercício de Subscrição</option>
+                                <option value="Amortização">📉 Amortização de Capital</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Campos para Desdobramento / Agrupamento -->
+                    <div id="corpRatioContainer" class="form-row" style="margin-top:10px;">
+                        <div class="form-group">
+                            <label for="corpRatioFrom">De (Cotas Anteriores) *</label>
+                            <input type="number" step="any" min="0.0001" id="corpRatioFrom" class="form-control" value="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="corpRatioTo">Para (Cotas Finais) *</label>
+                            <input type="number" step="any" min="0.0001" id="corpRatioTo" class="form-control" placeholder="Ex: 10" required>
+                        </div>
+                    </div>
+                    <small id="corpRatioHint" class="help-text" style="display:block; margin-top:-6px; margin-bottom:10px;">
+                        Exemplo 1 para 10: Cada 1 cota vira 10 cotas (preço médio dividido por 10).
+                    </small>
+
+                    <!-- Campos para Bonificação -->
+                    <div id="corpBonusContainer" class="form-row hidden" style="margin-top:10px;">
+                        <div class="form-group">
+                            <label for="corpBonusShares">Cotas Recebidas *</label>
+                            <input type="number" step="any" min="0" id="corpBonusShares" class="form-control" placeholder="Ex: 10">
+                        </div>
+                        <div class="form-group">
+                            <label for="corpBonusUnitCost">Custo Unitário Atribuído (R$)</label>
+                            <input type="number" step="0.0001" min="0" id="corpBonusUnitCost" class="form-control" placeholder="Ex: 15,20">
+                        </div>
+                    </div>
+
+                    <!-- Campos para Amortização -->
+                    <div id="corpAmortizationContainer" class="form-group hidden" style="margin-top:10px;">
+                        <label for="corpAmortizationPerShare">Amortização por Cota (R$) *</label>
+                        <input type="number" step="0.0001" min="0" id="corpAmortizationPerShare" class="form-control" placeholder="Ex: 2,50">
+                        <small class="help-text">Reduz o custo médio da posição pelo valor recebido.</small>
+                    </div>
+
+                    <div class="form-group" style="margin-top:10px;">
+                        <label for="corpEventDate">Data do Evento (Data Ex) *</label>
+                        <input type="date" id="corpEventDate" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="corpNote">Observações (opcional)</label>
+                        <input type="text" id="corpNote" class="form-control" placeholder="Ex: Fato relevante, proporção 100%">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeCorporateEventModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="corpSubmitBtn"><i class="fas fa-check"></i> Salvar Evento</button>
+                </div>
+            </form>
         </div>
     </div>
 

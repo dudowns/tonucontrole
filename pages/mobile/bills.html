@@ -352,6 +352,57 @@
                     </div>
                 </div>
 
+                <!-- FORMA / FREQUÊNCIA DE PAGAMENTO -->
+                <div>
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Forma / Frequência de Pagamento *</label>
+                    <select id="billRecurrenceType" class="form-control" style="width:100%;">
+                        <option value="single">⚡ Pagamento Único (À vista)</option>
+                        <option value="installments">📦 Pagamento Parcelado (Dividido em parcelas)</option>
+                        <option value="monthly">🔁 Mensal (Recorrente todo mês - Ex: Aluguel, Luz)</option>
+                        <option value="semiannual">📅 Semestral (Recorrente a cada 6 meses)</option>
+                    </select>
+                </div>
+
+                <!-- DETALHES DE PARCELAMENTO (Condicional) -->
+                <div id="billInstallmentFields" style="display:none; padding:10px 12px; background:var(--color-bg, #f8fafc); border:1px solid var(--color-border, #e2e8f0); border-radius:8px;">
+                    <div style="font-size:11.5px; font-weight:700; color:var(--color-primary, #6c5ce7); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                        <i class="fas fa-layer-group"></i> Detalhes do Pagamento Parcelado
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                        <div>
+                            <label for="billInstallmentTotal" style="font-size:11px; font-weight:600; display:block; margin-bottom:3px;">Total de Parcelas *</label>
+                            <input type="number" id="billInstallmentTotal" class="form-control" min="2" max="120" value="2" style="width:100%;">
+                        </div>
+                        <div>
+                            <label for="billInstallmentCurrent" style="font-size:11px; font-weight:600; display:block; margin-bottom:3px;">Parcela Atual</label>
+                            <input type="number" id="billInstallmentCurrent" class="form-control" min="1" max="120" value="1" style="width:100%;">
+                        </div>
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <label style="font-size:10.5px; margin-bottom:3px; display:block; font-weight:500;">O valor digitado no campo acima é:</label>
+                        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:4px; font-size:11.5px; font-weight:500; cursor:pointer;">
+                                <input type="radio" name="billAmountMode" value="per_installment" checked>
+                                Valor da parcela
+                            </label>
+                            <label style="display:flex; align-items:center; gap:4px; font-size:11.5px; font-weight:500; cursor:pointer;">
+                                <input type="radio" name="billAmountMode" value="total">
+                                Valor total
+                            </label>
+                        </div>
+                    </div>
+                    <div id="billInstallmentSummaryBox" style="font-size:11px; padding:6px 10px; border-radius:6px; background:#e0e7ff; color:#3730a3; margin-bottom:6px;">
+                        <div style="font-weight:700;" id="billInstallmentRemainingText">Faltam 1 parcelas</div>
+                        <div style="font-size:10px; opacity:0.9;" id="billInstallmentTotalRemainingText">Restam R$ 0,00 a pagar</div>
+                    </div>
+                    <div id="billGenerateFutureGroup" style="display:flex; align-items:center; gap:6px;">
+                        <input type="checkbox" id="billGenerateFuture" checked style="cursor:pointer; width:16px; height:16px; accent-color:#6C5CE7;">
+                        <label for="billGenerateFuture" style="margin:0; font-size:11px; cursor:pointer; font-weight:500;">
+                            Gerar automaticamente as parcelas futuras
+                        </label>
+                    </div>
+                </div>
+
                 <div>
                     <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Categoria</label>
                     <select id="inputCategory" class="form-control" style="width:100%;">
@@ -403,6 +454,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../../js/supabase.js"></script>
 <script src="../../js/core.js"></script>
+<script src="../../js/financial-tools.js"></script>
 <script src="../../js/sync.js"></script>
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
@@ -439,6 +491,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateMonthLabel();
         await loadCategories();
         await loadBills();
+
+        if (window.TonuInstallments) {
+            window.TonuInstallments.bindFormControls('bill');
+        }
 
         const params = new URLSearchParams(window.location.search);
         if (params.get('action') === 'bill' || params.get('action') === 'new') {
@@ -660,6 +716,10 @@ function openModal(id = null) {
     const btnDel = document.getElementById("btnDeleteMobile");
     form.reset();
 
+    const recurrenceSelect = document.getElementById("billRecurrenceType");
+    const installmentFields = document.getElementById("billInstallmentFields");
+    const futureGroup = document.getElementById("billGenerateFutureGroup");
+
     if (id) {
         const bill = allBills.find(b => String(b.id) === String(id));
         if (bill) {
@@ -671,6 +731,25 @@ function openModal(id = null) {
             document.getElementById("inputCategory").value = bill.category_id || "";
             document.getElementById("inputNotes").value = bill.notes || "";
             document.getElementById("inputPaid").checked = !!bill.paid;
+
+            // Recorrência e parcelas
+            let recType = bill.recurrence_type || 'single';
+            if (!bill.recurrence_type && bill.is_recurring) recType = 'monthly';
+            if (!bill.recurrence_type && (parseInt(bill.installments, 10) > 1)) recType = 'installments';
+
+            if (recurrenceSelect) {
+                recurrenceSelect.value = recType;
+            }
+
+            if (recType === 'installments' && installmentFields) {
+                installmentFields.style.display = 'block';
+                document.getElementById("billInstallmentTotal").value = bill.installments || 2;
+                document.getElementById("billInstallmentCurrent").value = bill.current_installment || 1;
+                if (futureGroup) futureGroup.style.display = 'none'; // não regenera em edição
+            } else if (installmentFields) {
+                installmentFields.style.display = 'none';
+            }
+
             btnDel.classList.remove("hidden");
         }
     } else {
@@ -678,7 +757,14 @@ function openModal(id = null) {
         document.getElementById("editBillId").value = "";
         const mStr = String(currentMonth + 1).padStart(2, "0");
         document.getElementById("inputDate").value = `${currentYear}-${mStr}-01`;
+        if (recurrenceSelect) recurrenceSelect.value = 'single';
+        if (installmentFields) installmentFields.style.display = 'none';
+        if (futureGroup) futureGroup.style.display = 'flex';
         btnDel.classList.add("hidden");
+    }
+
+    if (window.TonuInstallments && recurrenceSelect) {
+        recurrenceSelect.dispatchEvent(new Event('change'));
     }
 
     sheet.classList.add("show");
@@ -698,30 +784,91 @@ async function saveBill(event) {
     const paid = document.getElementById("inputPaid").checked;
     const editId = document.getElementById("editBillId").value;
 
+    if (!desc) {
+        alert("Preencha o nome da conta");
+        return;
+    }
+    if (isNaN(amount) || amount <= 0) {
+        alert("Digite um valor válido maior que zero");
+        return;
+    }
+    if (!date) {
+        alert("Selecione a data de vencimento");
+        return;
+    }
+
+    const recurrenceType = document.getElementById("billRecurrenceType")?.value || 'single';
+    let installmentsTotal = 1;
+    let installmentCurrent = 1;
+    let isRecurring = false;
+    let finalAmount = amount;
+    const generateFuture = document.getElementById("billGenerateFuture")?.checked;
+
+    if (recurrenceType === 'monthly') {
+        isRecurring = true;
+    } else if (recurrenceType === 'semiannual') {
+        isRecurring = true;
+    } else if (recurrenceType === 'installments') {
+        installmentsTotal = Math.max(2, parseInt(document.getElementById("billInstallmentTotal")?.value, 10) || 2);
+        installmentCurrent = Math.max(1, parseInt(document.getElementById("billInstallmentCurrent")?.value, 10) || 1);
+        if (installmentCurrent > installmentsTotal) installmentCurrent = installmentsTotal;
+
+        const modeRadio = document.querySelector('input[name="billAmountMode"]:checked');
+        const mode = modeRadio ? modeRadio.value : 'per_installment';
+        if (mode === 'total') {
+            finalAmount = parseFloat((amount / installmentsTotal).toFixed(2));
+        }
+    }
+
     const payload = {
         user_id: currentUser.id,
-        description: desc,
-        amount: amount,
+        description: recurrenceType === 'installments' && !editId ? `${desc} (${installmentCurrent}/${installmentsTotal})` : desc,
+        amount: finalAmount,
         date: date,
         type: 'expense',
         is_bill: true,
         category_id: catId,
         notes: notes,
         paid: paid,
-        paid_date: paid ? new Date().toISOString().split("T")[0] : null
+        paid_date: paid ? new Date().toISOString().split("T")[0] : null,
+        recurrence_type: recurrenceType,
+        is_recurring: isRecurring,
+        installments: recurrenceType === 'installments' ? installmentsTotal : 1,
+        current_installment: recurrenceType === 'installments' ? installmentCurrent : 1
     };
 
     try {
         if (editId) {
             await supabaseClient.from("transactions").update(payload).eq("id", editId).eq("user_id", currentUser.id);
         } else {
-            await supabaseClient.from("transactions").insert([payload]);
+            if (recurrenceType === 'installments' && generateFuture && installmentsTotal > installmentCurrent) {
+                const batch = [];
+                const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
+                for (let i = installmentCurrent; i <= installmentsTotal; i++) {
+                    const monthOffset = i - installmentCurrent;
+                    const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
+                    const itemPaid = (i === installmentCurrent) ? paid : false;
+                    batch.push({
+                        ...payload,
+                        description: `${cleanDesc} (${i}/${installmentsTotal})`,
+                        amount: finalAmount,
+                        date: dueDate,
+                        installments: installmentsTotal,
+                        current_installment: i,
+                        paid: itemPaid,
+                        paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
+                    });
+                }
+                await supabaseClient.from("transactions").insert(batch);
+            } else {
+                await supabaseClient.from("transactions").insert([payload]);
+            }
         }
         closeModal();
         await loadBills();
         if (window.checkNotifications) window.checkNotifications();
     } catch (e) {
-        alert("Erro ao salvar: " + e.message);
+        alert("Erro ao salvar: " + (e.message || e));
     }
 }
 

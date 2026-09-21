@@ -64,6 +64,7 @@ function formatCurrency(value) {
 let currentUser = null;
 let allTransactions = [];
 let allDividends = [];
+let allCorporateEvents = [];
 let positions = [];
 let quotes = new Map();
 let selectedClass = 'Todos';
@@ -568,6 +569,9 @@ async function switchTab(tab) {
             }, 150);
         }
     }
+    if (tab === 'eventos') {
+        renderCorporateEvents();
+    }
 }
 
 // ============================================
@@ -589,7 +593,10 @@ async function refreshDashboard() {
     if (chartLoading) chartLoading.classList.remove('hidden');
 
     try {
-        await loadTransactions();
+        await Promise.allSettled([
+            loadTransactions(),
+            loadCorporateEvents()
+        ]);
         buildPositions();
         await Promise.allSettled([
             fetchQuotes(),
@@ -600,6 +607,7 @@ async function refreshDashboard() {
         updateClassCounts();
         renderTable();
         renderTransactions();
+        renderCorporateEvents();
         updateQuoteStatus();
         renderChart();
         renderPieChart();
@@ -1101,28 +1109,40 @@ async function editTransaction(id) {
 function buildPositions() {
     const grouped = new Map();
 
-    // Ordenação estritamente cronológica
-    const sortedTransactions = [...allTransactions]
+    // 1. Prepara transações de compra/venda
+    const normalizedTx = [...allTransactions]
         .filter(tx => tx && tx.ticker)
-        .sort((a, b) => {
-            const da = new Date((a.date || '1970-01-01') + 'T12:00:00').getTime();
-            const db = new Date((b.date || '1970-01-01') + 'T12:00:00').getTime();
-            if (da !== db) return da - db;
-            // Se mesma data, compras são processadas antes de vendas
-            const typeA = (a.type || '').toLowerCase();
-            const typeB = (b.type || '').toLowerCase();
-            const isBuyA = typeA === 'compra' || typeA === 'buy';
-            const isBuyB = typeB === 'compra' || typeB === 'buy';
-            if (isBuyA && !isBuyB) return -1;
-            if (!isBuyA && isBuyB) return 1;
-            return (a.created_at || '').localeCompare(b.created_at || '');
-        });
+        .map(tx => ({
+            ...tx,
+            isCorporateEvent: false,
+            sortDate: tx.date || '1970-01-01',
+            sortPriority: (tx.type || '').toLowerCase().includes('compra') || (tx.type || '').toLowerCase().includes('buy') ? 1 : 2
+        }));
 
-    for (const tx of sortedTransactions) {
-        const ticker = tx.ticker?.toUpperCase().trim() || '';
+    // 2. Prepara eventos corporativos (Desdobramento, Agrupamento, Bonificação, Amortização)
+    const normalizedEvents = (allCorporateEvents || [])
+        .filter(ev => ev && ev.ticker && (ev.event_date || ev.date))
+        .map(ev => ({
+            ...ev,
+            isCorporateEvent: true,
+            sortDate: ev.event_date || ev.date || '1970-01-01',
+            sortPriority: 0 // Eventos na Data Ex têm precedência no início do pregão
+        }));
+
+    // 3. Mescla e ordena rigorosamente por cronologia
+    const timeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
+        const da = new Date(a.sortDate + 'T12:00:00').getTime();
+        const db = new Date(b.sortDate + 'T12:00:00').getTime();
+        if (da !== db) return da - db;
+        if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+        return (a.created_at || '').localeCompare(b.created_at || '');
+    });
+
+    for (const item of timeline) {
+        const ticker = item.ticker?.toUpperCase().trim() || '';
         if (!ticker) continue;
 
-        let rawCls = tx.asset_class;
+        let rawCls = item.asset_class;
         if (KNOWN_STOCK_UNITS.has(ticker)) {
             rawCls = 'Ações';
         } else if (KNOWN_ETFS.has(ticker)) {
@@ -1138,14 +1158,49 @@ function buildPositions() {
                 costBasis: 0,
                 averageCost: 0,
                 realizedGain: 0,
-                transactions: []
+                transactions: [],
+                corporateEvents: []
             });
         }
 
         const pos = grouped.get(ticker);
-        const qty = parseBrazilianNumber(tx.quantity);
-        let unit = parseBrazilianNumber(tx.unit_price);
-        let total = parseBrazilianNumber(tx.total_value);
+
+        // SE FOR EVENTO CORPORATIVO
+        if (item.isCorporateEvent) {
+            pos.corporateEvents.push(item);
+            const evType = (item.event_type || item.type || '').trim();
+
+            if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+                const ratioFrom = parseFloat(item.ratio_from) || 1;
+                const ratioTo = parseFloat(item.ratio_to) || 1;
+                if (ratioFrom > 0 && ratioTo > 0 && pos.quantity > 0) {
+                    const factor = ratioTo / ratioFrom;
+                    pos.quantity = pos.quantity * factor;
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+                const sharesReceived = parseFloat(item.bonus_shares || item.shares_received || 0);
+                const unitCost = parseFloat(item.bonus_unit_cost || item.unit_value || 0);
+                if (sharesReceived > 0) {
+                    pos.quantity += sharesReceived;
+                    pos.costBasis += (sharesReceived * unitCost);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Amortização') {
+                const amortPerShare = parseFloat(item.amortization_per_share || item.unit_value || 0);
+                if (amortPerShare > 0 && pos.quantity > 0) {
+                    const totalAmort = amortPerShare * pos.quantity;
+                    pos.costBasis = Math.max(0, pos.costBasis - totalAmort);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            }
+            continue;
+        }
+
+        // SE FOR TRANSAÇÃO NORMAL (COMPRA / VENDA)
+        const qty = parseBrazilianNumber(item.quantity);
+        let unit = parseBrazilianNumber(item.unit_price);
+        let total = parseBrazilianNumber(item.total_value);
 
         // Auto-reparação de dados inconsistentes
         if (total <= 0 && qty > 0 && unit > 0) {
@@ -1154,10 +1209,10 @@ function buildPositions() {
             unit = total / qty;
         }
 
-        const typeLower = (tx.type || '').toLowerCase();
+        const typeLower = (item.type || '').toLowerCase();
         const isBuy = typeLower === 'compra' || typeLower === 'buy';
 
-        pos.transactions.push(tx);
+        pos.transactions.push(item);
 
         if (isBuy) {
             pos.costBasis += total;
@@ -4310,8 +4365,359 @@ function showToast(message, type) {
 }
 
 // ============================================
+// EVENTOS CORPORATIVOS (DESDOBRAMENTOS, BONIFICAÇÕES, AGRUPAMENTOS, AMORTIZAÇÕES)
+// ============================================
+async function loadCorporateEvents() {
+    try {
+        if (!currentUser || !currentUser.id) {
+            try {
+                if (typeof supabaseClient !== 'undefined' && supabaseClient?.auth) {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (user) currentUser = user;
+                }
+            } catch (e) {}
+        }
+
+        let loaded = [];
+        let fetchedFromDb = false;
+
+        if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('corporate_events')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('event_date', { ascending: true });
+
+                if (!error && data) {
+                    loaded = data;
+                    fetchedFromDb = true;
+                }
+            } catch (dbErr) {
+                console.warn('⚠️ Tabela corporate_events ainda não criada no Supabase ou offline:', dbErr);
+            }
+        }
+
+        // Se offline ou demo, recupera de localStorage
+        if (!fetchedFromDb) {
+            try {
+                const local = localStorage.getItem('tonu_corporate_events');
+                if (local) {
+                    loaded = JSON.parse(local) || [];
+                }
+            } catch (e) {}
+        }
+
+        allCorporateEvents = loaded || [];
+        console.log('⚡ Eventos corporativos carregados:', allCorporateEvents.length);
+    } catch (err) {
+        console.error('❌ Erro ao carregar eventos corporativos:', err);
+        allCorporateEvents = [];
+    }
+}
+
+function openCorporateEventModal(editEvent = null) {
+    const modal = document.getElementById('corporateEventModal');
+    if (!modal) return;
+
+    const form = document.getElementById('corporateEventForm');
+    if (form) form.reset();
+
+    const editIdInput = document.getElementById('corpEditId');
+    const title = document.getElementById('corporateEventModalTitle');
+    const btn = document.getElementById('corpSubmitBtn');
+
+    if (editEvent) {
+        if (editIdInput) editIdInput.value = editEvent.id || '';
+        if (title) title.textContent = 'Editar Evento Corporativo';
+        if (btn) btn.innerHTML = '<i class="fas fa-check"></i> Atualizar Evento';
+
+        document.getElementById('corpTicker').value = editEvent.ticker || '';
+        document.getElementById('corpEventType').value = editEvent.event_type || 'Desdobramento';
+        document.getElementById('corpRatioFrom').value = editEvent.ratio_from || 1;
+        document.getElementById('corpRatioTo').value = editEvent.ratio_to || '';
+        document.getElementById('corpBonusShares').value = editEvent.bonus_shares || '';
+        document.getElementById('corpBonusUnitCost').value = editEvent.bonus_unit_cost || '';
+        document.getElementById('corpAmortizationPerShare').value = editEvent.amortization_per_share || '';
+        document.getElementById('corpEventDate').value = editEvent.event_date ? editEvent.event_date.split('T')[0] : '';
+        document.getElementById('corpNote').value = editEvent.note || '';
+        onCorpEventTypeChange(editEvent.event_type || 'Desdobramento');
+    } else {
+        if (editIdInput) editIdInput.value = '';
+        if (title) title.textContent = 'Novo Evento Corporativo';
+        if (btn) btn.innerHTML = '<i class="fas fa-check"></i> Salvar Evento';
+        const todayStr = new Date().toISOString().split('T')[0];
+        const dateInput = document.getElementById('corpEventDate');
+        if (dateInput) dateInput.value = todayStr;
+        onCorpEventTypeChange('Desdobramento');
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function closeCorporateEventModal() {
+    const modal = document.getElementById('corporateEventModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function onCorpEventTypeChange(type) {
+    const ratioBox = document.getElementById('corpRatioContainer');
+    const ratioHint = document.getElementById('corpRatioHint');
+    const bonusBox = document.getElementById('corpBonusContainer');
+    const amortBox = document.getElementById('corpAmortizationContainer');
+
+    if (!ratioBox || !bonusBox || !amortBox) return;
+
+    ratioBox.classList.add('hidden');
+    if (ratioHint) ratioHint.classList.add('hidden');
+    bonusBox.classList.add('hidden');
+    amortBox.classList.add('hidden');
+
+    if (type === 'Desdobramento') {
+        ratioBox.classList.remove('hidden');
+        if (ratioHint) {
+            ratioHint.classList.remove('hidden');
+            ratioHint.textContent = 'Exemplo 1 para 10: Cada 1 cota vira 10 cotas (preço médio dividido por 10).';
+        }
+    } else if (type === 'Agrupamento') {
+        ratioBox.classList.remove('hidden');
+        if (ratioHint) {
+            ratioHint.classList.remove('hidden');
+            ratioHint.textContent = 'Exemplo 10 para 1: Cada 10 cotas viram 1 cota (preço médio multiplicado por 10).';
+        }
+    } else if (type === 'Bonificação' || type === 'Subscrição') {
+        bonusBox.classList.remove('hidden');
+    } else if (type === 'Amortização') {
+        amortBox.classList.remove('hidden');
+    }
+}
+
+async function saveCorporateEvent(e) {
+    if (e) e.preventDefault();
+    const btn = document.getElementById('corpSubmitBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+    }
+
+    try {
+        const id = document.getElementById('corpEditId')?.value?.trim();
+        const ticker = document.getElementById('corpTicker')?.value?.trim().toUpperCase();
+        const eventType = document.getElementById('corpEventType')?.value?.trim();
+        const eventDate = document.getElementById('corpEventDate')?.value;
+        const note = document.getElementById('corpNote')?.value?.trim() || null;
+
+        if (!ticker || !eventDate) {
+            showToast('Preencha o ticker e a data do evento.', 'warning');
+            return;
+        }
+
+        const payload = {
+            user_id: currentUser?.id || null,
+            ticker: ticker,
+            event_type: eventType,
+            event_date: eventDate,
+            note: note,
+            ratio_from: 1,
+            ratio_to: null,
+            bonus_shares: null,
+            bonus_unit_cost: 0,
+            amortization_per_share: null
+        };
+
+        if (eventType === 'Desdobramento' || eventType === 'Agrupamento') {
+            payload.ratio_from = parseFloat(document.getElementById('corpRatioFrom')?.value) || 1;
+            payload.ratio_to = parseFloat(document.getElementById('corpRatioTo')?.value) || 1;
+            if (payload.ratio_to <= 0) {
+                showToast('Informe a proporção de cotas correta.', 'warning');
+                return;
+            }
+        } else if (eventType === 'Bonificação' || eventType === 'Subscrição') {
+            payload.bonus_shares = parseFloat(document.getElementById('corpBonusShares')?.value) || 0;
+            payload.bonus_unit_cost = parseFloat(document.getElementById('corpBonusUnitCost')?.value) || 0;
+            if (payload.bonus_shares <= 0) {
+                showToast('Informe a quantidade de cotas.', 'warning');
+                return;
+            }
+        } else if (eventType === 'Amortização') {
+            payload.amortization_per_share = parseFloat(document.getElementById('corpAmortizationPerShare')?.value) || 0;
+            if (payload.amortization_per_share <= 0) {
+                showToast('Informe o valor amortizado por cota.', 'warning');
+                return;
+            }
+        }
+
+        let savedInSupabase = false;
+        if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+            try {
+                if (id) {
+                    const { error } = await supabaseClient
+                        .from('corporate_events')
+                        .update(payload)
+                        .eq('id', id)
+                        .eq('user_id', currentUser.id);
+                    if (!error) savedInSupabase = true;
+                } else {
+                    const { error } = await supabaseClient
+                        .from('corporate_events')
+                        .insert([payload]);
+                    if (!error) savedInSupabase = true;
+                }
+            } catch (err) {
+                console.warn('⚠️ Erro ao salvar corporate_events no Supabase, salvando localmente:', err);
+            }
+        }
+
+        // Salva localmente caso Supabase ainda não tenha a tabela
+        if (!savedInSupabase) {
+            let localList = [];
+            try {
+                localList = JSON.parse(localStorage.getItem('tonu_corporate_events') || '[]');
+            } catch (e) {}
+
+            if (id) {
+                localList = localList.map(item => item.id === id ? { ...item, ...payload } : item);
+            } else {
+                payload.id = 'corp_' + Date.now();
+                payload.created_at = new Date().toISOString();
+                localList.push(payload);
+            }
+            localStorage.setItem('tonu_corporate_events', JSON.stringify(localList));
+        }
+
+        showToast(id ? 'Evento corporativo atualizado!' : 'Evento corporativo registrado com sucesso!', 'success');
+        closeCorporateEventModal();
+        await refreshDashboard();
+
+    } catch (err) {
+        console.error('❌ Erro ao salvar evento corporativo:', err);
+        showToast('Erro ao salvar evento: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Salvar Evento';
+        }
+    }
+}
+
+async function deleteCorporateEvent(id) {
+    if (!confirm('Deseja realmente remover este evento corporativo? O cálculo de preço médio e cotas será recalculado.')) return;
+
+    try {
+        let deletedFromDb = false;
+        if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+            try {
+                const { error } = await supabaseClient
+                    .from('corporate_events')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', currentUser.id);
+                if (!error) deletedFromDb = true;
+            } catch (err) {}
+        }
+
+        let localList = [];
+        try {
+            localList = JSON.parse(localStorage.getItem('tonu_corporate_events') || '[]');
+            localList = localList.filter(item => item.id !== id);
+            localStorage.setItem('tonu_corporate_events', JSON.stringify(localList));
+        } catch (e) {}
+
+        showToast('Evento corporativo removido!', 'info');
+        await refreshDashboard();
+    } catch (err) {
+        console.error('❌ Erro ao excluir evento corporativo:', err);
+        showToast('Erro ao remover evento', 'error');
+    }
+}
+
+function renderCorporateEvents() {
+    const tbody = document.getElementById('corporateEventsBody');
+    if (!tbody) return;
+
+    if (!allCorporateEvents || allCorporateEvents.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align:center; padding:35px; color:var(--color-text-muted);">
+                    <i class="fas fa-bolt" style="font-size:28px; color:var(--color-primary,#6C5CE7); margin-bottom:8px; display:block; opacity:0.6;"></i>
+                    Nenhum evento corporativo registrado.<br>
+                    <small>Cadastre desdobramentos, agrupamentos ou bonificações para ajustar automaticamente seu preço médio.</small>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    const sorted = [...allCorporateEvents].sort((a, b) => {
+        const da = new Date(a.event_date || a.date || '1970-01-01').getTime();
+        const db = new Date(b.event_date || b.date || '1970-01-01').getTime();
+        return db - da;
+    });
+
+    tbody.innerHTML = sorted.map(ev => {
+        const evType = ev.event_type || ev.type || 'Desdobramento';
+        let detail = '--';
+        let cotasImpact = '--';
+        let costImpact = '--';
+
+        if (evType === 'Desdobramento' || evType === 'Agrupamento') {
+            const rf = ev.ratio_from || 1;
+            const rt = ev.ratio_to || 1;
+            detail = `Proporção ${rf} : ${rt}`;
+            cotasImpact = `${rf} cota(s) ➔ ${rt} cota(s)`;
+            costImpact = `PM ajustado em ${(rf / rt).toFixed(4)}x`;
+        } else if (evType === 'Bonificação') {
+            detail = `+${ev.bonus_shares || 0} cotas bonificadas`;
+            cotasImpact = `+${ev.bonus_shares || 0} cotas`;
+            costImpact = ev.bonus_unit_cost ? `Custo: R$ ${parseFloat(ev.bonus_unit_cost).toFixed(2)}/un` : 'Sem custo adicional';
+        } else if (evType === 'Subscrição') {
+            detail = `+${ev.bonus_shares || 0} cotas exercidas`;
+            cotasImpact = `+${ev.bonus_shares || 0} cotas`;
+            costImpact = ev.bonus_unit_cost ? `Preço: R$ ${parseFloat(ev.bonus_unit_cost).toFixed(2)}/un` : 'Exercício';
+        } else if (evType === 'Amortização') {
+            detail = `R$ ${parseFloat(ev.amortization_per_share || 0).toFixed(2)} por cota`;
+            cotasImpact = 'Sem alteração de cotas';
+            costImpact = `- R$ ${parseFloat(ev.amortization_per_share || 0).toFixed(2)} no PM`;
+        }
+
+        const dateStr = ev.event_date ? new Date(ev.event_date + 'T12:00:00').toLocaleDateString('pt-BR') : '--';
+        const noteStr = ev.note || '--';
+
+        return `
+            <tr>
+                <td style="font-weight:600;">${dateStr}</td>
+                <td><strong style="color:var(--color-primary,#6C5CE7);">${ev.ticker}</strong></td>
+                <td><span class="badge" style="background:rgba(108,92,231,0.12); color:#6C5CE7; padding:4px 8px; border-radius:6px; font-weight:600; font-size:11px;">${evType}</span></td>
+                <td>${detail}</td>
+                <td style="font-weight:500;">${cotasImpact}</td>
+                <td style="color:#00b894; font-weight:500;">${costImpact}</td>
+                <td style="font-size:12px; color:var(--color-text-muted);">${noteStr}</td>
+                <td style="text-align:right;">
+                    <div style="display:inline-flex; gap:6px;">
+                        <button class="btn-icon" onclick='openCorporateEventModal(${JSON.stringify(ev)})' title="Editar Evento">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon text-danger" onclick="deleteCorporateEvent('${ev.id}')" title="Excluir Evento">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// ============================================
 // EXPORTA FUNÇÕES GLOBAIS
 // ============================================
+window.openCorporateEventModal = openCorporateEventModal;
+window.closeCorporateEventModal = closeCorporateEventModal;
+window.onCorpEventTypeChange = onCorpEventTypeChange;
+window.saveCorporateEvent = saveCorporateEvent;
+window.deleteCorporateEvent = deleteCorporateEvent;
+window.loadCorporateEvents = loadCorporateEvents;
+window.renderCorporateEvents = renderCorporateEvents;
+
 window.openOperationModal = openOperationModal;
 window.closeOperationModal = closeOperationModal;
 window.openDividendModal = openDividendModal;
