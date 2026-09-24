@@ -17,8 +17,16 @@ if (typeof global !== 'undefined') {
     global.TONU_JCP_TAX_RATE = 0.15;
 }
 
+var resolvedBrapiToken = (typeof window !== 'undefined' && window.__TONU_CONFIG__ && window.__TONU_CONFIG__.brapiToken)
+    ? window.__TONU_CONFIG__.brapiToken
+    : ((typeof window !== 'undefined' && window.ENV && window.ENV.BRAPI_TOKEN) ? window.ENV.BRAPI_TOKEN : '');
+
+if (!resolvedBrapiToken && typeof console !== 'undefined' && console.warn) {
+    console.warn('⚠️ BRAPI_TOKEN não configurado no ambiente (.env). Cotações automáticas da B3 podem ficar limitadas.');
+}
+
 window.APP_CONFIG = {
-    BRAPI_TOKEN: window.ENV?.BRAPI_TOKEN || 'n3pZmgKo5YZwJcNx1sfPSN',
+    BRAPI_TOKEN: resolvedBrapiToken,
     VERSION: '2.1.0',
     MAX_AMOUNT: 999999999.99,
     MIN_PASSWORD_LENGTH: 6,

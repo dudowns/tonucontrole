@@ -2,6 +2,8 @@
 // TONUCONTROLE - SECURE EXPRESS SERVER
 // ============================================
 
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -117,6 +119,26 @@ app.use((req, res, next) => {
 // ============================================
 // 4. ROTAS DE API
 // ============================================
+
+// Configuração pública do cliente (Variáveis de ambiente controladas)
+app.get('/api/config', (req, res) => {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+    const brapiToken = process.env.BRAPI_TOKEN;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+        return res.status(500).json({
+            error: 'Configurações obrigatórias de ambiente (SUPABASE_URL ou SUPABASE_ANON_KEY) não estão definidas no servidor.'
+        });
+    }
+
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    return res.json({
+        supabaseUrl,
+        supabaseAnonKey,
+        brapiToken: brapiToken || ''
+    });
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -307,18 +329,49 @@ app.get(['/sw.js', '/tonucontrole/sw.js'], (req, res) => {
     res.sendFile(path.join(ROOT_DIR, 'sw.js'));
 });
 
+// ============================================
+// 6. RENDERIZAÇÃO SEGURA DE PÁGINAS E INJEÇÃO DE CONFIGURAÇÃO
+// ============================================
+
+function getClientConfigScript() {
+    const config = {
+        supabaseUrl: process.env.SUPABASE_URL || '',
+        supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
+        brapiToken: process.env.BRAPI_TOKEN || ''
+    };
+    const sanitizedJson = JSON.stringify(config).replace(/</g, '\\u003c');
+    return `<script>window.__TONU_CONFIG__ = ${sanitizedJson};</script>`;
+}
+
+function sendHtmlWithConfig(res, filePath) {
+    try {
+        let html = fs.readFileSync(filePath, 'utf8');
+        const scriptTag = getClientConfigScript();
+        if (html.includes('<head>')) {
+            html = html.replace('<head>', `<head>\n    ${scriptTag}`);
+        } else if (html.includes('</title>')) {
+            html = html.replace('</title>', `</title>\n    ${scriptTag}`);
+        } else {
+            html = `${scriptTag}\n${html}`;
+        }
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.send(html);
+    } catch (err) {
+        console.error('Erro ao injetar configuração no HTML:', err);
+        return res.sendFile(filePath);
+    }
+}
+
 // Entrada principal da aplicação
 app.get(['/', '/index.html', '/tonucontrole', '/tonucontrole/index.html'], (req, res) => {
-    res.sendFile(path.join(ROOT_DIR, 'index.html'));
+    sendHtmlWithConfig(res, path.join(ROOT_DIR, 'index.html'));
 });
 
 app.get(['/index-mobile.html', '/tonucontrole/index-mobile.html'], (req, res) => {
-    res.sendFile(path.join(ROOT_DIR, 'index-mobile.html'));
+    sendHtmlWithConfig(res, path.join(ROOT_DIR, 'index-mobile.html'));
 });
 
-// ============================================
-// 6. RENDERIZAÇÃO SEGURA DE PÁGINAS (ANTI PATH-TRAVERSAL)
-// ============================================
 function serveSecurePage(req, res, next, isMobile = false) {
     const rawPage = req.params.page;
     if (!rawPage) return next();
@@ -341,7 +394,7 @@ function serveSecurePage(req, res, next, isMobile = false) {
     }
 
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-        return res.sendFile(filePath);
+        return sendHtmlWithConfig(res, filePath);
     }
 
     next();

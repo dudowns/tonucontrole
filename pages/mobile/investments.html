@@ -229,6 +229,124 @@
             color: #94a3b8;
             font-size: 13px;
         }
+
+        /* TOGGLE VISÃO GRÁFICA DE CARTEIRA (IDÊNTICO AO DASHBOARD MOBILE) */
+        .mobile-chart-card {
+            background: var(--color-surface, #ffffff);
+            border-radius: 16px;
+            padding: 14px 16px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            margin-bottom: 14px;
+            min-height: 330px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        .mobile-chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            min-height: 36px;
+        }
+        .mobile-chart-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-text, #1e293b);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .mobile-chart-toggle {
+            display: flex;
+            background: var(--color-bg, #f1f5f9);
+            border-radius: 999px;
+            padding: 3px;
+            gap: 3px;
+        }
+        .mobile-chart-btn {
+            border: none;
+            background: transparent;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--color-text-muted, #64748b);
+            padding: 6px 12px;
+            min-height: 34px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mobile-chart-btn.active {
+            background: var(--color-surface, #ffffff);
+            color: #6C5CE7;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            font-weight: 700;
+        }
+        .mobile-chart-container {
+            position: relative;
+            height: 220px;
+            width: 100%;
+            transition: opacity 0.2s ease;
+        }
+        .chart-center-total {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: none;
+        }
+        .chart-center-total .center-label {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--color-text-muted, #94a3b8);
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+        .chart-center-total .center-value {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--color-text, #0f172a);
+            display: block;
+            line-height: 1.2;
+            margin-top: 1px;
+        }
+        .chart-empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--color-text-muted, #94a3b8);
+            font-size: 12px;
+            font-weight: 500;
+            width: 100%;
+            pointer-events: none;
+        }
+        body.dark-theme .mobile-chart-card {
+            background: var(--color-surface, #1e293b);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        body.dark-theme .mobile-chart-toggle {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        body.dark-theme .mobile-chart-btn {
+            color: #94a3b8;
+        }
+        body.dark-theme .mobile-chart-btn.active {
+            background: #273549;
+            color: #a29bfe;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+        body.dark-theme .chart-center-total .center-value {
+            color: #f1f5f9;
+        }
     </style>
 </head>
 <body>
@@ -286,16 +404,31 @@
             </div>
         </div>
 
-        <!-- GRÁFICO DE ALOCAÇÃO POR CLASSE (MOBILE) -->
-        <div class="invest-charts-mobile-card" id="mobileAllocationCard" style="background:var(--color-surface, #fff); border-radius:14px; padding:12px; margin-bottom:12px; border:1px solid var(--color-border, #e2e8f0); box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <div style="font-size:12px; font-weight:700; color:var(--color-text, #1e293b); display:flex; align-items:center; gap:6px;">
-                    <i class="fas fa-chart-pie" style="color:#6C5CE7;"></i> Alocação da Carteira
+        <!-- VISÃO GRÁFICA DA CARTEIRA COM TOGGLE (MOBILE) -->
+        <div class="mobile-chart-card" id="mobileAllocationCard">
+            <div class="mobile-chart-header">
+                <div class="mobile-chart-title">
+                    <i class="fas fa-chart-pie" id="mobileInvestChartIcon" style="color:#6C5CE7;"></i>
+                    <span id="mobileInvestChartTitle">Visão Gráfica</span>
                 </div>
-                <span id="mobileChartLegendSummary" style="font-size:11px; font-weight:600; color:var(--color-text-muted, #64748b);"></span>
+                <div class="mobile-chart-toggle">
+                    <button type="button" class="mobile-chart-btn active" id="btnChartModeAlloc" onclick="setMobileInvestChartMode('allocation')">
+                        Alocação
+                    </button>
+                    <button type="button" class="mobile-chart-btn" id="btnChartModeEvol" onclick="setMobileInvestChartMode('evolution')">
+                        Evolução
+                    </button>
+                </div>
             </div>
-            <div style="height:175px; position:relative;">
+            <div class="mobile-chart-container" id="mobileInvestChartWrapper">
                 <canvas id="mobileInvestAllocationChart"></canvas>
+                <div class="chart-center-total" id="mobileChartCenterTotal" style="display:none;">
+                    <span class="center-label">Patrimônio</span>
+                    <span class="center-value" id="mobileChartCenterVal">R$ 0,00</span>
+                </div>
+                <div class="chart-empty-state" id="mobileChartEmptyNotice" style="display:none;">
+                    Sem ativos na carteira
+                </div>
             </div>
         </div>
 
@@ -773,6 +906,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         const corpDateInput = document.getElementById("corpEventDate");
         if (corpDateInput) corpDateInput.value = todayStr;
 
+        // Inicializa modo do toggle de gráfico de investimentos
+        setMobileInvestChartMode(currentMobileInvestChartMode);
+
         await loadAllInvestmentData();
     } catch (e) {
         console.error("Erro auth:", e);
@@ -997,22 +1133,317 @@ function openMobileIRReportModal() {
 // ============================================
 let mobileAllocationChart = null;
 let mobileDividendsChart = null;
+let currentMobileInvestChartMode = localStorage.getItem('tonu_mobile_invest_chart_mode') || 'allocation';
+
+function setMobileInvestChartMode(mode) {
+    currentMobileInvestChartMode = mode;
+    localStorage.setItem('tonu_mobile_invest_chart_mode', mode);
+
+    const btnAlloc = document.getElementById("btnChartModeAlloc");
+    const btnEvol = document.getElementById("btnChartModeEvol");
+    const titleEl = document.getElementById("mobileInvestChartTitle");
+    const iconEl = document.getElementById("mobileInvestChartIcon");
+
+    if (btnAlloc && btnEvol) {
+        if (mode === 'allocation') {
+            btnAlloc.classList.add("active");
+            btnEvol.classList.remove("active");
+            if (titleEl) titleEl.textContent = "Alocação da Carteira";
+            if (iconEl) iconEl.className = "fas fa-chart-pie";
+        } else {
+            btnEvol.classList.add("active");
+            btnAlloc.classList.remove("active");
+            if (titleEl) titleEl.textContent = "Evolução do Patrimônio";
+            if (iconEl) iconEl.className = "fas fa-chart-line";
+        }
+    }
+
+    renderMobileInvestChart();
+}
+
+function renderMobileInvestChart() {
+    if (currentMobileInvestChartMode === 'evolution') {
+        renderMobileEvolutionChart();
+    } else {
+        renderMobileAllocationChart();
+    }
+}
+
+// Build timeline data for mobile evolution chart
+function buildMobileEvolutionChartData() {
+    if (!allRawInvestments || allRawInvestments.length === 0) {
+        return { labels: [], total: [] };
+    }
+
+    // 1. Normaliza transações de compra/venda
+    const normalizedTx = [...allRawInvestments].map(t => {
+        const rawDate = t.date || t.created_at || '';
+        const d = new Date(rawDate);
+        return {
+            ...t,
+            isCorporateEvent: false,
+            parsedDate: !isNaN(d.getTime()) ? d : new Date(),
+            sortPriority: (t.type || '').toLowerCase().includes('compra') || (t.type || '').toLowerCase().includes('buy') ? 1 : 2
+        };
+    });
+
+    // 2. Normaliza eventos corporativos
+    const normalizedEvents = (allRawCorporateEvents || []).map(ev => {
+        const rawDate = ev.event_date || ev.date || '';
+        const d = new Date(rawDate);
+        return {
+            ...ev,
+            isCorporateEvent: true,
+            parsedDate: !isNaN(d.getTime()) ? d : new Date(),
+            sortPriority: 0
+        };
+    });
+
+    // 3. Mescla e ordena por data
+    const validTimeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
+        const da = a.parsedDate.getTime();
+        const db = b.parsedDate.getTime();
+        if (da !== db) return da - db;
+        if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+        return 0;
+    });
+
+    if (validTimeline.length === 0) {
+        return { labels: [], total: [] };
+    }
+
+    // Janela de últimos 12 meses (ou a partir do primeiro evento se menor)
+    const end = new Date();
+    const start = new Date(end.getFullYear(), end.getMonth() - 11, 1);
+
+    const allMonths = [];
+    const curMonth = new Date(start);
+    while (curMonth <= end || (curMonth.getFullYear() === end.getFullYear() && curMonth.getMonth() === end.getMonth())) {
+        const year = curMonth.getFullYear();
+        const monthNum = curMonth.getMonth() + 1;
+        const key = `${year}-${String(monthNum).padStart(2, '0')}`;
+        allMonths.push({
+            key: key,
+            label: curMonth.toLocaleDateString('pt-BR', { month: 'short' }),
+            year: year,
+            month: monthNum,
+            date: new Date(curMonth)
+        });
+        curMonth.setMonth(curMonth.getMonth() + 1);
+    }
+
+    // Mapa de posições simuladas mês a mês
+    const simulatedMap = new Map();
+    const labels = [];
+    const total = [];
+
+    // Processa eventos e calcula patrimônio acumulado para cada mês
+    let timelineIndex = 0;
+
+    for (let i = 0; i < allMonths.length; i++) {
+        const m = allMonths[i];
+        const monthEnd = new Date(m.year, m.month, 0, 23, 59, 59);
+
+        while (timelineIndex < validTimeline.length && validTimeline[timelineIndex].parsedDate <= monthEnd) {
+            const item = validTimeline[timelineIndex];
+            const ticker = (item.ticker || '').toUpperCase().trim();
+            if (ticker) {
+                if (!simulatedMap.has(ticker)) {
+                    simulatedMap.set(ticker, { quantity: 0, costBasis: 0, averageCost: 0 });
+                }
+                const pos = simulatedMap.get(ticker);
+
+                if (item.isCorporateEvent) {
+                    const evType = (item.event_type || item.type || '').trim();
+                    if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+                        const rf = parseFloat(item.ratio_from) || 1;
+                        const rt = parseFloat(item.ratio_to) || 1;
+                        if (rf > 0 && rt > 0 && pos.quantity > 0) {
+                            pos.quantity = pos.quantity * (rt / rf);
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+                        const bShares = parseFloat(item.bonus_shares || item.shares_received || 0);
+                        const bCost = parseFloat(item.bonus_unit_cost || item.unit_value || 0);
+                        if (bShares > 0) {
+                            pos.quantity += bShares;
+                            pos.costBasis += (bShares * bCost);
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    } else if (evType === 'Amortização') {
+                        const amort = parseFloat(item.amortization_per_share || item.unit_value || 0);
+                        if (amort > 0 && pos.quantity > 0) {
+                            pos.costBasis = Math.max(0, pos.costBasis - (amort * pos.quantity));
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    }
+                } else {
+                    const qty = parseFloat(item.quantity) || 0;
+                    const totVal = parseFloat(item.total_value || item.amount || (qty * (parseFloat(item.unit_price) || 0))) || 0;
+                    const type = (item.type || '').toLowerCase();
+
+                    if (type.includes('compra') || type.includes('buy')) {
+                        pos.costBasis += totVal;
+                        pos.quantity += qty;
+                        pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                    } else if (type.includes('venda') || type.includes('sell')) {
+                        const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        pos.costBasis = Math.max(0, pos.costBasis - (avg * qty));
+                        pos.quantity = Math.max(0, pos.quantity - qty);
+                        if (pos.quantity <= 0.0001) {
+                            pos.quantity = 0;
+                            pos.costBasis = 0;
+                            pos.averageCost = 0;
+                        } else {
+                            pos.averageCost = pos.costBasis / pos.quantity;
+                        }
+                    }
+                }
+            }
+            timelineIndex++;
+        }
+
+        // Soma o patrimônio de todos os ativos acumulados até o fim deste mês
+        let monthTotal = 0;
+        simulatedMap.forEach(p => {
+            if (p.quantity > 0.0001) {
+                monthTotal += p.costBasis;
+            }
+        });
+
+        labels.push(m.label);
+        total.push(Math.round(monthTotal * 100) / 100);
+    }
+
+    return { labels, total };
+}
+
+function renderMobileEvolutionChart() {
+    const canvas = document.getElementById("mobileInvestAllocationChart");
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const centerTotalEl = document.getElementById("mobileChartCenterTotal");
+    const emptyNoticeEl = document.getElementById("mobileChartEmptyNotice");
+    if (centerTotalEl) centerTotalEl.style.display = "none";
+
+    const isDark = document.body.classList.contains("dark-theme");
+    const textColor = isDark ? '#e2e8f0' : '#475569';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)';
+
+    if (mobileAllocationChart) {
+        mobileAllocationChart.destroy();
+        mobileAllocationChart = null;
+    }
+
+    const evoData = buildMobileEvolutionChartData();
+    const hasData = evoData.total && evoData.total.length > 0 && evoData.total.some(v => v > 0);
+
+    if (!hasData) {
+        if (emptyNoticeEl) {
+            emptyNoticeEl.textContent = "Sem histórico de evolução";
+            emptyNoticeEl.style.display = "block";
+        }
+        return;
+    }
+
+    if (emptyNoticeEl) emptyNoticeEl.style.display = "none";
+
+    const ctx = canvas.getContext("2d");
+    let gradient = null;
+    try {
+        gradient = ctx.createLinearGradient(0, 0, 0, 200);
+        gradient.addColorStop(0, 'rgba(108, 92, 231, 0.35)');
+        gradient.addColorStop(1, 'rgba(108, 92, 231, 0.01)');
+    } catch (e) {
+        gradient = 'rgba(108, 92, 231, 0.15)';
+    }
+
+    mobileAllocationChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: evoData.labels,
+            datasets: [{
+                label: 'Patrimônio',
+                data: evoData.total,
+                borderColor: '#6C5CE7',
+                borderWidth: 2.5,
+                backgroundColor: gradient,
+                fill: true,
+                tension: 0.35,
+                pointBackgroundColor: '#6C5CE7',
+                pointBorderColor: isDark ? '#1e293b' : '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 3.5,
+                pointHoverRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return ' Patrimônio: ' + formatCurrency(context.parsed.y || 0);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        font: { size: 10 },
+                        color: textColor
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: gridColor },
+                    ticks: {
+                        font: { size: 9 },
+                        color: textColor,
+                        callback: function(val) {
+                            if (val >= 1000000) return 'R$ ' + (val / 1000000).toFixed(1) + 'M';
+                            if (val >= 1000) return 'R$ ' + (val / 1000).toFixed(0) + 'k';
+                            return 'R$ ' + val;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
 
 function renderMobileAllocationChart() {
     const canvas = document.getElementById("mobileInvestAllocationChart");
     if (!canvas || typeof Chart === 'undefined') return;
 
-    const card = document.getElementById("mobileAllocationCard");
+    const centerTotalEl = document.getElementById("mobileChartCenterTotal");
+    const centerValEl = document.getElementById("mobileChartCenterVal");
+    const emptyNoticeEl = document.getElementById("mobileChartEmptyNotice");
+
+    if (mobileAllocationChart) {
+        mobileAllocationChart.destroy();
+        mobileAllocationChart = null;
+    }
+
     if (!activePositions || activePositions.length === 0) {
-        if (card) card.style.display = "none";
+        if (centerTotalEl) centerTotalEl.style.display = "none";
+        if (emptyNoticeEl) {
+            emptyNoticeEl.textContent = "Sem ativos na carteira";
+            emptyNoticeEl.style.display = "block";
+        }
         return;
     }
-    if (card) card.style.display = "block";
+
+    if (emptyNoticeEl) emptyNoticeEl.style.display = "none";
 
     const classTotals = {};
     let grandTotal = 0;
     activePositions.forEach(p => {
-        const cls = p.asset_class || 'Outros';
+        let cls = p.asset_class || 'Outros';
         const val = Number(p.costBasis) || 0;
         classTotals[cls] = (classTotals[cls] || 0) + val;
         grandTotal += val;
@@ -1023,20 +1454,23 @@ function renderMobileAllocationChart() {
 
     const paletteMap = {
         'Ações': '#6C5CE7',
-        'FIIs': '#00B894',
-        'Renda Fixa': '#0984E3',
-        'ETFs': '#FDCB6E',
-        'Cripto': '#E17055',
+        'FIIs': '#0984E3',
+        'ETFs': '#00B894',
+        'Tesouro': '#FDCB6E',
+        'Renda Fixa': '#FDCB6E',
+        'BDRs': '#E17055',
+        'Cripto': '#E84393',
         'Outros': '#636E72'
     };
     const bgColors = labels.map(l => paletteMap[l] || '#A29BFE');
 
-    if (mobileAllocationChart) {
-        mobileAllocationChart.destroy();
-    }
-
     const isDark = document.body.classList.contains("dark-theme");
     const textColor = isDark ? '#e2e8f0' : '#475569';
+
+    if (centerTotalEl && centerValEl) {
+        centerValEl.textContent = formatCurrency(grandTotal);
+        centerTotalEl.style.display = "block";
+    }
 
     mobileAllocationChart = new Chart(canvas, {
         type: 'doughnut',
@@ -1056,10 +1490,19 @@ function renderMobileAllocationChart() {
                 legend: {
                     position: 'bottom',
                     labels: {
-                        boxWidth: 10,
+                        boxWidth: 9,
                         padding: 8,
-                        font: { size: 10 },
-                        color: textColor
+                        font: { size: 10, weight: 600 },
+                        color: textColor,
+                        generateLabels: function(chart) {
+                            const original = Chart.overrides.doughnut.plugins.legend.labels.generateLabels(chart);
+                            return original.map((item, idx) => {
+                                const val = data[idx] || 0;
+                                const pct = grandTotal > 0 ? Math.round((val / grandTotal) * 100) : 0;
+                                item.text = `${item.text} (${pct}%)`;
+                                return item;
+                            });
+                        }
                     }
                 },
                 tooltip: {
@@ -1072,12 +1515,9 @@ function renderMobileAllocationChart() {
                     }
                 }
             },
-            cutout: '62%'
+            cutout: '68%'
         }
     });
-
-    const summaryEl = document.getElementById("mobileChartLegendSummary");
-    if (summaryEl) summaryEl.textContent = `Total: ${formatCurrency(grandTotal)}`;
 }
 
 function renderMobileDividendsEvolutionChart() {
@@ -1256,8 +1696,8 @@ function renderPositions() {
         filtered = activePositions.filter(p => p.asset_class === currentAssetFilter);
     }
 
-    // Atualiza gráfico de alocação no mobile
-    renderMobileAllocationChart();
+    // Atualiza gráfico de investimentos no mobile (Alocação ou Evolução)
+    renderMobileInvestChart();
 
     if (filtered.length === 0) {
         container.innerHTML = `
@@ -1418,6 +1858,7 @@ function switchInvestTab(tab) {
         document.getElementById("tabContentCarteira").classList.add("active");
         setTimeout(() => {
             if (mobileAllocationChart) mobileAllocationChart.resize();
+            renderMobileInvestChart();
         }, 50);
     } else if (tab === 'lancamentos') {
         document.getElementById("tabBtnLancamentos").classList.add("active");
@@ -2019,7 +2460,7 @@ function toggleTheme() {
     localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
     const icon = document.querySelector("#themeIcon");
     if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
-    if (typeof renderMobileAllocationChart === 'function') renderMobileAllocationChart();
+    if (typeof renderMobileInvestChart === 'function') renderMobileInvestChart();
     if (typeof renderMobileDividendsEvolutionChart === 'function') renderMobileDividendsEvolutionChart();
 }
 

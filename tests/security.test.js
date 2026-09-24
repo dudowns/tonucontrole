@@ -93,6 +93,29 @@ async function runSecurityTests() {
         results.push({ name: 'Servidor: Páginas públicas', passed: false, error: e.message });
     }
 
+    // Teste 6: Configuração de ambiente segura (/api/config)
+    try {
+        const resConfig = await makeRequest('/api/config');
+        if (resConfig.statusCode === 200) {
+            const body = JSON.parse(resConfig.body);
+            const hasUrl = typeof body.supabaseUrl === 'string' && body.supabaseUrl.length > 0;
+            const hasKey = typeof body.supabaseAnonKey === 'string' && body.supabaseAnonKey.length > 0;
+            const noGemini = body.geminiApiKey === undefined && body.GEMINI_API_KEY === undefined;
+            const noServiceRole = body.supabaseServiceRoleKey === undefined && body.SUPABASE_SERVICE_ROLE_KEY === undefined;
+            const hasShortCache = resConfig.headers['cache-control'] && resConfig.headers['cache-control'].includes('max-age=60');
+
+            if (hasUrl && hasKey && noGemini && noServiceRole && hasShortCache) {
+                results.push({ name: 'Servidor: Endpoint /api/config fornece apenas chaves públicas sem vazar segredos', passed: true });
+            } else {
+                results.push({ name: 'Servidor: Endpoint /api/config', passed: false, error: `url=${hasUrl}, key=${hasKey}, noGemini=${noGemini}, cache=${hasShortCache}` });
+            }
+        } else {
+            results.push({ name: 'Servidor: Endpoint /api/config', passed: false, error: `Retornou status ${resConfig.statusCode}: ${resConfig.body}` });
+        }
+    } catch (e) {
+        results.push({ name: 'Servidor: Endpoint /api/config', passed: false, error: e.message });
+    }
+
     return results;
 }
 

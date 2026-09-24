@@ -420,6 +420,41 @@
                     <i class="fas fa-chevron-right"></i>
                 </div>
             </div>
+
+            <!-- BIOMETRIA (WEBAUTHN / FACE ID / DIGITAL) -->
+            <div class="settings-item" style="flex-direction:column; align-items:flex-start; gap:8px;">
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                    <div class="left">
+                        <div class="item-icon-box purple"><i class="fas fa-fingerprint"></i></div>
+                        <div>
+                            <div class="item-text-title">Biometria (Face ID / Digital)</div>
+                            <div class="item-text-sub" id="mobileBioSubText">Login biométrico ultra-rápido</div>
+                        </div>
+                    </div>
+                    <span id="mobileBioStatusText" style="color:#64748b; font-weight:600; font-size:12px;">Verificando...</span>
+                </div>
+                <div id="mobileBioActionContainer" style="width:100%; display:flex; justify-content:flex-end; gap:8px; margin-top:2px;">
+                    <!-- Preenchido dinamicamente via JS -->
+                </div>
+            </div>
+
+            <!-- AUTENTICAÇÃO EM DUAS ETAPAS (2FA) -->
+            <div class="settings-item" style="flex-direction:column; align-items:flex-start; gap:8px;">
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                    <div class="left">
+                        <div class="item-icon-box blue"><i class="fas fa-shield-halved"></i></div>
+                        <div>
+                            <div class="item-text-title">Autenticação em Duas Etapas (2FA)</div>
+                            <div class="item-text-sub">Camada adicional de segurança na conta</div>
+                        </div>
+                    </div>
+                    <span id="mobile2FAStatusText" style="color:#64748b; font-weight:600; font-size:12px;">Inativo</span>
+                </div>
+                <div id="mobile2FAActionContainer" style="width:100%; display:flex; justify-content:flex-end; gap:8px; margin-top:2px;">
+                    <!-- Preenchido dinamicamente via JS -->
+                </div>
+            </div>
+
             <div class="settings-item" onclick="clearSecuritySession()">
                 <div class="left">
                     <div class="item-icon-box amber"><i class="fas fa-user-shield"></i></div>
@@ -600,6 +635,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../../js/supabase.js"></script>
 <script src="../../js/core.js"></script>
+<script src="../../js/security.js"></script>
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sync.js"></script>
 <script src="../../js/financial-tools.js"></script>
@@ -649,6 +685,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             loadMobileAvatar(user, name);
         }
     } catch (e) { console.error("Erro ao carregar usuário:", e); }
+
+    // Inicializa controles de Biometria e 2FA
+    await renderMobileSecurityUI();
 
     // Inicializa na aba Geral
     const defaultTabBtn = document.querySelector(".mobile-tab-pill[onclick*=\"'general'\"]");
@@ -1038,6 +1077,173 @@ function clearSecuritySession() {
     if (confirm("Deseja desconectar as sessões em outros navegadores e manter apenas este celular?")) {
         showMobileToast("Outras sessões encerradas com sucesso! 🛡️", "success");
     }
+}
+
+// ============================================
+// BIOMETRIA E 2FA NO MOBILE
+// ============================================
+let isBioProcessingMobile = false;
+
+async function renderMobileSecurityUI() {
+    // 1. Renderiza Biometria
+    const bioStatusText = document.getElementById("mobileBioStatusText");
+    const bioSubText = document.getElementById("mobileBioSubText");
+    const bioActionContainer = document.getElementById("mobileBioActionContainer");
+
+    if (bioStatusText && bioActionContainer) {
+        if (!window.TonuBiometrics) {
+            bioStatusText.textContent = "Indisponível";
+            bioStatusText.style.color = "#94a3b8";
+            if (bioSubText) bioSubText.textContent = "Módulo biométrico não carregado.";
+            bioActionContainer.innerHTML = '';
+        } else {
+            const supported = await window.TonuBiometrics.checkSupport();
+            const isConfigured = window.TonuBiometrics.isConfigured();
+
+            if (!supported) {
+                bioStatusText.textContent = "Não suportada";
+                bioStatusText.style.color = "#e17055";
+                if (bioSubText) bioSubText.textContent = "Dispositivo sem leitor biométrico compatível.";
+                bioActionContainer.innerHTML = `<span style="font-size:11px; padding:3px 8px; border-radius:6px; background:#f1f5f9; color:#64748b;">Incompatível</span>`;
+            } else if (isConfigured) {
+                bioStatusText.textContent = "Ativada ✅";
+                bioStatusText.style.color = "#00b894";
+                if (bioSubText) bioSubText.textContent = "Face ID / Digital configurada neste celular.";
+                bioActionContainer.innerHTML = `
+                    <button type="button" class="btn btn-danger" onclick="disableMobileBiometrics()" style="padding:6px 12px; font-size:11.5px; border-radius:8px; border:none; background:#ff7675; color:white; cursor:pointer;">
+                        <i class="fas fa-times"></i> Desativar
+                    </button>
+                `;
+            } else {
+                bioStatusText.textContent = "Desativada";
+                bioStatusText.style.color = "#64748b";
+                if (bioSubText) bioSubText.textContent = "Entre com um toque sem digitar sua senha.";
+                bioActionContainer.innerHTML = `
+                    <button type="button" class="btn btn-primary" onclick="activateMobileBiometrics()" style="padding:6px 14px; font-size:11.5px; border-radius:8px; border:none; background:#6C5CE7; color:white; font-weight:600; cursor:pointer;">
+                        <i class="fas fa-fingerprint"></i> Ativar Biometria
+                    </button>
+                `;
+            }
+        }
+    }
+
+    // 2. Renderiza 2FA
+    const twoFAStatusText = document.getElementById("mobile2FAStatusText");
+    const twoFAActionContainer = document.getElementById("mobile2FAActionContainer");
+
+    if (twoFAStatusText && twoFAActionContainer) {
+        if (!window.TonuSecurity) {
+            twoFAStatusText.textContent = "Inativo";
+            twoFAStatusText.style.color = "#94a3b8";
+            twoFAActionContainer.innerHTML = '';
+        } else {
+            const is2FA = window.TonuSecurity.is2FAEnabled();
+            if (is2FA) {
+                twoFAStatusText.textContent = "Ativo 🛡️";
+                twoFAStatusText.style.color = "#00b894";
+                twoFAActionContainer.innerHTML = `
+                    <button type="button" class="btn btn-danger" onclick="toggleMobile2FA(false)" style="padding:6px 12px; font-size:11.5px; border-radius:8px; border:none; background:#ff7675; color:white; cursor:pointer;">
+                        <i class="fas fa-times"></i> Desativar 2FA
+                    </button>
+                `;
+            } else {
+                twoFAStatusText.textContent = "Inativo";
+                twoFAStatusText.style.color = "#64748b";
+                twoFAActionContainer.innerHTML = `
+                    <button type="button" class="btn btn-primary" onclick="toggleMobile2FA(true)" style="padding:6px 14px; font-size:11.5px; border-radius:8px; border:none; background:#0984E3; color:white; font-weight:600; cursor:pointer;">
+                        <i class="fas fa-shield-alt"></i> Ativar 2FA
+                    </button>
+                `;
+            }
+        }
+    }
+}
+
+async function activateMobileBiometrics() {
+    if (isBioProcessingMobile) {
+        showMobileToast("Aguarde a operação em andamento...", "warning");
+        return;
+    }
+
+    try {
+        if (!currentUser) {
+            showMobileToast("Faça login para cadastrar biometria.", "warning");
+            return;
+        }
+
+        if (window.TonuBiometrics && window.TonuBiometrics.isInIframe()) {
+            showMobileIframeBioNotice();
+            return;
+        }
+
+        isBioProcessingMobile = true;
+        showMobileToast("Toque no sensor biométrico ou use o Face ID...", "info");
+        await window.TonuBiometrics.registerBiometrics(currentUser);
+        showMobileToast("Biometria ativada com sucesso! 🎉", "success");
+        await renderMobileSecurityUI();
+    } catch (err) {
+        if (err.message === 'IFRAME_RESTRICTION') {
+            showMobileIframeBioNotice();
+            return;
+        }
+        console.error("Erro ao ativar biometria mobile:", err);
+        showMobileToast(err.message || "Falha ao registrar biometria.", "error");
+    } finally {
+        isBioProcessingMobile = false;
+    }
+}
+
+function disableMobileBiometrics() {
+    if (confirm("Deseja desativar o login biométrico neste aparelho?")) {
+        if (window.TonuBiometrics) {
+            window.TonuBiometrics.disableBiometrics();
+        }
+        showMobileToast("Biometria desativada.", "info");
+        renderMobileSecurityUI();
+    }
+}
+
+function toggleMobile2FA(enable) {
+    if (!window.TonuSecurity) return;
+    if (enable) {
+        window.TonuSecurity.set2FAEnabled(true);
+        showMobileToast("Autenticação em Duas Etapas (2FA) ativada! 🛡️", "success");
+    } else {
+        if (confirm("Deseja desativar o 2FA para sua conta?")) {
+            window.TonuSecurity.set2FAEnabled(false);
+            showMobileToast("2FA desativado.", "info");
+        }
+    }
+    renderMobileSecurityUI();
+}
+
+function showMobileIframeBioNotice() {
+    let modal = document.getElementById("mobileBioIframeModal");
+    if (modal) modal.remove();
+
+    const currentUrl = window.location.href;
+    const modalHtml = `
+    <div id="mobileBioIframeModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.7); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(5px); font-family:'Inter',sans-serif;">
+        <div style="background:#ffffff; border-radius:18px; max-width:380px; width:100%; padding:20px; box-shadow:0 20px 40px rgba(0,0,0,0.25); border:1px solid #e2e8f0; text-align:center;">
+            <div style="width:52px; height:52px; border-radius:50%; background:rgba(108,92,231,0.1); color:#6c5ce7; display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 12px auto;">
+                <i class="fas fa-fingerprint"></i>
+            </div>
+            <h3 style="font-size:16px; font-weight:800; color:#0f172a; margin:0 0 8px 0;">Abrir em Nova Aba</h3>
+            <p style="font-size:12px; color:#64748b; line-height:1.5; margin:0 0 16px 0;">
+                Por políticas de segurança WebAuthn do navegador, a leitura biométrica (Face ID / Digital) não pode ser iniciada em frames embutidos de preview.
+                <br><br>
+                Abra em uma <strong>nova aba</strong> ou instale o app PWA para ativar sua biometria!
+            </p>
+            <div style="display:flex; gap:8px; justify-content:center;">
+                <button type="button" class="btn" onclick="document.getElementById('mobileBioIframeModal').remove()" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; background:transparent; font-size:12px; cursor:pointer;">Fechar</button>
+                <a href="${currentUrl}" target="_blank" rel="noopener noreferrer" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 12px; border-radius:8px; background:#6c5ce7; color:white; font-size:12px; font-weight:600; text-decoration:none;">
+                    <i class="fas fa-external-link-alt"></i> Nova Aba
+                </a>
+            </div>
+        </div>
+    </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 let deferredPrompt = null;

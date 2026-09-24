@@ -1,9 +1,10 @@
 // ============================================
-// SUPABASE - Configuração e cliente (COM OFFLINE)
+// SUPABASE - Configuração e cliente (COM OFFLINE E CONFIG DINÂMICA)
 // ============================================
 
-const SUPABASE_URL = 'https://rbtxrbacdpenbslqcbbl.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidHhyYmFjZHBlbmJzbHFjYmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MDA5MjksImV4cCI6MjEwMTk3NjkyOX0.VDmJ-pty8oLzkgEad4WBpk7leR9ZR-b_bXXUE3HkPcM';
+// Fallback estrito apenas para ambiente de desenvolvimento local offline/sem servidor
+const DEV_FALLBACK_SUPABASE_URL = 'https://rbtxrbacdpenbslqcbbl.supabase.co';
+const DEV_FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidHhyYmFjZHBlbmJzbHFjYmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MDA5MjksImV4cCI6MjEwMTk3NjkyOX0.VDmJ-pty8oLzkgEad4WBpk7leR9ZR-b_bXXUE3HkPcM';
 
 // ============================================
 // 🔥 getBaseUrl() - CORRIGIDO PARA GITHUB PAGES
@@ -40,36 +41,114 @@ function getBaseUrl() {
 window.getBaseUrl = getBaseUrl;
 
 // ============================================
-// CRIAR CLIENTE SUPABASE REAL
+// RESOLUÇÃO DE CONFIGURAÇÃO SUPABASE
 // ============================================
-var supabaseClient;
+function resolveSupabaseCredentials() {
+    // 1. Tentar ler do objeto injetado pelo servidor no HTML
+    if (window.__TONU_CONFIG__ && window.__TONU_CONFIG__.supabaseUrl && window.__TONU_CONFIG__.supabaseAnonKey) {
+        return {
+            url: window.__TONU_CONFIG__.supabaseUrl,
+            anonKey: window.__TONU_CONFIG__.supabaseAnonKey,
+            source: 'injected'
+        };
+    }
 
-if (typeof supabase !== 'undefined' && supabase.createClient) {
-    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: {
-            autoRefreshToken: true,
-            persistSession: true,
-            detectSessionInUrl: true,
-            redirectTo: getBaseUrl() + '/pages/dashboard.html'
-        }
-    });
-} else if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: {
-            autoRefreshToken: true,
-            persistSession: true,
-            detectSessionInUrl: true,
-            redirectTo: getBaseUrl() + '/pages/dashboard.html'
-        }
-    });
-} else {
-    console.warn('⚠️ Supabase JS SDK não encontrado no escopo global.');
+    // 2. Fallback de desenvolvimento local quando não injetado
+    var isLocalDev = window.location.hostname === 'localhost' ||
+                     window.location.hostname === '127.0.0.1' ||
+                     window.location.protocol === 'file:';
+
+    if (isLocalDev || !window.__TONU_CONFIG__) {
+        return {
+            url: DEV_FALLBACK_SUPABASE_URL,
+            anonKey: DEV_FALLBACK_SUPABASE_ANON_KEY,
+            source: 'dev-fallback'
+        };
+    }
+
+    return null;
 }
 
-window.supabaseClient = supabaseClient;
+function showConfigurationErrorNotice(message) {
+    if (typeof document === 'undefined') return;
+    var noticeId = 'tonu-config-error-banner';
+    if (document.getElementById(noticeId)) return;
 
-console.log('✅ Supabase client inicializado para dados reais');
-console.log('📌 Base URL:', getBaseUrl());
+    var banner = document.createElement('div');
+    banner.id = noticeId;
+    banner.style.cssText = 'position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:999999; background:#ff7675; color:#ffffff; padding:12px 20px; border-radius:10px; font-family:sans-serif; font-size:13px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,0.25); text-align:center; max-width:90%;';
+    banner.innerHTML = `⚠️ <strong>Erro de Configuração:</strong> ${message}`;
+    document.body ? document.body.appendChild(banner) : window.addEventListener('DOMContentLoaded', () => document.body.appendChild(banner));
+}
+
+// ============================================
+// CRIAR CLIENTE SUPABASE REAL
+// ============================================
+var supabaseClient = null;
+var creds = resolveSupabaseCredentials();
+
+var SUPABASE_URL = creds ? creds.url : '';
+var SUPABASE_ANON_KEY = creds ? creds.anonKey : '';
+
+function initializeSupabaseClient(url, key) {
+    if (!url || !key) {
+        console.error('❌ Falha na inicialização do Supabase: credenciais ausentes.');
+        showConfigurationErrorNotice('Não foi possível carregar as credenciais de banco de dados. Verifique o arquivo .env.');
+        return null;
+    }
+
+    var clientInstance = null;
+    var options = {
+        auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true,
+            redirectTo: getBaseUrl() + '/pages/dashboard.html'
+        }
+    };
+
+    if (typeof supabase !== 'undefined' && supabase.createClient) {
+        clientInstance = supabase.createClient(url, key, options);
+    } else if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+        clientInstance = window.supabase.createClient(url, key, options);
+    } else {
+        console.warn('⚠️ Supabase JS SDK não encontrado no escopo global.');
+    }
+
+    SUPABASE_URL = url;
+    SUPABASE_ANON_KEY = key;
+    supabaseClient = clientInstance;
+    window.supabaseClient = clientInstance;
+
+    return clientInstance;
+}
+
+if (creds) {
+    initializeSupabaseClient(creds.url, creds.anonKey);
+} else {
+    // Busca assíncrona caso não esteja injetado nem em ambiente estático
+    if (typeof fetch === 'function') {
+        fetch('/api/config')
+            .then(function (res) {
+                if (!res.ok) throw new Error('Status ' + res.status);
+                return res.json();
+            })
+            .then(function (data) {
+                if (data && data.supabaseUrl && data.supabaseAnonKey) {
+                    window.__TONU_CONFIG__ = Object.assign(window.__TONU_CONFIG__ || {}, data);
+                    initializeSupabaseClient(data.supabaseUrl, data.supabaseAnonKey);
+                } else {
+                    showConfigurationErrorNotice('Variáveis SUPABASE_URL ou SUPABASE_ANON_KEY não retornadas por /api/config.');
+                }
+            })
+            .catch(function (err) {
+                console.error('❌ Erro ao buscar /api/config:', err);
+                showConfigurationErrorNotice('Falha ao obter credenciais do servidor.');
+            });
+    } else {
+        showConfigurationErrorNotice('Ambiente não suporta requisições HTTP para configuração.');
+    }
+}
 
 // ============================================
 // SUPABASE OFFLINE MANAGER

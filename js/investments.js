@@ -24,7 +24,7 @@ function showLoadingAnimation() {
 // ============================================
 // BRAPI CONFIG
 // ============================================
-const BRAPI_TOKEN = window.APP_CONFIG?.BRAPI_TOKEN || 'n3pZmgKo5YZwJcNx1sfPSN';
+const BRAPI_TOKEN = window.__TONU_CONFIG__?.brapiToken || window.APP_CONFIG?.BRAPI_TOKEN || '';
 
 function formatCurrency(value) {
     if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {

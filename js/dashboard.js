@@ -5,7 +5,7 @@
 console.log('📊 Dashboard.js carregado');
 
 // BRAPI_TOKEN
-const BRAPI_TOKEN = window.APP_CONFIG?.BRAPI_TOKEN || 'n3pZmgKo5YZwJcNx1sfPSN';
+const BRAPI_TOKEN = window.__TONU_CONFIG__?.brapiToken || window.APP_CONFIG?.BRAPI_TOKEN || '';
 
 // ============================================
 // VARIÁVEIS GLOBAIS
@@ -361,6 +361,10 @@ async function loadUserProfile() {
         const sidebarAvatarEl = document.getElementById('sidebarUserAvatar');
         const sidebarEmailEl = document.getElementById('sidebarUserEmail');
         const greetingTitleEl = document.getElementById('desktopGreetingTitle');
+        const greetingTextEl = document.getElementById('desktopGreetingText');
+        if (greetingTextEl) {
+            greetingTextEl.textContent = `Olá, ${firstName} 👋`;
+        }
         if (greetingTitleEl) {
             greetingTitleEl.textContent = `Olá, ${firstName} 👋`;
         }
