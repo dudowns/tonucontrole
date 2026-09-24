@@ -82,11 +82,14 @@
                 </button>
                 <div class="topbar-title">
                     <div class="sub">Visão geral</div>
-                    <h1>Dashboard</h1>
+                    <h1 id="desktopGreetingTitle">Dashboard</h1>
                 </div>
                 <div class="topbar-actions">
                     <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro">
                         <i class="fas fa-moon"></i>
+                    </button>
+                    <button class="theme-toggle-btn" id="toggleBalanceBtn" onclick="toggleBalanceVisibility()" title="Ocultar ou mostrar saldos" aria-label="Alternar visibilidade do saldo">
+                        <i class="fas fa-eye" id="toggleBalanceIcon"></i>
                     </button>
                     <button id="notifBellBtn" class="notif-bell-btn" onclick="window.toggleNotificationDropdown(event)"
                         title="Lembretes e Notificações">
@@ -158,7 +161,12 @@
                     <div class="card-stat primary card-stat-balance" id="cardStatBalance" onclick="window.location.href='transactions.html'" style="cursor: pointer;" title="Saldo das receitas recebidas menos despesas pagas no mês">
                         <div class="stat-icon primary"><i class="fas fa-wallet"></i></div>
                         <div class="stat-info">
-                            <div class="stat-label">Saldo Operacional</div>
+                            <div class="stat-label" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>Saldo Operacional</span>
+                                <button type="button" class="eye-toggle-btn" onclick="event.stopPropagation(); toggleBalanceVisibility();" title="Ocultar ou mostrar saldos" aria-label="Alternar visibilidade do saldo" style="background:none; border:none; color:inherit; cursor:pointer; opacity:0.75; font-size:12px; padding:2px 4px; border-radius:4px;">
+                                    <i class="fas fa-eye" id="cardBalanceIcon"></i>
+                                </button>
+                            </div>
                             <div class="stat-value" id="totalBalance">R$ 0,00</div>
                             <div class="stat-sub" id="balanceStatus">Calculando...</div>
                         </div>

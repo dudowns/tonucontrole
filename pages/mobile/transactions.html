@@ -74,6 +74,7 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
+            <button onclick="window.exportTransactionsCSV && window.exportTransactionsCSV()" title="Exportar CSV" aria-label="Exportar CSV"><i class="fas fa-file-export"></i></button>
             <button onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
             <button id="notifBellBtn" onclick="window.toggleNotificationDropdown(event)" title="Notificações">
                 <i class="fas fa-bell"></i>
@@ -116,6 +117,9 @@
             <option value="all">Todos</option>
             <option value="income">Receitas</option>
             <option value="expense">Despesas</option>
+        </select>
+        <select id="filterCategory" onchange="filterTransactions()" style="font-weight:600; min-width:110px;" title="Filtrar por categoria">
+            <option value="all">Todas as categorias</option>
         </select>
     </div>
     <div id="transactionList" class="transaction-list">
@@ -312,8 +316,23 @@ async function loadCategories() {
                 { id: 'cat_outros', name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#B2BEC3' }
             ];
         }
+        populateCategoryFilterOptions();
     } catch (e) {
         categories = [];
+        populateCategoryFilterOptions();
+    }
+}
+
+function populateCategoryFilterOptions() {
+    const sel = document.getElementById("filterCategory");
+    if (!sel) return;
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="all">Todas as categorias</option>' +
+        categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+    if (categories.some(c => c.id === currentVal)) {
+        sel.value = currentVal;
+    } else {
+        sel.value = "all";
     }
 }
 
@@ -430,17 +449,23 @@ function filterTransactions() {
     const search = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
     const type = document.getElementById("filterType")?.value || "all";
     const status = document.getElementById("filterStatus")?.value || "paid";
+    const category = document.getElementById("filterCategory")?.value || "all";
 
     filteredTransactions = allTransactions.filter(t => {
         const desc = (t.description || "").toLowerCase();
         const matchSearch = !search || desc.includes(search);
         const matchType = type === "all" || t.type === type;
+        const matchCategory = category === "all" ||
+            t.category_id === category ||
+            t.category === category ||
+            (categories.find(c => c.id === category)?.name === t.category) ||
+            (categories.find(c => c.name === category)?.id === t.category_id);
         const isPaid = isTransactionPaid(t);
 
         if (status === "paid" && !isPaid) return false;
         if (status === "pending" && isPaid) return false;
 
-        return matchSearch && matchType;
+        return matchSearch && matchType && matchCategory;
     });
 
     renderTransactions();
@@ -608,6 +633,52 @@ function formatDate(date) {
     const d = new Date(date);
     return d.toLocaleDateString("pt-BR");
 }
+
+function exportTransactionsCSV() {
+    const txsToExport = (filteredTransactions && filteredTransactions.length > 0)
+        ? filteredTransactions
+        : allTransactions;
+
+    if (!txsToExport || txsToExport.length === 0) {
+        showToast('Nenhuma transação para exportar', 'warning');
+        return;
+    }
+
+    let csv = 'ID,Data,Tipo,Descricao,Valor,Categoria,Status\n';
+    txsToExport.forEach(t => {
+        let cat = null;
+        if (t.category_id && categories && categories.length > 0) {
+            cat = categories.find(c => c.id === t.category_id);
+        }
+        if (!cat && t.categories && typeof t.categories === 'object') {
+            cat = t.categories;
+        }
+        const catName = cat?.name || t.category || 'Geral';
+        const isPaid = isTransactionPaid(t);
+        const row = [
+            `"${t.id || ''}"`,
+            `"${t.date || ''}"`,
+            `"${t.type || ''}"`,
+            `"${(t.description || '').replace(/"/g, '""')}"`,
+            t.amount || 0,
+            `"${catName.replace(/"/g, '""')}"`,
+            isPaid ? 'Pago' : 'Pendente'
+        ];
+        csv += row.join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transacoes_tonucontrole_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Transações exportadas com sucesso! 📄', 'success');
+}
+window.exportTransactionsCSV = exportTransactionsCSV;
 
 function toggleTheme() {
     const isDark = document.body.classList.toggle("dark-theme");

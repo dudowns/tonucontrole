@@ -7,7 +7,15 @@ console.log('✅ Core.js carregado');
 // ============================================
 // 0. CONFIGURAÇÕES GLOBAIS
 // ============================================
-window.TONU_JCP_TAX_RATE = 0.15; // Alíquota oficial de retenção de IR na fonte sobre JCP (15%)
+if (typeof window !== 'undefined') {
+    window.TONU_JCP_TAX_RATE = 0.15; // Alíquota oficial de retenção de IR na fonte sobre JCP (15%)
+}
+if (typeof globalThis !== 'undefined') {
+    globalThis.TONU_JCP_TAX_RATE = 0.15;
+}
+if (typeof global !== 'undefined') {
+    global.TONU_JCP_TAX_RATE = 0.15;
+}
 
 window.APP_CONFIG = {
     BRAPI_TOKEN: window.ENV?.BRAPI_TOKEN || 'n3pZmgKo5YZwJcNx1sfPSN',
@@ -1580,17 +1588,19 @@ function applyStagger(selector, className = 'card-stagger', delayBase = 50) {
 // ============================================
 // 19. INICIALIZAR
 // ============================================
-document.addEventListener('DOMContentLoaded', function () {
-    initTheme();
-    initNetworkStatusWatcher();
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('DOMContentLoaded', function () {
+        initTheme();
+        initNetworkStatusWatcher();
 
-    // 🔥 Carregar perfil com delay para evitar erro
-    setTimeout(function () {
-        loadGlobalUserProfile();
-    }, 500);
+        // 🔥 Carregar perfil com delay para evitar erro
+        setTimeout(function () {
+            loadGlobalUserProfile();
+        }, 500);
 
-    setTimeout(animatePageIn, 100);
-});
+        setTimeout(animatePageIn, 100);
+    });
+}
 
 // ============================================
 // 20. EXPORTAR PARA O ESCOPO GLOBAL

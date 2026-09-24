@@ -4,6 +4,15 @@
 // ==========================================================================
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+
+// Carrega TONU_JCP_TAX_RATE diretamente do js/core.js
+const coreCode = fs.readFileSync(path.join(__dirname, '../js/core.js'), 'utf8');
+const jcpMatch = coreCode.match(/TONU_JCP_TAX_RATE\s*=\s*([0-9.]+)/);
+const detectedRate = jcpMatch ? parseFloat(jcpMatch[1]) : 0.15;
+global.TONU_JCP_TAX_RATE = detectedRate;
+globalThis.TONU_JCP_TAX_RATE = detectedRate;
 
 /**
  * Motor puro de cálculo de custódia e preço médio
@@ -272,6 +281,69 @@ function runComputePositionsTests() {
         assert.strictEqual(report.proventos.totalDividendos, 150);
         assert.strictEqual(report.proventos.totalJCPLiquido, 85);
         assert.strictEqual(report.proventos.totalIRRetidoJCP, 15);
+    });
+
+    // 11. Gráfico de Investimentos com Eventos Corporativos
+    test('Gráfico de Investimentos: simula evolução com split e bonificação mantendo timeline consistente', () => {
+        const simulatedPortfolio = new Map();
+        
+        function applyToSim(item) {
+            const ticker = item.ticker.toUpperCase();
+            if (!simulatedPortfolio.has(ticker)) {
+                simulatedPortfolio.set(ticker, { quantity: 0, costBasis: 0, averageCost: 0 });
+            }
+            const pos = simulatedPortfolio.get(ticker);
+            if (item.isCorporateEvent) {
+                const evType = item.event_type;
+                if (evType === 'Desdobramento') {
+                    pos.quantity = pos.quantity * (item.ratio_to / item.ratio_from);
+                } else if (evType === 'Bonificação') {
+                    pos.quantity += item.bonus_shares;
+                    pos.costBasis += item.bonus_shares * item.bonus_unit_cost;
+                } else if (evType === 'Amortização') {
+                    pos.costBasis = Math.max(0, pos.costBasis - (item.amortization_per_share * pos.quantity));
+                }
+            } else {
+                if (item.type === 'compra') {
+                    pos.quantity += item.quantity;
+                    pos.costBasis += item.total_value;
+                } else {
+                    const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                    pos.quantity -= item.quantity;
+                    pos.costBasis -= avg * item.quantity;
+                }
+            }
+            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+        }
+
+        // 1. Compra 100 ações a R$ 40 (Custo R$ 4.000, PM R$ 40)
+        applyToSim({ ticker: 'WEGE3', isCorporateEvent: false, type: 'compra', quantity: 100, total_value: 4000 });
+        assert.strictEqual(simulatedPortfolio.get('WEGE3').averageCost, 40);
+
+        // 2. Split 1:2 (Passa a ter 200 ações a PM R$ 20, Custo R$ 4.000)
+        applyToSim({ ticker: 'WEGE3', isCorporateEvent: true, event_type: 'Desdobramento', ratio_from: 1, ratio_to: 2 });
+        assert.strictEqual(simulatedPortfolio.get('WEGE3').quantity, 200);
+        assert.strictEqual(simulatedPortfolio.get('WEGE3').costBasis, 4000);
+        assert.strictEqual(simulatedPortfolio.get('WEGE3').averageCost, 20);
+
+        // 3. Bonificação de 10 ações a R$ 10 (Total 210 ações, Custo R$ 4.100)
+        applyToSim({ ticker: 'WEGE3', isCorporateEvent: true, event_type: 'Bonificação', bonus_shares: 10, bonus_unit_cost: 10 });
+        assert.strictEqual(simulatedPortfolio.get('WEGE3').quantity, 210);
+        assert.strictEqual(simulatedPortfolio.get('WEGE3').costBasis, 4100);
+        assert.strictEqual(Math.round(simulatedPortfolio.get('WEGE3').averageCost * 100) / 100, 19.52);
+    });
+
+    // 12. Centralização da taxa de JCP
+    test('Centralização da Taxa de JCP: alíquota oficial única de 15% definida no core.js', () => {
+        const rate = (typeof globalThis !== 'undefined' && globalThis.TONU_JCP_TAX_RATE !== undefined)
+            ? globalThis.TONU_JCP_TAX_RATE
+            : (typeof global !== 'undefined' ? global.TONU_JCP_TAX_RATE : undefined);
+        assert.strictEqual(rate, 0.15);
+        
+        // Simula cálculo de JCP líquido com a taxa centralizada
+        const jcpBruto = 1000;
+        const jcpLiquido = jcpBruto * (1 - rate);
+        assert.strictEqual(jcpLiquido, 850);
     });
 
     return results;

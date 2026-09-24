@@ -241,6 +241,7 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
+            <button onclick="openMobileIRReportModal()" title="Relatório de Imposto de Renda" aria-label="Relatório IR" style="color:var(--color-primary, #6C5CE7);"><i class="fas fa-file-invoice-dollar"></i></button>
             <button onclick="toggleTheme()" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
             <button onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
         </div>
@@ -285,6 +286,19 @@
             </div>
         </div>
 
+        <!-- GRÁFICO DE ALOCAÇÃO POR CLASSE (MOBILE) -->
+        <div class="invest-charts-mobile-card" id="mobileAllocationCard" style="background:var(--color-surface, #fff); border-radius:14px; padding:12px; margin-bottom:12px; border:1px solid var(--color-border, #e2e8f0); box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="font-size:12px; font-weight:700; color:var(--color-text, #1e293b); display:flex; align-items:center; gap:6px;">
+                    <i class="fas fa-chart-pie" style="color:#6C5CE7;"></i> Alocação da Carteira
+                </div>
+                <span id="mobileChartLegendSummary" style="font-size:11px; font-weight:600; color:var(--color-text-muted, #64748b);"></span>
+            </div>
+            <div style="height:175px; position:relative;">
+                <canvas id="mobileInvestAllocationChart"></canvas>
+            </div>
+        </div>
+
         <div class="chip-filters">
             <button class="chip-btn active" onclick="filterAssetClass('all', this)">Todos</button>
             <button class="chip-btn" onclick="filterAssetClass('Ações', this)">Ações</button>
@@ -296,9 +310,14 @@
 
         <div class="tab-action-bar">
             <h2>Meus Ativos em Custódia</h2>
-            <button class="btn-add-primary" onclick="openAddOperationModal()">
-                <i class="fas fa-plus"></i> Nova Operação
-            </button>
+            <div style="display:flex; gap:6px;">
+                <button class="btn-add-primary" onclick="openMobileIRReportModal()" style="background:#6366f1; padding:6px 10px; font-size:11.5px;" title="Relatório de Imposto de Renda">
+                    <i class="fas fa-file-invoice-dollar"></i> IR
+                </button>
+                <button class="btn-add-primary" onclick="openAddOperationModal()" style="padding:6px 10px; font-size:11.5px;">
+                    <i class="fas fa-plus"></i> Operação
+                </button>
+            </div>
         </div>
 
         <div id="positionsListContainer">
@@ -346,6 +365,34 @@
             <div class="invest-hero-card">
                 <div class="hero-label"><i class="fas fa-calendar-alt"></i> Este Mês</div>
                 <div class="hero-value" id="cardDivMes" style="color: #10b981;">R$ 0,00</div>
+            </div>
+        </div>
+
+        <!-- GRÁFICO DE EVOLUÇÃO DE PROVENTOS (MOBILE) -->
+        <div class="invest-charts-mobile-card" id="mobileDivChartCard" style="background:var(--color-surface, #fff); border-radius:14px; padding:12px; margin-bottom:12px; border:1px solid var(--color-border, #e2e8f0); box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="font-size:12px; font-weight:700; color:var(--color-text, #1e293b); display:flex; align-items:center; gap:6px;">
+                    <i class="fas fa-chart-bar" style="color:#10b981;"></i> Evolução Mensal de Proventos
+                </div>
+                <span id="mobileProvChartYearPill" style="font-size:10px; font-weight:600; padding:2px 8px; border-radius:12px; background:rgba(16,185,129,0.1); color:#10b981;">Últimos 12M</span>
+            </div>
+            <div style="height:150px; position:relative;">
+                <canvas id="mobileDividendsEvolutionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- MATRIZ ANUAL DE PROVENTOS (MOBILE - 12 MESES) -->
+        <div class="invest-charts-mobile-card" id="mobileMatrixChartCard" style="background:var(--color-surface, #fff); border-radius:14px; padding:12px; margin-bottom:12px; border:1px solid var(--color-border, #e2e8f0); box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="font-size:12px; font-weight:700; color:var(--color-text, #1e293b); display:flex; align-items:center; gap:6px;">
+                    <i class="fas fa-table" style="color:#8b5cf6;"></i> Matriz Anual de Proventos
+                </div>
+                <span style="font-size:10px; color:#94a3b8;"><i class="fas fa-arrows-alt-h"></i> Arraste para o lado</span>
+            </div>
+            <div style="overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:8px; border:1px solid var(--color-border, #f1f5f9);">
+                <table id="mobileProventosMatrixTable" style="width:100%; min-width:650px; border-collapse:collapse; font-size:11px; text-align:right;">
+                    <!-- Matriz preenchida dinamicamente -->
+                </table>
             </div>
         </div>
 
@@ -691,9 +738,11 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
 <script src="../../js/supabase.js"></script>
 <script src="../../js/core.js"></script>
 <script src="../../js/sync.js"></script>
+<script src="../../js/reports/ir-report.js"></script>
 <script>
 let currentUser = null;
 let allRawInvestments = [];
@@ -933,6 +982,269 @@ function updateSummaryHero() {
 }
 
 // ============================================
+// RELATÓRIO DE IR (MOBILE)
+// ============================================
+function openMobileIRReportModal() {
+    if (window.TonuIRReport && typeof window.TonuIRReport.showIRReportModal === 'function') {
+        window.TonuIRReport.showIRReportModal(allRawInvestments, allRawDividends, allRawCorporateEvents);
+    } else {
+        showToast("Carregando relatório de IR...", "info");
+    }
+}
+
+// ============================================
+// GRÁFICOS DE INVESTIMENTOS NO CELULAR (MOBILE)
+// ============================================
+let mobileAllocationChart = null;
+let mobileDividendsChart = null;
+
+function renderMobileAllocationChart() {
+    const canvas = document.getElementById("mobileInvestAllocationChart");
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const card = document.getElementById("mobileAllocationCard");
+    if (!activePositions || activePositions.length === 0) {
+        if (card) card.style.display = "none";
+        return;
+    }
+    if (card) card.style.display = "block";
+
+    const classTotals = {};
+    let grandTotal = 0;
+    activePositions.forEach(p => {
+        const cls = p.asset_class || 'Outros';
+        const val = Number(p.costBasis) || 0;
+        classTotals[cls] = (classTotals[cls] || 0) + val;
+        grandTotal += val;
+    });
+
+    const labels = Object.keys(classTotals);
+    const data = labels.map(l => classTotals[l]);
+
+    const paletteMap = {
+        'Ações': '#6C5CE7',
+        'FIIs': '#00B894',
+        'Renda Fixa': '#0984E3',
+        'ETFs': '#FDCB6E',
+        'Cripto': '#E17055',
+        'Outros': '#636E72'
+    };
+    const bgColors = labels.map(l => paletteMap[l] || '#A29BFE');
+
+    if (mobileAllocationChart) {
+        mobileAllocationChart.destroy();
+    }
+
+    const isDark = document.body.classList.contains("dark-theme");
+    const textColor = isDark ? '#e2e8f0' : '#475569';
+
+    mobileAllocationChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: bgColors,
+                borderWidth: 2,
+                borderColor: isDark ? '#1e293b' : '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 10,
+                        padding: 8,
+                        font: { size: 10 },
+                        color: textColor
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.raw || 0;
+                            const pct = grandTotal > 0 ? ((val / grandTotal) * 100).toFixed(1) : 0;
+                            return ` ${context.label}: ${formatCurrency(val)} (${pct}%)`;
+                        }
+                    }
+                }
+            },
+            cutout: '62%'
+        }
+    });
+
+    const summaryEl = document.getElementById("mobileChartLegendSummary");
+    if (summaryEl) summaryEl.textContent = `Total: ${formatCurrency(grandTotal)}`;
+}
+
+function renderMobileDividendsEvolutionChart() {
+    const canvas = document.getElementById("mobileDividendsEvolutionChart");
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const card = document.getElementById("mobileDivChartCard");
+    if (!allRawDividends || allRawDividends.length === 0) {
+        if (card) card.style.display = "none";
+        return;
+    }
+    if (card) card.style.display = "block";
+
+    const now = new Date();
+    const monthKeys = [];
+    const monthLabels = [];
+    for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        monthKeys.push(`${y}-${m}`);
+        monthLabels.push(d.toLocaleDateString('pt-BR', { month: 'short' }));
+    }
+
+    const monthlyTotals = new Array(12).fill(0);
+    allRawDividends.forEach(d => {
+        const dt = d.payment_date || d.date || '';
+        const ym = dt.substring(0, 7);
+        const idx = monthKeys.indexOf(ym);
+        if (idx !== -1) {
+            monthlyTotals[idx] += parseFloat(d.total_value || d.amount || d.net_value) || 0;
+        }
+    });
+
+    if (mobileDividendsChart) {
+        mobileDividendsChart.destroy();
+    }
+
+    const isDark = document.body.classList.contains("dark-theme");
+    const textColor = isDark ? '#e2e8f0' : '#475569';
+    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+
+    mobileDividendsChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: monthLabels,
+            datasets: [{
+                label: 'Proventos',
+                data: monthlyTotals,
+                backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                borderRadius: 4,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return ' ' + formatCurrency(context.raw || 0);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 9 }, color: textColor }
+                },
+                y: {
+                    grid: { color: gridColor },
+                    ticks: {
+                        font: { size: 9 },
+                        color: textColor,
+                        callback: function(v) {
+                            return 'R$ ' + v;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ============================================
+// MATRIZ ANUAL DE PROVENTOS NO CELULAR
+// ============================================
+function renderMobileProventosMatrix() {
+    const table = document.getElementById("mobileProventosMatrixTable");
+    if (!table) return;
+
+    const card = document.getElementById("mobileMatrixChartCard");
+    if (!allRawDividends || allRawDividends.length === 0) {
+        if (card) card.style.display = "none";
+        return;
+    }
+    if (card) card.style.display = "block";
+
+    const matrix = {};
+    allRawDividends.forEach(d => {
+        const dt = d.payment_date || d.date || '';
+        if (dt.length < 7) return;
+        const year = parseInt(dt.substring(0, 4), 10);
+        const month = parseInt(dt.substring(5, 7), 10) - 1;
+        if (isNaN(year) || isNaN(month) || month < 0 || month > 11) return;
+
+        if (!matrix[year]) {
+            matrix[year] = new Array(12).fill(0);
+        }
+        const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
+        matrix[year][month] += val;
+    });
+
+    const years = Object.keys(matrix).map(Number).sort((a, b) => b - a);
+    if (years.length === 0) {
+        table.innerHTML = '<tr><td style="text-align:center; padding:16px; color:#94a3b8;">Nenhum histórico disponível</td></tr>';
+        return;
+    }
+
+    const monthHeaders = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+
+    let html = `
+        <thead>
+            <tr style="background:var(--color-bg, #f8fafc); border-bottom:1px solid var(--color-border, #e2e8f0);">
+                <th style="padding:6px 8px; text-align:left; font-weight:700;">Ano</th>
+                ${monthHeaders.map(m => `<th style="padding:6px 6px; font-weight:600;">${m}</th>`).join('')}
+                <th style="padding:6px 8px; font-weight:700; color:#0984E3;">Média</th>
+                <th style="padding:6px 8px; font-weight:700; color:#8B5CF6;">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+
+    years.forEach(year => {
+        const months = matrix[year];
+        const total = months.reduce((acc, v) => acc + v, 0);
+        let divisor = 12;
+        if (year === curYear) {
+            divisor = Math.max(1, curMonth + 1);
+        }
+        const media = total / divisor;
+
+        html += `
+            <tr style="border-bottom:1px solid var(--color-border, #f1f5f9);">
+                <td style="padding:6px 8px; text-align:left; font-weight:700; color:var(--color-text, #1e293b);">${year}</td>
+                ${months.map(v => `
+                    <td style="padding:6px 6px; font-size:10px; ${v > 0 ? 'color:#10b981; font-weight:600;' : 'color:#cbd5e1;'}">
+                        ${v > 0 ? formatCurrency(v).replace('R$', '').trim() : '-'}
+                    </td>
+                `).join('')}
+                <td style="padding:6px 8px; font-weight:600; color:#0984E3; font-size:10px;">${formatCurrency(media)}</td>
+                <td style="padding:6px 8px; font-weight:700; color:#8B5CF6; font-size:10.5px; background:rgba(139,92,246,0.05);">${formatCurrency(total)}</td>
+            </tr>
+        `;
+    });
+
+    html += '</tbody>';
+    table.innerHTML = html;
+}
+
+// ============================================
 // RENDERIZAR ATIVOS EM CUSTÓDIA
 // ============================================
 function renderPositions() {
@@ -943,6 +1255,9 @@ function renderPositions() {
     if (currentAssetFilter !== 'all') {
         filtered = activePositions.filter(p => p.asset_class === currentAssetFilter);
     }
+
+    // Atualiza gráfico de alocação no mobile
+    renderMobileAllocationChart();
 
     if (filtered.length === 0) {
         container.innerHTML = `
@@ -1048,6 +1363,10 @@ function renderDividends() {
     const container = document.getElementById("dividendsListContainer");
     if (!container) return;
 
+    // Atualiza gráfico de evolução e matriz anual no mobile
+    renderMobileDividendsEvolutionChart();
+    renderMobileProventosMatrix();
+
     if (allRawDividends.length === 0) {
         container.innerHTML = `
             <div style="text-align:center; padding:30px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
@@ -1097,12 +1416,18 @@ function switchInvestTab(tab) {
     if (tab === 'carteira') {
         document.getElementById("tabBtnCarteira").classList.add("active");
         document.getElementById("tabContentCarteira").classList.add("active");
+        setTimeout(() => {
+            if (mobileAllocationChart) mobileAllocationChart.resize();
+        }, 50);
     } else if (tab === 'lancamentos') {
         document.getElementById("tabBtnLancamentos").classList.add("active");
         document.getElementById("tabContentLancamentos").classList.add("active");
     } else if (tab === 'proventos') {
         document.getElementById("tabBtnProventos").classList.add("active");
         document.getElementById("tabContentProventos").classList.add("active");
+        setTimeout(() => {
+            if (mobileDividendsChart) mobileDividendsChart.resize();
+        }, 50);
     } else if (tab === 'eventos') {
         document.getElementById("tabBtnEventos")?.classList.add("active");
         document.getElementById("tabContentEventos")?.classList.add("active");
@@ -1381,7 +1706,7 @@ async function handleDivSubmit(e) {
     }
 
     const isJCP = type && String(type).toUpperCase().includes("JCP");
-    const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : 0.15;
+    const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
     const netValue = isJCP ? parseFloat((totalValue * (1 - jcpTax)).toFixed(2)) : totalValue;
 
     const payload = {
@@ -1694,6 +2019,8 @@ function toggleTheme() {
     localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
     const icon = document.querySelector("#themeIcon");
     if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+    if (typeof renderMobileAllocationChart === 'function') renderMobileAllocationChart();
+    if (typeof renderMobileDividendsEvolutionChart === 'function') renderMobileDividendsEvolutionChart();
 }
 
 function showToast(msg, type = "info") {

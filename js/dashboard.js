@@ -360,6 +360,10 @@ async function loadUserProfile() {
         const sidebarNameEl = document.getElementById('sidebarUserName');
         const sidebarAvatarEl = document.getElementById('sidebarUserAvatar');
         const sidebarEmailEl = document.getElementById('sidebarUserEmail');
+        const greetingTitleEl = document.getElementById('desktopGreetingTitle');
+        if (greetingTitleEl) {
+            greetingTitleEl.textContent = `Olá, ${firstName} 👋`;
+        }
         if (sidebarNameEl) sidebarNameEl.textContent = name;
         if (sidebarAvatarEl) {
             if (window.renderAvatarElement) window.renderAvatarElement(sidebarAvatarEl, avatarUrl, initial);
@@ -724,6 +728,52 @@ function updatePatrimonyUI(valor) {
     }
 }
 
+// ============================================
+// VISIBILIDADE DE SALDO (PRIVACIDADE DESKTOP)
+// ============================================
+function updateBalanceVisibilityUI() {
+    const isHidden = localStorage.getItem('tonu_hide_balance') === 'true';
+    const topbarIcon = document.getElementById('toggleBalanceIcon');
+    const cardIcon = document.getElementById('cardBalanceIcon');
+    if (topbarIcon) topbarIcon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+    if (cardIcon) cardIcon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+
+    const topbarBtn = document.getElementById('toggleBalanceBtn');
+    if (topbarBtn) topbarBtn.title = isHidden ? 'Mostrar valores' : 'Ocultar valores';
+
+    const cardBtn = document.querySelector('.eye-toggle-btn');
+    if (cardBtn) cardBtn.title = isHidden ? 'Mostrar valores' : 'Ocultar valores';
+
+    const elementsToMask = [
+        'totalBalance',
+        'totalIncome',
+        'totalExpense',
+        'billsAmount',
+        'totalInvested'
+    ];
+
+    elementsToMask.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (isHidden) {
+            if (!el.dataset.realValue && !el.textContent.includes('•••')) {
+                el.dataset.realValue = el.textContent;
+            }
+            el.textContent = '••••••';
+        } else if (el.dataset.realValue) {
+            el.textContent = el.dataset.realValue;
+        }
+    });
+}
+
+function toggleBalanceVisibility() {
+    const isHidden = localStorage.getItem('tonu_hide_balance') === 'true';
+    localStorage.setItem('tonu_hide_balance', isHidden ? 'false' : 'true');
+    updateBalanceVisibilityUI();
+}
+window.toggleBalanceVisibility = toggleBalanceVisibility;
+window.updateBalanceVisibilityUI = updateBalanceVisibilityUI;
+
 async function loadInvestedSummary() {
     try {
         const investedEl = document.getElementById('totalInvested');
@@ -738,9 +788,12 @@ async function loadInvestedSummary() {
         const activeCount = activePositions.length;
 
         investedEl.textContent = formatCurrency(totalInvested);
+        investedEl.dataset.realValue = formatCurrency(totalInvested);
         if (countEl) {
             countEl.textContent = `${activeCount} ${activeCount === 1 ? 'ativo' : 'ativos'}`;
         }
+
+        updateBalanceVisibilityUI();
 
         // Atualização em background com cotações
         if (activeCount > 0) {
@@ -749,6 +802,8 @@ async function loadInvestedSummary() {
                 const totalMarket = positions.reduce((s, p) => s + (p.currentValue || p.costBasis || 0), 0);
                 if (investedEl && totalMarket > 0) {
                     investedEl.textContent = formatCurrency(totalMarket);
+                    investedEl.dataset.realValue = formatCurrency(totalMarket);
+                    updateBalanceVisibilityUI();
                 }
             }).catch(e => {
                 console.log('Background quotes:', e);
@@ -802,6 +857,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadCategories();
     updateMonthDisplay('selectedMonth', currentMonthOffset);
     await loadDashboard();
+    updateBalanceVisibilityUI();
 
     // 🔥 LAZY LOADING DOS GRÁFICOS
     loadChartsLazy();
@@ -1116,16 +1172,24 @@ async function loadDashboard() {
         const billsCountEl = document.getElementById('billsCount');
         const billsAmountEl = document.getElementById('billsAmount');
 
-        if (incomeEl) incomeEl.textContent = formatCurrency(currentIncome);
-        if (expenseEl) expenseEl.textContent = formatCurrency(currentExpense);
+        if (incomeEl) {
+            incomeEl.textContent = formatCurrency(currentIncome);
+            incomeEl.dataset.realValue = formatCurrency(currentIncome);
+        }
+        if (expenseEl) {
+            expenseEl.textContent = formatCurrency(currentExpense);
+            expenseEl.dataset.realValue = formatCurrency(currentExpense);
+        }
         if (balanceEl) {
             balanceEl.textContent = formatCurrency(balance);
+            balanceEl.dataset.realValue = formatCurrency(balance);
             balanceEl.style.color = balance >= 0 ? '#00B894' : '#FF7675';
         }
 
         // CARD CONTAS A PAGAR E INVESTIMENTOS
         if (billsAmountEl) {
             billsAmountEl.textContent = formatCurrency(billsTotal);
+            billsAmountEl.dataset.realValue = formatCurrency(billsTotal);
             billsAmountEl.style.color = billsTotal > 0 ? (overdueCount > 0 ? '#FF7675' : '#F59E0B') : '#00B894';
         }
 
@@ -1227,6 +1291,8 @@ async function loadDashboard() {
         } catch (gErr) {
             console.warn('Erro ao gerar insights:', gErr);
         }
+
+        updateBalanceVisibilityUI();
 
         console.log('✅ Dashboard atualizado!');
 

@@ -164,6 +164,11 @@
                         title="Importar arquivo CSV ou OFX de extrato bancário" aria-label="Importar extrato bancário">
                         <i class="fas fa-file-import" aria-hidden="true"></i> Importar Extrato
                     </button>
+                    <button class="btn btn-outline"
+                        onclick="window.exportTransactionsCSV && window.exportTransactionsCSV()"
+                        title="Exportar transações filtradas para CSV" aria-label="Exportar transações para CSV">
+                        <i class="fas fa-file-export" aria-hidden="true"></i> Exportar CSV
+                    </button>
                     <button class="btn btn-primary" onclick="openModal()" aria-label="Nova transação">
                         <i class="fas fa-plus" aria-hidden="true"></i> Nova
                     </button>

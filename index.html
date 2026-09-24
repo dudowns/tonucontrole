@@ -844,6 +844,92 @@
             box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
         }
 
+        /* ==========================================
+           SKELETON LOADING & PULSE NAS FEATURE CARDS
+           ========================================== */
+        .welcome-features.is-initializing .feature {
+            opacity: 1 !important;
+            animation: featureSkeletonPulse 1.6s ease-in-out infinite alternate !important;
+            border-color: rgba(255, 255, 255, 0.22);
+            pointer-events: none;
+            cursor: wait;
+        }
+
+        .welcome-features.is-initializing .feature:nth-child(1) {
+            animation-delay: 0s !important;
+        }
+
+        .welcome-features.is-initializing .feature:nth-child(2) {
+            animation-delay: 0.25s !important;
+        }
+
+        .welcome-features.is-initializing .feature:nth-child(3) {
+            animation-delay: 0.5s !important;
+        }
+
+        .welcome-features.is-initializing .feature::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.18) 50%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            transform: translateX(-100%);
+            animation: featureSkeletonSweep 1.8s infinite cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .welcome-features.is-initializing .feature-icon-wrap {
+            animation: featureIconPulse 1.6s ease-in-out infinite alternate;
+        }
+
+        @keyframes featureSkeletonPulse {
+            0% {
+                opacity: 0.62;
+                background: rgba(255, 255, 255, 0.06);
+                border-color: rgba(255, 255, 255, 0.12);
+                transform: translateY(0) scale(0.988);
+            }
+            50% {
+                opacity: 0.95;
+                background: rgba(255, 255, 255, 0.16);
+                border-color: rgba(255, 255, 255, 0.28);
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0.62;
+                background: rgba(255, 255, 255, 0.06);
+                border-color: rgba(255, 255, 255, 0.12);
+                transform: translateY(0) scale(0.988);
+            }
+        }
+
+        @keyframes featureSkeletonSweep {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        @keyframes featureIconPulse {
+            0% {
+                background: rgba(255, 255, 255, 0.12);
+                transform: scale(0.95);
+            }
+            100% {
+                background: rgba(255, 255, 255, 0.26);
+                transform: scale(1.05);
+            }
+        }
+
         .feature-icon-wrap {
             width: 36px;
             height: 36px;
@@ -1055,6 +1141,51 @@
             display: none;
         }
 
+        /* ==========================================
+           ANIMAÇÃO SUAVE DE ENTRADA (FADE-IN + SLIDE-UP)
+           ========================================== */
+        @keyframes authSlideUpFadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Elementos da tela de login e painel de boas-vindas (350ms, cubic-bezier(0.16, 1, 0.3, 1)) */
+        .welcome-side .welcome-logo-container,
+        .welcome-side .welcome-title,
+        .welcome-side .welcome-desc,
+        .welcome-side .welcome-features .feature,
+        .login-side .mobile-logo,
+        .login-side .tabs,
+        .auth-form.form-fade-in > .form-group,
+        .auth-form.form-fade-in > .form-links,
+        .auth-form.form-fade-in > .btn-primary,
+        .auth-form.form-fade-in > .btn-biometric {
+            animation: authSlideUpFadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+        }
+
+        /* Stagger incremental (50-70ms) entre os elementos */
+        .login-side .mobile-logo { animation-delay: 0.05s; }
+        .login-side .tabs { animation-delay: 0.10s; }
+        .auth-form.form-fade-in > *:nth-child(1) { animation-delay: 0.06s; }
+        .auth-form.form-fade-in > *:nth-child(2) { animation-delay: 0.12s; }
+        .auth-form.form-fade-in > *:nth-child(3) { animation-delay: 0.18s; }
+        .auth-form.form-fade-in > *:nth-child(4) { animation-delay: 0.24s; }
+        .auth-form.form-fade-in > *:nth-child(5) { animation-delay: 0.30s; }
+        .auth-form.form-fade-in > *:nth-child(6) { animation-delay: 0.36s; }
+
+        .welcome-side .welcome-logo-container { animation-delay: 0.06s; }
+        .welcome-side .welcome-title { animation-delay: 0.12s; }
+        .welcome-side .welcome-desc { animation-delay: 0.18s; }
+        .welcome-side .welcome-features .feature:nth-child(1) { animation-delay: 0.24s; }
+        .welcome-side .welcome-features .feature:nth-child(2) { animation-delay: 0.30s; }
+        .welcome-side .welcome-features .feature:nth-child(3) { animation-delay: 0.36s; }
+
         .form-group {
             display: flex;
             flex-direction: column;
@@ -1071,7 +1202,8 @@
             position: relative;
         }
 
-        .input-wrapper i {
+        .input-wrapper > i:first-child,
+        .input-wrapper > i.input-icon {
             position: absolute;
             left: 14px;
             top: 50%;
@@ -1079,6 +1211,8 @@
             color: #94a3b8;
             font-size: 15px;
             transition: color 0.2s;
+            pointer-events: none;
+            z-index: 1;
         }
 
         .input-wrapper input {
@@ -1094,6 +1228,11 @@
             outline: none;
         }
 
+        .input-wrapper.has-toggle input,
+        .input-wrapper:has(.password-toggle-btn) input {
+            padding-right: 46px;
+        }
+
         .input-wrapper input:focus {
             border-color: #6C5CE7;
             background: #ffffff;
@@ -1101,12 +1240,385 @@
         }
 
         .input-wrapper input:focus+i,
-        .input-wrapper input:focus~i {
+        .input-wrapper input:focus~i:not(.password-toggle-icon) {
             color: #6C5CE7;
         }
 
         .input-wrapper input::placeholder {
             color: #94a3b8;
+        }
+
+        /* Botão de alternar visibilidade de senha */
+        .password-toggle-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 34px;
+            height: 34px;
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+            transition: color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+            z-index: 2;
+        }
+
+        .password-toggle-btn:hover {
+            color: #6C5CE7;
+            background: rgba(108, 92, 231, 0.08);
+        }
+
+        .password-toggle-btn:focus-visible {
+            outline: 2px solid #6C5CE7;
+            outline-offset: 1px;
+            color: #6C5CE7;
+        }
+
+        .password-toggle-btn:active {
+            transform: translateY(-50%) scale(0.92);
+        }
+
+        .password-toggle-btn i,
+        .password-toggle-btn .password-toggle-icon {
+            position: static !important;
+            transform: none !important;
+            left: auto !important;
+            top: auto !important;
+            font-size: 15px !important;
+            color: inherit !important;
+            pointer-events: none;
+        }
+
+        /* ==========================================
+           VALIDAÇÃO EM TEMPO REAL DE E-MAIL
+           ========================================== */
+        .field-error-msg {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            color: #ef4444;
+            margin-top: 6px;
+            font-weight: 500;
+            line-height: 1.4;
+            animation: fieldErrorFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .field-error-msg.visible {
+            display: flex;
+        }
+
+        .field-error-msg i {
+            font-size: 13px;
+            color: #ef4444;
+            flex-shrink: 0;
+        }
+
+        .input-wrapper.has-error input {
+            border-color: #ef4444 !important;
+            background: #fffafa;
+        }
+
+        .input-wrapper.has-error input:focus {
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12) !important;
+            border-color: #ef4444 !important;
+        }
+
+        .input-wrapper.has-error > i:first-child,
+        .input-wrapper.has-error > i.input-icon {
+            color: #ef4444 !important;
+        }
+
+        [data-theme="dark"] .input-wrapper.has-error input,
+        body.dark-theme .input-wrapper.has-error input {
+            border-color: #f87171 !important;
+            background: rgba(239, 68, 68, 0.08) !important;
+            color: #f8fafc;
+        }
+
+        [data-theme="dark"] .input-wrapper.has-error input:focus,
+        body.dark-theme .input-wrapper.has-error input:focus {
+            box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.18) !important;
+            border-color: #f87171 !important;
+        }
+
+        [data-theme="dark"] .input-wrapper.has-error > i:first-child,
+        [data-theme="dark"] .input-wrapper.has-error > i.input-icon,
+        body.dark-theme .input-wrapper.has-error > i:first-child,
+        body.dark-theme .input-wrapper.has-error > i.input-icon {
+            color: #f87171 !important;
+        }
+
+        [data-theme="dark"] .field-error-msg,
+        body.dark-theme .field-error-msg {
+            color: #fca5a5;
+        }
+
+        [data-theme="dark"] .field-error-msg i,
+        body.dark-theme .field-error-msg i {
+            color: #fca5a5;
+        }
+
+        @keyframes fieldErrorFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-3px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ==========================================
+           INDICADOR VISUAL DE FORÇA DA SENHA
+           ========================================== */
+        .password-strength-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 8px;
+            animation: fieldErrorFadeIn 0.25s ease forwards;
+        }
+
+        .password-strength-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11.5px;
+        }
+
+        .password-strength-title {
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .password-strength-badge {
+            font-weight: 700;
+            font-size: 10.5px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            transition: color 0.25s ease, background-color 0.25s ease;
+        }
+
+        .password-strength-meter {
+            display: flex;
+            gap: 5px;
+            height: 5px;
+            width: 100%;
+        }
+
+        .strength-bar {
+            flex: 1;
+            height: 100%;
+            border-radius: 3px;
+            background: #e2e8f0;
+            transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease;
+        }
+
+        .password-strength-hint {
+            font-size: 11px;
+            color: #64748b;
+            line-height: 1.35;
+            transition: color 0.2s ease;
+        }
+
+        /* Estados do Indicador por Nível */
+        .password-strength-container.level-empty .password-strength-badge {
+            color: #94a3b8;
+            background: #f1f5f9;
+        }
+
+        .password-strength-container.level-weak .password-strength-badge {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.12);
+        }
+        .password-strength-container.level-weak #strengthBar1 {
+            background: #ef4444;
+        }
+
+        .password-strength-container.level-fair .password-strength-badge {
+            color: #d97706;
+            background: rgba(245, 158, 11, 0.14);
+        }
+        .password-strength-container.level-fair #strengthBar1,
+        .password-strength-container.level-fair #strengthBar2 {
+            background: #f59e0b;
+        }
+
+        .password-strength-container.level-strong .password-strength-badge {
+            color: #059669;
+            background: rgba(16, 185, 129, 0.14);
+        }
+        .password-strength-container.level-strong #strengthBar1,
+        .password-strength-container.level-strong #strengthBar2,
+        .password-strength-container.level-strong #strengthBar3 {
+            background: #10b981;
+        }
+
+        .password-strength-container.level-very-strong .password-strength-badge {
+            color: #047857;
+            background: rgba(5, 150, 105, 0.18);
+        }
+        .password-strength-container.level-very-strong #strengthBar1,
+        .password-strength-container.level-very-strong #strengthBar2,
+        .password-strength-container.level-very-strong #strengthBar3,
+        .password-strength-container.level-very-strong #strengthBar4 {
+            background: #059669;
+        }
+
+        /* Dark mode para Indicador de Força */
+        [data-theme="dark"] .password-strength-title,
+        body.dark-theme .password-strength-title {
+            color: #94a3b8;
+        }
+
+        [data-theme="dark"] .password-strength-hint,
+        body.dark-theme .password-strength-hint {
+            color: #94a3b8;
+        }
+
+        [data-theme="dark"] .strength-bar,
+        body.dark-theme .strength-bar {
+            background: #334155;
+        }
+
+        [data-theme="dark"] .password-strength-container.level-empty .password-strength-badge,
+        body.dark-theme .password-strength-container.level-empty .password-strength-badge {
+            color: #94a3b8;
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        [data-theme="dark"] .password-strength-container.level-weak .password-strength-badge,
+        body.dark-theme .password-strength-container.level-weak .password-strength-badge {
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.22);
+        }
+
+        [data-theme="dark"] .password-strength-container.level-fair .password-strength-badge,
+        body.dark-theme .password-strength-container.level-fair .password-strength-badge {
+            color: #fbbf24;
+            background: rgba(245, 158, 11, 0.22);
+        }
+
+        [data-theme="dark"] .password-strength-container.level-strong .password-strength-badge,
+        body.dark-theme .password-strength-container.level-strong .password-strength-badge {
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.22);
+        }
+
+        [data-theme="dark"] .password-strength-container.level-very-strong .password-strength-badge,
+        body.dark-theme .password-strength-container.level-very-strong .password-strength-badge {
+            color: #10b981;
+            background: rgba(5, 150, 105, 0.28);
+        }
+
+        /* ==========================================
+           TRANSIÇÃO SUAVE ENTRE LOGIN E CADASTRO
+           ========================================== */
+        .form-slide-out-left {
+            animation: formSlideOutLeft 0.13s cubic-bezier(0.4, 0, 1, 1) forwards;
+            pointer-events: none;
+        }
+
+        .form-slide-out-right {
+            animation: formSlideOutRight 0.13s cubic-bezier(0.4, 0, 1, 1) forwards;
+            pointer-events: none;
+        }
+
+        .form-slide-in-right {
+            animation: formSlideInRight 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .form-slide-in-left {
+            animation: formSlideInLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes formSlideOutLeft {
+            0% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(-16px);
+            }
+        }
+
+        @keyframes formSlideOutRight {
+            0% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(16px);
+            }
+        }
+
+        @keyframes formSlideInRight {
+            0% {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes formSlideInLeft {
+            0% {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .form-slide-out-left,
+            .form-slide-out-right,
+            .form-slide-in-right,
+            .form-slide-in-left,
+            .welcome-side .welcome-logo-container,
+            .welcome-side .welcome-title,
+            .welcome-side .welcome-desc,
+            .welcome-side .welcome-features .feature,
+            .login-side .mobile-logo,
+            .login-side .tabs,
+            .auth-form.form-fade-in > .form-group,
+            .auth-form.form-fade-in > .form-links,
+            .auth-form.form-fade-in > .btn-primary,
+            .auth-form.form-fade-in > .btn-biometric {
+                animation: none !important;
+                transform: none !important;
+                opacity: 1 !important;
+            }
+
+            .btn-primary,
+            .btn-primary:hover,
+            .btn-primary:active,
+            #loginBtn,
+            #loginBtn:hover,
+            #loginBtn:active,
+            #registerBtn,
+            #registerBtn:hover,
+            #registerBtn:active {
+                transform: none !important;
+                transition: none !important;
+            }
         }
 
         .form-links {
@@ -1129,9 +1641,11 @@
         }
 
         /* ==========================================
-           BOTÕES
+           BOTÕES - BOTÃO "ENTRAR" E AÇÕES
            ========================================== */
-        .btn-primary {
+        .btn-primary,
+        #loginBtn,
+        #registerBtn {
             width: 100%;
             padding: 14px;
             border: none;
@@ -1142,50 +1656,60 @@
             font-weight: 700;
             font-family: 'Inter', sans-serif;
             cursor: pointer;
-            transition: all 0.25s ease;
-            box-shadow: 0 4px 16px rgba(108, 92, 231, 0.3);
+            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, background 0.2s ease, opacity 0.2s ease;
+            box-shadow: 0 4px 14px rgba(108, 92, 231, 0.28);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             margin-top: 4px;
+            will-change: transform;
+            backface-visibility: hidden;
+            -webkit-font-smoothing: subpixel-antialiased;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover,
+        #loginBtn:hover,
+        #registerBtn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(108, 92, 231, 0.35);
+            box-shadow: 0 6px 18px rgba(108, 92, 231, 0.35);
         }
 
-        .btn-primary:active {
+        .btn-primary:active,
+        #loginBtn:active,
+        #registerBtn:active {
             transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(108, 92, 231, 0.22);
         }
 
-        .btn-primary:disabled {
-            opacity: 0.6;
+        .btn-primary:disabled,
+        #loginBtn:disabled,
+        #registerBtn:disabled {
+            opacity: 0.65;
             cursor: not-allowed;
             transform: none !important;
+            box-shadow: none !important;
         }
 
-        .btn-primary .spinner {
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top-color: #fff;
+        .btn-primary .spinner,
+        #loginBtn .spinner,
+        #registerBtn .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-top-color: #ffffff;
             border-radius: 50%;
-            animation: spinPulse 1s ease-in-out infinite;
+            animation: btnSpinnerRotate 0.8s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
         }
 
-        @keyframes spinPulse {
+        @keyframes btnSpinnerRotate {
             0% {
-                transform: rotate(0deg) scale(1);
+                transform: rotate(0deg);
             }
-
-            50% {
-                transform: rotate(180deg) scale(1.1);
-            }
-
             100% {
-                transform: rotate(360deg) scale(1);
+                transform: rotate(360deg);
             }
         }
 
@@ -1429,6 +1953,20 @@
                 color: #64748b;
             }
 
+            .password-toggle-btn {
+                color: #64748b;
+            }
+
+            .password-toggle-btn:hover {
+                color: #A29BFE;
+                background: rgba(162, 155, 254, 0.12);
+            }
+
+            .password-toggle-btn:focus-visible {
+                outline-color: #A29BFE;
+                color: #A29BFE;
+            }
+
             .btn-social {
                 background: #0f172a;
                 border-color: #334155;
@@ -1565,6 +2103,17 @@
                 font-size: 13px;
             }
 
+            .input-wrapper.has-toggle input,
+            .input-wrapper:has(.password-toggle-btn) input {
+                padding-right: 42px;
+            }
+
+            .password-toggle-btn {
+                right: 6px;
+                width: 32px;
+                height: 32px;
+            }
+
             .btn-primary {
                 padding: 13px;
                 font-size: 14px;
@@ -1672,7 +2221,7 @@
                 <h1 class="welcome-title">Bem-vindo ao<br><span>TonuControle</span></h1>
                 <p class="welcome-desc">Gerencie suas finanças com simplicidade, segurança e controle inteligente.</p>
 
-                <div class="welcome-features">
+                <div class="welcome-features is-initializing" id="welcomeFeatures">
                     <div class="feature">
                         <div class="feature-icon-wrap">
                             <i class="fas fa-chart-pie" aria-hidden="true"></i>
@@ -1727,23 +2276,29 @@
                 </button>
             </div>
 
-            <form id="loginForm" class="auth-form" role="tabpanel" aria-labelledby="tabLogin"
+            <form id="loginForm" class="auth-form form-fade-in" role="tabpanel" aria-labelledby="tabLogin"
                 onsubmit="handleLogin(event)" novalidate>
                 <div class="form-group">
                     <label for="loginEmail">E-mail</label>
-                    <div class="input-wrapper">
-                        <i class="fa-regular fa-envelope" aria-hidden="true"></i>
+                    <div class="input-wrapper" id="loginEmailWrapper">
+                        <i class="fa-regular fa-envelope input-icon" aria-hidden="true"></i>
                         <input type="email" id="loginEmail" placeholder="seu@email.com" required autocomplete="email"
-                            aria-required="true">
+                            aria-required="true" aria-describedby="loginEmailError">
                     </div>
+                    <div class="field-error-msg" id="loginEmailError" role="alert" aria-live="polite"></div>
                 </div>
 
                 <div class="form-group">
                     <label for="loginPassword">Senha</label>
-                    <div class="input-wrapper">
-                        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                    <div class="input-wrapper has-toggle">
+                        <i class="fa-solid fa-lock input-icon" aria-hidden="true"></i>
                         <input type="password" id="loginPassword" placeholder="Sua senha" required
                             autocomplete="current-password" aria-required="true">
+                        <button type="button" class="password-toggle-btn" id="toggleLoginPasswordBtn"
+                            onclick="togglePasswordVisibility('loginPassword', 'toggleLoginPasswordIcon', this)"
+                            aria-label="Mostrar senha" title="Mostrar senha" tabindex="0">
+                            <i class="fa-regular fa-eye password-toggle-icon" id="toggleLoginPasswordIcon" aria-hidden="true"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -1760,7 +2315,7 @@
                 </button>
             </form>
 
-            <form id="registerForm" class="auth-form hidden" role="tabpanel" aria-labelledby="tabRegister"
+            <form id="registerForm" class="auth-form hidden form-fade-in" role="tabpanel" aria-labelledby="tabRegister"
                 onsubmit="handleRegister(event)" novalidate>
                 <div class="form-group">
                     <label for="registerName">Nome Completo</label>
@@ -1773,19 +2328,41 @@
 
                 <div class="form-group">
                     <label for="registerEmail">E-mail</label>
-                    <div class="input-wrapper">
-                        <i class="fa-regular fa-envelope" aria-hidden="true"></i>
+                    <div class="input-wrapper" id="registerEmailWrapper">
+                        <i class="fa-regular fa-envelope input-icon" aria-hidden="true"></i>
                         <input type="email" id="registerEmail" placeholder="seu@email.com" required autocomplete="email"
-                            aria-required="true">
+                            aria-required="true" aria-describedby="registerEmailError">
                     </div>
+                    <div class="field-error-msg" id="registerEmailError" role="alert" aria-live="polite"></div>
                 </div>
 
                 <div class="form-group">
                     <label for="registerPassword">Senha</label>
-                    <div class="input-wrapper">
-                        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                    <div class="input-wrapper has-toggle">
+                        <i class="fa-solid fa-lock input-icon" aria-hidden="true"></i>
                         <input type="password" id="registerPassword" placeholder="Mínimo 6 caracteres" required
-                            minlength="6" autocomplete="new-password" aria-required="true">
+                            minlength="6" autocomplete="new-password" aria-required="true"
+                            aria-describedby="passwordStrength">
+                        <button type="button" class="password-toggle-btn" id="toggleRegisterPasswordBtn"
+                            onclick="togglePasswordVisibility('registerPassword', 'toggleRegisterPasswordIcon', this)"
+                            aria-label="Mostrar senha" title="Mostrar senha" tabindex="0">
+                            <i class="fa-regular fa-eye password-toggle-icon" id="toggleRegisterPasswordIcon" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    <!-- Indicador Visual de Força da Senha -->
+                    <div class="password-strength-container level-empty" id="passwordStrength" role="status" aria-live="polite" aria-label="Força da senha">
+                        <div class="password-strength-header">
+                            <span class="password-strength-title">Força da senha</span>
+                            <span class="password-strength-badge" id="passwordStrengthLabel">Vazia</span>
+                        </div>
+                        <div class="password-strength-meter" aria-hidden="true">
+                            <div class="strength-bar" id="strengthBar1"></div>
+                            <div class="strength-bar" id="strengthBar2"></div>
+                            <div class="strength-bar" id="strengthBar3"></div>
+                            <div class="strength-bar" id="strengthBar4"></div>
+                        </div>
+                        <div class="password-strength-hint" id="passwordStrengthHint">Mínimo de 6 caracteres com letras e números</div>
                     </div>
                 </div>
 
@@ -1921,7 +2498,211 @@
         // VALIDAÇÃO DE EMAIL
         // ==========================================
         function isValidEmail(email) {
-            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            if (!email || typeof email !== 'string') return false;
+            return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
+        }
+
+        // ==========================================
+        // FINALIZAÇÃO DA INICIALIZAÇÃO (WELCOME CARDS & CAMPOS DO FORMULÁRIO)
+        // ==========================================
+        function completeAppInitialization() {
+            const welcomeFeatures = document.getElementById('welcomeFeatures') || document.querySelector('.welcome-features');
+            if (welcomeFeatures && welcomeFeatures.classList.contains('is-initializing')) {
+                welcomeFeatures.classList.remove('is-initializing');
+            }
+
+            // Ativa suavemente a animação de entrada fade-in nos campos do formulário visível
+            const activeForm = document.querySelector('.auth-form:not(.hidden)');
+            if (activeForm) {
+                activeForm.classList.remove('form-fade-in');
+                void activeForm.offsetWidth;
+                activeForm.classList.add('form-fade-in');
+            }
+
+            window.__TONU_APP_INITIALIZED = true;
+        }
+
+        // ==========================================
+        // VALIDAÇÃO EM TEMPO REAL DE E-MAIL
+        // ==========================================
+        function setupRealtimeEmailValidation() {
+            const configs = [
+                {
+                    inputId: 'loginEmail',
+                    wrapperId: 'loginEmailWrapper',
+                    errorId: 'loginEmailError'
+                },
+                {
+                    inputId: 'registerEmail',
+                    wrapperId: 'registerEmailWrapper',
+                    errorId: 'registerEmailError'
+                }
+            ];
+
+            configs.forEach(cfg => {
+                const input = document.getElementById(cfg.inputId);
+                const errorEl = document.getElementById(cfg.errorId);
+                const wrapper = document.getElementById(cfg.wrapperId) || input?.closest('.input-wrapper');
+                if (!input || !errorEl) return;
+
+                let isDirty = false;
+
+                function showErr(msg) {
+                    if (wrapper) wrapper.classList.add('has-error');
+                    input.setAttribute('aria-invalid', 'true');
+                    errorEl.innerHTML = '<i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span>' + msg + '</span>';
+                    errorEl.classList.add('visible');
+                }
+
+                function clearErr() {
+                    if (wrapper) wrapper.classList.remove('has-error');
+                    input.setAttribute('aria-invalid', 'false');
+                    errorEl.innerHTML = '';
+                    errorEl.classList.remove('visible');
+                }
+
+                function validate(isSubmitOrBlur) {
+                    const rawVal = input.value;
+                    const val = rawVal.trim();
+
+                    if (!val) {
+                        if (isSubmitOrBlur && isDirty) {
+                            showErr('O e-mail é obrigatório');
+                            return false;
+                        } else {
+                            clearErr();
+                            input.removeAttribute('aria-invalid');
+                            return false;
+                        }
+                    }
+
+                    if (!isValidEmail(val)) {
+                        showErr('Formato de e-mail inválido (ex: nome@dominio.com)');
+                        return false;
+                    }
+
+                    clearErr();
+                    return true;
+                }
+
+                input.addEventListener('input', function () {
+                    if (input.value.length > 0) {
+                        isDirty = true;
+                    }
+                    validate(false);
+                });
+
+                input.addEventListener('blur', function () {
+                    if (input.value.trim().length > 0) {
+                        isDirty = true;
+                    }
+                    validate(true);
+                });
+
+                input._validateEmail = function () {
+                    isDirty = true;
+                    return validate(true);
+                };
+
+                input._clearEmailValidation = function () {
+                    isDirty = false;
+                    clearErr();
+                    input.removeAttribute('aria-invalid');
+                };
+            });
+        }
+
+        // ==========================================
+        // AVALIAÇÃO E INDICADOR VISUAL DE FORÇA DA SENHA
+        // ==========================================
+        function evaluatePasswordStrength(password) {
+            if (!password || typeof password !== 'string') {
+                return {
+                    score: 0,
+                    level: 'empty',
+                    label: 'Vazia',
+                    hint: 'Mínimo de 6 caracteres com letras e números'
+                };
+            }
+
+            let score = 0;
+            const len = password.length;
+
+            if (len >= 6) score += 1;
+            if (len >= 8) score += 1;
+            if (len >= 12) score += 1;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1;
+            if (/\d/.test(password)) score += 1;
+            if (/[^a-zA-Z0-9]/.test(password)) score += 1;
+
+            // Penalidades para padrões repetitivos ou apenas números
+            if (/^(.)\1+$/.test(password)) score = Math.min(score, 1);
+            if (/^[0-9]+$/.test(password) && len < 10) score = Math.min(score, 2);
+
+            if (len < 6 || score <= 1) {
+                return {
+                    score: 1,
+                    level: 'weak',
+                    label: 'Fraca',
+                    hint: 'Senha fraca: use ao menos 6 caracteres e misture letras e números'
+                };
+            } else if (score <= 3) {
+                return {
+                    score: 2,
+                    level: 'fair',
+                    label: 'Média',
+                    hint: 'Senha razoável: adicione maiúsculas ou símbolos para fortalecê-la'
+                };
+            } else if (score <= 4) {
+                return {
+                    score: 3,
+                    level: 'strong',
+                    label: 'Forte',
+                    hint: 'Senha forte: ótima proteção para sua conta'
+                };
+            } else {
+                return {
+                    score: 4,
+                    level: 'very-strong',
+                    label: 'Excelente',
+                    hint: 'Senha excelente: combinação altamente segura'
+                };
+            }
+        }
+
+        function updatePasswordStrengthUI(password) {
+            const container = document.getElementById('passwordStrength');
+            const labelEl = document.getElementById('passwordStrengthLabel');
+            const hintEl = document.getElementById('passwordStrengthHint');
+            if (!container || !labelEl) return;
+
+            const res = evaluatePasswordStrength(password);
+
+            container.classList.remove('level-empty', 'level-weak', 'level-fair', 'level-strong', 'level-very-strong');
+            container.classList.add('level-' + res.level);
+
+            labelEl.textContent = res.label;
+            if (hintEl) hintEl.textContent = res.hint;
+
+            container.setAttribute('aria-valuenow', String(res.score));
+            container.setAttribute('aria-valuetext', res.label);
+        }
+
+        function setupPasswordStrengthIndicator() {
+            const input = document.getElementById('registerPassword');
+            if (!input) return;
+
+            const handleUpdate = () => updatePasswordStrengthUI(input.value);
+
+            input.addEventListener('input', handleUpdate);
+            input.addEventListener('change', handleUpdate);
+            input.addEventListener('paste', () => setTimeout(handleUpdate, 10));
+
+            input._resetStrength = function () {
+                updatePasswordStrengthUI('');
+            };
+
+            updatePasswordStrengthUI(input.value || '');
         }
 
         // ==========================================
@@ -1982,6 +2763,9 @@
         // ==========================================
         document.addEventListener('DOMContentLoaded', async function () {
             updateDeviceModeUI();
+            setupRealtimeEmailValidation();
+            setupPasswordStrengthIndicator();
+            setTimeout(completeAppInitialization, 1800);
 
             // Limpar flag de logout e quaisquer resquícios de demo
             try {
@@ -2016,9 +2800,13 @@
             // Enter para submeter
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter') {
+                    const activeElement = document.activeElement;
+                    if (activeElement && activeElement.classList.contains('password-toggle-btn')) {
+                        return; // Deixa o clique nativo do botão alternar a visibilidade da senha
+                    }
+
                     const loginForm = document.getElementById('loginForm');
                     const registerForm = document.getElementById('registerForm');
-                    const activeElement = document.activeElement;
 
                     if (loginForm && !loginForm.classList.contains('hidden')) {
                         if (loginForm.contains(activeElement)) {
@@ -2076,6 +2864,7 @@
                     redirectTimeout = null;
                 }
                 splash.classList.add('hidden');
+                completeAppInitialization();
             };
 
             const interval = setInterval(() => {
@@ -2097,6 +2886,7 @@
                             window.location.href = redirectUrl;
                         } else {
                             splash.classList.add('hidden');
+                            completeAppInitialization();
                         }
                     }, 400);
                 } else {
@@ -2146,33 +2936,115 @@
         }
 
         // ==========================================
-        // SWITCH TAB
+        // SWITCH TAB (COM TRANSIÇÃO SUAVE DE SLIDE / FADE)
         // ==========================================
+        let currentAuthTab = 'login';
+        let isSwitchingAuthTab = false;
+        let authTabTimeout = null;
+
         function switchTab(tab, event) {
             if (event) event.preventDefault();
 
             const loginForm = document.getElementById('loginForm');
             const registerForm = document.getElementById('registerForm');
-            const tabs = document.querySelectorAll('.tab-btn');
+            const tabLogin = document.getElementById('tabLogin');
+            const tabRegister = document.getElementById('tabRegister');
 
-            tabs.forEach(t => {
-                t.classList.remove('active');
-                t.setAttribute('aria-selected', 'false');
-            });
+            if (!loginForm || !registerForm) return;
 
-            if (tab === 'login') {
-                if (loginForm) loginForm.classList.remove('hidden');
-                if (registerForm) registerForm.classList.add('hidden');
-                const t0 = document.getElementById('tabLogin');
-                if (t0) { t0.classList.add('active'); t0.setAttribute('aria-selected', 'true'); }
-                setTimeout(() => document.getElementById('loginEmail')?.focus(), 100);
-            } else if (tab === 'register') {
-                if (loginForm) loginForm.classList.add('hidden');
-                if (registerForm) registerForm.classList.remove('hidden');
-                const t1 = document.getElementById('tabRegister');
-                if (t1) { t1.classList.add('active'); t1.setAttribute('aria-selected', 'true'); }
-                setTimeout(() => document.getElementById('registerName')?.focus(), 100);
+            // Se já estiver na aba solicitada e não estiver em transição, foca o campo apropriado
+            if (tab === currentAuthTab && !isSwitchingAuthTab) {
+                if (tab === 'login') {
+                    document.getElementById('loginEmail')?.focus();
+                } else {
+                    document.getElementById('registerName')?.focus();
+                }
+                return;
             }
+
+            // Cancelar timeout ativo caso o usuário alterne rapidamente
+            if (authTabTimeout) {
+                clearTimeout(authTabTimeout);
+                authTabTimeout = null;
+            }
+
+            // Limpar erros de validação de e-mail ao trocar de aba
+            document.getElementById('loginEmail')?._clearEmailValidation?.();
+            document.getElementById('registerEmail')?._clearEmailValidation?.();
+
+            const isGoingToRegister = (tab === 'register');
+            const outgoingForm = isGoingToRegister ? loginForm : registerForm;
+            const incomingForm = isGoingToRegister ? registerForm : loginForm;
+            currentAuthTab = tab;
+
+            // Atualizar estados acessíveis e visuais dos botões das abas imediatamente
+            if (tab === 'login') {
+                tabLogin?.classList.add('active');
+                tabLogin?.setAttribute('aria-selected', 'true');
+                tabRegister?.classList.remove('active');
+                tabRegister?.setAttribute('aria-selected', 'false');
+            } else {
+                tabRegister?.classList.add('active');
+                tabRegister?.setAttribute('aria-selected', 'true');
+                tabLogin?.classList.remove('active');
+                tabLogin?.setAttribute('aria-selected', 'false');
+            }
+
+            // Respeitar preferência por movimento reduzido
+            const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            if (prefersReducedMotion) {
+                outgoingForm.classList.add('hidden');
+                outgoingForm.classList.remove('form-slide-out-left', 'form-slide-out-right', 'form-slide-in-left', 'form-slide-in-right');
+                incomingForm.classList.remove('hidden');
+                incomingForm.classList.remove('form-slide-out-left', 'form-slide-out-right', 'form-slide-in-left', 'form-slide-in-right');
+                isSwitchingAuthTab = false;
+
+                if (tab === 'login') {
+                    setTimeout(() => document.getElementById('loginEmail')?.focus(), 50);
+                } else {
+                    setTimeout(() => document.getElementById('registerName')?.focus(), 50);
+                }
+                return;
+            }
+
+            isSwitchingAuthTab = true;
+
+            // Remover classes residuais de animações
+            outgoingForm.classList.remove('form-slide-out-left', 'form-slide-out-right', 'form-slide-in-left', 'form-slide-in-right');
+            incomingForm.classList.remove('form-slide-out-left', 'form-slide-out-right', 'form-slide-in-left', 'form-slide-in-right');
+
+            // Determinar classes direcionais de slide:
+            // Login -> Register: login sai para a esquerda, register entra da direita
+            // Register -> Login: register sai para a direita, login entra da esquerda
+            const exitClass = isGoingToRegister ? 'form-slide-out-left' : 'form-slide-out-right';
+            const enterClass = isGoingToRegister ? 'form-slide-in-right' : 'form-slide-in-left';
+
+            outgoingForm.classList.add(exitClass);
+
+            authTabTimeout = setTimeout(() => {
+                outgoingForm.classList.add('hidden');
+                outgoingForm.classList.remove(exitClass);
+
+                incomingForm.classList.remove('hidden');
+                incomingForm.classList.add(enterClass);
+                incomingForm.classList.remove('form-fade-in');
+                void incomingForm.offsetWidth;
+                incomingForm.classList.add('form-fade-in');
+
+                // Focar o campo apropriado
+                if (tab === 'login') {
+                    document.getElementById('loginEmail')?.focus();
+                } else {
+                    document.getElementById('registerName')?.focus();
+                }
+
+                authTabTimeout = setTimeout(() => {
+                    incomingForm.classList.remove(enterClass);
+                    isSwitchingAuthTab = false;
+                    authTabTimeout = null;
+                }, 230);
+            }, 130);
         }
 
         // ==========================================
@@ -2181,17 +3053,29 @@
         async function handleLogin(event) {
             event.preventDefault();
 
-            const email = document.getElementById('loginEmail').value.trim();
+            const emailInput = document.getElementById('loginEmail');
+            const email = emailInput ? emailInput.value.trim() : '';
             const password = document.getElementById('loginPassword').value;
             const btn = document.getElementById('loginBtn');
 
-            if (!email || !password) {
-                showToast('Preencha todos os campos!', 'error');
+            if (emailInput && typeof emailInput._validateEmail === 'function') {
+                const isValid = emailInput._validateEmail();
+                if (!isValid) {
+                    emailInput.focus();
+                    if (!email) {
+                        showToast('Preencha o campo de e-mail!', 'error');
+                    } else {
+                        showToast('Digite um e-mail válido!', 'error');
+                    }
+                    return;
+                }
+            } else if (!email || !isValidEmail(email)) {
+                showToast('Digite um e-mail válido!', 'error');
                 return;
             }
 
-            if (!isValidEmail(email)) {
-                showToast('Digite um e-mail válido!', 'error');
+            if (!password) {
+                showToast('Preencha o campo de senha!', 'error');
                 return;
             }
 
@@ -2262,21 +3146,34 @@
             event.preventDefault();
 
             const name = document.getElementById('registerName').value.trim();
-            const email = document.getElementById('registerEmail').value.trim();
+            const emailInput = document.getElementById('registerEmail');
+            const email = emailInput ? emailInput.value.trim() : '';
             const password = document.getElementById('registerPassword').value;
             const btn = document.getElementById('registerBtn');
 
-            if (!name || !email || !password) {
-                showToast('Preencha todos os campos!', 'error');
+            if (!name) {
+                showToast('Preencha seu nome completo!', 'error');
+                document.getElementById('registerName')?.focus();
                 return;
             }
 
-            if (!isValidEmail(email)) {
+            if (emailInput && typeof emailInput._validateEmail === 'function') {
+                const isValid = emailInput._validateEmail();
+                if (!isValid) {
+                    emailInput.focus();
+                    if (!email) {
+                        showToast('Preencha o campo de e-mail!', 'error');
+                    } else {
+                        showToast('Digite um e-mail válido!', 'error');
+                    }
+                    return;
+                }
+            } else if (!email || !isValidEmail(email)) {
                 showToast('Digite um e-mail válido!', 'error');
                 return;
             }
 
-            if (password.length < 6) {
+            if (!password || password.length < 6) {
                 showToast('A senha deve ter pelo menos 6 caracteres!', 'error');
                 return;
             }
@@ -2554,11 +3451,49 @@
         }
 
         // ==========================================
+        // ALTERNAR VISIBILIDADE DE SENHA
+        // ==========================================
+        function togglePasswordVisibility(inputId, iconId, btnElement) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            const btn = btnElement || (icon ? icon.closest('.password-toggle-btn') : null);
+
+            if (!input) return;
+
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+
+            if (icon) {
+                if (isPassword) {
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            }
+
+            if (btn) {
+                const label = isPassword ? 'Ocultar senha' : 'Mostrar senha';
+                btn.setAttribute('aria-label', label);
+                btn.setAttribute('title', label);
+                btn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+            }
+
+            try {
+                input.focus({ preventScroll: true });
+            } catch (e) {
+                input.focus();
+            }
+        }
+
+        // ==========================================
         // EXPORTAÇÃO GLOBAL
         // ==========================================
         window.switchTab = switchTab;
         window.handleLogin = handleLogin;
         window.handleRegister = handleRegister;
+        window.togglePasswordVisibility = togglePasswordVisibility;
         window.socialLogin = socialLogin;
         window.resetPassword = resetPassword;
         window.showToast = showToast;
@@ -2566,6 +3501,11 @@
         window.createDefaultCategories = createDefaultCategories;
         window.handleBiometricLogin = handleBiometricLogin;
         window.isValidEmail = isValidEmail;
+        window.evaluatePasswordStrength = evaluatePasswordStrength;
+        window.updatePasswordStrengthUI = updatePasswordStrengthUI;
+        window.setupPasswordStrengthIndicator = setupPasswordStrengthIndicator;
+        window.setupRealtimeEmailValidation = setupRealtimeEmailValidation;
+        window.completeAppInitialization = completeAppInitialization;
         window.storage = storage;
 
         console.log('✅ TonuControle Login carregado!');

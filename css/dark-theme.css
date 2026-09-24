@@ -212,9 +212,19 @@ body.dark-theme .btn-primary {
     color: #ffffff !important;
 }
 
-body.dark-theme .btn-primary:hover {
+body.dark-theme .btn-primary:hover,
+body.dark-theme #loginBtn:hover,
+body.dark-theme #registerBtn:hover {
     background: #6C7AEF !important;
-    box-shadow: 0 6px 20px rgba(129, 140, 248, 0.4) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 18px rgba(129, 140, 248, 0.35) !important;
+}
+
+body.dark-theme .btn-primary:active,
+body.dark-theme #loginBtn:active,
+body.dark-theme #registerBtn:active {
+    transform: scale(0.98) !important;
+    box-shadow: 0 2px 8px rgba(129, 140, 248, 0.2) !important;
 }
 
 body.dark-theme .btn-secondary {
@@ -1054,6 +1064,20 @@ body.dark-theme .input-wrapper input:focus {
     border-color: #818CF8 !important;
 }
 
+body.dark-theme .password-toggle-btn {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .password-toggle-btn:hover {
+    color: #A78BFA !important;
+    background: rgba(167, 139, 250, 0.15) !important;
+}
+
+body.dark-theme .password-toggle-btn:focus-visible {
+    outline-color: #818CF8 !important;
+    color: #818CF8 !important;
+}
+
 body.dark-theme .divider::before,
 body.dark-theme .divider::after {
     background: var(--color-border) !important;
@@ -1079,4 +1103,60 @@ body.dark-theme .form-links a {
 
 body.dark-theme .form-links a:hover {
     color: #818CF8 !important;
+}
+
+/* Indicador de Força de Senha no Tema Escuro */
+body.dark-theme .password-strength-title {
+    color: var(--color-text-muted, #94a3b8) !important;
+}
+
+body.dark-theme .password-strength-hint {
+    color: var(--color-text-muted, #94a3b8) !important;
+}
+
+body.dark-theme .strength-bar {
+    background: var(--color-border, #334155) !important;
+}
+
+body.dark-theme .password-strength-container.level-empty .password-strength-badge {
+    color: #94a3b8 !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+}
+
+body.dark-theme .password-strength-container.level-weak .password-strength-badge {
+    color: #f87171 !important;
+    background: rgba(239, 68, 68, 0.22) !important;
+}
+body.dark-theme .password-strength-container.level-weak #strengthBar1 {
+    background: #ef4444 !important;
+}
+
+body.dark-theme .password-strength-container.level-fair .password-strength-badge {
+    color: #fbbf24 !important;
+    background: rgba(245, 158, 11, 0.22) !important;
+}
+body.dark-theme .password-strength-container.level-fair #strengthBar1,
+body.dark-theme .password-strength-container.level-fair #strengthBar2 {
+    background: #f59e0b !important;
+}
+
+body.dark-theme .password-strength-container.level-strong .password-strength-badge {
+    color: #34d399 !important;
+    background: rgba(16, 185, 129, 0.22) !important;
+}
+body.dark-theme .password-strength-container.level-strong #strengthBar1,
+body.dark-theme .password-strength-container.level-strong #strengthBar2,
+body.dark-theme .password-strength-container.level-strong #strengthBar3 {
+    background: #10b981 !important;
+}
+
+body.dark-theme .password-strength-container.level-very-strong .password-strength-badge {
+    color: #10b981 !important;
+    background: rgba(5, 150, 105, 0.28) !important;
+}
+body.dark-theme .password-strength-container.level-very-strong #strengthBar1,
+body.dark-theme .password-strength-container.level-very-strong #strengthBar2,
+body.dark-theme .password-strength-container.level-very-strong #strengthBar3,
+body.dark-theme .password-strength-container.level-very-strong #strengthBar4 {
+    background: #059669 !important;
 }

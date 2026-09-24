@@ -776,7 +776,7 @@
 
                     // Calcular valor líquido se for JCP ou net_value
                     let totalVal = 0;
-                    const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : 0.15;
+                    const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
                     if (div.net_value !== undefined && div.net_value !== null && Number(div.net_value) > 0) {
                         totalVal = Number(div.net_value);
                     } else if (div.total_value !== undefined && div.total_value !== null && Number(div.total_value) > 0) {

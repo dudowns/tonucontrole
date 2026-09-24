@@ -149,29 +149,154 @@ function sanitizeString(str) {
 }
 
 // ============================================
+// AVALIAÇÃO DE FORÇA DA SENHA
+// ============================================
+
+function evaluatePasswordStrength(password) {
+    if (!password || typeof password !== 'string') {
+        return {
+            score: 0,
+            level: 'empty',
+            label: 'Vazia',
+            hint: 'Mínimo de 6 caracteres com letras e números'
+        };
+    }
+
+    let score = 0;
+    const len = password.length;
+
+    if (len >= 6) score += 1;
+    if (len >= 8) score += 1;
+    if (len >= 12) score += 1;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1;
+    if (/\d/.test(password)) score += 1;
+    if (/[^a-zA-Z0-9]/.test(password)) score += 1;
+
+    // Penalidades para padrões repetitivos ou apenas números
+    if (/^(.)\1+$/.test(password)) score = Math.min(score, 1);
+    if (/^[0-9]+$/.test(password) && len < 10) score = Math.min(score, 2);
+
+    if (len < 6 || score <= 1) {
+        return {
+            score: 1,
+            level: 'weak',
+            label: 'Fraca',
+            hint: 'Senha fraca: use ao menos 6 caracteres e misture letras e números'
+        };
+    } else if (score <= 3) {
+        return {
+            score: 2,
+            level: 'fair',
+            label: 'Média',
+            hint: 'Senha razoável: adicione maiúsculas ou símbolos para fortalecê-la'
+        };
+    } else if (score <= 4) {
+        return {
+            score: 3,
+            level: 'strong',
+            label: 'Forte',
+            hint: 'Senha forte: ótima proteção para sua conta'
+        };
+    } else {
+        return {
+            score: 4,
+            level: 'very-strong',
+            label: 'Excelente',
+            hint: 'Senha excelente: combinação altamente segura'
+        };
+    }
+}
+
+// ============================================
 // TABS
 // ============================================
+
+let _authTabTimeout = null;
 
 function switchTab(tab, event) {
     if (event) event.preventDefault();
 
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
-    const tabs = document.querySelectorAll('.auth-tab');
+    const tabs = document.querySelectorAll('.auth-tab, .tab-btn');
+    const tabLogin = document.getElementById('tabLogin');
+    const tabRegister = document.getElementById('tabRegister');
 
-    tabs.forEach(t => t.classList.remove('active'));
+    if (!loginForm || !registerForm) return;
+
+    if (_authTabTimeout) {
+        clearTimeout(_authTabTimeout);
+        _authTabTimeout = null;
+    }
+
+    tabs.forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+    });
+
+    const isGoingToRegister = (tab === 'register');
+    const outgoingForm = isGoingToRegister ? loginForm : registerForm;
+    const incomingForm = isGoingToRegister ? registerForm : loginForm;
 
     if (tab === 'login') {
-        loginForm.classList.remove('hidden');
-        registerForm.classList.add('hidden');
-        tabs[0].classList.add('active');
-        setTimeout(() => document.getElementById('loginEmail')?.focus(), 100);
+        if (tabLogin) {
+            tabLogin.classList.add('active');
+            tabLogin.setAttribute('aria-selected', 'true');
+        } else if (tabs[0]) {
+            tabs[0].classList.add('active');
+            tabs[0].setAttribute('aria-selected', 'true');
+        }
     } else {
-        loginForm.classList.add('hidden');
-        registerForm.classList.remove('hidden');
-        tabs[1].classList.add('active');
-        setTimeout(() => document.getElementById('registerName')?.focus(), 100);
+        if (tabRegister) {
+            tabRegister.classList.add('active');
+            tabRegister.setAttribute('aria-selected', 'true');
+        } else if (tabs[1]) {
+            tabs[1].classList.add('active');
+            tabs[1].setAttribute('aria-selected', 'true');
+        }
     }
+
+    const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+        outgoingForm.classList.add('hidden');
+        outgoingForm.classList.remove('form-slide-out-left', 'form-slide-out-right', 'form-slide-in-left', 'form-slide-in-right');
+        incomingForm.classList.remove('hidden');
+        incomingForm.classList.remove('form-slide-out-left', 'form-slide-out-right', 'form-slide-in-left', 'form-slide-in-right');
+        if (tab === 'login') {
+            setTimeout(() => document.getElementById('loginEmail')?.focus(), 50);
+        } else {
+            setTimeout(() => document.getElementById('registerName')?.focus(), 50);
+        }
+        return;
+    }
+
+    outgoingForm.classList.remove('form-slide-out-left', 'form-slide-out-right', 'form-slide-in-left', 'form-slide-in-right');
+    incomingForm.classList.remove('form-slide-out-left', 'form-slide-out-right', 'form-slide-in-left', 'form-slide-in-right');
+
+    const exitClass = isGoingToRegister ? 'form-slide-out-left' : 'form-slide-out-right';
+    const enterClass = isGoingToRegister ? 'form-slide-in-right' : 'form-slide-in-left';
+
+    outgoingForm.classList.add(exitClass);
+
+    _authTabTimeout = setTimeout(() => {
+        outgoingForm.classList.add('hidden');
+        outgoingForm.classList.remove(exitClass);
+
+        incomingForm.classList.remove('hidden');
+        incomingForm.classList.add(enterClass);
+
+        if (tab === 'login') {
+            setTimeout(() => document.getElementById('loginEmail')?.focus(), 50);
+        } else {
+            setTimeout(() => document.getElementById('registerName')?.focus(), 50);
+        }
+
+        _authTabTimeout = setTimeout(() => {
+            incomingForm.classList.remove(enterClass);
+            _authTabTimeout = null;
+        }, 230);
+    }, 130);
 }
 
 // ============================================
@@ -788,46 +913,103 @@ async function logout() {
 // INICIALIZAR AO CARREGAR
 // ============================================
 
-document.addEventListener('DOMContentLoaded', async () => {
-    sessionStorage.removeItem('tonu_logout_in_progress');
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', async () => {
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.removeItem('tonu_logout_in_progress');
+        }
 
-    await checkAuth();
-    await handleSocialLoginCallback();
+        await checkAuth();
+        await handleSocialLoginCallback();
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('error')) {
-        showToast('Erro na autenticação com provedor externo.', 'error');
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('error')) {
+            showToast('Erro na autenticação com provedor externo.', 'error');
+        }
+
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setTimeout(() => {
+                showToast('📶 Você está offline. Dados em cache disponíveis.', 'warning');
+            }, 1500);
+        }
+
+        console.log('✅ Auth.js configurado com segurança, rate limiting e refresh automático!');
+    });
+}
+
+// ============================================
+// VISIBILIDADE DE SENHA (TOGGLE PASSWORD)
+// ============================================
+
+function togglePasswordVisibility(inputId, iconId, btnElement) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    const btn = btnElement || (icon ? icon.closest('.password-toggle-btn') : null);
+
+    if (!input) return;
+
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+
+    if (icon) {
+        if (isPassword) {
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
     }
 
-    if (!navigator.onLine) {
-        setTimeout(() => {
-            showToast('📶 Você está offline. Dados em cache disponíveis.', 'warning');
-        }, 1500);
+    if (btn) {
+        const label = isPassword ? 'Ocultar senha' : 'Mostrar senha';
+        btn.setAttribute('aria-label', label);
+        btn.setAttribute('title', label);
+        btn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
     }
 
-    console.log('✅ Auth.js configurado com segurança, rate limiting e refresh automático!');
-});
+    try {
+        input.focus({ preventScroll: true });
+    } catch (e) {
+        input.focus();
+    }
+}
 
 // ============================================
 // EXPORTAR FUNÇÕES
 // ============================================
 
-window.switchTab = switchTab;
-window.handleLogin = handleLogin;
-window.handleRegister = handleRegister;
-window.socialLogin = socialLogin;
-window.resetPassword = resetPassword;
-window.ensureProfile = ensureProfile;
-window.createDefaultCategories = createDefaultCategories;
-window.isPWA = isPWA;
-window.isMobile = isMobile;
-window.validateEmail = validateEmail;
-window.validatePassword = validatePassword;
-window.sanitizeString = sanitizeString;
-window.checkAuth = checkAuth;
-window.refreshSession = refreshSession;
-window.startAutoRefresh = startAutoRefresh;
-window.stopAutoRefresh = stopAutoRefresh;
-window.logout = logout;
+if (typeof window !== 'undefined') {
+    window.switchTab = switchTab;
+    window.handleLogin = handleLogin;
+    window.handleRegister = handleRegister;
+    window.togglePasswordVisibility = togglePasswordVisibility;
+    window.socialLogin = socialLogin;
+    window.resetPassword = resetPassword;
+    window.ensureProfile = ensureProfile;
+    window.createDefaultCategories = createDefaultCategories;
+    window.isPWA = isPWA;
+    window.isMobile = isMobile;
+    window.validateEmail = validateEmail;
+    window.validatePassword = validatePassword;
+    window.evaluatePasswordStrength = evaluatePasswordStrength;
+    window.sanitizeString = sanitizeString;
+    window.checkAuth = checkAuth;
+    window.refreshSession = refreshSession;
+    window.startAutoRefresh = startAutoRefresh;
+    window.stopAutoRefresh = stopAutoRefresh;
+    window.logout = logout;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        validateEmail,
+        validatePassword,
+        evaluatePasswordStrength,
+        sanitizeString,
+        switchTab,
+        togglePasswordVisibility
+    };
+}
 
 console.log('✅ Auth.js configurado com segurança, rate limiting e refresh automático!');

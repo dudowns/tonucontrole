@@ -274,6 +274,17 @@
                 </div>
             </div>
 
+            <div class="settings-item" onclick="openMobileCategoryManager()" style="cursor:pointer;">
+                <div class="left">
+                    <div class="item-icon-box purple"><i class="fas fa-tags"></i></div>
+                    <div>
+                        <div class="item-text-title">Gerenciar Categorias</div>
+                        <div class="item-text-sub">Criar, editar ícones, cores e tipos</div>
+                    </div>
+                </div>
+                <div class="right"><i class="fas fa-chevron-right"></i></div>
+            </div>
+
             <div class="settings-item" onclick="switchToDesktop()">
                 <div class="left">
                     <div class="item-icon-box blue"><i class="fas fa-desktop"></i></div>
@@ -289,8 +300,18 @@
 
     <!-- 2. LIMITES DE GASTOS -->
     <div class="mobile-settings-section-wrapper" data-section="limits">
-        <div class="mobile-group-title"><i class="fas fa-bullseye" style="color:#0984E3; margin-right:4px;"></i> Limites de Gastos</div>
+        <div class="mobile-group-title"><i class="fas fa-bullseye" style="color:#0984E3; margin-right:4px;"></i> Limites de Gastos & Categorias</div>
         <div class="settings-card-group">
+            <div class="settings-item" onclick="openMobileCategoryManager()" style="cursor:pointer;">
+                <div class="left">
+                    <div class="item-icon-box purple"><i class="fas fa-tags"></i></div>
+                    <div>
+                        <div class="item-text-title">Gerenciar Categorias</div>
+                        <div class="item-text-sub">Criar, editar ícones, cores e tipos</div>
+                    </div>
+                </div>
+                <div class="right"><i class="fas fa-chevron-right"></i></div>
+            </div>
             <div class="settings-item" style="flex-direction:column; align-items:flex-start; gap:10px;">
                 <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
                     <div class="left">
@@ -307,6 +328,23 @@
                     <button class="btn btn-primary" onclick="saveMobileBudget()" style="padding:8px 14px; border-radius:8px; background:#6C5CE7; color:white; border:none; font-weight:600; font-size:12px; cursor:pointer;">
                         Salvar
                     </button>
+                </div>
+            </div>
+            <!-- Orçamentos Individuais por Categoria -->
+            <div class="settings-item" style="flex-direction:column; align-items:flex-start; gap:10px;">
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                    <div class="left">
+                        <div class="item-icon-box green"><i class="fas fa-chart-pie"></i></div>
+                        <div>
+                            <div class="item-text-title">Tetos por Categoria</div>
+                            <div class="item-text-sub">Limites individuais por tipo de gasto</div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline" onclick="toggleMobileCategoryBudgetsView()" style="font-size:11px; padding:4px 8px; border-radius:6px; cursor:pointer;" id="toggleBudgetsViewBtn">
+                        <i class="fas fa-sliders-h"></i> Ajustar
+                    </button>
+                </div>
+                <div id="mobileCategoryBudgetsContainer" style="display:none; width:100%; margin-top:4px;">
                 </div>
             </div>
             <div class="settings-item">
@@ -452,6 +490,16 @@
                 </div>
                 <div class="right"><i class="fas fa-download"></i></div>
             </div>
+            <div class="settings-item" onclick="triggerRestoreBackup()">
+                <div class="left">
+                    <div class="item-icon-box green"><i class="fas fa-file-import"></i></div>
+                    <div>
+                        <div class="item-text-title">Restaurar Backup (JSON)</div>
+                        <div class="item-text-sub">Recuperar dados a partir de arquivo salvo</div>
+                    </div>
+                </div>
+                <div class="right"><i class="fas fa-upload"></i></div>
+            </div>
             <div class="settings-item" onclick="clearLocalCache()">
                 <div class="left">
                     <div class="item-icon-box amber"><i class="fas fa-broom"></i></div>
@@ -554,6 +602,7 @@
 <script src="../../js/core.js"></script>
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sync.js"></script>
+<script src="../../js/financial-tools.js"></script>
 <script>
 let currentUser = null;
 
@@ -836,8 +885,112 @@ function saveMobileBudget() {
         return;
     }
     localStorage.setItem("tonu_budget_limit", val.toString());
+    const userId = currentUser ? currentUser.id : 'offline_user';
+    if (window.TonuBudget) {
+        window.TonuBudget.setOverallLimit(userId, val);
+    }
     document.getElementById("budgetDisplayVal").textContent = formatCurrency(val);
     showMobileToast("Limite mensal salvo com sucesso! 🎯", "success");
+}
+
+function openMobileCategoryManager() {
+    if (window.TonuCategoryManagerInstance) {
+        window.TonuCategoryManagerInstance.showManagerModal(() => {
+            if (mobileBudgetsExpanded) loadMobileCategoriesAndBudgets();
+        });
+    } else {
+        showMobileToast("Gerenciador de categorias indisponível.", "warning");
+    }
+}
+
+let mobileBudgetsExpanded = false;
+async function toggleMobileCategoryBudgetsView() {
+    mobileBudgetsExpanded = !mobileBudgetsExpanded;
+    const container = document.getElementById("mobileCategoryBudgetsContainer");
+    const btn = document.getElementById("toggleBudgetsViewBtn");
+    if (!container) return;
+    container.style.display = mobileBudgetsExpanded ? "block" : "none";
+    if (btn) btn.innerHTML = mobileBudgetsExpanded ? '<i class="fas fa-times"></i> Fechar' : '<i class="fas fa-sliders-h"></i> Ajustar';
+    if (mobileBudgetsExpanded) {
+        await loadMobileCategoriesAndBudgets();
+    }
+}
+
+async function loadMobileCategoriesAndBudgets() {
+    const container = document.getElementById("mobileCategoryBudgetsContainer");
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center; padding:12px; font-size:12px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+
+    try {
+        const userId = currentUser ? currentUser.id : 'offline_user';
+        let cats = [];
+        if (supabaseClient && currentUser) {
+            const { data } = await supabaseClient.from("categories").select("*").eq("user_id", currentUser.id);
+            if (data && data.length > 0) cats = data;
+        }
+        if (cats.length === 0) {
+            try {
+                const localCats = localStorage.getItem("tonu_categories_" + userId);
+                if (localCats) cats = JSON.parse(localCats);
+            } catch (_) {}
+        }
+        if (cats.length === 0) {
+            cats = [
+                { id: 'cat_alimentacao', name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF7675' },
+                { id: 'cat_transporte', name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#0984E3' },
+                { id: 'cat_moradia', name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#6C5CE7' },
+                { id: 'cat_lazer', name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#FDCB6E' },
+                { id: 'cat_saude', name: '💊 Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#00B894' },
+                { id: 'cat_outros', name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#636E72' }
+            ];
+        }
+
+        const expenseCats = cats.filter(c => c.type !== 'income');
+        if (expenseCats.length === 0) {
+            container.innerHTML = '<p style="font-size:12px; color:#94a3b8; text-align:center;">Nenhuma categoria de despesa cadastrada.</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                ${expenseCats.map(c => {
+                    const currentLimit = window.TonuBudget ? window.TonuBudget.getLimitForCategory(userId, c.id, c.name) : 0;
+                    return `
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; background:var(--color-bg, #f8fafc); border-radius:8px; border:1px solid var(--color-border, #e2e8f0);">
+                        <div style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; min-width:110px;">
+                            <span style="width:10px; height:10px; border-radius:50%; background:${c.color || '#6c5ce7'}; display:inline-block;"></span>
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:110px;">${c.name}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <span style="font-size:11px; color:#94a3b8;">R$</span>
+                            <input type="number" class="mobile-cat-budget-input" data-cat-id="${c.id}" data-cat-name="${c.name}" value="${currentLimit > 0 ? currentLimit : ''}" placeholder="0,00" step="10" min="0" style="width:85px; padding:4px 6px; font-size:12px; border-radius:6px; border:1px solid var(--color-border, #e2e8f0); text-align:right;">
+                        </div>
+                    </div>
+                    `;
+                }).join('')}
+                <button type="button" class="btn btn-primary" onclick="saveMobileCategoryBudgets()" style="margin-top:6px; padding:8px 12px; border-radius:8px; background:#6C5CE7; color:white; border:none; font-weight:600; font-size:12px; cursor:pointer; width:100%;">
+                    <i class="fas fa-save"></i> Salvar Tetos de Categorias
+                </button>
+            </div>
+        `;
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = '<p style="font-size:12px; color:#ef4444; text-align:center;">Erro ao carregar orçamentos.</p>';
+    }
+}
+
+function saveMobileCategoryBudgets() {
+    const userId = currentUser ? currentUser.id : 'offline_user';
+    const inputs = document.querySelectorAll(".mobile-cat-budget-input");
+    inputs.forEach(inp => {
+        const catId = inp.dataset.catId;
+        const catName = inp.dataset.catName;
+        const val = parseFloat(inp.value) || 0;
+        if (window.TonuBudget) {
+            window.TonuBudget.setCategoryBudget(userId, catId, val, catName);
+        }
+    });
+    showMobileToast("Tetos por categoria salvos com sucesso! 🎯", "success");
 }
 
 function saveAlertPrefs() {
@@ -965,6 +1118,77 @@ async function exportDataJson() {
         console.error(err);
         showMobileToast("Erro ao exportar backup.", "error");
     }
+}
+
+function triggerRestoreBackup() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json, application/json";
+    input.style.display = "none";
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const text = await file.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (pErr) {
+                showMobileToast("Arquivo JSON corrompido ou inválido.", "error");
+                return;
+            }
+
+            if (!data || data.appName !== 'TonuControle') {
+                showMobileToast("Arquivo inválido. O backup deve ser do TonuControle.", "error");
+                return;
+            }
+
+            const countTx = (data.transactions || []).length;
+            const countBills = (data.bills || []).length;
+            const countGoals = (data.goals || []).length;
+
+            if (!confirm(`Deseja restaurar este backup?\n\n• ${countTx} Transações\n• ${countBills} Contas\n• ${countGoals} Metas`)) return;
+
+            showMobileToast("Restaurando dados...", "info");
+
+            if (supabaseClient && currentUser) {
+                if (data.transactions && data.transactions.length > 0) {
+                    const txToInsert = data.transactions.map(t => {
+                        const { id, ...rest } = t;
+                        return { ...rest, user_id: currentUser.id };
+                    });
+                    await supabaseClient.from("transactions").insert(txToInsert);
+                }
+                if (data.bills && data.bills.length > 0) {
+                    const billsToInsert = data.bills.map(b => {
+                        const { id, ...rest } = b;
+                        return { ...rest, user_id: currentUser.id };
+                    });
+                    await supabaseClient.from("bills").insert(billsToInsert);
+                }
+                if (data.goals && data.goals.length > 0) {
+                    const goalsToInsert = data.goals.map(g => {
+                        const { id, ...rest } = g;
+                        return { ...rest, user_id: currentUser.id };
+                    });
+                    await supabaseClient.from("goals").insert(goalsToInsert);
+                }
+            }
+
+            if (data.budgets && currentUser) {
+                localStorage.setItem("tonu_budget_limits_" + currentUser.id, JSON.stringify(data.budgets));
+            }
+
+            showMobileToast("Backup restaurado com sucesso! 🎉", "success");
+            setTimeout(() => window.location.reload(), 1200);
+        } catch (err) {
+            console.error("Erro ao restaurar backup:", err);
+            showMobileToast("Falha ao restaurar: " + err.message, "error");
+        }
+    };
+    document.body.appendChild(input);
+    input.click();
+    setTimeout(() => input.remove(), 1000);
 }
 
 function clearLocalCache() {

@@ -1650,6 +1650,86 @@
             return this.importFullJsonBackup(onSuccessCallback);
         }
 
+        async restoreFromJson(data, onSuccessCallback) {
+            try {
+                if (!data || data.appName !== 'TonuControle') {
+                    throw new Error('Arquivo de backup inválido. O arquivo deve ser gerado pelo TonuControle.');
+                }
+
+                const countTx = (data.transactions || []).length;
+                const countBills = (data.bills || []).length;
+                const countGoals = (data.goals || []).length;
+
+                const confirmed = confirm(
+                    `Deseja restaurar este backup?\n\n` +
+                    `• ${countTx} Transações\n` +
+                    `• ${countBills} Contas\n` +
+                    `• ${countGoals} Metas\n\n` +
+                    `Data do backup: ${data.exportedAt ? new Date(data.exportedAt).toLocaleDateString() : 'N/A'}`
+                );
+
+                if (!confirmed) return false;
+
+                if (window.showToast) window.showToast('Restaurando dados...', 'info');
+
+                let userId = null;
+                if (window.supabaseClient && window.supabaseClient.auth) {
+                    try {
+                        const { data: authData } = await window.supabaseClient.auth.getUser();
+                        userId = authData?.user?.id;
+                    } catch {}
+                }
+                if (!userId && window.currentUser) {
+                    userId = window.currentUser.id;
+                }
+
+                if (window.supabaseClient && userId) {
+                    if (data.transactions && data.transactions.length > 0) {
+                        const txToInsert = data.transactions.map(t => {
+                            const { id, ...rest } = t;
+                            return { ...rest, user_id: userId };
+                        });
+                        await window.supabaseClient.from('transactions').insert(txToInsert);
+                    }
+
+                    if (data.bills && data.bills.length > 0) {
+                        const billsToInsert = data.bills.map(b => {
+                            const { id, ...rest } = b;
+                            return { ...rest, user_id: userId };
+                        });
+                        await window.supabaseClient.from('bills').insert(billsToInsert);
+                    }
+
+                    if (data.goals && data.goals.length > 0) {
+                        const goalsToInsert = data.goals.map(g => {
+                            const { id, ...rest } = g;
+                            return { ...rest, user_id: userId };
+                        });
+                        await window.supabaseClient.from('goals').insert(goalsToInsert);
+                    }
+                }
+
+                if (data.budgets && userId) {
+                    localStorage.setItem('tonu_budget_limits_' + userId, JSON.stringify(data.budgets));
+                }
+
+                if (window.showToast) {
+                    window.showToast('Backup restaurado com sucesso! 🎉', 'success');
+                }
+
+                setTimeout(() => {
+                    if (onSuccessCallback) onSuccessCallback();
+                    else window.location.reload();
+                }, 1000);
+                return true;
+
+            } catch (err) {
+                console.error('❌ Erro na importação do backup:', err);
+                if (window.showToast) window.showToast('Falha ao restaurar backup: ' + err.message, 'error');
+                return false;
+            }
+        }
+
         importFullJsonBackup(onSuccessCallback) {
             const input = document.createElement('input');
             input.type = 'file';
@@ -1663,54 +1743,10 @@
                 try {
                     const text = await file.text();
                     const data = JSON.parse(text);
-
-                    if (!data.appName || (!data.transactions && !data.categories)) {
-                        throw new Error('Arquivo de backup inválido ou incompatível.');
-                    }
-
-                    const countTx = (data.transactions || []).length;
-                    const countBills = (data.bills || []).length;
-                    const countGoals = (data.goals || []).length;
-
-                    const confirmed = confirm(
-                        `Deseja restaurar este backup?\n\n` +
-                        `• ${countTx} Transações\n` +
-                        `• ${countBills} Contas\n` +
-                        `• ${countGoals} Metas\n\n` +
-                        `Data do backup: ${data.exportedAt ? new Date(data.exportedAt).toLocaleDateString() : 'N/A'}`
-                    );
-
-                    if (!confirmed) return;
-
-                    if (window.showToast) window.showToast('Restaurando dados...', 'info');
-
-                    const { data: { user } } = await window.supabaseClient.auth.getUser();
-                    if (!user) throw new Error('Usuário não autenticado.');
-
-                    if (data.transactions && data.transactions.length > 0) {
-                        const txToInsert = data.transactions.map(t => {
-                            const { id, ...rest } = t;
-                            return { ...rest, user_id: user.id };
-                        });
-                        await window.supabaseClient.from('transactions').insert(txToInsert);
-                    }
-
-                    if (data.budgets) {
-                        localStorage.setItem('tonu_budget_limits_' + user.id, JSON.stringify(data.budgets));
-                    }
-
-                    if (window.showToast) {
-                        window.showToast('Backup restaurado com sucesso! 🎉', 'success');
-                    }
-
-                    setTimeout(() => {
-                        if (onSuccessCallback) onSuccessCallback();
-                        else window.location.reload();
-                    }, 1000);
-
+                    await this.restoreFromJson(data, onSuccessCallback);
                 } catch (err) {
-                    console.error('❌ Erro na importação do backup:', err);
-                    if (window.showToast) window.showToast('Falha ao restaurar backup: ' + err.message, 'error');
+                    console.error('❌ Erro na leitura do arquivo:', err);
+                    if (window.showToast) window.showToast('Arquivo inválido: ' + err.message, 'error');
                 }
             };
 

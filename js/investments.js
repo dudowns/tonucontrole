@@ -242,6 +242,18 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ============================================
+// RELATÓRIO DE IMPOSTO DE RENDA (IR)
+// ============================================
+window.openIRReportModal = function() {
+    if (window.TonuIRReport && typeof window.TonuIRReport.showIRReportModal === 'function') {
+        window.TonuIRReport.showIRReportModal(allTransactions, allDividends, allCorporateEvents);
+    } else {
+        if (typeof showToast === 'function') showToast('Carregando relatório de IR...', 'info');
+        else alert('Carregando relatório de IR...');
+    }
+};
+
+// ============================================
 // OPERAÇÃO MODAL
 // ============================================
 function openOperationModal() {
@@ -879,7 +891,7 @@ async function saveDividend(e) {
         const totalValue = expectedTotal;
         // Cálculo de valor líquido (JCP retém IR na fonte configurado em window.TONU_JCP_TAX_RATE; Dividendos e Rendimentos são isentos)
         const isJCP = type && String(type).toUpperCase().includes('JCP');
-        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : 0.15;
+        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
         const netValue = isJCP ? parseFloat((totalValue * (1 - jcpTax)).toFixed(2)) : totalValue;
 
         let finalNote = note ? note.trim() : '';
@@ -2777,7 +2789,7 @@ function renderProventosListTable() {
         const totalB = getDividendTotalValue(b);
         const isJCPA = (a.type && String(a.type).toUpperCase().includes('JCP'));
         const isJCPB = (b.type && String(b.type).toUpperCase().includes('JCP'));
-        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : 0.15;
+        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
         const netA = isJCPA ? totalA * (1 - jcpTax) : totalA;
         const netB = isJCPB ? totalB * (1 - jcpTax) : totalB;
 
@@ -2836,7 +2848,7 @@ function renderProventosListTable() {
         const unitVal = getDividendUnitValue(d);
         const qtyVal = getDividendQuantity(d);
         const isJCP = (d.type && String(d.type).toUpperCase().includes('JCP'));
-        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : 0.15;
+        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
         const netVal = (d.net_value !== undefined && d.net_value !== null && Number(d.net_value) > 0)
             ? Number(d.net_value)
             : (isJCP ? totalVal * (1 - jcpTax) : totalVal);
@@ -2865,7 +2877,7 @@ function renderProventosListTable() {
                 <td class="text-right prov-col-liquido">
                     <div class="prov-val-liquido-wrap">
                         <span class="prov-val-liquido ${isJCP ? 'is-jcp' : 'is-exempt'}">${formatCurrency(netVal)}</span>
-                        ${isJCP ? '<span class="prov-tax-pill" title="JCP sujeito a 15% de IR retido na fonte"><i class="fas fa-percent"></i> -15% IR</span>' : '<span class="prov-tax-pill isento" title="Isento de Imposto de Renda"><i class="fas fa-check"></i> Líquido</span>'}
+                        ${isJCP ? `<span class="prov-tax-pill" title="JCP sujeito a retenção de IR na fonte"><i class="fas fa-percent"></i> -${Math.round(jcpTax * 100)}% IR</span>` : '<span class="prov-tax-pill isento" title="Isento de Imposto de Renda"><i class="fas fa-check"></i> Líquido</span>'}
                     </div>
                 </td>
                 <td style="text-align:right;">
@@ -3369,8 +3381,10 @@ function applyTxToSimulatedPortfolio(simulatedPortfolio, item) {
         pos.costBasis -= avgCost * sellQty;
         if (pos.quantity <= 0.0000001) {
             simulatedPortfolio.delete(ticker);
+            return;
         }
     }
+    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
 }
 
 // ============================================
@@ -3585,6 +3599,19 @@ function buildChartData() {
 
                 totalSimulatedValue += pos.quantity * assetPrice;
             }
+        }
+
+        // No mês atual, assegura consistência absoluta com o card "Patrimônio" no topo
+        if (isCurrentMonth && (!selectedEvolutionClass || selectedEvolutionClass === 'all') && positions.length > 0) {
+            const cardTotalCurrentValue = positions.reduce((s, p) => s + (p.currentValue || 0), 0);
+            const cardTotalInvested = positions.reduce((s, p) => s + (p.costBasis || 0), 0);
+            runningInvested = cardTotalInvested;
+            totalSimulatedValue = cardTotalCurrentValue;
+        } else if (isCurrentMonth && selectedEvolutionClass && selectedEvolutionClass !== 'all' && activePositions.length > 0) {
+            const classCurrentValue = activePositions.reduce((s, p) => s + (p.currentValue || 0), 0);
+            const classInvested = activePositions.reduce((s, p) => s + (p.costBasis || 0), 0);
+            runningInvested = classInvested;
+            totalSimulatedValue = classCurrentValue;
         }
 
         // Se a carteira não possuía ativos no mês, valores são zerados
