@@ -564,14 +564,9 @@
     <div id="tabContentEventos" class="tab-content">
         <div class="tab-action-bar">
             <h2>Eventos Corporativos</h2>
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button class="btn-add-primary" onclick="autoDetectCorporateEvents()" id="btnAutoDetectEventsMobile" style="background:linear-gradient(135deg, #6C5CE7, #8b5cf6);" title="Detectar desdobramentos na B3">
-                    <i class="fas fa-magic"></i> Auto Detectar
-                </button>
-                <button class="btn-add-primary" onclick="openAddCorporateEventModal()">
-                    <i class="fas fa-plus"></i> Novo Evento
-                </button>
-            </div>
+            <button class="btn-add-primary" onclick="openAddCorporateEventModal()">
+                <i class="fas fa-plus"></i> Novo Evento
+            </button>
         </div>
         <p style="font-size:11px; color:#64748b; margin:-6px 0 12px 0;">
             Desdobramentos, agrupamentos e bonificações ajustam seu preço médio e cotas automaticamente.
@@ -2685,122 +2680,6 @@ async function deleteCorporateEvent(id) {
         await loadAllInvestmentData();
     } catch (err) {
         showToast("Erro ao remover: " + err.message, "error");
-    }
-}
-
-// ============================================
-// DETECÇÃO AUTOMÁTICA DE EVENTOS CORPORATIVOS (B3)
-// ============================================
-async function autoDetectCorporateEvents() {
-    const btn = document.getElementById("btnAutoDetectEventsMobile");
-    const origText = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detectando...';
-    }
-
-    try {
-        const tickers = [...new Set([
-            ...allRawInvestments.map(t => t.ticker),
-            ...activePositions.map(p => p.ticker)
-        ])]
-        .filter(t => t && t.length >= 3 && !isTesouroTicker(t))
-        .map(t => t.toUpperCase().trim().replace(/\.SA$/, ''));
-
-        if (tickers.length === 0) {
-            showToast("Nenhum ativo de renda variável para consultar.", "info");
-            return;
-        }
-
-        showToast("Consultando eventos corporativos na B3...", "info");
-        const res = await fetch(`/api/detect-corporate-events?tickers=${encodeURIComponent(tickers.join(','))}`);
-        if (!res.ok) throw new Error("Erro na comunicação com o servidor");
-
-        const data = await res.json();
-        const detected = data.events || [];
-
-        if (detected.length === 0) {
-            showToast("Nenhum desdobramento ou agrupamento detectado para seus ativos.", "info");
-            return;
-        }
-
-        // Filtra eventos que já estão cadastrados para evitar duplicidades
-        const existingKeys = new Set((allRawCorporateEvents || []).map(ev => 
-            `${(ev.ticker || '').toUpperCase()}_${ev.event_date}_${(ev.event_type || '').toLowerCase()}`
-        ));
-
-        // Filtra apenas eventos que ocorreram em data posterior ou igual à primeira compra do usuário daquele ativo
-        const firstBuyMap = {};
-        allRawInvestments.forEach(inv => {
-            const tk = (inv.ticker || '').toUpperCase().trim();
-            const dt = inv.date || '9999-99-99';
-            if (!firstBuyMap[tk] || dt < firstBuyMap[tk]) {
-                firstBuyMap[tk] = dt;
-            }
-        });
-
-        const newEvents = detected.filter(ev => {
-            const key = `${ev.ticker}_${ev.event_date}_${ev.event_type.toLowerCase()}`;
-            if (existingKeys.has(key)) return false;
-            if (firstBuyMap[ev.ticker] && ev.event_date < firstBuyMap[ev.ticker]) {
-                return false;
-            }
-            return true;
-        });
-
-        if (newEvents.length === 0) {
-            showToast("Todos os eventos corporativos detectados já estão aplicados à sua carteira.", "success");
-            return;
-        }
-
-        let addedCount = 0;
-        for (const ev of newEvents) {
-            const eventPayload = {
-                id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('ev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6)),
-                user_id: currentUser ? currentUser.id : null,
-                ticker: ev.ticker,
-                event_type: ev.event_type,
-                event_date: ev.event_date,
-                ratio_from: ev.ratio_from,
-                ratio_to: ev.ratio_to,
-                bonus_shares: 0,
-                bonus_unit_cost: 0,
-                amortization_per_share: 0,
-                notes: `Auto-detectado: ${ev.ratio_display} em ${formatDate(ev.event_date)} (${ev.source || 'B3'})`
-            };
-
-            if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
-                try {
-                    await supabaseClient.from("corporate_events").insert([eventPayload]);
-                } catch (dbErr) {
-                    console.warn("Aviso ao salvar evento no Supabase:", dbErr);
-                }
-            }
-
-            allRawCorporateEvents.push(eventPayload);
-            addedCount++;
-        }
-
-        try {
-            localStorage.setItem("tonu_corporate_events", JSON.stringify(allRawCorporateEvents));
-        } catch (e) {}
-
-        computeRealPositions();
-        decoratePositions();
-        renderPositions();
-        renderCorporateEventsList();
-        updateSummaryHero();
-
-        showToast(`🎉 ${addedCount} evento(s) corporativo(s) detectado(s) e aplicado(s) com sucesso!`, "success");
-
-    } catch (err) {
-        console.error("Erro na detecção automática:", err);
-        showToast("Erro ao detectar eventos: " + err.message, "error");
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = origText;
-        }
     }
 }
 
