@@ -248,6 +248,113 @@ app.get('/api/historical-quotes', async (req, res) => {
     }
 });
 
+// ============================================
+// DETECÇÃO AUTOMÁTICA DE EVENTOS CORPORATIVOS (SPLITS / INPLITS)
+// ============================================
+app.get('/api/detect-corporate-events', async (req, res) => {
+    try {
+        const tickersParam = req.query.tickers || '';
+        if (!tickersParam) {
+            return res.json({ success: true, count: 0, events: [], sources: { brapi: { attempted: false }, yahoo: { attempted: false } } });
+        }
+
+        const tickers = tickersParam.split(',')
+            .map(t => t.trim().toUpperCase().replace(/\.SA$/, ''))
+            .filter(t => t && t.length >= 3 && !/^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC|CDB|LCI|LCA|LC|RDB)/.test(t));
+
+        const uniqueTickers = [...new Set(tickers)];
+        const detectedEvents = [];
+        const brapiToken = process.env.BRAPI_TOKEN || '';
+
+        let brapiStatus = { attempted: false, success: false, message: '' };
+
+        // 1. Consulta BRAPI (Tentativa primária de eventos/dividendos)
+        if (uniqueTickers.length > 0) {
+            brapiStatus.attempted = true;
+            try {
+                const sampleTicker = uniqueTickers[0];
+                const brapiUrl = `https://brapi.dev/api/quote/${encodeURIComponent(sampleTicker)}?dividends=true${brapiToken ? '&token=' + encodeURIComponent(brapiToken) : ''}`;
+                const brapiRes = await fetch(brapiUrl, {
+                    headers: { 'Accept': 'application/json' },
+                    signal: AbortSignal.timeout(5000)
+                });
+                const brapiData = await brapiRes.json();
+                if (brapiData && brapiData.error) {
+                    brapiStatus.success = false;
+                    brapiStatus.message = brapiData.message || 'FEATURE_NOT_AVAILABLE';
+                } else if (brapiData && brapiData.results) {
+                    brapiStatus.success = true;
+                }
+            } catch (bErr) {
+                brapiStatus.success = false;
+                brapiStatus.message = bErr.message;
+            }
+        }
+
+        // 2. Consulta Yahoo Finance (Fonte de Dados de Mercado e Splits B3)
+        let yahooSuccess = false;
+        await Promise.all(uniqueTickers.map(async (cleanTicker) => {
+            try {
+                const saTicker = `${cleanTicker}.SA`;
+                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(saTicker)}?events=split&range=5y&interval=1mo`;
+                const response = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'application/json'
+                    },
+                    signal: AbortSignal.timeout(6000)
+                });
+
+                if (!response.ok) return;
+                const data = await response.json();
+                const splits = data.chart?.result?.[0]?.events?.splits;
+
+                if (splits && typeof splits === 'object') {
+                    yahooSuccess = true;
+                    for (const [key, sp] of Object.entries(splits)) {
+                        const num = Number(sp.numerator);
+                        const den = Number(sp.denominator);
+                        if (!num || !den || num === den) continue;
+
+                        const dateObj = new Date(sp.date * 1000);
+                        const dateStr = dateObj.toISOString().split('T')[0];
+                        const isSplit = num > den;
+
+                        detectedEvents.push({
+                            ticker: cleanTicker,
+                            event_type: isSplit ? 'Desdobramento' : 'Agrupamento',
+                            event_date: dateStr,
+                            ratio_from: den,
+                            ratio_to: num,
+                            ratio_display: `${den} : ${num}`,
+                            impact: isSplit ? `Cotas multiplicadas por ${(num / den).toFixed(2)}x` : `Cotas reduzidas para 1/${den}x`,
+                            source: 'Yahoo Finance (B3)'
+                        });
+                    }
+                }
+            } catch (err) {
+                console.warn(`[detect-corporate-events] Aviso ao consultar ${cleanTicker}:`, err.message);
+            }
+        }));
+
+        // Ordena por data decrescente (mais recentes primeiro)
+        detectedEvents.sort((a, b) => b.event_date.localeCompare(a.event_date));
+
+        res.json({
+            success: true,
+            count: detectedEvents.length,
+            events: detectedEvents,
+            sources: {
+                brapi: brapiStatus,
+                yahoo: { attempted: true, success: yahooSuccess }
+            }
+        });
+    } catch (error) {
+        console.error('Erro em /api/detect-corporate-events:', error);
+        res.status(500).json({ error: 'Erro ao detectar eventos corporativos' });
+    }
+});
+
 // Download do código-fonte (ZIP Seguro)
 app.get('/api/download-zip', zipDownloadLimiter, (req, res) => {
     const zipFileName = 'tonucontrole-source-code.zip';

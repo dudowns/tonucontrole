@@ -1276,7 +1276,7 @@ function getMonthsBetween(d1, d2) {
 // ============================================
 // BUSCAR COTAÇÕES (BRAPI) COM CACHE RESILIENTE
 // ============================================
-async function fetchQuotes() {
+async function fetchQuotes(customPositions) {
     // Carrega cache local prévio para evitar tela zerada se houver instabilidade na API
     try {
         const rawCache = localStorage.getItem('tonu_quotes_cache');
@@ -1294,10 +1294,14 @@ async function fetchQuotes() {
         console.warn('⚠️ Erro ao carregar cache de cotações:', cacheErr);
     }
 
-    const tickers = positions.map(p => p.ticker);
+    const posList = (customPositions && Array.isArray(customPositions) && customPositions.length > 0)
+        ? customPositions
+        : (positions && positions.length > 0 ? positions : (typeof activePositions !== 'undefined' ? activePositions : []));
+
+    const tickers = posList.map(p => p.ticker);
     if (!tickers.length) {
         console.log('📊 Nenhum ativo para buscar cotações');
-        return;
+        return quotes;
     }
 
     const validTickers = tickers
@@ -1306,12 +1310,14 @@ async function fetchQuotes() {
 
     if (validTickers.length === 0) {
         console.log('ℹ️ Apenas ativos de renda fixa ou tickers especiais, usando valorização inteligente');
-        updateQuoteStatus();
-        return;
+        if (typeof updateQuoteStatus === 'function') updateQuoteStatus();
+        return quotes;
     }
 
     const unique = [...new Set(validTickers)];
     console.log('📊 Buscando cotações para:', unique.join(', '));
+
+    const activeToken = window.__TONU_CONFIG__?.brapiToken || window.APP_CONFIG?.BRAPI_TOKEN || BRAPI_TOKEN || '';
 
     try {
         let allResults = [];
@@ -1323,7 +1329,7 @@ async function fetchQuotes() {
             const tickersParam = batch.map(t => encodeURIComponent(t.trim())).join(',');
             const url = `https://brapi.dev/api/quote/${tickersParam}`;
 
-            const finalUrl = `${url}?token=${BRAPI_TOKEN}`;
+            const finalUrl = activeToken ? `${url}?token=${encodeURIComponent(activeToken)}` : url;
 
             console.log(`📡 Buscando lote ${i / batchSize + 1}:`, batch.join(','));
 
@@ -1353,7 +1359,7 @@ async function fetchQuotes() {
             for (const ticker of unique) {
                 try {
                     const url = `https://brapi.dev/api/quote/${ticker}`;
-                    const finalUrl = `${url}?token=${BRAPI_TOKEN}`;
+                    const finalUrl = activeToken ? `${url}?token=${encodeURIComponent(activeToken)}` : url;
 
                     const response = await fetch(finalUrl, {
                         headers: { 'Accept': 'application/json' },
@@ -1518,10 +1524,12 @@ function findClosestHistoricalPrice(histMap, targetMonthKey) {
 // ============================================
 // DECORATE POSITIONS - COM PREÇO REAL
 // ============================================
-function decoratePositions() {
-    const totalValue = positions.reduce((s, p) => s + posValue(p), 0);
+function decoratePositions(customPositions) {
+    const isCustom = Array.isArray(customPositions);
+    const targetPositions = isCustom ? customPositions : positions;
+    const totalValue = targetPositions.reduce((s, p) => s + posValue(p), 0);
 
-    positions = positions.map(p => {
+    const decorated = targetPositions.map(p => {
         const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
         const quote = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
         const hasQuote = quote !== undefined && Number.isFinite(quote.price) && quote.price > 0;
@@ -1544,12 +1552,18 @@ function decoratePositions() {
                 simulated: simulated,
                 source: source
             },
+            currentPrice: price,
             currentValue: currentValue,
             gain: gain,
             gainPct: gainPct,
             portfolioPct: portfolioPct
         };
     });
+
+    if (!isCustom) {
+        positions = decorated;
+    }
+    return decorated;
 }
 
 // ============================================
@@ -4702,6 +4716,126 @@ async function deleteCorporateEvent(id) {
     }
 }
 
+// ============================================
+// DETECÇÃO AUTOMÁTICA DE EVENTOS CORPORATIVOS (B3)
+// ============================================
+async function autoDetectCorporateEvents() {
+    const btn = document.getElementById('btnAutoDetectEventsDesktop');
+    const origText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detectando...';
+    }
+
+    try {
+        const tickers = [...new Set([
+            ...allTransactions.map(t => t.ticker),
+            ...positions.map(p => p.ticker)
+        ])]
+        .filter(t => t && t.length >= 3 && !isTesouroTicker(t))
+        .map(t => t.toUpperCase().trim().replace(/\.SA$/, ''));
+
+        if (tickers.length === 0) {
+            showToast('Nenhum ativo de renda variável para consultar.', 'info');
+            return;
+        }
+
+        showToast('Consultando eventos corporativos na B3...', 'info');
+        const res = await fetch(`/api/detect-corporate-events?tickers=${encodeURIComponent(tickers.join(','))}`);
+        if (!res.ok) throw new Error('Erro na comunicação com o servidor');
+
+        const data = await res.json();
+        const detected = data.events || [];
+
+        if (detected.length === 0) {
+            showToast('Nenhum desdobramento ou agrupamento detectado para seus ativos.', 'info');
+            return;
+        }
+
+        // Evita duplicidades
+        const existingKeys = new Set((allCorporateEvents || []).map(ev => 
+            `${(ev.ticker || '').toUpperCase()}_${ev.event_date}_${(ev.event_type || '').toLowerCase()}`
+        ));
+
+        // Data da primeira compra do usuário
+        const firstBuyMap = {};
+        allTransactions.forEach(inv => {
+            const tk = (inv.ticker || '').toUpperCase().trim();
+            const dt = inv.date || '9999-99-99';
+            if (!firstBuyMap[tk] || dt < firstBuyMap[tk]) {
+                firstBuyMap[tk] = dt;
+            }
+        });
+
+        const newEvents = detected.filter(ev => {
+            const key = `${ev.ticker}_${ev.event_date}_${ev.event_type.toLowerCase()}`;
+            if (existingKeys.has(key)) return false;
+            if (firstBuyMap[ev.ticker] && ev.event_date < firstBuyMap[ev.ticker]) {
+                return false;
+            }
+            return true;
+        });
+
+        if (newEvents.length === 0) {
+            showToast('Todos os eventos corporativos detectados já estão aplicados à sua carteira.', 'success');
+            return;
+        }
+
+        let addedCount = 0;
+        for (const ev of newEvents) {
+            const eventPayload = {
+                id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('ev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6)),
+                user_id: currentUser ? currentUser.id : null,
+                ticker: ev.ticker,
+                event_type: ev.event_type,
+                event_date: ev.event_date,
+                ratio_from: ev.ratio_from,
+                ratio_to: ev.ratio_to,
+                bonus_shares: 0,
+                bonus_unit_cost: 0,
+                amortization_per_share: 0,
+                notes: `Auto-detectado: ${ev.ratio_display} em ${formatDate(ev.event_date)} (${ev.source || 'B3'})`
+            };
+
+            if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+                try {
+                    await supabaseClient.from('corporate_events').insert([eventPayload]);
+                } catch (dbErr) {
+                    console.warn('Aviso ao salvar evento no DB:', dbErr);
+                }
+            }
+
+            allCorporateEvents.push(eventPayload);
+            addedCount++;
+        }
+
+        try {
+            localStorage.setItem('tonu_corporate_events', JSON.stringify(allCorporateEvents));
+        } catch (e) {}
+
+        buildPositions();
+        decoratePositions();
+        updateSummary();
+        updateClassCounts();
+        renderTable();
+        renderCorporateEvents();
+        renderChart();
+        renderPieChart();
+
+        showToast(`🎉 ${addedCount} evento(s) corporativo(s) detectado(s) e aplicado(s) com sucesso!`, 'success');
+
+    } catch (err) {
+        console.error('Erro na detecção automática:', err);
+        showToast('Erro ao detectar eventos: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+        }
+    }
+}
+window.autoDetectCorporateEvents = autoDetectCorporateEvents;
+
 function renderCorporateEvents() {
     const tbody = document.getElementById('corporateEventsBody');
     if (!tbody) return;
@@ -4806,6 +4940,11 @@ window.onEvolutionClassChange = onEvolutionClassChange;
 window.onPieClassChange = onPieClassChange;
 window.loadDividends = loadDividends;
 window.refreshDashboard = refreshDashboard;
+window.fetchQuotes = fetchQuotes;
+window.decoratePositions = decoratePositions;
+if (typeof quotes !== 'undefined') {
+    window.quotes = quotes;
+}
 
 // Proventos (Modelo Investidor 10)
 window.setProventosPeriodicity = setProventosPeriodicity;

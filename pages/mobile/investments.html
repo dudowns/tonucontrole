@@ -129,11 +129,17 @@
         }
         .asset-details-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 6px;
             padding-top: 8px;
             border-top: 1px solid var(--color-border, #f1f5f9);
             font-size: 11px;
+        }
+        @media (max-width: 340px) {
+            .asset-details-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
         }
         .asset-details-item .lbl {
             font-size: 9.5px;
@@ -402,6 +408,14 @@
                 <div class="hero-label"><i class="fas fa-hand-holding-usd"></i> Proventos Recebidos</div>
                 <div class="hero-value" id="cardProventosTotal" style="color: #8b5cf6;">R$ 0,00</div>
             </div>
+            <div class="invest-hero-card">
+                <div class="hero-label"><i class="fas fa-chart-line"></i> Rentabilidade</div>
+                <div class="hero-value" id="cardRentabilidadeTotal" style="color: #00B894;">0,00%</div>
+            </div>
+            <div class="invest-hero-card">
+                <div class="hero-label"><i class="fas fa-arrow-trend-up"></i> Ganho</div>
+                <div class="hero-value" id="cardGanhoTotal" style="color: #00B894;">R$ 0,00</div>
+            </div>
         </div>
 
         <!-- VISÃO GRÁFICA DA CARTEIRA COM TOGGLE (MOBILE) -->
@@ -550,9 +564,14 @@
     <div id="tabContentEventos" class="tab-content">
         <div class="tab-action-bar">
             <h2>Eventos Corporativos</h2>
-            <button class="btn-add-primary" onclick="openAddCorporateEventModal()">
-                <i class="fas fa-plus"></i> Novo Evento
-            </button>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="btn-add-primary" onclick="autoDetectCorporateEvents()" id="btnAutoDetectEventsMobile" style="background:linear-gradient(135deg, #6C5CE7, #8b5cf6);" title="Detectar desdobramentos na B3">
+                    <i class="fas fa-magic"></i> Auto Detectar
+                </button>
+                <button class="btn-add-primary" onclick="openAddCorporateEventModal()">
+                    <i class="fas fa-plus"></i> Novo Evento
+                </button>
+            </div>
         </div>
         <p style="font-size:11px; color:#64748b; margin:-6px 0 12px 0;">
             Desdobramentos, agrupamentos e bonificações ajustam seu preço médio e cotas automaticamente.
@@ -917,6 +936,180 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // ============================================
+// COTAÇÕES EM TEMPO REAL & CACHE (BRAPI)
+// ============================================
+let quotes = (typeof window !== 'undefined' && window.quotes) ? window.quotes : new Map();
+
+function isTesouroTicker(ticker) {
+    if (!ticker) return false;
+    const tk = String(ticker).toUpperCase().trim();
+    return /^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC|CDB|LCI|LCA|LC|RDB)/.test(tk);
+}
+
+async function fetchQuotes(customPositions) {
+    // 1. Carrega cache local prévio imediatamente (resiliente e instantâneo)
+    try {
+        const rawCache = localStorage.getItem('tonu_quotes_cache');
+        if (rawCache) {
+            const parsed = JSON.parse(rawCache);
+            if (parsed && parsed.quotes) {
+                for (const [k, v] of Object.entries(parsed.quotes)) {
+                    if (!quotes.has(k)) {
+                        quotes.set(k, v);
+                    }
+                }
+            }
+        }
+    } catch (cacheErr) {
+        console.warn('⚠️ Erro ao carregar cache de cotações mobile:', cacheErr);
+    }
+
+    const posList = customPositions || activePositions || [];
+    const tickers = posList.map(p => p.ticker);
+    if (!tickers.length) return quotes;
+
+    const validTickers = tickers
+        .filter(t => t && t.length >= 3 && /^[A-Z0-9]{3,}$/.test(t) && !isTesouroTicker(t))
+        .map(t => t.toUpperCase().trim());
+
+    if (validTickers.length === 0) return quotes;
+
+    const unique = [...new Set(validTickers)];
+    const brapiToken = window.__TONU_CONFIG__?.brapiToken || window.APP_CONFIG?.BRAPI_TOKEN || '';
+
+    try {
+        let allResults = [];
+        let hasError = false;
+
+        const batchSize = 10;
+        for (let i = 0; i < unique.length; i += batchSize) {
+            const batch = unique.slice(i, i + batchSize);
+            const tickersParam = batch.map(t => encodeURIComponent(t.trim())).join(',');
+            const url = `https://brapi.dev/api/quote/${tickersParam}`;
+            const finalUrl = brapiToken ? `${url}?token=${encodeURIComponent(brapiToken)}` : url;
+
+            const response = await fetch(finalUrl, {
+                headers: { 'Accept': 'application/json', 'User-Agent': 'TonuControle/1.0' },
+                cache: 'no-store'
+            });
+
+            if (!response.ok) {
+                hasError = true;
+                continue;
+            }
+
+            const data = await response.json();
+            if (data.results && Array.isArray(data.results)) {
+                allResults = allResults.concat(data.results);
+            }
+        }
+
+        if (hasError || allResults.length === 0) {
+            for (const ticker of unique) {
+                try {
+                    const url = `https://brapi.dev/api/quote/${ticker}`;
+                    const finalUrl = brapiToken ? `${url}?token=${encodeURIComponent(brapiToken)}` : url;
+                    const response = await fetch(finalUrl, {
+                        headers: { 'Accept': 'application/json' },
+                        cache: 'no-store'
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.results && data.results.length > 0) {
+                            allResults = allResults.concat(data.results);
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`⚠️ Não foi possível buscar ${ticker} no mobile`);
+                }
+            }
+        }
+
+        if (allResults.length > 0) {
+            for (const q of allResults) {
+                const rawTk = q.symbol?.toUpperCase().trim();
+                if (!rawTk || !Number.isFinite(Number(q.regularMarketPrice))) continue;
+
+                const cleanTk = rawTk.replace(/\.SA$/, '');
+                const quoteData = {
+                    price: Number(q.regularMarketPrice),
+                    changePct: Number(q.regularMarketChangePercent || 0),
+                    previousClose: Number(q.regularMarketPreviousClose || 0),
+                    marketTime: q.regularMarketTime || new Date().toISOString(),
+                    simulated: false,
+                    source: 'BRAPI'
+                };
+
+                quotes.set(rawTk, quoteData);
+                quotes.set(cleanTk, quoteData);
+                quotes.set(`${cleanTk}.SA`, quoteData);
+            }
+
+            // Persiste no cache local unificado (chave 'tonu_quotes_cache')
+            try {
+                const cacheObj = {};
+                for (const [k, v] of quotes.entries()) {
+                    cacheObj[k] = v;
+                }
+                localStorage.setItem('tonu_quotes_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    quotes: cacheObj
+                }));
+            } catch (saveErr) {
+                console.warn('⚠️ Erro ao salvar cache de cotações mobile:', saveErr);
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Aviso ao buscar cotações mobile (usando fallback de preço médio):', error.message);
+    }
+
+    return quotes;
+}
+
+function decoratePositions(customPositions) {
+    const isCustom = Array.isArray(customPositions);
+    const targetPositions = isCustom ? customPositions : activePositions;
+
+    const decorated = targetPositions.map(p => {
+        const cleanTicker = (p.ticker || '').toUpperCase().trim().replace(/\.SA$/, '');
+        const quote = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
+        const hasQuote = quote !== undefined && Number.isFinite(quote.price) && quote.price > 0;
+        const price = hasQuote ? quote.price : (p.averageCost || 0);
+        const changePct = hasQuote ? (quote.changePct || 0) : 0;
+        const simulated = !hasQuote;
+        const source = hasQuote ? 'BRAPI' : 'Preço Médio';
+
+        const currentValue = Math.round(((p.quantity || 0) * price) * 100) / 100;
+        const gain = Math.round((currentValue - (p.costBasis || 0)) * 100) / 100;
+        const gainPct = p.costBasis > 0 ? Math.round(((gain / p.costBasis) * 100) * 100) / 100 : 0;
+
+        return {
+            ...p,
+            quote: {
+                price: price,
+                changePct: changePct,
+                previousClose: hasQuote ? (quote.previousClose || price) : price,
+                simulated: simulated,
+                source: source
+            },
+            currentPrice: price,
+            currentValue: currentValue,
+            gain: gain,
+            gainPct: gainPct
+        };
+    });
+
+    if (!isCustom) {
+        activePositions = decorated;
+    }
+    return decorated;
+}
+
+window.fetchQuotes = window.fetchQuotes || fetchQuotes;
+window.decoratePositions = window.decoratePositions || decoratePositions;
+window.quotes = quotes;
+
+// ============================================
 // CARREGAR DADOS DO SUPABASE
 // ============================================
 async function loadAllInvestmentData() {
@@ -965,12 +1158,26 @@ async function loadAllInvestmentData() {
         // 4. Calcula custódia real e correta (considerando splits, bonificações, etc.)
         computeRealPositions();
 
-        // 5. Renderiza as abas
+        // 4.1. Enriquecimento imediato a partir do cache local para renderização ultra-rápida
+        decoratePositions();
+
+        // 5. Primeira renderização com cache / preços médios
         renderPositions();
         renderOperations();
         renderDividends();
         renderCorporateEventsList();
         updateSummaryHero();
+
+        // 4.2. Busca cotações em tempo real via BRAPI e atualiza a Carteira
+        try {
+            await fetchQuotes();
+            decoratePositions();
+            // Re-renderiza posições e resumo com cotações atualizadas
+            renderPositions();
+            updateSummaryHero();
+        } catch (quoteErr) {
+            console.warn("⚠️ Fallback cotações:", quoteErr);
+        }
     } catch (err) {
         console.error("Erro ao carregar dados de investimento:", err);
         showToast("Erro ao carregar dados", "error");
@@ -1091,8 +1298,11 @@ function updateSummaryHero() {
     let totalPatrimonio = 0;
 
     activePositions.forEach(p => {
-        totalInvestido += p.costBasis;
-        totalPatrimonio += p.costBasis; // Base de custo (ou cotação)
+        totalInvestido += (p.costBasis || 0);
+        const currentVal = (p.currentValue !== undefined && Number.isFinite(p.currentValue))
+            ? p.currentValue
+            : (p.quantity * (p.currentPrice || p.averageCost || 0));
+        totalPatrimonio += (currentVal > 0 ? currentVal : (p.costBasis || 0));
     });
 
     let totalDivsHistorico = 0;
@@ -1110,6 +1320,26 @@ function updateSummaryHero() {
     document.getElementById("cardPatrimonioTotal").textContent = formatCurrency(totalPatrimonio);
     document.getElementById("cardTotalInvestido").textContent = formatCurrency(totalInvestido);
     document.getElementById("cardProventosTotal").textContent = formatCurrency(totalDivsHistorico);
+
+    // Rentabilidade e Ganho Total (Cálculo Oficial)
+    const ganhoTotal = totalPatrimonio - totalInvestido;
+    const rentabilidadeTotal = totalInvestido > 0 ? ((totalPatrimonio - totalInvestido) / totalInvestido) * 100 : 0;
+
+    const rentEl = document.getElementById("cardRentabilidadeTotal");
+    const ganhoEl = document.getElementById("cardGanhoTotal");
+
+    const isPositive = ganhoTotal >= 0;
+    const sign = ganhoTotal > 0 ? '+' : '';
+    const color = isPositive ? '#00B894' : '#FF7675';
+
+    if (rentEl) {
+        rentEl.textContent = `${sign}${rentabilidadeTotal.toFixed(2).replace('.', ',')}%`;
+        rentEl.style.color = Math.abs(rentabilidadeTotal) < 0.001 ? 'var(--color-text, #0f172a)' : color;
+    }
+    if (ganhoEl) {
+        ganhoEl.textContent = `${sign}${formatCurrency(ganhoTotal)}`;
+        ganhoEl.style.color = Math.abs(ganhoTotal) < 0.001 ? 'var(--color-text, #0f172a)' : color;
+    }
 
     const divHistEl = document.getElementById("cardDivHistorico");
     if (divHistEl) divHistEl.textContent = formatCurrency(totalDivsHistorico);
@@ -1135,30 +1365,42 @@ let mobileAllocationChart = null;
 let mobileDividendsChart = null;
 let currentMobileInvestChartMode = localStorage.getItem('tonu_mobile_invest_chart_mode') || 'allocation';
 
-function setMobileInvestChartMode(mode) {
-    currentMobileInvestChartMode = mode;
-    localStorage.setItem('tonu_mobile_invest_chart_mode', mode);
-
+function syncMobileInvestChartModeUI() {
     const btnAlloc = document.getElementById("btnChartModeAlloc");
     const btnEvol = document.getElementById("btnChartModeEvol");
     const titleEl = document.getElementById("mobileInvestChartTitle");
     const iconEl = document.getElementById("mobileInvestChartIcon");
 
     if (btnAlloc && btnEvol) {
-        if (mode === 'allocation') {
-            btnAlloc.classList.add("active");
-            btnEvol.classList.remove("active");
-            if (titleEl) titleEl.textContent = "Alocação da Carteira";
-            if (iconEl) iconEl.className = "fas fa-chart-pie";
-        } else {
+        if (currentMobileInvestChartMode === 'evolution') {
             btnEvol.classList.add("active");
             btnAlloc.classList.remove("active");
             if (titleEl) titleEl.textContent = "Evolução do Patrimônio";
-            if (iconEl) iconEl.className = "fas fa-chart-line";
+            if (iconEl) iconEl.className = "fas fa-chart-bar";
+        } else {
+            btnAlloc.classList.add("active");
+            btnEvol.classList.remove("active");
+            if (titleEl) titleEl.textContent = "Visão Gráfica";
+            if (iconEl) iconEl.className = "fas fa-chart-pie";
         }
     }
+}
 
-    renderMobileInvestChart();
+function setMobileInvestChartMode(mode) {
+    currentMobileInvestChartMode = mode;
+    localStorage.setItem('tonu_mobile_invest_chart_mode', mode);
+    syncMobileInvestChartModeUI();
+
+    const wrapper = document.getElementById("mobileInvestChartWrapper");
+    if (wrapper) {
+        wrapper.style.opacity = '0';
+        setTimeout(() => {
+            renderMobileInvestChart();
+            wrapper.style.opacity = '1';
+        }, 120);
+    } else {
+        renderMobileInvestChart();
+    }
 }
 
 function renderMobileInvestChart() {
@@ -1169,16 +1411,16 @@ function renderMobileInvestChart() {
     }
 }
 
-// Build timeline data for mobile evolution chart
+// Build timeline data for mobile evolution grouped bar chart
 function buildMobileEvolutionChartData() {
     if (!allRawInvestments || allRawInvestments.length === 0) {
-        return { labels: [], total: [] };
+        return { labels: [], invested: [], total: [] };
     }
 
     // 1. Normaliza transações de compra/venda
     const normalizedTx = [...allRawInvestments].map(t => {
         const rawDate = t.date || t.created_at || '';
-        const d = new Date(rawDate);
+        const d = new Date(rawDate + (rawDate.length === 10 ? 'T12:00:00' : ''));
         return {
             ...t,
             isCorporateEvent: false,
@@ -1190,7 +1432,7 @@ function buildMobileEvolutionChartData() {
     // 2. Normaliza eventos corporativos
     const normalizedEvents = (allRawCorporateEvents || []).map(ev => {
         const rawDate = ev.event_date || ev.date || '';
-        const d = new Date(rawDate);
+        const d = new Date(rawDate + (rawDate.length === 10 ? 'T12:00:00' : ''));
         return {
             ...ev,
             isCorporateEvent: true,
@@ -1199,22 +1441,22 @@ function buildMobileEvolutionChartData() {
         };
     });
 
-    // 3. Mescla e ordena por data
+    // 3. Mescla e ordena por cronologia rigorosa
     const validTimeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
         const da = a.parsedDate.getTime();
         const db = b.parsedDate.getTime();
         if (da !== db) return da - db;
         if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
-        return 0;
+        return (a.created_at || '').localeCompare(b.created_at || '');
     });
 
     if (validTimeline.length === 0) {
-        return { labels: [], total: [] };
+        return { labels: [], invested: [], total: [] };
     }
 
-    // Janela de últimos 12 meses (ou a partir do primeiro evento se menor)
+    // Janela de últimos 6 meses para visualização equilibrada em tela de celular
     const end = new Date();
-    const start = new Date(end.getFullYear(), end.getMonth() - 11, 1);
+    const start = new Date(end.getFullYear(), end.getMonth() - 5, 1);
 
     const allMonths = [];
     const curMonth = new Date(start);
@@ -1222,9 +1464,12 @@ function buildMobileEvolutionChartData() {
         const year = curMonth.getFullYear();
         const monthNum = curMonth.getMonth() + 1;
         const key = `${year}-${String(monthNum).padStart(2, '0')}`;
+        const rawMonth = curMonth.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+        const capitalizedMonth = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1);
+
         allMonths.push({
             key: key,
-            label: curMonth.toLocaleDateString('pt-BR', { month: 'short' }),
+            label: capitalizedMonth,
             year: year,
             month: monthNum,
             date: new Date(curMonth)
@@ -1232,90 +1477,114 @@ function buildMobileEvolutionChartData() {
         curMonth.setMonth(curMonth.getMonth() + 1);
     }
 
-    // Mapa de posições simuladas mês a mês
+    // Mapa de posições simuladas acumuladas
     const simulatedMap = new Map();
     const labels = [];
+    const invested = [];
     const total = [];
 
-    // Processa eventos e calcula patrimônio acumulado para cada mês
-    let timelineIndex = 0;
+    // Função auxiliar para aplicar movimentações na carteira simulada
+    function applyItem(item) {
+        const ticker = (item.ticker || '').toUpperCase().trim();
+        if (!ticker) return;
 
+        if (!simulatedMap.has(ticker)) {
+            simulatedMap.set(ticker, { quantity: 0, costBasis: 0, averageCost: 0 });
+        }
+        const pos = simulatedMap.get(ticker);
+
+        if (item.isCorporateEvent) {
+            const evType = (item.event_type || item.type || '').trim();
+            if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+                const rf = parseFloat(item.ratio_from) || 1;
+                const rt = parseFloat(item.ratio_to) || 1;
+                if (rf > 0 && rt > 0 && pos.quantity > 0) {
+                    pos.quantity = pos.quantity * (rt / rf);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+                const bShares = parseFloat(item.bonus_shares || item.shares_received || 0);
+                const bCost = parseFloat(item.bonus_unit_cost || item.unit_value || 0);
+                if (bShares > 0) {
+                    pos.quantity += bShares;
+                    pos.costBasis += (bShares * bCost);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Amortização') {
+                const amort = parseFloat(item.amortization_per_share || item.unit_value || 0);
+                if (amort > 0 && pos.quantity > 0) {
+                    pos.costBasis = Math.max(0, pos.costBasis - (amort * pos.quantity));
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            }
+        } else {
+            const qty = parseFloat(item.quantity) || 0;
+            const totVal = parseFloat(item.total_value || item.amount || (qty * (parseFloat(item.unit_price) || 0))) || 0;
+            const type = (item.type || '').toLowerCase();
+
+            if (type.includes('compra') || type.includes('buy')) {
+                pos.costBasis += totVal;
+                pos.quantity += qty;
+                pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+            } else if (type.includes('venda') || type.includes('sell')) {
+                const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                pos.costBasis = Math.max(0, pos.costBasis - (avg * qty));
+                pos.quantity = Math.max(0, pos.quantity - qty);
+                if (pos.quantity <= 0.0001) {
+                    pos.quantity = 0;
+                    pos.costBasis = 0;
+                    pos.averageCost = 0;
+                } else {
+                    pos.averageCost = pos.costBasis / pos.quantity;
+                }
+            }
+        }
+    }
+
+    // Pré-acumula todas as transações anteriores à janela de exibição
+    let timelineIndex = 0;
+    while (timelineIndex < validTimeline.length && validTimeline[timelineIndex].parsedDate < start) {
+        applyItem(validTimeline[timelineIndex]);
+        timelineIndex++;
+    }
+
+    // Processa os meses da janela
     for (let i = 0; i < allMonths.length; i++) {
         const m = allMonths[i];
+        const isCurrentMonth = (i === allMonths.length - 1);
         const monthEnd = new Date(m.year, m.month, 0, 23, 59, 59);
 
         while (timelineIndex < validTimeline.length && validTimeline[timelineIndex].parsedDate <= monthEnd) {
-            const item = validTimeline[timelineIndex];
-            const ticker = (item.ticker || '').toUpperCase().trim();
-            if (ticker) {
-                if (!simulatedMap.has(ticker)) {
-                    simulatedMap.set(ticker, { quantity: 0, costBasis: 0, averageCost: 0 });
-                }
-                const pos = simulatedMap.get(ticker);
-
-                if (item.isCorporateEvent) {
-                    const evType = (item.event_type || item.type || '').trim();
-                    if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
-                        const rf = parseFloat(item.ratio_from) || 1;
-                        const rt = parseFloat(item.ratio_to) || 1;
-                        if (rf > 0 && rt > 0 && pos.quantity > 0) {
-                            pos.quantity = pos.quantity * (rt / rf);
-                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
-                        }
-                    } else if (evType === 'Bonificação' || evType === 'Subscrição') {
-                        const bShares = parseFloat(item.bonus_shares || item.shares_received || 0);
-                        const bCost = parseFloat(item.bonus_unit_cost || item.unit_value || 0);
-                        if (bShares > 0) {
-                            pos.quantity += bShares;
-                            pos.costBasis += (bShares * bCost);
-                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
-                        }
-                    } else if (evType === 'Amortização') {
-                        const amort = parseFloat(item.amortization_per_share || item.unit_value || 0);
-                        if (amort > 0 && pos.quantity > 0) {
-                            pos.costBasis = Math.max(0, pos.costBasis - (amort * pos.quantity));
-                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
-                        }
-                    }
-                } else {
-                    const qty = parseFloat(item.quantity) || 0;
-                    const totVal = parseFloat(item.total_value || item.amount || (qty * (parseFloat(item.unit_price) || 0))) || 0;
-                    const type = (item.type || '').toLowerCase();
-
-                    if (type.includes('compra') || type.includes('buy')) {
-                        pos.costBasis += totVal;
-                        pos.quantity += qty;
-                        pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
-                    } else if (type.includes('venda') || type.includes('sell')) {
-                        const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
-                        pos.costBasis = Math.max(0, pos.costBasis - (avg * qty));
-                        pos.quantity = Math.max(0, pos.quantity - qty);
-                        if (pos.quantity <= 0.0001) {
-                            pos.quantity = 0;
-                            pos.costBasis = 0;
-                            pos.averageCost = 0;
-                        } else {
-                            pos.averageCost = pos.costBasis / pos.quantity;
-                        }
-                    }
-                }
-            }
+            applyItem(validTimeline[timelineIndex]);
             timelineIndex++;
         }
 
-        // Soma o patrimônio de todos os ativos acumulados até o fim deste mês
+        let monthInvested = 0;
         let monthTotal = 0;
+
         simulatedMap.forEach(p => {
             if (p.quantity > 0.0001) {
+                monthInvested += p.costBasis;
                 monthTotal += p.costBasis;
             }
         });
 
+        // No mês atual, assegura consistência com a custódia ativa calculada
+        if (isCurrentMonth && activePositions && activePositions.length > 0) {
+            const cardTotal = activePositions.reduce((s, p) => s + (p.costBasis || 0), 0);
+            const cardPatrimonio = activePositions.reduce((s, p) => s + (p.currentValue !== undefined && Number.isFinite(p.currentValue) ? p.currentValue : (p.costBasis || 0)), 0);
+            if (cardTotal > 0) {
+                monthInvested = cardTotal;
+                monthTotal = cardPatrimonio > 0 ? cardPatrimonio : cardTotal;
+            }
+        }
+
         labels.push(m.label);
+        invested.push(Math.round(monthInvested * 100) / 100);
         total.push(Math.round(monthTotal * 100) / 100);
     }
 
-    return { labels, total };
+    return { labels, invested, total };
 }
 
 function renderMobileEvolutionChart() {
@@ -1349,43 +1618,62 @@ function renderMobileEvolutionChart() {
     if (emptyNoticeEl) emptyNoticeEl.style.display = "none";
 
     const ctx = canvas.getContext("2d");
-    let gradient = null;
-    try {
-        gradient = ctx.createLinearGradient(0, 0, 0, 200);
-        gradient.addColorStop(0, 'rgba(108, 92, 231, 0.35)');
-        gradient.addColorStop(1, 'rgba(108, 92, 231, 0.01)');
-    } catch (e) {
-        gradient = 'rgba(108, 92, 231, 0.15)';
-    }
 
+    // Gráfico de Barras Agrupadas idêntico ao Desktop (mesmas cores e métricas)
     mobileAllocationChart = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: evoData.labels,
-            datasets: [{
-                label: 'Patrimônio',
-                data: evoData.total,
-                borderColor: '#6C5CE7',
-                borderWidth: 2.5,
-                backgroundColor: gradient,
-                fill: true,
-                tension: 0.35,
-                pointBackgroundColor: '#6C5CE7',
-                pointBorderColor: isDark ? '#1e293b' : '#ffffff',
-                pointBorderWidth: 2,
-                pointRadius: 3.5,
-                pointHoverRadius: 5
-            }]
+            datasets: [
+                {
+                    label: 'Valor aplicado',
+                    data: evoData.invested,
+                    backgroundColor: '#00B894', // Verde (exatamente igual ao Desktop)
+                    hoverBackgroundColor: '#009879',
+                    borderRadius: 4,
+                    borderSkipped: false,
+                    grouped: true,
+                    barPercentage: 0.85,
+                    categoryPercentage: 0.75
+                },
+                {
+                    label: 'Patrimônio',
+                    data: evoData.total,
+                    backgroundColor: '#55EFC4', // Verde menta (exatamente igual ao Desktop)
+                    hoverBackgroundColor: '#2ECC71',
+                    borderRadius: 4,
+                    borderSkipped: false,
+                    grouped: true,
+                    barPercentage: 0.85,
+                    categoryPercentage: 0.75
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
             plugins: {
-                legend: { display: false },
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 9,
+                        boxHeight: 9,
+                        padding: 10,
+                        font: { size: 10, weight: '600' },
+                        color: textColor,
+                        usePointStyle: true,
+                        pointStyle: 'rectRounded'
+                    }
+                },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return ' Patrimônio: ' + formatCurrency(context.parsed.y || 0);
+                            return ' ' + context.dataset.label + ': ' + formatCurrency(context.parsed.y || 0);
                         }
                     }
                 }
@@ -1394,7 +1682,7 @@ function renderMobileEvolutionChart() {
                 x: {
                     grid: { display: false },
                     ticks: {
-                        font: { size: 10 },
+                        font: { size: 10, weight: '600' },
                         color: textColor
                     }
                 },
@@ -1444,7 +1732,9 @@ function renderMobileAllocationChart() {
     let grandTotal = 0;
     activePositions.forEach(p => {
         let cls = p.asset_class || 'Outros';
-        const val = Number(p.costBasis) || 0;
+        const val = (p.currentValue !== undefined && Number.isFinite(p.currentValue) && p.currentValue > 0)
+            ? p.currentValue
+            : (Number(p.costBasis) || 0);
         classTotals[cls] = (classTotals[cls] || 0) + val;
         grandTotal += val;
     });
@@ -1715,6 +2005,23 @@ function renderPositions() {
 
     container.innerHTML = filtered.map(pos => {
         const formattedQty = pos.quantity % 1 === 0 ? pos.quantity.toFixed(0) : pos.quantity.toFixed(4);
+        const currentPrice = pos.currentPrice || pos.quote?.price || pos.averageCost || 0;
+        const isRealQuote = pos.quote && !pos.quote.simulated;
+        const totalVal = (pos.currentValue !== undefined && Number.isFinite(pos.currentValue))
+            ? pos.currentValue
+            : (pos.quantity * currentPrice);
+
+        const quoteDot = isRealQuote 
+            ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00B894;margin-left:4px;vertical-align:middle;" title="Cotação ao vivo (B3)"></span>`
+            : `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#94a3b8;margin-left:4px;vertical-align:middle;" title="Preço Médio"></span>`;
+
+        const costBasis = pos.costBasis || 0;
+        const gain = Math.round((totalVal - costBasis) * 100) / 100;
+        const gainPct = costBasis > 0 ? ((gain / costBasis) * 100) : 0;
+        const isPositiveGain = gain >= 0;
+        const signGain = gain > 0 ? '+' : '';
+        const gainColor = Math.abs(gain) < 0.001 ? 'var(--color-text, #334155)' : (isPositiveGain ? '#00B894' : '#FF7675');
+
         return `
             <div class="asset-card">
                 <div class="asset-card-top">
@@ -1722,7 +2029,7 @@ function renderPositions() {
                         <span class="asset-ticker">${pos.ticker}</span>
                         <span class="asset-class-badge">${pos.asset_class}</span>
                     </div>
-                    <span class="asset-total">${formatCurrency(pos.costBasis)}</span>
+                    <span class="asset-total">${formatCurrency(totalVal)}</span>
                 </div>
                 <div class="asset-details-grid">
                     <div class="asset-details-item">
@@ -1734,8 +2041,12 @@ function renderPositions() {
                         <span class="val">${formatCurrency(pos.averageCost)}</span>
                     </div>
                     <div class="asset-details-item">
-                        <span class="lbl">Posição</span>
-                        <span class="val" style="color:#10b981;">Ativa</span>
+                        <span class="lbl">Preço Atual</span>
+                        <span class="val" style="color:#6C5CE7; font-weight:700;">${formatCurrency(currentPrice)}${quoteDot}</span>
+                    </div>
+                    <div class="asset-details-item">
+                        <span class="lbl">Rentabilidade</span>
+                        <span class="val" style="color:${gainColor}; font-weight:700;">${signGain}${gainPct.toFixed(2).replace('.', ',')}%</span>
                     </div>
                 </div>
             </div>
@@ -2374,6 +2685,122 @@ async function deleteCorporateEvent(id) {
         await loadAllInvestmentData();
     } catch (err) {
         showToast("Erro ao remover: " + err.message, "error");
+    }
+}
+
+// ============================================
+// DETECÇÃO AUTOMÁTICA DE EVENTOS CORPORATIVOS (B3)
+// ============================================
+async function autoDetectCorporateEvents() {
+    const btn = document.getElementById("btnAutoDetectEventsMobile");
+    const origText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detectando...';
+    }
+
+    try {
+        const tickers = [...new Set([
+            ...allRawInvestments.map(t => t.ticker),
+            ...activePositions.map(p => p.ticker)
+        ])]
+        .filter(t => t && t.length >= 3 && !isTesouroTicker(t))
+        .map(t => t.toUpperCase().trim().replace(/\.SA$/, ''));
+
+        if (tickers.length === 0) {
+            showToast("Nenhum ativo de renda variável para consultar.", "info");
+            return;
+        }
+
+        showToast("Consultando eventos corporativos na B3...", "info");
+        const res = await fetch(`/api/detect-corporate-events?tickers=${encodeURIComponent(tickers.join(','))}`);
+        if (!res.ok) throw new Error("Erro na comunicação com o servidor");
+
+        const data = await res.json();
+        const detected = data.events || [];
+
+        if (detected.length === 0) {
+            showToast("Nenhum desdobramento ou agrupamento detectado para seus ativos.", "info");
+            return;
+        }
+
+        // Filtra eventos que já estão cadastrados para evitar duplicidades
+        const existingKeys = new Set((allRawCorporateEvents || []).map(ev => 
+            `${(ev.ticker || '').toUpperCase()}_${ev.event_date}_${(ev.event_type || '').toLowerCase()}`
+        ));
+
+        // Filtra apenas eventos que ocorreram em data posterior ou igual à primeira compra do usuário daquele ativo
+        const firstBuyMap = {};
+        allRawInvestments.forEach(inv => {
+            const tk = (inv.ticker || '').toUpperCase().trim();
+            const dt = inv.date || '9999-99-99';
+            if (!firstBuyMap[tk] || dt < firstBuyMap[tk]) {
+                firstBuyMap[tk] = dt;
+            }
+        });
+
+        const newEvents = detected.filter(ev => {
+            const key = `${ev.ticker}_${ev.event_date}_${ev.event_type.toLowerCase()}`;
+            if (existingKeys.has(key)) return false;
+            if (firstBuyMap[ev.ticker] && ev.event_date < firstBuyMap[ev.ticker]) {
+                return false;
+            }
+            return true;
+        });
+
+        if (newEvents.length === 0) {
+            showToast("Todos os eventos corporativos detectados já estão aplicados à sua carteira.", "success");
+            return;
+        }
+
+        let addedCount = 0;
+        for (const ev of newEvents) {
+            const eventPayload = {
+                id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('ev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6)),
+                user_id: currentUser ? currentUser.id : null,
+                ticker: ev.ticker,
+                event_type: ev.event_type,
+                event_date: ev.event_date,
+                ratio_from: ev.ratio_from,
+                ratio_to: ev.ratio_to,
+                bonus_shares: 0,
+                bonus_unit_cost: 0,
+                amortization_per_share: 0,
+                notes: `Auto-detectado: ${ev.ratio_display} em ${formatDate(ev.event_date)} (${ev.source || 'B3'})`
+            };
+
+            if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+                try {
+                    await supabaseClient.from("corporate_events").insert([eventPayload]);
+                } catch (dbErr) {
+                    console.warn("Aviso ao salvar evento no Supabase:", dbErr);
+                }
+            }
+
+            allRawCorporateEvents.push(eventPayload);
+            addedCount++;
+        }
+
+        try {
+            localStorage.setItem("tonu_corporate_events", JSON.stringify(allRawCorporateEvents));
+        } catch (e) {}
+
+        computeRealPositions();
+        decoratePositions();
+        renderPositions();
+        renderCorporateEventsList();
+        updateSummaryHero();
+
+        showToast(`🎉 ${addedCount} evento(s) corporativo(s) detectado(s) e aplicado(s) com sucesso!`, "success");
+
+    } catch (err) {
+        console.error("Erro na detecção automática:", err);
+        showToast("Erro ao detectar eventos: " + err.message, "error");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+        }
     }
 }
 
