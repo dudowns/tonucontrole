@@ -30,7 +30,7 @@ function createZipArchive(options = {}) {
 const app = express();
 
 // A porta 3000 é estritamente exigida pelo proxy reverso do Google AI Studio.
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const ROOT_DIR = __dirname;
 
 // ============================================
@@ -120,17 +120,14 @@ app.use((req, res, next) => {
 // 4. ROTAS DE API
 // ============================================
 
+const DEFAULT_SUPABASE_URL = 'https://rbtxrbacdpenbslqcbbl.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidHhyYmFjZHBlbmJzbHFjYmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MDA5MjksImV4cCI6MjEwMTk3NjkyOX0.VDmJ-pty8oLzkgEad4WBpk7leR9ZR-b_bXXUE3HkPcM';
+
 // Configuração pública do cliente (Variáveis de ambiente controladas)
 app.get('/api/config', (req, res) => {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+    const supabaseUrl = process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
     const brapiToken = process.env.BRAPI_TOKEN;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-        return res.status(500).json({
-            error: 'Configurações obrigatórias de ambiente (SUPABASE_URL ou SUPABASE_ANON_KEY) não estão definidas no servidor.'
-        });
-    }
 
     res.setHeader('Cache-Control', 'public, max-age=60');
     return res.json({
@@ -335,8 +332,8 @@ app.get(['/sw.js', '/tonucontrole/sw.js'], (req, res) => {
 
 function getClientConfigScript() {
     const config = {
-        supabaseUrl: process.env.SUPABASE_URL || '',
-        supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
+        supabaseUrl: process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL,
+        supabaseAnonKey: process.env.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY,
         brapiToken: process.env.BRAPI_TOKEN || ''
     };
     const sanitizedJson = JSON.stringify(config).replace(/</g, '\\u003c');

@@ -1449,9 +1449,9 @@ function buildMobileEvolutionChartData() {
         return { labels: [], invested: [], total: [] };
     }
 
-    // Janela de últimos 6 meses para visualização equilibrada em tela de celular
+    // Janela padrão de últimos 12 meses (idêntica ao Desktop e Evolução de Proventos)
     const end = new Date();
-    const start = new Date(end.getFullYear(), end.getMonth() - 5, 1);
+    const start = new Date(end.getFullYear(), end.getMonth() - 11, 1);
 
     const allMonths = [];
     const curMonth = new Date(start);
