@@ -30,10 +30,129 @@
 
     function parseSafeNumber(val) {
         if (typeof val === 'number') return isNaN(val) ? 0 : val;
-        if (!val) return 0;
-        const str = String(val).replace(/\s/g, '').replace(',', '.');
+        if (val === null || val === undefined || val === '') return 0;
+        let str = String(val).trim().replace(/[R$\s]/gi, '');
+        if (str.includes('.') && str.includes(',')) {
+            str = str.replace(/\./g, '').replace(',', '.');
+        } else if (str.includes(',')) {
+            str = str.replace(',', '.');
+        } else if (str.includes('.')) {
+            const parts = str.split('.');
+            if (parts.length > 2) {
+                str = parts.join('');
+            } else if (parts[1] && parts[1].length === 3 && parts[0].length > 1) {
+                str = parts[0] + parts[1];
+            }
+        }
         const num = parseFloat(str);
         return isNaN(num) ? 0 : num;
+    }
+
+    function normalizeDateOnly(dateVal) {
+        if (!dateVal) return '';
+        const str = String(dateVal).trim();
+        const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if (isoMatch) {
+            return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+        }
+        const brMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (brMatch) {
+            return `${brMatch[3]}-${brMatch[2].padStart(2, '0')}-${brMatch[1].padStart(2, '0')}`;
+        }
+        try {
+            const d = new Date(dateVal);
+            if (!isNaN(d.getTime())) {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            }
+        } catch (_) {}
+        return str.substring(0, 10);
+    }
+
+    function formatPtBrDate(dateStr) {
+        if (!dateStr) return '-';
+        const s = String(dateStr).split('T')[0].trim();
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            const parts = s.split('-');
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        return s;
+    }
+
+    function getDividendEventDate(div, taxYear) {
+        const yearStr = String(taxYear);
+        const startOfYear = `${yearStr}-01-01`;
+        const endOfYear = `${yearStr}-12-31`;
+
+        // 1. Data de pagamento (payment_date, date, date_payment)
+        const payDateRaw = div.payment_date || div.date || div.date_payment;
+        const normPayDate = normalizeDateOnly(payDateRaw);
+        if (normPayDate && normPayDate >= startOfYear && normPayDate <= endOfYear) {
+            return normPayDate;
+        }
+
+        // 2. Data Com (date_com, data_com ou note)
+        let dateComRaw = div.date_com || div.data_com || div.dataCom;
+        if (!dateComRaw && typeof div.note === 'string') {
+            const match = div.note.match(/\[?DataCom:\s*([^\]\s;,]+)\]?/i);
+            if (match) dateComRaw = match[1];
+        }
+        const normComDate = normalizeDateOnly(dateComRaw);
+        if (normComDate && normComDate >= startOfYear && normComDate <= endOfYear) {
+            return normComDate;
+        }
+
+        // 3. Fallback se inicia com o ano
+        if (normPayDate && normPayDate.startsWith(yearStr)) return normPayDate;
+        if (normComDate && normComDate.startsWith(yearStr)) return normComDate;
+
+        return null;
+    }
+
+    function getCnpjInfo(ticker) {
+        if (!ticker) return null;
+        const cleanTicker = String(ticker).toUpperCase().trim();
+        let base = null;
+        if (typeof window !== 'undefined' && window.TONU_CNPJ_BASE) {
+            base = window.TONU_CNPJ_BASE;
+        } else if (typeof globalThis !== 'undefined' && globalThis.TONU_CNPJ_BASE) {
+            base = globalThis.TONU_CNPJ_BASE;
+        } else if (typeof global !== 'undefined' && global.TONU_CNPJ_BASE) {
+            base = global.TONU_CNPJ_BASE;
+        } else if (typeof require === 'function') {
+            try {
+                base = require('../data/cnpj-base');
+            } catch (_) {}
+        }
+        if (base && base[cleanTicker]) {
+            return base[cleanTicker];
+        }
+        return null;
+    }
+
+    function formatDiscriminacaoIR(ticker, assetClass, currentQty, prevCostBasis, currentCostBasis, taxYear) {
+        const yearInt = parseInt(taxYear, 10);
+        const cnpjInfo = getCnpjInfo(ticker);
+        const cleanTicker = String(ticker || '').toUpperCase().trim();
+
+        // Linha 1: Ticker - Nome Completo (ou só Ticker se não houver nome)
+        const header = cnpjInfo && cnpjInfo.name ? `${cleanTicker} - ${cnpjInfo.name}` : cleanTicker;
+
+        // Linha 2: CNPJ (se existir na base)
+        const cnpjLine = cnpjInfo && cnpjInfo.cnpj ? `CNPJ: ${cnpjInfo.cnpj}\n` : '';
+
+        // Linha 3: Quantidade em 31/12/ANO
+        const qtdNum = Number(currentQty) || 0;
+        const qtdStr = (qtdNum % 1 === 0) ? String(qtdNum) : qtdNum.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
+
+        // Linhas 4 e 5: Situações em 31/12
+        const valAntStr = (Math.round((Number(prevCostBasis) || 0) * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const valAtuStr = (Math.round((Number(currentCostBasis) || 0) * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        return `${header}\n${cnpjLine}Quantidade em 31/12/${yearInt}: ${qtdStr}\nSituação em 31/12/${yearInt - 1}: R$ ${valAntStr}\nSituação em 31/12/${yearInt}: R$ ${valAtuStr}`;
     }
 
     /**
@@ -62,6 +181,14 @@
             const pCurr = posCurrYear[ticker] || { quantity: 0, costBasis: 0, assetClass: 'Ações' };
 
             if (pPrev.quantity > 0.0001 || pCurr.quantity > 0.0001) {
+                const discriminacao = formatDiscriminacaoIR(
+                    ticker,
+                    pCurr.assetClass || pPrev.assetClass || 'Ações',
+                    pCurr.quantity,
+                    pPrev.costBasis,
+                    pCurr.costBasis,
+                    yearInt
+                );
                 bensEDireitos.push({
                     ticker,
                     assetClass: pCurr.assetClass || pPrev.assetClass || 'Ações',
@@ -70,7 +197,7 @@
                     currentQuantity: pCurr.quantity,
                     currentCostBasis: Math.round(pCurr.costBasis * 100) / 100,
                     currentAverageCost: pCurr.quantity > 0 ? Math.round((pCurr.costBasis / pCurr.quantity) * 100) / 100 : 0,
-                    discriminacao: `${pCurr.quantity} cotas/ações de ${ticker}, custo médio de aquisição R$ ${(pCurr.quantity > 0 ? (pCurr.costBasis / pCurr.quantity).toFixed(2) : '0.00')}.`
+                    discriminacao
                 });
             }
         });
@@ -85,53 +212,93 @@
         const proventosDetalhe = [];
 
         (dividends || []).forEach(div => {
-            const dateStr = div.payment_date || div.date || '';
-            if (!dateStr.startsWith(String(yearInt))) return;
+            const eventDate = getDividendEventDate(div, yearInt);
+            if (!eventDate) return;
 
             const ticker = (div.ticker || '').toUpperCase().trim();
-            const type = (div.type || '').trim();
-            const grossVal = parseSafeNumber(div.total_value || div.amount);
+            if (!ticker) return;
+
+            const rawType = (div.type || '').trim();
+            let type = 'Dividendo';
+            let irCategory = 'Isento';
+
+            const rawTypeLower = rawType.toLowerCase();
+            if (rawTypeLower.includes('jcp') || rawTypeLower.includes('juros')) {
+                type = 'JCP';
+                irCategory = 'Tributação Exclusiva';
+            } else if (rawTypeLower.includes('rendimento')) {
+                type = 'Rendimento';
+                irCategory = 'Isento';
+            } else if (rawTypeLower.includes('bonif')) {
+                type = 'Bonificação';
+                irCategory = 'Isento';
+            } else {
+                type = 'Dividendo';
+                irCategory = 'Isento';
+            }
+
+            const grossVal = parseSafeNumber(div.total_value || div.amount || (parseSafeNumber(div.quantity) * parseSafeNumber(div.unit_value || div.unit_price)));
             let netVal = parseSafeNumber(div.net_value);
 
             if (type === 'JCP') {
                 if (netVal <= 0) netVal = grossVal * (1 - JCP_TAX_RATE);
-                const tax = grossVal - netVal;
+                const tax = Math.max(0, grossVal - netVal);
                 totalJCPBruto += grossVal;
                 totalJCPLiquido += netVal;
                 totalIRRetidoJCP += tax;
                 proventosDetalhe.push({
                     ticker,
-                    date: dateStr,
+                    date: eventDate,
                     type: 'JCP',
-                    grossValue: grossVal,
-                    netValue: netVal,
-                    taxWithheld: tax,
-                    irCategory: 'Tributação Exclusiva/Definitiva'
+                    grossValue: Math.round(grossVal * 100) / 100,
+                    netValue: Math.round(netVal * 100) / 100,
+                    taxWithheld: Math.round(tax * 100) / 100,
+                    irCategory: 'Tributação Exclusiva'
                 });
             } else if (type === 'Rendimento') {
-                totalRendimentosFII += grossVal;
+                if (netVal <= 0) netVal = grossVal;
+                totalRendimentosFII += netVal;
                 proventosDetalhe.push({
                     ticker,
-                    date: dateStr,
-                    type: 'Rendimento FII',
-                    grossValue: grossVal,
-                    netValue: grossVal,
+                    date: eventDate,
+                    type: 'Rendimento',
+                    grossValue: Math.round(grossVal * 100) / 100,
+                    netValue: Math.round(netVal * 100) / 100,
                     taxWithheld: 0,
-                    irCategory: 'Isentos e Não Tributáveis'
+                    irCategory: 'Isento'
+                });
+            } else if (type === 'Bonificação') {
+                if (netVal <= 0) netVal = grossVal;
+                proventosDetalhe.push({
+                    ticker,
+                    date: eventDate,
+                    type: 'Bonificação',
+                    grossValue: Math.round(grossVal * 100) / 100,
+                    netValue: Math.round(netVal * 100) / 100,
+                    taxWithheld: 0,
+                    irCategory: 'Isento'
                 });
             } else {
-                // Dividendo padrão
-                totalDividendos += grossVal;
+                if (netVal <= 0) netVal = grossVal;
+                totalDividendos += netVal;
                 proventosDetalhe.push({
                     ticker,
-                    date: dateStr,
+                    date: eventDate,
                     type: 'Dividendo',
-                    grossValue: grossVal,
-                    netValue: grossVal,
+                    grossValue: Math.round(grossVal * 100) / 100,
+                    netValue: Math.round(netVal * 100) / 100,
                     taxWithheld: 0,
-                    irCategory: 'Isentos e Não Tributáveis'
+                    irCategory: 'Isento'
                 });
             }
+        });
+
+        // Ordenar por data (mais recente primeiro)
+        proventosDetalhe.sort((a, b) => {
+            const da = new Date(a.date + 'T12:00:00').getTime();
+            const db = new Date(b.date + 'T12:00:00').getTime();
+            if (da !== db) return db - da;
+            return a.ticker.localeCompare(b.ticker);
         });
 
         // 3. Apuração Mensal de Renda Variável (Ganhos de Capital em Vendas)
@@ -148,7 +315,8 @@
                 totalJCPBruto: Math.round(totalJCPBruto * 100) / 100,
                 totalJCPLiquido: Math.round(totalJCPLiquido * 100) / 100,
                 totalIRRetidoJCP: Math.round(totalIRRetidoJCP * 100) / 100,
-                detalhes: proventosDetalhe
+                detalhes: proventosDetalhe,
+                detalhe: proventosDetalhe
             },
             rendaVariavel: monthlyTrading
         };
@@ -158,22 +326,32 @@
      * Calcula o portfólio de ativos até uma data específica
      */
     function computePositionsAtDate(targetDateStr, transactions, corporateEvents) {
-        const txs = (transactions || []).filter(t => (t.date || '1970-01-01') <= targetDateStr);
-        const evs = (corporateEvents || []).filter(e => (e.event_date || e.date || '1970-01-01') <= targetDateStr);
+        const normTarget = normalizeDateOnly(targetDateStr) || targetDateStr;
 
-        const normalizedTx = txs.map(t => ({
-            ...t,
-            isCorporateEvent: false,
-            sortDate: t.date || '1970-01-01',
-            sortPriority: (t.type || '').toLowerCase().includes('compra') || (t.type || '').toLowerCase().includes('buy') ? 1 : 2
-        }));
+        const normalizedTx = (transactions || [])
+            .filter(t => t && (t.ticker || t.symbol))
+            .map(t => {
+                const sortDate = normalizeDateOnly(t.date || t.created_at) || '1970-01-01';
+                const typeLower = (t.type || '').toLowerCase().trim();
+                const isBuy = typeLower.includes('compra') || typeLower.includes('buy') || typeLower === 'c';
+                return {
+                    ...t,
+                    isCorporateEvent: false,
+                    sortDate,
+                    sortPriority: isBuy ? 1 : 2
+                };
+            })
+            .filter(t => t.sortDate <= normTarget);
 
-        const normalizedEvents = evs.map(e => ({
-            ...e,
-            isCorporateEvent: true,
-            sortDate: e.event_date || e.date || '1970-01-01',
-            sortPriority: 0
-        }));
+        const normalizedEvents = (corporateEvents || [])
+            .filter(e => e && (e.ticker || e.symbol) && (e.event_date || e.date))
+            .map(e => ({
+                ...e,
+                isCorporateEvent: true,
+                sortDate: normalizeDateOnly(e.event_date || e.date) || '1970-01-01',
+                sortPriority: 0
+            }))
+            .filter(e => e.sortDate <= normTarget);
 
         const timeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
             const da = new Date(a.sortDate + 'T12:00:00').getTime();
@@ -186,13 +364,13 @@
         const map = {};
 
         timeline.forEach(item => {
-            const ticker = (item.ticker || '').toUpperCase().trim();
+            const ticker = (item.ticker || item.symbol || '').toUpperCase().trim();
             if (!ticker) return;
 
             if (!map[ticker]) {
                 map[ticker] = {
                     ticker,
-                    assetClass: item.asset_class || 'Ações',
+                    assetClass: item.asset_class || (ticker.endsWith('11') ? 'FIIs' : 'Ações'),
                     quantity: 0,
                     costBasis: 0
                 };
@@ -226,16 +404,19 @@
 
             // Operação
             const qty = parseSafeNumber(item.quantity);
-            let unit = parseSafeNumber(item.unit_price);
+            let unit = parseSafeNumber(item.unit_price || item.unit_value);
             let total = parseSafeNumber(item.total_value || item.amount);
             if (total <= 0 && qty > 0 && unit > 0) total = qty * unit;
+            if (unit <= 0 && qty > 0 && total > 0) unit = total / qty;
 
-            const isBuy = (item.type || '').toLowerCase().includes('compra') || (item.type || '').toLowerCase().includes('buy');
+            const typeLower = (item.type || '').toLowerCase().trim();
+            const isBuy = typeLower.includes('compra') || typeLower.includes('buy') || typeLower === 'c';
+            const isSell = typeLower.includes('venda') || typeLower.includes('sell') || typeLower === 'v';
 
             if (isBuy) {
                 p.costBasis += total;
                 p.quantity += qty;
-            } else {
+            } else if (isSell) {
                 const avg = p.quantity > 0 ? p.costBasis / p.quantity : 0;
                 const soldQty = Math.min(qty, p.quantity);
                 p.costBasis = Math.max(0, p.costBasis - (avg * soldQty));
@@ -273,19 +454,28 @@
         }
 
         // Simula linha do tempo completa para saber PM em cada venda
-        const normalizedTx = (transactions || []).map(t => ({
-            ...t,
-            isCorporateEvent: false,
-            sortDate: t.date || '1970-01-01',
-            sortPriority: (t.type || '').toLowerCase().includes('compra') ? 1 : 2
-        }));
+        const normalizedTx = (transactions || [])
+            .filter(t => t && (t.ticker || t.symbol))
+            .map(t => {
+                const sortDate = normalizeDateOnly(t.date || t.created_at) || '1970-01-01';
+                const typeLower = (t.type || '').toLowerCase().trim();
+                const isBuy = typeLower.includes('compra') || typeLower.includes('buy') || typeLower === 'c';
+                return {
+                    ...t,
+                    isCorporateEvent: false,
+                    sortDate,
+                    sortPriority: isBuy ? 1 : 2
+                };
+            });
 
-        const normalizedEvents = (corporateEvents || []).map(e => ({
-            ...e,
-            isCorporateEvent: true,
-            sortDate: e.event_date || e.date || '1970-01-01',
-            sortPriority: 0
-        }));
+        const normalizedEvents = (corporateEvents || [])
+            .filter(e => e && (e.ticker || e.symbol) && (e.event_date || e.date))
+            .map(e => ({
+                ...e,
+                isCorporateEvent: true,
+                sortDate: normalizeDateOnly(e.event_date || e.date) || '1970-01-01',
+                sortPriority: 0
+            }));
 
         const timeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
             const da = new Date(a.sortDate + 'T12:00:00').getTime();
@@ -544,9 +734,9 @@
                                         <div>Em 31/12/${year}: <strong style="color:#0984e3;">${formatMoney(item.currentCostBasis)}</strong></div>
                                     </div>
                                 </div>
-                                <div style="font-size:11.5px; line-height:1.5; color:var(--color-text, #334155); background:var(--color-bg, #f8fafc); padding:8px 12px; border-radius:8px; border:1px solid var(--color-border, #e2e8f0); display:flex; justify-content:space-between; align-items:center; gap:10px;">
-                                    <span>${item.discriminacao}</span>
-                                    <button type="button" onclick="navigator.clipboard.writeText('${item.discriminacao.replace(/'/g, "\\'")}'); if(window.showToast) window.showToast('Discriminação copiada! 📋','success');" style="background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:600; cursor:pointer; flex-shrink:0;" title="Copiar para colar no IRPF">
+                                <div style="font-size:11.5px; line-height:1.6; color:var(--color-text, #334155); background:var(--color-bg, #f8fafc); padding:10px 14px; border-radius:8px; border:1px solid var(--color-border, #e2e8f0); display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                                    <span style="white-space:pre-line; font-family:monospace; font-size:11px;">${item.discriminacao}</span>
+                                    <button type="button" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(item.discriminacao)}')); if(window.showToast) window.showToast('Discriminação copiada! 📋','success');" style="background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; cursor:pointer; flex-shrink:0; display:flex; align-items:center; gap:5px;" title="Copiar para colar no IRPF">
                                         <i class="fas fa-copy"></i> Copiar
                                     </button>
                                 </div>
@@ -556,6 +746,7 @@
                 `;
             } else if (activeTab === 'proventos') {
                 const p = currentReport.proventos || {};
+                const provList = p.detalhes || p.detalhe || [];
                 container.innerHTML = `
                     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:16px;">
                         <div style="padding:14px; border-radius:12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25);">
@@ -592,10 +783,10 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${(p.detalhe || []).length === 0 ? `<tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Nenhum provento registrado em ${year}.</td></tr>` : 
-                                (p.detalhe || []).map(d => `
+                                ${provList.length === 0 ? `<tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Nenhum provento registrado em ${year}.</td></tr>` : 
+                                provList.map(d => `
                                     <tr style="border-bottom:1px solid var(--color-border, #f1f5f9);">
-                                        <td style="padding:8px 12px; color:#64748b;">${d.date}</td>
+                                        <td style="padding:8px 12px; color:#64748b;">${formatPtBrDate(d.date)}</td>
                                         <td style="padding:8px 12px; font-weight:700;">${d.ticker}</td>
                                         <td style="padding:8px 12px;">${d.type}</td>
                                         <td style="padding:8px 12px; text-align:right; font-weight:600;">${formatMoney(d.netValue)}</td>

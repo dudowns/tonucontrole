@@ -283,6 +283,80 @@ function runComputePositionsTests() {
         assert.strictEqual(report.proventos.totalIRRetidoJCP, 15);
     });
 
+    test('Relatório de IR: valida posição em 31/12 com compras e vendas parciais/totais', () => {
+        const { generateAnnualTaxReport, computePositionsAtDate } = require('../js/reports/ir-report');
+
+        // Caso A: Usuário com 100 cotas em janeiro e nada vendido -> 100 cotas em 31/12
+        const txsA = [
+            { ticker: 'PETR4', type: 'compra', quantity: 100, unit_price: 35, total_value: 3500, date: '2025-01-15' }
+        ];
+        const posA = computePositionsAtDate('2025-12-31', txsA, []);
+        assert.strictEqual(posA['PETR4'].quantity, 100);
+        assert.strictEqual(posA['PETR4'].costBasis, 3500);
+
+        const reportA = generateAnnualTaxReport(2025, txsA, [], []);
+        const petr4A = reportA.bensEDireitos.find(b => b.ticker === 'PETR4');
+        assert.ok(petr4A, 'PETR4 deve constar em Bens e Direitos');
+        assert.strictEqual(petr4A.currentQuantity, 100);
+        assert.strictEqual(petr4A.currentCostBasis, 3500);
+
+        // Caso B: Usuário com 100 cotas em janeiro e vendeu 100 em junho -> 0 cotas em 31/12
+        const txsB = [
+            { ticker: 'VALE3', type: 'compra', quantity: 100, unit_price: 60, total_value: 6000, date: '2025-01-10' },
+            { ticker: 'VALE3', type: 'venda', quantity: 100, unit_price: 65, total_value: 6500, date: '2025-06-20' }
+        ];
+        const posB = computePositionsAtDate('2025-12-31', txsB, []);
+        assert.strictEqual(posB['VALE3'].quantity, 0);
+        assert.strictEqual(posB['VALE3'].costBasis, 0);
+
+        const reportB = generateAnnualTaxReport(2025, txsB, [], []);
+        const vale3B = reportB.bensEDireitos.find(b => b.ticker === 'VALE3');
+        if (vale3B) {
+            assert.strictEqual(vale3B.currentQuantity, 0);
+            assert.strictEqual(vale3B.currentCostBasis, 0);
+        }
+    });
+
+    test('Relatório de IR: Base de CNPJs e padrão oficial da Receita Federal na discriminação', () => {
+        const cnpjBase = require('../js/data/cnpj-base');
+        const { generateAnnualTaxReport } = require('../js/reports/ir-report');
+
+        // Valida que a base de CNPJs possui mais de 50 ativos populares
+        const keys = Object.keys(cnpjBase);
+        assert.ok(keys.length >= 50, `Base de CNPJ deve ter ao menos 50 ativos (encontrados: ${keys.length})`);
+        
+        // Ativos obrigatórios do brief
+        const requiredTickers = ['PETR4', 'VALE3', 'ITUB4', 'BBAS3', 'BBDC4', 'ABEV3', 'WEGE3', 'MGLU3', 'B3SA3', 'ELET3', 'MXRF11', 'HGLG11', 'VGHF11', 'KNRI11', 'XPML11'];
+        requiredTickers.forEach(t => {
+            assert.ok(cnpjBase[t], `Ativo obrigatório ${t} deve estar na base de CNPJs`);
+            assert.ok(cnpjBase[t].name, `Ativo ${t} deve ter Razão Social`);
+            assert.ok(cnpjBase[t].cnpj, `Ativo ${t} deve ter CNPJ`);
+        });
+
+        // Validação da discriminação para ativo na base (ex: BBAS3)
+        const txs = [
+            { ticker: 'BBAS3', type: 'compra', quantity: 100, unit_price: 28, total_value: 2800, date: '2025-03-10' }
+        ];
+        const report = generateAnnualTaxReport(2025, txs, [], []);
+        const bbas = report.bensEDireitos.find(b => b.ticker === 'BBAS3');
+        assert.ok(bbas, 'BBAS3 deve estar presente');
+        assert.ok(bbas.discriminacao.includes('BBAS3'), 'Discriminação deve conter o ticker');
+        assert.ok(bbas.discriminacao.includes('CNPJ: 00.000.000/0001-91') || bbas.discriminacao.includes('CNPJ:'), 'Discriminação deve conter CNPJ');
+        assert.ok(bbas.discriminacao.includes('Quantidade em 31/12/2025: 100'), 'Discriminação deve conter Quantidade em 31/12/2025');
+        assert.ok(bbas.discriminacao.includes('Situação em 31/12/2024: R$ 0,00'), 'Discriminação deve conter Situação em 31/12/2024');
+        assert.ok(bbas.discriminacao.includes('Situação em 31/12/2025: R$ 2.800,00'), 'Discriminação deve conter Situação em 31/12/2025');
+
+        // Validação para ativo desconhecido (não quebra e gera sem CNPJ)
+        const txsUnknown = [
+            { ticker: 'XPTO3', type: 'compra', quantity: 50, unit_price: 10, total_value: 500, date: '2025-04-10' }
+        ];
+        const reportUnknown = generateAnnualTaxReport(2025, txsUnknown, [], []);
+        const xpto = reportUnknown.bensEDireitos.find(b => b.ticker === 'XPTO3');
+        assert.ok(xpto, 'XPTO3 deve ser gerado');
+        assert.ok(!xpto.discriminacao.includes('CNPJ:'), 'Ativo desconhecido não deve ter linha de CNPJ quebrada');
+        assert.ok(xpto.discriminacao.includes('Quantidade em 31/12/2025: 50'), 'Deve exibir quantidade correta');
+    });
+
     // 11. Gráfico de Investimentos com Eventos Corporativos
     test('Gráfico de Investimentos: simula evolução com split e bonificação mantendo timeline consistente', () => {
         const simulatedPortfolio = new Map();
