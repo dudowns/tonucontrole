@@ -2,7 +2,13 @@
 // TONUCONTROLE - SECURE EXPRESS SERVER
 // ============================================
 
-require('dotenv').config();
+try {
+    require('dotenv').config();
+} catch (e) {
+    // dotenv is optional if env vars are already loaded in environment
+}
+
+process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 
 const express = require('express');
 const path = require('path');
