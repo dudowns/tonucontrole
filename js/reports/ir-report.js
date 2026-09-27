@@ -25,7 +25,7 @@
             ? window.TONU_JCP_TAX_RATE
             : ((typeof globalThis !== 'undefined' && globalThis.TONU_JCP_TAX_RATE !== undefined)
                 ? globalThis.TONU_JCP_TAX_RATE
-                : ((typeof global !== 'undefined' && global.TONU_JCP_TAX_RATE !== undefined) ? global.TONU_JCP_TAX_RATE : 0)));
+                : ((typeof global !== 'undefined' && global.TONU_JCP_TAX_RATE !== undefined) ? global.TONU_JCP_TAX_RATE : 0.20)));
     const SWING_TRADE_MONTHLY_EXEMPTION_LIMIT = 20000.00; // Limite de isenção para ações no swing trade
 
     function parseSafeNumber(val) {
@@ -765,7 +765,7 @@
                                 ${formatMoney(p.totalJCPLiquido || 0)}
                             </div>
                             <div style="font-size:10.5px; color:#64748b; margin-top:4px;">
-                                IR Retido na Fonte (15%): ${formatMoney(p.totalIRRetidoJCP || 0)}
+                                IR Retido na Fonte (${Math.round((typeof JCP_TAX_RATE !== 'undefined' ? JCP_TAX_RATE : 0.20) * 100)}%): ${formatMoney(p.totalIRRetidoJCP || 0)}
                             </div>
                         </div>
                     </div>

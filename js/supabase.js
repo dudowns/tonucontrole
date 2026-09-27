@@ -2,10 +2,6 @@
 // SUPABASE - Configuração e cliente (COM OFFLINE E CONFIG DINÂMICA)
 // ============================================
 
-// Fallback estrito apenas para ambiente de desenvolvimento local offline/sem servidor
-const DEV_FALLBACK_SUPABASE_URL = 'https://rbtxrbacdpenbslqcbbl.supabase.co';
-const DEV_FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidHhyYmFjZHBlbmJzbHFjYmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MDA5MjksImV4cCI6MjEwMTk3NjkyOX0.VDmJ-pty8oLzkgEad4WBpk7leR9ZR-b_bXXUE3HkPcM';
-
 // ============================================
 // 🔥 getBaseUrl() - CORRIGIDO PARA GITHUB PAGES
 // ============================================
@@ -44,25 +40,12 @@ window.getBaseUrl = getBaseUrl;
 // RESOLUÇÃO DE CONFIGURAÇÃO SUPABASE
 // ============================================
 function resolveSupabaseCredentials() {
-    // 1. Tentar ler do objeto injetado pelo servidor no HTML
-    if (window.__TONU_CONFIG__ && window.__TONU_CONFIG__.supabaseUrl && window.__TONU_CONFIG__.supabaseAnonKey) {
+    // Ler estritamente do objeto dinâmico injetado pelo servidor no HTML
+    if (typeof window !== 'undefined' && window.__TONU_CONFIG__ && window.__TONU_CONFIG__.supabaseUrl && window.__TONU_CONFIG__.supabaseAnonKey) {
         return {
             url: window.__TONU_CONFIG__.supabaseUrl,
             anonKey: window.__TONU_CONFIG__.supabaseAnonKey,
             source: 'injected'
-        };
-    }
-
-    // 2. Fallback de desenvolvimento local quando não injetado
-    var isLocalDev = window.location.hostname === 'localhost' ||
-                     window.location.hostname === '127.0.0.1' ||
-                     window.location.protocol === 'file:';
-
-    if (isLocalDev || !window.__TONU_CONFIG__) {
-        return {
-            url: DEV_FALLBACK_SUPABASE_URL,
-            anonKey: DEV_FALLBACK_SUPABASE_ANON_KEY,
-            source: 'dev-fallback'
         };
     }
 

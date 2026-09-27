@@ -8,13 +8,13 @@ console.log('✅ Core.js carregado');
 // 0. CONFIGURAÇÕES GLOBAIS
 // ============================================
 if (typeof window !== 'undefined') {
-    window.TONU_JCP_TAX_RATE = 0.15; // Alíquota oficial de retenção de IR na fonte sobre JCP (15%)
+    window.TONU_JCP_TAX_RATE = 0.20; // Alíquota oficial de retenção de IR na fonte sobre JCP (20% - MP 1303/2025)
 }
 if (typeof globalThis !== 'undefined') {
-    globalThis.TONU_JCP_TAX_RATE = 0.15;
+    globalThis.TONU_JCP_TAX_RATE = 0.20;
 }
 if (typeof global !== 'undefined') {
-    global.TONU_JCP_TAX_RATE = 0.15;
+    global.TONU_JCP_TAX_RATE = 0.20;
 }
 
 var resolvedBrapiToken = (typeof window !== 'undefined' && window.__TONU_CONFIG__ && window.__TONU_CONFIG__.brapiToken)

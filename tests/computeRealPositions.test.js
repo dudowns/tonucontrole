@@ -10,7 +10,7 @@ const path = require('path');
 // Carrega TONU_JCP_TAX_RATE diretamente do js/core.js
 const coreCode = fs.readFileSync(path.join(__dirname, '../js/core.js'), 'utf8');
 const jcpMatch = coreCode.match(/TONU_JCP_TAX_RATE\s*=\s*([0-9.]+)/);
-const detectedRate = jcpMatch ? parseFloat(jcpMatch[1]) : 0.15;
+const detectedRate = jcpMatch ? parseFloat(jcpMatch[1]) : 0.20;
 global.TONU_JCP_TAX_RATE = detectedRate;
 globalThis.TONU_JCP_TAX_RATE = detectedRate;
 
@@ -408,16 +408,16 @@ function runComputePositionsTests() {
     });
 
     // 12. Centralização da taxa de JCP
-    test('Centralização da Taxa de JCP: alíquota oficial única de 15% definida no core.js', () => {
+    test('Centralização da Taxa de JCP: alíquota oficial definida no core.js (20% - MP 1303/2025)', () => {
         const rate = (typeof globalThis !== 'undefined' && globalThis.TONU_JCP_TAX_RATE !== undefined)
             ? globalThis.TONU_JCP_TAX_RATE
             : (typeof global !== 'undefined' ? global.TONU_JCP_TAX_RATE : undefined);
-        assert.strictEqual(rate, 0.15);
+        assert.strictEqual(rate, 0.20);
         
-        // Simula cálculo de JCP líquido com a taxa centralizada
+        // Simula cálculo de JCP líquido com a taxa centralizada de 20%
         const jcpBruto = 1000;
         const jcpLiquido = jcpBruto * (1 - rate);
-        assert.strictEqual(jcpLiquido, 850);
+        assert.strictEqual(jcpLiquido, 800);
     });
 
     return results;

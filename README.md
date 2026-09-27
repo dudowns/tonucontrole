@@ -48,7 +48,7 @@ Diferente de planilhas complexas ou soluções lentas, o TonuControle une a simp
 - **Gestão de Custódia:** Ações, FIIs, BDRs, ETFs, Renda Fixa e Criptoativos.
 - **Motor de Custódia & Splits:** Apuração rigorosa de Preço Médio (PM), custo de aquisição e quantidade.
 - **Eventos Corporativos:** Suporte a desdobramentos (splits), grupamentos (inplits), bonificações e amortizações.
-- **Proventos & Dividendos:** Registro de dividendos, rendimentos e Juros sobre Capital Próprio (JCP) com alíquota oficial única de retenção na fonte (15%).
+- **Proventos & Dividendos:** Registro de dividendos, rendimentos e Juros sobre Capital Próprio (JCP) com alíquota oficial única de retenção na fonte (20% - MP 1303/2025).
 - **Cotações B3:** Integração com APIs financeiras (BRAPI e Yahoo Finance) com cache resiliente.
 
 ### 📄 Relatório de Imposto de Renda (IR)
@@ -223,6 +223,18 @@ npm run lint
 # Gerar build otimizado de produção em /dist
 npm run build
 ```
+
+---
+
+## 📅 Rotina de Manutenção Fiscal (Checklist Anual)
+
+> **Diretriz de Engenharia:** *"Toda virada de ano (em janeiro), revisar alíquotas e regras fiscais no app."*
+
+Devido à dinâmica das medidas provisórias, leis ordinárias e instruções normativas da Receita Federal, deve-se auditar anualmente:
+1. **Alíquota de JCP (`TONU_JCP_TAX_RATE` em `js/core.js`):** verificar percentual vigente de retenção na fonte.
+2. **Faixa de Isenção em Renda Variável:** verificar teto mensal de vendas isentas de ações (R$ 20.000) e tributação sobre FIIs/Fiagros em `js/reports/ir-report.js`.
+3. **Tabela Progressiva IRPF:** atualizar faixas e deduções vigentes caso haja cálculo de pró-labore ou recolhimento mensal (carnê-leão).
+4. **Base de Ativos e CNPJs (`js/data/cnpj-base.js`):** atualizar novos tickers e razões sociais com grande volume negociado na B3.
 
 ---
 
