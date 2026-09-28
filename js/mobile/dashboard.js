@@ -518,20 +518,60 @@ function renderMobileInsights() {
 
     let income = 0, expense = 0;
     const catExpenses = {};
+    let extraIncome = 0;
+    let extraIncomeCount = 0;
+    let loansPaid = 0;
 
     allTransactions.forEach(t => {
         if (!isTxPaid(t)) return;
         const amt = Number(t.amount) || 0;
-        if (t.type === "income") income += amt;
-        else if (t.type === "expense") {
+        const desc = (t.description || '').toLowerCase();
+        const catObj = categories.find(c => c.id === t.category_id);
+        const catName = (catObj ? catObj.name : (t.category || '')).toLowerCase();
+
+        if (t.type === "income") {
+            income += amt;
+            if (
+                catName.includes('bico') ||
+                catName.includes('extra') ||
+                catName.includes('freela') ||
+                catName.includes('bonificação') ||
+                catName.includes('bonificacao') ||
+                desc.includes('bico') ||
+                desc.includes('extra') ||
+                desc.includes('freela') ||
+                desc.includes('uber') ||
+                desc.includes('99') ||
+                desc.includes('ifood') ||
+                desc.includes('comissão') ||
+                desc.includes('comissao')
+            ) {
+                extraIncome += amt;
+                extraIncomeCount++;
+            }
+        } else if (t.type === "expense") {
             expense += amt;
             const cid = t.category_id || "outros";
             catExpenses[cid] = (catExpenses[cid] || 0) + amt;
+
+            if (
+                catName.includes('empréstimo') ||
+                catName.includes('emprestimo') ||
+                catName.includes('financiamento') ||
+                catName.includes('dívida') ||
+                catName.includes('divida') ||
+                desc.includes('empréstimo') ||
+                desc.includes('emprestimo') ||
+                desc.includes('financiamento')
+            ) {
+                loansPaid += amt;
+            }
         }
     });
 
     const savings = income - expense;
     const savingsRate = income > 0 ? Math.round((savings / income) * 100) : 0;
+    const extraIncomePercent = income > 0 ? Math.round((extraIncome / income) * 100) : 0;
 
     // Maior Categoria
     let topCatName = "Nenhum gasto";
@@ -662,14 +702,32 @@ function renderMobileInsights() {
                 </span>
             </div>
 
+            <!-- 5. Bicos e Renda Extra -->
+            <div class="mobile-insight-row">
+                <div class="mobile-insight-left">
+                    <div class="mobile-insight-icon orange">
+                        <i class="fas fa-motorcycle"></i>
+                    </div>
+                    <div class="mobile-insight-text">
+                        <span class="title">Bicos & Renda Extra</span>
+                        <span class="detail">${extraIncomeCount} lançamento${extraIncomeCount === 1 ? '' : 's'} (${extraIncomePercent}% da renda)</span>
+                    </div>
+                </div>
+                <span class="mobile-insight-badge" style="background:${extraIncome > 0 ? '#ffedd5' : '#f1f5f9'}; color:${extraIncome > 0 ? '#c2410c' : '#64748b'};">
+                    ${formatCurrency(extraIncome)}
+                </span>
+            </div>
+
             <!-- DICA ESTRATÉGICA -->
             <div class="mobile-insight-tip">
                 <i class="fas fa-lightbulb"></i>
                 <div>
                     <strong>Dica Estratégica:</strong> 
-                    ${topCatPercent > 35 
-                        ? `A categoria <strong>${topCatName}</strong> consome ${topCatPercent}% do seu orçamento. Reduzir 15% nela liberará cerca de <strong>${formatCurrency(topCatAmount * 0.15)}</strong> para seus aportes!`
-                        : `Mantenha suas reservas e invista continuamente os proventos recebidos para acelerar a bola de neve da liberdade financeira!`}
+                    ${extraIncome > 0 
+                        ? `Você recebeu <strong>${formatCurrency(extraIncome)}</strong> em bicos e extras! Sugestão 40/30/30: adiantar <strong>${formatCurrency(extraIncome * 0.4)}</strong> em empréstimos ou dívidas, reservar <strong>${formatCurrency(extraIncome * 0.3)}</strong> para fazer algo importante/lazer consciente, e guardar/investir <strong>${formatCurrency(extraIncome * 0.3)}</strong> para sua liberdade financeira.`
+                        : (topCatPercent > 35 
+                            ? `A categoria <strong>${topCatName}</strong> consome ${topCatPercent}% do seu orçamento. Reduzir 15% nela liberará cerca de <strong>${formatCurrency(topCatAmount * 0.15)}</strong> para seus aportes!`
+                            : `Mantenha suas reservas e invista continuamente os proventos recebidos para acelerar a bola de neve da liberdade financeira!`)}
                 </div>
             </div>
         </div>

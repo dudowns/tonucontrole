@@ -1116,6 +1116,11 @@
     color: #8b5cf6;
 }
 
+.insight-metric-icon.orange {
+    background: #fff7ed;
+    color: #ea580c;
+}
+
 .insight-metric-text {
     min-width: 0;
     flex: 1;

@@ -1508,134 +1508,57 @@ async function generateDashboardInsights() {
 
         const netBalance = totalIncome - totalExpense;
 
-        // 1.1 CARREGAR DADOS DO MÊS ANTERIOR (MoM - Comparativo Mês a Mês)
-        const dPrev = new Date();
-        dPrev.setDate(1);
-        dPrev.setMonth(dPrev.getMonth() + currentMonthOffset - 1);
-        const prevYear = dPrev.getFullYear();
-        const prevMonth = dPrev.getMonth();
-        const prevLastDay = getLastDayOfMonth(prevYear, prevMonth);
-        const prevFirstDay = formatDateKey(prevYear, prevMonth, 1);
-        const prevLastDayStr = formatDateKey(prevYear, prevMonth, prevLastDay);
-        const prevMonthName = dPrev.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
-        const capitalizedPrevMonth = prevMonthName.charAt(0).toUpperCase() + prevMonthName.slice(1);
+        // 1.0 ANÁLISE DE BICOS, EXTRAS E FREELAS (Renda Extra)
+        const isExtraIncomeTx = (t) => {
+            if (!t || t.type !== 'income') return false;
+            const desc = (t.description || '').toLowerCase();
+            const catName = (t.categories?.name || t.category || '').toLowerCase();
+            return (
+                catName.includes('bico') ||
+                catName.includes('extra') ||
+                catName.includes('freela') ||
+                catName.includes('bonificação') ||
+                catName.includes('bonificacao') ||
+                desc.includes('bico') ||
+                desc.includes('extra') ||
+                desc.includes('freela') ||
+                desc.includes('uber') ||
+                desc.includes('99') ||
+                desc.includes('ifood') ||
+                desc.includes('comissão') ||
+                desc.includes('comissao') ||
+                desc.includes('venda usada') ||
+                desc.includes('serviço extra') ||
+                desc.includes('servico extra')
+            );
+        };
 
-        let allPrevMonthTxs = [];
-        try {
-            allPrevMonthTxs = (await getUnifiedTransactions(prevFirstDay, prevLastDayStr)) || [];
-        } catch (e) {
-            console.warn('Não foi possível carregar dados do mês anterior para MoM:', e);
-        }
+        const extraIncomeTxs = paidIncomeTxs.filter(isExtraIncomeTx);
+        const totalExtraIncome = extraIncomeTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+        const extraIncomePct = totalIncome > 0 ? Math.round((totalExtraIncome / totalIncome) * 100) : 0;
 
-        const prevPaidIncomeTxs = allPrevMonthTxs.filter(t => t && t.type === 'income' && isTxPaid(t));
-        const prevTotalIncome = prevPaidIncomeTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+        // 1.0.1 DETECÇÃO DE EMPRÉSTIMOS E DÍVIDAS NO MÊS
+        const isLoanOrDebtTx = (t) => {
+            if (!t) return false;
+            const desc = (t.description || '').toLowerCase();
+            const catName = (t.categories?.name || t.category || '').toLowerCase();
+            return (
+                catName.includes('empréstimo') ||
+                catName.includes('emprestimo') ||
+                catName.includes('financiamento') ||
+                catName.includes('dívida') ||
+                catName.includes('divida') ||
+                desc.includes('empréstimo') ||
+                desc.includes('emprestimo') ||
+                desc.includes('parcela empréstimo') ||
+                desc.includes('financiamento') ||
+                desc.includes('renegociação') ||
+                desc.includes('renegociacao')
+            );
+        };
 
-        const prevPaidExpenseTxs = allPrevMonthTxs.filter(t => t && t.type === 'expense' && isTxPaid(t));
-        const prevTotalExpense = prevPaidExpenseTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
-
-        const prevNetBalance = prevTotalIncome - prevTotalExpense;
-        const hasPrevData = (prevTotalIncome > 0 || prevTotalExpense > 0);
-
-        // Variação MoM de Despesas
-        let expenseDiff = totalExpense - prevTotalExpense;
-        let expenseDiffPct = prevTotalExpense > 0 ? Math.round(((totalExpense - prevTotalExpense) / prevTotalExpense) * 100) : 0;
-        let expenseDiffClass = 'neutral';
-        let expenseDiffIcon = 'fa-minus';
-        let expenseDiffLabel = 'Sem referência';
-
-        if (hasPrevData) {
-            if (expenseDiff < 0) {
-                // Gastou menos = Economia/Sucesso
-                expenseDiffClass = 'success';
-                expenseDiffIcon = 'fa-arrow-down';
-                expenseDiffLabel = `${Math.abs(expenseDiffPct)}% economia (-${formatCurrency(Math.abs(expenseDiff))})`;
-            } else if (expenseDiff > 0) {
-                // Gastou mais = Atenção
-                expenseDiffClass = 'danger';
-                expenseDiffIcon = 'fa-arrow-up';
-                expenseDiffLabel = `+${expenseDiffPct}% (+${formatCurrency(expenseDiff)})`;
-            } else {
-                expenseDiffClass = 'neutral';
-                expenseDiffIcon = 'fa-equals';
-                expenseDiffLabel = 'Estável vs mês anterior';
-            }
-        }
-
-        // Variação MoM de Receitas
-        let incomeDiff = totalIncome - prevTotalIncome;
-        let incomeDiffPct = prevTotalIncome > 0 ? Math.round(((totalIncome - prevTotalIncome) / prevTotalIncome) * 100) : 0;
-        let incomeDiffClass = 'neutral';
-        let incomeDiffIcon = 'fa-minus';
-        let incomeDiffLabel = 'Sem referência';
-
-        if (hasPrevData) {
-            if (incomeDiff > 0) {
-                incomeDiffClass = 'success';
-                incomeDiffIcon = 'fa-arrow-up';
-                incomeDiffLabel = `+${incomeDiffPct}% (+${formatCurrency(incomeDiff)})`;
-            } else if (incomeDiff < 0) {
-                incomeDiffClass = 'danger';
-                incomeDiffIcon = 'fa-arrow-down';
-                incomeDiffLabel = `${incomeDiffPct}% (${formatCurrency(incomeDiff)})`;
-            } else {
-                incomeDiffClass = 'neutral';
-                incomeDiffIcon = 'fa-equals';
-                incomeDiffLabel = 'Estável';
-            }
-        }
-
-        // Variação MoM de Saldo / Renda Poupada
-        let balanceDiff = netBalance - prevNetBalance;
-        let balanceDiffClass = balanceDiff >= 0 ? 'success' : 'danger';
-        let balanceDiffIcon = balanceDiff >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down';
-        let balanceDiffLabel = hasPrevData ? (balanceDiff >= 0 ? `+${formatCurrency(balanceDiff)}` : `${formatCurrency(balanceDiff)}`) : 'Sem referência';
-
-        let momStatusBadge = 'info';
-        let momStatusText = `vs. ${capitalizedPrevMonth}`;
-        if (hasPrevData) {
-            if (expenseDiff < 0 && balanceDiff >= 0) {
-                momStatusBadge = 'success';
-                momStatusText = '🎯 Mês mais econômico';
-            } else if (expenseDiff > 0 && balanceDiff < 0) {
-                momStatusBadge = 'warning';
-                momStatusText = `⚠️ Despesas acima de ${capitalizedPrevMonth}`;
-            }
-        }
-
-        let momStrategyTip = '';
-        if (hasPrevData) {
-            if (expenseDiff < 0) {
-                momStrategyTip = `
-                    <div class="insight-strategy-item">
-                        <i class="fas fa-trophy" style="color:#10b981;"></i>
-                        <div>
-                            <strong>Evolução MoM (vs. ${capitalizedPrevMonth}):</strong>
-                            Você reduziu suas despesas em <strong>${formatCurrency(Math.abs(expenseDiff))}</strong> (${Math.abs(expenseDiffPct)}% de economia). Continue direcionando esse excedente para acelerar suas metas!
-                        </div>
-                    </div>
-                `;
-            } else if (expenseDiff > 0) {
-                momStrategyTip = `
-                    <div class="insight-strategy-item">
-                        <i class="fas fa-chart-line" style="color:#ef4444;"></i>
-                        <div>
-                            <strong>Evolução MoM (vs. ${capitalizedPrevMonth}):</strong>
-                            Seus gastos aumentaram <strong>${formatCurrency(expenseDiff)}</strong> (+${expenseDiffPct}%) em relação a ${capitalizedPrevMonth}. Avalie os centros de custo para recuperar sua margem de economia.
-                        </div>
-                    </div>
-                `;
-            } else {
-                momStrategyTip = `
-                    <div class="insight-strategy-item">
-                        <i class="fas fa-equals" style="color:#6c5ce7;"></i>
-                        <div>
-                            <strong>Evolução MoM (vs. ${capitalizedPrevMonth}):</strong>
-                            Gastos mantidos exatamente no mesmo patamar de ${capitalizedPrevMonth} (${formatCurrency(totalExpense)}). Disciplina orçamentária estável!
-                        </div>
-                    </div>
-                `;
-            }
-        }
+        const loanExpenseTxs = paidExpenseTxs.filter(isLoanOrDebtTx);
+        const totalLoansPaid = loanExpenseTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
 
         // Análise: Taxa de Poupança
         let savingsRate = 0;
@@ -1958,6 +1881,46 @@ async function generateDashboardInsights() {
             `;
         }
 
+        // 8. DICAS ESTRATÉGICAS ESPECÍFICAS PARA BICOS E EXTRAS (O que fazer com o dinheiro)
+        let extraIncomeTipHTML = '';
+        if (totalExtraIncome > 0) {
+            const partAdiantar = Math.round(totalExtraIncome * 0.40);
+            const partFazerAlgo = Math.round(totalExtraIncome * 0.30);
+            const partGuardar = Math.round(totalExtraIncome * 0.30);
+
+            const loanAdvice = (totalLoansPaid > 0)
+                ? `adiantar parcelas de empréstimos/dívidas (economiza juros caros!)`
+                : `amortizar dívidas pendentes ou pagar contas fixas antecipadamente`;
+
+            const doingAdvice = nearestGoal
+                ? `investir em si mesmo, lazer consciente ou avançar a meta de <strong>${stripHTML(nearestGoal.title)}</strong>`
+                : `aproveitar para lazer com a família ou investir em ferramentas que aumentem sua renda`;
+
+            extraIncomeTipHTML = `
+                <div class="insight-strategy-item" style="background: rgba(234, 88, 12, 0.06); padding: 8px 10px; border-radius: 8px; border-left: 3px solid #ea580c;">
+                    <i class="fas fa-motorcycle" style="color:#ea580c; font-size:12px;"></i>
+                    <div>
+                        <strong style="color:#c2410c;">Estratégia para Bicos e Extras (${formatCurrency(totalExtraIncome)}):</strong>
+                        <div style="margin-top: 4px; display: flex; flex-direction: column; gap: 3px; font-size: 10.5px;">
+                            <span>• <strong>40% (${formatCurrency(partAdiantar)})</strong> ➔ <em>Adiantar empréstimos/dívidas:</em> ${loanAdvice}.</span>
+                            <span>• <strong>30% (${formatCurrency(partFazerAlgo)})</strong> ➔ <em>Fazer alguma coisa:</em> ${doingAdvice}.</span>
+                            <span>• <strong>30% (${formatCurrency(partGuardar)})</strong> ➔ <em>Guardar e investir:</em> aportar em reserva de emergência ou ativos geradores de renda.</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            extraIncomeTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-plus-circle" style="color:#10b981;"></i>
+                    <div>
+                        <strong>Renda Extra & Bicos:</strong>
+                        Nenhuma receita de bico ou extra registrada este mês. Ao realizar freelas ou serviços extras, categorize como <em>"🛵 Bico / Extra"</em> para receber a distribuição inteligente de recursos.
+                    </div>
+                </div>
+            `;
+        }
+
         // RENDERIZAÇÃO COMPLETA DO DIAGNÓSTICO
         container.innerHTML = `
             <!-- PILARES DO APLICATIVO -->
@@ -2037,6 +2000,22 @@ async function generateDashboardInsights() {
                         ${nearestGoal ? nearestGoal.pct + '% concluído' : (activeGoals.length > 0 ? 'Em andamento' : 'Definir')}
                     </span>
                 </div>
+
+                <!-- Pilar 6: Bicos e Renda Extra -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon orange">
+                            <i class="fas fa-motorcycle"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Bicos & Renda Extra</span>
+                            <span class="val">${formatCurrency(totalExtraIncome)} (${extraIncomeTxs.length} lançamento${extraIncomeTxs.length === 1 ? '' : 's'})</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge ${totalExtraIncome > 0 ? 'badge-success' : 'badge-neutral'}">
+                        ${totalExtraIncome > 0 ? extraIncomePct + '% da renda' : 'Sem extras'}
+                    </span>
+                </div>
             </div>
 
             ${budgetAlert ? `
@@ -2057,34 +2036,6 @@ async function generateDashboardInsights() {
                 </div>
             ` : ''}
 
-            <!-- BLOCO COMPARATIVO MÊS A MÊS (MoM) -->
-            <div class="insight-mom-box">
-                <div class="insight-mom-header">
-                    <div class="insight-mom-title">
-                        <i class="fas fa-chart-simple"></i>
-                        <span>Comparativo Mês a Mês (vs. ${capitalizedPrevMonth})</span>
-                    </div>
-                    <span class="badge badge-${momStatusBadge}" style="font-size: 10px;">${momStatusText}</span>
-                </div>
-                <div class="insight-mom-grid">
-                    <div class="insight-mom-item">
-                        <span class="label">Despesas</span>
-                        <span class="val">${formatCurrency(totalExpense)}</span>
-                        <span class="diff ${expenseDiffClass}"><i class="fas ${expenseDiffIcon}"></i> ${expenseDiffLabel}</span>
-                    </div>
-                    <div class="insight-mom-item">
-                        <span class="label">Receitas</span>
-                        <span class="val">${formatCurrency(totalIncome)}</span>
-                        <span class="diff ${incomeDiffClass}"><i class="fas ${incomeDiffIcon}"></i> ${incomeDiffLabel}</span>
-                    </div>
-                    <div class="insight-mom-item">
-                        <span class="label">Renda Poupada</span>
-                        <span class="val">${formatCurrency(netBalance)}</span>
-                        <span class="diff ${balanceDiffClass}"><i class="fas ${balanceDiffIcon}"></i> ${balanceDiffLabel}</span>
-                    </div>
-                </div>
-            </div>
-
             <!-- BLOCO ESTRATÉGICO: COMO DIMINUIR GASTOS & INVESTIR MAIS -->
             <div class="insight-strategy-box">
                 <div class="insight-strategy-header">
@@ -2092,7 +2043,7 @@ async function generateDashboardInsights() {
                     <span>Diagnóstico: Como Economizar e Investir Mais</span>
                 </div>
                 <div class="insight-strategy-items">
-                    ${momStrategyTip}
+                    ${extraIncomeTipHTML}
                     ${savingTipHTML}
                     ${capacityTipHTML}
                     ${passiveTipHTML}

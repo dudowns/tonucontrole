@@ -1372,6 +1372,7 @@ body.dark-theme .sheet-drag-handle {
 .mobile-insight-icon.danger  { background: #fee2e2; color: #dc2626; }
 .mobile-insight-icon.info    { background: #ede9fe; color: #6d28d9; }
 .mobile-insight-icon.purple  { background: #f3e8ff; color: #7e22ce; }
+.mobile-insight-icon.orange  { background: #fff7ed; color: #ea580c; }
 
 .mobile-insight-text {
     min-width: 0;
