@@ -37,10 +37,17 @@ function getBaseUrl() {
 window.getBaseUrl = getBaseUrl;
 
 // ============================================
+// ============================================
+// CREDENCIAIS PADRÃO DE PRODUÇÃO (FALLBACK OFFLINE / GITHUB PAGES)
+// ============================================
+const DEFAULT_SUPABASE_URL = 'https://rbtxrbacdpenbslqcbbl.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidHhyYmFjZHBlbmJzbHFjYmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MDA5MjksImV4cCI6MjEwMTk3NjkyOX0.VDmJ-pty8oLzkgEad4WBpk7leR9ZR-b_bXXUE3HkPcM';
+
+// ============================================
 // RESOLUÇÃO DE CONFIGURAÇÃO SUPABASE
 // ============================================
 function resolveSupabaseCredentials() {
-    // Ler estritamente do objeto dinâmico injetado pelo servidor no HTML
+    // 1. Objeto dinâmico injetado pelo servidor Express no HTML
     if (typeof window !== 'undefined' && window.__TONU_CONFIG__ && window.__TONU_CONFIG__.supabaseUrl && window.__TONU_CONFIG__.supabaseAnonKey) {
         return {
             url: window.__TONU_CONFIG__.supabaseUrl,
@@ -49,7 +56,30 @@ function resolveSupabaseCredentials() {
         };
     }
 
-    return null;
+    // 2. Objeto de configuração global alternativo
+    if (typeof window !== 'undefined' && window.APP_CONFIG && window.APP_CONFIG.SUPABASE_URL && window.APP_CONFIG.SUPABASE_ANON_KEY) {
+        return {
+            url: window.APP_CONFIG.SUPABASE_URL,
+            anonKey: window.APP_CONFIG.SUPABASE_ANON_KEY,
+            source: 'app_config'
+        };
+    }
+
+    // 3. Fallback para credenciais oficiais de produção (Garante GitHub Pages, mobile, PWA e estático)
+    return {
+        url: DEFAULT_SUPABASE_URL,
+        anonKey: DEFAULT_SUPABASE_ANON_KEY,
+        source: 'default_production'
+    };
+}
+
+function removeConfigurationErrorNotice() {
+    if (typeof document === 'undefined') return;
+    var noticeId = 'tonu-config-error-banner';
+    var banner = document.getElementById(noticeId);
+    if (banner && banner.parentNode) {
+        banner.parentNode.removeChild(banner);
+    }
 }
 
 function showConfigurationErrorNotice(message) {
@@ -76,7 +106,7 @@ var SUPABASE_ANON_KEY = creds ? creds.anonKey : '';
 function initializeSupabaseClient(url, key) {
     if (!url || !key) {
         console.error('❌ Falha na inicialização do Supabase: credenciais ausentes.');
-        showConfigurationErrorNotice('Não foi possível carregar as credenciais de banco de dados. Verifique o arquivo .env.');
+        showConfigurationErrorNotice('Não foi possível carregar as credenciais de banco de dados.');
         return null;
     }
 
@@ -103,34 +133,40 @@ function initializeSupabaseClient(url, key) {
     supabaseClient = clientInstance;
     window.supabaseClient = clientInstance;
 
+    // Remove qualquer aviso residual de erro
+    removeConfigurationErrorNotice();
+
     return clientInstance;
 }
 
-if (creds) {
+// Inicializa imediatamente com as credenciais resolvidas
+if (creds && creds.url && creds.anonKey) {
     initializeSupabaseClient(creds.url, creds.anonKey);
-} else {
-    // Busca assíncrona caso não esteja injetado nem em ambiente estático
-    if (typeof fetch === 'function') {
-        fetch('/api/config')
-            .then(function (res) {
-                if (!res.ok) throw new Error('Status ' + res.status);
-                return res.json();
-            })
-            .then(function (data) {
-                if (data && data.supabaseUrl && data.supabaseAnonKey) {
-                    window.__TONU_CONFIG__ = Object.assign(window.__TONU_CONFIG__ || {}, data);
+}
+
+// Busca assíncrona em background para atualizar credenciais dinâmicas do servidor (se houver)
+if (typeof fetch === 'function') {
+    var baseApi = (typeof window.getBaseUrl === 'function' ? window.getBaseUrl() : '').replace(/\/+$/, '');
+    var configEndpoint = baseApi ? (baseApi + '/api/config') : '/api/config';
+
+    fetch(configEndpoint)
+        .then(function (res) {
+            if (!res.ok) return null;
+            return res.json();
+        })
+        .then(function (data) {
+            if (data && data.supabaseUrl && data.supabaseAnonKey) {
+                window.__TONU_CONFIG__ = Object.assign(window.__TONU_CONFIG__ || {}, data);
+                if (data.supabaseUrl !== SUPABASE_URL || data.supabaseAnonKey !== SUPABASE_ANON_KEY) {
                     initializeSupabaseClient(data.supabaseUrl, data.supabaseAnonKey);
-                } else {
-                    showConfigurationErrorNotice('Variáveis SUPABASE_URL ou SUPABASE_ANON_KEY não retornadas por /api/config.');
                 }
-            })
-            .catch(function (err) {
-                console.error('❌ Erro ao buscar /api/config:', err);
-                showConfigurationErrorNotice('Falha ao obter credenciais do servidor.');
-            });
-    } else {
-        showConfigurationErrorNotice('Ambiente não suporta requisições HTTP para configuração.');
-    }
+            }
+        })
+        .catch(function () {
+            // Em hosts estáticos como GitHub Pages, /api/config não existe.
+            // As credenciais de produção já ativas garantem o funcionamento perfeito e transparente.
+            console.log('ℹ️ Supabase conectado via configuração estável de produção.');
+        });
 }
 
 // ============================================
