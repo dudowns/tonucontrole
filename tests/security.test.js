@@ -116,6 +116,22 @@ async function runSecurityTests() {
         results.push({ name: 'Servidor: Endpoint /api/config', passed: false, error: e.message });
     }
 
+    // Teste 7: CSP estrita com Nonce único e endpoint de report
+    try {
+        const resRoot = await makeRequest('/');
+        const csp = resRoot.headers['content-security-policy'] || '';
+        const hasNonceInCsp = /script-src[^;]*'nonce-[A-Za-z0-9+/=_-]+'/.test(csp);
+        const hasNonceInHtml = /<script\s+nonce="[A-Za-z0-9+/=_-]+"/.test(resRoot.body);
+
+        if (hasNonceInCsp && hasNonceInHtml) {
+            results.push({ name: 'Segurança: CSP estrita com nonce criptográfico gerado e injetado nas tags', passed: true });
+        } else {
+            results.push({ name: 'Segurança: CSP estrita com nonce criptográfico', passed: false, error: `hasNonceInCsp=${hasNonceInCsp}, hasNonceInHtml=${hasNonceInHtml}` });
+        }
+    } catch (e) {
+        results.push({ name: 'Segurança: CSP estrita com nonce criptográfico', passed: false, error: e.message });
+    }
+
     return results;
 }
 

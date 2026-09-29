@@ -19,6 +19,7 @@ const morgan = require('morgan');
 const archiverModule = require('archiver');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { generateNonceMiddleware, createHelmetMiddleware, injectNonceIntoHtml } = require('./security-headers');
 
 function createZipArchive(options = {}) {
     if (typeof archiverModule === 'function') {
@@ -40,15 +41,13 @@ const PORT = process.env.PORT || 3000;
 const ROOT_DIR = __dirname;
 
 // ============================================
-// 1. CABEÇALHOS DE SEGURANÇA (HELMET)
+// 1. CABEÇALHOS DE SEGURANÇA E CSP (HELMET + NONCE)
 // ============================================
-app.use(helmet({
-    // Permite que a aplicação funcione no iframe do Google AI Studio e PWA
-    frameguard: false,
-    // Permite carregamento de CDNs externos (FontAwesome, Supabase, Chart.js, Google Fonts) e scripts da aplicação
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false
-}));
+// Middleware para gerar nonce criptográfico único por requisição
+app.use(generateNonceMiddleware);
+
+// Middleware Helmet com política CSP estrita vinculada ao nonce por request
+app.use(createHelmetMiddleware());
 
 // ============================================
 // 2. LIMITADOR DE REQUISIÇÕES (RATE LIMITING)
@@ -151,6 +150,24 @@ app.get('/api/health', (req, res) => {
         version: '2.1.0',
         timestamp: new Date().toISOString()
     });
+});
+
+// ============================================
+// ENDPOINT DE LOG DE VIOLAÇÕES CSP
+// ============================================
+// Endpoint para captura e auditoria de violações de Content Security Policy
+app.post(['/api/csp-report', '/tonucontrole/api/csp-report'], express.json({ type: ['application/json', 'application/csp-report', 'text/plain'] }), (req, res) => {
+    const report = req.body?.['csp-report'] || req.body || {};
+    const blockedUri = report['blocked-uri'] || report.blockedURI || 'desconhecido';
+    const violatedDirective = report['violated-directive'] || report.violatedDirective || 'geral';
+    const documentUri = report['document-uri'] || report.documentURI || 'desconhecido';
+
+    if (process.env.NODE_ENV !== 'test') {
+        console.warn(`🛡️ [CSP VIOLATION] Diretiva: "${violatedDirective}" | Bloqueado: "${blockedUri}" | Página: "${documentUri}"`);
+    }
+
+    // Responde com 204 No Content conforme especificação de CSP reporting
+    return res.status(204).end();
 });
 
 // ============================================
@@ -333,23 +350,27 @@ app.get(['/sw.js', '/tonucontrole/sw.js'], (req, res) => {
 });
 
 // ============================================
-// 6. RENDERIZAÇÃO SEGURA DE PÁGINAS E INJEÇÃO DE CONFIGURAÇÃO
+// 6. RENDERIZAÇÃO SEGURA DE PÁGINAS E INJEÇÃO DE CONFIGURAÇÃO COM NONCE
 // ============================================
 
-function getClientConfigScript() {
+function getClientConfigScript(nonce) {
     const config = {
         supabaseUrl: process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL,
         supabaseAnonKey: process.env.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY,
         brapiToken: process.env.BRAPI_TOKEN || ''
     };
     const sanitizedJson = JSON.stringify(config).replace(/</g, '\\u003c');
-    return `<script>window.__TONU_CONFIG__ = ${sanitizedJson};</script>`;
+    const nonceAttr = nonce ? ` nonce="${nonce}"` : '';
+    return `<script${nonceAttr}>window.__TONU_CONFIG__ = ${sanitizedJson};</script>`;
 }
 
-function sendHtmlWithConfig(res, filePath) {
+function sendHtmlWithConfig(req, res, filePath) {
     try {
         let html = fs.readFileSync(filePath, 'utf8');
-        const scriptTag = getClientConfigScript();
+        const nonce = res.locals?.cspNonce || '';
+
+        // 1. Injeta a configuração global do cliente preservando o window.__TONU_CONFIG__
+        const scriptTag = getClientConfigScript(nonce);
         if (html.includes('<head>')) {
             html = html.replace('<head>', `<head>\n    ${scriptTag}`);
         } else if (html.includes('</title>')) {
@@ -357,22 +378,28 @@ function sendHtmlWithConfig(res, filePath) {
         } else {
             html = `${scriptTag}\n${html}`;
         }
+
+        // 2. Injeta o nonce criptográfico da requisição atual em TODOS os <script> e <style>
+        if (nonce) {
+            html = injectNonceIntoHtml(html, nonce);
+        }
+
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         return res.send(html);
     } catch (err) {
-        console.error('Erro ao injetar configuração no HTML:', err);
+        console.error('Erro ao injetar configuração e nonce no HTML:', err);
         return res.sendFile(filePath);
     }
 }
 
 // Entrada principal da aplicação
 app.get(['/', '/index.html', '/tonucontrole', '/tonucontrole/index.html'], (req, res) => {
-    sendHtmlWithConfig(res, path.join(ROOT_DIR, 'index.html'));
+    sendHtmlWithConfig(req, res, path.join(ROOT_DIR, 'index.html'));
 });
 
 app.get(['/index-mobile.html', '/tonucontrole/index-mobile.html'], (req, res) => {
-    sendHtmlWithConfig(res, path.join(ROOT_DIR, 'index-mobile.html'));
+    sendHtmlWithConfig(req, res, path.join(ROOT_DIR, 'index-mobile.html'));
 });
 
 function serveSecurePage(req, res, next, isMobile = false) {
@@ -397,7 +424,7 @@ function serveSecurePage(req, res, next, isMobile = false) {
     }
 
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-        return sendHtmlWithConfig(res, filePath);
+        return sendHtmlWithConfig(req, res, filePath);
     }
 
     next();

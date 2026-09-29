@@ -8,8 +8,9 @@
         "dev": "node server.js",
         "start": "node server.js",
         "build": "node scripts/build.js",
-        "lint": "node --check js/core.js js/security.js js/auth.js js/dashboard.js js/transactions.js js/bills.js js/goals.js js/investments.js js/settings.js js/sync.js js/notifications.js js/financial-tools.js server.js",
-        "test": "node tests/run-tests.js"
+        "lint": "node --check js/core.js js/security.js js/auth.js js/dashboard.js js/transactions.js js/bills.js js/goals.js js/investments.js js/settings.js js/sync.js js/notifications.js js/financial-tools.js server.js security-headers.js",
+        "test": "node tests/run-tests.js",
+        "test:csp": "node tests/csp.test.js"
     },
     "dependencies": {
         "archiver": "^8.0.0",
