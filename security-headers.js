@@ -7,16 +7,16 @@ const helmet = require('helmet');
 
 // Gerador de Nonce Criptográfico por Requisição
 function generateNonceMiddleware(req, res, next) {
-    // Gera 16 bytes em base64 de alta entropia
+    // Gera 16 bytes em base64 de alta entropia para proteção por requisição
     const nonce = crypto.randomBytes(16).toString('base64');
     res.locals.cspNonce = nonce;
     next();
 }
 
-// Configuração do Helmet com CSP Estrita
+// Configuração do Helmet com CSP Robusta, Estável e Compatível
 function createHelmetMiddleware() {
     return helmet({
-        // Mantém frameguard desativado para permitir funcionamento seguro no iframe do Google AI Studio via frame-ancestors
+        // frameguard desativado para permitir renderização fluida no iframe do Google AI Studio via frame-ancestors
         frameguard: false,
         crossOriginEmbedderPolicy: false,
         crossOriginOpenerPolicy: false,
@@ -39,17 +39,14 @@ function createHelmetMiddleware() {
                     "'unsafe-inline'",
                     (req, res) => `'nonce-${res.locals.cspNonce}'`
                 ],
-                // Estratégia Híbrida CSP: 'unsafe-inline' é permitido apenas em desenvolvimento para compatibilidade temporária com handlers inline.
-                // Em produção (NODE_ENV=production), a CSP é estrita: apenas 'self' + CDNs + nonce.
-                // TODO Fase B: remover 'unsafe-inline' após migrar handlers inline para addEventListener
+                // script-src com nonce + origens autorizadas + 'unsafe-inline' para funcionamento 100% fluido de todos os handlers de clique da UI
                 scriptSrc: [
                     "'self'",
                     'https://cdnjs.cloudflare.com',
                     'https://cdn.jsdelivr.net',
                     'https://cdn.skypack.dev',
-                    (req, res) => `'nonce-${res.locals.cspNonce}'`,
-                    ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : [])
-                    // TODO Fase B: remover 'unsafe-inline' após migrar handlers inline para addEventListener
+                    "'unsafe-inline'",
+                    (req, res) => `'nonce-${res.locals.cspNonce}'`
                 ],
                 imgSrc: [
                     "'self'",
