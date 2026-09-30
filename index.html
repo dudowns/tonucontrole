@@ -3749,6 +3749,20 @@
                 showToast('Toque no sensor biométrico ou use Face ID...', 'info');
                 const user = await window.TonuBiometrics.authenticate();
                 if (user) {
+                    // Salvar sessão para permitir acesso ao dashboard e páginas protegidas
+                    try {
+                        const offlinePayload = {
+                            user: user,
+                            timestamp: Date.now(),
+                            email: user.email
+                        };
+                        localStorage.setItem('tonu_offline_session', JSON.stringify(offlinePayload));
+                        sessionStorage.setItem('tonu_user', JSON.stringify(user));
+                        sessionStorage.removeItem('tonu_logout_in_progress');
+                    } catch (e) {
+                        console.warn('Erro ao salvar sessão local pós biometria:', e);
+                    }
+
                     showToast('✅ Autenticado com sucesso! Entrando...', 'success');
                     const targetUrl = getAppTargetUrl('dashboard.html');
                     setTimeout(() => {

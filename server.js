@@ -37,7 +37,7 @@ function createZipArchive(options = {}) {
 const app = express();
 
 // A porta 3000 é estritamente exigida pelo proxy reverso do Google AI Studio.
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const ROOT_DIR = __dirname;
 
 // ============================================
@@ -449,7 +449,24 @@ app.use((req, res) => {
     }
 });
 
-// Inicia servidor
-app.listen(PORT, '0.0.0.0', () => {
+// Inicia servidor principal
+const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🛡️ Servidor TonuControle Seguro rodando em http://0.0.0.0:${PORT}`);
 });
+
+// Se a porta configurada não for 3000, escuta também na porta 3000 para garantir compatibilidade com proxies locais
+if (PORT !== 3000) {
+    try {
+        const fallbackServer = app.listen(3000, '0.0.0.0', () => {
+            console.log(`🛡️ Servidor TonuControle espelhado na porta 3000`);
+        });
+        fallbackServer.on('error', (err) => {
+            if (err.code !== 'EADDRINUSE') {
+                console.warn('⚠️ Erro ao iniciar espelho na porta 3000:', err.message);
+            }
+        });
+    } catch (e) {
+        // Ignora se porta 3000 já estiver em uso
+    }
+}
+
