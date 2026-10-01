@@ -2488,7 +2488,6 @@ async function handleDivSubmit(e) {
         quantity: qty,
         unit_value: unitValue,
         total_value: totalValue,
-        amount: totalValue,
         net_value: netValue,
         date: date,
         date_com: dateCom || null,
@@ -2497,26 +2496,56 @@ async function handleDivSubmit(e) {
 
     try {
         if (editId) {
-            const { error } = await supabaseClient
+            let res = await supabaseClient
                 .from("dividends")
                 .update(payload)
                 .eq("id", editId)
                 .eq("user_id", currentUser.id);
-            if (error) throw error;
+
+            if (res.error && res.error.code === 'PGRST204') {
+                delete payload.net_value;
+                delete payload.date_com;
+                const retry = await supabaseClient
+                    .from("dividends")
+                    .update(payload)
+                    .eq("id", editId)
+                    .eq("user_id", currentUser.id);
+                if (retry.error) throw retry.error;
+            } else if (res.error) {
+                throw res.error;
+            }
             showToast("Provento atualizado!", "success");
         } else {
-            const { error } = await supabaseClient
+            let res = await supabaseClient
                 .from("dividends")
                 .insert([payload]);
-            if (error) throw error;
+
+            if (res.error && res.error.code === 'PGRST204') {
+                delete payload.net_value;
+                delete payload.date_com;
+                const retry = await supabaseClient
+                    .from("dividends")
+                    .insert([payload]);
+                if (retry.error) throw retry.error;
+            } else if (res.error) {
+                throw res.error;
+            }
             showToast("Provento salvo com sucesso!", "success");
         }
+
+        // Atualiza cache local offline
+        try {
+            const cacheKey = `tonu_dividends_${currentUser.id}`;
+            const existingCache = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+            const updatedCache = [payload, ...existingCache.filter(d => d.id !== editId)];
+            localStorage.setItem(cacheKey, JSON.stringify(updatedCache));
+        } catch (_) {}
 
         closeModalDividend();
         await loadAllInvestmentData();
     } catch (err) {
         console.error("Erro ao salvar provento:", err);
-        showToast("Erro ao salvar provento: " + err.message, "error");
+        showToast("Erro ao salvar provento: " + (err.message || err), "error");
     } finally {
         btn.disabled = false;
         btn.textContent = "Salvar Provento";

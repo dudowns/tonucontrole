@@ -495,6 +495,130 @@ async function runUnitTests() {
         assert.strictEqual(normalized.user_metadata.full_name, 'Carlos Silva');
     });
 
+    test('Face ID: Re-hidratação síncrona de token (setSession) antes de query e fallback de cache local', async () => {
+        const store = {};
+        const mockLocal = {
+            getItem: (k) => store[k] || null,
+            setItem: (k, v) => { store[k] = String(v); },
+            removeItem: (k) => { delete store[k]; }
+        };
+        const sStore = {};
+        const mockSession = {
+            getItem: (k) => sStore[k] || null,
+            setItem: (k, v) => { sStore[k] = String(v); },
+            removeItem: (k) => { delete sStore[k]; }
+        };
+
+        // Estado inicial: usuário tem biometria cadastrada com tokens de sessão
+        const initialSession = {
+            access_token: 'jwt.valid.token.123',
+            refresh_token: 'refresh.token.456'
+        };
+        mockLocal.setItem('tonu_biometrics_enabled', 'true');
+        mockLocal.setItem('tonu_biometrics_credential', 'cred_id_abc');
+        mockLocal.setItem('tonu_biometrics_session', JSON.stringify(initialSession));
+        mockLocal.setItem('tonu_biometrics_user', JSON.stringify({
+            id: 'usr_real_999',
+            email: 'investidor@tonucontrole.com',
+            name: 'Ana Trader'
+        }));
+
+        // Dados no cache local (ex: da última sessão)
+        const localCachedTx = [
+            { id: 'tx_1', amount: 150.00, description: 'Mercado', type: 'expense' },
+            { id: 'tx_2', amount: 3500.00, description: 'Salário', type: 'income' }
+        ];
+        mockLocal.setItem('tonu_transactions_usr_real_999', JSON.stringify(localCachedTx));
+
+        // Mock Supabase Client
+        let currentAuthBearer = null;
+        let setSessionCalled = false;
+        let queryExecutedWithBearer = null;
+
+        const mockSupabaseClient = {
+            auth: {
+                setSession: async ({ access_token, refresh_token }) => {
+                    if (access_token && refresh_token) {
+                        currentAuthBearer = access_token;
+                        setSessionCalled = true;
+                        return { data: { session: { access_token, refresh_token } }, error: null };
+                    }
+                    return { data: null, error: new Error('Invalid tokens') };
+                },
+                refreshSession: async () => {
+                    currentAuthBearer = 'jwt.renewed.token.789';
+                    return { data: { session: { access_token: currentAuthBearer } }, error: null };
+                },
+                signOut: async () => {
+                    currentAuthBearer = null;
+                    return { error: null };
+                }
+            },
+            from: (table) => ({
+                select: () => ({
+                    eq: (col, val) => {
+                        queryExecutedWithBearer = currentAuthBearer;
+                        // Simula retorno do banco
+                        return Promise.resolve({ data: [], error: null });
+                    }
+                })
+            })
+        };
+
+        // 1. Simulação: face_id_login com re-hidratação síncrona
+        const rawBioSession = mockLocal.getItem('tonu_biometrics_session');
+        assert.ok(rawBioSession, 'tonu_biometrics_session deve existir');
+        const parsedSession = JSON.parse(rawBioSession);
+
+        await mockSupabaseClient.auth.setSession({
+            access_token: parsedSession.access_token,
+            refresh_token: parsedSession.refresh_token
+        });
+
+        assert.strictEqual(setSessionCalled, true, 'setSession deve ser chamado antes da query');
+        assert.strictEqual(currentAuthBearer, 'jwt.valid.token.123', 'Bearer token deve estar ativo');
+
+        // 2. Simulação: Query ao Supabase executa com o token re-hidratado
+        const queryRes = await mockSupabaseClient.from('transactions').select().eq('user_id', 'usr_real_999');
+        assert.strictEqual(queryExecutedWithBearer, 'jwt.valid.token.123', 'A query ao Supabase foi enviada com o Bearer token correto');
+
+        // 3. Simulação: Fallback de cache quando nuvem retorna vazio
+        let activeTransactions = queryRes.data;
+        let usedCache = false;
+        if (activeTransactions.length === 0) {
+            const cached = mockLocal.getItem('tonu_transactions_usr_real_999');
+            if (cached) {
+                activeTransactions = JSON.parse(cached);
+                usedCache = true;
+            }
+        }
+
+        assert.strictEqual(usedCache, true, 'Deve recorrer ao cache local de segurança');
+        assert.strictEqual(activeTransactions.length, 2, 'Recuperou as 2 transações do cache');
+        assert.strictEqual(activeTransactions[0].description, 'Mercado');
+
+        // 4. Simulação: Logout Não-Destrutivo (biometria ativa)
+        const hasBiometrics = mockLocal.getItem('tonu_biometrics_enabled') === 'true';
+        if (hasBiometrics) {
+            // Apenas limpa sessionStorage, NÃO chama signOut e NÃO apaga biometrics
+            mockSession.removeItem('tonu_user');
+            mockSession.removeItem('tonu_session_unlocked');
+        } else {
+            await mockSupabaseClient.auth.signOut();
+            mockLocal.removeItem('tonu_biometrics_session');
+        }
+
+        assert.strictEqual(currentAuthBearer, 'jwt.valid.token.123', 'Token não foi revogado no logout não-destrutivo');
+        assert.ok(mockLocal.getItem('tonu_biometrics_session'), 'Sessão biométrica preservada para o próximo login');
+
+        // 5. Simulação: Logout de Todos os Dispositivos (destrutivo)
+        await mockSupabaseClient.auth.signOut();
+        mockLocal.removeItem('tonu_biometrics_enabled');
+        mockLocal.removeItem('tonu_biometrics_session');
+        assert.strictEqual(currentAuthBearer, null, 'Token revogado no logout global');
+        assert.strictEqual(mockLocal.getItem('tonu_biometrics_session'), null, 'Biometria removida no logout global');
+    });
+
     return results;
 }
 

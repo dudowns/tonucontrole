@@ -494,27 +494,75 @@
 
                 this.retryCount = 0;
 
-                // Tenta restaurar sessão do Supabase caso exista token guardado
-                try {
-                    const rawBioSession = localStorage.getItem('tonu_biometrics_session');
-                    if (rawBioSession && window.supabaseClient && window.supabaseClient.auth) {
-                        const bioSess = JSON.parse(rawBioSession);
-                        if (bioSess && bioSess.refresh_token) {
-                            window.supabaseClient.auth.setSession({
-                                access_token: bioSess.access_token,
-                                refresh_token: bioSess.refresh_token
-                            }).then(({ data }) => {
-                                if (data && data.session) {
-                                    localStorage.setItem('tonu_biometrics_session', JSON.stringify({
-                                        access_token: data.session.access_token,
-                                        refresh_token: data.session.refresh_token
-                                    }));
-                                }
-                            }).catch(err => console.warn('Aviso restauração Supabase pós-biometria:', err));
+                // ==================================================================
+                // CORREÇÃO 2 — RE-HIDRATAÇÃO SÍNCRONA DO TOKEN SUPABASE
+                // ==================================================================
+                let tokenActive = false;
+                const rawBioSession = localStorage.getItem('tonu_biometrics_session');
+
+                // 1. ANTES de retornar o usuário, ler 'tonu_biometrics_session' do localStorage
+                if (rawBioSession && window.supabaseClient && window.supabaseClient.auth) {
+                    try {
+                        const session = JSON.parse(rawBioSession);
+                        if (session && session.access_token && session.refresh_token) {
+                            console.log('🔄 Re-hidratando sessão Supabase sincronamente via setSession...');
+                            // 2. Executar await setSession({ access_token, refresh_token })
+                            const { data, error } = await window.supabaseClient.auth.setSession({
+                                access_token: session.access_token,
+                                refresh_token: session.refresh_token
+                            });
+
+                            if (!error && data && data.session) {
+                                tokenActive = true;
+                                console.log('✅ Token Bearer Supabase ativo e re-hidratado com sucesso!');
+                                localStorage.setItem('tonu_biometrics_session', JSON.stringify({
+                                    access_token: data.session.access_token,
+                                    refresh_token: data.session.refresh_token
+                                }));
+                            } else {
+                                console.warn('⚠️ setSession retornou erro, tentando refreshSession:', error?.message || error);
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('⚠️ Falha ao executar setSession pós-biometria:', err);
+                    }
+                }
+
+                // 3. Se o setSession falhou (token expirado), tentar refresh síncrono:
+                if (!tokenActive && window.supabaseClient && window.supabaseClient.auth) {
+                    try {
+                        console.log('🔄 Tentando renovar token via refreshSession()...');
+                        const { data: refreshData, error: refreshError } = await window.supabaseClient.auth.refreshSession();
+                        if (!refreshError && refreshData && refreshData.session) {
+                            tokenActive = true;
+                            console.log('✅ Sessão Supabase renovada com sucesso via refreshSession!');
+                            localStorage.setItem('tonu_biometrics_session', JSON.stringify({
+                                access_token: refreshData.session.access_token,
+                                refresh_token: refreshData.session.refresh_token
+                            }));
+                        } else {
+                            console.warn('⚠️ refreshSession também falhou:', refreshError?.message || refreshError);
+                        }
+                    } catch (rErr) {
+                        console.warn('⚠️ Erro ao tentar refreshSession:', rErr);
+                    }
+                }
+
+                // 4. Se tudo falhar e estiver online sem sessão ativa, marcar como inválida e pedir login por senha
+                if (!tokenActive && typeof navigator !== 'undefined' && navigator.onLine) {
+                    let hasActiveOnline = false;
+                    try {
+                        const curSess = (await window.supabaseClient.auth.getSession())?.data?.session;
+                        if (curSess && curSess.user) hasActiveOnline = true;
+                    } catch (_) {}
+
+                    if (!hasActiveOnline) {
+                        console.warn('❌ Sessão remota inválida ou expirada pós-biometria.');
+                        // Se não tem nem sessão offline salva, exige login por senha
+                        if (!localStorage.getItem('tonu_offline_session')) {
+                            throw new Error('Sua sessão de segurança expirou. Por favor, entre com email e senha para reativar o Face ID.');
                         }
                     }
-                } catch (e) {
-                    console.warn('Erro ao processar sessão Supabase pós-biometria:', e);
                 }
 
                 const userInfo = this.getSavedUserInfo();

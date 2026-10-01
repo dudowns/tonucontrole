@@ -210,6 +210,94 @@ async function loadMobileData() {
         allDividends = divRes?.data || [];
         allGoals = goalsRes?.data || [];
 
+        // ==================================================================
+        // CORREÇÃO 3 — FALLBACK DE CACHE LOCAL NO DASHBOARD MOBILE
+        // ==================================================================
+        const isRemoteEmpty = (allTransactions.length === 0 && allBills.length === 0 && allDividends.length === 0 && allGoals.length === 0);
+
+        if (isRemoteEmpty && currentUser && currentUser.id) {
+            console.log("ℹ️ Dados remotos vazios, consultando cache local de segurança...");
+            let cacheFound = false;
+
+            // 1. Tentar ler do localStorage:
+            try {
+                const cachedTx = localStorage.getItem('tonu_transactions_' + currentUser.id);
+                if (cachedTx) {
+                    const parsedTx = JSON.parse(cachedTx);
+                    if (Array.isArray(parsedTx) && parsedTx.length > 0) {
+                        allTransactions = parsedTx;
+                        cacheFound = true;
+                    }
+                }
+            } catch (_) {}
+
+            try {
+                const cachedBills = localStorage.getItem('tonu_bills_' + currentUser.id);
+                if (cachedBills) {
+                    const parsedBills = JSON.parse(cachedBills);
+                    if (Array.isArray(parsedBills) && parsedBills.length > 0) {
+                        allBills = parsedBills;
+                        cacheFound = true;
+                    }
+                }
+            } catch (_) {}
+
+            try {
+                const cachedGoals = localStorage.getItem('tonu_goals_' + currentUser.id);
+                if (cachedGoals) {
+                    const parsedGoals = JSON.parse(cachedGoals);
+                    if (Array.isArray(parsedGoals) && parsedGoals.length > 0) {
+                        allGoals = parsedGoals;
+                        cacheFound = true;
+                    }
+                }
+            } catch (_) {}
+
+            try {
+                const cachedDivs = localStorage.getItem('tonu_dividends_' + currentUser.id);
+                if (cachedDivs) {
+                    const parsedDivs = JSON.parse(cachedDivs);
+                    if (Array.isArray(parsedDivs) && parsedDivs.length > 0) {
+                        allDividends = parsedDivs;
+                        cacheFound = true;
+                    }
+                }
+            } catch (_) {}
+
+            // 2. Se o cache local tiver dados, usá-los e exibir banner sutil:
+            if (cacheFound) {
+                console.log("📶 Usando dados do cache local:", {
+                    transacoes: allTransactions.length,
+                    contas: allBills.length,
+                    proventos: allDividends.length,
+                    metas: allGoals.length
+                });
+                setMobileCacheBanner(true);
+            } else {
+                // 3. Se ambos vazios, sim mostra conta zerada
+                setMobileCacheBanner(false);
+            }
+        } else {
+            setMobileCacheBanner(false);
+            // Atualiza cache local para consultas offline futuras
+            if (currentUser && currentUser.id) {
+                try {
+                    if (allTransactions.length > 0) {
+                        localStorage.setItem('tonu_transactions_' + currentUser.id, JSON.stringify(allTransactions));
+                    }
+                    if (allBills.length > 0) {
+                        localStorage.setItem('tonu_bills_' + currentUser.id, JSON.stringify(allBills));
+                    }
+                    if (allGoals.length > 0) {
+                        localStorage.setItem('tonu_goals_' + currentUser.id, JSON.stringify(allGoals));
+                    }
+                    if (allDividends.length > 0) {
+                        localStorage.setItem('tonu_dividends_' + currentUser.id, JSON.stringify(allDividends));
+                    }
+                } catch (_) {}
+            }
+        }
+
         console.log("📊 Mobile: Dados unificados prontos:", {
             transacoes: allTransactions.length,
             contas: allBills.length,
@@ -225,6 +313,25 @@ async function loadMobileData() {
         renderTransactions();
     } catch (error) {
         console.error("❌ Erro ao carregar dados mobile:", error);
+    }
+}
+
+function setMobileCacheBanner(show) {
+    let banner = document.getElementById("mobileCacheSyncBanner");
+    if (!banner) {
+        banner = document.createElement("div");
+        banner.id = "mobileCacheSyncBanner";
+        banner.style.cssText = "display:none; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:10px; padding:8px 12px; margin:0 16px 12px 16px; font-size:12px; font-weight:600; text-align:center;";
+        const container = document.getElementById("summaryContainer") || document.getElementById("main-content");
+        if (container && container.parentNode) {
+            container.parentNode.insertBefore(banner, container);
+        }
+    }
+    if (show) {
+        banner.innerHTML = '<i class="fas fa-wifi" style="margin-right:6px;"></i> 📶 Exibindo dados em cache — sincronizando...';
+        banner.style.display = "block";
+    } else {
+        banner.style.display = "none";
     }
 }
 
@@ -271,7 +378,7 @@ function renderSummary() {
         const divMonth = (d.payment_date || d.date || '').substring(0, 7);
         return divMonth === currentMonthPrefix;
     });
-    const totalDividends = currentMonthDividends.reduce((acc, d) => acc + (Number(d.amount || d.total_amount) || 0), 0);
+    const totalDividends = currentMonthDividends.reduce((acc, d) => acc + (Number(d.total_value || d.net_value || d.amount || d.total_amount) || 0), 0);
 
     const mask = (val) => isBalanceHidden ? '••••••' : val;
 
@@ -652,7 +759,7 @@ function renderMobileInsights() {
 
     // Proventos
     const monthDivs = allDividends.filter(d => (d.payment_date || d.date || '').substring(0, 7) === currentMonthPrefix);
-    const totalDivs = monthDivs.reduce((a, d) => a + (Number(d.amount || d.total_amount || d.net_value) || 0), 0);
+    const totalDivs = monthDivs.reduce((a, d) => a + (Number(d.total_value || d.net_value || d.amount || d.total_amount) || 0), 0);
 
     // Badge Poupança
     let rateClass = "info";

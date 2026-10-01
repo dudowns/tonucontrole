@@ -834,7 +834,10 @@
                                     <p>Remove permanentemente todas as suas transações, contas e metas do banco de dados local e em nuvem.</p>
                                 </div>
                             </div>
-                            <div class="settings-actions" style="margin-top:8px;">
+                            <div class="settings-actions" style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+                                <button class="btn btn-outline" style="border-color:#ff7675; color:#d63031;" onclick="logoutAllDevices()" aria-label="Sair de todos os dispositivos">
+                                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair de Todos os Dispositivos
+                                </button>
                                 <button class="btn btn-danger" onclick="clearAllData()" aria-label="Limpar todos os dados">
                                     <i class="fas fa-trash-alt" aria-hidden="true"></i> Limpar Todos os Dados
                                 </button>

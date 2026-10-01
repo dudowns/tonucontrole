@@ -1085,12 +1085,61 @@ window.closeSidebar = function () {
 };
 
 window.logout = async function () {
-    if (window.supabaseOffline) {
-        await window.supabaseOffline.logout();
-    } else {
-        await supabaseClient.auth.signOut();
+    const hasBiometrics = (window.TonuBiometrics && typeof window.TonuBiometrics.isConfigured === 'function' && window.TonuBiometrics.isConfigured()) ||
+        (localStorage.getItem('tonu_biometrics_enabled') === 'true' && !!localStorage.getItem('tonu_biometrics_credential'));
+
+    if (hasBiometrics) {
+        console.log('🔐 Logout não-destrutivo em settings.js: mantendo biometria ativa.');
+        try {
+            sessionStorage.removeItem('tonu_user');
+            sessionStorage.removeItem('tonu_session_unlocked');
+            sessionStorage.removeItem('tonu_csrf_token');
+        } catch (_) {}
+        window.location.href = '../index.html';
+        return;
     }
+
+    if (window.supabaseOffline) {
+        try { await window.supabaseOffline.logout(); } catch (_) {}
+    } else if (window.supabaseClient && window.supabaseClient.auth) {
+        try { await supabaseClient.auth.signOut(); } catch (_) {}
+    }
+    try {
+        localStorage.removeItem('tonu_offline_session');
+        localStorage.removeItem('tonu_user');
+        sessionStorage.clear();
+    } catch (_) {}
     window.location.href = '../index.html';
+};
+
+window.logoutAllDevices = async function () {
+    const confirmed = confirm('Deseja realmente sair de todos os dispositivos? Isso cancelará a biometria cadastrada neste aparelho e exigirá login com email e senha.');
+    if (!confirmed) return;
+
+    try {
+        if (window.TonuBiometrics) {
+            try { window.TonuBiometrics.disableBiometrics(); } catch (_) {}
+        }
+        if (window.supabaseOffline) {
+            try { await window.supabaseOffline.logout(); } catch (_) {}
+        }
+        if (window.supabaseClient && window.supabaseClient.auth) {
+            try { await supabaseClient.auth.signOut({ scope: 'global' }); } catch (_) {
+                try { await supabaseClient.auth.signOut(); } catch (_) {}
+            }
+        }
+        localStorage.removeItem('tonu_biometrics_enabled');
+        localStorage.removeItem('tonu_biometrics_credential');
+        localStorage.removeItem('tonu_biometrics_user');
+        localStorage.removeItem('tonu_biometrics_session');
+        localStorage.removeItem('tonu_offline_session');
+        localStorage.removeItem('tonu_user');
+        sessionStorage.clear();
+        window.location.href = '../index.html';
+    } catch (e) {
+        console.error('Erro ao sair de todos os dispositivos:', e);
+        window.location.href = '../index.html';
+    }
 };
 
 window.editProfile = editProfile;

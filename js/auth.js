@@ -876,7 +876,7 @@ async function handleSocialLoginCallback() {
 }
 
 // ============================================
-// LOGOUT - COM PARADA DO REFRESH
+// LOGOUT - COM SUPORTE A BIOMETRIA E PARADA DO REFRESH
 // ============================================
 
 async function logout() {
@@ -892,6 +892,37 @@ async function logout() {
         console.log('🚪 Iniciando logout...');
         sessionStorage.setItem('tonu_logout_in_progress', 'true');
 
+        const redirectUrl = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/'))
+            ? '../../index.html'
+            : ((typeof window !== 'undefined' && window.location.pathname.includes('/pages/')) ? '../index.html' : 'index.html');
+
+        // 1. Verificar se o usuário tem biometria configurada (Face ID / Digital)
+        const hasBiometrics = (typeof window !== 'undefined' && window.TonuBiometrics && typeof window.TonuBiometrics.isConfigured === 'function' && window.TonuBiometrics.isConfigured()) ||
+            (typeof localStorage !== 'undefined' && localStorage.getItem('tonu_biometrics_enabled') === 'true' && !!localStorage.getItem('tonu_biometrics_credential'));
+
+        // 2. Se SIM (biometria ativa):
+        //    - NÃO chamar supabaseClient.auth.signOut() para preservar a capacidade de reautenticação
+        //    - Apenas limpar sessionStorage: 'tonu_user', 'tonu_session_unlocked', 'tonu_csrf_token'
+        //    - MANTER localStorage: 'tonu_offline_session', 'tonu_biometrics_session', 'tonu_biometrics_user_info'
+        //    - Redirecionar para o login
+        if (hasBiometrics) {
+            console.log('🔐 Logout não-destrutivo em auth.js: Biometria ativa, mantendo sessão segura.');
+            try {
+                sessionStorage.removeItem('tonu_user');
+                sessionStorage.removeItem('tonu_session_unlocked');
+                sessionStorage.removeItem('tonu_csrf_token');
+            } catch (e) {
+                console.warn('⚠️ Erro ao limpar sessionStorage:', e);
+            }
+
+            setTimeout(function () {
+                sessionStorage.removeItem('tonu_logout_in_progress');
+                window.location.href = redirectUrl;
+            }, 100);
+            return;
+        }
+
+        // 3. Se NÃO (usuário comum sem biometria):
         if (window.supabaseOffline) {
             try {
                 await window.supabaseOffline.logout();
@@ -924,14 +955,67 @@ async function logout() {
 
         setTimeout(function () {
             sessionStorage.removeItem('tonu_logout_in_progress');
-            window.location.href = '../index.html';
+            window.location.href = redirectUrl;
         }, 150);
 
     } catch (error) {
         console.error('❌ Erro ao fazer logout:', error);
         sessionStorage.removeItem('tonu_logout_in_progress');
-        window.location.href = '../index.html';
+        const fallbackUrl = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
+        window.location.href = fallbackUrl;
     }
+}
+
+async function logoutAllDevices() {
+    const confirmed = confirm('Deseja realmente sair de todos os dispositivos? Isso cancelará o acesso rápido por Face ID/Biometria neste aparelho e exigirá login com email e senha na próxima vez.');
+    if (!confirmed) return;
+
+    try {
+        stopAutoRefresh();
+        sessionStorage.setItem('tonu_logout_in_progress', 'true');
+        console.log('🚨 Logout global acionado em auth.js...');
+
+        if (typeof window !== 'undefined' && window.TonuBiometrics) {
+            try { window.TonuBiometrics.disableBiometrics(); } catch (_) {}
+        }
+
+        if (typeof window !== 'undefined' && window.supabaseOffline) {
+            try { await window.supabaseOffline.logout(); } catch (_) {}
+        }
+
+        if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.auth) {
+            try {
+                await window.supabaseClient.auth.signOut({ scope: 'global' });
+            } catch (_) {
+                try { await window.supabaseClient.auth.signOut(); } catch (_) {}
+            }
+        }
+
+        try {
+            localStorage.removeItem('tonu_biometrics_enabled');
+            localStorage.removeItem('tonu_biometrics_credential');
+            localStorage.removeItem('tonu_biometrics_user');
+            localStorage.removeItem('tonu_biometrics_session');
+            localStorage.removeItem('tonu_offline_session');
+            localStorage.removeItem('tonu_secure_session_v2');
+            localStorage.removeItem('tonu_user');
+            sessionStorage.clear();
+        } catch (_) {}
+
+        const redirectUrl = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
+        setTimeout(function () {
+            sessionStorage.removeItem('tonu_logout_in_progress');
+            window.location.href = redirectUrl;
+        }, 150);
+    } catch (err) {
+        console.error('❌ Erro no logoutAllDevices:', err);
+        window.location.href = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.logout = logout;
+    window.logoutAllDevices = logoutAllDevices;
 }
 
 // ============================================
