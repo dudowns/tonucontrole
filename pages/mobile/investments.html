@@ -407,6 +407,7 @@
             <div class="invest-hero-card">
                 <div class="hero-label"><i class="fas fa-hand-holding-usd"></i> Proventos Recebidos</div>
                 <div class="hero-value" id="cardProventosTotal" style="color: #8b5cf6;">R$ 0,00</div>
+                <div class="hero-sub" id="cardProventosTotalSub" style="font-size:10px; color:#0284c7; margin-top:2px; display:none;"></div>
             </div>
             <div class="invest-hero-card">
                 <div class="hero-label"><i class="fas fa-chart-line"></i> Rentabilidade</div>
@@ -506,22 +507,49 @@
     <div id="tabContentProventos" class="tab-content">
         <div class="invest-hero-grid">
             <div class="invest-hero-card">
-                <div class="hero-label"><i class="fas fa-receipt"></i> Total Histórico</div>
+                <div class="hero-label"><i class="fas fa-receipt"></i> Total Recebido</div>
                 <div class="hero-value" id="cardDivHistorico" style="color: #8b5cf6;">R$ 0,00</div>
+                <div class="hero-sub" id="cardDivHistoricoSub" style="font-size:10px; color:#94a3b8; margin-top:2px;">0 pagos</div>
             </div>
             <div class="invest-hero-card">
-                <div class="hero-label"><i class="fas fa-calendar-alt"></i> Este Mês</div>
+                <div class="hero-label"><i class="fas fa-calendar-alt"></i> Recebido Mês</div>
                 <div class="hero-value" id="cardDivMes" style="color: #10b981;">R$ 0,00</div>
+                <div class="hero-sub" id="cardDivMesSub" style="font-size:10px; color:#94a3b8; margin-top:2px;">este mês</div>
+            </div>
+            <div class="invest-hero-card full-width" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(56, 189, 248, 0.12)); border-color: rgba(14, 165, 233, 0.28);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div class="hero-label" style="color: #0284c7; margin-bottom:2px;"><i class="far fa-clock"></i> Proventos a Receber</div>
+                        <div class="hero-value" id="cardDivAReceber" style="color: #0284c7;">R$ 0,00</div>
+                        <div class="hero-sub" id="cardDivAReceberSub" style="font-size:10.5px; color:#0369a1; font-weight:500; margin-top:2px;">0 proventos previstos</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span class="op-badge" style="background:#0284c7; color:#fff; font-size:11px; font-weight:700; padding:4px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="far fa-calendar-check"></i> Previsto
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- GRÁFICO DE EVOLUÇÃO DE PROVENTOS (MOBILE) -->
         <div class="invest-charts-mobile-card" id="mobileDivChartCard" style="background:var(--color-surface, #fff); border-radius:14px; padding:12px; margin-bottom:12px; border:1px solid var(--color-border, #e2e8f0); box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <div style="font-size:12px; font-weight:700; color:var(--color-text, #1e293b); display:flex; align-items:center; gap:6px;">
                     <i class="fas fa-chart-bar" style="color:#10b981;"></i> Evolução Mensal de Proventos
                 </div>
-                <span id="mobileProvChartYearPill" style="font-size:10px; font-weight:600; padding:2px 8px; border-radius:12px; background:rgba(16,185,129,0.1); color:#10b981;">Últimos 12M</span>
+                <span id="mobileProvChartYearPill" style="font-size:10px; font-weight:600; padding:2px 8px; border-radius:12px; background:rgba(16,185,129,0.1); color:#10b981;">Histórico & Previsão</span>
+            </div>
+            <!-- Legenda idêntica ao desktop (Recebidos vs A receber) -->
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px; font-size:10.5px; color:var(--color-text-muted, #64748b);">
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#10b981;"></span>
+                    <span>Proventos recebidos</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#38bdf8;"></span>
+                    <span style="color:#0284c7; font-weight:600;">Proventos a receber</span>
+                </div>
             </div>
             <div style="height:150px; position:relative;">
                 <canvas id="mobileDividendsEvolutionChart"></canvas>
@@ -544,9 +572,22 @@
         </div>
 
         <div class="tab-action-bar">
-            <h2>Proventos Recebidos</h2>
+            <h2>Proventos da Carteira</h2>
             <button class="btn-add-primary" onclick="openAddDividendModal()">
                 <i class="fas fa-plus"></i> Novo Provento
+            </button>
+        </div>
+
+        <!-- FILTROS POR STATUS DE PROVENTOS (TODOS, RECEBIDOS, A RECEBER) -->
+        <div class="chip-filters" style="margin-bottom: 12px;">
+            <button class="chip-btn active" id="chipDivAll" onclick="filterDividendStatus('all', this)">
+                Todos (<span id="countDivAll">0</span>)
+            </button>
+            <button class="chip-btn" id="chipDivRecebidos" onclick="filterDividendStatus('recebidos', this)">
+                <i class="fas fa-check-circle" style="color:#10b981; font-size:10px;"></i> Recebidos (<span id="countDivRecebidos">0</span>)
+            </button>
+            <button class="chip-btn" id="chipDivAReceber" onclick="filterDividendStatus('a_receber', this)">
+                <i class="far fa-clock" style="color:#0284c7; font-size:10px;"></i> A Receber (<span id="countDivAReceber">0</span>)
             </button>
         </div>
 
@@ -744,8 +785,9 @@
                     <label>Data Pagamento *</label>
                     <div class="sheet-input-wrapper">
                         <i class="fas fa-calendar"></i>
-                        <input type="date" id="divDate" class="sheet-input" required>
+                        <input type="date" id="divDate" class="sheet-input" onchange="updateDivDateStatusHint()" oninput="updateDivDateStatusHint()" required>
                     </div>
+                    <div id="divDateStatusHint" style="font-size:10.5px; margin-top:4px; font-weight:600; display:none;"></div>
                 </div>
             </div>
 
@@ -1325,21 +1367,51 @@ function updateSummaryHero() {
         totalPatrimonio += (currentVal > 0 ? currentVal : (p.costBasis || 0));
     });
 
-    let totalDivsHistorico = 0;
-    let totalDivsMes = 0;
-    const currentMonthPrefix = new Date().toISOString().substring(0, 7);
+    let totalDivsRecebidos = 0;
+    let totalDivsMesRecebidos = 0;
+    let totalDivsAReceber = 0;
+    let totalDivsMesAReceber = 0;
+    let countRecebidos = 0;
+    let countAReceber = 0;
+
+    const now = new Date();
+    const todayISO = now.toISOString().substring(0, 10);
+    const currentMonthPrefix = todayISO.substring(0, 7);
 
     allRawDividends.forEach(d => {
         const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
-        totalDivsHistorico += val;
-        if ((d.date || d.payment_date || '').substring(0, 7) === currentMonthPrefix) {
-            totalDivsMes += val;
+        const dt = (d.payment_date || d.date || '').substring(0, 10);
+        const isPaid = dt && dt <= todayISO;
+        const isCurMonth = dt && dt.substring(0, 7) === currentMonthPrefix;
+
+        if (isPaid) {
+            totalDivsRecebidos += val;
+            countRecebidos++;
+            if (isCurMonth) {
+                totalDivsMesRecebidos += val;
+            }
+        } else {
+            totalDivsAReceber += val;
+            countAReceber++;
+            if (isCurMonth) {
+                totalDivsMesAReceber += val;
+            }
         }
     });
 
     document.getElementById("cardPatrimonioTotal").textContent = formatCurrency(totalPatrimonio);
     document.getElementById("cardTotalInvestido").textContent = formatCurrency(totalInvestido);
-    document.getElementById("cardProventosTotal").textContent = formatCurrency(totalDivsHistorico);
+    document.getElementById("cardProventosTotal").textContent = formatCurrency(totalDivsRecebidos);
+
+    const provTotalSub = document.getElementById("cardProventosTotalSub");
+    if (provTotalSub) {
+        if (totalDivsAReceber > 0) {
+            provTotalSub.textContent = `+ ${formatCurrency(totalDivsAReceber)} a receber`;
+            provTotalSub.style.display = "block";
+        } else {
+            provTotalSub.style.display = "none";
+        }
+    }
 
     // Rentabilidade e Ganho Total (Cálculo Oficial)
     const ganhoTotal = totalPatrimonio - totalInvestido;
@@ -1361,10 +1433,36 @@ function updateSummaryHero() {
         ganhoEl.style.color = Math.abs(ganhoTotal) < 0.001 ? 'var(--color-text, #0f172a)' : color;
     }
 
+    // Cards da aba Proventos
     const divHistEl = document.getElementById("cardDivHistorico");
-    if (divHistEl) divHistEl.textContent = formatCurrency(totalDivsHistorico);
+    if (divHistEl) divHistEl.textContent = formatCurrency(totalDivsRecebidos);
+    const divHistSub = document.getElementById("cardDivHistoricoSub");
+    if (divHistSub) divHistSub.textContent = `${countRecebidos} pago${countRecebidos !== 1 ? 's' : ''}`;
+
     const divMesEl = document.getElementById("cardDivMes");
-    if (divMesEl) divMesEl.textContent = formatCurrency(totalDivsMes);
+    if (divMesEl) divMesEl.textContent = formatCurrency(totalDivsMesRecebidos);
+    const divMesSub = document.getElementById("cardDivMesSub");
+    if (divMesSub) divMesSub.textContent = `recebido no mês`;
+
+    const divAReceberEl = document.getElementById("cardDivAReceber");
+    if (divAReceberEl) divAReceberEl.textContent = formatCurrency(totalDivsAReceber);
+    const divAReceberSub = document.getElementById("cardDivAReceberSub");
+    if (divAReceberSub) {
+        if (countAReceber > 0) {
+            const extra = totalDivsMesAReceber > 0 ? ` • ${formatCurrency(totalDivsMesAReceber)} este mês` : '';
+            divAReceberSub.textContent = `${countAReceber} provento${countAReceber !== 1 ? 's' : ''} previsto${countAReceber !== 1 ? 's' : ''}${extra}`;
+        } else {
+            divAReceberSub.textContent = `Nenhum provento futuro pendente`;
+        }
+    }
+
+    // Contadores dos chips de status de proventos
+    const countAllEl = document.getElementById("countDivAll");
+    if (countAllEl) countAllEl.textContent = allRawDividends.length;
+    const countRecEl = document.getElementById("countDivRecebidos");
+    if (countRecEl) countRecEl.textContent = countRecebidos;
+    const countARecEl = document.getElementById("countDivAReceber");
+    if (countARecEl) countARecEl.textContent = countAReceber;
 }
 
 // ============================================
@@ -1842,6 +1940,10 @@ function renderMobileDividendsEvolutionChart() {
     if (card) card.style.display = "block";
 
     const now = new Date();
+    const todayISO = now.toISOString().substring(0, 10);
+    const curYearMonth = todayISO.substring(0, 7);
+
+    // Constrói os meses base: 11 meses atrás até o mês atual
     const monthKeys = [];
     const monthLabels = [];
     for (let i = 11; i >= 0; i--) {
@@ -1852,13 +1954,40 @@ function renderMobileDividendsEvolutionChart() {
         monthLabels.push(d.toLocaleDateString('pt-BR', { month: 'short' }));
     }
 
-    const monthlyTotals = new Array(12).fill(0);
+    // Se houver proventos agendados para meses futuros, inclui os meses futuros no gráfico
+    const futureMonthsSet = new Set();
     allRawDividends.forEach(d => {
-        const dt = d.payment_date || d.date || '';
-        const ym = dt.substring(0, 7);
+        const dt = (d.payment_date || d.date || '').substring(0, 7);
+        if (dt && dt > curYearMonth && !monthKeys.includes(dt)) {
+            futureMonthsSet.add(dt);
+        }
+    });
+
+    const sortedFuture = Array.from(futureMonthsSet).sort();
+    sortedFuture.forEach(ym => {
+        const parts = ym.split('-');
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = new Date(y, m, 1);
+        monthKeys.push(ym);
+        const lbl = d.toLocaleDateString('pt-BR', { month: 'short' });
+        monthLabels.push(`${lbl}*`);
+    });
+
+    const dataRecebidos = new Array(monthKeys.length).fill(0);
+    const dataAReceber = new Array(monthKeys.length).fill(0);
+
+    allRawDividends.forEach(d => {
+        const rawDate = (d.payment_date || d.date || '').substring(0, 10);
+        const ym = rawDate.substring(0, 7);
         const idx = monthKeys.indexOf(ym);
         if (idx !== -1) {
-            monthlyTotals[idx] += parseFloat(d.total_value || d.amount || d.net_value) || 0;
+            const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
+            if (rawDate <= todayISO) {
+                dataRecebidos[idx] += val;
+            } else {
+                dataAReceber[idx] += val;
+            }
         }
     });
 
@@ -1874,38 +2003,65 @@ function renderMobileDividendsEvolutionChart() {
         type: 'bar',
         data: {
             labels: monthLabels,
-            datasets: [{
-                label: 'Proventos',
-                data: monthlyTotals,
-                backgroundColor: 'rgba(16, 185, 129, 0.8)',
-                borderRadius: 4,
-                borderSkipped: false
-            }]
+            datasets: [
+                {
+                    label: 'Proventos recebidos',
+                    data: dataRecebidos.map(v => Math.round(v * 100) / 100),
+                    backgroundColor: '#10b981',
+                    hoverBackgroundColor: '#059669',
+                    stack: 'provStack',
+                    borderRadius: 4,
+                    borderSkipped: false
+                },
+                {
+                    label: 'Proventos a receber',
+                    data: dataAReceber.map(v => Math.round(v * 100) / 100),
+                    backgroundColor: '#38bdf8',
+                    hoverBackgroundColor: '#0284c7',
+                    stack: 'provStack',
+                    borderRadius: 4,
+                    borderSkipped: false
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return ' ' + formatCurrency(context.raw || 0);
+                            const val = context.parsed.y || 0;
+                            if (val <= 0) return null;
+                            return ` ${context.dataset.label}: ${formatCurrency(val)}`;
+                        },
+                        footer: function(items) {
+                            const total = items.reduce((acc, it) => acc + (it.parsed.y || 0), 0);
+                            return `Total: ${formatCurrency(total)}`;
                         }
                     }
                 }
             },
             scales: {
                 x: {
+                    stacked: true,
                     grid: { display: false },
                     ticks: { font: { size: 9 }, color: textColor }
                 },
                 y: {
+                    stacked: true,
+                    beginAtZero: true,
                     grid: { color: gridColor },
                     ticks: {
                         font: { size: 9 },
                         color: textColor,
                         callback: function(v) {
+                            if (v >= 1000) return 'R$ ' + (v / 1000).toFixed(0) + 'k';
                             return 'R$ ' + v;
                         }
                     }
@@ -1930,8 +2086,12 @@ function renderMobileProventosMatrix() {
     if (card) card.style.display = "block";
 
     const matrix = {};
+    const matrixAReceber = {};
+    const now = new Date();
+    const todayISO = now.toISOString().substring(0, 10);
+
     allRawDividends.forEach(d => {
-        const dt = d.payment_date || d.date || '';
+        const dt = (d.payment_date || d.date || '').substring(0, 10);
         if (dt.length < 7) return;
         const year = parseInt(dt.substring(0, 4), 10);
         const month = parseInt(dt.substring(5, 7), 10) - 1;
@@ -1939,9 +2099,13 @@ function renderMobileProventosMatrix() {
 
         if (!matrix[year]) {
             matrix[year] = new Array(12).fill(0);
+            matrixAReceber[year] = new Array(12).fill(0);
         }
         const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
         matrix[year][month] += val;
+        if (dt > todayISO) {
+            matrixAReceber[year][month] += val;
+        }
     });
 
     const years = Object.keys(matrix).map(Number).sort((a, b) => b - a);
@@ -1951,7 +2115,6 @@ function renderMobileProventosMatrix() {
     }
 
     const monthHeaders = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const now = new Date();
     const curYear = now.getFullYear();
     const curMonth = now.getMonth();
 
@@ -1969,6 +2132,7 @@ function renderMobileProventosMatrix() {
 
     years.forEach(year => {
         const months = matrix[year];
+        const aReceberMonths = matrixAReceber[year] || [];
         const total = months.reduce((acc, v) => acc + v, 0);
         let divisor = 12;
         if (year === curYear) {
@@ -1979,11 +2143,20 @@ function renderMobileProventosMatrix() {
         html += `
             <tr style="border-bottom:1px solid var(--color-border, #f1f5f9);">
                 <td style="padding:6px 8px; text-align:left; font-weight:700; color:var(--color-text, #1e293b);">${year}</td>
-                ${months.map(v => `
-                    <td style="padding:6px 6px; font-size:10px; ${v > 0 ? 'color:#10b981; font-weight:600;' : 'color:#cbd5e1;'}">
-                        ${v > 0 ? formatCurrency(v).replace('R$', '').trim() : '-'}
-                    </td>
-                `).join('')}
+                ${months.map((v, mIdx) => {
+                    if (v <= 0) {
+                        return `<td style="padding:6px 6px; font-size:10px; color:#cbd5e1;">-</td>`;
+                    }
+                    const isAReceber = (aReceberMonths[mIdx] && aReceberMonths[mIdx] > 0);
+                    const colorStyle = isAReceber ? 'color:#0284c7; font-weight:700;' : 'color:#10b981; font-weight:600;';
+                    const titleText = isAReceber ? `Provento a receber: ${formatCurrency(v)}` : `Provento recebido: ${formatCurrency(v)}`;
+                    const tag = isAReceber ? '<span style="font-size:8.5px; vertical-align:top; color:#0284c7;">*</span>' : '';
+                    return `
+                        <td style="padding:6px 6px; font-size:10px; ${colorStyle}" title="${titleText}">
+                            ${formatCurrency(v).replace('R$', '').trim()}${tag}
+                        </td>
+                    `;
+                }).join('')}
                 <td style="padding:6px 8px; font-weight:600; color:#0984E3; font-size:10px;">${formatCurrency(media)}</td>
                 <td style="padding:6px 8px; font-weight:700; color:#8B5CF6; font-size:10.5px; background:rgba(139,92,246,0.05);">${formatCurrency(total)}</td>
             </tr>
@@ -2128,8 +2301,23 @@ function renderOperations() {
 }
 
 // ============================================
-// RENDERIZAR PROVENTOS
+// FILTRAGEM E RENDERIZAÇÃO DE PROVENTOS (RECEBIDOS & A RECEBER)
 // ============================================
+let currentDividendStatusFilter = 'all'; // 'all' | 'recebidos' | 'a_receber'
+
+function filterDividendStatus(status, btn) {
+    currentDividendStatusFilter = status;
+    document.querySelectorAll("#tabContentProventos .chip-btn").forEach(b => b.classList.remove("active"));
+    if (btn) {
+        btn.classList.add("active");
+    } else {
+        const idMap = { all: 'chipDivAll', recebidos: 'chipDivRecebidos', a_receber: 'chipDivAReceber' };
+        if (idMap[status]) document.getElementById(idMap[status])?.classList.add("active");
+    }
+    renderDividends();
+}
+window.filterDividendStatus = filterDividendStatus;
+
 function renderDividends() {
     const container = document.getElementById("dividendsListContainer");
     if (!container) return;
@@ -2138,11 +2326,33 @@ function renderDividends() {
     renderMobileDividendsEvolutionChart();
     renderMobileProventosMatrix();
 
-    if (allRawDividends.length === 0) {
+    const todayISO = new Date().toISOString().substring(0, 10);
+
+    let list = allRawDividends || [];
+    if (currentDividendStatusFilter === 'recebidos') {
+        list = list.filter(d => {
+            const dt = (d.payment_date || d.date || '').substring(0, 10);
+            return dt <= todayISO;
+        });
+    } else if (currentDividendStatusFilter === 'a_receber') {
+        list = list.filter(d => {
+            const dt = (d.payment_date || d.date || '').substring(0, 10);
+            return dt > todayISO;
+        });
+    }
+
+    if (list.length === 0) {
+        let msg = "Nenhum provento registrado ainda.";
+        if (currentDividendStatusFilter === 'a_receber') {
+            msg = "Nenhum provento a receber pendente.";
+        } else if (currentDividendStatusFilter === 'recebidos') {
+            msg = "Nenhum provento recebido ainda.";
+        }
+
         container.innerHTML = `
             <div style="text-align:center; padding:30px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
-                <i class="fas fa-hand-holding-usd" style="font-size:32px; color:#a29bfe; margin-bottom:10px; display:block;"></i>
-                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">Nenhum provento registrado ainda.</p>
+                <i class="fas ${currentDividendStatusFilter === 'a_receber' ? 'fa-clock' : 'fa-hand-holding-usd'}" style="font-size:32px; color:${currentDividendStatusFilter === 'a_receber' ? '#0284c7' : '#a29bfe'}; margin-bottom:10px; display:block;"></i>
+                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">${msg}</p>
                 <button class="btn-add-primary" style="margin:0 auto;" onclick="openAddDividendModal()">
                     <i class="fas fa-plus"></i> Novo Provento
                 </button>
@@ -2151,21 +2361,40 @@ function renderDividends() {
         return;
     }
 
-    container.innerHTML = allRawDividends.map(d => {
+    container.innerHTML = list.map(d => {
         const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
+        const rawDate = (d.payment_date || d.date || '').substring(0, 10);
+        const isPaid = rawDate && rawDate <= todayISO;
+
+        const statusBadge = isPaid
+            ? `<span class="op-badge" style="background:rgba(16, 185, 129, 0.12); color:#10b981; border:1px solid rgba(16, 185, 129, 0.25); font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; margin-left:6px;"><i class="fas fa-check-circle" style="font-size:9px;"></i> Pago</span>`
+            : `<span class="op-badge" style="background:rgba(14, 165, 233, 0.12); color:#0284c7; border:1px solid rgba(14, 165, 233, 0.3); font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; margin-left:6px;"><i class="far fa-clock" style="font-size:9px;"></i> A Receber</span>`;
+
+        const dateComInfo = d.date_com ? `<span style="font-size:11px; color:#64748b; margin-left:6px;">• Com: ${formatDate(d.date_com.substring(0, 10))}</span>` : '';
+
+        const dateLine = isPaid
+            ? `<span style="color:#64748b;"><i class="fas fa-calendar-check" style="color:#10b981; margin-right:3px;"></i> Pago em: <strong>${formatDate(rawDate)}</strong>${dateComInfo}</span>`
+            : `<span style="color:#0284c7; font-weight:600;"><i class="far fa-clock" style="color:#0284c7; margin-right:3px;"></i> A receber em: <strong>${formatDate(rawDate)}</strong>${dateComInfo}</span>`;
+
+        const borderAccent = !isPaid ? 'border-left: 3px solid #0284c7;' : '';
+        const valueColor = isPaid ? '#8b5cf6' : '#0284c7';
+
         return `
-            <div class="op-card">
+            <div class="op-card" style="${borderAccent}">
                 <div class="op-card-top">
-                    <div>
+                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
                         <strong style="font-size:14px; color:var(--color-text,#0f172a);">${d.ticker}</strong>
-                        <span class="op-badge div" style="margin-left:6px;">${d.type || 'Dividendo'}</span>
+                        <span class="op-badge div">${d.type || 'Dividendo'}</span>
+                        ${statusBadge}
                     </div>
-                    <strong style="font-size:13px; color:#8b5cf6;">
+                    <strong style="font-size:13px; color:${valueColor};">
                         + ${formatCurrency(val)}
                     </strong>
                 </div>
                 <div class="op-card-bottom">
-                    <span>${d.quantity ? d.quantity + ' un. • ' : ''}Pago em: ${formatDate(d.date || d.payment_date)}</span>
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <span style="font-size:11.5px;">${d.quantity ? d.quantity + ' un. • ' : ''}${dateLine}</span>
+                    </div>
                     <div class="op-actions">
                         <button class="op-btn" onclick="editDividend('${d.id}')" title="Editar"><i class="fas fa-pen"></i></button>
                         <button class="op-btn del" onclick="deleteDividend('${d.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
@@ -2398,6 +2627,27 @@ async function deleteOperation(id) {
 // ============================================
 // MODAL & HANDLER: PROVENTO
 // ============================================
+function updateDivDateStatusHint() {
+    const dateInput = document.getElementById("divDate");
+    const hintEl = document.getElementById("divDateStatusHint");
+    if (!dateInput || !hintEl) return;
+
+    const val = dateInput.value;
+    if (!val) {
+        hintEl.style.display = 'none';
+        return;
+    }
+
+    const todayISO = new Date().toISOString().substring(0, 10);
+    hintEl.style.display = 'block';
+    if (val > todayISO) {
+        hintEl.innerHTML = `<span style="color:#0284c7;"><i class="far fa-clock"></i> <strong>A Receber:</strong> provento futuro agendado para ${formatDate(val)}</span>`;
+    } else {
+        hintEl.innerHTML = `<span style="color:#10b981;"><i class="fas fa-check-circle"></i> <strong>Pago:</strong> provento já creditado em ${formatDate(val)}</span>`;
+    }
+}
+window.updateDivDateStatusHint = updateDivDateStatusHint;
+
 function openAddDividendModal() {
     document.getElementById("divModalTitle").textContent = "Registrar Provento";
     document.getElementById("divEditId").value = "";
@@ -2409,6 +2659,7 @@ function openAddDividendModal() {
     document.getElementById("divDateCom").value = "";
     document.getElementById("divDate").value = new Date().toISOString().split("T")[0];
     document.getElementById("divNote").value = "";
+    updateDivDateStatusHint();
     document.getElementById("modalDividend").classList.add("active");
 }
 
@@ -2432,6 +2683,7 @@ function editDividend(id) {
     document.getElementById("divDateCom").value = div.date_com ? div.date_com.split("T")[0] : "";
     document.getElementById("divDate").value = (div.date || div.payment_date || "").split("T")[0];
     document.getElementById("divNote").value = div.note || "";
+    updateDivDateStatusHint();
     document.getElementById("modalDividend").classList.add("active");
 }
 

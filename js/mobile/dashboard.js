@@ -373,12 +373,28 @@ function renderSummary() {
     });
     const pendingBillsAmount = pendingBills.reduce((acc, b) => acc + (Number(b.amount) || 0), 0);
 
-    // Proventos do mês
-    const currentMonthDividends = allDividends.filter(d => {
-        const divMonth = (d.payment_date || d.date || '').substring(0, 7);
-        return divMonth === currentMonthPrefix;
+    // Proventos do mês (Recebidos vs A Receber)
+    const todayISO = new Date().toISOString().substring(0, 10);
+    let monthPaidDivs = 0;
+    let monthPendingDivs = 0;
+    let totalFutureDivs = 0;
+
+    allDividends.forEach(d => {
+        const val = Number(d.total_value || d.net_value || d.amount || d.total_amount) || 0;
+        const dt = (d.payment_date || d.date || '').substring(0, 10);
+        const isCurMonth = dt && dt.substring(0, 7) === currentMonthPrefix;
+
+        if (dt > todayISO) {
+            totalFutureDivs += val;
+            if (isCurMonth) {
+                monthPendingDivs += val;
+            }
+        } else if (isCurMonth) {
+            monthPaidDivs += val;
+        }
     });
-    const totalDividends = currentMonthDividends.reduce((acc, d) => acc + (Number(d.total_value || d.net_value || d.amount || d.total_amount) || 0), 0);
+
+    const displayMonthDivs = monthPaidDivs > 0 ? monthPaidDivs : (monthPaidDivs + monthPendingDivs);
 
     const mask = (val) => isBalanceHidden ? '••••••' : val;
 
@@ -426,8 +442,17 @@ function renderSummary() {
                 <div class="card-info">
                     <div class="card-label">Proventos Mês</div>
                     <div class="card-value" style="color: #8b5cf6;">
-                        ${mask(formatCurrency(totalDividends))}
+                        ${mask(formatCurrency(displayMonthDivs))}
                     </div>
+                    ${monthPendingDivs > 0 ? `
+                        <div style="font-size:9.5px; color:#0284c7; font-weight:600; margin-top:2px;">
+                            <i class="far fa-clock"></i> A receber: ${mask(formatCurrency(monthPendingDivs))}
+                        </div>
+                    ` : (totalFutureDivs > 0 ? `
+                        <div style="font-size:9.5px; color:#0284c7; font-weight:600; margin-top:2px;">
+                            <i class="far fa-clock"></i> Previsto: ${mask(formatCurrency(totalFutureDivs))}
+                        </div>
+                    ` : '')}
                 </div>
             </div>
         </div>

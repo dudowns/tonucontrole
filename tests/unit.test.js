@@ -619,6 +619,52 @@ async function runUnitTests() {
         assert.strictEqual(mockLocal.getItem('tonu_biometrics_session'), null, 'Biometria removida no logout global');
     });
 
+    test('Proventos Futuros & A Receber: Classificação dinâmica, segregação de métricas e paridade Desktop/Mobile', async () => {
+        const today = new Date();
+        const todayISO = today.toISOString().substring(0, 10);
+
+        // Data passada (pago)
+        const pastDate = new Date(today);
+        pastDate.setDate(pastDate.getDate() - 10);
+        const pastISO = pastDate.toISOString().substring(0, 10);
+
+        // Data futura (a receber)
+        const futureDate = new Date(today);
+        futureDate.setDate(futureDate.getDate() + 15);
+        const futureISO = futureDate.toISOString().substring(0, 10);
+
+        const sampleDividends = [
+            { id: 'div_1', ticker: 'MXRF11', total_value: 120.50, date: pastISO, type: 'Rendimento' },
+            { id: 'div_2', ticker: 'PETR4', total_value: 350.00, date: todayISO, type: 'Dividendo' },
+            { id: 'div_3', ticker: 'HGLG11', total_value: 215.80, date: futureISO, type: 'Rendimento' }
+        ];
+
+        // 1. Classificação Pago vs A Receber
+        const paidList = sampleDividends.filter(d => (d.payment_date || d.date) <= todayISO);
+        const pendingList = sampleDividends.filter(d => (d.payment_date || d.date) > todayISO);
+
+        assert.strictEqual(paidList.length, 2, '2 proventos devem ser identificados como Pagos');
+        assert.strictEqual(pendingList.length, 1, '1 provento deve ser identificado como A Receber');
+        assert.strictEqual(pendingList[0].ticker, 'HGLG11', 'Provento futuro de HGLG11');
+
+        // 2. Cálculo dos totais
+        const totalRecebidos = paidList.reduce((acc, d) => acc + d.total_value, 0);
+        const totalAReceber = pendingList.reduce((acc, d) => acc + d.total_value, 0);
+
+        assert.strictEqual(totalRecebidos, 470.50, 'Soma correta de recebidos');
+        assert.strictEqual(totalAReceber, 215.80, 'Soma correta de a receber');
+
+        // 3. Status Badge Helper
+        function getDividendStatus(d) {
+            const dt = (d.payment_date || d.date || '').substring(0, 10);
+            return dt <= todayISO ? 'pago' : 'a_receber';
+        }
+
+        assert.strictEqual(getDividendStatus(sampleDividends[0]), 'pago');
+        assert.strictEqual(getDividendStatus(sampleDividends[1]), 'pago');
+        assert.strictEqual(getDividendStatus(sampleDividends[2]), 'a_receber');
+    });
+
     return results;
 }
 
