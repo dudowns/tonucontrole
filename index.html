@@ -3250,10 +3250,26 @@
 
             if (!authenticatedUser) {
                 try {
+                    const sessionUser = sessionStorage.getItem('tonu_user');
+                    if (sessionUser) {
+                        const parsed = JSON.parse(sessionUser);
+                        const candidate = parsed.user || parsed;
+                        if (candidate && (candidate.id || candidate.email)) {
+                            authenticatedUser = candidate;
+                        }
+                    }
+                } catch (e) { }
+            }
+
+            if (!authenticatedUser) {
+                try {
                     const offline = localStorage.getItem('tonu_offline_session');
                     if (offline) {
                         const parsed = JSON.parse(offline);
-                        if (parsed && parsed.id) authenticatedUser = parsed;
+                        const candidate = parsed.user || parsed;
+                        if (candidate && (candidate.id || candidate.email)) {
+                            authenticatedUser = candidate;
+                        }
                     }
                 } catch (e) { }
             }
@@ -3759,6 +3775,10 @@
                         localStorage.setItem('tonu_offline_session', JSON.stringify(offlinePayload));
                         sessionStorage.setItem('tonu_user', JSON.stringify(user));
                         sessionStorage.removeItem('tonu_logout_in_progress');
+
+                        if (window.supabaseOffline) {
+                            window.supabaseOffline.saveOfflineSession(user);
+                        }
                     } catch (e) {
                         console.warn('Erro ao salvar sessão local pós biometria:', e);
                     }
@@ -3767,7 +3787,7 @@
                     const targetUrl = getAppTargetUrl('dashboard.html');
                     setTimeout(() => {
                         window.location.href = targetUrl;
-                    }, 500);
+                    }, 400);
                 }
             } catch (err) {
                 if (err.message === 'IFRAME_RESTRICTION') {

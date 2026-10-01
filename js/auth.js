@@ -730,13 +730,35 @@ async function checkAuth() {
 
         let user = null;
 
-        if (window.supabaseOffline) {
+        if (window.getAuthenticatedUser) {
+            user = await window.getAuthenticatedUser();
+        } else if (window.supabaseOffline) {
             user = await window.supabaseOffline.isAuthenticated();
         }
 
-        if (!user && window.supabaseClient) {
-            const { data: { user: authUser } } = await window.supabaseClient.auth.getUser();
-            user = authUser;
+        if (!user && window.supabaseClient && window.supabaseClient.auth) {
+            try {
+                const { data: sessData } = await window.supabaseClient.auth.getSession();
+                user = sessData?.session?.user;
+                if (!user) {
+                    const { data: { user: authUser } } = await window.supabaseClient.auth.getUser();
+                    user = authUser;
+                }
+            } catch (_) {}
+        }
+
+        if (!user) {
+            try {
+                const s = sessionStorage.getItem('tonu_user');
+                if (s) { const p = JSON.parse(s); user = p.user || p; }
+            } catch (_) {}
+        }
+
+        if (!user) {
+            try {
+                const off = localStorage.getItem('tonu_offline_session');
+                if (off) { const p = JSON.parse(off); user = p.user || p; }
+            } catch (_) {}
         }
 
         const path = window.location.pathname;
@@ -749,7 +771,10 @@ async function checkAuth() {
         if (user && (path.includes('index.html') || path === '/' || path.endsWith('/'))) {
             console.log('🔀 Redirecionando para dashboard');
             sessionStorage.removeItem('tonu_logout_in_progress');
-            window.location.href = baseUrl + '/pages/dashboard.html';
+            const targetUrl = (typeof getAppTargetUrl === 'function') 
+                ? getAppTargetUrl('dashboard.html') 
+                : (baseUrl + '/pages/dashboard.html');
+            window.location.href = targetUrl;
             return user;
         }
 

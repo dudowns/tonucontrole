@@ -49,13 +49,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         let user = null;
-        if (window.supabaseOffline) {
+        if (window.getAuthenticatedUser) user = await window.getAuthenticatedUser();
+        if (!user && window.supabaseOffline) {
             user = await window.supabaseOffline.isAuthenticated();
         }
 
+        if (!user && supabaseClient && supabaseClient.auth) {
+            try {
+                const { data: sessData } = await supabaseClient.auth.getSession();
+                user = sessData?.session?.user;
+                if (!user) {
+                    const { data: { user: authUser } } = await supabaseClient.auth.getUser();
+                    user = authUser;
+                }
+            } catch (_) {}
+        }
+
         if (!user) {
-            const { data: { user: authUser } } = await supabaseClient.auth.getUser();
-            user = authUser;
+            try {
+                const s = sessionStorage.getItem('tonu_user');
+                if (s) { const p = JSON.parse(s); user = p.user || p; }
+            } catch (_) {}
+        }
+
+        if (!user) {
+            try {
+                const off = localStorage.getItem('tonu_offline_session');
+                if (off) { const p = JSON.parse(off); user = p.user || p; }
+            } catch (_) {}
         }
 
         if (!user) {

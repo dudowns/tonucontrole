@@ -826,17 +826,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         let user = null;
-        if (window.supabaseOffline) {
+        if (window.getAuthenticatedUser) {
+            user = await window.getAuthenticatedUser();
+        } else if (window.supabaseOffline) {
             user = await window.supabaseOffline.isAuthenticated();
         }
         if (!user && supabaseClient && supabaseClient.auth) {
-            const { data: { user: authUser } } = await supabaseClient.auth.getUser();
-            user = authUser;
+            try {
+                const { data: sessData } = await supabaseClient.auth.getSession();
+                user = sessData?.session?.user;
+                if (!user) {
+                    const { data: userData } = await supabaseClient.auth.getUser();
+                    user = userData?.user;
+                }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const s = sessionStorage.getItem('tonu_user');
+                if (s) { const p = JSON.parse(s); user = p.user || p; }
+            } catch (_) {}
         }
         if (!user) {
             const offlineUser = localStorage.getItem('tonu_offline_session');
             if (offlineUser) {
-                try { user = JSON.parse(offlineUser); } catch (_) {}
+                try {
+                    const parsed = JSON.parse(offlineUser);
+                    user = parsed.user || parsed;
+                } catch (_) {}
             }
         }
         if (!user) {
@@ -849,7 +866,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('❌ Erro na autenticacao:', e);
         const offlineUser = localStorage.getItem('tonu_offline_session');
         if (offlineUser) {
-            try { currentUser = JSON.parse(offlineUser); } catch (_) {}
+            try {
+                const parsed = JSON.parse(offlineUser);
+                currentUser = parsed.user || parsed;
+            } catch (_) {}
         }
         if (!currentUser) {
             window.location.href = '../index.html';

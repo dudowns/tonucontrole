@@ -424,11 +424,26 @@
 
                 localStorage.setItem(BIOMETRICS_CREDENTIAL_KEY, credentialIdBase64);
                 localStorage.setItem(BIOMETRICS_ENABLED_KEY, 'true');
+                const fullName = user.user_metadata?.full_name || user.name || (user.email ? user.email.split('@')[0] : 'Usuário');
                 localStorage.setItem(BIOMETRICS_USER_INFO_KEY, JSON.stringify({
                     id: user.id,
                     email: user.email,
-                    name: user.user_metadata?.full_name || user.email.split('@')[0]
+                    name: fullName,
+                    user_metadata: user.user_metadata || { full_name: fullName }
                 }));
+
+                // Se houver sessão remota ativa do Supabase, armazena com segurança para restaurar no login biométrico
+                try {
+                    if (window.supabaseClient && window.supabaseClient.auth) {
+                        const { data } = await window.supabaseClient.auth.getSession();
+                        if (data && data.session) {
+                            localStorage.setItem('tonu_biometrics_session', JSON.stringify({
+                                access_token: data.session.access_token,
+                                refresh_token: data.session.refresh_token
+                            }));
+                        }
+                    }
+                } catch (_) {}
 
                 this.retryCount = 0;
                 return true;
@@ -478,7 +493,37 @@
                 }
 
                 this.retryCount = 0;
-                return this.getSavedUserInfo();
+
+                // Tenta restaurar sessão do Supabase caso exista token guardado
+                try {
+                    const rawBioSession = localStorage.getItem('tonu_biometrics_session');
+                    if (rawBioSession && window.supabaseClient && window.supabaseClient.auth) {
+                        const bioSess = JSON.parse(rawBioSession);
+                        if (bioSess && bioSess.refresh_token) {
+                            window.supabaseClient.auth.setSession({
+                                access_token: bioSess.access_token,
+                                refresh_token: bioSess.refresh_token
+                            }).then(({ data }) => {
+                                if (data && data.session) {
+                                    localStorage.setItem('tonu_biometrics_session', JSON.stringify({
+                                        access_token: data.session.access_token,
+                                        refresh_token: data.session.refresh_token
+                                    }));
+                                }
+                            }).catch(err => console.warn('Aviso restauração Supabase pós-biometria:', err));
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Erro ao processar sessão Supabase pós-biometria:', e);
+                }
+
+                const userInfo = this.getSavedUserInfo();
+                if (userInfo) {
+                    if (!userInfo.user_metadata) {
+                        userInfo.user_metadata = { full_name: userInfo.name || (userInfo.email ? userInfo.email.split('@')[0] : 'Usuário') };
+                    }
+                }
+                return userInfo;
             } catch (err) {
                 if (err.name === 'NotAllowedError' && err.message && err.message.includes('publickey-credentials-get')) {
                     throw new Error('IFRAME_RESTRICTION');
@@ -499,6 +544,7 @@
             localStorage.removeItem(BIOMETRICS_ENABLED_KEY);
             localStorage.removeItem(BIOMETRICS_CREDENTIAL_KEY);
             localStorage.removeItem(BIOMETRICS_USER_INFO_KEY);
+            localStorage.removeItem('tonu_biometrics_session');
             this.retryCount = 0;
         }
     }

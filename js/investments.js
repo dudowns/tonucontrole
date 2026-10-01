@@ -466,7 +466,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     showLoadingAnimation();
 
     try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
+        let user = null;
+        if (window.getAuthenticatedUser) user = await window.getAuthenticatedUser();
+        if (!user && window.supabaseOffline) user = await window.supabaseOffline.isAuthenticated();
+        if (!user && supabaseClient && supabaseClient.auth) {
+            try {
+                const { data: sessData } = await supabaseClient.auth.getSession();
+                user = sessData?.session?.user;
+                if (!user) {
+                    const { data: userData } = await supabaseClient.auth.getUser();
+                    user = userData?.user;
+                }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const s = sessionStorage.getItem('tonu_user');
+                if (s) { const p = JSON.parse(s); user = p.user || p; }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const off = localStorage.getItem('tonu_offline_session');
+                if (off) { const p = JSON.parse(off); user = p.user || p; }
+            } catch (_) {}
+        }
         if (!user) {
             window.location.href = '../index.html';
             return;

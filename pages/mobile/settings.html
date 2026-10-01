@@ -674,17 +674,41 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("pinStatusText").textContent = pin ? "Ativo (4 dígitos)" : "Desativado";
 
     try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
+        let user = null;
+        if (window.getAuthenticatedUser) user = await window.getAuthenticatedUser();
+        if (!user && window.supabaseOffline) user = await window.supabaseOffline.isAuthenticated();
+        if (!user && window.supabaseClient && window.supabaseClient.auth) {
+            try {
+                const { data: sessData } = await supabaseClient.auth.getSession();
+                user = sessData?.session?.user;
+                if (!user) {
+                    const { data: userData } = await supabaseClient.auth.getUser();
+                    user = userData?.user;
+                }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const s = sessionStorage.getItem("tonu_user");
+                if (s) { const p = JSON.parse(s); user = p.user || p; }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const off = localStorage.getItem("tonu_offline_session");
+                if (off) { const p = JSON.parse(off); user = p.user || p; }
+            } catch (_) {}
+        }
         if (user) {
             currentUser = user;
-            const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuário";
+            const name = user.user_metadata?.full_name || user.name || user.email?.split("@")[0] || "Usuário";
             document.getElementById("userName").textContent = name;
             document.getElementById("userEmail").textContent = user.email;
             
             // Carrega foto de perfil salva
             loadMobileAvatar(user, name);
         }
-    } catch (e) { console.error("Erro ao carregar usuário:", e); }
+    } catch (e) { console.error("Erro ao carregar usuário em configurações mobile:", e); }
 
     // Inicializa controles de Biometria e 2FA
     await renderMobileSecurityUI();

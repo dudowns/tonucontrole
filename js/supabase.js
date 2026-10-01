@@ -214,9 +214,13 @@ class SupabaseOfflineManager {
             if (data) {
                 var parsed = JSON.parse(data);
                 var expiryDays = 7;
-                if (Date.now() - parsed.timestamp < expiryDays * 24 * 60 * 60 * 1000) {
-                    console.log('📂 Sessão offline carregada:', parsed.user.email);
-                    return parsed.user;
+                var timestamp = parsed.timestamp || Date.now();
+                if (Date.now() - timestamp < expiryDays * 24 * 60 * 60 * 1000) {
+                    var u = parsed.user || parsed;
+                    if (u && (u.id || u.email)) {
+                        console.log('📂 Sessão offline carregada:', u.email);
+                        return u;
+                    }
                 }
                 localStorage.removeItem(OFFLINE_STORAGE_KEY);
                 console.log('🗑️ Sessão offline expirada');
@@ -260,6 +264,11 @@ class SupabaseOfflineManager {
 
         if (this.isOnline && window.supabaseClient && window.supabaseClient.auth) {
             try {
+                var { data: sessData } = await window.supabaseClient.auth.getSession();
+                if (sessData && sessData.session && sessData.session.user) {
+                    this.saveOfflineSession(sessData.session.user);
+                    return sessData.session.user;
+                }
                 var { data: { user } } = await window.supabaseClient.auth.getUser();
                 if (user) {
                     this.saveOfflineSession(user);
@@ -270,11 +279,37 @@ class SupabaseOfflineManager {
             }
         }
 
+        // 2. Verificar sessionStorage ('tonu_user') - sessão da aba atual pós Face ID/biometria
+        try {
+            var sUser = sessionStorage.getItem('tonu_user');
+            if (sUser) {
+                var sParsed = JSON.parse(sUser);
+                var actualS = sParsed.user || sParsed;
+                if (actualS && (actualS.id || actualS.email)) {
+                    return actualS;
+                }
+            }
+        } catch (_) {}
+
+        // 3. Carregar sessão offline salva
         var offlineUser = this.loadOfflineSession();
         if (offlineUser) {
             console.log('📶 Usuário autenticado OFFLINE:', offlineUser.email);
             return offlineUser;
         }
+
+        // 4. Biometria configurada (Face ID)
+        try {
+            var bioInfo = localStorage.getItem('tonu_biometrics_user_info');
+            var bioEnabled = localStorage.getItem('tonu_biometrics_enabled') === 'true';
+            if (bioEnabled && bioInfo) {
+                var bParsed = JSON.parse(bioInfo);
+                var bUser = bParsed.user || bParsed;
+                if (bUser && (bUser.id || bUser.email)) {
+                    return bUser;
+                }
+            }
+        } catch (_) {}
 
         return null;
     }

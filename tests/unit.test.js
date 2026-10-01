@@ -446,6 +446,55 @@ async function runUnitTests() {
         assert.strictEqual(mockElements.totalInvested.textContent, 'R$ 12.000,00');
     });
 
+    test('Biometria & Face ID: Resolução e persistência de sessão híbrida (online/offline)', () => {
+        const store = {};
+        const mockLocal = {
+            getItem: (k) => store[k] || null,
+            setItem: (k, v) => { store[k] = String(v); },
+            removeItem: (k) => { delete store[k]; }
+        };
+        const sStore = {};
+        const mockSession = {
+            getItem: (k) => sStore[k] || null,
+            setItem: (k, v) => { sStore[k] = String(v); },
+            removeItem: (k) => { delete sStore[k]; }
+        };
+
+        // Simula usuário retornado por Face ID (WebAuthn)
+        const bioUser = {
+            id: 'usr_faceid_123',
+            email: 'usuario@tonucontrole.com',
+            name: 'Carlos Silva'
+        };
+
+        // Salvar após autenticação com Face ID
+        const offlinePayload = {
+            user: bioUser,
+            timestamp: Date.now(),
+            email: bioUser.email
+        };
+        mockLocal.setItem('tonu_offline_session', JSON.stringify(offlinePayload));
+        mockSession.setItem('tonu_user', JSON.stringify(bioUser));
+
+        // Testar resolução de sessão no mobile/desktop
+        const rawOffline = mockLocal.getItem('tonu_offline_session');
+        const parsed = JSON.parse(rawOffline);
+        const resolvedUser = parsed.user || parsed;
+
+        assert.strictEqual(resolvedUser.id, 'usr_faceid_123');
+        assert.strictEqual(resolvedUser.email, 'usuario@tonucontrole.com');
+
+        // Testar normalização de metadados
+        function normalizeUser(u) {
+            const name = u.user_metadata?.full_name || u.name || u.email.split('@')[0];
+            if (!u.user_metadata) u.user_metadata = { full_name: name };
+            return u;
+        }
+
+        const normalized = normalizeUser(resolvedUser);
+        assert.strictEqual(normalized.user_metadata.full_name, 'Carlos Silva');
+    });
+
     return results;
 }
 

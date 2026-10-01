@@ -691,28 +691,122 @@ function renderAvatarElement(element, photoUrl, initialText) {
 }
 
 // ============================================
+// 7.5. OBTER USUÁRIO AUTENTICADO UNIFICADO (ONLINE / OFFLINE / BIOMETRIA / WEBAUTHN)
+// ============================================
+async function getAuthenticatedUser() {
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('tonu_logout_in_progress') === 'true') {
+        return null;
+    }
+
+    let user = null;
+
+    // 1. Tentar via Supabase Offline Manager
+    if (typeof window !== 'undefined' && window.supabaseOffline) {
+        try {
+            user = await window.supabaseOffline.isAuthenticated();
+            if (user && (user.id || user.email)) {
+                return normalizeUserObject(user);
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao verificar via supabaseOffline:', e);
+        }
+    }
+
+    // 2. Tentar via Supabase Client (getSession / getUser)
+    if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.auth) {
+        try {
+            const { data: sessionData } = await window.supabaseClient.auth.getSession();
+            if (sessionData && sessionData.session && sessionData.session.user) {
+                user = sessionData.session.user;
+                if (window.supabaseOffline) window.supabaseOffline.saveOfflineSession(user);
+                return normalizeUserObject(user);
+            }
+            const { data: userData } = await window.supabaseClient.auth.getUser();
+            if (userData && userData.user) {
+                user = userData.user;
+                if (window.supabaseOffline) window.supabaseOffline.saveOfflineSession(user);
+                return normalizeUserObject(user);
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao verificar via Supabase Client:', e);
+        }
+    }
+
+    // 3. Tentar via sessionStorage ('tonu_user') - sessão da aba ou login biométrico recente
+    if (typeof sessionStorage !== 'undefined') {
+        try {
+            const sessionRaw = sessionStorage.getItem('tonu_user');
+            if (sessionRaw) {
+                const parsed = JSON.parse(sessionRaw);
+                const actual = parsed.user || parsed;
+                if (actual && (actual.id || actual.email)) {
+                    return normalizeUserObject(actual);
+                }
+            }
+        } catch (_) {}
+    }
+
+    // 4. Tentar via localStorage ('tonu_offline_session')
+    if (typeof localStorage !== 'undefined') {
+        try {
+            const offRaw = localStorage.getItem('tonu_offline_session');
+            if (offRaw) {
+                const parsed = JSON.parse(offRaw);
+                const actual = parsed.user || parsed;
+                if (actual && (actual.id || actual.email)) {
+                    return normalizeUserObject(actual);
+                }
+            }
+        } catch (_) {}
+    }
+
+    // 5. Tentar via credencial de biometria salva (Face ID / WebAuthn)
+    if (typeof localStorage !== 'undefined') {
+        try {
+            const bioEnabled = localStorage.getItem('tonu_biometrics_enabled') === 'true';
+            const bioRaw = localStorage.getItem('tonu_biometrics_user_info');
+            if (bioEnabled && bioRaw) {
+                const parsed = JSON.parse(bioRaw);
+                const actual = parsed.user || parsed;
+                if (actual && (actual.id || actual.email)) {
+                    return normalizeUserObject(actual);
+                }
+            }
+        } catch (_) {}
+    }
+
+    return null;
+}
+
+function normalizeUserObject(user) {
+    if (!user) return null;
+    const name = user.user_metadata?.full_name || user.name || (user.email ? user.email.split('@')[0] : 'Usuário');
+    if (!user.user_metadata) {
+        user.user_metadata = { full_name: name };
+    } else if (!user.user_metadata.full_name) {
+        user.user_metadata.full_name = name;
+    }
+    try {
+        if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('tonu_logout_in_progress')) {
+            sessionStorage.setItem('tonu_user', JSON.stringify(user));
+        }
+    } catch (_) {}
+    return user;
+}
+
+if (typeof window !== 'undefined') {
+    window.getAuthenticatedUser = getAuthenticatedUser;
+    window.normalizeUserObject = normalizeUserObject;
+}
+
+// ============================================
 // 8. CARREGAR PERFIL DO USUÁRIO NA SIDEBAR - CORRIGIDO
 // ============================================
 async function loadGlobalUserProfile() {
     if (!window.supabaseClient) return;
 
     try {
-        let user = null;
-
-        // Tentar pegar usuário offline primeiro
-        if (window.supabaseOffline) {
-            user = await window.supabaseOffline.isAuthenticated();
-        }
-
-        // Se não tiver offline, tentar via Supabase
-        if (!user && window.supabaseClient && window.supabaseClient.auth) {
-            try {
-                const { data: { user: authUser } } = await window.supabaseClient.auth.getUser();
-                user = authUser;
-            } catch (e) {
-                console.warn('⚠️ Erro ao buscar usuário no Supabase:', e);
-            }
-        }
+        let user = await getAuthenticatedUser();
 
         if (!user) {
             console.log('ℹ️ Nenhum usuário logado para carregar perfil');
