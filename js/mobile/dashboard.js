@@ -13,6 +13,45 @@ let allGoals = [];
 let mobileChartInstance = null;
 let currentChartMode = 'categories';
 let isBalanceHidden = localStorage.getItem('tonu_hide_balance') === 'true';
+let currentMonthOffset = 0;
+
+// ============================================
+// NAVEGAÇÃO DE MÊS NO MOBILE
+// ============================================
+function getSelectedMonthDate() {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + currentMonthOffset);
+    return d;
+}
+
+function updateMobileMonthDisplay() {
+    const el = document.getElementById("selectedMonth");
+    if (!el) return;
+    const d = getSelectedMonthDate();
+    const months = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    el.textContent = `${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function changeMonth(delta) {
+    currentMonthOffset += Number(delta) || 0;
+    updateMobileMonthDisplay();
+    loadMobileData();
+}
+
+function goToCurrentMonth() {
+    currentMonthOffset = 0;
+    updateMobileMonthDisplay();
+    loadMobileData();
+}
+
+window.changeMonth = changeMonth;
+window.goToCurrentMonth = goToCurrentMonth;
+window.changeMonthHandler = changeMonth;
+window.goToCurrentMonthHandler = goToCurrentMonth;
 
 // ============================================
 // INICIALIZAÇÃO
@@ -140,11 +179,13 @@ async function loadCategories() {
 // ============================================
 async function loadMobileData() {
     try {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, "0");
+        updateMobileMonthDisplay();
+        const targetDate = getSelectedMonthDate();
+        const year = targetDate.getFullYear();
+        const month = String(targetDate.getMonth() + 1).padStart(2, "0");
+        const lastDayNum = new Date(year, targetDate.getMonth() + 1, 0).getDate();
         const firstDay = `${year}-${month}-01`;
-        const lastDay = `${year}-${month}-${new Date(year, today.getMonth() + 1, 0).getDate()}`;
+        const lastDay = `${year}-${month}-${String(lastDayNum).padStart(2, "0")}`;
 
         // 1. Transações
         const txPromise = supabaseClient
@@ -363,9 +404,9 @@ function renderSummary() {
     });
     const balance = income - expense;
 
-    // Contas pendentes do mês
-    const today = new Date();
-    const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    // Contas pendentes do mês selecionado
+    const selDate = getSelectedMonthDate();
+    const currentMonthPrefix = `${selDate.getFullYear()}-${String(selDate.getMonth() + 1).padStart(2, "0")}`;
     const pendingBills = allBills.filter(b => {
         const isPaid = (b.paid === true || b.paid === 'true' || b.paid === 1);
         const billMonth = (b.due_date || '').substring(0, 7);
@@ -373,7 +414,7 @@ function renderSummary() {
     });
     const pendingBillsAmount = pendingBills.reduce((acc, b) => acc + (Number(b.amount) || 0), 0);
 
-    // Proventos do mês (Recebidos vs A Receber)
+    // Proventos do mês selecionado (Recebidos vs A Receber)
     const todayISO = new Date().toISOString().substring(0, 10);
     let monthPaidDivs = 0;
     let monthPendingDivs = 0;
@@ -394,7 +435,8 @@ function renderSummary() {
         }
     });
 
-    const displayMonthDivs = monthPaidDivs > 0 ? monthPaidDivs : (monthPaidDivs + monthPendingDivs);
+    const displayMonthDivs = monthPaidDivs > 0 ? monthPaidDivs : (monthPendingDivs > 0 ? monthPendingDivs : 0);
+    const divValueColor = monthPaidDivs > 0 ? '#8b5cf6' : (monthPendingDivs > 0 ? '#0284c7' : '#8b5cf6');
 
     const mask = (val) => isBalanceHidden ? '••••••' : val;
 
@@ -441,7 +483,7 @@ function renderSummary() {
                 <div class="card-icon balance" style="background:#8b5cf6;"><i class="fas fa-coins"></i></div>
                 <div class="card-info">
                     <div class="card-label">Proventos Mês</div>
-                    <div class="card-value" style="color: #8b5cf6;">
+                    <div class="card-value" style="color: ${divValueColor};">
                         ${mask(formatCurrency(displayMonthDivs))}
                     </div>
                     ${monthPendingDivs > 0 ? `
@@ -1023,8 +1065,15 @@ function openQuickAddModal(type) {
     setQuickType(type);
 
     const dateInput = document.getElementById("quickDate");
-    if (dateInput && !dateInput.value) {
-        dateInput.value = new Date().toISOString().split("T")[0];
+    if (dateInput) {
+        if (currentMonthOffset === 0) {
+            dateInput.value = new Date().toISOString().split("T")[0];
+        } else {
+            const targetDate = getSelectedMonthDate();
+            const y = targetDate.getFullYear();
+            const m = String(targetDate.getMonth() + 1).padStart(2, "0");
+            dateInput.value = `${y}-${m}-01`;
+        }
     }
 
     populateCategoryOptions();

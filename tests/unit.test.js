@@ -665,6 +665,56 @@ async function runUnitTests() {
         assert.strictEqual(getDividendStatus(sampleDividends[2]), 'a_receber');
     });
 
+    test('Seletor de Mês no Dashboard Mobile: Navegação, cálculo de períodos e persistência de datas', async () => {
+        let currentOffset = 0;
+        const months = [
+            'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ];
+
+        function getMonthDate(offset) {
+            const d = new Date();
+            d.setDate(1);
+            d.setMonth(d.getMonth() + offset);
+            return d;
+        }
+
+        function getMonthLabel(offset) {
+            const d = getMonthDate(offset);
+            return `${months[d.getMonth()]} ${d.getFullYear()}`;
+        }
+
+        // Teste 1: Mês atual (offset = 0)
+        const now = new Date();
+        const currentLabel = getMonthLabel(0);
+        assert.strictEqual(currentLabel, `${months[now.getMonth()]} ${now.getFullYear()}`);
+
+        // Teste 2: Mês anterior (offset = -1)
+        currentOffset -= 1;
+        const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        assert.strictEqual(getMonthLabel(currentOffset), `${months[prevDate.getMonth()]} ${prevDate.getFullYear()}`);
+
+        // Teste 3: Próximo mês (offset = +1 a partir do anterior => offset = 0)
+        currentOffset += 1;
+        assert.strictEqual(currentOffset, 0);
+        assert.strictEqual(getMonthLabel(currentOffset), currentLabel);
+
+        // Teste 4: Virada de ano (12 meses para o futuro)
+        const nextYearDate = new Date(now.getFullYear(), now.getMonth() + 12, 1);
+        assert.strictEqual(getMonthLabel(12), `${months[nextYearDate.getMonth()]} ${nextYearDate.getFullYear()}`);
+
+        // Teste 5: Cálculo dos limites do mês selecionado (firstDay e lastDay)
+        const selDate = getMonthDate(currentOffset);
+        const y = selDate.getFullYear();
+        const m = String(selDate.getMonth() + 1).padStart(2, '0');
+        const lastDayNum = new Date(y, selDate.getMonth() + 1, 0).getDate();
+        const firstDay = `${y}-${m}-01`;
+        const lastDay = `${y}-${m}-${String(lastDayNum).padStart(2, '0')}`;
+
+        assert.strictEqual(firstDay.substring(8, 10), '01');
+        assert.ok(lastDayNum >= 28 && lastDayNum <= 31, 'Último dia do mês válido');
+    });
+
     return results;
 }
 

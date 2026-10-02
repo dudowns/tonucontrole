@@ -42,6 +42,7 @@ const jsFiles = [
     'js/sync.js',
     'js/notifications.js',
     'js/financial-tools.js',
+    'js/mobile/dashboard.js',
     'server.js',
     'sw.js'
 ];

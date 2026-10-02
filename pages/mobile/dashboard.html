@@ -66,6 +66,20 @@
 
 <!-- CONTEÚDO -->
 <main class="mobile-content" id="main-content">
+    <!-- SELETOR DE MÊS (IGUAL AO DESKTOP) -->
+    <div class="mobile-month-selector-bar" style="margin-bottom: 12px;">
+        <div class="month-selector" style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 42px; padding: 4px 10px; margin-bottom: 0; box-sizing: border-box; background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e2e8f0); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0); background: var(--color-surface, #ffffff); color: var(--color-text, #1e293b); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="month-label" id="selectedMonth" style="font-size: 13.5px; font-weight: 700; color: var(--color-text, #1e293b); min-width: 130px; text-align: center;">Carregando...</span>
+            <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0); background: var(--color-surface, #ffffff); color: var(--color-text, #1e293b); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <button class="btn-today" onclick="goToCurrentMonth()" style="padding: 4px 12px; font-size: 11px; font-weight: 600; border-radius: 8px; background: #6C5CE7; color: #ffffff; border: none; cursor: pointer; height: 28px; transition: all 0.2s;">Hoje</button>
+        </div>
+    </div>
+
     <!-- BALANÇO HERO & CARDS -->
     <div id="summaryContainer"></div>
 
