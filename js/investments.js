@@ -692,10 +692,25 @@ async function loadTransactions() {
 
         if (fetchedFromDb && loaded.length > 0) {
             allTransactions = loaded;
+            if (window.tonuSync && currentUser?.id) {
+                window.tonuSync.setCachedInvestments(currentUser.id, loaded);
+            }
             localStorage.removeItem('tonu_is_demo_active');
             updateGlobalDemoUI(false);
             console.log('📊 Transações reais carregadas do backend:', allTransactions.length);
             return;
+        }
+
+        // Tenta fallback para o cache canônico IndexedDB antes de considerar demo
+        if (!fetchedFromDb && window.tonuSync && currentUser?.id) {
+            const cached = await window.tonuSync.getCachedInvestments(currentUser.id);
+            if (cached && cached.length > 0) {
+                allTransactions = cached;
+                localStorage.removeItem('tonu_is_demo_active');
+                updateGlobalDemoUI(false);
+                console.log('📊 Transações reais carregadas do IndexedDB offline:', allTransactions.length);
+                return;
+            }
         }
 
         const isDemo = localStorage.getItem('tonu_is_demo_active') === 'true';
@@ -804,22 +819,49 @@ async function saveOperation(e) {
             note: note || null
         };
 
-        if (editingTransactionId) {
-            const { error } = await supabaseClient
-                .from('investments')
-                .update(data)
-                .eq('id', editingTransactionId)
-                .eq('user_id', currentUser.id);
+        let isOnline = navigator.onLine && window.supabaseClient && currentUser?.id;
+        if (isOnline) {
+            try {
+                if (editingTransactionId) {
+                    const { error } = await supabaseClient
+                        .from('investments')
+                        .update(data)
+                        .eq('id', editingTransactionId)
+                        .eq('user_id', currentUser.id);
 
-            if (error) throw error;
-            showToast(`✅ Operação atualizada com sucesso!`, 'success');
-        } else {
-            const { error } = await supabaseClient
-                .from('investments')
-                .insert([data]);
+                    if (error) throw error;
+                    showToast(`✅ Operação atualizada com sucesso!`, 'success');
+                } else {
+                    const { error } = await supabaseClient
+                        .from('investments')
+                        .insert([data]);
 
-            if (error) throw error;
-            showToast(`✅ ${type} de ${ticker} registrada com sucesso!`, 'success');
+                    if (error) throw error;
+                    showToast(`✅ ${type} de ${ticker} registrada com sucesso!`, 'success');
+                }
+            } catch (netErr) {
+                console.warn('⚠️ Falha online ao salvar operação, enfileirando offline:', netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            if (editingTransactionId) {
+                allTransactions = allTransactions.map(t => String(t.id) === String(editingTransactionId) ? { ...t, ...data } : t);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('UPDATE_INVESTMENT', { id: editingTransactionId, ...data });
+                    await window.tonuSync.setCachedInvestments(currentUser.id, allTransactions);
+                }
+            } else {
+                const offlineId = 'offline_inv_' + Date.now();
+                const newOp = { id: offlineId, ...data, created_at: new Date().toISOString() };
+                allTransactions.push(newOp);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_INVESTMENT', data);
+                    await window.tonuSync.setCachedInvestments(currentUser.id, allTransactions);
+                }
+            }
+            showToast(`📦 ${type} de ${ticker} salva offline! Será sincronizada quando a conexão retornar.`, 'info');
         }
 
         closeOperationModal();
@@ -1009,12 +1051,14 @@ async function saveDividend(e) {
             }
         }
 
-        // Salva e atualiza o cache local
+        // Salva e atualiza o cache canônico IndexedDB
         allDividends = [data, ...allDividends.filter(d => String(d.id) !== String(data.id))];
-        const storageKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
-        try {
-            localStorage.setItem(storageKey, JSON.stringify(allDividends));
-        } catch (e) {}
+        if (window.tonuSync && currentUser?.id) {
+            if (!navigator.onLine) {
+                await window.tonuSync.enqueue(editId ? 'UPDATE_DIVIDEND' : 'INSERT_DIVIDEND', data);
+            }
+            await window.tonuSync.setCachedDividends(currentUser.id, allDividends);
+        }
 
         showToast(editId ? `✅ Provento de ${ticker} atualizado!` : `✅ Provento de ${ticker} registrado com sucesso!`, 'success');
         if (form) delete form.dataset.editId;
@@ -1043,14 +1087,32 @@ async function deleteTransaction(id) {
     if (!confirm('Tem certeza que deseja excluir esta transação?')) return;
 
     try {
-        const { error } = await supabaseClient
-            .from('investments')
-            .delete()
-            .eq('id', id)
-            .eq('user_id', currentUser.id);
+        let isOnline = navigator.onLine && window.supabaseClient && currentUser?.id;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from('investments')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', currentUser.id);
 
-        if (error) throw error;
-        showToast('✅ Transação excluída com sucesso!', 'success');
+                if (error) throw error;
+                showToast('✅ Transação excluída com sucesso!', 'success');
+            } catch (netErr) {
+                console.warn('⚠️ Falha online ao excluir transação, enfileirando offline:', netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            allTransactions = allTransactions.filter(t => String(t.id) !== String(id));
+            if (window.tonuSync && currentUser?.id) {
+                await window.tonuSync.enqueue('DELETE_INVESTMENT', { id });
+                await window.tonuSync.setCachedInvestments(currentUser.id, allTransactions);
+            }
+            showToast('📦 Transação excluída offline! Sincronizará quando a conexão retornar.', 'info');
+        }
+
         await refreshDashboard();
 
     } catch (error) {
@@ -1066,7 +1128,8 @@ async function deleteDividend(id) {
     if (!confirm('Tem certeza que deseja excluir este provento?')) return;
 
     try {
-        if (currentUser && currentUser.id && !String(id).startsWith('demo-') && !String(id).startsWith('div-')) {
+        let isOnline = navigator.onLine && window.supabaseClient && currentUser && currentUser.id && !String(id).startsWith('demo-') && !String(id).startsWith('div-');
+        if (isOnline) {
             try {
                 await supabaseClient
                     .from('dividends')
@@ -1075,14 +1138,17 @@ async function deleteDividend(id) {
                     .eq('user_id', currentUser.id);
             } catch (err) {
                 console.warn('⚠️ Supabase delete warning:', err);
+                isOnline = false;
             }
         }
 
         allDividends = allDividends.filter(d => String(d.id) !== String(id));
-        const storageKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
-        try {
-            localStorage.setItem(storageKey, JSON.stringify(allDividends));
-        } catch (e) {}
+        if (window.tonuSync && currentUser?.id) {
+            if (!isOnline) {
+                await window.tonuSync.enqueue('DELETE_DIVIDEND', { id });
+            }
+            await window.tonuSync.setCachedDividends(currentUser.id, allDividends);
+        }
 
         showToast('✅ Provento excluído com sucesso!', 'success');
         await loadDividends();

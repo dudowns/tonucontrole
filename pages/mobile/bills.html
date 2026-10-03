@@ -623,18 +623,36 @@ async function loadBills() {
 
     try {
         let data = [];
-        if (window.supabaseClient) {
-            const { data: dbBills, error } = await supabaseClient
-                .from("transactions")
-                .select("*, categories(id, name, icon, color)")
-                .eq("user_id", currentUser.id)
-                .eq("type", "expense")
-                .eq("is_bill", true)
-                .gte("date", firstDay)
-                .lte("date", lastDay)
-                .order("date", { ascending: true });
+        let fetchedOnline = false;
+        if (navigator.onLine && window.supabaseClient && currentUser) {
+            try {
+                const { data: dbBills, error } = await supabaseClient
+                    .from("transactions")
+                    .select("*, categories(id, name, icon, color)")
+                    .eq("user_id", currentUser.id)
+                    .eq("type", "expense")
+                    .eq("is_bill", true)
+                    .gte("date", firstDay)
+                    .lte("date", lastDay)
+                    .order("date", { ascending: true });
 
-            if (!error && dbBills) data = dbBills;
+                if (!error && dbBills) {
+                    data = dbBills;
+                    fetchedOnline = true;
+                    if (window.tonuSync) {
+                        await window.tonuSync.setCachedBills(currentUser.id, data);
+                    }
+                }
+            } catch (netErr) {
+                console.warn("Falha online ao carregar contas:", netErr);
+            }
+        }
+
+        if (!fetchedOnline && window.tonuSync) {
+            const cached = await window.tonuSync.getCachedBills(currentUser?.id);
+            if (cached && cached.length > 0) {
+                data = cached.filter(b => b.date >= firstDay && b.date <= lastDay);
+            }
         }
 
         allBills = data;
@@ -642,6 +660,15 @@ async function loadBills() {
         renderBills();
     } catch (e) {
         console.error(e);
+        if (window.tonuSync) {
+            const cached = await window.tonuSync.getCachedBills(currentUser?.id);
+            if (cached && cached.length > 0) {
+                allBills = cached.filter(b => b.date >= firstDay && b.date <= lastDay);
+                updateStats();
+                renderBills();
+                return;
+            }
+        }
         container.innerHTML = '<p style="text-align:center;color:#ef4444;font-size:12px;">Erro ao carregar contas.</p>';
     }
 }
@@ -830,36 +857,32 @@ async function togglePaid(id) {
     updateStats();
     renderBills();
 
-    // Atualiza status se já existir no cache de transações (sem criar duplicata)
-    try {
-        const txsKey = `tonu_transactions_${currentUser.id}`;
-        const localTxsRaw = localStorage.getItem(txsKey);
-        let localTxs = localTxsRaw ? JSON.parse(localTxsRaw) : [];
-        const idx = localTxs.findIndex(t => String(t.id) === String(id));
-        if (idx >= 0) {
-            localTxs[idx].paid = newStatus;
-            localTxs[idx].paid_date = paidDate;
-            localTxs[idx].updated_at = new Date().toISOString();
-            localStorage.setItem(txsKey, JSON.stringify(localTxs));
-        }
-    } catch (e) {
-        console.warn('Erro ao atualizar cache local:', e);
+    // Persiste no IndexedDB canônico
+    if (window.tonuSync) {
+        await window.tonuSync.setCachedBills(currentUser.id, allBills);
     }
 
-    try {
-        if (window.supabaseClient) {
+    let isOnline = navigator.onLine && window.supabaseClient;
+    if (isOnline) {
+        try {
             await supabaseClient.from("transactions").update({
                 paid: newStatus,
                 paid_date: paidDate
             }).eq("id", id).eq("user_id", currentUser.id);
+            if (window.checkNotifications) window.checkNotifications();
+        } catch (netErr) {
+            console.warn('Erro ao atualizar online, enfileirando offline:', netErr);
+            isOnline = false;
         }
-        if (window.checkNotifications) window.checkNotifications();
-    } catch (e) {
-        console.error(e);
-        bill.paid = !newStatus;
-        bill.paid_date = !newStatus ? new Date().toISOString().split("T")[0] : null;
-        updateStats();
-        renderBills();
+    }
+
+    if (!isOnline && window.tonuSync) {
+        await window.tonuSync.enqueue('UPDATE_BILL', {
+            id: id,
+            paid: newStatus,
+            paid_date: paidDate
+        });
+        showToast(`📦 Status da conta atualizado offline!`, 'info');
     }
 }
 
@@ -939,15 +962,15 @@ async function saveBill(event) {
     const editId = document.getElementById("editBillId").value;
 
     if (!desc) {
-        alert("Preencha o nome da conta");
+        showToast("Preencha o nome da conta", "error");
         return;
     }
     if (isNaN(amount) || amount <= 0) {
-        alert("Digite um valor válido maior que zero");
+        showToast("Digite um valor válido maior que zero", "error");
         return;
     }
     if (!date) {
-        alert("Selecione a data de vencimento");
+        showToast("Selecione a data de vencimento", "error");
         return;
     }
 
@@ -991,49 +1014,124 @@ async function saveBill(event) {
         current_installment: recurrenceType === 'installments' ? installmentCurrent : 1
     };
 
+    let isOnline = navigator.onLine && window.supabaseClient;
     try {
-        if (editId) {
-            await supabaseClient.from("transactions").update(payload).eq("id", editId).eq("user_id", currentUser.id);
-        } else {
-            if (recurrenceType === 'installments' && generateFuture && installmentsTotal > installmentCurrent) {
-                const batch = [];
-                const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
-                for (let i = installmentCurrent; i <= installmentsTotal; i++) {
-                    const monthOffset = i - installmentCurrent;
-                    const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
-                    const itemPaid = (i === installmentCurrent) ? paid : false;
-                    batch.push({
-                        ...payload,
-                        description: `${cleanDesc} (${i}/${installmentsTotal})`,
-                        amount: finalAmount,
-                        date: dueDate,
-                        installments: installmentsTotal,
-                        current_installment: i,
-                        paid: itemPaid,
-                        paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
-                    });
+        if (isOnline) {
+            try {
+                if (editId) {
+                    await supabaseClient.from("transactions").update(payload).eq("id", editId).eq("user_id", currentUser.id);
+                } else {
+                    if (recurrenceType === 'installments' && generateFuture && installmentsTotal > installmentCurrent) {
+                        const batch = [];
+                        const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
+                        for (let i = installmentCurrent; i <= installmentsTotal; i++) {
+                            const monthOffset = i - installmentCurrent;
+                            const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
+                            const itemPaid = (i === installmentCurrent) ? paid : false;
+                            batch.push({
+                                ...payload,
+                                description: `${cleanDesc} (${i}/${installmentsTotal})`,
+                                amount: finalAmount,
+                                date: dueDate,
+                                installments: installmentsTotal,
+                                current_installment: i,
+                                paid: itemPaid,
+                                paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
+                            });
+                        }
+                        await supabaseClient.from("transactions").insert(batch);
+                    } else {
+                        await supabaseClient.from("transactions").insert([payload]);
+                    }
                 }
-                await supabaseClient.from("transactions").insert(batch);
-            } else {
-                await supabaseClient.from("transactions").insert([payload]);
+                showToast(editId ? "Conta atualizada com sucesso!" : "Conta criada com sucesso!", "success");
+            } catch (netErr) {
+                console.warn("Falha online ao salvar conta, enfileirando offline:", netErr);
+                isOnline = false;
             }
         }
+
+        if (!isOnline) {
+            if (editId) {
+                const idx = allBills.findIndex(b => String(b.id) === String(editId));
+                if (idx >= 0) allBills[idx] = { ...allBills[idx], ...payload };
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('UPDATE_BILL', { id: editId, ...payload });
+                    await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                }
+            } else {
+                const batch = [];
+                if (recurrenceType === 'installments' && generateFuture && installmentsTotal > installmentCurrent) {
+                    const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
+                    for (let i = installmentCurrent; i <= installmentsTotal; i++) {
+                        const monthOffset = i - installmentCurrent;
+                        const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
+                        const itemPaid = (i === installmentCurrent) ? paid : false;
+                        const billItem = {
+                            id: 'offline_bill_' + Date.now() + '_' + i,
+                            ...payload,
+                            description: `${cleanDesc} (${i}/${installmentsTotal})`,
+                            amount: finalAmount,
+                            date: dueDate,
+                            installments: installmentsTotal,
+                            current_installment: i,
+                            paid: itemPaid,
+                            paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
+                        };
+                        batch.push(billItem);
+                        allBills.push(billItem);
+                    }
+                } else {
+                    const billItem = {
+                        id: 'offline_bill_' + Date.now(),
+                        ...payload
+                    };
+                    batch.push(billItem);
+                    allBills.push(billItem);
+                }
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_BILL', batch.length === 1 ? batch[0] : batch);
+                    await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                }
+            }
+            showToast("📦 Conta salva offline! Será sincronizada quando a conexão retornar.", "info");
+        }
+
         closeModal();
         await loadBills();
         if (window.checkNotifications) window.checkNotifications();
     } catch (e) {
-        alert("Erro ao salvar: " + (e.message || e));
+        showToast("Erro ao salvar: " + (e.message || e), "error");
     }
 }
 
 async function deleteBillDirect(id) {
     if (!confirm("Deseja excluir esta conta?")) return;
     try {
-        await supabaseClient.from("transactions").delete().eq("id", id).eq("user_id", currentUser.id);
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                await supabaseClient.from("transactions").delete().eq("id", id).eq("user_id", currentUser.id);
+                showToast("Conta excluída!", "success");
+            } catch (netErr) {
+                console.warn("Falha online ao excluir, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            allBills = allBills.filter(b => String(b.id) !== String(id));
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('DELETE_BILL', { id });
+                await window.tonuSync.setCachedBills(currentUser.id, allBills);
+            }
+            showToast("📦 Conta excluída offline! Será sincronizada quando a conexão retornar.", "info");
+        }
+
         await loadBills();
         if (window.checkNotifications) window.checkNotifications();
     } catch (e) {
-        alert("Erro ao excluir: " + e.message);
+        showToast("Erro ao excluir: " + e.message, "error");
     }
 }
 

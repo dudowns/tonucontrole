@@ -708,6 +708,7 @@
 <script src="../../js/supabase.js"></script>
 <script src="../../js/core.js"></script>
 <script src="../../js/sync.js"></script>
+<script src="../../js/sw-register.js"></script>
 <script>
 let currentUser = null;
 let goals = [];
@@ -768,23 +769,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // ============================================
-// CARREGAR METAS DO SUPABASE
+// CARREGAR METAS DO SUPABASE OU CACHE LOCAL
 // ============================================
 async function loadGoals() {
     try {
-        const { data, error } = await supabaseClient
-            .from("goals")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .order("created_at", { ascending: false });
+        let loaded = false;
+        if (navigator.onLine && window.supabaseClient && currentUser) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from("goals")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .order("created_at", { ascending: false });
 
-        if (error) throw error;
-        goals = data || [];
+                if (!error && data) {
+                    goals = data;
+                    loaded = true;
+                    if (window.tonuSync) {
+                        await window.tonuSync.setCachedGoals(currentUser.id, goals);
+                    }
+                }
+            } catch (netErr) {
+                console.warn("Falha de rede ao buscar metas remotas:", netErr);
+            }
+        }
+
+        if (!loaded && window.tonuSync) {
+            const cached = await window.tonuSync.getCachedGoals(currentUser?.id);
+            if (cached && cached.length > 0) {
+                goals = cached;
+                loaded = true;
+            }
+        }
+
         updateHeroStats();
         renderGoals();
     } catch (error) {
         console.error("Erro ao carregar metas:", error);
-        showToast("Erro ao carregar metas: " + error.message, "error");
+        if (window.tonuSync) {
+            const cached = await window.tonuSync.getCachedGoals(currentUser?.id);
+            if (cached && cached.length > 0) {
+                goals = cached;
+                updateHeroStats();
+                renderGoals();
+                return;
+            }
+        }
+        showToast("Erro ao carregar metas: " + (error.message || "Tente novamente"), "error");
     }
 }
 
@@ -988,32 +1019,60 @@ async function handleGoalSubmit(e) {
     };
 
     try {
-        let res;
-        if (editId) {
-            res = await supabaseClient
-                .from("goals")
-                .update(payload)
-                .eq("id", editId)
-                .eq("user_id", currentUser.id);
-        } else {
-            res = await supabaseClient
-                .from("goals")
-                .insert([payload]);
-        }
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                let res;
+                if (editId) {
+                    res = await supabaseClient
+                        .from("goals")
+                        .update(payload)
+                        .eq("id", editId)
+                        .eq("user_id", currentUser.id);
+                } else {
+                    res = await supabaseClient
+                        .from("goals")
+                        .insert([payload]);
+                }
 
-        // Se o schema não tiver coluna category, salva com fallback
-        if (res.error && res.error.message && res.error.message.includes("category")) {
-            delete payload.category;
-            if (editId) {
-                await supabaseClient.from("goals").update(payload).eq("id", editId).eq("user_id", currentUser.id);
-            } else {
-                await supabaseClient.from("goals").insert([payload]);
+                if (res.error && res.error.message && res.error.message.includes("category")) {
+                    delete payload.category;
+                    if (editId) {
+                        await supabaseClient.from("goals").update(payload).eq("id", editId).eq("user_id", currentUser.id);
+                    } else {
+                        await supabaseClient.from("goals").insert([payload]);
+                    }
+                } else if (res.error) {
+                    throw res.error;
+                }
+            } catch (netErr) {
+                console.warn("Falha online, enfileirando offline:", netErr);
+                isOnline = false;
             }
-        } else if (res.error) {
-            throw res.error;
         }
 
-        showToast(editId ? "Meta atualizada com sucesso!" : "Meta criada com sucesso!", "success");
+        if (!isOnline) {
+            if (editId) {
+                const idx = goals.findIndex(g => String(g.id) === String(editId));
+                if (idx !== -1) goals[idx] = { ...goals[idx], ...payload };
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('UPDATE_GOAL', { id: editId, ...payload });
+                    await window.tonuSync.setCachedGoals(currentUser.id, goals);
+                }
+            } else {
+                const offlineId = 'offline_goal_' + Date.now();
+                const newGoal = { id: offlineId, ...payload, created_at: new Date().toISOString() };
+                goals.unshift(newGoal);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_GOAL', payload);
+                    await window.tonuSync.setCachedGoals(currentUser.id, goals);
+                }
+            }
+            showToast("📦 Meta salva offline! Sincronizará quando a conexão retornar.", "info");
+        } else {
+            showToast(editId ? "Meta atualizada com sucesso!" : "Meta criada com sucesso!", "success");
+        }
+
         closeGoalModal();
         await loadGoals();
 
@@ -1068,16 +1127,36 @@ async function handleDepositSubmit(e) {
     const isCompleted = newAmount >= (Number(goal.target_amount) || 0);
 
     try {
-        const { error } = await supabaseClient
-            .from("goals")
-            .update({
-                current_amount: newAmount,
-                completed: isCompleted
-            })
-            .eq("id", id)
-            .eq("user_id", currentUser.id);
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from("goals")
+                    .update({
+                        current_amount: newAmount,
+                        completed: isCompleted
+                    })
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
 
-        if (error) throw error;
+                if (error) throw error;
+            } catch (netErr) {
+                console.warn("Falha online no aporte, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            goal.current_amount = newAmount;
+            goal.completed = isCompleted;
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('UPDATE_GOAL', { id, current_amount: newAmount, completed: isCompleted });
+                await window.tonuSync.setCachedGoals(currentUser.id, goals);
+            }
+            showToast(`📦 Aporte de ${formatCurrency(amount)} salvo offline!`, "info");
+        } else {
+            showToast(`Aporte de ${formatCurrency(amount)} realizado! ${isCompleted ? '🎉 Parabéns! Meta concluída!' : ''}`, "success");
+        }
 
         closeDepositModal();
         await loadGoals();
@@ -1085,8 +1164,6 @@ async function handleDepositSubmit(e) {
         if (isCompleted) {
             triggerCelebrationModal(goal.title, Math.max(Number(goal.target_amount) || 0, newAmount));
         }
-
-        showToast(`Aporte de ${formatCurrency(amount)} realizado! ${isCompleted ? '🎉 Parabéns! Meta concluída!' : ''}`, "success");
     } catch (err) {
         showToast("Erro no aporte: " + err.message, "error");
     } finally {
@@ -1143,18 +1220,37 @@ async function handleWithdrawSubmit(e) {
     const isCompleted = newAmount >= (Number(goal.target_amount) || 0);
 
     try {
-        const { error } = await supabaseClient
-            .from("goals")
-            .update({
-                current_amount: newAmount,
-                completed: isCompleted
-            })
-            .eq("id", id)
-            .eq("user_id", currentUser.id);
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from("goals")
+                    .update({
+                        current_amount: newAmount,
+                        completed: isCompleted
+                    })
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
 
-        if (error) throw error;
+                if (error) throw error;
+            } catch (netErr) {
+                console.warn("Falha online no resgate, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
 
-        showToast(`Resgate de ${formatCurrency(amount)} realizado!`, "success");
+        if (!isOnline) {
+            goal.current_amount = newAmount;
+            goal.completed = isCompleted;
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('UPDATE_GOAL', { id, current_amount: newAmount, completed: isCompleted });
+                await window.tonuSync.setCachedGoals(currentUser.id, goals);
+            }
+            showToast(`📦 Resgate de ${formatCurrency(amount)} salvo offline!`, "info");
+        } else {
+            showToast(`Resgate de ${formatCurrency(amount)} realizado!`, "success");
+        }
+
         closeWithdrawModal();
         await loadGoals();
     } catch (err) {
@@ -1175,14 +1271,33 @@ async function deleteGoal(id) {
     if (!confirm(`Deseja realmente excluir a meta "${goal.title}"?`)) return;
 
     try {
-        const { error } = await supabaseClient
-            .from("goals")
-            .delete()
-            .eq("id", id)
-            .eq("user_id", currentUser.id);
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from("goals")
+                    .delete()
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
 
-        if (error) throw error;
-        showToast("Meta excluída com sucesso!", "success");
+                if (error) throw error;
+            } catch (netErr) {
+                console.warn("Falha online na exclusão, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            goals = goals.filter(g => String(g.id) !== String(id));
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('DELETE_GOAL', { id });
+                await window.tonuSync.setCachedGoals(currentUser.id, goals);
+            }
+            showToast("📦 Meta excluída offline! Sincronizará quando a conexão retornar.", "info");
+        } else {
+            showToast("Meta excluída com sucesso!", "success");
+        }
+
         await loadGoals();
     } catch (err) {
         showToast("Erro ao excluir: " + err.message, "error");

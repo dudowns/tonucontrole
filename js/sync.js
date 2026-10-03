@@ -1,6 +1,6 @@
 // ==========================================================================
 // TONUCONTROLE - PWA ADVANCED SYNC & OFFLINE MANAGER
-// Background Sync, IndexedDB Queue, Offline Resilience & Web Share Target Store
+// Background Sync, IndexedDB Canonical Cache, Offline Resilience & Web Share
 // ==========================================================================
 
 (function () {
@@ -16,7 +16,7 @@
         constructor() {
             this.db = null;
             this.isSyncing = false;
-            this.isOnline = navigator.onLine;
+            this.isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
             this.syncListeners = [];
             this.init();
         }
@@ -28,9 +28,10 @@
 
                 this.setupNetworkListeners();
                 this.setupServiceWorkerSync();
+                this.setupVisibilityListeners();
 
                 if (this.isOnline) {
-                    setTimeout(() => this.flushQueue(), 2000);
+                    setTimeout(() => this.flushQueue(), 1500);
                 }
             } catch (err) {
                 console.error('❌ Erro ao inicializar TonuSyncManager:', err);
@@ -103,7 +104,7 @@
 
                     if (typeof showToast === 'function') {
                         if (!navigator.onLine) {
-                            showToast('⚡ Ação salva localmente com criptografia! Sincronizará ao retornar conexão.', 'info');
+                            showToast('⚡ Ação salva localmente com segurança! Sincronizará ao retornar conexão.', 'info');
                         }
                     }
 
@@ -150,9 +151,7 @@
                 const tx = this.db.transaction([QUEUE_STORE], 'readwrite');
                 const store = tx.objectStore(QUEUE_STORE);
                 const req = store.delete(id);
-                req.onsuccess = () => {
-                    resolve();
-                };
+                req.onsuccess = () => resolve();
                 req.onerror = () => reject(req.error);
             });
         }
@@ -163,9 +162,7 @@
                 const tx = this.db.transaction([QUEUE_STORE], 'readwrite');
                 const store = tx.objectStore(QUEUE_STORE);
                 const req = store.clear();
-                req.onsuccess = () => {
-                    resolve();
-                };
+                req.onsuccess = () => resolve();
                 req.onerror = () => reject(req.error);
             });
         }
@@ -216,7 +213,22 @@
                 if (typeof window.loadTransactions === 'function') window.loadTransactions();
                 if (typeof window.loadBills === 'function') window.loadBills();
                 if (typeof window.loadGoals === 'function') window.loadGoals();
+                if (typeof window.refreshDashboard === 'function') window.refreshDashboard();
+                if (typeof window.loadAllInvestmentData === 'function') window.loadAllInvestmentData();
             }
+        }
+
+        // Helper para limpar ids temporários gerados offline
+        _sanitizeForInsert(record) {
+            if (Array.isArray(record)) {
+                return record.map(r => this._sanitizeForInsert(r));
+            }
+            if (!record || typeof record !== 'object') return record;
+            const copy = { ...record };
+            if (copy.id && typeof copy.id === 'string' && (copy.id.startsWith('offline_') || copy.id.startsWith('temp_'))) {
+                delete copy.id;
+            }
+            return copy;
         }
 
         async executeSyncAction(item) {
@@ -228,32 +240,40 @@
             const { action, data } = item;
 
             switch (action) {
-                case 'INSERT_TRANSACTION': {
-                    const { error } = await window.supabaseClient.from('transactions').insert([data]);
+                case 'INSERT_TRANSACTION':
+                case 'INSERT_BILL': {
+                    const cleanData = this._sanitizeForInsert(data);
+                    const payload = Array.isArray(cleanData) ? cleanData : [cleanData];
+                    const { error } = await window.supabaseClient.from('transactions').insert(payload);
                     if (error) throw error;
                     return true;
                 }
-                case 'UPDATE_TRANSACTION': {
+                case 'UPDATE_TRANSACTION':
+                case 'UPDATE_BILL': {
                     const { id, ...updates } = data;
                     const { error } = await window.supabaseClient.from('transactions').update(updates).eq('id', id);
                     if (error) throw error;
                     return true;
                 }
-                case 'DELETE_TRANSACTION': {
-                    const { error } = await window.supabaseClient.from('transactions').delete().eq('id', data.id);
+                case 'DELETE_TRANSACTION':
+                case 'DELETE_BILL': {
+                    const targetId = data.id || data;
+                    const { error } = await window.supabaseClient.from('transactions').delete().eq('id', targetId);
                     if (error) throw error;
                     return true;
                 }
                 case 'PAY_BILL': {
                     const { billId, paymentData } = data;
-                    await window.supabaseClient.from('transactions').update({ paid: true }).eq('id', billId);
+                    await window.supabaseClient.from('transactions').update({ paid: true, paid_date: new Date().toISOString().split('T')[0] }).eq('id', billId);
                     if (paymentData) {
-                        await window.supabaseClient.from('transactions').insert([paymentData]);
+                        const cleanPayment = this._sanitizeForInsert(paymentData);
+                        await window.supabaseClient.from('transactions').insert([cleanPayment]);
                     }
                     return true;
                 }
                 case 'INSERT_GOAL': {
-                    const { error } = await window.supabaseClient.from('goals').insert([data]);
+                    const cleanData = this._sanitizeForInsert(data);
+                    const { error } = await window.supabaseClient.from('goals').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
                     if (error) throw error;
                     return true;
                 }
@@ -264,7 +284,62 @@
                     return true;
                 }
                 case 'DELETE_GOAL': {
-                    const { error } = await window.supabaseClient.from('goals').delete().eq('id', data.id);
+                    const targetId = data.id || data;
+                    const { error } = await window.supabaseClient.from('goals').delete().eq('id', targetId);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'INSERT_INVESTMENT': {
+                    const cleanData = this._sanitizeForInsert(data);
+                    const { error } = await window.supabaseClient.from('investments').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'UPDATE_INVESTMENT': {
+                    const { id, ...updates } = data;
+                    const { error } = await window.supabaseClient.from('investments').update(updates).eq('id', id);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'DELETE_INVESTMENT': {
+                    const targetId = data.id || data;
+                    const { error } = await window.supabaseClient.from('investments').delete().eq('id', targetId);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'INSERT_DIVIDEND': {
+                    const cleanData = this._sanitizeForInsert(data);
+                    const { error } = await window.supabaseClient.from('dividends').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'UPDATE_DIVIDEND': {
+                    const { id, ...updates } = data;
+                    const { error } = await window.supabaseClient.from('dividends').update(updates).eq('id', id);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'DELETE_DIVIDEND': {
+                    const targetId = data.id || data;
+                    const { error } = await window.supabaseClient.from('dividends').delete().eq('id', targetId);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'INSERT_CORPORATE_EVENT': {
+                    const cleanData = this._sanitizeForInsert(data);
+                    const { error } = await window.supabaseClient.from('corporate_events').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'UPDATE_CORPORATE_EVENT': {
+                    const { id, ...updates } = data;
+                    const { error } = await window.supabaseClient.from('corporate_events').update(updates).eq('id', id);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'DELETE_CORPORATE_EVENT': {
+                    const targetId = data.id || data;
+                    const { error } = await window.supabaseClient.from('corporate_events').delete().eq('id', targetId);
                     if (error) throw error;
                     return true;
                 }
@@ -275,7 +350,86 @@
         }
 
         // ==================================================================
-        // 4. SERVICE WORKER BACKGROUND SYNC
+        // 4. CANONICAL INDEXEDDB ENTITY CACHE (PARTE 4, 7, 8)
+        // ==================================================================
+        async setEntityCache(key, data) {
+            if (!this.db) await this.openDatabase();
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([CACHE_STORE], 'readwrite');
+                const store = tx.objectStore(CACHE_STORE);
+                const req = store.put({ key, data, updatedAt: Date.now() });
+                req.onsuccess = () => resolve(true);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async getEntityCache(key) {
+            if (!this.db) await this.openDatabase();
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([CACHE_STORE], 'readonly');
+                const store = tx.objectStore(CACHE_STORE);
+                const req = store.get(key);
+                req.onsuccess = () => resolve(req.result ? req.result.data : null);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async getCachedTransactions(userId) {
+            const data = await this.getEntityCache(`transactions_${userId || 'current'}`);
+            return Array.isArray(data) ? data : [];
+        }
+
+        async setCachedTransactions(userId, transactions) {
+            return await this.setEntityCache(`transactions_${userId || 'current'}`, transactions || []);
+        }
+
+        async getCachedBills(userId) {
+            const data = await this.getEntityCache(`bills_${userId || 'current'}`);
+            return Array.isArray(data) ? data : [];
+        }
+
+        async setCachedBills(userId, bills) {
+            return await this.setEntityCache(`bills_${userId || 'current'}`, bills || []);
+        }
+
+        async getCachedGoals(userId) {
+            const data = await this.getEntityCache(`goals_${userId || 'current'}`);
+            return Array.isArray(data) ? data : [];
+        }
+
+        async setCachedGoals(userId, goals) {
+            return await this.setEntityCache(`goals_${userId || 'current'}`, goals || []);
+        }
+
+        async getCachedInvestments(userId) {
+            const data = await this.getEntityCache(`investments_${userId || 'current'}`);
+            return Array.isArray(data) ? data : [];
+        }
+
+        async setCachedInvestments(userId, investments) {
+            return await this.setEntityCache(`investments_${userId || 'current'}`, investments || []);
+        }
+
+        async getCachedDividends(userId) {
+            const data = await this.getEntityCache(`dividends_${userId || 'current'}`);
+            return Array.isArray(data) ? data : [];
+        }
+
+        async setCachedDividends(userId, dividends) {
+            return await this.setEntityCache(`dividends_${userId || 'current'}`, dividends || []);
+        }
+
+        async getCachedCorporateEvents(userId) {
+            const data = await this.getEntityCache(`corporate_events_${userId || 'current'}`);
+            return Array.isArray(data) ? data : [];
+        }
+
+        async setCachedCorporateEvents(userId, events) {
+            return await this.setEntityCache(`corporate_events_${userId || 'current'}`, events || []);
+        }
+
+        // ==================================================================
+        // 5. SERVICE WORKER BACKGROUND SYNC & LISTENERS
         // ==================================================================
         async requestBackgroundSync() {
             if ('serviceWorker' in navigator && 'SyncManager' in window) {
@@ -292,16 +446,18 @@
         setupServiceWorkerSync() {
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.addEventListener('message', (event) => {
-                    if (event.data && event.data.type === 'SYNC_COMPLETED') {
-                        console.log('📩 Mensagem do SW: Sincronização em segundo plano concluída');
+                    if (event.data) {
+                        if (event.data.type === 'TRIGGER_SYNC') {
+                            console.log('⚡ Background Sync acionado pelo Service Worker');
+                            this.flushQueue();
+                        } else if (event.data.type === 'SYNC_COMPLETED') {
+                            console.log('📩 Mensagem do SW: Sincronização concluída');
+                        }
                     }
                 });
             }
         }
 
-        // ==================================================================
-        // 5. MONITORAMENTO DE REDE
-        // ==================================================================
         setupNetworkListeners() {
             window.addEventListener('online', () => {
                 this.isOnline = true;
@@ -319,6 +475,24 @@
                     showToast('📶 Modo Offline ativo. Todas as alterações serão salvas localmente.', 'warning');
                 }
             });
+        }
+
+        setupVisibilityListeners() {
+            // Fallback robusto quando Background Sync não é suportado pelo navegador
+            if (typeof document !== 'undefined') {
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible' && navigator.onLine) {
+                        this.flushQueue();
+                    }
+                });
+            }
+            if (typeof window !== 'undefined') {
+                window.addEventListener('focus', () => {
+                    if (navigator.onLine) {
+                        this.flushQueue();
+                    }
+                });
+            }
         }
 
         // ==================================================================
@@ -372,6 +546,6 @@
 
     // Instância global
     window.tonuSync = new TonuSyncManager();
-    console.log('✅ TonuSyncManager PWA carregado');
+    console.log('✅ TonuSyncManager PWA carregado com suporte canônico IndexedDB');
 
 })();

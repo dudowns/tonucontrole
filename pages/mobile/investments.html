@@ -931,6 +931,7 @@
 <script src="../../js/supabase.js"></script>
 <script src="../../js/core.js"></script>
 <script src="../../js/sync.js"></script>
+<script src="../../js/sw-register.js"></script>
 <script src="../../js/data/cnpj-base.js"></script>
 <script src="../../js/reports/ir-report.js"></script>
 <script>
@@ -1172,50 +1173,65 @@ window.decoratePositions = window.decoratePositions || decoratePositions;
 window.quotes = quotes;
 
 // ============================================
-// CARREGAR DADOS DO SUPABASE
+// CARREGAR DADOS DO SUPABASE OU INDEXEDDB CANÔNICO
 // ============================================
 async function loadAllInvestmentData() {
     try {
-        // 1. Operações (investments) ordenadas cronologicamente
-        const { data: invData, error: invErr } = await supabaseClient
-            .from("investments")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .order("date", { ascending: true });
+        let isOnline = navigator.onLine && window.supabaseClient && currentUser;
 
-        if (invErr) console.warn("Aviso busca investimentos:", invErr);
-        allRawInvestments = invData || [];
-
-        // 2. Proventos (dividends)
-        const { data: divData, error: divErr } = await supabaseClient
-            .from("dividends")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .order("date", { ascending: false });
-
-        if (divErr) console.warn("Aviso busca proventos:", divErr);
-        allRawDividends = divData || [];
-
-        // 3. Eventos Corporativos (corporate_events)
-        let corpEvents = [];
-        try {
-            const { data: corpData, error: corpErr } = await supabaseClient
-                .from("corporate_events")
-                .select("*")
-                .eq("user_id", currentUser.id)
-                .order("event_date", { ascending: true });
-            if (!corpErr && corpData) {
-                corpEvents = corpData;
-            }
-        } catch (e) {}
-
-        if (corpEvents.length === 0) {
+        if (isOnline) {
             try {
-                const local = localStorage.getItem("tonu_corporate_events");
-                if (local) corpEvents = JSON.parse(local) || [];
-            } catch (e) {}
+                // 1. Operações (investments) ordenadas cronologicamente
+                const { data: invData, error: invErr } = await supabaseClient
+                    .from("investments")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .order("date", { ascending: true });
+
+                if (!invErr && invData) {
+                    allRawInvestments = invData;
+                    if (window.tonuSync) await window.tonuSync.setCachedInvestments(currentUser.id, invData);
+                }
+
+                // 2. Proventos (dividends)
+                const { data: divData, error: divErr } = await supabaseClient
+                    .from("dividends")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .order("date", { ascending: false });
+
+                if (!divErr && divData) {
+                    allRawDividends = divData;
+                    if (window.tonuSync) await window.tonuSync.setCachedDividends(currentUser.id, divData);
+                }
+
+                // 3. Eventos Corporativos (corporate_events)
+                const { data: corpData, error: corpErr } = await supabaseClient
+                    .from("corporate_events")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .order("event_date", { ascending: true });
+
+                if (!corpErr && corpData) {
+                    allRawCorporateEvents = corpData;
+                    if (window.tonuSync) await window.tonuSync.setCachedCorporateEvents(currentUser.id, corpData);
+                }
+            } catch (netErr) {
+                console.warn("Falha online em investimentos, carregando de IndexedDB:", netErr);
+                isOnline = false;
+            }
         }
-        allRawCorporateEvents = corpEvents;
+
+        if (!isOnline && window.tonuSync) {
+            const [cInv, cDiv, cCorp] = await Promise.all([
+                window.tonuSync.getCachedInvestments(currentUser?.id),
+                window.tonuSync.getCachedDividends(currentUser?.id),
+                window.tonuSync.getCachedCorporateEvents(currentUser?.id)
+            ]);
+            if (cInv && cInv.length > 0) allRawInvestments = cInv;
+            if (cDiv && cDiv.length > 0) allRawDividends = cDiv;
+            if (cCorp && cCorp.length > 0) allRawCorporateEvents = cCorp;
+        }
 
         // 4. Calcula custódia real e correta (considerando splits, bonificações, etc.)
         computeRealPositions();
@@ -2563,21 +2579,51 @@ async function handleOpSubmit(e) {
         note: note || null
     };
 
+    let isOnline = navigator.onLine && window.supabaseClient;
     try {
-        if (editId) {
-            const { error } = await supabaseClient
-                .from("investments")
-                .update(payload)
-                .eq("id", editId)
-                .eq("user_id", currentUser.id);
-            if (error) throw error;
-            showToast("Operação atualizada!", "success");
-        } else {
-            const { error } = await supabaseClient
-                .from("investments")
-                .insert([payload]);
-            if (error) throw error;
-            showToast("Operação registrada com sucesso!", "success");
+        if (isOnline) {
+            try {
+                if (editId) {
+                    const { error } = await supabaseClient
+                        .from("investments")
+                        .update(payload)
+                        .eq("id", editId)
+                        .eq("user_id", currentUser.id);
+                    if (error) throw error;
+                    showToast("Operação atualizada!", "success");
+                } else {
+                    const { error } = await supabaseClient
+                        .from("investments")
+                        .insert([payload]);
+                    if (error) throw error;
+                    showToast("Operação registrada com sucesso!", "success");
+                }
+            } catch (netErr) {
+                console.warn("Falha online, enfileirando operação offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            if (editId) {
+                allRawInvestments = allRawInvestments.map(o => String(o.id) === String(editId) ? { ...o, ...payload } : o);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('UPDATE_INVESTMENT', { id: editId, ...payload });
+                    await window.tonuSync.setCachedInvestments(currentUser.id, allRawInvestments);
+                }
+            } else {
+                const offlineOp = {
+                    id: 'offline_inv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                    ...payload,
+                    created_at: new Date().toISOString()
+                };
+                allRawInvestments.push(offlineOp);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_INVESTMENT', payload);
+                    await window.tonuSync.setCachedInvestments(currentUser.id, allRawInvestments);
+                }
+            }
+            showToast("📦 Operação salva offline! Será sincronizada quando a conexão retornar.", "info");
         }
 
         closeModalOperation();
@@ -2611,13 +2657,31 @@ function editOperation(id) {
 async function deleteOperation(id) {
     if (!confirm("Tem certeza que deseja excluir esta operação?")) return;
     try {
-        const { error } = await supabaseClient
-            .from("investments")
-            .delete()
-            .eq("id", id)
-            .eq("user_id", currentUser.id);
-        if (error) throw error;
-        showToast("Operação excluída!", "success");
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from("investments")
+                    .delete()
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
+                if (error) throw error;
+                showToast("Operação excluída!", "success");
+            } catch (netErr) {
+                console.warn("Falha online ao excluir, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            allRawInvestments = allRawInvestments.filter(o => String(o.id) !== String(id));
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('DELETE_INVESTMENT', { id });
+                await window.tonuSync.setCachedInvestments(currentUser.id, allRawInvestments);
+            }
+            showToast("📦 Operação excluída offline! Será sincronizada quando a conexão retornar.", "info");
+        }
+
         await loadAllInvestmentData();
     } catch (err) {
         showToast("Erro ao excluir: " + err.message, "error");
@@ -2746,52 +2810,74 @@ async function handleDivSubmit(e) {
         note: note || null
     };
 
+    let isOnline = navigator.onLine && window.supabaseClient;
     try {
-        if (editId) {
-            let res = await supabaseClient
-                .from("dividends")
-                .update(payload)
-                .eq("id", editId)
-                .eq("user_id", currentUser.id);
+        if (isOnline) {
+            try {
+                if (editId) {
+                    let res = await supabaseClient
+                        .from("dividends")
+                        .update(payload)
+                        .eq("id", editId)
+                        .eq("user_id", currentUser.id);
 
-            if (res.error && res.error.code === 'PGRST204') {
-                delete payload.net_value;
-                delete payload.date_com;
-                const retry = await supabaseClient
-                    .from("dividends")
-                    .update(payload)
-                    .eq("id", editId)
-                    .eq("user_id", currentUser.id);
-                if (retry.error) throw retry.error;
-            } else if (res.error) {
-                throw res.error;
-            }
-            showToast("Provento atualizado!", "success");
-        } else {
-            let res = await supabaseClient
-                .from("dividends")
-                .insert([payload]);
+                    if (res.error && res.error.code === 'PGRST204') {
+                        delete payload.net_value;
+                        delete payload.date_com;
+                        const retry = await supabaseClient
+                            .from("dividends")
+                            .update(payload)
+                            .eq("id", editId)
+                            .eq("user_id", currentUser.id);
+                        if (retry.error) throw retry.error;
+                    } else if (res.error) {
+                        throw res.error;
+                    }
+                    showToast("Provento atualizado!", "success");
+                } else {
+                    let res = await supabaseClient
+                        .from("dividends")
+                        .insert([payload]);
 
-            if (res.error && res.error.code === 'PGRST204') {
-                delete payload.net_value;
-                delete payload.date_com;
-                const retry = await supabaseClient
-                    .from("dividends")
-                    .insert([payload]);
-                if (retry.error) throw retry.error;
-            } else if (res.error) {
-                throw res.error;
+                    if (res.error && res.error.code === 'PGRST204') {
+                        delete payload.net_value;
+                        delete payload.date_com;
+                        const retry = await supabaseClient
+                            .from("dividends")
+                            .insert([payload]);
+                        if (retry.error) throw retry.error;
+                    } else if (res.error) {
+                        throw res.error;
+                    }
+                    showToast("Provento salvo com sucesso!", "success");
+                }
+            } catch (netErr) {
+                console.warn("Falha online, enfileirando provento offline:", netErr);
+                isOnline = false;
             }
-            showToast("Provento salvo com sucesso!", "success");
         }
 
-        // Atualiza cache local offline
-        try {
-            const cacheKey = `tonu_dividends_${currentUser.id}`;
-            const existingCache = JSON.parse(localStorage.getItem(cacheKey) || '[]');
-            const updatedCache = [payload, ...existingCache.filter(d => d.id !== editId)];
-            localStorage.setItem(cacheKey, JSON.stringify(updatedCache));
-        } catch (_) {}
+        if (!isOnline) {
+            if (editId) {
+                allRawDividends = allRawDividends.map(d => String(d.id) === String(editId) ? { ...d, ...payload } : d);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('UPDATE_DIVIDEND', { id: editId, ...payload });
+                    await window.tonuSync.setCachedDividends(currentUser.id, allRawDividends);
+                }
+            } else {
+                const offlineDiv = {
+                    id: 'offline_div_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                    ...payload,
+                    created_at: new Date().toISOString()
+                };
+                allRawDividends.unshift(offlineDiv);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_DIVIDEND', payload);
+                    await window.tonuSync.setCachedDividends(currentUser.id, allRawDividends);
+                }
+            }
+            showToast("📦 Provento salvo offline! Será sincronizado quando a conexão retornar.", "info");
+        }
 
         closeModalDividend();
         await loadAllInvestmentData();
@@ -2807,13 +2893,31 @@ async function handleDivSubmit(e) {
 async function deleteDividend(id) {
     if (!confirm("Tem certeza que deseja excluir este provento?")) return;
     try {
-        const { error } = await supabaseClient
-            .from("dividends")
-            .delete()
-            .eq("id", id)
-            .eq("user_id", currentUser.id);
-        if (error) throw error;
-        showToast("Provento excluído!", "success");
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from("dividends")
+                    .delete()
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
+                if (error) throw error;
+                showToast("Provento excluído!", "success");
+            } catch (netErr) {
+                console.warn("Falha online ao excluir provento, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            allRawDividends = allRawDividends.filter(d => String(d.id) !== String(id));
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('DELETE_DIVIDEND', { id });
+                await window.tonuSync.setCachedDividends(currentUser.id, allRawDividends);
+            }
+            showToast("📦 Provento excluído offline! Será sincronizado quando a conexão retornar.", "info");
+        }
+
         await loadAllInvestmentData();
     } catch (err) {
         showToast("Erro ao excluir: " + err.message, "error");
@@ -2921,39 +3025,52 @@ async function handleCorpSubmit(e) {
             payload.amortization_per_share = parseFloat(document.getElementById("corpAmortizationPerShare").value) || 0;
         }
 
-        let saved = false;
-        try {
-            if (id) {
-                const { error } = await supabaseClient
-                    .from("corporate_events")
-                    .update(payload)
-                    .eq("id", id)
-                    .eq("user_id", currentUser.id);
-                if (!error) saved = true;
-            } else {
-                const { error } = await supabaseClient
-                    .from("corporate_events")
-                    .insert([payload]);
-                if (!error) saved = true;
-            }
-        } catch (dbErr) {}
-
-        if (!saved) {
-            let localList = [];
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
             try {
-                localList = JSON.parse(localStorage.getItem("tonu_corporate_events") || "[]");
-            } catch (err) {}
-            if (id) {
-                localList = localList.map(item => item.id === id ? { ...item, ...payload } : item);
-            } else {
-                payload.id = "corp_" + Date.now();
-                payload.created_at = new Date().toISOString();
-                localList.push(payload);
+                if (id) {
+                    const { error } = await supabaseClient
+                        .from("corporate_events")
+                        .update(payload)
+                        .eq("id", id)
+                        .eq("user_id", currentUser.id);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabaseClient
+                        .from("corporate_events")
+                        .insert([payload]);
+                    if (error) throw error;
+                }
+            } catch (netErr) {
+                console.warn("Falha online em evento corporativo, enfileirando offline:", netErr);
+                isOnline = false;
             }
-            localStorage.setItem("tonu_corporate_events", JSON.stringify(localList));
         }
 
-        showToast(id ? "Evento atualizado!" : "Evento salvo com sucesso!", "success");
+        if (!isOnline) {
+            if (id) {
+                allRawCorporateEvents = allRawCorporateEvents.map(item => item.id === id ? { ...item, ...payload } : item);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('UPDATE_CORPORATE_EVENT', { id, ...payload });
+                    await window.tonuSync.setCachedCorporateEvents(currentUser.id, allRawCorporateEvents);
+                }
+            } else {
+                const offlineCorp = {
+                    id: 'corp_' + Date.now(),
+                    ...payload,
+                    created_at: new Date().toISOString()
+                };
+                allRawCorporateEvents.push(offlineCorp);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_CORPORATE_EVENT', payload);
+                    await window.tonuSync.setCachedCorporateEvents(currentUser.id, allRawCorporateEvents);
+                }
+            }
+            showToast("📦 Evento salvo offline! Será sincronizado quando a conexão retornar.", "info");
+        } else {
+            showToast(id ? "Evento atualizado!" : "Evento salvo com sucesso!", "success");
+        }
+
         closeModalCorporateEvent();
         await loadAllInvestmentData();
     } catch (err) {
@@ -2967,25 +3084,33 @@ async function handleCorpSubmit(e) {
 async function deleteCorporateEvent(id) {
     if (!confirm("Deseja realmente remover este evento? Suas cotas e preço médio serão recalculados.")) return;
     try {
-        try {
-            await supabaseClient
-                .from("corporate_events")
-                .delete()
-                .eq("id", id)
-                .eq("user_id", currentUser.id);
-        } catch (dbErr) {}
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                await supabaseClient
+                    .from("corporate_events")
+                    .delete()
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
+                showToast("Evento excluído!", "success");
+            } catch (netErr) {
+                console.warn("Falha online ao excluir evento, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
 
-        let localList = [];
-        try {
-            localList = JSON.parse(localStorage.getItem("tonu_corporate_events") || "[]");
-            localList = localList.filter(item => item.id !== id);
-            localStorage.setItem("tonu_corporate_events", JSON.stringify(localList));
-        } catch (e) {}
+        if (!isOnline) {
+            allRawCorporateEvents = allRawCorporateEvents.filter(item => item.id !== id);
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('DELETE_CORPORATE_EVENT', { id });
+                await window.tonuSync.setCachedCorporateEvents(currentUser.id, allRawCorporateEvents);
+            }
+            showToast("📦 Evento excluído offline! Será sincronizado quando a conexão retornar.", "info");
+        }
 
-        showToast("Evento excluído!", "success");
         await loadAllInvestmentData();
-    } catch (err) {
-        showToast("Erro ao remover: " + err.message, "error");
+    } catch (e) {
+        showToast("Erro ao excluir evento: " + (e.message || e), "error");
     }
 }
 

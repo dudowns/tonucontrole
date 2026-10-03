@@ -372,17 +372,33 @@ async function loadTransactions() {
         const lastDay = `${year}-${month}-${new Date(year, selDate.getMonth() + 1, 0).getDate()}`;
 
         let txs = [];
-        if (supabaseClient) {
-            const { data, error } = await supabaseClient
-                .from("transactions")
-                .select("*")
-                .eq("user_id", currentUser.id)
-                .gte("date", firstDay)
-                .lte("date", lastDay)
-                .order("date", { ascending: false });
+        let fetchedOnline = false;
+        if (navigator.onLine && supabaseClient && currentUser) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from("transactions")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .gte("date", firstDay)
+                    .lte("date", lastDay)
+                    .order("date", { ascending: false });
 
-            if (!error && data) {
-                txs = data;
+                if (!error && data) {
+                    txs = data;
+                    fetchedOnline = true;
+                    if (window.tonuSync) {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, txs);
+                    }
+                }
+            } catch (netErr) {
+                console.warn("Falha online ao carregar transações:", netErr);
+            }
+        }
+
+        if (!fetchedOnline && window.tonuSync) {
+            const cached = await window.tonuSync.getCachedTransactions(currentUser?.id);
+            if (cached && cached.length > 0) {
+                txs = cached.filter(t => t.date >= firstDay && t.date <= lastDay);
             }
         }
 
@@ -563,19 +579,41 @@ async function handleQuickAddSubmit(event) {
     btn.disabled = true;
     btn.textContent = "Salvando...";
 
+    const payload = {
+        user_id: currentUser.id,
+        description: desc,
+        amount: amount,
+        type: currentQuickType,
+        category_id: category_id,
+        date: date
+    };
+
+    let isOnline = navigator.onLine && window.supabaseClient;
     try {
-        const { error } = await supabaseClient.from("transactions").insert([{
-            user_id: currentUser.id,
-            description: desc,
-            amount: amount,
-            type: currentQuickType,
-            category_id: category_id,
-            date: date
-        }]);
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient.from("transactions").insert([payload]);
+                if (error) throw error;
+                showToast("Transação adicionada com sucesso! 🎉", "success");
+            } catch (netErr) {
+                console.warn("Falha online, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
 
-        if (error) throw error;
+        if (!isOnline) {
+            const offlineTx = {
+                id: 'offline_tx_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                ...payload
+            };
+            allTransactions.unshift(offlineTx);
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('INSERT_TRANSACTION', payload);
+                await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+            }
+            showToast("📦 Transação salva offline! Será sincronizada quando a conexão retornar.", "info");
+        }
 
-        showToast("Transação adicionada com sucesso! 🎉", "success");
         closeQuickAddModal();
         document.getElementById("quickAddForm").reset();
         await loadTransactions();
@@ -604,9 +642,27 @@ async function handleQuickAddSubmit(event) {
 async function deleteTransaction(id) {
     if (!confirm("Deseja realmente excluir esta transação?")) return;
     try {
-        const { error } = await supabaseClient.from("transactions").delete().eq("id", id).eq("user_id", currentUser.id);
-        if (error) throw error;
-        showToast("Transação excluída!", "success");
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient.from("transactions").delete().eq("id", id).eq("user_id", currentUser.id);
+                if (error) throw error;
+                showToast("Transação excluída!", "success");
+            } catch (netErr) {
+                console.warn("Falha online ao excluir, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            allTransactions = allTransactions.filter(t => String(t.id) !== String(id));
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('DELETE_TRANSACTION', { id });
+                await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+            }
+            showToast("📦 Transação excluída offline! Será sincronizada quando a conexão retornar.", "info");
+        }
+
         await loadTransactions();
     } catch (err) {
         console.error("Erro ao excluir:", err);

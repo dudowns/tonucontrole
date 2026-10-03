@@ -35,8 +35,15 @@ window.addEventListener('appinstalled', () => {
 // Registro do Service Worker para critérios de PWA do Chrome
 if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {
-    const swPath = window.location.pathname.includes('/pages/') ? '../sw.js' : './sw.js';
-    navigator.serviceWorker.register(swPath).then((registration) => {
+    let swPath = './sw.js';
+    if (window.location.pathname.includes('/pages/mobile/')) {
+      swPath = '../../sw.js';
+    } else if (window.location.pathname.includes('/pages/')) {
+      swPath = '../sw.js';
+    }
+
+    const swScope = swPath.replace('sw.js', '') || './';
+    navigator.serviceWorker.register(swPath, { scope: swScope }).then((registration) => {
       console.log('👷 ServiceWorker registrado com escopo:', registration.scope);
       registration.update();
 

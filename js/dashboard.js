@@ -3409,29 +3409,27 @@ async function openCashFlowModal() {
 }
 
 // ============================================
-// LOGOUT
+// LOGOUT (Delega para a autenticação central)
 // ============================================
 async function logout() {
+    if (window.TonuAuth && typeof window.TonuAuth.logout === 'function') {
+        return await window.TonuAuth.logout();
+    }
+    if (typeof window.coreLogout === 'function') {
+        return await window.coreLogout();
+    }
     try {
         sessionStorage.setItem('tonu_logout_in_progress', 'true');
-
-        if (window.supabaseOffline) {
-            await window.supabaseOffline.logout();
-        }
-        await supabaseClient.auth.signOut();
-
+        if (window.supabaseOffline) await window.supabaseOffline.logout();
+        if (window.supabaseClient?.auth) await window.supabaseClient.auth.signOut();
         localStorage.removeItem('tonu_secure_session_v2');
         localStorage.removeItem('tonu_offline_session');
         sessionStorage.removeItem('tonu_user');
-
         setTimeout(() => {
             sessionStorage.removeItem('tonu_logout_in_progress');
             window.location.href = '../index.html';
         }, 150);
-
-    } catch (error) {
-        console.error('❌ Erro ao fazer logout:', error);
-        sessionStorage.removeItem('tonu_logout_in_progress');
+    } catch (e) {
         window.location.href = '../index.html';
     }
 }
