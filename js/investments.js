@@ -1410,12 +1410,63 @@ async function fetchQuotes(customPositions) {
     const activeToken = window.__TONU_CONFIG__?.brapiToken || window.APP_CONFIG?.BRAPI_TOKEN || BRAPI_TOKEN || '';
 
     try {
+        // 1. Prioridade: Buscar cotações diretamente na tabela asset_quotes do Supabase
+        const client = window.supabaseClient || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+        if (client) {
+            try {
+                const { data: dbQuotes, error: dbErr } = await client
+                    .from('asset_quotes')
+                    .select('ticker, price, change, change_value, previous_close, updated_at')
+                    .in('ticker', unique);
+
+                if (!dbErr && Array.isArray(dbQuotes) && dbQuotes.length > 0) {
+                    console.log(`✅ ${dbQuotes.length} cotações carregadas diretamente do Supabase (asset_quotes)`);
+                    for (const q of dbQuotes) {
+                        const rawTk = q.ticker?.toUpperCase().trim();
+                        if (!rawTk || !Number.isFinite(Number(q.price)) || Number(q.price) <= 0) continue;
+
+                        const cleanTk = rawTk.replace(/\.SA$/, '');
+                        const quoteData = {
+                            price: Number(q.price),
+                            changePct: Number(q.change || 0),
+                            previousClose: Number(q.previous_close || q.price || 0),
+                            marketTime: q.updated_at || new Date().toISOString(),
+                            simulated: false,
+                            source: 'Supabase'
+                        };
+
+                        quotes.set(rawTk, quoteData);
+                        quotes.set(cleanTk, quoteData);
+                        quotes.set(`${cleanTk}.SA`, quoteData);
+                        isUsingRealQuotes = true;
+                    }
+                }
+            } catch (dbEx) {
+                console.warn('⚠️ Consulta a asset_quotes no Supabase:', dbEx);
+            }
+        }
+
+        const remainingTickers = unique.filter(t => !quotes.has(t) && !quotes.has(t.replace(/\.SA$/, '')));
+        if (remainingTickers.length === 0) {
+            console.log('✅ Todos os ativos carregados com sucesso do Supabase!');
+            try {
+                const cacheObj = {};
+                for (const [k, v] of quotes.entries()) cacheObj[k] = v;
+                localStorage.setItem('tonu_quotes_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    quotes: cacheObj
+                }));
+            } catch (saveErr) {}
+            updateQuoteStatus();
+            return quotes;
+        }
+
         let allResults = [];
         let hasError = false;
 
         const batchSize = 10;
-        for (let i = 0; i < unique.length; i += batchSize) {
-            const batch = unique.slice(i, i + batchSize);
+        for (let i = 0; i < remainingTickers.length; i += batchSize) {
+            const batch = remainingTickers.slice(i, i + batchSize);
             const tickersParam = batch.map(t => encodeURIComponent(t.trim())).join(',');
             const url = `https://brapi.dev/api/quote/${tickersParam}`;
 

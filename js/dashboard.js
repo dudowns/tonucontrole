@@ -571,7 +571,56 @@ async function fetchQuotes() {
         let allResults = [];
         let foundCount = 0;
 
-        for (const ticker of unique) {
+        // 1. Prioridade: Buscar cotações diretamente na tabela asset_quotes do Supabase
+        const client = window.supabaseClient || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+        if (client) {
+            try {
+                const { data: dbQuotes, error: dbErr } = await client
+                    .from('asset_quotes')
+                    .select('ticker, price, change, change_value, previous_close, updated_at')
+                    .in('ticker', unique);
+
+                if (!dbErr && Array.isArray(dbQuotes) && dbQuotes.length > 0) {
+                    console.log(`✅ ${dbQuotes.length} cotações carregadas do Supabase (asset_quotes) no Dashboard`);
+                    for (const q of dbQuotes) {
+                        const rawTk = q.ticker?.toUpperCase().trim();
+                        if (!rawTk || !Number.isFinite(Number(q.price)) || Number(q.price) <= 0) continue;
+
+                        const cleanTk = rawTk.replace(/\.SA$/, '');
+                        const quoteObj = {
+                            price: Number(q.price),
+                            changePct: Number(q.change || 0),
+                            previousClose: Number(q.previous_close || q.price || 0),
+                            marketTime: q.updated_at || new Date().toISOString(),
+                            simulated: false,
+                            source: 'Supabase'
+                        };
+
+                        quotes.set(rawTk, quoteObj);
+                        quotes.set(cleanTk, quoteObj);
+                        quotes.set(`${cleanTk}.SA`, quoteObj);
+                        foundCount++;
+                    }
+                }
+            } catch (dbEx) {
+                console.warn('⚠️ Consulta a asset_quotes no Supabase:', dbEx);
+            }
+        }
+
+        const remainingTickers = unique.filter(t => !quotes.has(t) && !quotes.has(t.replace(/\.SA$/, '')));
+        if (remainingTickers.length === 0 && foundCount > 0) {
+            isUsingRealQuotes = true;
+            try {
+                const cacheObj = {};
+                for (const [k, v] of quotes.entries()) cacheObj[k] = v;
+                localStorage.setItem('tonu_quotes_cache', JSON.stringify(cacheObj));
+            } catch (e) {}
+            renderPositions();
+            updatePortfolioSummary();
+            return;
+        }
+
+        for (const ticker of remainingTickers) {
             try {
                 const url = 'https://brapi.dev/api/quote/' + ticker;
                 const finalUrl = BRAPI_TOKEN && BRAPI_TOKEN !== 'SUA_CHAVE_AQUI' ?

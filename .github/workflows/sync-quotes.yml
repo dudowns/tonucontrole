@@ -1,0 +1,28 @@
+name: Atualizar Cotações B3
+
+on:
+  schedule:
+    # Roda de hora em hora das 13:00 às 21:00 UTC (10:00 às 18:00 no Horário de Brasília) de segunda a sexta-feira
+    - cron: '0 13-21 * * 1-5'
+  # Permite acionar manualmente pelo botão "Run workflow" no GitHub
+  workflow_dispatch:
+
+jobs:
+  update-quotes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Executar sincronização de cotações
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://rbtxrbacdpenbslqcbbl.supabase.co' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          BRAPI_TOKEN: ${{ secrets.BRAPI_TOKEN }}
+        run: node scripts/sync-quotes.js
