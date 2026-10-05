@@ -108,6 +108,10 @@
                         }
                     }
 
+                    if (navigator.onLine) {
+                        setTimeout(() => this.flushQueue(), 50);
+                    }
+
                     resolve(item);
                 };
 
@@ -243,7 +247,15 @@
                 case 'INSERT_TRANSACTION':
                 case 'INSERT_BILL': {
                     const cleanData = this._sanitizeForInsert(data);
-                    const payload = Array.isArray(cleanData) ? cleanData : [cleanData];
+                    const rawPayload = Array.isArray(cleanData) ? cleanData : [cleanData];
+                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                    const payload = rawPayload.map(item => {
+                        const copy = { ...item };
+                        if (copy.category_id && !uuidRegex.test(String(copy.category_id))) {
+                            delete copy.category_id;
+                        }
+                        return copy;
+                    });
                     const { error } = await window.supabaseClient.from('transactions').insert(payload);
                     if (error) throw error;
                     return true;
@@ -251,6 +263,10 @@
                 case 'UPDATE_TRANSACTION':
                 case 'UPDATE_BILL': {
                     const { id, ...updates } = data;
+                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                    if (updates.category_id && !uuidRegex.test(String(updates.category_id))) {
+                        delete updates.category_id;
+                    }
                     const { error } = await window.supabaseClient.from('transactions').update(updates).eq('id', id);
                     if (error) throw error;
                     return true;
@@ -375,8 +391,20 @@
         }
 
         async getCachedTransactions(userId) {
-            const data = await this.getEntityCache(`transactions_${userId || 'current'}`);
-            return Array.isArray(data) ? data : [];
+            const key = `transactions_${userId || 'current'}`;
+            const data = await this.getEntityCache(key);
+            if (Array.isArray(data) && data.length > 0) return data;
+            try {
+                const legacy = localStorage.getItem('tonu_' + key);
+                if (legacy) {
+                    const parsed = JSON.parse(legacy);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        await this.setEntityCache(key, parsed);
+                        return parsed;
+                    }
+                }
+            } catch (_) {}
+            return [];
         }
 
         async setCachedTransactions(userId, transactions) {
@@ -384,8 +412,20 @@
         }
 
         async getCachedBills(userId) {
-            const data = await this.getEntityCache(`bills_${userId || 'current'}`);
-            return Array.isArray(data) ? data : [];
+            const key = `bills_${userId || 'current'}`;
+            const data = await this.getEntityCache(key);
+            if (Array.isArray(data) && data.length > 0) return data;
+            try {
+                const legacy = localStorage.getItem('tonu_' + key);
+                if (legacy) {
+                    const parsed = JSON.parse(legacy);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        await this.setEntityCache(key, parsed);
+                        return parsed;
+                    }
+                }
+            } catch (_) {}
+            return [];
         }
 
         async setCachedBills(userId, bills) {

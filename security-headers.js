@@ -74,7 +74,8 @@ function createHelmetMiddleware() {
                     'https://*.google.com',
                     'https://*.aistudio.google.com',
                     'https://*.run.app',
-                    'https://*.googleusercontent.com'
+                    'https://*.googleusercontent.com',
+                    'https://*.usercontent.goog'
                 ],
                 reportUri: '/api/csp-report'
             }

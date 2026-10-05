@@ -61,6 +61,9 @@
     }
 
     function formatDate(dateStr) {
+        if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
+            return window.formatDate(dateStr);
+        }
         if (!dateStr) return '--/--/----';
         const parts = String(dateStr).split('T')[0].split('-');
         if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -251,32 +254,52 @@
 
         try {
             let bills = [];
+            let fetchedFromDb = false;
 
-            if (window.supabaseClient) {
-                const { data, error } = await window.supabaseClient
-                    .from('transactions')
-                    .select('*, categories(id, name, icon, color)')
-                    .eq('user_id', currentUser.id)
-                    .eq('type', 'expense')
-                    .eq('is_bill', true)
-                    .gte('date', firstDay)
-                    .lte('date', lastDay)
-                    .order('date', { ascending: true });
-
-                if (!error && data) {
-                    bills = data;
+            // 1. Se estiver offline, carrega do IndexedDB canônico
+            if (!navigator.onLine && window.tonuSync && currentUser?.id) {
+                const cached = await window.tonuSync.getCachedBills(currentUser.id);
+                if (cached && cached.length > 0) {
+                    allBills = cached.filter(b => b.date >= firstDay && b.date <= lastDay);
+                    applyFiltersAndRender();
+                    updateSummaryCards(allBills);
+                    return;
                 }
             }
 
-            if (bills.length === 0) {
-                const cacheKey = `tonu_bills_cache_${currentUser.id}_${currentYear}_${mStr}`;
-                const cached = localStorage.getItem(cacheKey);
-                if (cached) {
-                    try { bills = JSON.parse(cached); } catch {}
+            // 2. Se online, busca do Supabase
+            if (window.supabaseClient && currentUser && navigator.onLine) {
+                try {
+                    const { data, error } = await window.supabaseClient
+                        .from('transactions')
+                        .select('*, categories(id, name, icon, color)')
+                        .eq('user_id', currentUser.id)
+                        .eq('type', 'expense')
+                        .eq('is_bill', true)
+                        .gte('date', firstDay)
+                        .lte('date', lastDay)
+                        .order('date', { ascending: true });
+
+                    if (!error && data) {
+                        bills = data;
+                        fetchedFromDb = true;
+                    }
+                } catch (netErr) {
+                    console.warn('⚠️ Falha ao buscar contas do Supabase, recorrendo ao cache:', netErr);
                 }
-            } else {
-                const cacheKey = `tonu_bills_cache_${currentUser.id}_${currentYear}_${mStr}`;
-                localStorage.setItem(cacheKey, JSON.stringify(bills));
+            }
+
+            // 3. Fallback para IndexedDB se falhou na rede ou não obteve dados
+            if (!fetchedFromDb && window.tonuSync && currentUser?.id) {
+                const cached = await window.tonuSync.getCachedBills(currentUser.id);
+                if (cached && cached.length > 0) {
+                    bills = cached.filter(b => b.date >= firstDay && b.date <= lastDay);
+                }
+            }
+
+            // 4. Salva no IndexedDB canônico se obteve do banco
+            if (fetchedFromDb && window.tonuSync && currentUser?.id) {
+                await window.tonuSync.setCachedBills(currentUser.id, bills);
             }
 
             allBills = bills;
@@ -632,41 +655,15 @@
         applyFiltersAndRender();
         updateSummaryCards(allBills);
 
-        // Atualizar cache de contas local
-        const mStr = String(currentMonth + 1).padStart(2, '0');
-        const billsCacheKey = `tonu_bills_cache_${currentUser.id}_${currentYear}_${mStr}`;
+        // Atualizar cache de contas no IndexedDB canônico e enfileirar para sync
         try {
-            localStorage.setItem(billsCacheKey, JSON.stringify(allBills));
-        } catch (e) {}
-
-        // Atualiza status se já existir no cache de transações (sem criar duplicata desnecessária)
-        try {
-            const txsKey = `tonu_transactions_${currentUser.id}`;
-            const localTxsRaw = localStorage.getItem(txsKey);
-            let localTxs = localTxsRaw ? JSON.parse(localTxsRaw) : [];
-            const idx = localTxs.findIndex(t => String(t.id) === String(id));
-            if (idx >= 0) {
-                localTxs[idx].paid = newPaidStatus;
-                localTxs[idx].paid_date = newPaidDate;
-                localTxs[idx].updated_at = new Date().toISOString();
-                localStorage.setItem(txsKey, JSON.stringify(localTxs));
-            }
-        } catch (e) {
-            console.warn('⚠️ Erro ao atualizar cache local de transações:', e);
-        }
-
-        try {
-            if (window.supabaseClient) {
-                const { error } = await window.supabaseClient
-                    .from('transactions')
-                    .update({
-                        paid: newPaidStatus,
-                        paid_date: newPaidDate
-                    })
-                    .eq('id', id)
-                    .eq('user_id', currentUser.id);
-
-                if (error) throw error;
+            if (window.tonuSync && currentUser?.id) {
+                await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                await window.tonuSync.enqueue('UPDATE_BILL', {
+                    id: id,
+                    paid: newPaidStatus,
+                    paid_date: newPaidDate
+                });
             }
 
             showToast(newPaidStatus ? 'Conta paga e lançada nas transações com sucesso! ✅' : 'Conta retornou para PENDENTE ⏳', 'success');
@@ -863,17 +860,27 @@
 
         try {
             if (editId) {
-                if (window.supabaseClient) {
-                    const { error } = await window.supabaseClient
-                        .from('transactions')
-                        .update(baseBillPayload)
-                        .eq('id', editId)
-                        .eq('user_id', currentUser.id);
+                const idx = allBills.findIndex(b => String(b.id) === String(editId));
+                if (idx !== -1) {
+                    allBills[idx] = { ...allBills[idx], ...baseBillPayload, id: editId };
+                }
 
-                    if (error) throw error;
+                if (window.tonuSync && currentUser?.id) {
+                    await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                    await window.tonuSync.enqueue('UPDATE_BILL', { id: editId, ...baseBillPayload });
                 }
                 showToast('Conta atualizada com sucesso! ✅', 'success');
             } else {
+                const genUuid = () => {
+                    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                        try { return crypto.randomUUID(); } catch (e) {}
+                    }
+                    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                        return v.toString(16);
+                    });
+                };
+
                 if (generateFuture && installmentsTotal > installmentCurrent) {
                     // Geração em lote das parcelas futuras
                     const batch = [];
@@ -883,9 +890,11 @@
                         const monthOffset = i - installmentCurrent;
                         const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
                         const itemPaid = (i === installmentCurrent) ? paid : false;
+                        const billId = genUuid();
 
                         batch.push({
                             ...baseBillPayload,
+                            id: billId,
                             description: `${cleanDesc} (${i}/${installmentsTotal})`,
                             amount: finalAmount,
                             date: dueDate,
@@ -896,28 +905,36 @@
                         });
                     }
 
-                    if (window.supabaseClient) {
-                        const { error } = await window.supabaseClient
-                            .from('transactions')
-                            .insert(batch);
+                    batch.forEach(item => allBills.push(item));
 
-                        if (error) throw error;
+                    if (window.tonuSync && currentUser?.id) {
+                        await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                        for (const b of batch) {
+                            await window.tonuSync.enqueue('INSERT_BILL', b);
+                        }
                     }
+
                     showToast(`Compra parcelada criada com ${batch.length} parcelas registradas! 📦`, 'success');
                 } else {
-                    if (window.supabaseClient) {
-                        const { error } = await window.supabaseClient
-                            .from('transactions')
-                            .insert([baseBillPayload]);
+                    const newBill = {
+                        ...baseBillPayload,
+                        id: genUuid()
+                    };
 
-                        if (error) throw error;
+                    allBills.push(newBill);
+
+                    if (window.tonuSync && currentUser?.id) {
+                        await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                        await window.tonuSync.enqueue('INSERT_BILL', newBill);
                     }
+
                     showToast('Conta adicionada com sucesso! 🎉', 'success');
                 }
             }
 
             closeBillModal();
-            await loadBills();
+            applyFiltersAndRender();
+            updateSummaryCards(allBills);
 
             if (window.checkNotifications) {
                 window.checkNotifications();
@@ -944,19 +961,17 @@
         if (!confirm('Deseja realmente excluir esta conta?')) return;
 
         try {
-            if (window.supabaseClient) {
-                const { error } = await window.supabaseClient
-                    .from('transactions')
-                    .delete()
-                    .eq('id', targetId)
-                    .eq('user_id', currentUser.id);
+            allBills = allBills.filter(b => String(b.id) !== String(targetId));
 
-                if (error) throw error;
+            if (window.tonuSync && currentUser?.id) {
+                await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                await window.tonuSync.enqueue('DELETE_BILL', { id: targetId });
             }
 
             showToast('Conta excluída com sucesso! 🗑️', 'info');
             closeBillModal();
-            await loadBills();
+            applyFiltersAndRender();
+            updateSummaryCards(allBills);
 
             if (window.checkNotifications) {
                 window.checkNotifications();

@@ -1657,15 +1657,6 @@
         };
 
         // ==========================================
-        // LOGOUT
-        // ==========================================
-        window.logout = async function () {
-            if (window.supabaseOffline) await window.supabaseOffline.logout();
-            await supabaseClient.auth.signOut();
-            window.location.href = '../index.html';
-        };
-
-        // ==========================================
         // DOM READY
         // ==========================================
         document.addEventListener('DOMContentLoaded', function () {

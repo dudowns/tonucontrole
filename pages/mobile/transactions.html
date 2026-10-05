@@ -588,31 +588,31 @@ async function handleQuickAddSubmit(event) {
         date: date
     };
 
-    let isOnline = navigator.onLine && window.supabaseClient;
     try {
-        if (isOnline) {
-            try {
-                const { error } = await supabaseClient.from("transactions").insert([payload]);
-                if (error) throw error;
-                showToast("Transação adicionada com sucesso! 🎉", "success");
-            } catch (netErr) {
-                console.warn("Falha online, enfileirando offline:", netErr);
-                isOnline = false;
+        const genUuid = () => {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                try { return crypto.randomUUID(); } catch (e) {}
             }
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        };
+
+        const txId = genUuid();
+        const offlineTx = {
+            id: txId,
+            ...payload,
+            created_at: new Date().toISOString()
+        };
+        allTransactions.unshift(offlineTx);
+
+        if (window.tonuSync && currentUser?.id) {
+            await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+            await window.tonuSync.enqueue('INSERT_TRANSACTION', offlineTx);
         }
 
-        if (!isOnline) {
-            const offlineTx = {
-                id: 'offline_tx_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-                ...payload
-            };
-            allTransactions.unshift(offlineTx);
-            if (window.tonuSync) {
-                await window.tonuSync.enqueue('INSERT_TRANSACTION', payload);
-                await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
-            }
-            showToast("📦 Transação salva offline! Será sincronizada quando a conexão retornar.", "info");
-        }
+        showToast("Transação adicionada com sucesso! 🎉", "success");
 
         closeQuickAddModal();
         document.getElementById("quickAddForm").reset();
@@ -642,27 +642,14 @@ async function handleQuickAddSubmit(event) {
 async function deleteTransaction(id) {
     if (!confirm("Deseja realmente excluir esta transação?")) return;
     try {
-        let isOnline = navigator.onLine && window.supabaseClient;
-        if (isOnline) {
-            try {
-                const { error } = await supabaseClient.from("transactions").delete().eq("id", id).eq("user_id", currentUser.id);
-                if (error) throw error;
-                showToast("Transação excluída!", "success");
-            } catch (netErr) {
-                console.warn("Falha online ao excluir, enfileirando offline:", netErr);
-                isOnline = false;
-            }
+        allTransactions = allTransactions.filter(t => String(t.id) !== String(id));
+
+        if (window.tonuSync && currentUser?.id) {
+            await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+            await window.tonuSync.enqueue('DELETE_TRANSACTION', { id });
         }
 
-        if (!isOnline) {
-            allTransactions = allTransactions.filter(t => String(t.id) !== String(id));
-            if (window.tonuSync) {
-                await window.tonuSync.enqueue('DELETE_TRANSACTION', { id });
-                await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
-            }
-            showToast("📦 Transação excluída offline! Será sincronizada quando a conexão retornar.", "info");
-        }
-
+        showToast("Transação excluída!", "info");
         await loadTransactions();
     } catch (err) {
         console.error("Erro ao excluir:", err);
@@ -671,6 +658,9 @@ async function deleteTransaction(id) {
 }
 
 function showToast(message, type) {
+    if (typeof window.showToast === 'function' && window.showToast !== showToast) {
+        return window.showToast(message, type);
+    }
     type = type || "info";
     const toast = document.getElementById("toast");
     if (!toast) return;
@@ -712,6 +702,9 @@ function formatCurrency(value) {
 }
 
 function formatDate(date) {
+    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
+        return window.formatDate(date);
+    }
     if (!date) return "--/--/----";
     const d = new Date(date);
     return d.toLocaleDateString("pt-BR");
@@ -764,6 +757,9 @@ function exportTransactionsCSV() {
 window.exportTransactionsCSV = exportTransactionsCSV;
 
 function toggleTheme() {
+    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
+        return window.toggleTheme();
+    }
     const isDark = document.body.classList.toggle("dark-theme");
     localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
     const icon = document.querySelector("#themeIcon");

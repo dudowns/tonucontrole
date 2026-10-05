@@ -634,6 +634,10 @@ async function logout() {
         console.log('🚪 Iniciando logout...');
         sessionStorage.setItem('tonu_logout_in_progress', 'true');
 
+        if (typeof window !== 'undefined' && typeof window.stopAutoRefresh === 'function') {
+            try { window.stopAutoRefresh(); } catch (_) {}
+        }
+
         // Determina URL de redirecionamento relativa ao caminho atual
         const redirectUrl = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/'))
             ? '../../index.html'
@@ -718,6 +722,10 @@ async function logoutAllDevices() {
     try {
         sessionStorage.setItem('tonu_logout_in_progress', 'true');
         console.log('🚨 Executando logout global de todos os dispositivos...');
+
+        if (typeof window !== 'undefined' && typeof window.stopAutoRefresh === 'function') {
+            try { window.stopAutoRefresh(); } catch (_) {}
+        }
 
         if (typeof window !== 'undefined' && window.TonuBiometrics) {
             try { window.TonuBiometrics.disableBiometrics(); } catch (_) {}
@@ -1223,7 +1231,7 @@ function toggleTheme() {
 }
 
 function updateThemeToggleIcons(theme) {
-    var btns = document.querySelectorAll('.theme-toggle-btn i');
+    var btns = document.querySelectorAll('.theme-toggle-btn i, #themeIcon');
     btns.forEach(function (icon) {
         if (theme === 'dark') {
             icon.className = 'fas fa-sun';
@@ -1817,6 +1825,7 @@ window.formatDateKey = formatDateKey;
 window.toggleSidebar = toggleSidebar;
 window.closeSidebar = closeSidebar;
 window.logout = logout;
+window.logoutAllDevices = logoutAllDevices;
 window.setLoading = setLoading;
 window.showLoading = showLoading;
 window.isMobile = isMobile;

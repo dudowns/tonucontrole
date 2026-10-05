@@ -891,7 +891,7 @@
                          `Gerado via TonuControle em ${new Date().toLocaleDateString('pt-BR')}`;
             navigator.clipboard.writeText(text);
             if (window.showToast) window.showToast('Resumo do IRPF copiado para a área de transferência! 📋', 'success');
-            else alert('Resumo do IRPF copiado!');
+            else console.info('Resumo do IRPF copiado!');
         };
 
         renderReportForYear(targetYear);

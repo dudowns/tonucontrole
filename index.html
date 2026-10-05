@@ -3344,22 +3344,12 @@
         });
 
         // ==========================================
-        // TOAST
+        // TOAST (Utiliza a implementação central em js/core.js)
         // ==========================================
-        function showToast(message, type) {
-            type = type || 'info';
-            const toast = document.getElementById('toast');
-            if (!toast) return;
-
-            toast.textContent = message;
-            toast.className = 'toast ' + type + ' show';
-            toast.setAttribute('aria-label', message);
-
-            clearTimeout(toast._timeout);
-            toast._timeout = setTimeout(() => {
-                toast.className = 'toast';
-                toast.removeAttribute('aria-label');
-            }, 3000);
+        function showToast(message, type, actionText, onAction) {
+            if (typeof window.showToast === 'function' && window.showToast !== showToast) {
+                return window.showToast(message, type, actionText, onAction);
+            }
         }
 
         // ==========================================
@@ -3472,98 +3462,6 @@
                     authTabTimeout = null;
                 }, 230);
             }, 130);
-        }
-
-        // ==========================================
-        // HANDLE LOGIN
-        // ==========================================
-        async function handleLogin(event) {
-            event.preventDefault();
-
-            const emailInput = document.getElementById('loginEmail');
-            const email = emailInput ? emailInput.value.trim() : '';
-            const password = document.getElementById('loginPassword').value;
-            const btn = document.getElementById('loginBtn');
-
-            if (emailInput && typeof emailInput._validateEmail === 'function') {
-                const isValid = emailInput._validateEmail();
-                if (!isValid) {
-                    emailInput.focus();
-                    if (!email) {
-                        showToast('Preencha o campo de e-mail!', 'error');
-                    } else {
-                        showToast('Digite um e-mail válido!', 'error');
-                    }
-                    return;
-                }
-            } else if (!email || !isValidEmail(email)) {
-                showToast('Digite um e-mail válido!', 'error');
-                return;
-            }
-
-            if (!password) {
-                showToast('Preencha o campo de senha!', 'error');
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Entrando...';
-
-            try {
-                if (!window.supabaseClient) {
-                    throw new Error('Cliente Supabase não inicializado.');
-                }
-
-                const { data, error } = await window.supabaseClient.auth.signInWithPassword({
-                    email: email,
-                    password: password
-                });
-
-                if (error) throw error;
-
-                showToast('Login realizado! 🎉', 'success');
-
-                if (data.user) {
-                    const name = data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Usuário';
-
-                    if (window.supabaseOffline) {
-                        await window.supabaseOffline.saveOfflineSession(data.user);
-                    }
-
-                    await ensureProfile(data.user.id, name);
-                    await createDefaultCategories(data.user.id);
-                }
-
-                try {
-                    storage.remove('tonu_logout_in_progress');
-                } catch (e) { }
-
-                // 🔥 REDIRECIONAMENTO COM DETECÇÃO DESKTOP / MOBILE
-                const redirectUrl = getAppTargetUrl('dashboard.html');
-                console.log('🔀 Redirecionando para:', redirectUrl);
-
-                setTimeout(() => {
-                    window.location.href = redirectUrl;
-                }, 600);
-
-            } catch (error) {
-                console.error('❌ Erro no login:', error);
-                let msg = error.message || 'Erro ao fazer login';
-
-                if (!navigator.onLine) {
-                    msg = '📶 Você está offline. Verifique sua conexão.';
-                } else if (msg.includes('network') || msg.includes('fetch')) {
-                    msg = 'Erro de conexão. Tente novamente.';
-                } else if (msg.includes('Invalid login credentials')) {
-                    msg = 'E-mail ou senha incorretos!';
-                } else if (msg.includes('Email not confirmed')) {
-                    msg = 'Confirme seu e-mail antes de fazer login!';
-                }
-
-                showToast(msg, 'error');
-                btn.disabled = false;
-                btn.innerHTML = '<span>Entrar</span>';
-            }
         }
 
         // ==========================================
@@ -3936,12 +3834,12 @@
         // EXPORTAÇÃO GLOBAL
         // ==========================================
         window.switchTab = switchTab;
-        window.handleLogin = handleLogin;
+        if (typeof handleLogin !== 'undefined') window.handleLogin = handleLogin;
         window.handleRegister = handleRegister;
         window.togglePasswordVisibility = togglePasswordVisibility;
         window.socialLogin = socialLogin;
         window.resetPassword = resetPassword;
-        window.showToast = showToast;
+        if (typeof window.showToast !== 'function') window.showToast = showToast;
         window.ensureProfile = ensureProfile;
         window.createDefaultCategories = createDefaultCategories;
         window.handleBiometricLogin = handleBiometricLogin;

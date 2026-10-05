@@ -3181,11 +3181,17 @@ function renderCorporateEventsList() {
 // UTILITÁRIOS
 // ============================================
 function formatCurrency(val) {
+    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
+        return window.formatCurrency(val);
+    }
     const num = parseFloat(val) || 0;
     return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 function formatDate(dStr) {
+    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
+        return window.formatDate(dStr);
+    }
     if (!dStr) return "--/--/----";
     const parts = dStr.split("T")[0].split("-");
     if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -3193,6 +3199,9 @@ function formatDate(dStr) {
 }
 
 function toggleTheme() {
+    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
+        return window.toggleTheme();
+    }
     const isDark = document.body.classList.toggle("dark-theme");
     localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
     const icon = document.querySelector("#themeIcon");
@@ -3202,6 +3211,9 @@ function toggleTheme() {
 }
 
 function showToast(msg, type = "info") {
+    if (typeof window.showToast === 'function' && window.showToast !== showToast) {
+        return window.showToast(msg, type);
+    }
     const toast = document.getElementById("toast");
     if (!toast) return;
     toast.textContent = msg;

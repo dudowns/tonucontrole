@@ -80,6 +80,9 @@ function getMonthName(month) {
 }
 
 function formatCurrency(value) {
+    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
+        return window.formatCurrency(value);
+    }
     if (value === null || value === undefined || value === '') {
         value = 0;
     }
@@ -135,6 +138,9 @@ function parseBrazilianNumber(value) {
 }
 
 function formatDate(date, format = 'short') {
+    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
+        return window.formatDate(date, format);
+    }
     if (!date) return '--/--/----';
     const str = String(date).trim();
     if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
@@ -977,33 +983,47 @@ async function getUnifiedTransactions(startDate, endDate) {
                 data.forEach(t => {
                     checkAndAdd(t);
                 });
+                if (window.tonuSync && currentUser?.id) {
+                    window.tonuSync.setCachedTransactions(currentUser.id, data);
+                }
             }
         } catch (e) {
             console.warn('⚠️ Erro ao consultar transações no Supabase:', e);
         }
     }
 
-    // 2. Cache Local (localStorage)
-    const localKeys = [];
-    if (currentUser && currentUser.id) {
-        localKeys.push('tonu_transactions_' + currentUser.id);
-    }
-    localKeys.push('tonu_transactions_offline_user');
-    localKeys.push('tonu_transactions');
-
-    for (const key of localKeys) {
+    // 2. Cache Canônico IndexedDB (com fallback e migração transparente de legado)
+    if (window.tonuSync && currentUser?.id) {
         try {
-            const cached = localStorage.getItem(key);
-            if (!cached) continue;
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed)) {
-                parsed.forEach(t => {
+            const cached = await window.tonuSync.getCachedTransactions(currentUser.id);
+            if (Array.isArray(cached)) {
+                cached.forEach(t => {
                     checkAndAdd(t);
                 });
             }
         } catch (e) {
-            console.warn(`⚠️ Erro ao ler cache local (${key}):`, e);
+            console.warn('⚠️ Erro ao ler cache canônico IndexedDB:', e);
         }
+    }
+
+    // Migração de qualquer legado de localStorage para IndexedDB
+    if (currentUser?.id) {
+        try {
+            const localKey = 'tonu_transactions_' + currentUser.id;
+            const legacy = localStorage.getItem(localKey);
+            if (legacy) {
+                const parsed = JSON.parse(legacy);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    parsed.forEach(t => checkAndAdd(t));
+                    if (window.tonuSync) {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, list);
+                    }
+                }
+                localStorage.removeItem(localKey);
+            }
+            localStorage.removeItem('tonu_transactions_offline_user');
+            localStorage.removeItem('tonu_transactions');
+        } catch (_) {}
     }
 
     // 3. Aplica desduplicação inteligente unificada (remove duplicatas, unifica 'pago' e parcelas)
@@ -1019,93 +1039,29 @@ async function getUnifiedTransactions(startDate, endDate) {
 }
 
 async function syncLocalTransactionsToSupabase() {
-    if (!supabaseClient || !currentUser || !currentUser.id) return;
+    if (!currentUser || !currentUser.id) return;
     try {
         const localKey = 'tonu_transactions_' + currentUser.id;
         const cached = localStorage.getItem(localKey);
         if (!cached) return;
         const list = JSON.parse(cached);
-        if (!Array.isArray(list) || list.length === 0) return;
-
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        let modified = false;
-
-        // Busca transações existentes no Supabase com detalhes para evitar criar duplicatas
-        const { data: remoteData } = await supabaseClient
-            .from('transactions')
-            .select('id, description, amount, date, type, is_bill')
-            .eq('user_id', currentUser.id);
-
-        const remoteList = remoteData || [];
-        const remoteIds = new Set(remoteList.map(r => String(r.id)));
-
-        for (let i = 0; i < list.length; i++) {
-            const t = list[i];
-            if (!t) continue;
-            // NUNCA faz upload de contas (is_bill: true) como transação genérica via sync de transações
-            if (t.is_bill === true || t.is_bill === 'true' || t.is_bill === 1) continue;
-
-            const currentId = String(t.id || '');
-            if (remoteIds.has(currentId)) continue;
-
-            // Verifica se já existe no banco com mesma descrição, valor e data para não duplicar
-            const normDesc = window.TonuDeduplicate ? window.TonuDeduplicate.normalizeDescription(t.description) : (t.description || '').toLowerCase().trim();
-            const amtCents = Math.round(Math.abs(Number(t.amount || 0)) * 100);
-            const dateNorm = normalizeDateOnly(t.date);
-
-            const existingMatch = remoteList.find(r => {
-                const rDesc = window.TonuDeduplicate ? window.TonuDeduplicate.normalizeDescription(r.description) : (r.description || '').toLowerCase().trim();
-                const rAmt = Math.round(Math.abs(Number(r.amount || 0)) * 100);
-                const rDate = normalizeDateOnly(r.date);
-                return rDesc === normDesc && rAmt === amtCents && rDate === dateNorm;
-            });
-
-            if (existingMatch) {
-                list[i].id = existingMatch.id;
-                remoteIds.add(String(existingMatch.id));
-                modified = true;
-                continue;
-            }
-
-            const txId = (uuidRegex.test(currentId)) ? currentId : (
-                (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() :
-                'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-                    return v.toString(16);
-                })
-            );
-
-            const payload = {
-                id: txId,
-                user_id: currentUser.id,
-                description: t.description || 'Sem descrição',
-                amount: Math.abs(Number(t.amount || 0)),
-                type: t.type || 'expense',
-                date: normalizeDateOnly(t.date) || new Date().toISOString().substring(0, 10),
-                paid: isTransactionPaid(t)
-            };
-            if (t.category_id && uuidRegex.test(String(t.category_id))) {
-                payload.category_id = t.category_id;
-            }
-
-            try {
-                const { error } = await supabaseClient.from('transactions').insert([payload]);
-                if (!error) {
-                    list[i].id = txId;
-                    remoteIds.add(txId);
-                    modified = true;
-                }
-            } catch (insErr) {
-                console.warn('Erro ao sincronizar transação local com backend:', insErr);
-            }
+        if (!Array.isArray(list) || list.length === 0) {
+            localStorage.removeItem(localKey);
+            return;
         }
 
-        if (modified) {
-            localStorage.setItem(localKey, JSON.stringify(list));
-            console.log('✅ Transações locais sincronizadas com o backend com sucesso.');
+        // Migra para o tonuSync (IndexedDB + Fila)
+        if (window.tonuSync) {
+            await window.tonuSync.setCachedTransactions(currentUser.id, list);
+            for (const t of list) {
+                if (t.is_bill) continue;
+                await window.tonuSync.enqueue('INSERT_TRANSACTION', t);
+            }
         }
+        localStorage.removeItem(localKey);
+        console.log('✅ Transações legadas do localStorage migradas para o tonuSync.');
     } catch (e) {
-        console.warn('Erro no sync de transações locais:', e);
+        console.warn('Erro na migração de transações locais:', e);
     }
 }
 
@@ -1630,15 +1586,16 @@ async function generateDashboardInsights() {
 
         // 2. CARREGAR CONTAS A PAGAR DO MÊS (Bills)
         let monthBills = allMonthTxs.filter(t => t && t.is_bill && t.type === 'expense');
-        if (monthBills.length === 0 && currentUser) {
+        if (monthBills.length === 0 && currentUser && window.tonuSync) {
             try {
-                const cacheKey = `tonu_bills_cache_${currentUser.id}_${year}_${mStr}`;
-                const cached = localStorage.getItem(cacheKey);
-                if (cached) {
-                    const parsed = JSON.parse(cached);
-                    if (Array.isArray(parsed)) monthBills = parsed;
+                const cachedBills = await window.tonuSync.getCachedBills(currentUser.id);
+                if (Array.isArray(cachedBills) && cachedBills.length > 0) {
+                    monthBills = cachedBills.filter(b => {
+                        const bDate = normalizeDateOnly(b.date);
+                        return bDate >= firstDay && bDate <= lastDayStr;
+                    });
                 }
-            } catch {}
+            } catch (_) {}
         }
 
         const totalBillsCount = monthBills.length;
@@ -1661,24 +1618,26 @@ async function generateDashboardInsights() {
                     .eq('user_id', currentUser.id)
                     .gte('date', firstDay)
                     .lte('date', lastDayStr);
-                if (data && Array.isArray(data)) monthInvestments = data;
+                if (data && Array.isArray(data)) {
+                    monthInvestments = data;
+                    if (window.tonuSync) {
+                        window.tonuSync.setCachedInvestments(currentUser.id, data);
+                    }
+                }
             } catch (e) {
                 console.warn('Erro ao consultar investimentos do mês:', e);
             }
         }
-        if (monthInvestments.length === 0 && currentUser) {
+        if (monthInvestments.length === 0 && currentUser && window.tonuSync) {
             try {
-                const localInv = localStorage.getItem('tonu_investments_' + currentUser.id) || localStorage.getItem('tonu_investments');
-                if (localInv) {
-                    const parsed = JSON.parse(localInv);
-                    if (Array.isArray(parsed)) {
-                        monthInvestments = parsed.filter(i => {
-                            const iDate = normalizeDateOnly(i.date);
-                            return iDate >= firstDay && iDate <= lastDayStr;
-                        });
-                    }
+                const cachedInv = await window.tonuSync.getCachedInvestments(currentUser.id);
+                if (Array.isArray(cachedInv) && cachedInv.length > 0) {
+                    monthInvestments = cachedInv.filter(i => {
+                        const iDate = normalizeDateOnly(i.date);
+                        return iDate >= firstDay && iDate <= lastDayStr;
+                    });
                 }
-            } catch {}
+            } catch (_) {}
         }
 
         const buyInvs = monthInvestments.filter(i => {
@@ -1699,25 +1658,26 @@ async function generateDashboardInsights() {
                     .eq('user_id', currentUser.id)
                     .gte('date', firstDay)
                     .lte('date', lastDayStr);
-                if (data && Array.isArray(data)) monthDividends = data;
+                if (data && Array.isArray(data)) {
+                    monthDividends = data;
+                    if (window.tonuSync) {
+                        window.tonuSync.setCachedDividends(currentUser.id, data);
+                    }
+                }
             } catch (e) {
                 console.warn('Erro ao consultar proventos do mês:', e);
             }
         }
-        if (monthDividends.length === 0) {
+        if (monthDividends.length === 0 && currentUser && window.tonuSync) {
             try {
-                const divKey = `tonucontrole_dividends_${currentUser ? currentUser.id : 'demo'}`;
-                const cachedDivs = localStorage.getItem(divKey) || localStorage.getItem('tonucontrole_dividends');
-                if (cachedDivs) {
-                    const parsed = JSON.parse(cachedDivs);
-                    if (Array.isArray(parsed)) {
-                        monthDividends = parsed.filter(d => {
-                            const dDate = normalizeDateOnly(d.payment_date || d.date);
-                            return dDate >= firstDay && dDate <= lastDayStr && !d.is_demo && !String(d.id || '').startsWith('demo-');
-                        });
-                    }
+                const cachedDivs = await window.tonuSync.getCachedDividends(currentUser.id);
+                if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
+                    monthDividends = cachedDivs.filter(d => {
+                        const dDate = normalizeDateOnly(d.payment_date || d.date);
+                        return dDate >= firstDay && dDate <= lastDayStr && !d.is_demo && !String(d.id || '').startsWith('demo-');
+                    });
                 }
-            } catch {}
+            } catch (_) {}
         }
 
         const totalDividends = monthDividends.reduce((s, d) => {
@@ -1741,19 +1701,23 @@ async function generateDashboardInsights() {
                     .select('*')
                     .eq('user_id', currentUser.id)
                     .order('created_at', { ascending: false });
-                if (data && Array.isArray(data)) allGoals = data;
+                if (data && Array.isArray(data)) {
+                    allGoals = data;
+                    if (window.tonuSync) {
+                        window.tonuSync.setCachedGoals(currentUser.id, data);
+                    }
+                }
             } catch (e) {
                 console.warn('Erro ao buscar metas:', e);
             }
         }
-        if (allGoals.length === 0 && currentUser) {
+        if (allGoals.length === 0 && currentUser && window.tonuSync) {
             try {
-                const localGoals = localStorage.getItem('tonu_goals_' + currentUser.id) || localStorage.getItem('tonu_goals_cache');
-                if (localGoals) {
-                    const parsed = JSON.parse(localGoals);
-                    if (Array.isArray(parsed)) allGoals = parsed;
+                const cachedGoals = await window.tonuSync.getCachedGoals(currentUser.id);
+                if (Array.isArray(cachedGoals) && cachedGoals.length > 0) {
+                    allGoals = cachedGoals;
                 }
-            } catch {}
+            } catch (_) {}
         }
 
         const activeGoals = allGoals.filter(g => !g.completed && (Number(g.current_amount) || 0) < (Number(g.target_amount) || 0));
@@ -3412,25 +3376,8 @@ async function openCashFlowModal() {
 // LOGOUT (Delega para a autenticação central)
 // ============================================
 async function logout() {
-    if (window.TonuAuth && typeof window.TonuAuth.logout === 'function') {
-        return await window.TonuAuth.logout();
-    }
-    if (typeof window.coreLogout === 'function') {
-        return await window.coreLogout();
-    }
-    try {
-        sessionStorage.setItem('tonu_logout_in_progress', 'true');
-        if (window.supabaseOffline) await window.supabaseOffline.logout();
-        if (window.supabaseClient?.auth) await window.supabaseClient.auth.signOut();
-        localStorage.removeItem('tonu_secure_session_v2');
-        localStorage.removeItem('tonu_offline_session');
-        sessionStorage.removeItem('tonu_user');
-        setTimeout(() => {
-            sessionStorage.removeItem('tonu_logout_in_progress');
-            window.location.href = '../index.html';
-        }, 150);
-    } catch (e) {
-        window.location.href = '../index.html';
+    if (typeof window.logout === 'function' && window.logout !== logout) {
+        return await window.logout();
     }
 }
 
@@ -3454,7 +3401,6 @@ window.checkOverdueBills = checkOverdueBills;
 window.calculatePatrimony = calculatePatrimony;
 window.startPatrimonyAutoUpdate = startPatrimonyAutoUpdate;
 window.stopPatrimonyAutoUpdate = stopPatrimonyAutoUpdate;
-window.logout = logout;
 
 console.log('✅ Dashboard.js carregado com sucesso!');
 

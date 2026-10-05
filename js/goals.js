@@ -1277,7 +1277,10 @@ window.addEventListener('resize', () => {
 // ============================================
 // TOAST
 // ============================================
-function showToast(message, type) {
+function showToast(message, type, actionText, onAction) {
+    if (typeof window.showToast === 'function' && window.showToast !== showToast) {
+        return window.showToast(message, type, actionText, onAction);
+    }
     type = type || 'info';
     const toast = document.getElementById('toast');
     if (!toast) return;

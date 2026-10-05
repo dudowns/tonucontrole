@@ -289,40 +289,50 @@
 
         try {
             let txs = [];
+            let fetchedFromDb = false;
 
-            if (window.supabaseClient && currentUser) {
-                const { data, error } = await window.supabaseClient
-                    .from('transactions')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .order('date', { ascending: false });
-
-                if (!error && data) {
-                    txs = data;
+            // 1. Se estiver offline, carrega imediatamente do IndexedDB canônico
+            if (!navigator.onLine && window.tonuSync && currentUser?.id) {
+                const cached = await window.tonuSync.getCachedTransactions(currentUser.id);
+                if (cached && cached.length > 0) {
+                    allTransactions = cached;
+                    filterTransactions();
+                    return;
                 }
             }
 
-            // Mescla sempre com o cache local para não perder nenhuma transação criada localmente
-            if (currentUser) {
-                const local = localStorage.getItem('tonu_transactions_' + currentUser.id);
-                if (local) {
-                    try {
-                        const parsed = JSON.parse(local);
-                        if (Array.isArray(parsed)) {
-                            const seenIds = new Set(txs.map(t => String(t.id)));
-                            parsed.forEach(lt => {
-                                const key = String(lt.id);
-                                if (!seenIds.has(key)) {
-                                    txs.push(lt);
-                                    seenIds.add(key);
-                                }
-                            });
-                        }
-                    } catch (pe) {}
+            // 2. Se online, busca do Supabase
+            if (window.supabaseClient && currentUser && navigator.onLine) {
+                try {
+                    const { data, error } = await window.supabaseClient
+                        .from('transactions')
+                        .select('*')
+                        .eq('user_id', currentUser.id)
+                        .order('date', { ascending: false });
+
+                    if (!error && data) {
+                        txs = data;
+                        fetchedFromDb = true;
+                    }
+                } catch (netErr) {
+                    console.warn('⚠️ Falha ao buscar transações do Supabase, recorrendo ao cache:', netErr);
                 }
             }
 
-            // 🔥 APLICA A DESDUPLICAÇÃO INTELIGENTE (remove duplicatas, unifica status e limpa banco)
+            // 3. Fallback para IndexedDB se Supabase não retornou ou falhou
+            if (!fetchedFromDb && window.tonuSync && currentUser?.id) {
+                const cached = await window.tonuSync.getCachedTransactions(currentUser.id);
+                if (cached && cached.length > 0) {
+                    txs = cached;
+                }
+            }
+
+            // 4. Se obteve do banco, sincroniza com o IndexedDB canônico
+            if (fetchedFromDb && window.tonuSync && currentUser?.id) {
+                await window.tonuSync.setCachedTransactions(currentUser.id, txs);
+            }
+
+            // 🔥 APLICA A DESDUPLICAÇÃO INTELIGENTE (remove duplicatas e unifica status)
             if (window.TonuDeduplicate) {
                 const dedupResult = window.TonuDeduplicate.deduplicate(txs, {
                     autoCleanRemote: true,
@@ -330,9 +340,8 @@
                 });
                 txs = dedupResult.cleanList;
 
-                // Atualiza cache local com a lista limpa e sem duplicatas
-                if (currentUser && currentUser.id) {
-                    localStorage.setItem('tonu_transactions_' + currentUser.id, JSON.stringify(txs));
+                if (window.tonuSync && currentUser?.id) {
+                    await window.tonuSync.setCachedTransactions(currentUser.id, txs);
                 }
             }
 
@@ -809,19 +818,18 @@
 
         try {
             if (editId) {
-                // Update
-                if (window.supabaseClient) {
-                    await window.supabaseClient
-                        .from('transactions')
-                        .update(baseTransactionData)
-                        .eq('id', editId)
-                        .eq('user_id', currentUser.id);
-                }
-
+                // Update local state
                 const idx = allTransactions.findIndex(t => String(t.id) === String(editId));
                 if (idx !== -1) {
                     allTransactions[idx] = { ...allTransactions[idx], ...baseTransactionData, id: editId };
                 }
+
+                // Salva no IndexedDB canônico e enfileira para sincronização
+                if (window.tonuSync && currentUser?.id) {
+                    await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                    await window.tonuSync.enqueue('UPDATE_TRANSACTION', { id: editId, ...baseTransactionData });
+                }
+
                 if (window.showToast) window.showToast('Transação atualizada com sucesso! ✅', 'success');
             } else {
                 const genUuid = () => {
@@ -833,7 +841,6 @@
                         return v.toString(16);
                     });
                 };
-                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
                 if (generateFuture && installmentsTotal > installmentCurrent) {
                     // Geração em lote das parcelas futuras
@@ -859,25 +866,17 @@
                         });
                     }
 
-                    if (window.supabaseClient) {
-                        try {
-                            const payloadBatch = batch.map(item => {
-                                const copy = { ...item };
-                                if (!copy.category_id || !uuidRegex.test(String(copy.category_id))) {
-                                    delete copy.category_id;
-                                }
-                                return copy;
-                            });
-                            await window.supabaseClient
-                                .from('transactions')
-                                .insert(payloadBatch);
-                        } catch (insErr) {
-                            console.warn('Erro ao inserir parcelas no Supabase:', insErr);
+                    // Prepend to allTransactions
+                    batch.forEach(item => allTransactions.unshift(item));
+
+                    // Salva no IndexedDB canônico e enfileira
+                    if (window.tonuSync && currentUser?.id) {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                        for (const item of batch) {
+                            await window.tonuSync.enqueue('INSERT_TRANSACTION', item);
                         }
                     }
 
-                    // Prepend to allTransactions
-                    batch.forEach(item => allTransactions.unshift(item));
                     if (window.showToast) window.showToast(`Lançamento parcelado criado com ${batch.length} parcelas registradas! 📦`, 'success');
                 } else {
                     const newId = genUuid();
@@ -887,27 +886,17 @@
                         created_at: new Date().toISOString()
                     };
 
-                    if (window.supabaseClient) {
-                        try {
-                            const payload = { ...newTx };
-                            if (!payload.category_id || !uuidRegex.test(String(payload.category_id))) {
-                                delete payload.category_id;
-                            }
-                            await window.supabaseClient
-                                .from('transactions')
-                                .insert([payload]);
-                        } catch (insErr) {
-                            console.warn('Erro ao inserir transação no Supabase:', insErr);
-                        }
+                    allTransactions.unshift(newTx);
+
+                    // Salva no IndexedDB canônico e enfileira
+                    if (window.tonuSync && currentUser?.id) {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                        await window.tonuSync.enqueue('INSERT_TRANSACTION', newTx);
                     }
 
-                    allTransactions.unshift(newTx);
                     if (window.showToast) window.showToast('Transação criada com sucesso! 🎉', 'success');
                 }
             }
-
-            // Save to local cache
-            localStorage.setItem('tonu_transactions_' + currentUser.id, JSON.stringify(allTransactions));
 
             closeModal();
             filterTransactions();
@@ -939,16 +928,12 @@
         if (!confirm('Deseja realmente excluir esta transação?')) return;
 
         try {
-            if (window.supabaseClient) {
-                await window.supabaseClient
-                    .from('transactions')
-                    .delete()
-                    .eq('id', id)
-                    .eq('user_id', currentUser.id);
-            }
-
             allTransactions = allTransactions.filter(t => String(t.id) !== String(id));
-            localStorage.setItem('tonu_transactions_' + currentUser.id, JSON.stringify(allTransactions));
+
+            if (window.tonuSync && currentUser?.id) {
+                await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                await window.tonuSync.enqueue('DELETE_TRANSACTION', { id });
+            }
 
             if (window.showToast) window.showToast('Transação excluída! 🗑️', 'info');
             closeModal();

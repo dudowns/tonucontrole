@@ -934,15 +934,23 @@ function switchMobileSettingsTab(tab, btn) {
     });
 }
 
-function toggleTheme() {
-    const isDark = document.body.classList.toggle("dark-theme");
-    const theme = isDark ? "dark" : "light";
-    localStorage.setItem("tonu_theme", theme);
+// Função auxiliar específica de UI mobile para sincronização visual do tema
+function syncMobileThemeSettingsUI(theme) {
+    const isDark = theme ? (theme === 'dark') : document.body.classList.contains("dark-theme");
     const icon = document.querySelector("#themeIcon");
     if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
-    document.getElementById("themeStatus").textContent = isDark ? "Ativado" : "Desativado";
-    showMobileToast(`Tema ${isDark ? 'escuro' : 'claro'} ativado!`, "info");
+    const status = document.getElementById("themeStatus");
+    if (status) status.textContent = isDark ? "Ativado" : "Desativado";
 }
+
+window.addEventListener('themeChanged', function (e) {
+    const theme = e.detail && e.detail.theme;
+    syncMobileThemeSettingsUI(theme);
+    const isDark = theme === 'dark' || document.body.classList.contains("dark-theme");
+    if (typeof showMobileToast === 'function') {
+        showMobileToast(`Tema ${isDark ? 'escuro' : 'claro'} ativado!`, "info");
+    }
+});
 
 function toggleHideBalancePref() {
     const current = localStorage.getItem("tonu_hide_balance") === "true";
@@ -1450,9 +1458,7 @@ function switchToDesktop() {
 
 async function handleMobileLogout() {
     if (confirm("Deseja realmente sair da sua conta?")) {
-        if (window.TonuAuth && typeof window.TonuAuth.logout === 'function') {
-            await window.TonuAuth.logout();
-        } else if (typeof window.logout === 'function') {
+        if (typeof window.logout === 'function') {
             await window.logout();
         } else {
             try {
@@ -1466,7 +1472,7 @@ async function handleMobileLogout() {
         }
     }
 }
-window.logout = handleMobileLogout;
+window.handleMobileLogout = handleMobileLogout;
 
 function formatCurrency(val) {
     if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {

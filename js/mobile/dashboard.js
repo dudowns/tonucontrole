@@ -252,62 +252,94 @@ async function loadMobileData() {
         allGoals = goalsRes?.data || [];
 
         // ==================================================================
-        // CORREÇÃO 3 — FALLBACK DE CACHE LOCAL NO DASHBOARD MOBILE
+        // CANONICAL INDEXEDDB CACHE NO DASHBOARD MOBILE
         // ==================================================================
         const isRemoteEmpty = (allTransactions.length === 0 && allBills.length === 0 && allDividends.length === 0 && allGoals.length === 0);
 
         if (isRemoteEmpty && currentUser && currentUser.id) {
-            console.log("ℹ️ Dados remotos vazios, consultando cache local de segurança...");
+            console.log("ℹ️ Dados remotos vazios, consultando cache canônico IndexedDB...");
             let cacheFound = false;
 
-            // 1. Tentar ler do localStorage:
-            try {
-                const cachedTx = localStorage.getItem('tonu_transactions_' + currentUser.id);
-                if (cachedTx) {
-                    const parsedTx = JSON.parse(cachedTx);
-                    if (Array.isArray(parsedTx) && parsedTx.length > 0) {
-                        allTransactions = parsedTx;
+            if (window.tonuSync) {
+                try {
+                    const cachedTx = await window.tonuSync.getCachedTransactions(currentUser.id);
+                    if (Array.isArray(cachedTx) && cachedTx.length > 0) {
+                        allTransactions = cachedTx.filter(t => t.date >= firstDay && t.date <= lastDay);
                         cacheFound = true;
                     }
+                } catch (_) {}
+
+                try {
+                    const cachedBills = await window.tonuSync.getCachedBills(currentUser.id);
+                    if (Array.isArray(cachedBills) && cachedBills.length > 0) {
+                        allBills = cachedBills.filter(b => b.date >= firstDay && b.date <= lastDay);
+                        cacheFound = true;
+                    }
+                } catch (_) {}
+
+                try {
+                    const cachedGoals = await window.tonuSync.getCachedGoals(currentUser.id);
+                    if (Array.isArray(cachedGoals) && cachedGoals.length > 0) {
+                        allGoals = cachedGoals;
+                        cacheFound = true;
+                    }
+                } catch (_) {}
+
+                try {
+                    const cachedDivs = await window.tonuSync.getCachedDividends(currentUser.id);
+                    if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
+                        allDividends = cachedDivs;
+                        cacheFound = true;
+                    }
+                } catch (_) {}
+            }
+
+            // Migração transparente de legado de localStorage para IndexedDB
+            try {
+                const legacyTx = localStorage.getItem('tonu_transactions_' + currentUser.id);
+                if (legacyTx && window.tonuSync) {
+                    const parsed = JSON.parse(legacyTx);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, parsed);
+                        if (allTransactions.length === 0) allTransactions = parsed;
+                        cacheFound = true;
+                    }
+                    localStorage.removeItem('tonu_transactions_' + currentUser.id);
+                }
+                const legacyBills = localStorage.getItem('tonu_bills_' + currentUser.id);
+                if (legacyBills && window.tonuSync) {
+                    const parsed = JSON.parse(legacyBills);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        await window.tonuSync.setCachedBills(currentUser.id, parsed);
+                        if (allBills.length === 0) allBills = parsed;
+                        cacheFound = true;
+                    }
+                    localStorage.removeItem('tonu_bills_' + currentUser.id);
+                }
+                const legacyGoals = localStorage.getItem('tonu_goals_' + currentUser.id);
+                if (legacyGoals && window.tonuSync) {
+                    const parsed = JSON.parse(legacyGoals);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        await window.tonuSync.setCachedGoals(currentUser.id, parsed);
+                        if (allGoals.length === 0) allGoals = parsed;
+                        cacheFound = true;
+                    }
+                    localStorage.removeItem('tonu_goals_' + currentUser.id);
+                }
+                const legacyDivs = localStorage.getItem('tonu_dividends_' + currentUser.id);
+                if (legacyDivs && window.tonuSync) {
+                    const parsed = JSON.parse(legacyDivs);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        await window.tonuSync.setCachedDividends(currentUser.id, parsed);
+                        if (allDividends.length === 0) allDividends = parsed;
+                        cacheFound = true;
+                    }
+                    localStorage.removeItem('tonu_dividends_' + currentUser.id);
                 }
             } catch (_) {}
 
-            try {
-                const cachedBills = localStorage.getItem('tonu_bills_' + currentUser.id);
-                if (cachedBills) {
-                    const parsedBills = JSON.parse(cachedBills);
-                    if (Array.isArray(parsedBills) && parsedBills.length > 0) {
-                        allBills = parsedBills;
-                        cacheFound = true;
-                    }
-                }
-            } catch (_) {}
-
-            try {
-                const cachedGoals = localStorage.getItem('tonu_goals_' + currentUser.id);
-                if (cachedGoals) {
-                    const parsedGoals = JSON.parse(cachedGoals);
-                    if (Array.isArray(parsedGoals) && parsedGoals.length > 0) {
-                        allGoals = parsedGoals;
-                        cacheFound = true;
-                    }
-                }
-            } catch (_) {}
-
-            try {
-                const cachedDivs = localStorage.getItem('tonu_dividends_' + currentUser.id);
-                if (cachedDivs) {
-                    const parsedDivs = JSON.parse(cachedDivs);
-                    if (Array.isArray(parsedDivs) && parsedDivs.length > 0) {
-                        allDividends = parsedDivs;
-                        cacheFound = true;
-                    }
-                }
-            } catch (_) {}
-
-            // 2. Se o cache local tiver dados, usá-los e exibir banner sutil:
             if (cacheFound) {
-                console.log("📶 Usando dados do cache local:", {
+                console.log("📶 Usando dados do cache IndexedDB:", {
                     transacoes: allTransactions.length,
                     contas: allBills.length,
                     proventos: allDividends.length,
@@ -315,26 +347,34 @@ async function loadMobileData() {
                 });
                 setMobileCacheBanner(true);
             } else {
-                // 3. Se ambos vazios, sim mostra conta zerada
                 setMobileCacheBanner(false);
             }
         } else {
             setMobileCacheBanner(false);
-            // Atualiza cache local para consultas offline futuras
-            if (currentUser && currentUser.id) {
+            // Atualiza cache canônico IndexedDB para consultas offline futuras
+            if (currentUser && currentUser.id && window.tonuSync) {
                 try {
                     if (allTransactions.length > 0) {
-                        localStorage.setItem('tonu_transactions_' + currentUser.id, JSON.stringify(allTransactions));
+                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
                     }
                     if (allBills.length > 0) {
-                        localStorage.setItem('tonu_bills_' + currentUser.id, JSON.stringify(allBills));
+                        await window.tonuSync.setCachedBills(currentUser.id, allBills);
                     }
                     if (allGoals.length > 0) {
-                        localStorage.setItem('tonu_goals_' + currentUser.id, JSON.stringify(allGoals));
+                        await window.tonuSync.setCachedGoals(currentUser.id, allGoals);
                     }
                     if (allDividends.length > 0) {
-                        localStorage.setItem('tonu_dividends_' + currentUser.id, JSON.stringify(allDividends));
+                        await window.tonuSync.setCachedDividends(currentUser.id, allDividends);
                     }
+                } catch (_) {}
+            }
+            // Limpa chaves financeiras concorrentes antigas do localStorage
+            if (currentUser && currentUser.id) {
+                try {
+                    localStorage.removeItem('tonu_transactions_' + currentUser.id);
+                    localStorage.removeItem('tonu_bills_' + currentUser.id);
+                    localStorage.removeItem('tonu_goals_' + currentUser.id);
+                    localStorage.removeItem('tonu_dividends_' + currentUser.id);
                 } catch (_) {}
             }
         }
@@ -1135,16 +1175,34 @@ async function handleQuickAddSubmit(event) {
     btn.textContent = "Salvando...";
 
     try {
-        const { data, error } = await supabaseClient.from("transactions").insert([{
+        const genUuid = () => {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                try { return crypto.randomUUID(); } catch (e) {}
+            }
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        };
+
+        const txId = genUuid();
+        const payload = {
+            id: txId,
             user_id: currentUser.id,
             description: desc,
             amount: amount,
             type: currentQuickType,
             category_id: category_id,
-            date: date
-        }]).select();
+            date: date,
+            created_at: new Date().toISOString()
+        };
 
-        if (error) throw error;
+        allTransactions.unshift(payload);
+
+        if (window.tonuSync && currentUser?.id) {
+            await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+            await window.tonuSync.enqueue('INSERT_TRANSACTION', payload);
+        }
 
         showMobileToast("Transação adicionada com sucesso! 🎉", "success");
         closeQuickAddModal();
@@ -1161,6 +1219,9 @@ async function handleQuickAddSubmit(event) {
 }
 
 function showMobileToast(message, type) {
+    if (typeof window.showToast === 'function') {
+        return window.showToast(message, type);
+    }
     type = type || "info";
     const toast = document.getElementById("toast");
     if (!toast) return;
@@ -1207,12 +1268,18 @@ function formatCurrency(value) {
 }
 
 function formatDate(date) {
+    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
+        return window.formatDate(date);
+    }
     if (!date) return "--/--/----";
     const d = new Date(date);
     return d.toLocaleDateString("pt-BR");
 }
 
 function toggleTheme() {
+    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
+        return window.toggleTheme();
+    }
     const isDark = document.body.classList.toggle("dark-theme");
     const theme = isDark ? "dark" : "light";
     localStorage.setItem("tonu_theme", theme);

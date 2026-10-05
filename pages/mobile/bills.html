@@ -857,33 +857,16 @@ async function togglePaid(id) {
     updateStats();
     renderBills();
 
-    // Persiste no IndexedDB canônico
-    if (window.tonuSync) {
+    // Persiste no IndexedDB canônico e enfileira para sincronização
+    if (window.tonuSync && currentUser?.id) {
         await window.tonuSync.setCachedBills(currentUser.id, allBills);
-    }
-
-    let isOnline = navigator.onLine && window.supabaseClient;
-    if (isOnline) {
-        try {
-            await supabaseClient.from("transactions").update({
-                paid: newStatus,
-                paid_date: paidDate
-            }).eq("id", id).eq("user_id", currentUser.id);
-            if (window.checkNotifications) window.checkNotifications();
-        } catch (netErr) {
-            console.warn('Erro ao atualizar online, enfileirando offline:', netErr);
-            isOnline = false;
-        }
-    }
-
-    if (!isOnline && window.tonuSync) {
         await window.tonuSync.enqueue('UPDATE_BILL', {
             id: id,
             paid: newStatus,
             paid_date: paidDate
         });
-        showToast(`📦 Status da conta atualizado offline!`, 'info');
     }
+    if (window.checkNotifications) window.checkNotifications();
 }
 
 function openModal(id = null) {
@@ -1014,87 +997,62 @@ async function saveBill(event) {
         current_installment: recurrenceType === 'installments' ? installmentCurrent : 1
     };
 
-    let isOnline = navigator.onLine && window.supabaseClient;
     try {
-        if (isOnline) {
-            try {
-                if (editId) {
-                    await supabaseClient.from("transactions").update(payload).eq("id", editId).eq("user_id", currentUser.id);
-                } else {
-                    if (recurrenceType === 'installments' && generateFuture && installmentsTotal > installmentCurrent) {
-                        const batch = [];
-                        const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
-                        for (let i = installmentCurrent; i <= installmentsTotal; i++) {
-                            const monthOffset = i - installmentCurrent;
-                            const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
-                            const itemPaid = (i === installmentCurrent) ? paid : false;
-                            batch.push({
-                                ...payload,
-                                description: `${cleanDesc} (${i}/${installmentsTotal})`,
-                                amount: finalAmount,
-                                date: dueDate,
-                                installments: installmentsTotal,
-                                current_installment: i,
-                                paid: itemPaid,
-                                paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
-                            });
-                        }
-                        await supabaseClient.from("transactions").insert(batch);
-                    } else {
-                        await supabaseClient.from("transactions").insert([payload]);
-                    }
-                }
-                showToast(editId ? "Conta atualizada com sucesso!" : "Conta criada com sucesso!", "success");
-            } catch (netErr) {
-                console.warn("Falha online ao salvar conta, enfileirando offline:", netErr);
-                isOnline = false;
+        if (editId) {
+            const idx = allBills.findIndex(b => String(b.id) === String(editId));
+            if (idx >= 0) allBills[idx] = { ...allBills[idx], ...payload };
+            if (window.tonuSync && currentUser?.id) {
+                await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                await window.tonuSync.enqueue('UPDATE_BILL', { id: editId, ...payload });
             }
-        }
-
-        if (!isOnline) {
-            if (editId) {
-                const idx = allBills.findIndex(b => String(b.id) === String(editId));
-                if (idx >= 0) allBills[idx] = { ...allBills[idx], ...payload };
-                if (window.tonuSync) {
-                    await window.tonuSync.enqueue('UPDATE_BILL', { id: editId, ...payload });
-                    await window.tonuSync.setCachedBills(currentUser.id, allBills);
+            showToast("Conta atualizada com sucesso! ✅", "success");
+        } else {
+            const genUuid = () => {
+                if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                    try { return crypto.randomUUID(); } catch (e) {}
                 }
-            } else {
-                const batch = [];
-                if (recurrenceType === 'installments' && generateFuture && installmentsTotal > installmentCurrent) {
-                    const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
-                    for (let i = installmentCurrent; i <= installmentsTotal; i++) {
-                        const monthOffset = i - installmentCurrent;
-                        const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
-                        const itemPaid = (i === installmentCurrent) ? paid : false;
-                        const billItem = {
-                            id: 'offline_bill_' + Date.now() + '_' + i,
-                            ...payload,
-                            description: `${cleanDesc} (${i}/${installmentsTotal})`,
-                            amount: finalAmount,
-                            date: dueDate,
-                            installments: installmentsTotal,
-                            current_installment: i,
-                            paid: itemPaid,
-                            paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
-                        };
-                        batch.push(billItem);
-                        allBills.push(billItem);
-                    }
-                } else {
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            };
+
+            const batch = [];
+            if (recurrenceType === 'installments' && generateFuture && installmentsTotal > installmentCurrent) {
+                const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
+                for (let i = installmentCurrent; i <= installmentsTotal; i++) {
+                    const monthOffset = i - installmentCurrent;
+                    const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
+                    const itemPaid = (i === installmentCurrent) ? paid : false;
                     const billItem = {
-                        id: 'offline_bill_' + Date.now(),
-                        ...payload
+                        id: genUuid(),
+                        ...payload,
+                        description: `${cleanDesc} (${i}/${installmentsTotal})`,
+                        amount: finalAmount,
+                        date: dueDate,
+                        installments: installmentsTotal,
+                        current_installment: i,
+                        paid: itemPaid,
+                        paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
                     };
                     batch.push(billItem);
                     allBills.push(billItem);
                 }
-                if (window.tonuSync) {
-                    await window.tonuSync.enqueue('INSERT_BILL', batch.length === 1 ? batch[0] : batch);
-                    await window.tonuSync.setCachedBills(currentUser.id, allBills);
+            } else {
+                const billItem = {
+                    id: genUuid(),
+                    ...payload
+                };
+                batch.push(billItem);
+                allBills.push(billItem);
+            }
+            if (window.tonuSync && currentUser?.id) {
+                await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                for (const b of batch) {
+                    await window.tonuSync.enqueue('INSERT_BILL', b);
                 }
             }
-            showToast("📦 Conta salva offline! Será sincronizada quando a conexão retornar.", "info");
+            showToast("Conta criada com sucesso! 🎉", "success");
         }
 
         closeModal();
@@ -1108,25 +1066,12 @@ async function saveBill(event) {
 async function deleteBillDirect(id) {
     if (!confirm("Deseja excluir esta conta?")) return;
     try {
-        let isOnline = navigator.onLine && window.supabaseClient;
-        if (isOnline) {
-            try {
-                await supabaseClient.from("transactions").delete().eq("id", id).eq("user_id", currentUser.id);
-                showToast("Conta excluída!", "success");
-            } catch (netErr) {
-                console.warn("Falha online ao excluir, enfileirando offline:", netErr);
-                isOnline = false;
-            }
+        allBills = allBills.filter(b => String(b.id) !== String(id));
+        if (window.tonuSync && currentUser?.id) {
+            await window.tonuSync.setCachedBills(currentUser.id, allBills);
+            await window.tonuSync.enqueue('DELETE_BILL', { id });
         }
-
-        if (!isOnline) {
-            allBills = allBills.filter(b => String(b.id) !== String(id));
-            if (window.tonuSync) {
-                await window.tonuSync.enqueue('DELETE_BILL', { id });
-                await window.tonuSync.setCachedBills(currentUser.id, allBills);
-            }
-            showToast("📦 Conta excluída offline! Será sincronizada quando a conexão retornar.", "info");
-        }
+        showToast("Conta excluída!", "info");
 
         await loadBills();
         if (window.checkNotifications) window.checkNotifications();
@@ -1170,6 +1115,9 @@ function formatCurrency(val) {
 }
 
 function formatDate(d) {
+    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
+        return window.formatDate(d);
+    }
     if (!d) return "--/--/----";
     const parts = d.split("T")[0].split("-");
     if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -1177,6 +1125,9 @@ function formatDate(d) {
 }
 
 function toggleTheme() {
+    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
+        return window.toggleTheme();
+    }
     const isDark = document.body.classList.toggle("dark-theme");
     localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
     const icon = document.querySelector("#themeIcon");

@@ -249,7 +249,7 @@ window.openIRReportModal = function() {
         window.TonuIRReport.showIRReportModal(allTransactions, allDividends, allCorporateEvents);
     } else {
         if (typeof showToast === 'function') showToast('Carregando relatório de IR...', 'info');
-        else alert('Carregando relatório de IR...');
+        else console.info('Carregando relatório de IR...');
     }
 };
 
@@ -4516,7 +4516,10 @@ function onPieClassChange(cls) {
 // ============================================
 // TOAST
 // ============================================
-function showToast(message, type) {
+function showToast(message, type, actionText, onAction) {
+    if (typeof window.showToast === 'function' && window.showToast !== showToast) {
+        return window.showToast(message, type, actionText, onAction);
+    }
     type = type || 'info';
     const toast = document.getElementById('toast');
     if (!toast) return;
@@ -4573,17 +4576,35 @@ async function loadCorporateEvents() {
             }
         }
 
-        // Se offline ou demo, recupera de localStorage
-        if (!fetchedFromDb) {
+        // Se offline ou demo, recupera do cache canônico IndexedDB
+        if (!fetchedFromDb && window.tonuSync) {
             try {
-                const local = localStorage.getItem('tonu_corporate_events');
-                if (local) {
-                    loaded = JSON.parse(local) || [];
+                const cachedEvents = await window.tonuSync.getEntityCache('corporate_events_' + (currentUser?.id || 'current'));
+                if (Array.isArray(cachedEvents) && cachedEvents.length > 0) {
+                    loaded = cachedEvents;
                 }
             } catch (e) {}
         }
 
+        // Migração transparente de legado do localStorage para IndexedDB
+        try {
+            const local = localStorage.getItem('tonu_corporate_events');
+            if (local) {
+                const parsed = JSON.parse(local) || [];
+                if (parsed.length > 0 && (!loaded || loaded.length === 0)) {
+                    loaded = parsed;
+                }
+                if (window.tonuSync) {
+                    await window.tonuSync.setEntityCache('corporate_events_' + (currentUser?.id || 'current'), loaded);
+                }
+                localStorage.removeItem('tonu_corporate_events');
+            }
+        } catch (e) {}
+
         allCorporateEvents = loaded || [];
+        if (fetchedFromDb && window.tonuSync && currentUser?.id) {
+            window.tonuSync.setEntityCache('corporate_events_' + currentUser.id, allCorporateEvents);
+        }
         console.log('⚡ Eventos corporativos carregados:', allCorporateEvents.length);
     } catch (err) {
         console.error('❌ Erro ao carregar eventos corporativos:', err);
@@ -4743,21 +4764,20 @@ async function saveCorporateEvent(e) {
             }
         }
 
-        // Salva localmente caso Supabase ainda não tenha a tabela
-        if (!savedInSupabase) {
-            let localList = [];
-            try {
-                localList = JSON.parse(localStorage.getItem('tonu_corporate_events') || '[]');
-            } catch (e) {}
+        // Atualiza estado local e cache canônico IndexedDB / fila
+        if (id) {
+            allCorporateEvents = allCorporateEvents.map(item => item.id === id ? { ...item, ...payload } : item);
+        } else {
+            if (!payload.id) payload.id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('corp_' + Date.now());
+            payload.created_at = new Date().toISOString();
+            allCorporateEvents.push(payload);
+        }
 
-            if (id) {
-                localList = localList.map(item => item.id === id ? { ...item, ...payload } : item);
-            } else {
-                payload.id = 'corp_' + Date.now();
-                payload.created_at = new Date().toISOString();
-                localList.push(payload);
+        if (window.tonuSync && currentUser?.id) {
+            await window.tonuSync.setEntityCache('corporate_events_' + currentUser.id, allCorporateEvents);
+            if (!savedInSupabase) {
+                await window.tonuSync.enqueue(id ? 'UPDATE_CORPORATE_EVENT' : 'INSERT_CORPORATE_EVENT', payload);
             }
-            localStorage.setItem('tonu_corporate_events', JSON.stringify(localList));
         }
 
         showToast(id ? 'Evento corporativo atualizado!' : 'Evento corporativo registrado com sucesso!', 'success');
@@ -4791,12 +4811,14 @@ async function deleteCorporateEvent(id) {
             } catch (err) {}
         }
 
-        let localList = [];
-        try {
-            localList = JSON.parse(localStorage.getItem('tonu_corporate_events') || '[]');
-            localList = localList.filter(item => item.id !== id);
-            localStorage.setItem('tonu_corporate_events', JSON.stringify(localList));
-        } catch (e) {}
+        allCorporateEvents = allCorporateEvents.filter(item => item.id !== id);
+
+        if (window.tonuSync && currentUser?.id) {
+            await window.tonuSync.setEntityCache('corporate_events_' + currentUser.id, allCorporateEvents);
+            if (!deletedFromDb) {
+                await window.tonuSync.enqueue('DELETE_CORPORATE_EVENT', { id });
+            }
+        }
 
         showToast('Evento corporativo removido!', 'info');
         await refreshDashboard();
