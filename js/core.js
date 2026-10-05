@@ -625,7 +625,9 @@ function closeSidebar() {
 // 6. LOGOUT (NÃO-DESTRUTIVO PARA BIOMETRIA / COMPLETO PARA USUÁRIO COMUM)
 // ============================================
 async function logout() {
-    if (sessionStorage.getItem('tonu_logout_in_progress') === 'true') {
+    const logoutStartTime = sessionStorage.getItem('tonu_logout_in_progress_time');
+    const isRecent = logoutStartTime && (Date.now() - Number(logoutStartTime) < 3500);
+    if (sessionStorage.getItem('tonu_logout_in_progress') === 'true' && isRecent) {
         console.log('🚪 Logout já em progresso');
         return;
     }
@@ -633,6 +635,7 @@ async function logout() {
     try {
         console.log('🚪 Iniciando logout...');
         sessionStorage.setItem('tonu_logout_in_progress', 'true');
+        sessionStorage.setItem('tonu_logout_in_progress_time', String(Date.now()));
 
         if (typeof window !== 'undefined' && typeof window.stopAutoRefresh === 'function') {
             try { window.stopAutoRefresh(); } catch (_) {}
@@ -664,6 +667,7 @@ async function logout() {
 
             setTimeout(function () {
                 sessionStorage.removeItem('tonu_logout_in_progress');
+                sessionStorage.removeItem('tonu_logout_in_progress_time');
                 window.location.href = redirectUrl;
             }, 100);
             return;
@@ -681,7 +685,10 @@ async function logout() {
 
         if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.auth) {
             try {
-                await window.supabaseClient.auth.signOut();
+                await Promise.race([
+                    window.supabaseClient.auth.signOut(),
+                    new Promise(r => setTimeout(r, 1200))
+                ]);
             } catch (e) {
                 console.warn('⚠️ Erro no logout Supabase:', e);
             }
@@ -703,12 +710,14 @@ async function logout() {
 
         setTimeout(function () {
             sessionStorage.removeItem('tonu_logout_in_progress');
+            sessionStorage.removeItem('tonu_logout_in_progress_time');
             window.location.href = redirectUrl;
         }, 150);
 
     } catch (error) {
         console.error('❌ Erro ao fazer logout:', error);
         sessionStorage.removeItem('tonu_logout_in_progress');
+        sessionStorage.removeItem('tonu_logout_in_progress_time');
         const fallbackUrl = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
         window.location.href = fallbackUrl;
     }
@@ -719,8 +728,16 @@ async function logoutAllDevices() {
     const confirmed = confirm('Deseja realmente sair de todos os dispositivos? Isso cancelará o acesso rápido por Face ID/Biometria neste aparelho e exigirá login com email e senha na próxima vez.');
     if (!confirmed) return;
 
+    const logoutStartTime = sessionStorage.getItem('tonu_logout_in_progress_time');
+    const isRecent = logoutStartTime && (Date.now() - Number(logoutStartTime) < 3500);
+    if (sessionStorage.getItem('tonu_logout_in_progress') === 'true' && isRecent) {
+        console.log('🚪 Logout já em progresso');
+        return;
+    }
+
     try {
         sessionStorage.setItem('tonu_logout_in_progress', 'true');
+        sessionStorage.setItem('tonu_logout_in_progress_time', String(Date.now()));
         console.log('🚨 Executando logout global de todos os dispositivos...');
 
         if (typeof window !== 'undefined' && typeof window.stopAutoRefresh === 'function') {
@@ -737,9 +754,17 @@ async function logoutAllDevices() {
 
         if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.auth) {
             try {
-                await window.supabaseClient.auth.signOut({ scope: 'global' });
+                await Promise.race([
+                    window.supabaseClient.auth.signOut({ scope: 'global' }),
+                    new Promise(r => setTimeout(r, 1500))
+                ]);
             } catch (_) {
-                try { await window.supabaseClient.auth.signOut(); } catch (_) {}
+                try {
+                    await Promise.race([
+                        window.supabaseClient.auth.signOut(),
+                        new Promise(r => setTimeout(r, 1000))
+                    ]);
+                } catch (_) {}
             }
         }
 
@@ -758,10 +783,13 @@ async function logoutAllDevices() {
         const redirectUrl = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
         setTimeout(function () {
             sessionStorage.removeItem('tonu_logout_in_progress');
+            sessionStorage.removeItem('tonu_logout_in_progress_time');
             window.location.href = redirectUrl;
         }, 150);
     } catch (err) {
         console.error('❌ Erro no logoutAllDevices:', err);
+        sessionStorage.removeItem('tonu_logout_in_progress');
+        sessionStorage.removeItem('tonu_logout_in_progress_time');
         window.location.href = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
     }
 }

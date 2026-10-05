@@ -3346,11 +3346,6 @@
         // ==========================================
         // TOAST (Utiliza a implementação central em js/core.js)
         // ==========================================
-        function showToast(message, type, actionText, onAction) {
-            if (typeof window.showToast === 'function' && window.showToast !== showToast) {
-                return window.showToast(message, type, actionText, onAction);
-            }
-        }
 
         // ==========================================
         // SWITCH TAB (COM TRANSIÇÃO SUAVE DE SLIDE / FADE)
@@ -3839,7 +3834,6 @@
         window.togglePasswordVisibility = togglePasswordVisibility;
         window.socialLogin = socialLogin;
         window.resetPassword = resetPassword;
-        if (typeof window.showToast !== 'function') window.showToast = showToast;
         window.ensureProfile = ensureProfile;
         window.createDefaultCategories = createDefaultCategories;
         window.handleBiometricLogin = handleBiometricLogin;

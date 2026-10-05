@@ -880,20 +880,9 @@ async function handleSocialLoginCallback() {
 }
 
 // ============================================
-// LOGOUT (Delegação segura para a implementação central em js/core.js)
+// LOGOUT (Centralizado exclusivamente em js/core.js)
 // ============================================
-
-async function logout() {
-    if (typeof window !== 'undefined' && typeof window.logout === 'function' && window.logout !== logout) {
-        return await window.logout();
-    }
-}
-
-async function logoutAllDevices() {
-    if (typeof window !== 'undefined' && typeof window.logoutAllDevices === 'function' && window.logoutAllDevices !== logoutAllDevices) {
-        return await window.logoutAllDevices();
-    }
-}
+// As funções globais window.logout e window.logoutAllDevices são fornecidas centralmente por js/core.js.
 
 // ============================================
 // INICIALIZAR AO CARREGAR
