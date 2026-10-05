@@ -54,46 +54,70 @@ async function syncQuotes() {
     const uniqueTickers = [...new Set(tickers)];
     console.log(`📊 Tickers a consultar (${uniqueTickers.length}):`, uniqueTickers.join(', '));
 
-    // 2. Consulta cotações na BRAPI em lotes
-    const batchSize = 15;
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // 2. Consulta cotações na BRAPI individualmente (1 por requisição - Plano Free BRAPI)
     const upsertRows = [];
     const nowIso = new Date().toISOString();
+    let successCount = 0;
+    let failCount = 0;
 
-    for (let i = 0; i < uniqueTickers.length; i += batchSize) {
-        const batch = uniqueTickers.slice(i, i + batchSize);
-        const tickersParam = batch.map(t => encodeURIComponent(t)).join(',');
-        const url = `https://brapi.dev/api/quote/${tickersParam}?token=${encodeURIComponent(BRAPI_TOKEN)}`;
+    for (const ticker of uniqueTickers) {
+        const cleanTicker = ticker.trim().toUpperCase().replace(/\.SA$/, '');
+        const url = `https://brapi.dev/api/quote/${encodeURIComponent(cleanTicker)}?token=${encodeURIComponent(BRAPI_TOKEN)}`;
 
         try {
             const res = await fetch(url);
+
             if (!res.ok) {
-                console.warn(`⚠️ BRAPI retornou status ${res.status} para o lote: ${batch.join(',')}`);
+                let errDetail = `${res.status}`;
+                try {
+                    const errBody = await res.json();
+                    if (errBody?.message) errDetail += ` - ${errBody.message}`;
+                } catch (_) {}
+                console.log(`📡 Buscando ${cleanTicker.padEnd(7)}... ⚠️ (${errDetail})`);
+                failCount++;
+                await sleep(200);
                 continue;
             }
 
             const json = await res.json();
-            const results = json.results || [];
+            const item = (json.results && json.results[0]) || null;
+            const price = Number(item?.regularMarketPrice);
 
-            for (const item of results) {
-                const symbol = (item.symbol || '').toUpperCase().trim().replace(/\.SA$/, '');
-                const price = Number(item.regularMarketPrice);
-
-                if (!symbol || !Number.isFinite(price) || price <= 0) continue;
-
-                upsertRows.push({
-                    ticker: symbol,
-                    price: price,
-                    change: Number(item.regularMarketChangePercent || 0),
-                    change_value: Number(item.regularMarketChange || 0),
-                    previous_close: Number(item.regularMarketPreviousClose || price),
-                    currency: item.currency || 'BRL',
-                    updated_at: nowIso
-                });
+            if (!item || !Number.isFinite(price) || price <= 0) {
+                console.log(`📡 Buscando ${cleanTicker.padEnd(7)}... ⚠️ (sem dados)`);
+                failCount++;
+                await sleep(200);
+                continue;
             }
+
+            const changePct = Number(item.regularMarketChangePercent || 0);
+            const sinal = changePct >= 0 ? '+' : '';
+
+            upsertRows.push({
+                ticker: cleanTicker,
+                price: price,
+                change: changePct,
+                change_value: Number(item.regularMarketChange || 0),
+                previous_close: Number(item.regularMarketPreviousClose || price),
+                currency: item.currency || 'BRL',
+                updated_at: nowIso
+            });
+
+            console.log(`📡 Buscando ${cleanTicker.padEnd(7)}... ✅ R$ ${price.toFixed(2).padStart(6)} (${sinal}${changePct.toFixed(2)}%)`);
+            successCount++;
+
         } catch (err) {
-            console.error(`❌ Erro ao consultar lote ${batch.join(',')}:`, err.message);
+            console.log(`📡 Buscando ${cleanTicker.padEnd(7)}... ⚠️ (erro de conexão: ${err.message})`);
+            failCount++;
         }
+
+        // Delay de 200ms entre as requisições para respeitar o rate-limit do plano free
+        await sleep(200);
     }
+
+    console.log(`\n📊 Resumo da busca: ${successCount} atualizados com sucesso | ${failCount} falhas.`);
 
     if (upsertRows.length === 0) {
         console.error('❌ Nenhuma cotação válida retornada pela BRAPI.');

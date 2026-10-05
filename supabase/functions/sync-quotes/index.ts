@@ -58,8 +58,7 @@ Deno.serve(async (req) => {
 
     console.log(`📡 Atualizando ${uniqueTickers.length} tickers: ${uniqueTickers.join(', ')}`);
 
-    // 2. Consulta a BRAPI em lotes de até 15 tickers por requisição
-    const batchSize = 15;
+    // 2. Consulta a BRAPI individualmente (1 por requisição - Plano Free BRAPI)
     const upsertRows: Array<{
       ticker: string;
       price: number;
@@ -71,11 +70,13 @@ Deno.serve(async (req) => {
     }> = [];
 
     const nowIso = new Date().toISOString();
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    let successCount = 0;
+    let failCount = 0;
 
-    for (let i = 0; i < uniqueTickers.length; i += batchSize) {
-      const batch = uniqueTickers.slice(i, i + batchSize);
-      const tickersParam = batch.map((t) => encodeURIComponent(t)).join(',');
-      const brapiUrl = `https://brapi.dev/api/quote/${tickersParam}?token=${encodeURIComponent(brapiToken)}`;
+    for (const ticker of uniqueTickers) {
+      const cleanTicker = ticker.trim().toUpperCase().replace(/\.SA$/, '');
+      const brapiUrl = `https://brapi.dev/api/quote/${encodeURIComponent(cleanTicker)}?token=${encodeURIComponent(brapiToken)}`;
 
       try {
         const response = await fetch(brapiUrl, {
@@ -83,32 +84,50 @@ Deno.serve(async (req) => {
         });
 
         if (!response.ok) {
-          console.warn(`⚠️ BRAPI retornou status ${response.status} para o lote: ${tickersParam}`);
+          let errDetail = `${response.status}`;
+          try {
+            const errBody = await response.json();
+            if (errBody?.message) errDetail += ` - ${errBody.message}`;
+          } catch (_) {}
+          console.warn(`📡 Buscando ${cleanTicker.padEnd(7)}... ⚠️ (${errDetail})`);
+          failCount++;
+          await sleep(200);
           continue;
         }
 
         const data = await response.json();
-        const results = data.results || [];
+        const item = (data.results && data.results[0]) || null;
+        const price = Number(item?.regularMarketPrice);
 
-        for (const item of results) {
-          const symbol = (item.symbol || '').toUpperCase().trim().replace(/\.SA$/, '');
-          const price = Number(item.regularMarketPrice);
-
-          if (!symbol || !Number.isFinite(price) || price <= 0) continue;
-
-          upsertRows.push({
-            ticker: symbol,
-            price: price,
-            change: Number(item.regularMarketChangePercent || 0),
-            change_value: Number(item.regularMarketChange || 0),
-            previous_close: Number(item.regularMarketPreviousClose || price),
-            currency: item.currency || 'BRL',
-            updated_at: nowIso
-          });
+        if (!item || !Number.isFinite(price) || price <= 0) {
+          console.warn(`📡 Buscando ${cleanTicker.padEnd(7)}... ⚠️ (sem dados)`);
+          failCount++;
+          await sleep(200);
+          continue;
         }
-      } catch (batchErr: any) {
-        console.error(`❌ Erro no lote ${tickersParam}:`, batchErr.message);
+
+        const changePct = Number(item.regularMarketChangePercent || 0);
+        const sinal = changePct >= 0 ? '+' : '';
+
+        upsertRows.push({
+          ticker: cleanTicker,
+          price: price,
+          change: changePct,
+          change_value: Number(item.regularMarketChange || 0),
+          previous_close: Number(item.regularMarketPreviousClose || price),
+          currency: item.currency || 'BRL',
+          updated_at: nowIso
+        });
+
+        console.log(`📡 Buscando ${cleanTicker.padEnd(7)}... ✅ R$ ${price.toFixed(2).padStart(6)} (${sinal}${changePct.toFixed(2)}%)`);
+        successCount++;
+
+      } catch (tickerErr: any) {
+        console.error(`📡 Buscando ${cleanTicker.padEnd(7)}... ⚠️ (${tickerErr.message})`);
+        failCount++;
       }
+
+      await sleep(200);
     }
 
     if (upsertRows.length === 0) {
