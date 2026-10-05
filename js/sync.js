@@ -235,6 +235,20 @@
             return copy;
         }
 
+        // Helper para identificar erros de chave duplicada / conflito no banco (409 / 23505)
+        _isDuplicateOrConflictError(error) {
+            if (!error) return false;
+            return error.status === 409 ||
+                error.statusCode === 409 ||
+                error.code === '23505' ||
+                (typeof error.message === 'string' && (
+                    error.message.includes('duplicate key') ||
+                    error.message.includes('already exists') ||
+                    error.message.includes('conflict') ||
+                    error.message.includes('violates unique constraint')
+                ));
+        }
+
         async executeSyncAction(item) {
             if (!window.supabaseClient) {
                 console.warn('⚠️ Supabase client não disponível para sincronizar');
@@ -257,7 +271,13 @@
                         return copy;
                     });
                     const { error } = await window.supabaseClient.from('transactions').insert(payload);
-                    if (error) throw error;
+                    if (error) {
+                        if (this._isDuplicateOrConflictError(error)) {
+                            console.warn('⚠️ Transação já cadastrada na nuvem (409/23505). Marcando como sincronizada.');
+                            return true;
+                        }
+                        throw error;
+                    }
                     return true;
                 }
                 case 'UPDATE_TRANSACTION':
@@ -283,14 +303,23 @@
                     await window.supabaseClient.from('transactions').update({ paid: true, paid_date: new Date().toISOString().split('T')[0] }).eq('id', billId);
                     if (paymentData) {
                         const cleanPayment = this._sanitizeForInsert(paymentData);
-                        await window.supabaseClient.from('transactions').insert([cleanPayment]);
+                        const { error: insertErr } = await window.supabaseClient.from('transactions').insert([cleanPayment]);
+                        if (insertErr && !this._isDuplicateOrConflictError(insertErr)) {
+                            throw insertErr;
+                        }
                     }
                     return true;
                 }
                 case 'INSERT_GOAL': {
                     const cleanData = this._sanitizeForInsert(data);
                     const { error } = await window.supabaseClient.from('goals').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
-                    if (error) throw error;
+                    if (error) {
+                        if (this._isDuplicateOrConflictError(error)) {
+                            console.warn('⚠️ Meta já cadastrada na nuvem (409/23505). Marcando como sincronizada.');
+                            return true;
+                        }
+                        throw error;
+                    }
                     return true;
                 }
                 case 'UPDATE_GOAL': {
@@ -308,7 +337,13 @@
                 case 'INSERT_INVESTMENT': {
                     const cleanData = this._sanitizeForInsert(data);
                     const { error } = await window.supabaseClient.from('investments').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
-                    if (error) throw error;
+                    if (error) {
+                        if (this._isDuplicateOrConflictError(error)) {
+                            console.warn('⚠️ Investimento já cadastrado na nuvem (409/23505). Marcando como sincronizado.');
+                            return true;
+                        }
+                        throw error;
+                    }
                     return true;
                 }
                 case 'UPDATE_INVESTMENT': {
@@ -326,7 +361,13 @@
                 case 'INSERT_DIVIDEND': {
                     const cleanData = this._sanitizeForInsert(data);
                     const { error } = await window.supabaseClient.from('dividends').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
-                    if (error) throw error;
+                    if (error) {
+                        if (this._isDuplicateOrConflictError(error)) {
+                            console.warn('⚠️ Provento já cadastrado na nuvem (409/23505). Marcando como sincronizado.');
+                            return true;
+                        }
+                        throw error;
+                    }
                     return true;
                 }
                 case 'UPDATE_DIVIDEND': {
@@ -344,7 +385,13 @@
                 case 'INSERT_CORPORATE_EVENT': {
                     const cleanData = this._sanitizeForInsert(data);
                     const { error } = await window.supabaseClient.from('corporate_events').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
-                    if (error) throw error;
+                    if (error) {
+                        if (this._isDuplicateOrConflictError(error)) {
+                            console.warn('⚠️ Evento corporativo já cadastrado na nuvem (409/23505). Marcando como sincronizado.');
+                            return true;
+                        }
+                        throw error;
+                    }
                     return true;
                 }
                 case 'UPDATE_CORPORATE_EVENT': {

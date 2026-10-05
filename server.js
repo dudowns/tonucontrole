@@ -129,7 +129,7 @@ const DEFAULT_SUPABASE_URL = 'https://rbtxrbacdpenbslqcbbl.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidHhyYmFjZHBlbmJzbHFjYmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MDA5MjksImV4cCI6MjEwMTk3NjkyOX0.VDmJ-pty8oLzkgEad4WBpk7leR9ZR-b_bXXUE3HkPcM';
 
 // Configuração pública do cliente (Variáveis de ambiente controladas)
-app.get('/api/config', (req, res) => {
+app.get(['/api/config', '/tonucontrole/api/config'], (req, res) => {
     const supabaseUrl = process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL;
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
     const brapiToken = process.env.BRAPI_TOKEN;
@@ -143,7 +143,7 @@ app.get('/api/config', (req, res) => {
 });
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/tonucontrole/api/health'], (req, res) => {
     res.json({
         status: 'ok',
         app: 'TonuControle',
@@ -194,7 +194,7 @@ function parseChartMonthlyPrices(chart) {
     return monthlyPrices;
 }
 
-app.get('/api/historical-quotes', async (req, res) => {
+app.get(['/api/historical-quotes', '/tonucontrole/api/historical-quotes'], async (req, res) => {
     try {
         const tickersParam = req.query.tickers || '';
         if (!tickersParam) {
@@ -269,7 +269,7 @@ app.get('/api/historical-quotes', async (req, res) => {
 });
 
 // Download do código-fonte (ZIP Seguro)
-app.get('/api/download-zip', zipDownloadLimiter, (req, res) => {
+app.get(['/api/download-zip', '/tonucontrole/api/download-zip'], zipDownloadLimiter, (req, res) => {
     const zipFileName = 'tonucontrole-source-code.zip';
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);

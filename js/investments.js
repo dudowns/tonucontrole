@@ -1558,7 +1558,9 @@ async function fetchHistoricalMonthlyQuotes() {
 
     try {
         console.log('📈 Buscando histórico mensal para:', uniqueTickers.join(', '));
-        const res = await fetch(`/api/historical-quotes?tickers=${encodeURIComponent(uniqueTickers.join(','))}`);
+        const baseApi = (typeof window.getBaseUrl === 'function' ? window.getBaseUrl() : '').replace(/\/+$/, '');
+        const endpoint = (baseApi ? baseApi : '') + `/api/historical-quotes?tickers=${encodeURIComponent(uniqueTickers.join(','))}`;
+        const res = await fetch(endpoint);
         if (!res.ok) return;
 
         const data = await res.json();
