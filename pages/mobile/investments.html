@@ -1238,8 +1238,20 @@ async function loadAllInvestmentData() {
                     .order("date", { ascending: true });
 
                 if (!invErr && invData) {
-                    allRawInvestments = invData;
-                    if (window.tonuSync) await window.tonuSync.setCachedInvestments(currentUser.id, invData);
+                    allRawInvestments = (invData || []).map(inv => {
+                        const tk = (inv.ticker || '').toUpperCase().trim();
+                        if (typeof window.resolveAssetClass === 'function') {
+                            const correctCls = window.resolveAssetClass(tk, inv.asset_class);
+                            if (correctCls !== inv.asset_class) {
+                                inv.asset_class = correctCls;
+                                if (isOnline && inv.id && !String(inv.id).startsWith('offline_')) {
+                                    supabaseClient.from("investments").update({ asset_class: correctCls }).eq("id", inv.id).catch(() => {});
+                                }
+                            }
+                        }
+                        return inv;
+                    });
+                    if (window.tonuSync) await window.tonuSync.setCachedInvestments(currentUser.id, allRawInvestments);
                 }
 
                 // 2. Proventos (dividends)
@@ -1347,9 +1359,12 @@ function computeRealPositions() {
         if (!ticker) return;
 
         if (!map.has(ticker)) {
+            const resolvedCls = (typeof window.resolveAssetClass === 'function')
+                ? window.resolveAssetClass(ticker, item.asset_class)
+                : (item.asset_class || 'Ações');
             map.set(ticker, {
                 ticker: ticker,
-                asset_class: item.asset_class || 'Ações',
+                asset_class: resolvedCls,
                 quantity: 0,
                 costBasis: 0,
                 averageCost: 0,
@@ -2583,7 +2598,10 @@ async function handleOpSubmit(e) {
     const editId = document.getElementById("opEditId").value;
     const type = document.getElementById("opType").value;
     const ticker = document.getElementById("opTicker").value.trim().toUpperCase();
-    const assetClass = document.getElementById("opClass").value;
+    let assetClass = document.getElementById("opClass").value;
+    if (typeof window.resolveAssetClass === 'function') {
+        assetClass = window.resolveAssetClass(ticker, assetClass);
+    }
     const qty = parseFloat(document.getElementById("opQty").value) || 0;
     const price = parseFloat(document.getElementById("opPrice").value) || 0;
     const totalValInput = parseFloat(document.getElementById("opTotal").value) || 0;
@@ -2693,7 +2711,11 @@ function editOperation(id) {
     document.getElementById("opModalTitle").textContent = "Editar Operação";
     document.getElementById("opEditId").value = op.id;
     document.getElementById("opTicker").value = op.ticker;
-    document.getElementById("opClass").value = op.asset_class || "Ações";
+    const cleanTk = (op.ticker || '').toUpperCase().trim();
+    const resolvedCls = (typeof window.resolveAssetClass === 'function')
+        ? window.resolveAssetClass(cleanTk, op.asset_class)
+        : (op.asset_class || "Ações");
+    document.getElementById("opClass").value = resolvedCls;
     document.getElementById("opQty").value = op.quantity;
     document.getElementById("opPrice").value = op.unit_price || op.price || '';
     document.getElementById("opTotal").value = op.total_value;

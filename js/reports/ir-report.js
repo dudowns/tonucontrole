@@ -28,6 +28,16 @@
                 : ((typeof global !== 'undefined' && global.TONU_JCP_TAX_RATE !== undefined) ? global.TONU_JCP_TAX_RATE : 0.20)));
     const SWING_TRADE_MONTHLY_EXEMPTION_LIMIT = 20000.00; // Limite de isenção para ações no swing trade
 
+    const KNOWN_STOCK_UNITS = (typeof window !== 'undefined' && window.KNOWN_STOCK_UNITS) ||
+        (typeof globalThis !== 'undefined' && globalThis.KNOWN_STOCK_UNITS) ||
+        new Set([
+            'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
+            'SULA11', 'TIET11', 'BIDI11', 'RPMG11', 'MODL11', 'IGTI11', 'VVAR11', 'STBP11',
+            'AESB11', 'ELET11', 'PPLA11', 'ALLD11', 'ENEV11', 'BMEB11', 'BMGB11', 'BRAP11',
+            'CAMB11', 'CURY11', 'EMAE11', 'LCAM11', 'MOVI11', 'ODPV11', 'PARD11', 'RANI11',
+            'RAPT11', 'SIMH11', 'TRIS11', 'TUPY11', 'VAMO11', 'VBBR11', 'VULC11', 'WHRL11'
+        ]);
+
     function parseSafeNumber(val) {
         if (typeof val === 'number') return isNaN(val) ? 0 : val;
         if (val === null || val === undefined || val === '') return 0;
@@ -368,9 +378,11 @@
             if (!ticker) return;
 
             if (!map[ticker]) {
+                const isUnit = KNOWN_STOCK_UNITS.has(ticker);
+                const inferredCls = (ticker.endsWith('11') && !isUnit) ? 'FIIs' : 'Ações';
                 map[ticker] = {
                     ticker,
-                    assetClass: item.asset_class || (ticker.endsWith('11') ? 'FIIs' : 'Ações'),
+                    assetClass: isUnit ? 'Ações' : (item.asset_class || inferredCls),
                     quantity: 0,
                     costBasis: 0
                 };
@@ -492,9 +504,11 @@
             if (!ticker) return;
 
             if (!map[ticker]) {
+                const isUnit = KNOWN_STOCK_UNITS.has(ticker);
+                const inferredCls = (ticker.endsWith('11') && !isUnit) ? 'FIIs' : 'Ações';
                 map[ticker] = {
                     ticker,
-                    assetClass: item.asset_class || (ticker.endsWith('11') ? 'FIIs' : 'Ações'),
+                    assetClass: isUnit ? 'Ações' : (item.asset_class || inferredCls),
                     quantity: 0,
                     costBasis: 0
                 };
@@ -551,7 +565,8 @@
                 if (year === String(taxYear)) {
                     const mObj = months.find(m => m.month === monthStr);
                     if (mObj) {
-                        const isFII = p.assetClass === 'FIIs' || ticker.endsWith('11');
+                        const isUnit = KNOWN_STOCK_UNITS.has(ticker);
+                        const isFII = !isUnit && (p.assetClass === 'FIIs' || (ticker.endsWith('11') && !isUnit));
                         if (isFII) {
                             mObj.totalFIISales += total;
                             mObj.realizedGainFII += gain;

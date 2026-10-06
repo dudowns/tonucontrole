@@ -17,6 +17,67 @@ if (typeof global !== 'undefined') {
     global.TONU_JCP_TAX_RATE = 0.20;
 }
 
+// Units de Ações brasileiras que terminam em 11 (AÇÕES ordinárias/preferenciais, NÃO FIIs)
+const KNOWN_STOCK_UNITS = new Set([
+    'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
+    'SULA11', 'TIET11', 'BIDI11', 'RPMG11', 'MODL11', 'IGTI11', 'VVAR11', 'STBP11',
+    'AESB11', 'ELET11', 'PPLA11', 'ALLD11', 'ENEV11', 'BMEB11', 'BMGB11', 'BRAP11',
+    'CAMB11', 'CURY11', 'EMAE11', 'LCAM11', 'MOVI11', 'ODPV11', 'PARD11', 'RANI11',
+    'RAPT11', 'SIMH11', 'TRIS11', 'TUPY11', 'VAMO11', 'VBBR11', 'VULC11', 'WHRL11'
+]);
+
+// ETFs brasileiros negociados na B3 terminados em 11
+const KNOWN_ETFS = new Set([
+    'BOVA11', 'SMAL11', 'IVVB11', 'HASH11', 'XINA11', 'GOLD11', 'NASD11', 'SPXI11',
+    'WRLD11', 'DIVO11', 'MATB11', 'FIND11', 'BRAX11', 'PIBB11', 'ECOO11', 'ISUS11',
+    'GENB11', 'ACWI11', 'BBSD11', 'TECB11', 'DNAI11', 'MILL11', 'SHOT11', 'REVE11',
+    'BBOV11', 'USTK11', 'HTEK11', 'BDEF11', 'BDIV11', 'NSDV11', 'QETH11', 'QBTC11',
+    'CRPT11', 'DEFI11', 'WEB311', 'META11', 'NFTS11', 'BLOK11', 'ETHE11', 'BITH11'
+]);
+
+function inferAssetClass(ticker) {
+    if (!ticker) return 'Ações';
+    const tk = String(ticker).toUpperCase().trim();
+    if (KNOWN_STOCK_UNITS.has(tk)) return 'Ações';
+    if (KNOWN_ETFS.has(tk) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) return 'ETFs';
+    if (/^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC)/.test(tk)) return 'Tesouro';
+    if (tk.endsWith('34') || tk.endsWith('35')) return 'BDRs';
+    if (/^[A-Z]{4}[23456]F?$/.test(tk)) return 'Ações';
+    if (/^(KN|HGLG|MXRF|GGRC|RZTR|XPLG|VISC|BTLG|CPTS|IRDM|BCFF|MALL|HFOF|XPML|KNSC|RECR|HGRE|TRXF|TGAR|VILG|RECT|RBRF|RBRP|MCCI|PVBI|VRTA|ALZR|LVBI|JSRE|PATL|DEVA|RBVA|HCTR|VINO|URPR|SNFF|BARI|HSAF|KORE|MCHF|VGIP|VGIR|RBRY|KNIP|KNRI|KNCR)/.test(tk) || tk.endsWith('11') || tk.endsWith('11B')) {
+        return 'FIIs';
+    }
+    return 'Ações';
+}
+
+function resolveAssetClass(ticker, explicitClass) {
+    const tk = String(ticker || '').toUpperCase().trim();
+    if (KNOWN_STOCK_UNITS.has(tk)) return 'Ações';
+    if (KNOWN_ETFS.has(tk)) return 'ETFs';
+    if (explicitClass) {
+        const upper = String(explicitClass).toUpperCase().trim();
+        if (upper === 'FII' || upper === 'FIIS') return 'FIIs';
+        if (upper === 'ETF' || upper === 'ETFS') return 'ETFs';
+        if (upper === 'TESOURO' || upper === 'TESOURO DIRETO') return 'Tesouro';
+        if (upper === 'BDR' || upper === 'BDRS') return 'BDRs';
+        if (upper === 'AÇÃO' || upper === 'ACOES' || upper === 'AÇÕES' || upper === 'ACAO') return 'Ações';
+        if (['Ações', 'FIIs', 'ETFs', 'Tesouro', 'BDRs'].includes(explicitClass)) return explicitClass;
+    }
+    return inferAssetClass(tk);
+}
+
+if (typeof window !== 'undefined') {
+    window.KNOWN_STOCK_UNITS = KNOWN_STOCK_UNITS;
+    window.KNOWN_ETFS = KNOWN_ETFS;
+    window.inferAssetClass = inferAssetClass;
+    window.resolveAssetClass = resolveAssetClass;
+}
+if (typeof globalThis !== 'undefined') {
+    globalThis.KNOWN_STOCK_UNITS = KNOWN_STOCK_UNITS;
+    globalThis.KNOWN_ETFS = KNOWN_ETFS;
+    globalThis.inferAssetClass = inferAssetClass;
+    globalThis.resolveAssetClass = resolveAssetClass;
+}
+
 var resolvedBrapiToken = (typeof window !== 'undefined' && window.__TONU_CONFIG__ && window.__TONU_CONFIG__.brapiToken)
     ? window.__TONU_CONFIG__.brapiToken
     : ((typeof window !== 'undefined' && window.ENV && window.ENV.BRAPI_TOKEN) ? window.ENV.BRAPI_TOKEN : '');

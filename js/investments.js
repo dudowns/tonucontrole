@@ -691,9 +691,19 @@ async function loadTransactions() {
         }
 
         if (fetchedFromDb && loaded.length > 0) {
-            allTransactions = loaded;
+            allTransactions = loaded.map(inv => {
+                const tk = (inv.ticker || '').toUpperCase().trim();
+                const correctCls = typeof resolveAssetClass === 'function' ? resolveAssetClass(tk, inv.asset_class) : (KNOWN_STOCK_UNITS.has(tk) ? 'Ações' : inv.asset_class);
+                if (correctCls && correctCls !== inv.asset_class) {
+                    inv.asset_class = correctCls;
+                    if (window.supabaseClient && inv.id && !String(inv.id).startsWith('offline_')) {
+                        window.supabaseClient.from('investments').update({ asset_class: correctCls }).eq('id', inv.id).catch(() => {});
+                    }
+                }
+                return inv;
+            });
             if (window.tonuSync && currentUser?.id) {
-                window.tonuSync.setCachedInvestments(currentUser.id, loaded);
+                window.tonuSync.setCachedInvestments(currentUser.id, allTransactions);
             }
             localStorage.removeItem('tonu_is_demo_active');
             updateGlobalDemoUI(false);
@@ -705,7 +715,14 @@ async function loadTransactions() {
         if (!fetchedFromDb && window.tonuSync && currentUser?.id) {
             const cached = await window.tonuSync.getCachedInvestments(currentUser.id);
             if (cached && cached.length > 0) {
-                allTransactions = cached;
+                allTransactions = cached.map(inv => {
+                    const tk = (inv.ticker || '').toUpperCase().trim();
+                    const correctCls = typeof resolveAssetClass === 'function' ? resolveAssetClass(tk, inv.asset_class) : (KNOWN_STOCK_UNITS.has(tk) ? 'Ações' : inv.asset_class);
+                    if (correctCls && correctCls !== inv.asset_class) {
+                        inv.asset_class = correctCls;
+                    }
+                    return inv;
+                });
                 localStorage.removeItem('tonu_is_demo_active');
                 updateGlobalDemoUI(false);
                 console.log('📊 Transações reais carregadas do IndexedDB offline:', allTransactions.length);
@@ -798,8 +815,13 @@ async function saveOperation(e) {
             return;
         }
 
-        if (!assetClass || assetClass === '') {
-            assetClass = inferClass(ticker) || 'Ações';
+        const cleanTk = ticker.toUpperCase().trim();
+        if (typeof resolveAssetClass === 'function') {
+            assetClass = resolveAssetClass(cleanTk, assetClass);
+        } else if (KNOWN_STOCK_UNITS.has(cleanTk)) {
+            assetClass = 'Ações';
+        } else if (!assetClass || assetClass === '') {
+            assetClass = inferClass(cleanTk) || 'Ações';
         }
 
         const validClasses = ['Ações', 'FIIs', 'ETFs', 'Tesouro', 'BDRs'];
@@ -1181,7 +1203,9 @@ async function editTransaction(id) {
         document.getElementById('opQuantity').value = data.quantity;
         document.getElementById('opUnitPrice').value = data.unit_price;
         document.getElementById('opDate').value = data.date;
-        document.getElementById('opClass').value = data.asset_class || inferClass(data.ticker) || 'Ações';
+        const cleanTk = (data.ticker || '').toUpperCase().trim();
+        const resolvedCls = typeof resolveAssetClass === 'function' ? resolveAssetClass(cleanTk, data.asset_class) : (KNOWN_STOCK_UNITS.has(cleanTk) ? 'Ações' : (data.asset_class || inferClass(cleanTk) || 'Ações'));
+        document.getElementById('opClass').value = resolvedCls;
         document.getElementById('opNote').value = data.note || '';
 
         updateTotalValue();
@@ -1315,6 +1339,7 @@ function buildPositions() {
         const typeLower = (item.type || '').toLowerCase();
         const isBuy = typeLower === 'compra' || typeLower === 'buy';
 
+        item.asset_class = cls;
         pos.transactions.push(item);
 
         if (isBuy) {
