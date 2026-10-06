@@ -613,10 +613,12 @@ async function fetchQuotes() {
             try {
                 const cacheObj = {};
                 for (const [k, v] of quotes.entries()) cacheObj[k] = v;
-                localStorage.setItem('tonu_quotes_cache', JSON.stringify(cacheObj));
+                localStorage.setItem('tonu_quotes_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    quotes: cacheObj
+                }));
             } catch (e) {}
-            renderPositions();
-            updatePortfolioSummary();
+            console.log(`✅ Todas as ${foundCount} cotações carregadas do Supabase no Dashboard`);
             return;
         }
 
