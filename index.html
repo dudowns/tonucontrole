@@ -939,8 +939,7 @@
 
         .welcome-features .feature {
             display: flex;
-            align-items: center;
-            gap: 12px;
+            flex-direction: column;
             font-size: 13px;
             padding: 9px 13px;
             background: rgba(255, 255, 255, 0.12);
@@ -953,34 +952,53 @@
                 border-color 0.28s ease,
                 box-shadow 0.28s ease;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
             opacity: 1;
-            animation: featureCardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+            transform-origin: center center;
+            will-change: transform, opacity;
+            animation: featureCardEntrance 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+            cursor: pointer;
+            user-select: none;
+            outline: none;
+        }
+
+        .welcome-features .feature:focus-visible {
+            border-color: rgba(255, 234, 167, 0.85);
+            box-shadow: 0 0 0 3px rgba(255, 234, 167, 0.35);
         }
 
         @keyframes featureCardEntrance {
             from {
                 opacity: 0;
-                transform: translateY(18px);
+                transform: scale(0.88) translateY(10px);
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: scale(1) translateY(0);
             }
         }
 
-        .welcome-features .feature::before {
+        /* Shine effect encapsulado no container interno */
+        .welcome-features .feature .feature-shine {
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .welcome-features .feature .feature-shine::before {
             content: '';
             position: absolute;
             inset: 0;
             background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
             transform: translateX(-100%);
             transition: transform 0.6s ease;
-            pointer-events: none;
         }
 
-        .welcome-features .feature:hover::before {
+        .welcome-features .feature:hover .feature-shine::before {
             transform: translateX(100%);
         }
 
@@ -999,8 +1017,149 @@
         .welcome-features .feature:hover {
             background: rgba(255, 255, 255, 0.22);
             border-color: rgba(255, 255, 255, 0.50);
-            transform: translateX(6px) translateY(-1px);
+            transform: translateX(5px) translateY(-1px);
             box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+        }
+
+        .welcome-features .feature.is-expanded {
+            background: rgba(255, 255, 255, 0.20);
+            border-color: rgba(255, 255, 255, 0.55);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+        }
+
+        .welcome-features .feature .feature-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            position: relative;
+            z-index: 2;
+        }
+
+        .welcome-features .feature .feature-toggle-icon {
+            margin-left: auto;
+            width: 22px;
+            height: 22px;
+            min-width: 22px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 10px;
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                background 0.25s ease,
+                color 0.25s ease;
+        }
+
+        .welcome-features .feature:hover .feature-toggle-icon {
+            background: rgba(255, 255, 255, 0.20);
+            color: #ffffff;
+        }
+
+        .welcome-features .feature.is-expanded .feature-toggle-icon {
+            transform: rotate(180deg);
+            background: rgba(255, 234, 167, 0.25);
+            border-color: rgba(255, 234, 167, 0.5);
+            color: #ffeaa7;
+        }
+
+        /* Expansão fluida sem recarregar nem navegar de página */
+        .welcome-features .feature .feature-expand-body {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.38s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.3s ease;
+            opacity: 0;
+            width: 100%;
+            position: relative;
+            z-index: 2;
+        }
+
+        .welcome-features .feature.is-expanded .feature-expand-body {
+            grid-template-rows: 1fr;
+            opacity: 1;
+        }
+
+        .welcome-features .feature .feature-expand-content {
+            overflow: hidden;
+        }
+
+        .welcome-features .feature .feature-expand-desc {
+            margin: 8px 0 0 0;
+            padding: 8px 10px;
+            border-radius: 9px;
+            background: rgba(0, 0, 0, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            font-size: 11.5px;
+            line-height: 1.48;
+            color: rgba(255, 255, 255, 0.94);
+            letter-spacing: -0.005em;
+        }
+
+        /* Tooltip Component no Hover */
+        .welcome-features .feature .feature-tooltip {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 12px;
+            background: rgba(18, 16, 38, 0.96);
+            color: #ffffff;
+            padding: 6px 11px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.35;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(4px);
+            transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.22s;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .welcome-features .feature .feature-tooltip i {
+            color: #ffeaa7;
+            font-size: 11px;
+        }
+
+        .welcome-features .feature .feature-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 18px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(18, 16, 38, 0.96) transparent transparent transparent;
+        }
+
+        .welcome-features .feature:hover .feature-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .welcome-features .feature.is-expanded .feature-tooltip {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none;
+        }
+
+        @media (hover: none), (max-width: 600px) {
+            .welcome-features .feature .feature-tooltip {
+                display: none !important;
+            }
         }
 
         @keyframes featureSkeletonPulse {
@@ -2608,11 +2767,11 @@
     <div class="login-container" role="main" aria-label="Página de login do TonuControle">
 
         <!-- WELCOME SIDE -->
-        <div class="welcome-side" aria-hidden="true">
+        <div class="welcome-side">
             <!-- Ambient floating glow orbs -->
-            <div class="welcome-ambient-orb orb-1"></div>
-            <div class="welcome-ambient-orb orb-2"></div>
-            <div class="welcome-ambient-orb orb-3"></div>
+            <div class="welcome-ambient-orb orb-1" aria-hidden="true"></div>
+            <div class="welcome-ambient-orb orb-2" aria-hidden="true"></div>
+            <div class="welcome-ambient-orb orb-3" aria-hidden="true"></div>
 
             <div class="welcome-content">
                 <div class="welcome-logo-container">
@@ -2626,31 +2785,84 @@
                 <p class="welcome-desc">Gerencie investimentos, contas e metas com clareza total em tempo real.</p>
 
                 <div class="welcome-features" id="welcomeFeatures">
-                    <div class="feature">
-                        <div class="feature-icon-wrap icon-chart">
-                            <i class="fas fa-chart-pie" aria-hidden="true"></i>
+                    <div class="feature" tabindex="0" role="button" aria-expanded="false" data-feature="carteira">
+                        <div class="feature-shine" aria-hidden="true"></div>
+                        <div class="feature-main">
+                            <div class="feature-icon-wrap icon-chart">
+                                <i class="fas fa-chart-pie" aria-hidden="true"></i>
+                            </div>
+                            <div class="feature-text">
+                                <strong>Controle total</strong>
+                                <span>das suas finanças em tempo real</span>
+                            </div>
+                            <div class="feature-toggle-icon" aria-hidden="true" title="Ver mais detalhes">
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
                         </div>
-                        <div class="feature-text">
-                            <strong>Controle total</strong>
-                            <span>das suas finanças em tempo real</span>
+                        <div class="feature-expand-body">
+                            <div class="feature-expand-content">
+                                <p class="feature-expand-desc">
+                                    Acompanhe saldo consolidado, fluxo de receitas e despesas categorizadas e rentabilidade da carteira de investimentos com gráficos em tempo real.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="feature-tooltip" role="tooltip" aria-hidden="true">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Visão analítica completa e gráficos ao vivo</span>
                         </div>
                     </div>
-                    <div class="feature">
-                        <div class="feature-icon-wrap icon-bills">
-                            <i class="fas fa-file-invoice-dollar" aria-hidden="true"></i>
+
+                    <div class="feature" tabindex="0" role="button" aria-expanded="false" data-feature="contas">
+                        <div class="feature-shine" aria-hidden="true"></div>
+                        <div class="feature-main">
+                            <div class="feature-icon-wrap icon-bills">
+                                <i class="fas fa-file-invoice-dollar" aria-hidden="true"></i>
+                            </div>
+                            <div class="feature-text">
+                                <strong>Contas e metas</strong>
+                                <span>organizadas sem complicação</span>
+                            </div>
+                            <div class="feature-toggle-icon" aria-hidden="true" title="Ver mais detalhes">
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
                         </div>
-                        <div class="feature-text">
-                            <strong>Contas e metas</strong>
-                            <span>organizadas sem complicação</span>
+                        <div class="feature-expand-body">
+                            <div class="feature-expand-content">
+                                <p class="feature-expand-desc">
+                                    Receba lembretes automáticos de contas a pagar, defina limites de gastos por categoria e acompanhe a evolução de cada meta financeira.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="feature-tooltip" role="tooltip" aria-hidden="true">
+                            <i class="fas fa-bell"></i>
+                            <span>Lembretes de vencimento e metas inteligentes</span>
                         </div>
                     </div>
-                    <div class="feature">
-                        <div class="feature-icon-wrap icon-shield">
-                            <i class="fas fa-shield-halved" aria-hidden="true"></i>
+
+                    <div class="feature" tabindex="0" role="button" aria-expanded="false" data-feature="seguranca">
+                        <div class="feature-shine" aria-hidden="true"></div>
+                        <div class="feature-main">
+                            <div class="feature-icon-wrap icon-shield">
+                                <i class="fas fa-shield-halved" aria-hidden="true"></i>
+                            </div>
+                            <div class="feature-text">
+                                <strong>Segurança máxima</strong>
+                                <span>proteção e privacidade garantidas</span>
+                            </div>
+                            <div class="feature-toggle-icon" aria-hidden="true" title="Ver mais detalhes">
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
                         </div>
-                        <div class="feature-text">
-                            <strong>Segurança máxima</strong>
-                            <span>proteção e privacidade garantidas</span>
+                        <div class="feature-expand-body">
+                            <div class="feature-expand-content">
+                                <p class="feature-expand-desc">
+                                    Proteção criptográfica com dados locais cifrados em AES-256, suporte a desbloqueio biométrico (Face ID / Biometria) e privacidade total.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="feature-tooltip" role="tooltip" aria-hidden="true">
+                            <i class="fas fa-fingerprint"></i>
+                            <span>Criptografia local AES-256 e biometria</span>
                         </div>
                     </div>
                 </div>
@@ -2931,6 +3143,9 @@
             }
 
             window.__TONU_APP_INITIALIZED = true;
+            if (typeof setupWelcomeFeaturesInteractive === 'function') {
+                setupWelcomeFeaturesInteractive();
+            }
         }
 
         // ==========================================
@@ -3170,12 +3385,61 @@
         }
 
         // ==========================================
+        // EXPANSÃO INTERATIVA DOS CARDS DE FEATURES
+        // ==========================================
+        function setupWelcomeFeaturesInteractive() {
+            const featureCards = document.querySelectorAll('.welcome-features .feature');
+            featureCards.forEach(card => {
+                if (card.dataset.interactiveInitialized === 'true') return;
+                card.dataset.interactiveInitialized = 'true';
+
+                // Garante atributos de acessibilidade
+                if (!card.hasAttribute('role')) card.setAttribute('role', 'button');
+                if (!card.hasAttribute('tabindex')) card.setAttribute('tabindex', '0');
+                if (!card.hasAttribute('aria-expanded')) card.setAttribute('aria-expanded', 'false');
+
+                card.addEventListener('click', function (e) {
+                    // Sem navegar para nova página, alterna expansão suave
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const isCurrentlyExpanded = card.classList.contains('is-expanded');
+
+                    // Fecha outros cartões para efeito sanfona limpo
+                    featureCards.forEach(other => {
+                        if (other !== card && other.classList.contains('is-expanded')) {
+                            other.classList.remove('is-expanded');
+                            other.setAttribute('aria-expanded', 'false');
+                        }
+                    });
+
+                    if (isCurrentlyExpanded) {
+                        card.classList.remove('is-expanded');
+                        card.setAttribute('aria-expanded', 'false');
+                    } else {
+                        card.classList.add('is-expanded');
+                        card.setAttribute('aria-expanded', 'true');
+                    }
+                });
+
+                card.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        card.click();
+                    }
+                });
+            });
+        }
+
+        // ==========================================
         // SPLASH SCREEN & AUTO LOGIN CHECK
         // ==========================================
         document.addEventListener('DOMContentLoaded', async function () {
             updateDeviceModeUI();
             setupRealtimeEmailValidation();
             setupPasswordStrengthIndicator();
+            setupWelcomeFeaturesInteractive();
             setTimeout(completeAppInitialization, 1800);
 
             // Limpar flag de logout e quaisquer resquícios de demo
@@ -3842,6 +4106,7 @@
         window.updatePasswordStrengthUI = updatePasswordStrengthUI;
         window.setupPasswordStrengthIndicator = setupPasswordStrengthIndicator;
         window.setupRealtimeEmailValidation = setupRealtimeEmailValidation;
+        window.setupWelcomeFeaturesInteractive = setupWelcomeFeaturesInteractive;
         window.completeAppInitialization = completeAppInitialization;
         window.storage = storage;
 
