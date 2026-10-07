@@ -2270,15 +2270,21 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Injeta botão de busca rápida no topbar de todas as páginas
+// Injeta botão de busca rápida no topbar apenas em telas desktop
 function injectQuickSearchButton() {
+    const isMobile = (typeof window !== 'undefined') && (
+        window.location.pathname.includes('/mobile/') || 
+        window.innerWidth <= 768
+    );
+    if (isMobile) return;
+
     const topbarActions = document.querySelector('.topbar-actions');
     if (!topbarActions || document.getElementById('btnQuickSearchTrigger')) return;
 
     const btn = document.createElement('button');
     btn.id = 'btnQuickSearchTrigger';
     btn.type = 'button';
-    btn.className = 'theme-toggle-btn';
+    btn.className = 'quick-search-trigger-btn';
     btn.title = 'Busca Rápida e Comandos (Ctrl + K)';
     btn.setAttribute('aria-label', 'Busca rápida');
     btn.onclick = openQuickSearch;

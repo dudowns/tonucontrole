@@ -365,6 +365,7 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
+            <button onclick="refreshMobileInvestments()" title="Atualizar dados" aria-label="Atualizar"><i class="fas fa-sync-alt" id="refreshInvestIcon"></i></button>
             <button onclick="openMobileIRReportModal()" title="Relatório de Imposto de Renda" aria-label="Relatório IR" style="color:var(--color-primary, #6C5CE7);"><i class="fas fa-file-invoice-dollar"></i></button>
             <button onclick="toggleTheme()" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
             <button onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
@@ -936,7 +937,7 @@
 <script src="../../js/reports/ir-report.js"></script>
 <script>
 // Units de Ações brasileiras terminadas em 11 (Ações ordinárias/preferenciais/units, NUNCA FIIs)
-const KNOWN_STOCK_UNITS = new Set([
+window.KNOWN_STOCK_UNITS = window.KNOWN_STOCK_UNITS || new Set([
     'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
     'SULA11', 'TIET11', 'BIDI11', 'RPMG11', 'MODL11', 'IGTI11', 'VVAR11', 'STBP11',
     'AESB11', 'ELET11', 'PPLA11', 'ALLD11', 'ENEV11', 'BMEB11', 'BMGB11', 'BRAP11',
@@ -944,7 +945,7 @@ const KNOWN_STOCK_UNITS = new Set([
     'RAPT11', 'SIMH11', 'TRIS11', 'TUPY11', 'VAMO11', 'VBBR11', 'VULC11', 'WHRL11'
 ]);
 
-const KNOWN_ETFS = new Set([
+window.KNOWN_ETFS = window.KNOWN_ETFS || new Set([
     'BOVA11', 'SMAL11', 'IVVB11', 'HASH11', 'XINA11', 'GOLD11', 'NASD11', 'SPXI11',
     'WRLD11', 'DIVO11', 'MATB11', 'FIND11', 'BRAX11', 'PIBB11', 'ECOO11', 'ISUS11',
     'GENB11', 'ACWI11', 'BBSD11', 'TECB11', 'DNAI11', 'MILL11', 'SHOT11', 'REVE11',
@@ -956,8 +957,10 @@ function inferAssetClass(ticker) {
     if (!ticker) return 'Ações';
     const raw = String(ticker).toUpperCase().trim();
     const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
-    if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) return 'Ações';
-    if (KNOWN_ETFS.has(tk) || KNOWN_ETFS.has(raw) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) return 'ETFs';
+    const stockUnits = window.KNOWN_STOCK_UNITS;
+    const etfs = window.KNOWN_ETFS;
+    if (tk.startsWith('TAEE') || (stockUnits && (stockUnits.has(tk) || stockUnits.has(raw)))) return 'Ações';
+    if ((etfs && (etfs.has(tk) || etfs.has(raw))) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) return 'ETFs';
     if (/^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC)/.test(tk)) return 'Tesouro';
     if (tk.endsWith('34') || tk.endsWith('35')) return 'BDRs';
     if (/^[A-Z]{4}[23456]$/.test(tk)) return 'Ações';
@@ -970,11 +973,13 @@ function inferAssetClass(ticker) {
 function resolveAssetClass(ticker, explicitClass) {
     const raw = String(ticker || '').toUpperCase().trim();
     const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
+    const stockUnits = window.KNOWN_STOCK_UNITS;
+    const etfs = window.KNOWN_ETFS;
     // Regra absoluta: TAESA ou Units conhecidas NUNCA são FIIs - são AÇÕES
-    if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) {
+    if (tk.startsWith('TAEE') || (stockUnits && (stockUnits.has(tk) || stockUnits.has(raw)))) {
         return 'Ações';
     }
-    if (KNOWN_ETFS.has(tk) || KNOWN_ETFS.has(raw)) {
+    if (etfs && (etfs.has(tk) || etfs.has(raw))) {
         return 'ETFs';
     }
     if (/^[A-Z]{4}[23456]$/.test(tk)) {
@@ -983,7 +988,7 @@ function resolveAssetClass(ticker, explicitClass) {
     if (explicitClass) {
         const upper = String(explicitClass).toUpperCase().trim();
         if (upper === 'FII' || upper === 'FIIS') {
-            if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) return 'Ações';
+            if (tk.startsWith('TAEE') || (stockUnits && (stockUnits.has(tk) || stockUnits.has(raw)))) return 'Ações';
             return 'FIIs';
         }
         if (upper === 'ETF' || upper === 'ETFS') return 'ETFs';
@@ -995,8 +1000,6 @@ function resolveAssetClass(ticker, explicitClass) {
     return inferAssetClass(tk);
 }
 
-window.KNOWN_STOCK_UNITS = KNOWN_STOCK_UNITS;
-window.KNOWN_ETFS = KNOWN_ETFS;
 window.inferAssetClass = inferAssetClass;
 window.resolveAssetClass = resolveAssetClass;
 
@@ -1008,6 +1011,9 @@ let activePositions = [];
 let currentAssetFilter = 'all';
 let currentOpFilter = 'all';
 let currentTab = 'carteira';
+let mobileAllocationChart = null;
+let mobileDividendsChart = null;
+let currentMobileInvestChartMode = (typeof localStorage !== 'undefined' ? localStorage.getItem('tonu_mobile_invest_chart_mode') : null) || 'allocation';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const savedTheme = localStorage.getItem("tonu_theme") || "light";
@@ -1645,9 +1651,6 @@ function openMobileIRReportModal() {
 // ============================================
 // GRÁFICOS DE INVESTIMENTOS NO CELULAR (MOBILE)
 // ============================================
-let mobileAllocationChart = null;
-let mobileDividendsChart = null;
-let currentMobileInvestChartMode = localStorage.getItem('tonu_mobile_invest_chart_mode') || 'allocation';
 
 function syncMobileInvestChartModeUI() {
     const btnAlloc = document.getElementById("btnChartModeAlloc");
@@ -2336,6 +2339,21 @@ function renderMobileProventosMatrix() {
 // ============================================
 // RENDERIZAR ATIVOS EM CUSTÓDIA
 // ============================================
+function isSameAssetClass(classA, classB) {
+    if (!classA || !classB) return false;
+    const norm = (c) => {
+        const u = String(c).toUpperCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (u === 'ACAO' || u === 'ACOES') return 'ACOES';
+        if (u === 'FII' || u === 'FIIS') return 'FIIS';
+        if (u === 'ETF' || u === 'ETFS') return 'ETFS';
+        if (u === 'TESOURO' || u.includes('RENDA FIXA')) return 'TESOURO';
+        if (u === 'BDR' || u === 'BDRS') return 'BDRS';
+        if (u === 'CRIPTO' || u === 'CRIPTOMOEDAS') return 'CRIPTO';
+        return u;
+    };
+    return norm(classA) === norm(classB);
+}
+
 function renderPositions() {
     const container = document.getElementById("positionsListContainer");
     if (!container) return;
@@ -2346,11 +2364,8 @@ function renderPositions() {
 
     let filtered = activePositions;
     if (currentAssetFilter !== 'all') {
-        filtered = activePositions.filter(p => p.asset_class === currentAssetFilter);
+        filtered = activePositions.filter(p => isSameAssetClass(p.asset_class, currentAssetFilter));
     }
-
-    // Atualiza gráfico de investimentos no mobile (Alocação ou Evolução)
-    renderMobileInvestChart();
 
     if (filtered.length === 0) {
         container.innerHTML = `
@@ -3369,6 +3384,26 @@ function toggleTheme() {
     if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
     if (typeof renderMobileInvestChart === 'function') renderMobileInvestChart();
     if (typeof renderMobileDividendsEvolutionChart === 'function') renderMobileDividendsEvolutionChart();
+}
+
+async function refreshMobileInvestments() {
+    const icon = document.getElementById("refreshInvestIcon");
+    if (icon) icon.classList.add("fa-spin");
+    try {
+        if (window.tonuSync && currentUser?.id) {
+            try {
+                await window.tonuSync.setCachedInvestments(currentUser.id, []);
+                await window.tonuSync.setCachedDividends(currentUser.id, []);
+                await window.tonuSync.setCachedCorporateEvents(currentUser.id, []);
+            } catch (_) {}
+        }
+        await loadAllInvestmentData();
+        showToast("Carteira atualizada!", "success");
+    } catch (err) {
+        showToast("Erro ao atualizar: " + err.message, "error");
+    } finally {
+        if (icon) icon.classList.remove("fa-spin");
+    }
 }
 
 function showToast(msg, type = "info") {

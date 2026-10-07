@@ -2,7 +2,7 @@
 // TONUCONTROLE SERVICE WORKER
 // ============================================
 
-const CACHE_NAME = 'tonucontrole-v2.4.0';
+const CACHE_NAME = 'tonucontrole-v2.5.0';
 
 const RELATIVE_ASSETS = [
   './',
