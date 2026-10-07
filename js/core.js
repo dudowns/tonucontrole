@@ -18,22 +18,26 @@ if (typeof global !== 'undefined') {
 }
 
 // Units de Ações brasileiras que terminam em 11 (AÇÕES ordinárias/preferenciais, NÃO FIIs)
-const KNOWN_STOCK_UNITS = new Set([
+var KNOWN_STOCK_UNITS = (typeof window !== 'undefined' && window.KNOWN_STOCK_UNITS) || (typeof globalThis !== 'undefined' && globalThis.KNOWN_STOCK_UNITS) || new Set([
     'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
     'SULA11', 'TIET11', 'BIDI11', 'RPMG11', 'MODL11', 'IGTI11', 'VVAR11', 'STBP11',
     'AESB11', 'ELET11', 'PPLA11', 'ALLD11', 'ENEV11', 'BMEB11', 'BMGB11', 'BRAP11',
     'CAMB11', 'CURY11', 'EMAE11', 'LCAM11', 'MOVI11', 'ODPV11', 'PARD11', 'RANI11',
     'RAPT11', 'SIMH11', 'TRIS11', 'TUPY11', 'VAMO11', 'VBBR11', 'VULC11', 'WHRL11'
 ]);
+if (typeof window !== 'undefined') window.KNOWN_STOCK_UNITS = KNOWN_STOCK_UNITS;
+if (typeof globalThis !== 'undefined') globalThis.KNOWN_STOCK_UNITS = KNOWN_STOCK_UNITS;
 
 // ETFs brasileiros negociados na B3 terminados em 11
-const KNOWN_ETFS = new Set([
+var KNOWN_ETFS = (typeof window !== 'undefined' && window.KNOWN_ETFS) || (typeof globalThis !== 'undefined' && globalThis.KNOWN_ETFS) || new Set([
     'BOVA11', 'SMAL11', 'IVVB11', 'HASH11', 'XINA11', 'GOLD11', 'NASD11', 'SPXI11',
     'WRLD11', 'DIVO11', 'MATB11', 'FIND11', 'BRAX11', 'PIBB11', 'ECOO11', 'ISUS11',
     'GENB11', 'ACWI11', 'BBSD11', 'TECB11', 'DNAI11', 'MILL11', 'SHOT11', 'REVE11',
     'BBOV11', 'USTK11', 'HTEK11', 'BDEF11', 'BDIV11', 'NSDV11', 'QETH11', 'QBTC11',
     'CRPT11', 'DEFI11', 'WEB311', 'META11', 'NFTS11', 'BLOK11', 'ETHE11', 'BITH11'
 ]);
+if (typeof window !== 'undefined') window.KNOWN_ETFS = KNOWN_ETFS;
+if (typeof globalThis !== 'undefined') globalThis.KNOWN_ETFS = KNOWN_ETFS;
 
 function inferAssetClass(ticker) {
     if (!ticker) return 'Ações';
@@ -1333,8 +1337,9 @@ function toggleTheme() {
 }
 
 function updateThemeToggleIcons(theme) {
-    var btns = document.querySelectorAll('.theme-toggle-btn i, #themeIcon');
+    var btns = document.querySelectorAll('.theme-toggle-btn:not(#toggleBalanceBtn) i, #themeIcon');
     btns.forEach(function (icon) {
+        if (icon.id === 'toggleBalanceIcon') return;
         if (theme === 'dark') {
             icon.className = 'fas fa-sun';
         } else {
@@ -2270,35 +2275,8 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Injeta botão de busca rápida no topbar apenas em telas desktop
-function injectQuickSearchButton() {
-    const isMobile = (typeof window !== 'undefined') && (
-        window.location.pathname.includes('/mobile/') || 
-        window.innerWidth <= 768
-    );
-    if (isMobile) return;
+// Busca rápida acessível via atalho Ctrl + K
+// Nota: O botão visual de busca no topo foi removido conforme solicitação do usuário.
 
-    const topbarActions = document.querySelector('.topbar-actions');
-    if (!topbarActions || document.getElementById('btnQuickSearchTrigger')) return;
-
-    const btn = document.createElement('button');
-    btn.id = 'btnQuickSearchTrigger';
-    btn.type = 'button';
-    btn.className = 'quick-search-trigger-btn';
-    btn.title = 'Busca Rápida e Comandos (Ctrl + K)';
-    btn.setAttribute('aria-label', 'Busca rápida');
-    btn.onclick = openQuickSearch;
-    btn.innerHTML = '<i class="fas fa-search" aria-hidden="true"></i>';
-
-    topbarActions.insertBefore(btn, topbarActions.firstChild);
-}
-
-if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', injectQuickSearchButton);
-    } else {
-        injectQuickSearchButton();
-    }
-}
 
 console.log('✅ Core.js configurado com transições, busca rápida e animações!');

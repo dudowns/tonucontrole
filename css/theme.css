@@ -1663,7 +1663,7 @@ body.dark-theme .skeleton-shimmer {
    ============================================ */
 
 /* BOTÃO BASE - TEMA CLARO */
-.theme-toggle-btn {
+.theme-toggle-btn, .balance-toggle-btn {
     background: transparent !important;
     border: 1px solid var(--color-border, #E8ECF1) !important;
     color: var(--color-text, #2D3436) !important;
@@ -1679,7 +1679,7 @@ body.dark-theme .skeleton-shimmer {
     position: relative !important;
 }
 
-.theme-toggle-btn:hover {
+.theme-toggle-btn:hover, .balance-toggle-btn:hover {
     background: var(--color-surface-hover, #F8F9FA) !important;
     border-color: #6C5CE7 !important;
     transform: scale(1.05) !important;

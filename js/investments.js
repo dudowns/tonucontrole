@@ -83,7 +83,7 @@ let editingTransactionId = null;
 // FUNÇÕES AUXILIARES
 // ============================================
 // Lista de Units/Ações brasileiras que terminam em 11 (mas são AÇÕES, não FIIs)
-const KNOWN_STOCK_UNITS = new Set([
+var KNOWN_STOCK_UNITS = (typeof window !== 'undefined' && window.KNOWN_STOCK_UNITS) || (typeof globalThis !== 'undefined' && globalThis.KNOWN_STOCK_UNITS) || new Set([
     'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
     'SULA11', 'TIET11', 'BIDI11', 'RPMG11', 'MODL11', 'IGTI11', 'VVAR11', 'STBP11',
     'AESB11', 'ELET11', 'PPLA11', 'ALLD11', 'ENEV11', 'BMEB11', 'BMGB11', 'BRAP11',
@@ -92,7 +92,7 @@ const KNOWN_STOCK_UNITS = new Set([
 ]);
 
 // Lista de ETFs brasileiros negociados na B3 terminados em 11
-const KNOWN_ETFS = new Set([
+var KNOWN_ETFS = (typeof window !== 'undefined' && window.KNOWN_ETFS) || (typeof globalThis !== 'undefined' && globalThis.KNOWN_ETFS) || new Set([
     'BOVA11', 'SMAL11', 'IVVB11', 'HASH11', 'XINA11', 'GOLD11', 'NASD11', 'SPXI11',
     'WRLD11', 'DIVO11', 'MATB11', 'FIND11', 'BRAX11', 'PIBB11', 'ECOO11', 'ISUS11',
     'GENB11', 'ACWI11', 'BBSD11', 'TECB11', 'DNAI11', 'MILL11', 'SHOT11', 'REVE11',
@@ -1749,11 +1749,11 @@ function posValue(p) {
 }
 
 function updateQuoteStatus() {
-    const statusEl = document.getElementById('quoteStatus');
+    const statusEl = document.getElementById('quoteStatus') || document.querySelector('.quote-status');
     if (!statusEl) return;
 
     const dotEl = statusEl.querySelector('.status-dot');
-    const textEl = document.getElementById('quoteStatusText');
+    const textEl = document.getElementById('quoteStatusText') || statusEl.querySelector('#quoteStatusText');
 
     if (positions.length === 0) {
         if (dotEl) dotEl.className = 'status-dot';

@@ -842,7 +842,8 @@ body.dark-theme ::-webkit-scrollbar-thumb:hover {
    ========================================== */
 
 /* BOTÃO BASE NO TEMA ESCURO */
-body.dark-theme .theme-toggle-btn {
+body.dark-theme .theme-toggle-btn,
+body.dark-theme .balance-toggle-btn {
     background: transparent !important;
     border: 1px solid var(--color-border, #334155) !important;
     color: var(--color-text, #E2E8F0) !important;
@@ -856,7 +857,8 @@ body.dark-theme .theme-toggle-btn {
     transition: all 0.2s ease !important;
 }
 
-body.dark-theme .theme-toggle-btn:hover {
+body.dark-theme .theme-toggle-btn:hover,
+body.dark-theme .balance-toggle-btn:hover {
     background: var(--color-surface-hover, #2D3B55) !important;
     border-color: #818CF8 !important;
     transform: scale(1.05) !important;
