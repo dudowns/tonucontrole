@@ -37,12 +37,13 @@ const KNOWN_ETFS = new Set([
 
 function inferAssetClass(ticker) {
     if (!ticker) return 'Ações';
-    const tk = String(ticker).toUpperCase().trim();
-    if (KNOWN_STOCK_UNITS.has(tk)) return 'Ações';
-    if (KNOWN_ETFS.has(tk) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) return 'ETFs';
+    const raw = String(ticker).toUpperCase().trim();
+    const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
+    if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) return 'Ações';
+    if (KNOWN_ETFS.has(tk) || KNOWN_ETFS.has(raw) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) return 'ETFs';
     if (/^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC)/.test(tk)) return 'Tesouro';
     if (tk.endsWith('34') || tk.endsWith('35')) return 'BDRs';
-    if (/^[A-Z]{4}[23456]F?$/.test(tk)) return 'Ações';
+    if (/^[A-Z]{4}[23456]$/.test(tk)) return 'Ações';
     if (/^(KN|HGLG|MXRF|GGRC|RZTR|XPLG|VISC|BTLG|CPTS|IRDM|BCFF|MALL|HFOF|XPML|KNSC|RECR|HGRE|TRXF|TGAR|VILG|RECT|RBRF|RBRP|MCCI|PVBI|VRTA|ALZR|LVBI|JSRE|PATL|DEVA|RBVA|HCTR|VINO|URPR|SNFF|BARI|HSAF|KORE|MCHF|VGIP|VGIR|RBRY|KNIP|KNRI|KNCR)/.test(tk) || tk.endsWith('11') || tk.endsWith('11B')) {
         return 'FIIs';
     }
@@ -50,12 +51,24 @@ function inferAssetClass(ticker) {
 }
 
 function resolveAssetClass(ticker, explicitClass) {
-    const tk = String(ticker || '').toUpperCase().trim();
-    if (KNOWN_STOCK_UNITS.has(tk)) return 'Ações';
-    if (KNOWN_ETFS.has(tk)) return 'ETFs';
+    const raw = String(ticker || '').toUpperCase().trim();
+    const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
+    // Regra absoluta: TAESA ou Units conhecidas NUNCA são FIIs - são AÇÕES
+    if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) {
+        return 'Ações';
+    }
+    if (KNOWN_ETFS.has(tk) || KNOWN_ETFS.has(raw)) {
+        return 'ETFs';
+    }
+    if (/^[A-Z]{4}[23456]$/.test(tk)) {
+        return 'Ações';
+    }
     if (explicitClass) {
         const upper = String(explicitClass).toUpperCase().trim();
-        if (upper === 'FII' || upper === 'FIIS') return 'FIIs';
+        if (upper === 'FII' || upper === 'FIIS') {
+            if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) return 'Ações';
+            return 'FIIs';
+        }
         if (upper === 'ETF' || upper === 'ETFS') return 'ETFs';
         if (upper === 'TESOURO' || upper === 'TESOURO DIRETO') return 'Tesouro';
         if (upper === 'BDR' || upper === 'BDRS') return 'BDRs';

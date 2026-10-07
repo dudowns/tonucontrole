@@ -935,6 +935,71 @@
 <script src="../../js/data/cnpj-base.js"></script>
 <script src="../../js/reports/ir-report.js"></script>
 <script>
+// Units de Ações brasileiras terminadas em 11 (Ações ordinárias/preferenciais/units, NUNCA FIIs)
+const KNOWN_STOCK_UNITS = new Set([
+    'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
+    'SULA11', 'TIET11', 'BIDI11', 'RPMG11', 'MODL11', 'IGTI11', 'VVAR11', 'STBP11',
+    'AESB11', 'ELET11', 'PPLA11', 'ALLD11', 'ENEV11', 'BMEB11', 'BMGB11', 'BRAP11',
+    'CAMB11', 'CURY11', 'EMAE11', 'LCAM11', 'MOVI11', 'ODPV11', 'PARD11', 'RANI11',
+    'RAPT11', 'SIMH11', 'TRIS11', 'TUPY11', 'VAMO11', 'VBBR11', 'VULC11', 'WHRL11'
+]);
+
+const KNOWN_ETFS = new Set([
+    'BOVA11', 'SMAL11', 'IVVB11', 'HASH11', 'XINA11', 'GOLD11', 'NASD11', 'SPXI11',
+    'WRLD11', 'DIVO11', 'MATB11', 'FIND11', 'BRAX11', 'PIBB11', 'ECOO11', 'ISUS11',
+    'GENB11', 'ACWI11', 'BBSD11', 'TECB11', 'DNAI11', 'MILL11', 'SHOT11', 'REVE11',
+    'BBOV11', 'USTK11', 'HTEK11', 'BDEF11', 'BDIV11', 'NSDV11', 'QETH11', 'QBTC11',
+    'CRPT11', 'DEFI11', 'WEB311', 'META11', 'NFTS11', 'BLOK11', 'ETHE11', 'BITH11'
+]);
+
+function inferAssetClass(ticker) {
+    if (!ticker) return 'Ações';
+    const raw = String(ticker).toUpperCase().trim();
+    const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
+    if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) return 'Ações';
+    if (KNOWN_ETFS.has(tk) || KNOWN_ETFS.has(raw) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) return 'ETFs';
+    if (/^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC)/.test(tk)) return 'Tesouro';
+    if (tk.endsWith('34') || tk.endsWith('35')) return 'BDRs';
+    if (/^[A-Z]{4}[23456]$/.test(tk)) return 'Ações';
+    if (/^(KN|HGLG|MXRF|GGRC|RZTR|XPLG|VISC|BTLG|CPTS|IRDM|BCFF|MALL|HFOF|XPML|KNSC|RECR|HGRE|TRXF|TGAR|VILG|RECT|RBRF|RBRP|MCCI|PVBI|VRTA|ALZR|LVBI|JSRE|PATL|DEVA|RBVA|HCTR|VINO|URPR|SNFF|BARI|HSAF|KORE|MCHF|VGIP|VGIR|RBRY|KNIP|KNRI|KNCR)/.test(tk) || tk.endsWith('11') || tk.endsWith('11B')) {
+        return 'FIIs';
+    }
+    return 'Ações';
+}
+
+function resolveAssetClass(ticker, explicitClass) {
+    const raw = String(ticker || '').toUpperCase().trim();
+    const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
+    // Regra absoluta: TAESA ou Units conhecidas NUNCA são FIIs - são AÇÕES
+    if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) {
+        return 'Ações';
+    }
+    if (KNOWN_ETFS.has(tk) || KNOWN_ETFS.has(raw)) {
+        return 'ETFs';
+    }
+    if (/^[A-Z]{4}[23456]$/.test(tk)) {
+        return 'Ações';
+    }
+    if (explicitClass) {
+        const upper = String(explicitClass).toUpperCase().trim();
+        if (upper === 'FII' || upper === 'FIIS') {
+            if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) return 'Ações';
+            return 'FIIs';
+        }
+        if (upper === 'ETF' || upper === 'ETFS') return 'ETFs';
+        if (upper === 'TESOURO' || upper === 'TESOURO DIRETO') return 'Tesouro';
+        if (upper === 'BDR' || upper === 'BDRS') return 'BDRs';
+        if (upper === 'AÇÃO' || upper === 'ACOES' || upper === 'AÇÕES' || upper === 'ACAO') return 'Ações';
+        if (['Ações', 'FIIs', 'ETFs', 'Tesouro', 'BDRs'].includes(explicitClass)) return explicitClass;
+    }
+    return inferAssetClass(tk);
+}
+
+window.KNOWN_STOCK_UNITS = KNOWN_STOCK_UNITS;
+window.KNOWN_ETFS = KNOWN_ETFS;
+window.inferAssetClass = inferAssetClass;
+window.resolveAssetClass = resolveAssetClass;
+
 let currentUser = null;
 let allRawInvestments = [];
 let allRawDividends = [];
@@ -987,6 +1052,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("divDate").value = todayStr;
         const corpDateInput = document.getElementById("corpEventDate");
         if (corpDateInput) corpDateInput.value = todayStr;
+
+        const opTickerInput = document.getElementById("opTicker");
+        if (opTickerInput) {
+            opTickerInput.addEventListener("input", (e) => {
+                const val = (e.target.value || '').toUpperCase().trim();
+                if (val.length >= 3) {
+                    const cls = resolveAssetClass(val);
+                    const sel = document.getElementById("opClass");
+                    if (sel && cls) sel.value = cls;
+                }
+            });
+        }
 
         // Inicializa modo do toggle de gráfico de investimentos
         setMobileInvestChartMode(currentMobileInvestChartMode);
@@ -1197,6 +1274,7 @@ function decoratePositions(customPositions) {
 
         return {
             ...p,
+            asset_class: resolveAssetClass(cleanTicker, p.asset_class),
             quote: {
                 price: price,
                 changePct: changePct,
@@ -1240,13 +1318,11 @@ async function loadAllInvestmentData() {
                 if (!invErr && invData) {
                     allRawInvestments = (invData || []).map(inv => {
                         const tk = (inv.ticker || '').toUpperCase().trim();
-                        if (typeof window.resolveAssetClass === 'function') {
-                            const correctCls = window.resolveAssetClass(tk, inv.asset_class);
-                            if (correctCls !== inv.asset_class) {
-                                inv.asset_class = correctCls;
-                                if (isOnline && inv.id && !String(inv.id).startsWith('offline_')) {
-                                    supabaseClient.from("investments").update({ asset_class: correctCls }).eq("id", inv.id).catch(() => {});
-                                }
+                        const correctCls = resolveAssetClass(tk, inv.asset_class);
+                        if (correctCls !== inv.asset_class) {
+                            inv.asset_class = correctCls;
+                            if (isOnline && inv.id && !String(inv.id).startsWith('offline_')) {
+                                supabaseClient.from("investments").update({ asset_class: correctCls }).eq("id", inv.id).catch(() => {});
                             }
                         }
                         return inv;
@@ -1289,7 +1365,13 @@ async function loadAllInvestmentData() {
                 window.tonuSync.getCachedDividends(currentUser?.id),
                 window.tonuSync.getCachedCorporateEvents(currentUser?.id)
             ]);
-            if (cInv && cInv.length > 0) allRawInvestments = cInv;
+            if (cInv && cInv.length > 0) {
+                allRawInvestments = cInv.map(inv => {
+                    const tk = (inv.ticker || '').toUpperCase().trim();
+                    inv.asset_class = resolveAssetClass(tk, inv.asset_class);
+                    return inv;
+                });
+            }
             if (cDiv && cDiv.length > 0) allRawDividends = cDiv;
             if (cCorp && cCorp.length > 0) allRawCorporateEvents = cCorp;
         }
@@ -1358,10 +1440,10 @@ function computeRealPositions() {
         const ticker = (item.ticker || '').toUpperCase().trim();
         if (!ticker) return;
 
-        if (!map.has(ticker)) {
-            const resolvedCls = (typeof window.resolveAssetClass === 'function')
-                ? window.resolveAssetClass(ticker, item.asset_class)
-                : (item.asset_class || 'Ações');
+        const cleanTk = ticker.replace(/\.SA$/, '').replace(/F$/, '');
+        const resolvedCls = resolveAssetClass(cleanTk, item.asset_class);
+
+        if (!map.has(ticker) && !map.has(cleanTk)) {
             map.set(ticker, {
                 ticker: ticker,
                 asset_class: resolvedCls,
@@ -1372,7 +1454,8 @@ function computeRealPositions() {
             });
         }
 
-        const pos = map.get(ticker);
+        const pos = map.get(ticker) || map.get(cleanTk);
+        pos.asset_class = resolveAssetClass(cleanTk, pos.asset_class);
 
         // SE FOR EVENTO CORPORATIVO
         if (item.isCorporateEvent) {
@@ -1430,6 +1513,9 @@ function computeRealPositions() {
 
     // Filtra APENAS quem tem cotas ativas! Se vendeu tudo, NÃO aparece e valor é 0!
     activePositions = Array.from(map.values()).filter(p => p.quantity > 0.0001);
+    activePositions.forEach(p => {
+        p.asset_class = resolveAssetClass(p.ticker, p.asset_class);
+    });
 }
 
 // ============================================
@@ -1929,7 +2015,7 @@ function renderMobileAllocationChart() {
     const classTotals = {};
     let grandTotal = 0;
     activePositions.forEach(p => {
-        let cls = p.asset_class || 'Outros';
+        let cls = resolveAssetClass(p.ticker, p.asset_class) || 'Outros';
         const val = (p.currentValue !== undefined && Number.isFinite(p.currentValue) && p.currentValue > 0)
             ? p.currentValue
             : (Number(p.costBasis) || 0);
@@ -2253,6 +2339,10 @@ function renderMobileProventosMatrix() {
 function renderPositions() {
     const container = document.getElementById("positionsListContainer");
     if (!container) return;
+
+    activePositions.forEach(p => {
+        p.asset_class = resolveAssetClass(p.ticker, p.asset_class);
+    });
 
     let filtered = activePositions;
     if (currentAssetFilter !== 'all') {

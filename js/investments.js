@@ -107,15 +107,16 @@ function getToday() {
 
 function inferClass(ticker) {
     if (!ticker) return 'Ações';
-    const tk = ticker.toUpperCase().trim();
+    const raw = String(ticker).toUpperCase().trim();
+    const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
 
-    // 1. Ações Units terminadas em 11 (ex: TAEE11, SANB11, SAPR11, KLBN11, ALUP11)
-    if (KNOWN_STOCK_UNITS.has(tk)) {
+    // 1. TAESA e Units de Ações terminadas em 11 (ex: TAEE11, SANB11, SAPR11, KLBN11, ALUP11)
+    if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) {
         return 'Ações';
     }
 
     // 2. ETFs
-    if (KNOWN_ETFS.has(tk) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) {
+    if (KNOWN_ETFS.has(tk) || KNOWN_ETFS.has(raw) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) {
         return 'ETFs';
     }
 
@@ -130,7 +131,7 @@ function inferClass(ticker) {
     }
 
     // 5. Ações padrão B3 (ON, PN com finais 2, 3, 4, 5, 6 ou fracionário F)
-    if (/^[A-Z]{4}[23456]F?$/.test(tk)) {
+    if (/^[A-Z]{4}[23456]$/.test(tk)) {
         return 'Ações';
     }
 
@@ -1270,12 +1271,13 @@ function buildPositions() {
         if (!ticker) continue;
 
         let rawCls = item.asset_class;
-        if (KNOWN_STOCK_UNITS.has(ticker)) {
+        const cleanTk = ticker.replace(/\.SA$/, '').replace(/F$/, '');
+        if (cleanTk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(cleanTk) || KNOWN_STOCK_UNITS.has(ticker)) {
             rawCls = 'Ações';
-        } else if (KNOWN_ETFS.has(ticker)) {
+        } else if (KNOWN_ETFS.has(cleanTk) || KNOWN_ETFS.has(ticker)) {
             rawCls = 'ETFs';
         }
-        const cls = normalizeClass(rawCls || inferClass(ticker) || 'Ações');
+        const cls = normalizeClass(rawCls || inferClass(cleanTk) || 'Ações');
 
         if (!grouped.has(ticker)) {
             grouped.set(ticker, {
@@ -1804,15 +1806,16 @@ let last12MTickersData = [];
 
 function getAssetClassForTicker(ticker) {
     if (!ticker) return 'Ações';
-    const clean = ticker.toUpperCase().trim();
+    const raw = ticker.toUpperCase().trim();
+    const clean = raw.replace(/\.SA$/, '').replace(/F$/, '');
 
-    // 1. Units de Ações conhecidas terminadas em 11 (como TAEE11, SANB11, KLBN11, SAPR11)
-    if (KNOWN_STOCK_UNITS.has(clean)) {
+    // 1. TAESA e Units de Ações conhecidas terminadas em 11 (como TAEE11, SANB11, KLBN11, SAPR11)
+    if (clean.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(clean) || KNOWN_STOCK_UNITS.has(raw)) {
         return 'Ações';
     }
 
     // 2. ETFs conhecidos
-    if (KNOWN_ETFS.has(clean)) {
+    if (KNOWN_ETFS.has(clean) || KNOWN_ETFS.has(raw)) {
         return 'ETFs';
     }
 
