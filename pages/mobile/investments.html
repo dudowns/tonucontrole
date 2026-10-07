@@ -1015,7 +1015,7 @@ let mobileAllocationChart = null;
 let mobileDividendsChart = null;
 let currentMobileInvestChartMode = (typeof localStorage !== 'undefined' ? localStorage.getItem('tonu_mobile_invest_chart_mode') : null) || 'allocation';
 
-document.addEventListener("DOMContentLoaded", async () => {
+async function initMobileInvestmentsPage() {
     const savedTheme = localStorage.getItem("tonu_theme") || "light";
     if (savedTheme === "dark") {
         document.body.classList.add("dark-theme");
@@ -1049,13 +1049,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (off) { const p = JSON.parse(off); user = p.user || p; }
             } catch (_) {}
         }
-        if (!user) { window.location.href = "../../index.html"; return; }
+        if (!user) {
+            console.warn("⚠️ Usuário não autenticado em investimentos mobile, redirecionando para login...");
+            window.location.href = "../../index.html";
+            return;
+        }
         currentUser = user;
         
         // Define data de hoje nos forms
         const todayStr = new Date().toISOString().split("T")[0];
-        document.getElementById("opDate").value = todayStr;
-        document.getElementById("divDate").value = todayStr;
+        const opDateEl = document.getElementById("opDate");
+        if (opDateEl) opDateEl.value = todayStr;
+        const divDateEl = document.getElementById("divDate");
+        if (divDateEl) divDateEl.value = todayStr;
         const corpDateInput = document.getElementById("corpEventDate");
         if (corpDateInput) corpDateInput.value = todayStr;
 
@@ -1076,10 +1082,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         await loadAllInvestmentData();
     } catch (e) {
-        console.error("Erro auth:", e);
-        window.location.href = "../../index.html";
+        console.error("Erro na inicialização de investimentos mobile:", e);
+        if (!currentUser) {
+            window.location.href = "../../index.html";
+        }
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", initMobileInvestmentsPage);
+} else {
+    initMobileInvestmentsPage();
+}
 
 // ============================================
 // COTAÇÕES EM TEMPO REAL & CACHE (BRAPI)
@@ -3417,6 +3431,38 @@ function showToast(msg, type = "info") {
     clearTimeout(toast._timeout);
     toast._timeout = setTimeout(() => toast.className = "toast hidden", 2500);
 }
+
+// Exposição explícita na window para garantir suporte incondicional a inline handlers HTML no mobile
+window.switchInvestTab = switchInvestTab;
+window.filterAssetClass = filterAssetClass;
+window.filterOpType = filterOpType;
+window.filterDividendStatus = filterDividendStatus;
+window.openAddOperationModal = openAddOperationModal;
+window.closeModalOperation = closeModalOperation;
+window.setOpType = setOpType;
+window.saveOperation = saveOperation;
+window.editOperation = editOperation;
+window.deleteOperation = deleteOperation;
+window.openAddDividendModal = openAddDividendModal;
+window.closeModalDividend = closeModalDividend;
+window.saveDividend = saveDividend;
+window.editDividend = editDividend;
+window.deleteDividend = deleteDividend;
+window.openAddCorporateEventModal = openAddCorporateEventModal;
+window.closeModalCorporateEvent = closeModalCorporateEvent;
+window.saveCorporateEvent = saveCorporateEvent;
+window.editCorporateEvent = editCorporateEvent;
+window.deleteCorporateEvent = deleteCorporateEvent;
+window.openMobileIRReportModal = openMobileIRReportModal;
+window.refreshMobileInvestments = refreshMobileInvestments;
+window.setMobileInvestChartMode = setMobileInvestChartMode;
+window.toggleTheme = toggleTheme;
+window.loadAllInvestmentData = loadAllInvestmentData;
+window.renderPositions = renderPositions;
+window.renderOperations = renderOperations;
+window.renderDividends = renderDividends;
+window.renderCorporateEventsList = renderCorporateEventsList;
+window.updateSummaryHero = updateSummaryHero;
 </script>
 
 </body>
