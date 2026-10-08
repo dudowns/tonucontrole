@@ -7,7 +7,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="../../manifest.json">
-    <link rel="apple-touch-icon" href="../../icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png">
+    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png">
     <title>TonuControle - Investimentos Mobile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3418,18 +3422,6 @@ async function refreshMobileInvestments() {
     } finally {
         if (icon) icon.classList.remove("fa-spin");
     }
-}
-
-function showToast(msg, type = "info") {
-    if (typeof window.showToast === 'function' && window.showToast !== showToast) {
-        return window.showToast(msg, type);
-    }
-    const toast = document.getElementById("toast");
-    if (!toast) return;
-    toast.textContent = msg;
-    toast.className = "toast show " + type;
-    clearTimeout(toast._timeout);
-    toast._timeout = setTimeout(() => toast.className = "toast hidden", 2500);
 }
 
 // Exposição explícita na window para garantir suporte incondicional a inline handlers HTML no mobile

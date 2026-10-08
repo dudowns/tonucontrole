@@ -110,6 +110,7 @@ window.APP_CONFIG = {
     MIN_PASSWORD_LENGTH: 6,
     MAX_DESCRIPTION_LENGTH: 200
 };
+window.BRAPI_TOKEN = resolvedBrapiToken;
 
 // ============================================
 // 1. HAPTIC FEEDBACK (VIBRAÇÃO TÁTIL PARA AÇÕES CRÍTICAS)
