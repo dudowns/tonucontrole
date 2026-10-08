@@ -666,6 +666,22 @@ async function loadTransactions() {
         let loaded = [];
         let fetchedFromDb = false;
 
+        if (!currentUser || !currentUser.id) {
+            try {
+                if (window.getAuthenticatedUser) {
+                    currentUser = await window.getAuthenticatedUser();
+                }
+                if (!currentUser && window.supabaseClient?.auth?.getUser) {
+                    const { data } = await window.supabaseClient.auth.getUser();
+                    currentUser = data?.user || null;
+                }
+                if (!currentUser && typeof sessionStorage !== 'undefined') {
+                    const raw = sessionStorage.getItem('tonu_user');
+                    if (raw) currentUser = JSON.parse(raw).user || JSON.parse(raw);
+                }
+            } catch (_) {}
+        }
+
         if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
             try {
                 let { data, error } = await supabaseClient
@@ -700,7 +716,7 @@ async function loadTransactions() {
                 if (correctCls && correctCls !== inv.asset_class) {
                     inv.asset_class = correctCls;
                     if (window.supabaseClient && inv.id && !String(inv.id).startsWith('offline_')) {
-                        window.supabaseClient.from('investments').update({ asset_class: correctCls }).eq('id', inv.id).catch(() => {});
+                        window.supabaseClient.from('investments').update({ asset_class: correctCls }).eq('id', inv.id).eq('user_id', currentUser.id).catch(() => {});
                     }
                 }
                 return inv;
@@ -2603,17 +2619,19 @@ async function loadDividends() {
             }
             const seenKeys = new Set(loaded.map(d => `${d.ticker}_${d.date}_${d.total_value}`));
 
-            // Coleta valores do localStorage e faz parse fora do loop principal de mesclagem
+            // Pré-carrega valores do localStorage de uma única vez para evitar bloqueio da thread principal
+            const preloaded = {};
+            keysToCheck.forEach(k => { preloaded[k] = localStorage.getItem(k); });
             const parsedCaches = [];
-            for (let i = 0; i < keysToCheck.length; i++) {
-                const raw = localStorage.getItem(keysToCheck[i]);
-                if (raw) {
+            keysToCheck.forEach(k => {
+                const cached = preloaded[k];
+                if (cached) {
                     try {
-                        const parsed = JSON.parse(raw);
+                        const parsed = JSON.parse(cached);
                         if (Array.isArray(parsed)) parsedCaches.push(parsed);
-                    } catch (pe) {}
+                    } catch (e) {}
                 }
-            }
+            });
 
             parsedCaches.forEach(items => {
                 items.forEach(p => {
@@ -3688,9 +3706,9 @@ function buildChartData() {
         currentDate.setMonth(currentDate.getMonth() + 1);
     }
 
-    // Agrupa itens nos meses correspondentes e pré-acumula os anteriores
+    // Agrupa itens nos meses correspondentes O(n) e pré-acumula os anteriores
     const simulatedPortfolio = new Map();
-    const itemsByMonth = new Map();
+    const txsByMonth = new Map();
 
     for (const item of activeTimeline) {
         const d = item.parsedDate;
@@ -3700,18 +3718,16 @@ function buildChartData() {
             applyTxToSimulatedPortfolio(simulatedPortfolio, item);
         } else {
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            if (!itemsByMonth.has(key)) {
-                itemsByMonth.set(key, []);
+            if (!txsByMonth.has(key)) {
+                txsByMonth.set(key, []);
             }
-            itemsByMonth.get(key).push(item);
+            txsByMonth.get(key).push(item);
         }
     }
 
-    for (const month of allMonths) {
-        if (itemsByMonth.has(month.key)) {
-            month.transactions = itemsByMonth.get(month.key);
-        }
-    }
+    allMonths.forEach(m => {
+        m.transactions = txsByMonth.get(m.key) || [];
+    });
 
     // Preços de mercado atuais para cada ativo
     const currentPrices = new Map();
