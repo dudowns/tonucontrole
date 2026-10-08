@@ -618,7 +618,7 @@ function renderMobileChart() {
                                 <span class="cat-row-name">
                                     <span class="cat-dot" style="background:${item.color};"></span>
                                     <i class="fas ${item.icon}" style="color:${item.color}; font-size:11px; margin-right:2px;"></i>
-                                    ${item.name}
+                                    ${typeof sanitizeString === 'function' ? sanitizeString(item.name || '') : (item.name || '')}
                                 </span>
                                 <span class="cat-row-amount">
                                     <strong>${formatCurrency(item.amount)}</strong>
@@ -915,7 +915,7 @@ function renderMobileInsights() {
                     </div>
                     <div class="mobile-insight-text">
                         <span class="title">Maior Despesa</span>
-                        <span class="detail">${topCatName} (${formatCurrency(topCatAmount)})</span>
+                        <span class="detail">${typeof sanitizeString === 'function' ? sanitizeString(topCatName || '') : (topCatName || '')} (${formatCurrency(topCatAmount)})</span>
                     </div>
                 </div>
                 <span class="mobile-insight-badge" style="background:#fef3c7; color:#b45309;">
@@ -979,7 +979,7 @@ function renderMobileInsights() {
                     ${extraIncome > 0 
                         ? `Você recebeu <strong>${formatCurrency(extraIncome)}</strong> em bicos e extras! Sugestão 40/30/30: adiantar <strong>${formatCurrency(extraIncome * 0.4)}</strong> em empréstimos ou dívidas, reservar <strong>${formatCurrency(extraIncome * 0.3)}</strong> para fazer algo importante/lazer consciente, e guardar/investir <strong>${formatCurrency(extraIncome * 0.3)}</strong> para sua liberdade financeira.`
                         : (topCatPercent > 35 
-                            ? `A categoria <strong>${topCatName}</strong> consome ${topCatPercent}% do seu orçamento. Reduzir 15% nela liberará cerca de <strong>${formatCurrency(topCatAmount * 0.15)}</strong> para seus aportes!`
+                            ? `A categoria <strong>${typeof sanitizeString === 'function' ? sanitizeString(topCatName || '') : (topCatName || '')}</strong> consome ${topCatPercent}% do seu orçamento. Reduzir 15% nela liberará cerca de <strong>${formatCurrency(topCatAmount * 0.15)}</strong> para seus aportes!`
                             : `Mantenha suas reservas e invista continuamente os proventos recebidos para acelerar a bola de neve da liberdade financeira!`)}
                 </div>
             </div>
@@ -1004,6 +1004,8 @@ function renderMobileGoals() {
     const current = Number(goal.current_amount || goal.current || 0);
     const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
     const remaining = Math.max(0, target - current);
+    const goalTitle = goal.title || goal.name || 'Minha Meta';
+    const safeGoalTitle = typeof sanitizeString === 'function' ? sanitizeString(goalTitle) : goalTitle;
 
     container.innerHTML = `
         <div class="category-bars-card" style="margin-bottom:14px;">
@@ -1013,7 +1015,7 @@ function renderMobileGoals() {
             </div>
             <div class="category-bar-item" style="margin-top:6px;">
                 <div class="category-bar-info">
-                    <span class="cat-name"><strong>${typeof sanitizeString === 'function' ? sanitizeString(goal.title || goal.name || 'Minha Meta') : (goal.title || goal.name || 'Minha Meta')}</strong></span>
+                    <span class="cat-name"><strong>${safeGoalTitle}</strong></span>
                     <span class="cat-amount">${percent}%</span>
                 </div>
                 <div class="category-bar-track" style="height:8px; border-radius:4px; margin:6px 0;">
@@ -1070,7 +1072,8 @@ function renderTransactions() {
 
         const color = cat?.color || style.color || (isIncome ? "#00B894" : "#FF6B6B");
         const icon = cat?.icon || style.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
-        const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
+        const rawDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
+        const safeDesc = typeof sanitizeString === 'function' ? sanitizeString(rawDesc) : rawDesc;
 
         return `
             <div class="mobile-transaction" onclick="window.location.href='transactions.html'">
@@ -1079,7 +1082,7 @@ function renderTransactions() {
                         <i class="fas ${icon}"></i>
                     </div>
                     <div class="tx-info">
-                        <strong>${displayDesc}</strong>
+                        <strong>${safeDesc}</strong>
                         <small>${formatDate(t.date)}</small>
                     </div>
                 </div>
@@ -1155,7 +1158,11 @@ function populateCategoryOptions() {
 
     const filtered = categories.filter(c => !c.type || c.type === currentQuickType);
     select.innerHTML = '<option value="">Selecione a categoria...</option>' +
-        (filtered.length > 0 ? filtered : categories).map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+        (filtered.length > 0 ? filtered : categories).map(c => {
+            const safeId = typeof sanitizeString === 'function' ? sanitizeString(c.id || '') : (c.id || '');
+            const safeName = typeof sanitizeString === 'function' ? sanitizeString(c.name || '') : (c.name || '');
+            return `<option value="${safeId}">${safeName}</option>`;
+        }).join("");
 }
 
 async function handleQuickAddSubmit(event) {

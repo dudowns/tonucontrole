@@ -359,6 +359,14 @@
         }
     }
 
+    function isSafeUrl(rawUrl) {
+        if (!rawUrl || typeof rawUrl !== 'string') return false;
+        const trimmed = rawUrl.trim();
+        if (/^(javascript|data|vbscript):/i.test(trimmed)) return false;
+        if (/[<>"'\s]/.test(trimmed)) return false;
+        return /^([a-zA-Z0-9_./#]|https?:\/\/)/i.test(trimmed);
+    }
+
     // Handle Click on Individual Notification
     function handleNotificationClick(id) {
         const notif = notifications.find(n => n.id === id);
@@ -378,7 +386,10 @@
                 }
             }
             if (notif.link && notif.link !== '#') {
-                window.location.href = notif.link;
+                const safeLink = isSafeUrl(notif.link) ? notif.link.trim() : '#';
+                if (safeLink !== '#') {
+                    window.location.href = safeLink;
+                }
             }
         }
     }
@@ -410,9 +421,13 @@
             const badgeClass = n.type === 'danger' ? 'overdue' : (n.type === 'warning' ? 'due-today' : (n.type === 'success' ? 'paid-today' : 'due-soon'));
             const iconBg = n.type === 'danger' ? '#FF7675' : (n.type === 'warning' ? '#FDCB6E' : (n.type === 'success' ? '#00B894' : '#6C5CE7'));
             const tagLabel = n.tag || (n.type === 'danger' ? 'Atrasada' : (n.type === 'warning' ? 'Atenção' : (n.type === 'success' ? 'Recebido' : 'Aviso')));
+            const safeItemTitle = typeof sanitizeString === 'function' ? sanitizeString(n.title || '') : (n.title || '');
+            const safeItemMessage = typeof sanitizeString === 'function' ? sanitizeString(n.message || '') : (n.message || '');
+            const safeActionText = n.actionBtnText ? (typeof sanitizeString === 'function' ? sanitizeString(n.actionBtnText) : n.actionBtnText) : '';
+            const safeId = typeof sanitizeString === 'function' ? sanitizeString(n.id || '') : (n.id || '');
 
             return `
-                <div class="notif-item ${badgeClass} ${isRead ? 'read' : 'unread'}" onclick="window.handleNotificationClick('${n.id}')">
+                <div class="notif-item ${badgeClass} ${isRead ? 'read' : 'unread'}" data-notif-id="${safeId}">
                     <div class="notif-icon-box" style="background:${iconBg};">
                         <i class="fas ${n.icon || 'fa-info-circle'}"></i>
                     </div>
@@ -420,26 +435,41 @@
                         <div class="notif-item-header-row">
                             <span class="notif-tag notif-tag-${n.type}">${tagLabel}</span>
                             <div class="notif-item-actions">
-                                <button type="button" class="notif-dismiss-btn" onclick="event.stopPropagation(); window.dismissNotification('${n.id}')" title="Dispensar notificação">
+                                <button type="button" class="notif-dismiss-btn" data-dismiss-id="${safeId}" title="Dispensar notificação">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
                         </div>
                         <div class="notif-item-title">
-                            <span>${n.title}</span>
+                            <span>${safeItemTitle}</span>
                         </div>
                         <div class="notif-item-desc">
-                            <span>${n.message}</span>
+                            <span>${safeItemMessage}</span>
                         </div>
-                        ${n.actionBtnText ? `
+                        ${safeActionText ? `
                             <div class="notif-item-footer-action">
-                                <span class="notif-action-pill">${n.actionBtnText} <i class="fas fa-arrow-right"></i></span>
+                                <span class="notif-action-pill">${safeActionText} <i class="fas fa-arrow-right"></i></span>
                             </div>
                         ` : ''}
                     </div>
                 </div>
             `;
         }).join('');
+
+        container.querySelectorAll('.notif-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.notif-dismiss-btn')) return;
+                const id = item.dataset.notifId;
+                if (id) window.handleNotificationClick(id);
+            });
+        });
+        container.querySelectorAll('.notif-dismiss-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.dismissId;
+                if (id) window.dismissNotification(id);
+            });
+        });
     }
 
     // ============================================
@@ -465,16 +495,9 @@
         const safeTitle = typeof sanitizeString === 'function' ? sanitizeString(notif.title || '') : (notif.title || '');
         const safeMessage = typeof sanitizeString === 'function' ? sanitizeString(notif.message || '') : (notif.message || '');
 
-        let hasValidLink = false;
-        let cleanLink = '';
-        if (notif.link && typeof notif.link === 'string' && notif.link.trim() !== '#' && notif.link.trim() !== '') {
-            const trimmed = notif.link.trim();
-            const lower = trimmed.toLowerCase();
-            if (!lower.startsWith('javascript:') && !lower.startsWith('data:') && /^[a-zA-Z0-9\/#.]/.test(trimmed)) {
-                hasValidLink = true;
-                cleanLink = trimmed;
-            }
-        }
+        const rawLink = notif.link || '';
+        const safeLink = isSafeUrl(rawLink) ? rawLink.trim() : '#';
+        const hasValidLink = safeLink !== '#';
 
         banner.innerHTML = `
             <div class="floating-alert-inner ${notif.type || 'info'}">
@@ -487,7 +510,7 @@
                 </div>
                 <div class="floating-alert-actions">
                     ${hasValidLink ? `
-                        <button class="btn btn-sm btn-primary floating-alert-link-btn" type="button" data-link="${cleanLink.replace(/"/g, '&quot;')}">
+                        <button type="button" class="btn btn-sm btn-primary" data-notif-link="${safeLink.replace(/"/g, '&quot;')}">
                             Ver
                         </button>
                     ` : ''}
@@ -498,13 +521,10 @@
             </div>
         `;
 
-        const linkBtn = banner.querySelector('.floating-alert-link-btn');
-        if (linkBtn) {
-            linkBtn.addEventListener('click', function () {
-                const targetLink = this.dataset.link;
-                if (targetLink) {
-                    window.location.href = targetLink;
-                }
+        const btn = banner.querySelector('[data-notif-link]');
+        if (btn) {
+            btn.addEventListener('click', () => { 
+                if (safeLink !== '#') window.location.href = safeLink; 
             });
         }
 
