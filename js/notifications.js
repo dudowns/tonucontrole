@@ -462,27 +462,58 @@
         const isSuccess = notif.type === 'success';
         const color = isDanger ? '#FF7675' : (isWarning ? '#FDCB6E' : (isSuccess ? '#00B894' : '#6C5CE7'));
 
+        const safeTitle = typeof sanitizeString === 'function' ? sanitizeString(notif.title || '') : (notif.title || '');
+        const safeMessage = typeof sanitizeString === 'function' ? sanitizeString(notif.message || '') : (notif.message || '');
+
+        let hasValidLink = false;
+        let cleanLink = '';
+        if (notif.link && typeof notif.link === 'string' && notif.link.trim() !== '#' && notif.link.trim() !== '') {
+            const trimmed = notif.link.trim();
+            const lower = trimmed.toLowerCase();
+            if (!lower.startsWith('javascript:') && !lower.startsWith('data:') && /^[a-zA-Z0-9\/#.]/.test(trimmed)) {
+                hasValidLink = true;
+                cleanLink = trimmed;
+            }
+        }
+
         banner.innerHTML = `
-            <div class="floating-alert-inner ${notif.type}">
+            <div class="floating-alert-inner ${notif.type || 'info'}">
                 <div class="floating-alert-icon" style="background:${color};">
                     <i class="fas ${notif.icon || 'fa-bell'}"></i>
                 </div>
                 <div class="floating-alert-body">
-                    <strong>${notif.title}</strong>
-                    <p>${notif.message}</p>
+                    <strong>${safeTitle}</strong>
+                    <p>${safeMessage}</p>
                 </div>
                 <div class="floating-alert-actions">
-                    ${notif.link && notif.link !== '#' ? `
-                        <button class="btn btn-sm btn-primary" onclick="window.location.href='${notif.link}'">
+                    ${hasValidLink ? `
+                        <button class="btn btn-sm btn-primary floating-alert-link-btn" type="button" data-link="${cleanLink.replace(/"/g, '&quot;')}">
                             Ver
                         </button>
                     ` : ''}
-                    <button class="floating-alert-close" onclick="document.getElementById('tonuFloatingAlertBanner').classList.remove('show')" title="Fechar">
+                    <button class="floating-alert-close" type="button" title="Fechar">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
         `;
+
+        const linkBtn = banner.querySelector('.floating-alert-link-btn');
+        if (linkBtn) {
+            linkBtn.addEventListener('click', function () {
+                const targetLink = this.dataset.link;
+                if (targetLink) {
+                    window.location.href = targetLink;
+                }
+            });
+        }
+
+        const closeBtn = banner.querySelector('.floating-alert-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function () {
+                banner.classList.remove('show');
+            });
+        }
 
         banner.classList.add('show');
 

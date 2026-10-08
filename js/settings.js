@@ -271,47 +271,52 @@ function handleToggle2FA() {
 // BIOMETRIA (WEBAUTHN / FACE ID / TOUCH ID)
 // ============================================
 async function renderBiometricsSettingsUI() {
-    const statusText = document.getElementById('biometricsStatusText');
-    const subText = document.getElementById('biometricsSubText');
-    const actionContainer = document.getElementById('biometricsActionContainer');
-    if (!statusText || !actionContainer) return;
+    try {
+        const statusText = document.getElementById('biometricsStatusText');
+        const subText = document.getElementById('biometricsSubText');
+        const actionContainer = document.getElementById('biometricsActionContainer');
+        if (!statusText || !actionContainer) return;
 
-    if (!window.TonuBiometrics) {
-        subText.textContent = 'Módulo biométrico não carregado.';
-        return;
-    }
+        if (!window.TonuBiometrics) {
+            subText.textContent = 'Módulo biométrico não carregado.';
+            return;
+        }
 
-    const supported = await window.TonuBiometrics.checkSupport();
-    const isConfigured = window.TonuBiometrics.isConfigured();
+        const supported = await window.TonuBiometrics.checkSupport();
+        const isConfigured = window.TonuBiometrics.isConfigured();
 
-    if (!supported) {
-        statusText.innerHTML = 'Biometria Indisponível';
-        subText.innerHTML = '<span style="color:#e17055;">Este navegador ou dispositivo não possui sensor biométrico (Face ID / Impressão Digital) compatível.</span>';
-        actionContainer.innerHTML = '<span class="badge" style="background:#dfe6e9; color:#636e72;">Não suportado</span>';
-        return;
-    }
+        if (!supported) {
+            statusText.innerHTML = 'Biometria Indisponível';
+            subText.innerHTML = '<span style="color:#e17055;">Este navegador ou dispositivo não possui sensor biométrico (Face ID / Impressão Digital) compatível.</span>';
+            actionContainer.innerHTML = '<span class="badge" style="background:#dfe6e9; color:#636e72;">Não suportado</span>';
+            return;
+        }
 
-    if (isConfigured) {
-        statusText.innerHTML = '<span style="color:#00b894;"><i class="fas fa-check-circle"></i> Biometria Ativada</span>';
-        subText.textContent = 'Você pode fazer login com Face ID ou Impressão Digital na tela inicial.';
-        actionContainer.innerHTML = `
-            <div style="display:flex; gap:8px; align-items:center;">
-                <button class="btn btn-outline btn-sm" onclick="testBiometrics()">
-                    <i class="fas fa-fingerprint"></i> Testar
+        if (isConfigured) {
+            statusText.innerHTML = '<span style="color:#00b894;"><i class="fas fa-check-circle"></i> Biometria Ativada</span>';
+            subText.textContent = 'Você pode fazer login com Face ID ou Impressão Digital na tela inicial.';
+            actionContainer.innerHTML = `
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button class="btn btn-outline btn-sm" onclick="testBiometrics()">
+                        <i class="fas fa-fingerprint"></i> Testar
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="disableBiometrics()">
+                        <i class="fas fa-times"></i> Desativar
+                    </button>
+                </div>
+            `;
+        } else {
+            statusText.innerHTML = 'Biometria Disponível';
+            subText.textContent = 'Sensor biométrico detectado. Ative para entrar com um toque sem digitar sua senha.';
+            actionContainer.innerHTML = `
+                <button class="btn btn-primary btn-sm" onclick="handleRegisterBiometrics()">
+                    <i class="fas fa-fingerprint"></i> Ativar Agora
                 </button>
-                <button class="btn btn-danger btn-sm" onclick="disableBiometrics()">
-                    <i class="fas fa-times"></i> Desativar
-                </button>
-            </div>
-        `;
-    } else {
-        statusText.innerHTML = 'Biometria Disponível';
-        subText.textContent = 'Sensor biométrico detectado. Ative para entrar com um toque sem digitar sua senha.';
-        actionContainer.innerHTML = `
-            <button class="btn btn-primary btn-sm" onclick="handleRegisterBiometrics()">
-                <i class="fas fa-fingerprint"></i> Ativar Agora
-            </button>
-        `;
+            `;
+        }
+    } catch (err) {
+        console.error('❌ Erro ao renderizar UI biométrica:', err);
+        return false;
     }
 }
 
@@ -1028,35 +1033,6 @@ async function clearAllData() {
 }
 
 // ============================================
-// TOAST
-// ============================================
-function showToast(message, type, actionText, onAction) {
-    if (typeof window.showToast === 'function' && window.showToast !== showToast) {
-        return window.showToast(message, type, actionText, onAction);
-    }
-    type = type || 'info';
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-
-    const colors = {
-        info: '#0984E3',
-        success: '#00B894',
-        error: '#FF7675',
-        warning: '#FDCB6E'
-    };
-
-    toast.textContent = message;
-    toast.style.background = colors[type] || colors.info;
-    toast.style.color = '#fff';
-    toast.className = 'toast show';
-
-    clearTimeout(toast._timeout);
-    toast._timeout = setTimeout(() => {
-        toast.className = 'toast hidden';
-    }, 3000);
-}
-
-// ============================================
 // EXPORTA FUNÇÕES GLOBAIS
 // ============================================
 window.toggleSidebar = function () {
@@ -1355,8 +1331,8 @@ function showEmailSettings() {
 
 function saveEmailSettings() {
     const enabled = document.getElementById('emailEnabled').checked;
-    const dayOfWeek = parseInt(document.getElementById('emailDay').value);
-    const hourOfDay = parseInt(document.getElementById('emailHour').value);
+    const dayOfWeek = parseInt(document.getElementById('emailDay').value, 10) || 0;
+    const hourOfDay = parseInt(document.getElementById('emailHour').value, 10) || 9;
 
     localStorage.setItem('tonu_email_settings', JSON.stringify({
         enabled,

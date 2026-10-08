@@ -1013,7 +1013,7 @@ function renderMobileGoals() {
             </div>
             <div class="category-bar-item" style="margin-top:6px;">
                 <div class="category-bar-info">
-                    <span class="cat-name"><strong>${goal.title || goal.name || 'Minha Meta'}</strong></span>
+                    <span class="cat-name"><strong>${typeof sanitizeString === 'function' ? sanitizeString(goal.title || goal.name || 'Minha Meta') : (goal.title || goal.name || 'Minha Meta')}</strong></span>
                     <span class="cat-amount">${percent}%</span>
                 </div>
                 <div class="category-bar-track" style="height:8px; border-radius:4px; margin:6px 0;">

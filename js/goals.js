@@ -1275,35 +1275,6 @@ window.addEventListener('resize', () => {
 });
 
 // ============================================
-// TOAST
-// ============================================
-function showToast(message, type, actionText, onAction) {
-    if (typeof window.showToast === 'function' && window.showToast !== showToast) {
-        return window.showToast(message, type, actionText, onAction);
-    }
-    type = type || 'info';
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-
-    const colors = {
-        info: '#0984E3',
-        success: '#00B894',
-        error: '#FF7675',
-        warning: '#FDCB6E'
-    };
-
-    toast.textContent = message;
-    toast.style.background = colors[type] || colors.info;
-    toast.style.color = '#fff';
-    toast.className = 'toast show';
-
-    clearTimeout(toast._timeout);
-    toast._timeout = setTimeout(() => {
-        toast.className = 'toast hidden';
-    }, 3000);
-}
-
-// ============================================
 // EXPORTAR FUNÇÕES GLOBAIS
 // ============================================
 window.openModal = openModal;

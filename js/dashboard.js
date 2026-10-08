@@ -5,7 +5,11 @@
 console.log('📊 Dashboard.js carregado');
 
 // BRAPI_TOKEN
-const BRAPI_TOKEN = window.__TONU_CONFIG__?.brapiToken || window.APP_CONFIG?.BRAPI_TOKEN || '';
+var BRAPI_TOKEN = (typeof window !== 'undefined' && window.BRAPI_TOKEN)
+    || (window.__TONU_CONFIG__ && window.__TONU_CONFIG__.brapiToken)
+    || (window.APP_CONFIG && window.APP_CONFIG.BRAPI_TOKEN)
+    || '';
+if (typeof window !== 'undefined') window.BRAPI_TOKEN = BRAPI_TOKEN;
 
 // ============================================
 // VARIÁVEIS GLOBAIS
@@ -2112,8 +2116,13 @@ async function generateDashboardInsights() {
 // GRÁFICOS
 // ============================================
 async function loadCharts() {
-    await loadCategoryChart();
-    await loadMonthlyChart();
+    try {
+        await loadCategoryChart();
+        await loadMonthlyChart();
+    } catch (err) {
+        console.error('❌ Erro ao carregar gráficos no dashboard:', err);
+        return false;
+    }
 }
 
 // ============================================
@@ -2931,23 +2940,6 @@ async function loadInsights() {
 }
 
 // ============================================
-// TOAST (Delega para o sistema unificado em core.js)
-// ============================================
-function showToast(message, type, actionText, onAction) {
-    if (window.showToast && window.showToast !== showToast) {
-        return window.showToast(message, type, actionText, onAction);
-    }
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-    toast.textContent = message;
-    toast.className = 'toast show';
-    clearTimeout(toast._timeout);
-    toast._timeout = setTimeout(() => {
-        toast.className = 'toast hidden';
-    }, 3000);
-}
-
-// ============================================
 // SIDEBAR
 // ============================================
 window.toggleSidebar = function () {
@@ -3422,15 +3414,6 @@ async function openCashFlowModal() {
     } catch (err) {
         console.error('❌ Erro ao abrir fluxo de caixa:', err);
         showToast('Erro ao carregar dados do fluxo de caixa.', 'error');
-    }
-}
-
-// ============================================
-// LOGOUT (Delega para a autenticação central)
-// ============================================
-async function logout() {
-    if (typeof window.logout === 'function' && window.logout !== logout) {
-        return await window.logout();
     }
 }
 

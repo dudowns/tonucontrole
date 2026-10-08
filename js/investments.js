@@ -24,7 +24,11 @@ function showLoadingAnimation() {
 // ============================================
 // BRAPI CONFIG
 // ============================================
-const BRAPI_TOKEN = window.__TONU_CONFIG__?.brapiToken || window.APP_CONFIG?.BRAPI_TOKEN || '';
+var BRAPI_TOKEN = (typeof window !== 'undefined' && window.BRAPI_TOKEN)
+    || (window.__TONU_CONFIG__ && window.__TONU_CONFIG__.brapiToken)
+    || (window.APP_CONFIG && window.APP_CONFIG.BRAPI_TOKEN)
+    || '';
+if (typeof window !== 'undefined') window.BRAPI_TOKEN = BRAPI_TOKEN;
 
 function formatCurrency(value) {
     if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
@@ -673,17 +677,15 @@ async function loadTransactions() {
                 if (!error && data && data.length > 0) {
                     loaded = data;
                     fetchedFromDb = true;
-                } else {
+                } else if (currentUser && currentUser.id) {
                     const fallback = await supabaseClient
                         .from('investments')
                         .select('*')
+                        .eq('user_id', currentUser.id)
                         .order('date', { ascending: true });
                     if (!fallback.error && fallback.data && fallback.data.length > 0) {
-                        const userFiltered = fallback.data.filter(inv => !inv.user_id || inv.user_id === currentUser.id);
-                        if (userFiltered.length > 0) {
-                            loaded = userFiltered;
-                            fetchedFromDb = true;
-                        }
+                        loaded = fallback.data;
+                        fetchedFromDb = true;
                     }
                 }
             } catch (dbErr) {
@@ -2571,18 +2573,15 @@ async function loadDividends() {
                 if (!error && data && data.length > 0) {
                     loaded = data;
                     fetchedFromDb = true;
-                } else {
-                    // Fallback sem filtro user_id caso RLS gerencie a autenticação ou backend compartilhado
+                } else if (currentUser && currentUser.id) {
                     const { data: fallbackData, error: fbErr } = await supabaseClient
                         .from('dividends')
                         .select('*')
+                        .eq('user_id', currentUser.id)
                         .order('date', { ascending: false });
                     if (!fbErr && fallbackData && fallbackData.length > 0) {
-                        const filtered = currentUser?.id ? fallbackData.filter(d => !d.user_id || d.user_id === currentUser.id) : fallbackData;
-                        if (filtered.length > 0) {
-                            loaded = filtered;
-                            fetchedFromDb = true;
-                        }
+                        loaded = fallbackData;
+                        fetchedFromDb = true;
                     }
                 }
             } catch (err) {
@@ -2604,23 +2603,27 @@ async function loadDividends() {
             }
             const seenKeys = new Set(loaded.map(d => `${d.ticker}_${d.date}_${d.total_value}`));
 
-            keysToCheck.forEach(k => {
-                const cached = localStorage.getItem(k);
-                if (cached) {
+            // Coleta valores do localStorage e faz parse fora do loop principal de mesclagem
+            const parsedCaches = [];
+            for (let i = 0; i < keysToCheck.length; i++) {
+                const raw = localStorage.getItem(keysToCheck[i]);
+                if (raw) {
                     try {
-                        const parsed = JSON.parse(cached);
-                        if (Array.isArray(parsed)) {
-                            parsed.forEach(p => {
-                                const uk = `${p.ticker}_${p.date}_${p.total_value}`;
-                                const isDemoItem = p.is_demo || String(p.id || '').startsWith('demo-');
-                                if (!seenKeys.has(uk) && (!isDemoItem || isDemo)) {
-                                    loaded.push(p);
-                                    seenKeys.add(uk);
-                                }
-                            });
-                        }
+                        const parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed)) parsedCaches.push(parsed);
                     } catch (pe) {}
                 }
+            }
+
+            parsedCaches.forEach(items => {
+                items.forEach(p => {
+                    const uk = `${p.ticker}_${p.date}_${p.total_value}`;
+                    const isDemoItem = p.is_demo || String(p.id || '').startsWith('demo-');
+                    if (!seenKeys.has(uk) && (!isDemoItem || isDemo)) {
+                        loaded.push(p);
+                        seenKeys.add(uk);
+                    }
+                });
             });
         } catch (e) {}
 
@@ -4268,19 +4271,29 @@ function renderDividendsChart() {
             return `${String(month).padStart(2, '0')}/${String(year).slice(2)}`;
         });
 
+        // Pré-indexa proventos por ano-mês em Map para evitar O(n²)
+        const monthGroupMap = new Map();
+        filtered.forEach(d => {
+            const ym = getDividendYearMonth(d);
+            if (ym && ym.yearMonth) {
+                if (!monthGroupMap.has(ym.yearMonth)) {
+                    monthGroupMap.set(ym.yearMonth, []);
+                }
+                monthGroupMap.get(ym.yearMonth).push(d);
+            }
+        });
+
         monthKeys.forEach(m => {
             let rec = 0;
             let aRec = 0;
-            filtered.forEach(d => {
-                const ym = getDividendYearMonth(d);
-                if (ym.yearMonth === m) {
-                    const val = getDividendTotalValue(d);
-                    const iso = getDividendISODate(d);
-                    if (iso <= todayISO) {
-                        rec += val;
-                    } else {
-                        aRec += val;
-                    }
+            const items = monthGroupMap.get(m) || [];
+            items.forEach(d => {
+                const val = getDividendTotalValue(d);
+                const iso = getDividendISODate(d);
+                if (iso <= todayISO) {
+                    rec += val;
+                } else {
+                    aRec += val;
                 }
             });
             dataRecebidos.push(rec);
@@ -4298,19 +4311,30 @@ function renderDividendsChart() {
         const sortedYears = Array.from(yearSet).sort((a, b) => a - b);
 
         labels = sortedYears.map(String);
+
+        // Pré-indexa proventos por ano em Map para evitar O(n²)
+        const yearGroupMap = new Map();
+        filtered.forEach(d => {
+            const ym = getDividendYearMonth(d);
+            if (ym && ym.year) {
+                if (!yearGroupMap.has(ym.year)) {
+                    yearGroupMap.set(ym.year, []);
+                }
+                yearGroupMap.get(ym.year).push(d);
+            }
+        });
+
         sortedYears.forEach(yr => {
             let rec = 0;
             let aRec = 0;
-            filtered.forEach(d => {
-                const ym = getDividendYearMonth(d);
-                if (ym.year === yr) {
-                    const val = getDividendTotalValue(d);
-                    const iso = getDividendISODate(d);
-                    if (iso <= todayISO) {
-                        rec += val;
-                    } else {
-                        aRec += val;
-                    }
+            const items = yearGroupMap.get(yr) || [];
+            items.forEach(d => {
+                const val = getDividendTotalValue(d);
+                const iso = getDividendISODate(d);
+                if (iso <= todayISO) {
+                    rec += val;
+                } else {
+                    aRec += val;
                 }
             });
             dataRecebidos.push(rec);
@@ -4592,35 +4616,6 @@ function onEvolutionClassChange(cls) {
 function onPieClassChange(cls) {
     selectedPieClass = cls;
     renderPieChart();
-}
-
-// ============================================
-// TOAST
-// ============================================
-function showToast(message, type, actionText, onAction) {
-    if (typeof window.showToast === 'function' && window.showToast !== showToast) {
-        return window.showToast(message, type, actionText, onAction);
-    }
-    type = type || 'info';
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-
-    const colors = {
-        info: '#0984E3',
-        success: '#00B894',
-        error: '#FF7675',
-        warning: '#FDCB6E'
-    };
-
-    toast.textContent = message;
-    toast.style.background = colors[type] || colors.info;
-    toast.style.color = '#fff';
-    toast.className = 'toast show';
-
-    clearTimeout(toast._timeout);
-    toast._timeout = setTimeout(() => {
-        toast.className = 'toast hidden';
-    }, 3000);
 }
 
 // ============================================

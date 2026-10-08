@@ -257,6 +257,31 @@
 
             const { action, data } = item;
 
+            // Obtém ID do usuário para proteger mutações com filtro user_id
+            let userId = (typeof currentUser !== 'undefined' && currentUser?.id)
+                || (typeof window !== 'undefined' && window.currentUser?.id);
+
+            if (!userId && typeof sessionStorage !== 'undefined') {
+                try {
+                    const storedUser = JSON.parse(sessionStorage.getItem('tonu_user') || '{}');
+                    if (storedUser && storedUser.id) userId = storedUser.id;
+                } catch (e) {}
+            }
+
+            if (!userId && typeof localStorage !== 'undefined') {
+                try {
+                    const storedUser = JSON.parse(localStorage.getItem('tonu_user') || '{}');
+                    if (storedUser && storedUser.id) userId = storedUser.id;
+                } catch (e) {}
+            }
+
+            if (!userId && window.supabaseClient?.auth) {
+                try {
+                    const { data: authData } = await window.supabaseClient.auth.getUser();
+                    if (authData?.user?.id) userId = authData.user.id;
+                } catch (e) {}
+            }
+
             switch (action) {
                 case 'INSERT_TRANSACTION':
                 case 'INSERT_BILL': {
@@ -287,20 +312,26 @@
                     if (updates.category_id && !uuidRegex.test(String(updates.category_id))) {
                         delete updates.category_id;
                     }
-                    const { error } = await window.supabaseClient.from('transactions').update(updates).eq('id', id);
+                    let query = window.supabaseClient.from('transactions').update(updates).eq('id', id);
+                    if (userId) query = query.eq('user_id', userId);
+                    const { error } = await query;
                     if (error) throw error;
                     return true;
                 }
                 case 'DELETE_TRANSACTION':
                 case 'DELETE_BILL': {
                     const targetId = data.id || data;
-                    const { error } = await window.supabaseClient.from('transactions').delete().eq('id', targetId);
+                    let query = window.supabaseClient.from('transactions').delete().eq('id', targetId);
+                    if (userId) query = query.eq('user_id', userId);
+                    const { error } = await query;
                     if (error) throw error;
                     return true;
                 }
                 case 'PAY_BILL': {
                     const { billId, paymentData } = data;
-                    await window.supabaseClient.from('transactions').update({ paid: true, paid_date: new Date().toISOString().split('T')[0] }).eq('id', billId);
+                    let updateQuery = window.supabaseClient.from('transactions').update({ paid: true, paid_date: new Date().toISOString().split('T')[0] }).eq('id', billId);
+                    if (userId) updateQuery = updateQuery.eq('user_id', userId);
+                    await updateQuery;
                     if (paymentData) {
                         const cleanPayment = this._sanitizeForInsert(paymentData);
                         const { error: insertErr } = await window.supabaseClient.from('transactions').insert([cleanPayment]);
@@ -324,13 +355,17 @@
                 }
                 case 'UPDATE_GOAL': {
                     const { id, ...updates } = data;
-                    const { error } = await window.supabaseClient.from('goals').update(updates).eq('id', id);
+                    let query = window.supabaseClient.from('goals').update(updates).eq('id', id);
+                    if (userId) query = query.eq('user_id', userId);
+                    const { error } = await query;
                     if (error) throw error;
                     return true;
                 }
                 case 'DELETE_GOAL': {
                     const targetId = data.id || data;
-                    const { error } = await window.supabaseClient.from('goals').delete().eq('id', targetId);
+                    let query = window.supabaseClient.from('goals').delete().eq('id', targetId);
+                    if (userId) query = query.eq('user_id', userId);
+                    const { error } = await query;
                     if (error) throw error;
                     return true;
                 }
@@ -348,13 +383,17 @@
                 }
                 case 'UPDATE_INVESTMENT': {
                     const { id, ...updates } = data;
-                    const { error } = await window.supabaseClient.from('investments').update(updates).eq('id', id);
+                    let query = window.supabaseClient.from('investments').update(updates).eq('id', id);
+                    if (userId) query = query.eq('user_id', userId);
+                    const { error } = await query;
                     if (error) throw error;
                     return true;
                 }
                 case 'DELETE_INVESTMENT': {
                     const targetId = data.id || data;
-                    const { error } = await window.supabaseClient.from('investments').delete().eq('id', targetId);
+                    let query = window.supabaseClient.from('investments').delete().eq('id', targetId);
+                    if (userId) query = query.eq('user_id', userId);
+                    const { error } = await query;
                     if (error) throw error;
                     return true;
                 }
@@ -372,13 +411,17 @@
                 }
                 case 'UPDATE_DIVIDEND': {
                     const { id, ...updates } = data;
-                    const { error } = await window.supabaseClient.from('dividends').update(updates).eq('id', id);
+                    let query = window.supabaseClient.from('dividends').update(updates).eq('id', id);
+                    if (userId) query = query.eq('user_id', userId);
+                    const { error } = await query;
                     if (error) throw error;
                     return true;
                 }
                 case 'DELETE_DIVIDEND': {
                     const targetId = data.id || data;
-                    const { error } = await window.supabaseClient.from('dividends').delete().eq('id', targetId);
+                    let query = window.supabaseClient.from('dividends').delete().eq('id', targetId);
+                    if (userId) query = query.eq('user_id', userId);
+                    const { error } = await query;
                     if (error) throw error;
                     return true;
                 }
@@ -396,13 +439,17 @@
                 }
                 case 'UPDATE_CORPORATE_EVENT': {
                     const { id, ...updates } = data;
-                    const { error } = await window.supabaseClient.from('corporate_events').update(updates).eq('id', id);
+                    let query = window.supabaseClient.from('corporate_events').update(updates).eq('id', id);
+                    if (userId) query = query.eq('user_id', userId);
+                    const { error } = await query;
                     if (error) throw error;
                     return true;
                 }
                 case 'DELETE_CORPORATE_EVENT': {
                     const targetId = data.id || data;
-                    const { error } = await window.supabaseClient.from('corporate_events').delete().eq('id', targetId);
+                    let query = window.supabaseClient.from('corporate_events').delete().eq('id', targetId);
+                    if (userId) query = query.eq('user_id', userId);
+                    const { error } = await query;
                     if (error) throw error;
                     return true;
                 }
