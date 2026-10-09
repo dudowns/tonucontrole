@@ -538,7 +538,11 @@
                                 </label>
                             </div>
 
-                            <div class="settings-actions" style="margin-top: var(--space-md);">
+                            <div class="settings-actions" style="margin-top: var(--space-md); display:flex; flex-wrap:wrap; gap:8px;">
+                                <button class="btn btn-primary btn-sm" onclick="window.registerPushSubscription()"
+                                    aria-label="Ativar Notificações Push">
+                                    <i class="fas fa-bell" aria-hidden="true"></i> Ativar Notificações Push
+                                </button>
                                 <button class="btn btn-outline btn-sm" onclick="testPushNotificationFromSettings()"
                                     aria-label="Testar notificação">
                                     <i class="fas fa-paper-plane" aria-hidden="true"></i> Testar Notificação Push

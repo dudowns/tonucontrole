@@ -1098,5 +1098,125 @@
         }
     }
 
+    // ============================================
+    // PUSH SUBSCRIPTION REGISTRATION
+    // ============================================
+    const VAPID_PUBLIC_KEY = 'BNMcSCK8PEa7D2Ib8XRi1FbP60_UfsPrTYtjBpo0xN5wYilPxg7BCZrUvkr39Y9997cLTcGKXmoZuFOVTYhPRIE';
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    async function registerPushSubscription() {
+        // Verificar suporte
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            console.warn('[Push] Não suportado neste navegador/dispositivo');
+            if (typeof window.showToast === 'function') {
+                window.showToast('Push notifications não são suportadas neste dispositivo.', 'warning');
+            }
+            return { success: false, reason: 'unsupported' };
+        }
+
+        // iOS exige que seja PWA instalado (standalone)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        if (isIOS && !isStandalone) {
+            console.warn('[Push] iOS: instale o PWA na Tela de Início primeiro');
+            if (typeof window.showToast === 'function') {
+                window.showToast('No iPhone, instale o PWA na Tela de Início para ativar Push.', 'warning');
+            }
+            return { success: false, reason: 'ios-not-standalone' };
+        }
+
+        // Pedir permissão (precisa ser após gesture do usuário)
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            console.warn('[Push] Permissão negada');
+            if (typeof window.showToast === 'function') {
+                window.showToast('Permissão de notificações foi negada.', 'warning');
+            }
+            return { success: false, reason: 'permission-denied' };
+        }
+
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            
+            // Verificar se já existe subscription
+            let subscription = await registration.pushManager.getSubscription();
+            
+            if (!subscription) {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                });
+            }
+
+            // Enviar para o Supabase
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
+            if (!user) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Faça login para salvar suas notificações push.', 'warning');
+                }
+                return { success: false, reason: 'not-authenticated' };
+            }
+
+            const subJson = subscription.toJSON();
+            const { error } = await window.supabaseClient
+                .from('push_subscriptions')
+                .upsert({
+                    user_id: user.id,
+                    endpoint: subJson.endpoint,
+                    keys: subJson.keys,
+                    user_agent: navigator.userAgent
+                }, { onConflict: 'user_id,endpoint' });
+
+            if (error) throw error;
+
+            console.log('[Push] Subscription registrada com sucesso');
+            if (typeof window.showToast === 'function') {
+                window.showToast('🔔 Notificações Push nativas ativadas com sucesso!', 'success');
+            }
+            return { success: true, subscription };
+        } catch (err) {
+            console.error('[Push] Erro ao registrar subscription:', err);
+            if (typeof window.showToast === 'function') {
+                window.showToast('Erro ao ativar push: ' + (err.message || 'Falha na chave VAPID'), 'error');
+            }
+            return { success: false, reason: 'error', error: err.message };
+        }
+    }
+
+    async function unregisterPushSubscription() {
+        if (!('serviceWorker' in navigator)) return;
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            if (subscription) {
+                await subscription.unsubscribe();
+                await window.supabaseClient
+                    .from('push_subscriptions')
+                    .delete()
+                    .eq('endpoint', subscription.endpoint);
+            }
+            console.log('[Push] Subscription removida');
+            if (typeof window.showToast === 'function') {
+                window.showToast('Notificações Push desativadas.', 'info');
+            }
+        } catch (err) {
+            console.error('[Push] Erro ao remover subscription:', err);
+        }
+    }
+
+    // Expor globalmente
+    window.registerPushSubscription = registerPushSubscription;
+    window.unregisterPushSubscription = unregisterPushSubscription;
+
     console.log('🔔 Notifications.js Premium carregado com sucesso!');
 })();
