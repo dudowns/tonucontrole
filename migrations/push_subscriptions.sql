@@ -45,3 +45,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER update_push_subs_updated_at
     BEFORE UPDATE ON public.push_subscriptions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Permissões de acesso aos papéis do Supabase
+GRANT ALL ON TABLE public.push_subscriptions TO postgres, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.push_subscriptions TO authenticated, anon;
