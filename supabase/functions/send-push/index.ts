@@ -33,6 +33,16 @@ Deno.serve(async (req) => {
     webpush.setVapidDetails(vapidEmail, vapidPublic, vapidPrivate);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const pushOptions = {
+      TTL: 86400,
+      urgency: 'high',
+      headers: {
+        'Urgency': 'high',
+        'X-WNS-PRIORITY': 'high',
+        'X-WNS-Type': 'wns/toast'
+      }
+    };
+
     const results = { sent: 0, failed: 0, removed: 0, subsFound: 0 };
 
     // CASO 1: Teste com título fornecido
@@ -61,7 +71,8 @@ Deno.serve(async (req) => {
           try {
             await webpush.sendNotification(
               { endpoint: sub.endpoint, keys: sub.keys },
-              payload
+              payload,
+              pushOptions
             );
             results.sent++;
           } catch (pushErr: any) {
@@ -117,7 +128,8 @@ Deno.serve(async (req) => {
             try {
               await webpush.sendNotification(
                 { endpoint: sub.endpoint, keys: sub.keys },
-                payload
+                payload,
+                pushOptions
               );
               results.sent++;
             } catch (pushErr: any) {

@@ -3,7 +3,7 @@
 // ============================================
 
 // NOTA: Sincronizar CACHE_NAME com a versão em package.json a cada release
-const CACHE_NAME = 'tonucontrole-v2.7.0';
+const CACHE_NAME = 'tonucontrole-v2.8.0';
 
 const RELATIVE_ASSETS = [
   './',
@@ -122,10 +122,12 @@ self.addEventListener('push', (event) => {
       body: data.body,
       icon: data.icon || '/icons/icon-192x192.png',
       badge: '/icons/icon-96x96.png',
-      tag: data.tag,
+      tag: data.tag || 'tonu-notification',
       data: { url: data.url || '/' },
-      vibrate: [100, 50, 100],
-      requireInteraction: false
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+      silent: false,
+      renotify: true
     })
   );
 });
