@@ -49,3 +49,7 @@ CREATE TRIGGER update_push_subs_updated_at
 -- Permissões de acesso aos papéis do Supabase
 GRANT ALL ON TABLE public.push_subscriptions TO postgres, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.push_subscriptions TO authenticated, anon;
+
+-- Preferências granulares de notificações push
+ALTER TABLE public.push_subscriptions 
+ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{"bills": true, "dividends_credited": true, "dividends_upcoming": true, "goals": true, "budgets": true}'::jsonb;

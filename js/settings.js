@@ -460,6 +460,20 @@ function renderNotificationSettingsUI() {
     if (toggleDividends) toggleDividends.checked = settings.remindDividends !== false;
     if (toggleSound) toggleSound.checked = !!settings.sound;
 
+    // Preferências granulares de push nativo
+    const pushPrefs = window.getPushPreferences ? window.getPushPreferences() : (settings.pushPrefs || {});
+    const toggleBills = document.getElementById('togglePushBills');
+    const toggleCredited = document.getElementById('togglePushDivsCredited');
+    const toggleUpcoming = document.getElementById('togglePushDivsUpcoming');
+    const toggleGoals = document.getElementById('togglePushGoals');
+    const toggleBudgets = document.getElementById('togglePushBudgets');
+
+    if (toggleBills) toggleBills.checked = pushPrefs.bills !== false;
+    if (toggleCredited) toggleCredited.checked = pushPrefs.dividends_credited !== false;
+    if (toggleUpcoming) toggleUpcoming.checked = pushPrefs.dividends_upcoming !== false;
+    if (toggleGoals) toggleGoals.checked = pushPrefs.goals !== false;
+    if (toggleBudgets) toggleBudgets.checked = pushPrefs.budgets !== false;
+
     const days = settings.remindDaysBefore || [0, 1, 2, 3];
     [0, 1, 2, 3, 5, 7].forEach(d => {
         const chip = document.getElementById(`chipDay${d}`);
@@ -540,6 +554,21 @@ function updateNotificationSettings() {
     showToast('Configurações salvas! ✅', 'success');
 }
 
+async function updatePushGranularSettings() {
+    const bills = document.getElementById('togglePushBills')?.checked ?? true;
+    const dividends_credited = document.getElementById('togglePushDivsCredited')?.checked ?? true;
+    const dividends_upcoming = document.getElementById('togglePushDivsUpcoming')?.checked ?? true;
+    const goals = document.getElementById('togglePushGoals')?.checked ?? true;
+    const budgets = document.getElementById('togglePushBudgets')?.checked ?? true;
+
+    const prefs = { bills, dividends_credited, dividends_upcoming, goals, budgets };
+
+    if (window.savePushPreferences) {
+        await window.savePushPreferences(prefs);
+    }
+    showToast('Preferências de push salvas! ✅', 'success');
+}
+
 async function testPushNotificationFromSettings() {
     if (!window.billNotificationManager) return;
     await window.billNotificationManager.testNotification();
@@ -557,6 +586,7 @@ window.togglePushNotifications = togglePushNotifications;
 window.requestPushPermissionFromSettings = requestPushPermissionFromSettings;
 window.toggleReminderDay = toggleReminderDay;
 window.updateNotificationSettings = updateNotificationSettings;
+window.updatePushGranularSettings = updatePushGranularSettings;
 window.testPushNotificationFromSettings = testPushNotificationFromSettings;
 window.checkBillsFromSettings = checkBillsFromSettings;
 

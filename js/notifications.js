@@ -939,7 +939,14 @@
             remindOverdue: true,
             remindDividends: true,
             sound: true,
-            vibrate: true
+            vibrate: true,
+            pushPrefs: {
+                bills: true,
+                dividends_credited: true,
+                dividends_upcoming: true,
+                goals: true,
+                budgets: true
+            }
         },
 
         loadSettings() {
@@ -953,6 +960,38 @@
                 console.warn('Erro ao carregar tonu_notif_settings:', e);
             }
             return this.settings;
+        },
+
+        getPushPreferences() {
+            return Object.assign({
+                bills: true,
+                dividends_credited: true,
+                dividends_upcoming: true,
+                goals: true,
+                budgets: true
+            }, this.settings.pushPrefs || {});
+        },
+
+        async savePushPreferences(prefs) {
+            const updated = Object.assign(this.getPushPreferences(), prefs);
+            this.settings.pushPrefs = updated;
+            this.saveSettings({ pushPrefs: updated });
+
+            // Sincronizar com o Supabase se logado
+            if (window.supabaseClient) {
+                try {
+                    const { data: { user } } = await window.supabaseClient.auth.getUser();
+                    if (user) {
+                        await window.supabaseClient
+                            .from('push_subscriptions')
+                            .update({ preferences: updated })
+                            .eq('user_id', user.id);
+                    }
+                } catch (e) {
+                    console.warn('Erro ao sincronizar push preferences com o Supabase:', e);
+                }
+            }
+            return updated;
         },
 
         saveSettings(newSettings) {
@@ -1167,6 +1206,7 @@
                 return { success: false, reason: 'not-authenticated' };
             }
 
+            const pushPrefs = billNotificationManager.getPushPreferences();
             const subJson = subscription.toJSON();
             const { error } = await window.supabaseClient
                 .from('push_subscriptions')
@@ -1174,7 +1214,8 @@
                     user_id: user.id,
                     endpoint: subJson.endpoint,
                     keys: subJson.keys,
-                    user_agent: navigator.userAgent
+                    user_agent: navigator.userAgent,
+                    preferences: pushPrefs
                 }, { onConflict: 'user_id,endpoint' });
 
             if (error) throw error;
@@ -1217,6 +1258,8 @@
     // Expor globalmente
     window.registerPushSubscription = registerPushSubscription;
     window.unregisterPushSubscription = unregisterPushSubscription;
+    window.getPushPreferences = () => billNotificationManager.getPushPreferences();
+    window.savePushPreferences = (prefs) => billNotificationManager.savePushPreferences(prefs);
 
     console.log('🔔 Notifications.js Premium carregado com sucesso!');
 })();

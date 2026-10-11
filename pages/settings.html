@@ -513,18 +513,69 @@
                                 <label class="custom-toggle">
                                     <input type="checkbox" id="toggleRemindOverdue" onchange="updateNotificationSettings()">
                                     <span class="toggle-slider"></span>
-                                </label>
+                                </div>
                             </div>
 
-                            <div class="notif-switch-row">
-                                <div class="notif-switch-info">
-                                    <strong>Alertar Proventos Creditados e a Receber</strong>
-                                    <small>Receba avisos instantâneos quando dividendos e rendimentos caírem hoje ou nos próximos dias.</small>
+                            <div style="padding: 16px 0; border-top: 1px solid var(--color-border-light); border-bottom: 1px solid var(--color-border-light); margin: 8px 0;">
+                                <div class="notif-switch-info" style="padding-right:0; margin-bottom:12px;">
+                                    <strong><i class="fas fa-filter" style="color:var(--color-primary,#6C5CE7); margin-right:6px;"></i> Tipos de Notificações Push Ativas</strong>
+                                    <small>Escolha exatamente quais alertas nativos você deseja receber no seu celular e computador:</small>
                                 </div>
-                                <label class="custom-toggle">
-                                    <input type="checkbox" id="toggleRemindDividends" onchange="updateNotificationSettings()">
-                                    <span class="toggle-slider"></span>
-                                </label>
+
+                                <div class="notif-switch-row" style="padding: 8px 0;">
+                                    <div class="notif-switch-info">
+                                        <span><i class="fas fa-file-invoice-dollar" style="color:#FF7675; margin-right:8px;"></i> <strong>Contas a Pagar e Vencidas</strong></span>
+                                        <small>Aviso matinal de contas vencidas ou vencendo hoje.</small>
+                                    </div>
+                                    <label class="custom-toggle">
+                                        <input type="checkbox" id="togglePushBills" onchange="updatePushGranularSettings()" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="notif-switch-row" style="padding: 8px 0;">
+                                    <div class="notif-switch-info">
+                                        <span><i class="fas fa-money-bill-wave" style="color:#00B894; margin-right:8px;"></i> <strong>Proventos Creditados no Dia</strong></span>
+                                        <small>Aviso quando dividendos ou JCP caírem na conta hoje.</small>
+                                    </div>
+                                    <label class="custom-toggle">
+                                        <input type="checkbox" id="togglePushDivsCredited" onchange="updatePushGranularSettings()" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="notif-switch-row" style="padding: 8px 0;">
+                                    <div class="notif-switch-info">
+                                        <span><i class="fas fa-calendar-alt" style="color:#0984E3; margin-right:8px;"></i> <strong>Proventos Previstos (1 a 3 dias)</strong></span>
+                                        <small>Lembrete prévio de rendimentos que estão por cair.</small>
+                                    </div>
+                                    <label class="custom-toggle">
+                                        <input type="checkbox" id="togglePushDivsUpcoming" onchange="updatePushGranularSettings()" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="notif-switch-row" style="padding: 8px 0;">
+                                    <div class="notif-switch-info">
+                                        <span><i class="fas fa-bullseye" style="color:#6C5CE7; margin-right:8px;"></i> <strong>Metas Atingidas (100%)</strong></span>
+                                        <small>Alerta especial comemorativo ao atingir o valor de uma meta.</small>
+                                    </div>
+                                    <label class="custom-toggle">
+                                        <input type="checkbox" id="togglePushGoals" onchange="updatePushGranularSettings()" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="notif-switch-row" style="padding: 8px 0;">
+                                    <div class="notif-switch-info">
+                                        <span><i class="fas fa-chart-pie" style="color:#FDCB6E; margin-right:8px;"></i> <strong>Orçamento Estourado</strong></span>
+                                        <small>Aviso imediato se uma categoria passar do limite mensal estabelecido.</small>
+                                    </div>
+                                    <label class="custom-toggle">
+                                        <input type="checkbox" id="togglePushBudgets" onchange="updatePushGranularSettings()" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
                             </div>
 
                             <div class="notif-switch-row">

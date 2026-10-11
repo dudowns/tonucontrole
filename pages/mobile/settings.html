@@ -367,7 +367,7 @@
 
     <!-- 3. NOTIFICAÇÕES -->
     <div class="mobile-settings-section-wrapper" data-section="notifications">
-        <div class="mobile-group-title"><i class="fas fa-bell" style="color:#FDCB6E; margin-right:4px;"></i> Notificações</div>
+        <div class="mobile-group-title"><i class="fas fa-bell" style="color:#FDCB6E; margin-right:4px;"></i> Notificações Push</div>
         <div class="settings-card-group">
             <div class="settings-item" onclick="window.registerPushSubscription()" style="cursor:pointer;">
                 <div class="left">
@@ -381,14 +381,62 @@
             </div>
             <div class="settings-item">
                 <div class="left">
-                    <div class="item-icon-box amber"><i class="fas fa-calendar-day"></i></div>
+                    <div class="item-icon-box amber"><i class="fas fa-file-invoice-dollar"></i></div>
                     <div>
-                        <div class="item-text-title">Lembrete de Vencimentos</div>
-                        <div class="item-text-sub">Contas a pagar no dia ou próximas</div>
+                        <div class="item-text-title">Contas a Pagar</div>
+                        <div class="item-text-sub">Contas a vencer hoje ou atrasadas</div>
                     </div>
                 </div>
                 <div class="right">
-                    <input type="checkbox" id="checkNotifBills" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
+                    <input type="checkbox" id="checkPushBills" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
+                </div>
+            </div>
+            <div class="settings-item">
+                <div class="left">
+                    <div class="item-icon-box green"><i class="fas fa-money-bill-wave"></i></div>
+                    <div>
+                        <div class="item-text-title">Proventos Creditados</div>
+                        <div class="item-text-sub">Dividendos/JCP recebidos no dia</div>
+                    </div>
+                </div>
+                <div class="right">
+                    <input type="checkbox" id="checkPushDivsCredited" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
+                </div>
+            </div>
+            <div class="settings-item">
+                <div class="left">
+                    <div class="item-icon-box blue"><i class="fas fa-calendar-alt"></i></div>
+                    <div>
+                        <div class="item-text-title">Proventos Previstos</div>
+                        <div class="item-text-sub">Aviso prévio 1 a 3 dias antes</div>
+                    </div>
+                </div>
+                <div class="right">
+                    <input type="checkbox" id="checkPushDivsUpcoming" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
+                </div>
+            </div>
+            <div class="settings-item">
+                <div class="left">
+                    <div class="item-icon-box purple"><i class="fas fa-bullseye"></i></div>
+                    <div>
+                        <div class="item-text-title">Metas Atingidas</div>
+                        <div class="item-text-sub">Quando bater 100% de uma meta</div>
+                    </div>
+                </div>
+                <div class="right">
+                    <input type="checkbox" id="checkPushGoals" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
+                </div>
+            </div>
+            <div class="settings-item">
+                <div class="left">
+                    <div class="item-icon-box amber"><i class="fas fa-chart-pie"></i></div>
+                    <div>
+                        <div class="item-text-title">Orçamento Estourado</div>
+                        <div class="item-text-sub">Gasto ultrapassou o teto estipulado</div>
+                    </div>
+                </div>
+                <div class="right">
+                    <input type="checkbox" id="checkPushBudgets" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
                 </div>
             </div>
             <div class="settings-item">
@@ -396,7 +444,7 @@
                     <div class="item-icon-box green"><i class="fas fa-volume-up"></i></div>
                     <div>
                         <div class="item-text-title">Sons e Vibração</div>
-                        <div class="item-text-sub">Feedback ao salvar operações</div>
+                        <div class="item-text-sub">Feedback audível ao receber alertas</div>
                     </div>
                 </div>
                 <div class="right">
@@ -697,6 +745,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     // PIN status
     const pin = localStorage.getItem("tonu_security_pin");
     document.getElementById("pinStatusText").textContent = pin ? "Ativo (4 dígitos)" : "Desativado";
+
+    // Carregar preferências granulares de notificação push
+    loadMobileNotifPrefs();
 
     try {
         let user = null;
@@ -1095,12 +1146,43 @@ function saveAlertPrefs() {
     showMobileToast("Preferência de alerta atualizada.", "info");
 }
 
-function saveNotifPrefs() {
-    const bills = document.getElementById("checkNotifBills").checked;
-    const sound = document.getElementById("checkNotifSound").checked;
-    localStorage.setItem("tonu_notif_bills", bills ? "true" : "false");
+function loadMobileNotifPrefs() {
+    const pushPrefs = window.getPushPreferences ? window.getPushPreferences() : {};
+    if (document.getElementById("checkPushBills")) {
+        document.getElementById("checkPushBills").checked = pushPrefs.bills !== false;
+    }
+    if (document.getElementById("checkPushDivsCredited")) {
+        document.getElementById("checkPushDivsCredited").checked = pushPrefs.dividends_credited !== false;
+    }
+    if (document.getElementById("checkPushDivsUpcoming")) {
+        document.getElementById("checkPushDivsUpcoming").checked = pushPrefs.dividends_upcoming !== false;
+    }
+    if (document.getElementById("checkPushGoals")) {
+        document.getElementById("checkPushGoals").checked = pushPrefs.goals !== false;
+    }
+    if (document.getElementById("checkPushBudgets")) {
+        document.getElementById("checkPushBudgets").checked = pushPrefs.budgets !== false;
+    }
+    if (document.getElementById("checkNotifSound")) {
+        document.getElementById("checkNotifSound").checked = localStorage.getItem("tonu_notif_sound") !== "false";
+    }
+}
+
+async function saveNotifPrefs() {
+    const bills = document.getElementById("checkPushBills") ? document.getElementById("checkPushBills").checked : true;
+    const dividends_credited = document.getElementById("checkPushDivsCredited") ? document.getElementById("checkPushDivsCredited").checked : true;
+    const dividends_upcoming = document.getElementById("checkPushDivsUpcoming") ? document.getElementById("checkPushDivsUpcoming").checked : true;
+    const goals = document.getElementById("checkPushGoals") ? document.getElementById("checkPushGoals").checked : true;
+    const budgets = document.getElementById("checkPushBudgets") ? document.getElementById("checkPushBudgets").checked : true;
+    const sound = document.getElementById("checkNotifSound") ? document.getElementById("checkNotifSound").checked : true;
+
     localStorage.setItem("tonu_notif_sound", sound ? "true" : "false");
-    showMobileToast("Preferências de notificação salvas.", "info");
+
+    const prefs = { bills, dividends_credited, dividends_upcoming, goals, budgets };
+    if (window.savePushPreferences) {
+        await window.savePushPreferences(prefs);
+    }
+    showMobileToast("Preferências de notificação push salvas! ✅", "success");
 }
 
 function testNotificationAlert() {
