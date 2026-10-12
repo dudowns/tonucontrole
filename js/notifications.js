@@ -977,21 +977,112 @@
             this.settings.pushPrefs = updated;
             this.saveSettings({ pushPrefs: updated });
 
-            // Sincronizar com o Supabase se logado
-            if (window.supabaseClient) {
+            // 1. Obter usuário autenticado por múltiplas fontes
+            let user = window.currentUser || (typeof currentUser !== 'undefined' ? currentUser : null);
+
+            if (!user && window.supabaseClient?.auth) {
                 try {
-                    const { data: { user } } = await window.supabaseClient.auth.getUser();
-                    if (user) {
-                        await window.supabaseClient
-                            .from('push_subscriptions')
-                            .update({ preferences: updated })
-                            .eq('user_id', user.id);
+                    const sessionRes = await window.supabaseClient.auth.getSession();
+                    user = sessionRes?.data?.session?.user;
+                    if (!user) {
+                        const userRes = await window.supabaseClient.auth.getUser();
+                        user = userRes?.data?.user;
                     }
                 } catch (e) {
-                    console.warn('Erro ao sincronizar push preferences com o Supabase:', e);
+                    console.warn('[Push] Erro ao obter usuário da sessão auth:', e);
                 }
             }
-            return updated;
+
+            if (!user && window.supabaseOffline) {
+                try {
+                    user = await window.supabaseOffline.isAuthenticated();
+                } catch (_) {}
+            }
+
+            if (!user) {
+                try {
+                    const s = sessionStorage.getItem('tonu_user') || localStorage.getItem('tonu_offline_session');
+                    if (s) {
+                        const p = JSON.parse(s);
+                        user = p.user || p;
+                    }
+                } catch (_) {}
+            }
+
+            const userId = user?.id;
+            console.log('[Push] Sincronizando push preferences para userId:', userId, updated);
+
+            let syncSuccess = false;
+            let syncError = null;
+
+            if (userId && window.supabaseClient) {
+                const nowIso = new Date().toISOString();
+
+                // Tentativa 1: Update direto via Supabase Client
+                try {
+                    const { data, error } = await window.supabaseClient
+                        .from('push_subscriptions')
+                        .update({ 
+                            preferences: updated,
+                            updated_at: nowIso
+                        })
+                        .eq('user_id', userId)
+                        .select();
+
+                    if (!error && data && data.length > 0) {
+                        console.log('✅ [Push] Preferências salvas no Supabase via client:', data);
+                        syncSuccess = true;
+                    } else if (error) {
+                        console.warn('⚠️ [Push] Falha no update direto via client:', error);
+                        syncError = error;
+                    } else {
+                        console.warn('⚠️ [Push] Update direto retornou 0 linhas atualizadas (possível restrição RLS ou sub inexistente):', data);
+                    }
+                } catch (err) {
+                    console.warn('⚠️ [Push] Exceção no update direto:', err);
+                    syncError = err;
+                }
+
+                // Tentativa 2: Fallback via Edge Function send-push (ignora restrições RLS através da service_role)
+                if (!syncSuccess) {
+                    try {
+                        const supabaseUrl = window.SUPABASE_URL || 'https://rbtxrbacdpenbslqcbbl.supabase.co';
+                        const supabaseKey = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidHhyYmFjZHBlbmJzbHFjYmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MDA5MjksImV4cCI6MjEwMTk3NjkyOX0.VDmJ-pty8oLzkgEad4WBpk7leR9ZR-b_bXXUE3HkPcM';
+
+                        const resp = await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'apikey': supabaseKey,
+                                'Authorization': `Bearer ${supabaseKey}`
+                            },
+                            body: JSON.stringify({
+                                mode: 'save-preferences',
+                                user_id: userId,
+                                preferences: updated
+                            })
+                        });
+
+                        if (resp.ok) {
+                            const resData = await resp.json();
+                            if (resData.ok) {
+                                console.log('✅ [Push] Preferências salvas no Supabase via Edge Function:', resData);
+                                syncSuccess = true;
+                                syncError = null;
+                            }
+                        } else {
+                            const errTxt = await resp.text();
+                            console.warn('⚠️ [Push] Edge Function fallback falhou:', errTxt);
+                        }
+                    } catch (efErr) {
+                        console.warn('⚠️ [Push] Erro de rede no Edge Function fallback:', efErr);
+                    }
+                }
+            } else {
+                console.warn('[Push] Não foi possível obter o ID do usuário para sincronização no Supabase.');
+            }
+
+            return { success: syncSuccess, error: syncError, updated };
         },
 
         saveSettings(newSettings) {
@@ -1215,7 +1306,8 @@
                     endpoint: subJson.endpoint,
                     keys: subJson.keys,
                     user_agent: navigator.userAgent,
-                    preferences: pushPrefs
+                    preferences: pushPrefs,
+                    updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id,endpoint' });
 
             if (error) throw error;

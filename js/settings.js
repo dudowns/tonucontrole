@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         currentUser = user;
+        window.currentUser = user;
         console.log('✅ Usuário autenticado:', currentUser.email);
     } catch (e) {
         console.error('❌ Erro na autenticação:', e);
@@ -60,6 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadProfile();
     await loadStats();
     renderNotificationSettingsUI();
+    await syncPushPreferencesFromSupabase();
     renderBiometricsSettingsUI();
     renderPinSettingsUI();
     renderSecurityStatusUI();
@@ -554,6 +556,31 @@ function updateNotificationSettings() {
     showToast('Configurações salvas! ✅', 'success');
 }
 
+async function syncPushPreferencesFromSupabase() {
+    if (!window.supabaseClient || !currentUser?.id) return;
+    try {
+        const { data, error } = await window.supabaseClient
+            .from('push_subscriptions')
+            .select('preferences')
+            .eq('user_id', currentUser.id)
+            .limit(1);
+
+        if (!error && data && data.length > 0 && data[0].preferences) {
+            const remotePrefs = data[0].preferences;
+            if (window.billNotificationManager) {
+                const merged = Object.assign(window.billNotificationManager.getPushPreferences(), remotePrefs);
+                window.billNotificationManager.settings.pushPrefs = merged;
+                try {
+                    localStorage.setItem('tonu_notif_settings', JSON.stringify(window.billNotificationManager.settings));
+                } catch (_) {}
+                renderNotificationSettingsUI();
+            }
+        }
+    } catch (e) {
+        console.warn('[Settings] Erro ao sincronizar preferências de push do Supabase:', e);
+    }
+}
+
 async function updatePushGranularSettings() {
     const bills = document.getElementById('togglePushBills')?.checked ?? true;
     const dividends_credited = document.getElementById('togglePushDivsCredited')?.checked ?? true;
@@ -563,8 +590,14 @@ async function updatePushGranularSettings() {
 
     const prefs = { bills, dividends_credited, dividends_upcoming, goals, budgets };
 
+    console.log('[Settings] Atualizando preferências de push:', prefs);
     if (window.savePushPreferences) {
-        await window.savePushPreferences(prefs);
+        const res = await window.savePushPreferences(prefs);
+        if (res && res.success === false) {
+            console.warn('[Settings] Falha ao persistir no Supabase:', res.error);
+            showToast('⚠️ Salvo no navegador, mas houve falha ao sincronizar com o banco.', 'warning');
+            return;
+        }
     }
     showToast('Preferências de push salvas! ✅', 'success');
 }
@@ -587,6 +620,7 @@ window.requestPushPermissionFromSettings = requestPushPermissionFromSettings;
 window.toggleReminderDay = toggleReminderDay;
 window.updateNotificationSettings = updateNotificationSettings;
 window.updatePushGranularSettings = updatePushGranularSettings;
+window.syncPushPreferencesFromSupabase = syncPushPreferencesFromSupabase;
 window.testPushNotificationFromSettings = testPushNotificationFromSettings;
 window.checkBillsFromSettings = checkBillsFromSettings;
 

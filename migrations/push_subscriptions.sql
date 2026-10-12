@@ -16,24 +16,29 @@ CREATE INDEX IF NOT EXISTS idx_push_subs_user_id ON public.push_subscriptions(us
 -- Habilitar RLS
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
--- Policy: usuário só vê/edita suas próprias subs
+-- Policies idempotentes
+DROP POLICY IF EXISTS "Users can view own subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Users can view own subscriptions" 
     ON public.push_subscriptions FOR SELECT 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Users can insert own subscriptions" 
     ON public.push_subscriptions FOR INSERT 
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Users can update own subscriptions" 
     ON public.push_subscriptions FOR UPDATE 
-    USING (auth.uid() = user_id);
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Users can delete own subscriptions" 
     ON public.push_subscriptions FOR DELETE 
     USING (auth.uid() = user_id);
 
--- Trigger para updated_at
+-- Trigger para updated_at automático
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -42,6 +47,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_push_subs_updated_at ON public.push_subscriptions;
 CREATE TRIGGER update_push_subs_updated_at
     BEFORE UPDATE ON public.push_subscriptions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

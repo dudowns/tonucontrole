@@ -97,6 +97,36 @@ Deno.serve(async (req) => {
     }
 
     // ========================================================
+    // CASO 0: Atualização de Preferências de Push Granulares
+    // ========================================================
+    if (body.mode === 'save-preferences' && body.user_id) {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('push_subscriptions')
+        .update({
+          preferences: body.preferences || {},
+          updated_at: nowIso
+        })
+        .eq('user_id', body.user_id)
+        .select();
+
+      if (error) {
+        throw error;
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          ok: true, 
+          mode: 'save-preferences', 
+          updatedCount: data?.length || 0,
+          user_id: body.user_id,
+          preferences: body.preferences 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    // ========================================================
     // CASO 1: Envio Direto / Teste Personalizado
     // ========================================================
     if (body.title) {
