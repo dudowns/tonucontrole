@@ -1110,6 +1110,16 @@ async function saveDividend(e) {
             window.checkNotifications();
         }
 
+        if (typeof window.sendRealtimePush === 'function') {
+            const valFormatted = typeof formatCurrency === 'function' ? formatCurrency(netValue || totalValue) : `R$ ${netValue || totalValue}`;
+            window.sendRealtimePush({
+                title: '💰 Provento Registrado!',
+                body: `${ticker}: ${type} no valor de ${valFormatted}`,
+                url: '/pages/investments.html',
+                tag: `dividend-realtime-${Date.now()}`
+            });
+        }
+
     } catch (error) {
         console.error('❌ Erro ao salvar provento:', error);
         showToast('❌ Erro ao salvar provento', 'error');

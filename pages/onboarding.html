@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#6C5CE7">
+    <title>Primeiros Passos | TonuControle</title>
+
+    <link rel="manifest" href="../manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png">
+
+    <!-- Fontes e Ícones -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/dark-theme.css">
+
+    <!-- Theme Init -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
+
+    <style>
+        body {
+            background: var(--color-bg, #f6f7fb);
+            color: var(--color-text, #2d3436);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px 16px;
+            box-sizing: border-box;
+        }
+
+        .onboarding-card {
+            background: var(--color-surface, #ffffff);
+            border: 1px solid var(--color-border, #e8ecf1);
+            border-radius: 20px;
+            max-width: 560px;
+            width: 100%;
+            padding: 36px 32px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.06);
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .onboarding-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #6C5CE7, #00B894, #0984E3);
+        }
+
+        .onboarding-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .onboarding-logo {
+            width: 54px;
+            height: 54px;
+            margin: 0 auto 16px;
+            display: block;
+        }
+
+        .onboarding-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--color-text, #2d3436);
+            margin: 0 0 8px 0;
+            letter-spacing: -0.02em;
+        }
+
+        .onboarding-subtitle {
+            font-size: 14px;
+            color: var(--color-text-muted, #64748b);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        /* Barra de Progresso */
+        .progress-box {
+            background: var(--color-bg, #f6f7fb);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 24px;
+            border: 1px solid var(--color-border-light, #edf2f7);
+        }
+
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--color-text-light, #636e72);
+        }
+
+        .progress-track {
+            height: 8px;
+            background: var(--color-border, #e2e8f0);
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6C5CE7, #00B894);
+            border-radius: 999px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* Lista de Passos */
+        .steps-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 30px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-radius: 14px;
+            border: 1px solid var(--color-border, #e8ecf1);
+            background: var(--color-surface, #ffffff);
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .step-item:hover {
+            border-color: #6C5CE7;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(108, 92, 231, 0.08);
+        }
+
+        .step-item.completed {
+            border-color: #00B894;
+            background: rgba(0, 184, 148, 0.04);
+        }
+
+        .step-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .step-badge {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            flex-shrink: 0;
+            background: rgba(108, 92, 231, 0.1);
+            color: #6C5CE7;
+            transition: all 0.2s ease;
+        }
+
+        .step-item.completed .step-badge {
+            background: #00B894;
+            color: #ffffff;
+        }
+
+        .step-info h4 {
+            margin: 0 0 3px 0;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--color-text, #2d3436);
+        }
+
+        .step-info p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--color-text-muted, #64748b);
+        }
+
+        .step-action-arrow {
+            color: var(--color-text-muted, #94a3b8);
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+
+        .step-item:hover .step-action-arrow {
+            color: #6C5CE7;
+            transform: translateX(3px);
+        }
+
+        /* Ações Finais */
+        .onboarding-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-top: 1px solid var(--color-border-light, #f1f2f6);
+            padding-top: 20px;
+        }
+
+        .btn-skip {
+            background: none;
+            border: none;
+            color: var(--color-text-muted, #64748b);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-skip:hover {
+            color: var(--color-text, #2d3436);
+            background: var(--color-bg, #f6f7fb);
+        }
+
+        .btn-finish {
+            background: #6C5CE7;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-finish:hover {
+            background: #5848c7;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(108, 92, 231, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="onboarding-card">
+        <div class="onboarding-header">
+            <img src="../icons/logo.png" alt="TonuControle" class="onboarding-logo">
+            <h1 class="onboarding-title">Boas-vindas ao TonuControle! 🚀</h1>
+            <p class="onboarding-subtitle">Vamos configurar seu controle financeiro inteligente em apenas 3 passos:</p>
+        </div>
+
+        <div class="progress-box">
+            <div class="progress-labels">
+                <span>Progresso da Configuração</span>
+                <span id="progressText">0 de 3 concluídos (0%)</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div class="steps-list">
+            <!-- Passo 1 -->
+            <a href="settings.html" class="step-item" id="step1">
+                <div class="step-left">
+                    <div class="step-badge" id="badgeStep1">1</div>
+                    <div class="step-info">
+                        <h4>Cadastre sua 1ª Categoria</h4>
+                        <p>Alimentação, Moradia, Lazer ou crie sua própria categoria</p>
+                    </div>
+                </div>
+                <div class="step-action-arrow"><i class="fas fa-chevron-right"></i></div>
+            </a>
+
+            <!-- Passo 2 -->
+            <a href="transactions.html" class="step-item" id="step2">
+                <div class="step-left">
+                    <div class="step-badge" id="badgeStep2">2</div>
+                    <div class="step-info">
+                        <h4>Adicione sua 1ª Transação</h4>
+                        <p>Registre uma receita ou despesa recente para inaugurar seu saldo</p>
+                    </div>
+                </div>
+                <div class="step-action-arrow"><i class="fas fa-chevron-right"></i></div>
+            </a>
+
+            <!-- Passo 3 -->
+            <a href="goals.html" class="step-item" id="step3">
+                <div class="step-left">
+                    <div class="step-badge" id="badgeStep3">3</div>
+                    <div class="step-info">
+                        <h4>Crie sua 1ª Meta Financeira</h4>
+                        <p>Reserva de emergência, viagem ou aquisição dos sonhos</p>
+                    </div>
+                </div>
+                <div class="step-action-arrow"><i class="fas fa-chevron-right"></i></div>
+            </a>
+        </div>
+
+        <div class="onboarding-actions">
+            <button class="btn-skip" onclick="finishOnboarding()">Pular por agora</button>
+            <button class="btn-finish" onclick="finishOnboarding()">
+                Ir para o Dashboard <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase.js"></script>
+
+    <script>
+        function finishOnboarding() {
+            try {
+                localStorage.setItem('tonu_onboarding_done', 'true');
+            } catch (e) {}
+            window.location.href = 'dashboard.html';
+        }
+
+        async function checkOnboardingProgress() {
+            let completedSteps = 0;
+
+            try {
+                const s = localStorage.getItem('tonu_categories') || localStorage.getItem('tonu_transactions');
+                let user = null;
+                if (window.supabaseClient?.auth) {
+                    const sessionRes = await window.supabaseClient.auth.getSession();
+                    user = sessionRes?.data?.session?.user;
+                }
+
+                if (user && window.supabaseClient) {
+                    const [catRes, txRes, goalRes] = await Promise.all([
+                        window.supabaseClient.from('categories').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+                        window.supabaseClient.from('transactions').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+                        window.supabaseClient.from('goals').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
+                    ]);
+
+                    if ((catRes.count || 0) > 0) markStepComplete(1);
+                    if ((txRes.count || 0) > 0) markStepComplete(2);
+                    if ((goalRes.count || 0) > 0) markStepComplete(3);
+                } else {
+                    // Verificação local offline
+                    if (localStorage.getItem('tonu_categories')) markStepComplete(1);
+                    if (localStorage.getItem('tonu_transactions')) markStepComplete(2);
+                    if (localStorage.getItem('tonu_goals')) markStepComplete(3);
+                }
+            } catch (e) {
+                console.warn('Erro ao verificar progresso onboarding:', e);
+            }
+        }
+
+        function markStepComplete(stepNum) {
+            const item = document.getElementById(`step${stepNum}`);
+            const badge = document.getElementById(`badgeStep${stepNum}`);
+            if (item && badge) {
+                item.classList.add('completed');
+                badge.innerHTML = '<i class="fas fa-check"></i>';
+            }
+            updateProgressBar();
+        }
+
+        function updateProgressBar() {
+            const total = 3;
+            const completed = document.querySelectorAll('.step-item.completed').length;
+            const pct = Math.round((completed / total) * 100);
+
+            const fill = document.getElementById('progressFill');
+            const txt = document.getElementById('progressText');
+            if (fill) fill.style.width = pct + '%';
+            if (txt) txt.textContent = `${completed} de ${total} concluídos (${pct}%)`;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateProgressBar();
+            setTimeout(checkOnboardingProgress, 300);
+        });
+    </script>
+</body>
+
+</html>

@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       urgency: 'high',
       headers: {
         'Urgency': 'high',
-        'X-WNS-PRIORITY': 'high',
+        'X-WNS-PRIORITY': '1',
         'X-WNS-Type': 'wns/toast'
       }
     };
@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     const results = { sent: 0, failed: 0, removed: 0, subsFound: 0 };
 
     // Helper para envio seguro de notificação por usuário com filtro de preferências
-    async function sendPushToUser(userId: string, payloadObj: PushPayload, category?: string) {
+    async function sendPushToUser(userId: string, payloadObj: PushPayload, category?: string, requiredDayBefore?: number) {
       const { data: subs } = await supabase
         .from('push_subscriptions')
         .select('*')
@@ -70,11 +70,35 @@ Deno.serve(async (req) => {
         tag: payloadObj.tag || 'general-push'
       });
 
+      // Gravar no histórico notification_log antes do envio (falhas não bloqueiam push)
+      try {
+        await supabase.from('notification_log').insert({
+          user_id: userId,
+          title: payloadObj.title,
+          body: payloadObj.body || '',
+          type: category || 'general',
+          url: payloadObj.url || '/pages/dashboard.html',
+          icon: payloadObj.icon || '/icons/icon-192x192.png'
+        });
+      } catch (logErr) {
+        console.warn('[send-push] Falha ao gravar notification_log:', logErr);
+      }
+
       for (const sub of subs) {
         // Se o usuário desmarcou esta categoria no app, pula o envio
         const prefs = sub.preferences || {};
         if (category && prefs[category] === false) {
           continue;
+        }
+
+        // Validação de preferência de dias antes (remind_days_before)
+        if (requiredDayBefore !== undefined) {
+          const allowedDays = Array.isArray(prefs.remind_days_before)
+            ? prefs.remind_days_before
+            : [0, 1, 2, 3];
+          if (!allowedDays.includes(requiredDayBefore)) {
+            continue;
+          }
         }
 
         results.subsFound++;
@@ -186,18 +210,19 @@ Deno.serve(async (req) => {
     const in3DaysStr = in3DaysDate.toISOString().split('T')[0];
 
     // --------------------------------------------------------
-    // A) Contas em atraso / Vencimento
+    // A) Contas em atraso e Próximas ao Vencimento
     // --------------------------------------------------------
-    const { data: bills } = await supabase
+    // A.1) Contas já vencidas (data anterior a hoje)
+    const { data: overdueBills } = await supabase
       .from('transactions')
       .select('id, user_id, description, amount, date')
       .eq('is_bill', true)
       .eq('paid', false)
-      .lte('date', today);
+      .lt('date', today);
 
-    if (bills && bills.length > 0) {
-      const billsByUser = new Map<string, typeof bills>();
-      for (const b of bills) {
+    if (overdueBills && overdueBills.length > 0) {
+      const billsByUser = new Map<string, typeof overdueBills>();
+      for (const b of overdueBills) {
         if (!billsByUser.has(b.user_id)) billsByUser.set(b.user_id, []);
         billsByUser.get(b.user_id)!.push(b);
       }
@@ -212,6 +237,38 @@ Deno.serve(async (req) => {
           icon: '/icons/icon-192x192.png',
           tag: 'bills-overdue'
         }, 'bills');
+      }
+    }
+
+    // A.2) Contas que vencem hoje ou nos próximos dias (0 a 7 dias)
+    const in7DaysDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const in7DaysStr = in7DaysDate.toISOString().split('T')[0];
+
+    const { data: upcomingBills } = await supabase
+      .from('transactions')
+      .select('id, user_id, description, amount, date')
+      .eq('is_bill', true)
+      .eq('paid', false)
+      .gte('date', today)
+      .lte('date', in7DaysStr);
+
+    if (upcomingBills && upcomingBills.length > 0) {
+      for (const b of upcomingBills) {
+        const diffDays = Math.round((new Date(b.date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24));
+        const dayLabel = diffDays === 0 ? 'hoje' : (diffDays === 1 ? '1 dia' : `${diffDays} dias`);
+        const title = diffDays === 0
+          ? `📅 Vence hoje: ${b.description || 'Conta a pagar'}`
+          : `📅 Vence em ${diffDays} dia(s): ${b.description || 'Conta a pagar'}`;
+        const amountFormatted = Math.abs(Number(b.amount || 0)).toFixed(2).replace('.', ',');
+        const dateFormatted = b.date.split('-').reverse().join('/');
+
+        await sendPushToUser(b.user_id, {
+          title,
+          body: `Valor de R$ ${amountFormatted} (${dayLabel} - ${dateFormatted}).`,
+          url: '/pages/bills.html',
+          icon: '/icons/icon-192x192.png',
+          tag: `bill-due-${b.id}-${diffDays}d`
+        }, 'bills', diffDays);
       }
     }
 
@@ -244,34 +301,39 @@ Deno.serve(async (req) => {
     }
 
     // --------------------------------------------------------
-    // C) Proventos Previstos (1 a 3 dias)
+    // C) Proventos Previstos (1 a 3 dias - usando date_com se existir)
     // --------------------------------------------------------
     const tomorrowDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
 
     const { data: upcomingDividends } = await supabase
       .from('dividends')
-      .select('id, user_id, ticker, total_value, net_value, date')
-      .gte('date', tomorrowStr)
-      .lte('date', in3DaysStr);
+      .select('id, user_id, ticker, total_value, net_value, date, date_com');
 
     if (upcomingDividends && upcomingDividends.length > 0) {
-      const upcomingByUser = new Map<string, typeof upcomingDividends>();
-      for (const d of upcomingDividends) {
-        if (!upcomingByUser.has(d.user_id)) upcomingByUser.set(d.user_id, []);
-        upcomingByUser.get(d.user_id)!.push(d);
-      }
+      const filteredDividends = upcomingDividends.filter(d => {
+        const effectiveDate = d.date_com || d.date;
+        return effectiveDate >= tomorrowStr && effectiveDate <= in3DaysStr;
+      });
 
-      for (const [userId, userDivs] of upcomingByUser) {
-        const totalUpcoming = userDivs.reduce((s, d) => s + Number(d.net_value || d.total_value || 0), 0);
-        const count = userDivs.length;
-        await sendPushToUser(userId, {
-          title: `📅 ${count} provento(s) previsto(s)`,
-          body: `Previsão de R$ ${totalUpcoming.toFixed(2).replace('.', ',')} nos próximos 3 dias.`,
-          url: '/pages/investments.html',
-          icon: '/icons/icon-192x192.png',
-          tag: `dividends-upcoming-${today}`
-        }, 'dividends_upcoming');
+      if (filteredDividends.length > 0) {
+        const upcomingByUser = new Map<string, typeof filteredDividends>();
+        for (const d of filteredDividends) {
+          if (!upcomingByUser.has(d.user_id)) upcomingByUser.set(d.user_id, []);
+          upcomingByUser.get(d.user_id)!.push(d);
+        }
+
+        for (const [userId, userDivs] of upcomingByUser) {
+          const totalUpcoming = userDivs.reduce((s, d) => s + Number(d.net_value || d.total_value || 0), 0);
+          const count = userDivs.length;
+          await sendPushToUser(userId, {
+            title: `📅 ${count} provento(s) previsto(s)`,
+            body: `Previsão de R$ ${totalUpcoming.toFixed(2).replace('.', ',')} nos próximos 3 dias.`,
+            url: '/pages/investments.html',
+            icon: '/icons/icon-192x192.png',
+            tag: `dividends-upcoming-${today}`
+          }, 'dividends_upcoming');
+        }
       }
     }
 

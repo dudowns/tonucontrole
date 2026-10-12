@@ -317,6 +317,26 @@
     transform: scale(1.08);
 }
 
+.settings-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: var(--color-danger, #FF7675);
+    color: #ffffff !important;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 9999px;
+    margin-left: 6px;
+    line-height: 1;
+}
+
+.settings-tab-badge.hidden {
+    display: none !important;
+}
+
 /* ============================================
    SEÇÕES DE CONFIGURAÇÃO
    ============================================ */

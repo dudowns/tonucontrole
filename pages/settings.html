@@ -263,6 +263,7 @@
                             </button>
                             <button class="settings-tab-btn" data-tab="notifications" onclick="switchSettingsCategory('notifications', this)" role="tab" aria-selected="false">
                                 <i class="fas fa-bell" aria-hidden="true"></i> Notificações
+                                <span class="settings-tab-badge hidden" id="settingsNotifTabBadge">0</span>
                             </button>
                             <button class="settings-tab-btn" data-tab="security" onclick="switchSettingsCategory('security', this)" role="tab" aria-selected="false">
                                 <i class="fas fa-shield-alt" aria-hidden="true"></i> Segurança
@@ -602,6 +603,38 @@
                                     aria-label="Verificar contas">
                                     <i class="fas fa-sync-alt" aria-hidden="true"></i> Verificar Contas Agora
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- CARD: HISTÓRICO DE NOTIFICAÇÕES -->
+                        <div class="settings-card" id="notifHistoryCard" style="margin-top: 20px;">
+                            <div class="settings-card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                                <div style="display:flex; align-items:center; gap:12px;">
+                                    <div class="settings-card-icon info">
+                                        <i class="fas fa-history" aria-hidden="true"></i>
+                                    </div>
+                                    <div class="settings-card-header-content">
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <h3>Histórico de Notificações</h3>
+                                            <span class="badge" id="notifHistoryCountBadge" style="background: rgba(108, 92, 231, 0.1); color: var(--color-primary, #6C5CE7); font-size: 11px; padding: 2px 8px; border-radius: 999px;">0</span>
+                                        </div>
+                                        <p>Registro das últimas 50 notificações enviadas para a sua conta.</p>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:8px;">
+                                    <button class="btn btn-outline btn-sm" onclick="window.markAllHistoryRead()" title="Marcar todas como lidas">
+                                        <i class="fas fa-check-double"></i> Marcar lidas
+                                    </button>
+                                    <button class="btn btn-outline btn-sm" onclick="window.clearNotificationHistory()" title="Limpar histórico">
+                                        <i class="fas fa-trash-alt"></i> Limpar histórico
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="notifHistoryListContainer" style="margin-top: 16px; max-height: 400px; overflow-y: auto;">
+                                <div style="text-align:center; padding:24px; color:var(--color-text-muted, #64748b);">
+                                    <i class="fas fa-spinner fa-spin"></i> Carregando histórico...
+                                </div>
                             </div>
                         </div>
                     </section>

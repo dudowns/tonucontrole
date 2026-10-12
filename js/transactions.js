@@ -914,6 +914,17 @@
                 window.checkNotifications();
             }
 
+            if (typeof window.sendRealtimePush === 'function') {
+                const isExpense = type === 'expense';
+                const formattedAmt = typeof formatCurrency === 'function' ? formatCurrency(Math.abs(amount)) : `R$ ${Math.abs(amount)}`;
+                window.sendRealtimePush({
+                    title: isExpense ? '💸 Despesa Registrada' : '💰 Receita Registrada',
+                    body: `${description} no valor de ${formattedAmt}`,
+                    url: '/pages/transactions.html',
+                    tag: `tx-realtime-${Date.now()}`
+                });
+            }
+
         } catch (err) {
             console.error('❌ Erro ao salvar transação:', err);
             if (window.showToast) window.showToast('Erro ao salvar transação: ' + err.message, 'error');

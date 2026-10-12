@@ -3,6 +3,7 @@
    ============================================ */
 
 /* Botão do Sino de Notificações na Topbar */
+#notifBellBtn,
 .notif-bell-btn {
     position: relative;
     background: transparent;
@@ -16,9 +17,22 @@
     justify-content: center;
     font-size: 15px;
     cursor: pointer;
+    outline: none;
     transition: all var(--transition-fast, 0.15s ease);
 }
 
+#notifBellBtn:focus,
+.notif-bell-btn:focus {
+    outline: none;
+}
+
+#notifBellBtn:focus-visible,
+.notif-bell-btn:focus-visible {
+    outline: 2px solid var(--color-primary, #6C5CE7);
+    outline-offset: 2px;
+}
+
+#notifBellBtn:hover,
 .notif-bell-btn:hover {
     background: var(--color-surface-hover, #F8F9FA);
     border-color: var(--color-primary-light, #A29BFE);
@@ -26,6 +40,7 @@
     transform: translateY(-1px);
 }
 
+#notifBellBtn.active,
 .notif-bell-btn.active {
     background: var(--color-surface-hover, #F8F9FA);
     border-color: var(--color-primary, #6C5CE7);
@@ -33,14 +48,17 @@
     box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
 }
 
+#notifBellBtn.has-unread,
 .notif-bell-btn.has-unread {
     border-color: rgba(108, 92, 231, 0.45);
 }
 
+#notifBellBtn.has-unread i,
 .notif-bell-btn.has-unread i {
-    color: var(--color-primary, #6C5CE7);
+    color: var(--color-primary, #6C5CE7) !important;
 }
 
+#notifBellBtn.has-urgent,
 .notif-bell-btn.has-urgent {
     animation: bellShake 3s infinite ease-in-out;
 }
@@ -78,16 +96,20 @@
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
-    background: var(--color-danger, #FF7675);
-    color: #ffffff;
-    font-size: 10px;
-    font-weight: 700;
+    background: var(--color-danger, #FF7675) !important;
+    color: #ffffff !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
     border-radius: 9999px;
     display: flex;
     align-items: center;
     justify-content: center;
     border: 2px solid #ffffff;
     box-shadow: 0 2px 5px rgba(255, 118, 117, 0.4);
+    z-index: 20;
+    pointer-events: none;
+    box-sizing: border-box;
     animation: badgePulse 2s infinite;
 }
 

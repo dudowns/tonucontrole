@@ -49,6 +49,14 @@
         } catch {}
     }
 
+    function markAsReadSilently(id) {
+        try {
+            const map = getReadIds();
+            map[id] = Date.now();
+            localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(map));
+        } catch {}
+    }
+
     // Helper: format currency safely
     function formatCurrency(val) {
         if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
@@ -329,7 +337,7 @@
     function updateNotificationBadge() {
         const readIds = getReadIds();
         const totalCount = Array.isArray(notifications) ? notifications.length : 0;
-        const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !readIds[n.id]).length : 0;
+        const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !readIds[n.id] && !n.isRead).length : 0;
 
         // 1. Atualizar contadores das abas no menu dropdown ("Todas (X)" e "Não lidas (Y)")
         const cntAllEl = document.getElementById('notifCountAll');
@@ -353,14 +361,37 @@
             }
         });
 
-        // 3. Atualizar botões de sino (destaque/animação quando há não lidas ou urgentes)
+        // 3. Atualizar marcadores nas abas de Configurações (Desktop e Mobile)
+        const settingsBadges = document.querySelectorAll('#settingsNotifTabBadge, #mobileSettingsNotifBadge');
+        settingsBadges.forEach(b => {
+            if (unreadCount > 0) {
+                b.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+                b.classList.remove('hidden');
+                b.style.display = 'inline-flex';
+            } else {
+                b.textContent = '0';
+                b.classList.add('hidden');
+                b.style.display = 'none';
+            }
+        });
+
+        // 4. Atualizar badge contador no card de Histórico de Notificações
+        const historyCountBadge = document.getElementById('notifHistoryCountBadge');
+        if (historyCountBadge) {
+            historyCountBadge.textContent = unreadCount > 0 ? `${unreadCount} não lida(s)` : `${totalCount} total`;
+        }
+
+        // 5. Atualizar botões de sino (destaque/animação quando há não lidas ou urgentes)
         const bellButtons = document.querySelectorAll('#notifBellBtn, .notif-bell-btn');
-        const hasUrgent = Array.isArray(notifications) && notifications.some(n => n.type === 'danger' && !readIds[n.id]);
+        const hasUrgent = Array.isArray(notifications) && notifications.some(n => n.type === 'danger' && !readIds[n.id] && !n.isRead);
         bellButtons.forEach(btn => {
             if (unreadCount > 0) {
                 btn.classList.add('has-unread');
             } else {
                 btn.classList.remove('has-unread');
+                if (!isDropdownOpen) {
+                    btn.classList.remove('active');
+                }
             }
             if (hasUrgent) {
                 btn.classList.add('has-urgent');
@@ -397,6 +428,19 @@
         closeNotificationDropdown();
 
         if (notif) {
+            if (notif.logId && window.supabaseClient) {
+                window.supabaseClient
+                    .from('notification_log')
+                    .update({ read_at: new Date().toISOString() })
+                    .eq('id', notif.logId)
+                    .then(() => {
+                        if (typeof window.loadNotificationHistory === 'function') {
+                            window.loadNotificationHistory();
+                        }
+                    })
+                    .catch(() => {});
+            }
+
             if (notif.action === 'openBudgetModal') {
                 window.location.href = 'settings.html';
                 try { localStorage.setItem('tonu_settings_active_tab', 'budgets'); } catch {}
@@ -930,6 +974,46 @@
                 });
             }
 
+            // 5. Integração com histórico do Supabase (notification_log)
+            if (user && window.supabaseClient) {
+                try {
+                    const { data: logData } = await window.supabaseClient
+                        .from('notification_log')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .is('dismissed_at', null)
+                        .order('created_at', { ascending: false })
+                        .limit(50);
+
+                    if (logData && logData.length > 0) {
+                        logData.forEach(item => {
+                            const notifId = 'log_' + item.id;
+                            if (!dismissed[notifId]) {
+                                if (item.read_at) {
+                                    markAsReadSilently(notifId);
+                                }
+                                notifications.push({
+                                    id: notifId,
+                                    logId: item.id,
+                                    type: item.type === 'danger' ? 'danger' : (item.type === 'bills' ? 'warning' : 'info'),
+                                    tag: item.type === 'bills' ? 'Conta' : (item.type === 'dividends_credited' ? 'Provento' : (item.type === 'goals' ? 'Meta' : 'Alerta')),
+                                    icon: item.icon || (item.type === 'danger' ? 'fa-exclamation-circle' : (item.type === 'bills' ? 'fa-file-invoice-dollar' : 'fa-bell')),
+                                    title: item.title,
+                                    message: item.body,
+                                    link: item.url || '#',
+                                    actionBtnText: 'Visualizar',
+                                    isFromLog: true,
+                                    createdAt: item.created_at,
+                                    isRead: !!item.read_at
+                                });
+                            }
+                        });
+                    }
+                } catch (logErr) {
+                    console.warn('[Notifications] Erro ao integrar notification_log em checkNotifications:', logErr);
+                }
+            }
+
         } catch (err) {
             console.warn('⚠️ Erro ao checar notificações:', err);
         }
@@ -950,8 +1034,227 @@
         const banner = document.getElementById('dueBillsWarningBanner');
         if (banner) banner.style.display = 'none';
 
+        if (window.supabaseClient) {
+            window.supabaseClient.auth.getSession().then(s => {
+                const uid = s?.data?.session?.user?.id || window.currentUser?.id;
+                if (uid) {
+                    window.supabaseClient
+                        .from('notification_log')
+                        .update({ dismissed_at: new Date().toISOString() })
+                        .eq('user_id', uid)
+                        .is('dismissed_at', null)
+                        .then(() => {
+                            if (typeof window.loadNotificationHistory === 'function') {
+                                window.loadNotificationHistory();
+                            }
+                        })
+                        .catch(() => {});
+                }
+            }).catch(() => {});
+        }
+
         if (window.showToast) {
             window.showToast('Todas as notificações foram limpas e arquivadas!', 'success');
+        }
+    }
+
+    // ============================================
+    // HISTÓRICO DE NOTIFICAÇÕES (NOTIFICATION LOG)
+    // ============================================
+    function formatRelativeTime(dateIso) {
+        if (!dateIso) return '';
+        const now = Date.now();
+        const diffMs = now - new Date(dateIso).getTime();
+        const diffSec = Math.floor(diffMs / 1000);
+        const diffMin = Math.floor(diffSec / 60);
+        const diffHours = Math.floor(diffMin / 60);
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffSec < 60) return 'há poucos instantes';
+        if (diffMin < 60) return `há ${diffMin} minuto${diffMin > 1 ? 's' : ''}`;
+        if (diffHours < 24) return `há ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
+        if (diffDays === 1) return 'ontem';
+        if (diffDays < 30) return `há ${diffDays} dias`;
+        return new Date(dateIso).toLocaleDateString('pt-BR');
+    }
+
+    async function loadNotificationHistory() {
+        const containers = [
+            document.getElementById('notifHistoryListContainer'),
+            document.getElementById('mobileNotifHistoryListContainer')
+        ].filter(Boolean);
+
+        if (containers.length === 0) return;
+
+        let user = window.currentUser;
+        if (!user && window.supabaseClient?.auth) {
+            try {
+                const s = await window.supabaseClient.auth.getSession();
+                user = s?.data?.session?.user;
+            } catch (_) {}
+        }
+
+        if (!user || !window.supabaseClient) {
+            containers.forEach(c => {
+                c.innerHTML = `
+                    <div style="text-align:center; padding:20px; color:var(--color-text-muted, #64748b);">
+                        <p style="font-size:13px; margin:0;">Faça login para visualizar o histórico de notificações.</p>
+                    </div>
+                `;
+            });
+            return;
+        }
+
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('notification_log')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (error) throw error;
+
+            const historyUnread = data ? data.filter(d => !d.read_at).length : 0;
+            const historyTotal = data ? data.length : 0;
+            const historyBadge = document.getElementById('notifHistoryCountBadge');
+            if (historyBadge) {
+                historyBadge.textContent = historyUnread > 0 ? `${historyUnread} não lida(s)` : `${historyTotal} total`;
+            }
+
+            if (!data || data.length === 0) {
+                containers.forEach(c => {
+                    c.innerHTML = `
+                        <div style="text-align:center; padding:24px; color:var(--color-text-muted, #64748b);">
+                            <i class="fas fa-inbox" style="font-size:24px; opacity:0.5; margin-bottom:8px; display:block;"></i>
+                            <p style="font-size:13px; margin:0;">Nenhum registro de notificação encontrado.</p>
+                        </div>
+                    `;
+                });
+                return;
+            }
+
+            const html = data.map(item => {
+                const isUnread = !item.read_at;
+                const relativeTime = formatRelativeTime(item.created_at);
+                const safeTitle = typeof sanitizeString === 'function' ? sanitizeString(item.title) : item.title;
+                const safeBody = typeof sanitizeString === 'function' ? sanitizeString(item.body) : item.body;
+                const icon = item.type === 'danger' ? 'fa-exclamation-circle' : (item.type === 'bills' ? 'fa-file-invoice-dollar' : (item.type === 'dividends_credited' ? 'fa-money-bill-wave' : (item.type === 'goals' ? 'fa-bullseye' : 'fa-bell')));
+                const iconColor = item.type === 'danger' ? '#FF7675' : (item.type === 'bills' ? '#E17055' : (item.type === 'dividends_credited' ? '#00B894' : '#6C5CE7'));
+
+                return `
+                    <div class="notif-history-item" onclick="window.markHistoryItemRead('${item.id}', '${item.url || ''}')" style="display:flex; align-items:flex-start; gap:12px; padding:10px 12px; border-bottom:1px solid var(--color-border-light, #f1f2f6); cursor:pointer; background:${isUnread ? 'rgba(108, 92, 231, 0.05)' : 'transparent'}; border-radius:8px; transition:background 0.15s ease; margin-bottom:4px;">
+                        <div style="width:32px; height:32px; border-radius:8px; background:${iconColor}22; color:${iconColor}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="fas ${icon}" style="font-size:13px;"></i>
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                <strong style="font-size:13px; color:var(--color-text, #2d3436); font-weight:${isUnread ? '700' : '600'};">${safeTitle}</strong>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span style="font-size:11px; color:var(--color-text-muted, #64748b); white-space:nowrap;">${relativeTime}</span>
+                                    ${isUnread ? '<span style="width:7px; height:7px; background:#0984e3; border-radius:50%; display:inline-block;" title="Não lida"></span>' : ''}
+                                </div>
+                            </div>
+                            <div style="font-size:12px; color:var(--color-text-light, #636e72); margin-top:2px;">${safeBody}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            containers.forEach(c => {
+                c.innerHTML = html;
+            });
+        } catch (err) {
+            console.warn('[Notifications] Erro ao carregar notification_log:', err);
+            containers.forEach(c => {
+                c.innerHTML = `
+                    <div style="text-align:center; padding:20px; color:var(--color-danger, #ff7675);">
+                        <p style="font-size:12px; margin:0;">Não foi possível carregar o histórico de notificações.</p>
+                    </div>
+                `;
+            });
+        }
+    }
+
+    async function markHistoryItemRead(id, url) {
+        if (!window.supabaseClient || !id) return;
+        try {
+            await window.supabaseClient
+                .from('notification_log')
+                .update({ read_at: new Date().toISOString() })
+                .eq('id', id);
+            await loadNotificationHistory();
+            if (url && url !== '#' && isSafeUrl(url)) {
+                window.location.href = url;
+            }
+        } catch (e) {
+            console.warn('[Notifications] Erro ao marcar histórico como lido:', e);
+        }
+    }
+
+    async function markAllHistoryRead() {
+        if (!window.supabaseClient) return;
+        let user = window.currentUser;
+        if (!user && window.supabaseClient?.auth) {
+            try {
+                const s = await window.supabaseClient.auth.getSession();
+                user = s?.data?.session?.user;
+            } catch (_) {}
+        }
+        if (!user) return;
+
+        try {
+            const { error } = await window.supabaseClient
+                .from('notification_log')
+                .update({ read_at: new Date().toISOString() })
+                .eq('user_id', user.id)
+                .is('read_at', null);
+
+            if (error) throw error;
+            notifications.forEach(n => {
+                markAsReadSilently(n.id);
+            });
+            updateNotificationBadge();
+            renderNotificationList();
+            await loadNotificationHistory();
+            if (window.showToast) {
+                window.showToast('Todas as notificações foram marcadas como lidas! ✅', 'success');
+            }
+        } catch (e) {
+            console.warn('[Notifications] Erro ao marcar todas como lidas:', e);
+            if (window.showToast) {
+                window.showToast('Erro ao atualizar histórico.', 'error');
+            }
+        }
+    }
+
+    async function clearNotificationHistory() {
+        if (!window.supabaseClient) return;
+        let user = window.currentUser;
+        if (!user && window.supabaseClient?.auth) {
+            try {
+                const s = await window.supabaseClient.auth.getSession();
+                user = s?.data?.session?.user;
+            } catch (_) {}
+        }
+        if (!user) return;
+
+        try {
+            const { error } = await window.supabaseClient
+                .from('notification_log')
+                .delete()
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+            await loadNotificationHistory();
+            if (window.showToast) {
+                window.showToast('Histórico de notificações limpo com sucesso! 🗑️', 'info');
+            }
+        } catch (e) {
+            console.warn('[Notifications] Erro ao limpar histórico:', e);
+            if (window.showToast) {
+                window.showToast('Erro ao limpar histórico.', 'error');
+            }
         }
     }
 
@@ -994,7 +1297,10 @@
                 dividends_credited: true,
                 dividends_upcoming: true,
                 goals: true,
-                budgets: true
+                budgets: true,
+                remind_days_before: this.settings.remindDaysBefore || [0, 1, 2, 3],
+                remind_overdue: this.settings.remindOverdue !== false,
+                sound: this.settings.sound !== false
             }, this.settings.pushPrefs || {});
         },
 
@@ -1223,6 +1529,39 @@
         });
     }
 
+    // ============================================
+    // PUSH EM TEMPO REAL (REALTIME PUSH)
+    // ============================================
+    async function sendRealtimePush(payload) {
+        if (!navigator.onLine) return;
+        try {
+            if (!window.supabaseClient?.auth) return;
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) return;
+
+            const supabaseUrl = window.SUPABASE_URL || 'https://rbtxrbacdpenbslqcbbl.supabase.co';
+            const supabaseKey = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidHhyYmFjZHBlbmJzbHFjYmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MDA5MjksImV4cCI6MjEwMTk3NjkyOX0.VDmJ-pty8oLzkgEad4WBpk7leR9ZR-b_bXXUE3HkPcM';
+
+            await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': supabaseKey,
+                    'Authorization': 'Bearer ' + session.access_token
+                },
+                body: JSON.stringify({
+                    user_id: session.user.id,
+                    title: payload.title,
+                    body: payload.body,
+                    url: payload.url || '/pages/dashboard.html',
+                    tag: payload.tag || 'realtime-' + Date.now()
+                })
+            });
+        } catch (e) {
+            console.warn('[Realtime Push] Falha:', e);
+        }
+    }
+
     // Exports to Global Scope
     window.toggleNotificationDropdown = toggleNotificationDropdown;
     window.openNotificationDropdown = openNotificationDropdown;
@@ -1236,6 +1575,11 @@
     window.billNotificationManager = billNotificationManager;
     window.showPremiumNotificationBanner = showPremiumNotificationBanner;
     window.playNotificationChime = playChime;
+    window.loadNotificationHistory = loadNotificationHistory;
+    window.markHistoryItemRead = markHistoryItemRead;
+    window.markAllHistoryRead = markAllHistoryRead;
+    window.clearNotificationHistory = clearNotificationHistory;
+    window.sendRealtimePush = sendRealtimePush;
 
     // Initialization
     function initNotificationDropdownSystem() {
@@ -1243,6 +1587,7 @@
         getNotificationBackdrop();
         attachBellListeners();
         setTimeout(checkNotifications, 300);
+        setTimeout(loadNotificationHistory, 500);
         if (typeof window.renderNotificationSettingsUI === 'function') {
             window.renderNotificationSettingsUI();
         }

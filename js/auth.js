@@ -510,7 +510,7 @@ async function handleRegister(event) {
 
         setTimeout(() => {
             if (data.session) {
-                window.location.href = 'pages/dashboard.html';
+                window.location.href = 'pages/onboarding.html';
             } else {
                 window.location.href = 'index.html';
             }

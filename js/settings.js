@@ -487,6 +487,10 @@ function renderNotificationSettingsUI() {
             }
         }
     });
+
+    if (window.loadNotificationHistory) {
+        window.loadNotificationHistory();
+    }
 }
 
 async function togglePushNotifications() {
@@ -537,6 +541,11 @@ function toggleReminderDay(day) {
 
     window.billNotificationManager.saveSettings({ remindDaysBefore: days });
     renderNotificationSettingsUI();
+
+    // Sincronizar com o Supabase (coluna preferences->remind_days_before)
+    if (window.savePushPreferences) {
+        window.savePushPreferences({ remind_days_before: days });
+    }
     showToast('Preferências de antecedência salvas! ✅', 'success');
 }
 
@@ -552,6 +561,13 @@ function updateNotificationSettings() {
         sound,
         vibrate: sound
     });
+
+    if (window.savePushPreferences) {
+        window.savePushPreferences({
+            remind_overdue: remindOverdue,
+            sound: sound
+        });
+    }
 
     showToast('Configurações salvas! ✅', 'success');
 }
@@ -570,6 +586,15 @@ async function syncPushPreferencesFromSupabase() {
             if (window.billNotificationManager) {
                 const merged = Object.assign(window.billNotificationManager.getPushPreferences(), remotePrefs);
                 window.billNotificationManager.settings.pushPrefs = merged;
+                if (Array.isArray(remotePrefs.remind_days_before)) {
+                    window.billNotificationManager.settings.remindDaysBefore = remotePrefs.remind_days_before;
+                }
+                if (remotePrefs.remind_overdue !== undefined) {
+                    window.billNotificationManager.settings.remindOverdue = remotePrefs.remind_overdue;
+                }
+                if (remotePrefs.sound !== undefined) {
+                    window.billNotificationManager.settings.sound = remotePrefs.sound;
+                }
                 try {
                     localStorage.setItem('tonu_notif_settings', JSON.stringify(window.billNotificationManager.settings));
                 } catch (_) {}

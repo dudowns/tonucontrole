@@ -622,6 +622,15 @@ async function saveGoal(event) {
         await loadGoals();
         if (completed && !wasCompleted) {
             triggerCelebration(title, Math.max(target, current));
+            if (typeof window.sendRealtimePush === 'function') {
+                const amtFormatted = typeof formatCurrency === 'function' ? formatCurrency(Math.max(target, current)) : `R$ ${Math.max(target, current)}`;
+                window.sendRealtimePush({
+                    title: `🎯 Meta Concluída: ${title}!`,
+                    body: `Parabéns! Você bateu 100% da sua meta no valor de ${amtFormatted}.`,
+                    url: '/pages/goals.html',
+                    tag: `goal-complete-${Date.now()}`
+                });
+            }
         }
 
     } catch (error) {
@@ -947,6 +956,15 @@ async function submitAddValue(event) {
         await loadGoals();
         if (completed) {
             triggerCelebration(goal.title, newAmount);
+            if (typeof window.sendRealtimePush === 'function') {
+                const amtFormatted = typeof formatCurrency === 'function' ? formatCurrency(newAmount) : `R$ ${newAmount}`;
+                window.sendRealtimePush({
+                    title: `🎯 Meta Concluída: ${goal.title}!`,
+                    body: `Parabéns! Você bateu 100% da sua meta no valor de ${amtFormatted}.`,
+                    url: '/pages/goals.html',
+                    tag: `goal-complete-${Date.now()}`
+                });
+            }
         }
 
     } catch (error) {
