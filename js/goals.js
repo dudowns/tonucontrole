@@ -627,7 +627,7 @@ async function saveGoal(event) {
                 window.sendRealtimePush({
                     title: `🎯 Meta Concluída: ${title}!`,
                     body: `Parabéns! Você bateu 100% da sua meta no valor de ${amtFormatted}.`,
-                    url: '/pages/goals.html',
+                    url: 'pages/goals.html',
                     tag: `goal-complete-${Date.now()}`
                 });
             }
@@ -961,7 +961,7 @@ async function submitAddValue(event) {
                 window.sendRealtimePush({
                     title: `🎯 Meta Concluída: ${goal.title}!`,
                     body: `Parabéns! Você bateu 100% da sua meta no valor de ${amtFormatted}.`,
-                    url: '/pages/goals.html',
+                    url: 'pages/goals.html',
                     tag: `goal-complete-${Date.now()}`
                 });
             }

@@ -123,7 +123,7 @@ self.addEventListener('push', (event) => {
       icon: data.icon || '/icons/icon-192x192.png',
       badge: '/icons/icon-96x96.png',
       tag: data.tag || 'tonu-notification',
-      data: { url: data.url || '/' },
+      data: { url: data.url || './' },
       vibrate: [200, 100, 200],
       requireInteraction: true,
       silent: false,
@@ -134,7 +134,13 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
+  const rawUrl = event.notification.data?.url || './';
+  // Garante que URLs relativas resolvam contra o escopo do PWA (ex: /tonucontrole/)
+  const sanitizedUrl = (typeof rawUrl === 'string' && rawUrl.startsWith('/') && !rawUrl.startsWith('//'))
+    ? rawUrl.replace(/^\/+/, '')
+    : rawUrl;
+  const targetUrl = new URL(sanitizedUrl || './', self.registration.scope).href;
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

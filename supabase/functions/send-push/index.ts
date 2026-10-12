@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       const payloadStr = JSON.stringify({
         title: payloadObj.title,
         body: payloadObj.body || '',
-        url: payloadObj.url || '/pages/dashboard.html',
+        url: payloadObj.url || 'pages/dashboard.html',
         icon: payloadObj.icon || '/icons/icon-192x192.png',
         tag: payloadObj.tag || 'general-push'
       });
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
           title: payloadObj.title,
           body: payloadObj.body || '',
           type: category || 'general',
-          url: payloadObj.url || '/pages/dashboard.html',
+          url: payloadObj.url || 'pages/dashboard.html',
           icon: payloadObj.icon || '/icons/icon-192x192.png'
         });
       } catch (logErr) {
@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
         const payloadStr = JSON.stringify({
           title: body.title,
           body: body.body || '',
-          url: body.url || '/pages/dashboard.html',
+          url: body.url || 'pages/dashboard.html',
           icon: body.icon || '/icons/icon-192x192.png',
           tag: body.tag || 'test-push'
         });
@@ -233,7 +233,7 @@ Deno.serve(async (req) => {
         await sendPushToUser(userId, {
           title: `⚠️ ${count} conta(s) em atraso`,
           body: `Total de R$ ${total.toFixed(2).replace('.', ',')} pendente(s).`,
-          url: '/pages/bills.html',
+          url: 'pages/bills.html',
           icon: '/icons/icon-192x192.png',
           tag: 'bills-overdue'
         }, 'bills');
@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
         await sendPushToUser(b.user_id, {
           title,
           body: `Valor de R$ ${amountFormatted} (${dayLabel} - ${dateFormatted}).`,
-          url: '/pages/bills.html',
+          url: 'pages/bills.html',
           icon: '/icons/icon-192x192.png',
           tag: `bill-due-${b.id}-${diffDays}d`
         }, 'bills', diffDays);
@@ -293,7 +293,7 @@ Deno.serve(async (req) => {
         await sendPushToUser(userId, {
           title: `💰 Provento creditado hoje!`,
           body: `R$ ${totalCredited.toFixed(2).replace('.', ',')} recebido (${tickers}).`,
-          url: '/pages/investments.html',
+          url: 'pages/investments.html',
           icon: '/icons/icon-192x192.png',
           tag: `dividends-credited-${today}`
         }, 'dividends_credited');
@@ -329,7 +329,7 @@ Deno.serve(async (req) => {
           await sendPushToUser(userId, {
             title: `📅 ${count} provento(s) previsto(s)`,
             body: `Previsão de R$ ${totalUpcoming.toFixed(2).replace('.', ',')} nos próximos 3 dias.`,
-            url: '/pages/investments.html',
+            url: 'pages/investments.html',
             icon: '/icons/icon-192x192.png',
             tag: `dividends-upcoming-${today}`
           }, 'dividends_upcoming');
@@ -352,7 +352,7 @@ Deno.serve(async (req) => {
         await sendPushToUser(g.user_id, {
           title: `🎯 Meta Alcançada: ${g.title}!`,
           body: `Parabéns! Você atingiu 100% do objetivo de R$ ${Number(g.target_amount).toFixed(2).replace('.', ',')}.`,
-          url: '/pages/goals.html',
+          url: 'pages/goals.html',
           icon: '/icons/icon-192x192.png',
           tag: `goal-completed-${g.id}`
         }, 'goals');
@@ -387,7 +387,7 @@ Deno.serve(async (req) => {
           await sendPushToUser(b.user_id, {
             title: `🚨 Orçamento Estourado: ${catName}`,
             body: `Você gastou R$ ${catSpent.toFixed(2).replace('.', ',')} (Teto: R$ ${limit.toFixed(2).replace('.', ',')}). Excedeu em R$ ${excesso.toFixed(2).replace('.', ',')}!`,
-            url: '/pages/settings.html',
+            url: 'pages/settings.html',
             icon: '/icons/icon-192x192.png',
             tag: `budget-exceeded-${b.id}`
           }, 'budgets');

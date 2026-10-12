@@ -920,7 +920,7 @@
                 window.sendRealtimePush({
                     title: isExpense ? '💸 Despesa Registrada' : '💰 Receita Registrada',
                     body: `${description} no valor de ${formattedAmt}`,
-                    url: '/pages/transactions.html',
+                    url: 'pages/transactions.html',
                     tag: `tx-realtime-${Date.now()}`
                 });
             }

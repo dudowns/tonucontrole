@@ -1553,7 +1553,7 @@
                     user_id: session.user.id,
                     title: payload.title,
                     body: payload.body,
-                    url: payload.url || '/pages/dashboard.html',
+                    url: payload.url || 'pages/dashboard.html',
                     tag: payload.tag || 'realtime-' + Date.now()
                 })
             });

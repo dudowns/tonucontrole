@@ -1115,7 +1115,7 @@ async function saveDividend(e) {
             window.sendRealtimePush({
                 title: '💰 Provento Registrado!',
                 body: `${ticker}: ${type} no valor de ${valFormatted}`,
-                url: '/pages/investments.html',
+                url: 'pages/investments.html',
                 tag: `dividend-realtime-${Date.now()}`
             });
         }
