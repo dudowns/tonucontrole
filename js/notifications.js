@@ -220,6 +220,7 @@
                 </div>
             `;
             document.body.appendChild(dropdown);
+            updateNotificationBadge();
         }
         return dropdown;
     }
@@ -232,6 +233,7 @@
         const bellBtn = triggerEl || document.getElementById('notifBellBtn') || document.querySelector('.notif-bell-btn');
 
         if (bellBtn) {
+            bellBtn.classList.add('active');
             const rect = bellBtn.getBoundingClientRect();
             dropdown.style.position = 'fixed';
             dropdown.style.top = Math.max(10, rect.bottom + 8) + 'px';
@@ -245,6 +247,7 @@
             dropdown.style.left = 'auto';
         }
 
+        updateNotificationBadge();
         renderNotificationList();
 
         dropdown.classList.remove('hidden');
@@ -265,6 +268,9 @@
     function closeNotificationDropdown() {
         const dropdown = document.getElementById('notifDropdownMenu');
         const backdrop = document.getElementById('notifBackdrop');
+
+        const bellButtons = document.querySelectorAll('#notifBellBtn, .notif-bell-btn');
+        bellButtons.forEach(btn => btn.classList.remove('active'));
 
         if (dropdown) {
             dropdown.classList.remove('show');
@@ -319,14 +325,20 @@
         renderNotificationList();
     }
 
-    // Update Topbar Badge
+    // Update Topbar Badge & Dropdown Counters
     function updateNotificationBadge() {
-        const badges = document.querySelectorAll('#notifBadgeCount, .notif-badge');
-        if (!badges.length) return;
-
         const readIds = getReadIds();
-        const unreadCount = notifications.filter(n => !readIds[n.id]).length;
+        const totalCount = Array.isArray(notifications) ? notifications.length : 0;
+        const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !readIds[n.id]).length : 0;
 
+        // 1. Atualizar contadores das abas no menu dropdown ("Todas (X)" e "Não lidas (Y)")
+        const cntAllEl = document.getElementById('notifCountAll');
+        const cntUnreadEl = document.getElementById('notifCountUnread');
+        if (cntAllEl) cntAllEl.textContent = String(totalCount);
+        if (cntUnreadEl) cntUnreadEl.textContent = String(unreadCount);
+
+        // 2. Atualizar badges de notificação na barra superior / páginas
+        const badges = document.querySelectorAll('#notifBadgeCount, .notif-badge');
         badges.forEach(badge => {
             if (unreadCount > 0) {
                 badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
@@ -341,10 +353,21 @@
             }
         });
 
-        const cntAllEl = document.getElementById('notifCountAll');
-        const cntUnreadEl = document.getElementById('notifCountUnread');
-        if (cntAllEl) cntAllEl.textContent = String(notifications.length);
-        if (cntUnreadEl) cntUnreadEl.textContent = String(unreadCount);
+        // 3. Atualizar botões de sino (destaque/animação quando há não lidas ou urgentes)
+        const bellButtons = document.querySelectorAll('#notifBellBtn, .notif-bell-btn');
+        const hasUrgent = Array.isArray(notifications) && notifications.some(n => n.type === 'danger' && !readIds[n.id]);
+        bellButtons.forEach(btn => {
+            if (unreadCount > 0) {
+                btn.classList.add('has-unread');
+            } else {
+                btn.classList.remove('has-unread');
+            }
+            if (hasUrgent) {
+                btn.classList.add('has-urgent');
+            } else {
+                btn.classList.remove('has-urgent');
+            }
+        });
     }
 
     // Dismiss a single notification permanently
@@ -396,6 +419,9 @@
 
     // Render Notification Items inside Dropdown
     function renderNotificationList() {
+        // Garantir sincronização dos contadores de abas ("Todas", "Não lidas") e badges
+        updateNotificationBadge();
+
         const container = document.getElementById('notifListContainer');
         if (!container) return;
 
@@ -1212,20 +1238,20 @@
     window.playNotificationChime = playChime;
 
     // Initialization
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            attachBellListeners();
-            setTimeout(checkNotifications, 400);
-            if (typeof window.renderNotificationSettingsUI === 'function') {
-                window.renderNotificationSettingsUI();
-            }
-        });
-    } else {
+    function initNotificationDropdownSystem() {
+        getNotificationDropdown();
+        getNotificationBackdrop();
         attachBellListeners();
-        setTimeout(checkNotifications, 400);
+        setTimeout(checkNotifications, 300);
         if (typeof window.renderNotificationSettingsUI === 'function') {
             window.renderNotificationSettingsUI();
         }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initNotificationDropdownSystem);
+    } else {
+        initNotificationDropdownSystem();
     }
 
     // ============================================

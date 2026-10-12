@@ -26,6 +26,21 @@
     transform: translateY(-1px);
 }
 
+.notif-bell-btn.active {
+    background: var(--color-surface-hover, #F8F9FA);
+    border-color: var(--color-primary, #6C5CE7);
+    color: var(--color-primary, #6C5CE7);
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+}
+
+.notif-bell-btn.has-unread {
+    border-color: rgba(108, 92, 231, 0.45);
+}
+
+.notif-bell-btn.has-unread i {
+    color: var(--color-primary, #6C5CE7);
+}
+
 .notif-bell-btn.has-urgent {
     animation: bellShake 3s infinite ease-in-out;
 }
@@ -268,6 +283,18 @@
 
 .notif-item.due-soon {
     border-left: 3px solid var(--color-primary, #6C5CE7);
+}
+
+.notif-item.read {
+    opacity: 0.72;
+}
+
+.notif-item.read:hover {
+    opacity: 1;
+}
+
+.notif-item.unread .notif-item-title {
+    font-weight: 700;
 }
 
 .notif-icon-box {

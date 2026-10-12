@@ -625,6 +625,26 @@ body.dark-theme .notif-dropdown {
     border-color: var(--color-border) !important;
 }
 
+body.dark-theme .notif-sub-tabs {
+    background: var(--color-bg) !important;
+    border-bottom-color: var(--color-border) !important;
+}
+
+body.dark-theme .notif-sub-tab {
+    color: var(--color-text-muted) !important;
+}
+
+body.dark-theme .notif-sub-tab:hover {
+    color: #A78BFA !important;
+    background: rgba(167, 139, 250, 0.12) !important;
+}
+
+body.dark-theme .notif-sub-tab.active {
+    background: var(--color-surface) !important;
+    color: #A78BFA !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
 body.dark-theme .notif-header {
     background: var(--color-bg) !important;
     border-bottom-color: var(--color-border) !important;
