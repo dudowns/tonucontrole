@@ -157,7 +157,8 @@ function formatDate(date, format = 'short') {
 }
 
 function getToday() {
-    return new Date().toISOString().split('T')[0];
+    const now = new Date();
+    return (typeof now.toLocaleDateString === 'function') ? now.toLocaleDateString('sv') : now.toISOString().split('T')[0];
 }
 
 function stripHTML(str) {

@@ -326,6 +326,9 @@
 
     <!-- FILTRO RÁPIDO -->
     <div class="filter-chips">
+        <button class="chip" id="btnToggleSelectMobile" onclick="toggleBillSelectionModeMobile()" style="border-color:#6C5CE7; color:#6C5CE7; font-weight:700;">
+            <i class="fas fa-check-square"></i> <span id="labelSelectMobile">Selecionar</span>
+        </button>
         <button class="chip active" onclick="setFilter('pending', this)">Pendentes</button>
         <button class="chip" onclick="setFilter('paid', this)">Pagas ✅</button>
         <button class="chip" onclick="setFilter('overdue', this)">Atrasadas ⚠️</button>
@@ -361,6 +364,17 @@
             <span class="spinner"></span>
             <p style="margin-top:8px;font-size:12px;color:#94a3b8;">Carregando contas...</p>
         </div>
+    </div>
+
+    <!-- RODAPÉ FIXO DE SOMA VISUAL (ITEM 9 - MOBILE) -->
+    <div id="billsSelectionFooterMobile" style="display:none; position:fixed; bottom:72px; left:14px; right:14px; z-index:1050; background:var(--color-surface,#ffffff); border:1px solid var(--color-border,#e2e8f0); box-shadow:0 8px 24px rgba(0,0,0,0.18); border-radius:14px; padding:10px 16px; align-items:center; justify-content:space-between; gap:12px;">
+        <div style="display:flex; flex-direction:column; gap:2px;">
+            <span id="selectedBillsCountTextMobile" style="font-size:12px; font-weight:600; color:#6C5CE7;">0 selecionada(s)</span>
+            <span style="font-size:13px; color:var(--color-text,#2d3436);">Total: <strong id="selectedBillsTotalTextMobile" style="color:#6C5CE7; font-size:15px;">R$ 0,00</strong></span>
+        </div>
+        <button type="button" class="chip" onclick="cancelBillSelectionMobile()" style="border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; background:var(--color-bg,#f1f5f9); border:none; cursor:pointer;">
+            <i class="fas fa-times"></i> Cancelar
+        </button>
     </div>
 </main>
 
@@ -473,17 +487,17 @@
 
 <!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
 <nav class="bottom-nav">
-    <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
-    <a href="transactions.html"><i class="fas fa-receipt"></i><span>Extrato</span></a>
+    <a href="dashboard.html"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
+    <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
     <a href="bills.html" class="active"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
     <div class="nav-center">
         <button type="button" class="nav-add-btn" onclick="openModal()" aria-label="Nova Conta" title="Nova Conta">
             <i class="fas fa-plus"></i>
         </button>
     </div>
-    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investir</span></a>
+    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investimentos</span></a>
     <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
-    <a href="settings.html"><i class="fas fa-cog"></i><span>Ajustes</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Configurações</span></a>
 </nav>
 
 <!-- TOAST -->
@@ -504,6 +518,10 @@ let currentYear = new Date().getFullYear();
 let allBills = [];
 let categories = [];
 let currentFilter = 'pending';
+
+// ITEM 9: Estado de Seleção Múltipla & Soma Visual (Mobile)
+let isSelectionModeMobile = false;
+let selectedBillIdsMobile = new Set();
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -815,9 +833,16 @@ function renderBills() {
         if (isPaid) badge = '<span class="bill-badge badge-paid">PAGA</span>';
         else if (isOverdue) badge = '<span class="bill-badge badge-overdue">ATRASADA</span>';
 
+        const isSelected = selectedBillIdsMobile.has(String(b.id));
+
         return `
-            <div class="bill-card-mobile ${isOverdue ? 'overdue' : ''}">
-                <div class="bill-top">
+            <div class="bill-card-mobile ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_card_mobile_${b.id}">
+                <div class="bill-top" style="align-items:center;">
+                    ${isSelectionModeMobile ? `
+                        <div style="margin-right:10px; display:flex; align-items:center;">
+                            <input type="checkbox" class="bill-check-mobile" ${isSelected ? 'checked' : ''} onchange="toggleSelectBillMobile('${b.id}', this.checked)" style="width:20px; height:20px; accent-color:#6C5CE7; cursor:pointer;">
+                        </div>
+                    ` : ''}
                     <div class="bill-icon" style="background:${color};">
                         <i class="fas ${icon}"></i>
                     </div>
@@ -845,6 +870,78 @@ function renderBills() {
             </div>
         `;
     }).join("");
+}
+
+// ============================================
+// ITEM 9: SELEÇÃO MÚLTIPLA + SOMA VISUAL (MOBILE)
+// ============================================
+function updateSelectionFooterMobile() {
+    const footer = document.getElementById("billsSelectionFooterMobile");
+    const countText = document.getElementById("selectedBillsCountTextMobile");
+    const totalText = document.getElementById("selectedBillsTotalTextMobile");
+    if (!footer) return;
+
+    if (!isSelectionModeMobile) {
+        footer.style.display = "none";
+        return;
+    }
+
+    footer.style.display = "flex";
+    const count = selectedBillIdsMobile.size;
+    let sum = 0;
+    allBills.forEach(b => {
+        if (selectedBillIdsMobile.has(String(b.id))) {
+            sum += Number(b.amount) || 0;
+        }
+    });
+
+    if (countText) countText.textContent = `${count} selecionada(s)`;
+    if (totalText) totalText.textContent = formatCurrency(sum);
+}
+
+function toggleBillSelectionModeMobile() {
+    isSelectionModeMobile = !isSelectionModeMobile;
+    const btn = document.getElementById("btnToggleSelectMobile");
+    const label = document.getElementById("labelSelectMobile");
+
+    if (isSelectionModeMobile) {
+        if (btn) btn.classList.add("active");
+        if (label) label.textContent = "Cancelar";
+        updateSelectionFooterMobile();
+    } else {
+        cancelBillSelectionMobile();
+        return;
+    }
+    renderBills();
+}
+
+function cancelBillSelectionMobile() {
+    isSelectionModeMobile = false;
+    selectedBillIdsMobile.clear();
+    const btn = document.getElementById("btnToggleSelectMobile");
+    const label = document.getElementById("labelSelectMobile");
+    if (btn) btn.classList.remove("active");
+    if (label) label.textContent = "Selecionar";
+
+    const footer = document.getElementById("billsSelectionFooterMobile");
+    if (footer) footer.style.display = "none";
+
+    renderBills();
+}
+
+function toggleSelectBillMobile(id, checked) {
+    if (checked) {
+        selectedBillIdsMobile.add(String(id));
+    } else {
+        selectedBillIdsMobile.delete(String(id));
+    }
+    updateSelectionFooterMobile();
+
+    const card = document.getElementById(`bill_card_mobile_${id}`);
+    if (card) {
+        if (checked) card.classList.add("selected");
+        else card.classList.remove("selected");
+    }
 }
 
 async function togglePaid(id) {

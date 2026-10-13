@@ -265,6 +265,20 @@
                 </div>
             </div>
 
+            <!-- ITEM 7: GESTÃO DE EVENTOS CORPORATIVOS (MOBILE) -->
+            <div class="settings-item">
+                <div class="left">
+                    <div class="item-icon-box purple"><i class="fas fa-bolt"></i></div>
+                    <div>
+                        <div class="item-text-title">Eventos Corporativos</div>
+                        <div class="item-text-sub">Ativar gestão de eventos corporativos (B3)</div>
+                    </div>
+                </div>
+                <div class="right">
+                    <input type="checkbox" id="mobileToggleCorpEvents" onchange="toggleCorporateEventsPref(this.checked)" style="width:18px; height:18px; accent-color:#6C5CE7; cursor:pointer;">
+                </div>
+            </div>
+
             <div class="settings-item" onclick="toggleHideBalancePref()">
                 <div class="left">
                     <div class="item-icon-box green"><i class="fas fa-eye-slash"></i></div>
@@ -673,46 +687,46 @@
 
 <!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
 <nav class="bottom-nav">
-    <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
-    <a href="transactions.html"><i class="fas fa-receipt"></i><span>Extrato</span></a>
+    <a href="dashboard.html"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
+    <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
     <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
     <div class="nav-center">
         <a href="transactions.html?action=new" class="nav-add-btn" aria-label="Nova Transação" title="Nova Transação" style="text-decoration:none;">
             <i class="fas fa-plus"></i>
         </a>
     </div>
-    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investir</span></a>
+    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investimentos</span></a>
     <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
-    <a href="settings.html" class="active"><i class="fas fa-cog"></i><span>Ajustes</span></a>
+    <a href="settings.html" class="active"><i class="fas fa-cog"></i><span>Configurações</span></a>
 </nav>
 
-<!-- MODAL DE CONFIRMAÇÃO DUPLA: ZONA DE RISCO -->
+<!-- MODAL DE CONFIRMAÇÃO DUPLA: ZONA DE RISCO (ITEM 8) -->
 <div class="mobile-modal-overlay" id="riskZoneModal">
     <div class="mobile-modal-sheet" style="border-top: 4px solid #FF7675;">
         <div class="sheet-header">
             <div class="sheet-title" style="color:#FF7675; display:flex; align-items:center; gap:8px;">
-                <i class="fas fa-exclamation-triangle"></i> Zona de Risco
+                <i class="fas fa-shield-alt"></i> Zona de Risco: Limpeza Local
             </div>
             <button class="sheet-close-btn" onclick="closeRiskZoneModal()"><i class="fas fa-times"></i></button>
         </div>
         <div class="sheet-body" style="padding:16px 20px 28px;">
             <p style="font-size:13px; color:var(--color-text,#333); line-height:1.5; margin-bottom:12px;">
-                Você está prestes a <strong>apagar permanentemente</strong> todos os seus lançamentos, contas a pagar, metas e investimentos.
+                Esta ação irá <strong>limpar todo o armazenamento local e cache</strong> deste aplicativo no seu celular (IndexedDB, offline queue e preferências locais).
             </p>
             <div style="background:rgba(255,118,117,0.1); border:1px solid rgba(255,118,117,0.3); border-radius:10px; padding:12px; font-size:12px; color:#d63031; margin-bottom:16px; line-height:1.4;">
-                <i class="fas fa-info-circle"></i> <strong>Esta ação é irreversível.</strong> Seus dados na nuvem e no celular serão totalmente excluídos.
+                <i class="fas fa-info-circle"></i> <strong>Seus dados no Supabase não serão apagados.</strong> Eles continuam salvos e seguros na sua conta em nuvem.
             </div>
             <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--color-text-muted,#64748b);">
-                Digite <span style="color:#d63031; font-weight:800; user-select:all;">EXCLUIR</span> para confirmar:
+                Digite <span style="color:#d63031; font-weight:800; user-select:all;">APAGAR</span> para confirmar:
             </label>
-            <input type="text" id="confirmDeleteInput" placeholder="EXCLUIR" oninput="checkDeleteConfirmation(this.value)" autocomplete="off" autocapitalize="characters" style="width:100%; padding:10px 14px; font-size:14px; font-weight:700; text-transform:uppercase; border:2px solid var(--color-border,#e2e8f0); border-radius:10px; margin-bottom:16px; color:inherit; background:var(--color-surface,#fff);">
+            <input type="text" id="confirmDeleteInput" placeholder="APAGAR" oninput="checkDeleteConfirmation(this.value)" autocomplete="off" autocapitalize="characters" style="width:100%; padding:10px 14px; font-size:14px; font-weight:700; text-transform:uppercase; border:2px solid var(--color-border,#e2e8f0); border-radius:10px; margin-bottom:16px; color:inherit; background:var(--color-surface,#fff); letter-spacing:1px;">
             
             <div style="display:flex; gap:10px;">
                 <button type="button" onclick="closeRiskZoneModal()" class="btn" style="flex:1; padding:12px; border-radius:10px; border:1px solid var(--color-border,#e2e8f0); background:transparent; font-weight:600; font-size:13px; cursor:pointer;">
                     Cancelar
                 </button>
                 <button type="button" id="btnConfirmDeleteData" onclick="executeFullDataWipe()" disabled style="flex:1; padding:12px; border-radius:10px; border:none; background:#FF7675; color:white; font-weight:700; font-size:13px; opacity:0.4; cursor:not-allowed;">
-                    <i class="fas fa-trash-alt"></i> Apagar Tudo
+                    <i class="fas fa-trash-alt"></i> Limpar Dados Locais
                 </button>
             </div>
         </div>
@@ -760,6 +774,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const savedCurrency = localStorage.getItem("tonu_currency") || "BRL";
     const curSelect = document.getElementById("mobileCurrencySelect");
     if (curSelect) curSelect.value = savedCurrency;
+
+    // Preferência de Eventos Corporativos (ITEM 7)
+    const corpEventsEnabled = localStorage.getItem("tonu_pref_corporate_events") === "true";
+    const corpToggle = document.getElementById("mobileToggleCorpEvents");
+    if (corpToggle) corpToggle.checked = corpEventsEnabled;
+
+    window.toggleCorporateEventsPref = function(checked) {
+        localStorage.setItem("tonu_pref_corporate_events", checked ? "true" : "false");
+        showMobileToast(checked ? "Gestão de eventos ativada!" : "Gestão de eventos oculta!", "info");
+    };
 
     // PIN status
     const pin = localStorage.getItem("tonu_security_pin");
@@ -947,7 +971,7 @@ function closeRiskZoneModal() {
 function checkDeleteConfirmation(val) {
     const btn = document.getElementById("btnConfirmDeleteData");
     if (!btn) return;
-    const isMatch = (val || "").trim().toUpperCase() === "EXCLUIR";
+    const isMatch = (val || "").trim().toUpperCase() === "APAGAR";
     btn.disabled = !isMatch;
     btn.style.opacity = isMatch ? "1" : "0.4";
     btn.style.cursor = isMatch ? "pointer" : "not-allowed";
@@ -957,21 +981,16 @@ async function executeFullDataWipe() {
     const btn = document.getElementById("btnConfirmDeleteData");
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Apagando...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Limpando local...';
     }
 
     if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
     try {
-        if (currentUser && window.supabaseClient) {
-            const tables = ['transactions', 'bills', 'goals', 'investments', 'dividends', 'monthly_budgets'];
-            for (const table of tables) {
-                try {
-                    await supabaseClient.from(table).delete().eq('user_id', currentUser.id);
-                } catch (e) {
-                    console.warn(`Erro ao limpar ${table}:`, e);
-                }
-            }
+        // NÃO apaga tabelas no Supabase - dados remotos permanecem intactos e seguros!
+        if (window.tonuSync) {
+            try { await window.tonuSync.clearQueue(); } catch (_) {}
+            try { await window.tonuSync.clearAllCaches?.(); } catch (_) {}
         }
 
         // Limpa caches locais
@@ -987,7 +1006,15 @@ async function executeFullDataWipe() {
         }
         keysToRemove.forEach(k => localStorage.removeItem(k));
 
-        showMobileToast("Todos os dados foram excluídos com sucesso! 🗑️", "success");
+        try { sessionStorage.clear(); } catch (_) {}
+        if ('caches' in window) {
+            try {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(c => caches.delete(c)));
+            } catch (_) {}
+        }
+
+        showMobileToast("Cache e dados locais apagados com sucesso! Seus dados na nuvem permanecem seguros. 🛡️", "success");
         closeRiskZoneModal();
         setTimeout(() => {
             window.location.reload();

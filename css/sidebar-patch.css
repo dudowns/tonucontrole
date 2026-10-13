@@ -620,3 +620,40 @@ html[data-theme="dark"] .sidebar-footer .btn-sair:hover {
     border-color: #F87171 !important;
 }
 
+/* ============================================
+   ITEM 5: ESCALA GERAL DESKTOP (PC) - 90%
+   Aplica exclusivamente para versão PC (>= 1024px)
+   ============================================ */
+@media (min-width: 1024px) {
+    html {
+        font-size: 14.4px !important; /* 90% de 16px */
+    }
+
+    .app-shell {
+        zoom: 0.9;
+    }
+
+    @supports not (zoom: 0.9) {
+        body {
+            font-size: 14.4px;
+        }
+    }
+
+    /* Garante que todos os 4 cards do dashboard fiquem visíveis sem corte em 100% ou 90% */
+    .dashboard-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+        width: 100% !important;
+    }
+
+    .dashboard-grid .card-stat,
+    #cardStatBillsInvested {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        min-width: 0 !important;
+    }
+}
+
+

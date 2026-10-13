@@ -515,6 +515,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    // ITEM 7: Visibilidade de Eventos Corporativos (Escondido por padrão)
+    function applyCorporateEventsVisibility() {
+        const isEnabled = localStorage.getItem('tonu_pref_corporate_events') === 'true';
+        const pcHeaderBtn = document.getElementById('btnCorpEventHeader');
+        const pcTabBtn = document.getElementById('tabBtnEventosPC');
+        const mobileTabBtn = document.getElementById('tabBtnEventos');
+        if (pcHeaderBtn) pcHeaderBtn.style.display = isEnabled ? 'inline-flex' : 'none';
+        if (pcTabBtn) pcTabBtn.style.display = isEnabled ? 'inline-flex' : 'none';
+        if (mobileTabBtn) mobileTabBtn.style.display = isEnabled ? 'inline-flex' : 'none';
+    }
+    applyCorporateEventsVisibility();
+    window.applyCorporateEventsVisibility = applyCorporateEventsVisibility;
+
     const opDate = document.getElementById('opDate');
     const divDate = document.getElementById('divDate');
     if (opDate) opDate.value = getToday();

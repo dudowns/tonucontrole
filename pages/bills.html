@@ -100,6 +100,9 @@
                         <i class="fas fa-bell"></i>
                         <span class="notif-badge hidden" id="notifBadgeCount">0</span>
                     </button>
+                    <button class="btn btn-outline" id="btnToggleSelectBills" onclick="toggleBillSelectionMode()" title="Selecionar múltiplas contas">
+                        <i class="fas fa-check-square"></i> <span id="btnSelectLabel">Selecionar</span>
+                    </button>
                     <button class="btn btn-primary" onclick="openBillModal()">
                         <i class="fas fa-plus"></i> Nova Conta
                     </button>
@@ -239,6 +242,18 @@
                         <div style="text-align:center;padding:40px;"><span class="spinner"></span></div>
                     </div>
                 </div>
+            </div>
+
+            <!-- RODAPÉ FIXO DE SOMA VISUAL (ITEM 9) -->
+            <div id="billsSelectionFooter" class="bills-selection-footer" style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:1050; background:var(--color-surface,#ffffff); border:1px solid var(--color-border,#e2e8f0); box-shadow:0 10px 30px rgba(0,0,0,0.18); border-radius:999px; padding:10px 22px; align-items:center; gap:18px;">
+                <div style="display:flex; align-items:center; gap:8px; font-size:14px;">
+                    <span id="selectedBillsCountText" style="font-weight:600; color:var(--color-primary,#6c5ce7);">0 selecionada(s)</span>
+                    <span style="color:var(--color-text-muted,#94a3b8);">·</span>
+                    <span style="color:var(--color-text,#2d3436);">Total: <strong id="selectedBillsTotalText" style="color:var(--color-primary,#6c5ce7); font-size:16px;">R$ 0,00</strong></span>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" onclick="cancelBillSelection()" style="border-radius:999px; padding:4px 12px; font-size:12px; font-weight:600;">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
             </div>
         </main>
     </div>

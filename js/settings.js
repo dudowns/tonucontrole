@@ -1053,72 +1053,116 @@ async function clearLocalCache() {
 }
 
 // ============================================
-// LIMPAR DADOS (COM CONFIRMAÇÃO)
+// ITEM 7: PREFERÊNCIA DE EVENTOS CORPORATIVOS
 // ============================================
-async function clearAllData() {
-    if (isProcessing) {
-        showToast('Aguarde a operação atual terminar...', 'warning');
-        return;
+function initCorporateEventsPref() {
+    const isEnabled = localStorage.getItem('tonu_pref_corporate_events') === 'true';
+    const pcToggle = document.getElementById('toggleCorpEventsPref');
+    const mobileToggle = document.getElementById('mobileToggleCorpEvents');
+    if (pcToggle) pcToggle.checked = isEnabled;
+    if (mobileToggle) mobileToggle.checked = isEnabled;
+}
+
+window.toggleCorporateEventsPref = function (checked) {
+    localStorage.setItem('tonu_pref_corporate_events', checked ? 'true' : 'false');
+    if (window.showToast) {
+        window.showToast(checked ? 'Gestão de eventos corporativos ativada!' : 'Gestão de eventos corporativos oculta!', 'info');
+    }
+};
+
+// ============================================
+// ITEM 8: ZONA DE RISCO (LIMPEZA APENAS LOCAL + CONFIRMAÇÃO "APAGAR")
+// ============================================
+window.openRiskZoneModalPC = function () {
+    const modal = document.getElementById('riskZoneModalPC');
+    const input = document.getElementById('confirmDeleteInputPC');
+    const btn = document.getElementById('btnConfirmDeletePC');
+    if (modal) modal.classList.add('active');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+    if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.4';
+        btn.style.cursor = 'not-allowed';
+    }
+};
+
+window.closeRiskZoneModalPC = function () {
+    const modal = document.getElementById('riskZoneModalPC');
+    if (modal) modal.classList.remove('active');
+};
+
+window.checkDeleteConfirmationPC = function (val) {
+    const btn = document.getElementById('btnConfirmDeletePC');
+    if (!btn) return;
+    const isMatch = (val || '').trim().toUpperCase() === 'APAGAR';
+    btn.disabled = !isMatch;
+    btn.style.opacity = isMatch ? '1' : '0.4';
+    btn.style.cursor = isMatch ? 'pointer' : 'not-allowed';
+};
+
+window.executeLocalDataWipePC = async function () {
+    const btn = document.getElementById('btnConfirmDeletePC');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Limpando local...';
     }
 
-    if (!confirm('⚠️ ATENÇÃO: Isso apagará TODOS os seus dados permanentemente!')) return;
-    if (!confirm('Esta ação NÃO pode ser desfeita. Tem certeza?')) return;
-
     try {
-        isProcessing = true;
-        const tables = [
-            'transactions',
-            'goals',
-            'investments',
-            'dividends',
-            'user_stats',
-            'monthly_budgets'
-        ];
-
-        for (const table of tables) {
-            try {
-                const { error } = await supabaseClient
-                    .from(table)
-                    .delete()
-                    .eq('user_id', currentUser.id);
-
-                if (error) {
-                    console.warn(`⚠️ Erro ao limpar ${table}:`, error);
-                } else {
-                    console.log(`✅ ${table} limpa!`);
-                }
-            } catch (e) {
-                console.warn(`⚠️ Erro ao limpar ${table}:`, e);
-            }
-        }
-
-        try {
-            await supabaseClient
-                .from('profiles')
-                .delete()
-                .eq('id', currentUser.id);
-            console.log('✅ Perfil limpo!');
-        } catch (e) {
-            console.warn('⚠️ Erro ao limpar perfil:', e);
-        }
-
+        // Limpa filas de sincronização e cache do IndexedDB
         if (window.tonuSync) {
-            await window.tonuSync.clearQueue();
+            try { await window.tonuSync.clearQueue(); } catch (_) {}
+            try { await window.tonuSync.clearAllCaches?.(); } catch (_) {}
         }
 
         if (window.TonuSecureSession) {
-            window.TonuSecureSession.clear();
+            try { window.TonuSecureSession.clear(); } catch (_) {}
         }
 
-        showToast('Todos os dados foram limpos! 🗑️', 'success');
-        await loadStats();
+        // Limpa caches locais no localStorage (preserva apenas tema e sessão ativa)
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('tonu_') || key.includes('cache') || key.includes('transactions') || key.includes('bills'))) {
+                if (key !== 'tonu_theme' && key !== 'tonu_security_pin' && key !== 'tonu_device_mode') {
+                    keysToRemove.push(key);
+                }
+            }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
 
-    } catch (error) {
-        console.error('❌ Erro ao limpar dados:', error);
-        showToast('Erro ao limpar dados', 'error');
-    } finally {
-        isProcessing = false;
+        // Limpa sessionStorage e caches de service worker
+        try { sessionStorage.clear(); } catch (_) {}
+        if ('caches' in window) {
+            try {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(c => caches.delete(c)));
+            } catch (_) {}
+        }
+
+        if (window.showToast) {
+            window.showToast('Cache e dados locais apagados com sucesso! Seus dados na nuvem permanecem seguros. 🛡️', 'success');
+        }
+
+        window.closeRiskZoneModalPC();
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+
+    } catch (err) {
+        console.error('❌ Erro ao limpar dados locais:', err);
+        if (window.showToast) window.showToast('Erro ao limpar dados locais: ' + err.message, 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-trash-alt"></i> Limpar Dados Locais';
+        }
     }
+};
+
+async function clearAllData() {
+    window.openRiskZoneModalPC();
 }
 
 // ============================================

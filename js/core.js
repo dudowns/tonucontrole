@@ -402,7 +402,12 @@ function formatDate(date, format) {
     format = format || 'short';
     if (!date) return '--/--/----';
 
-    var d = new Date(date);
+    var d;
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date.trim())) {
+        d = new Date(date.trim().substring(0, 10) + 'T12:00:00');
+    } else {
+        d = new Date(date);
+    }
     if (isNaN(d.getTime())) return '--/--/----';
 
     if (format === 'short') {
@@ -423,7 +428,15 @@ function formatDate(date, format) {
 }
 
 function getToday() {
-    return new Date().toISOString().split('T')[0];
+    var now = new Date();
+    try {
+        return now.toLocaleDateString('sv');
+    } catch (e) {
+        var y = now.getFullYear();
+        var m = String(now.getMonth() + 1).padStart(2, '0');
+        var d = String(now.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + d;
+    }
 }
 
 function getDaysBetween(date1, date2) {

@@ -455,7 +455,7 @@ function renderSummary() {
     const pendingBillsAmount = pendingBills.reduce((acc, b) => acc + (Number(b.amount) || 0), 0);
 
     // Proventos do mês selecionado (Recebidos vs A Receber)
-    const todayISO = new Date().toISOString().substring(0, 10);
+    const todayISO = new Date().toLocaleDateString('sv');
     let monthPaidDivs = 0;
     let monthPendingDivs = 0;
     let totalFutureDivs = 0;
@@ -1110,7 +1110,7 @@ function openQuickAddModal(type) {
     const dateInput = document.getElementById("quickDate");
     if (dateInput) {
         if (currentMonthOffset === 0) {
-            dateInput.value = new Date().toISOString().split("T")[0];
+            dateInput.value = new Date().toLocaleDateString('sv');
         } else {
             const targetDate = getSelectedMonthDate();
             const y = targetDate.getFullYear();
@@ -1279,7 +1279,7 @@ function formatDate(date) {
         return window.formatDate(date);
     }
     if (!date) return "--/--/----";
-    const d = new Date(date);
+    const d = new Date(typeof date === 'string' && date.length === 10 ? date + 'T12:00:00' : date);
     return d.toLocaleDateString("pt-BR");
 }
 

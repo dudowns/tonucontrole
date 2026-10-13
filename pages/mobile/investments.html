@@ -391,7 +391,7 @@
         <button class="mobile-tab-btn" id="tabBtnProventos" onclick="switchInvestTab('proventos')">
             <i class="fas fa-money-bill-wave"></i> Proventos
         </button>
-        <button class="mobile-tab-btn" id="tabBtnEventos" onclick="switchInvestTab('eventos')">
+        <button class="mobile-tab-btn" id="tabBtnEventos" onclick="switchInvestTab('eventos')" style="display:none;">
             <i class="fas fa-bolt"></i> Eventos
         </button>
     </div>
@@ -915,17 +915,17 @@
 
 <!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
 <nav class="bottom-nav">
-    <a href="dashboard.html"><i class="fas fa-home"></i><span>Início</span></a>
-    <a href="transactions.html"><i class="fas fa-receipt"></i><span>Extrato</span></a>
+    <a href="dashboard.html"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
+    <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
     <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
     <div class="nav-center">
         <button type="button" class="nav-add-btn" onclick="openAddOperationModal()" aria-label="Nova Operação" title="Nova Operação">
             <i class="fas fa-plus"></i>
         </button>
     </div>
-    <a href="investments.html" class="active"><i class="fas fa-chart-line"></i><span>Investir</span></a>
+    <a href="investments.html" class="active"><i class="fas fa-chart-line"></i><span>Investimentos</span></a>
     <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
-    <a href="settings.html"><i class="fas fa-cog"></i><span>Ajustes</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Configurações</span></a>
 </nav>
 
 <!-- TOAST -->
@@ -1083,6 +1083,11 @@ async function initMobileInvestmentsPage() {
 
         // Inicializa modo do toggle de gráfico de investimentos
         setMobileInvestChartMode(currentMobileInvestChartMode);
+
+        // ITEM 7: Ocultar botão/aba Eventos por padrão se desativado nas preferências
+        const corpEventsEnabled = localStorage.getItem("tonu_pref_corporate_events") === "true";
+        const tabBtnEventos = document.getElementById("tabBtnEventos");
+        if (tabBtnEventos) tabBtnEventos.style.display = corpEventsEnabled ? "flex" : "none";
 
         await loadAllInvestmentData();
     } catch (e) {

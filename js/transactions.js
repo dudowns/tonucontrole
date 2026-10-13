@@ -42,7 +42,9 @@
             }
         }
         try {
-            const d = new Date(dateVal);
+            const d = (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateVal.trim()))
+                ? new Date(dateVal.trim().substring(0, 10) + 'T12:00:00')
+                : new Date(dateVal);
             if (!isNaN(d.getTime())) {
                 const y = d.getFullYear();
                 const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -663,9 +665,11 @@
         if (dateInput && !id) {
             const selDate = getSelectedMonthDate();
             const now = new Date();
-            // Se estiver no mês atual real, preenche com a data de hoje; se estiver em outro mês, preenche com o 1º dia do mês selecionado
+            // Se estiver no mês atual real, preenche com a data local de hoje; se estiver em outro mês, preenche com o 1º dia do mês selecionado
             if (selDate.getFullYear() === now.getFullYear() && selDate.getMonth() === now.getMonth()) {
-                dateInput.value = now.toISOString().split('T')[0];
+                dateInput.value = (typeof now.toLocaleDateString === 'function')
+                    ? now.toLocaleDateString('sv')
+                    : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             } else {
                 const y = selDate.getFullYear();
                 const m = String(selDate.getMonth() + 1).padStart(2, '0');
@@ -762,7 +766,8 @@
         const desc = document.getElementById('tDescription')?.value.trim();
         const rawAmount = parseFloat(document.getElementById('tAmount')?.value);
         const type = document.getElementById('tType')?.value || 'expense';
-        const date = document.getElementById('tDate')?.value;
+        const dateRaw = document.getElementById('tDate')?.value;
+        const date = (dateRaw && /^\d{4}-\d{2}-\d{2}/.test(dateRaw)) ? dateRaw.substring(0, 10) : (dateRaw || (new Date().toLocaleDateString('sv')));
         const category = document.getElementById('tCategory')?.value || 'Outros';
         const paid = document.getElementById('tPaid')?.checked ?? true;
         const tags = document.getElementById('tTags')?.value.trim() || null;
@@ -813,6 +818,8 @@
             is_recurring: isRecurring,
             installments: recurrenceType === 'installments' ? installmentsTotal : 1,
             current_installment: recurrenceType === 'installments' ? installmentCurrent : 1,
+            installment_total: recurrenceType === 'installments' ? installmentsTotal : 1,
+            installment_number: recurrenceType === 'installments' ? installmentCurrent : 1,
             updated_at: new Date().toISOString()
         };
 
@@ -846,12 +853,13 @@
                     // Geração em lote das parcelas futuras
                     const batch = [];
                     const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
+                    const parentTxId = genUuid();
 
                     for (let i = installmentCurrent; i <= installmentsTotal; i++) {
                         const monthOffset = i - installmentCurrent;
                         const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
                         const itemPaid = (i === installmentCurrent) ? paid : false;
-                        const txId = genUuid();
+                        const txId = (i === installmentCurrent) ? parentTxId : genUuid();
 
                         batch.push({
                             ...baseTransactionData,
@@ -861,6 +869,9 @@
                             date: dueDate,
                             installments: installmentsTotal,
                             current_installment: i,
+                            installment_total: installmentsTotal,
+                            installment_number: i,
+                            parent_transaction_id: (i === installmentCurrent) ? null : parentTxId,
                             paid: itemPaid,
                             created_at: new Date().toISOString()
                         });
@@ -967,27 +978,34 @@
             return;
         }
 
-        let csv = 'ID,Data,Tipo,Descricao,Valor,Categoria,Status,Tags,Notas\n';
+        const headers = ['ID', 'Data', 'Tipo', 'Descricao', 'Valor', 'Categoria', 'Status', 'Parcela', 'Tags', 'Notas'];
+        let csv = '\uFEFF' + headers.join(';') + '\r\n';
         txsToExport.forEach(t => {
+            const instText = (t.installments > 1 || t.installment_total > 1)
+                ? `${t.current_installment || t.installment_number || 1}/${t.installments || t.installment_total || 1}`
+                : '';
             const row = [
                 `"${t.id || ''}"`,
                 `"${t.date || ''}"`,
-                `"${t.type || ''}"`,
+                `"${t.type === 'income' ? 'Receita' : 'Despesa'}"`,
                 `"${(t.description || '').replace(/"/g, '""')}"`,
-                t.amount || 0,
+                `"${Number(t.amount || 0).toFixed(2).replace('.', ',')}"`,
                 `"${(t.category || '').replace(/"/g, '""')}"`,
-                t.paid ? 'Pago' : 'Pendente',
+                `"${t.paid ? 'Pago' : 'Pendente'}"`,
+                `"${instText}"`,
                 `"${(t.tags || '').replace(/"/g, '""')}"`,
                 `"${(t.notes || '').replace(/"/g, '""')}"`
             ];
-            csv += row.join(',') + '\n';
+            csv += row.join(';') + '\r\n';
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `transacoes_tonucontrole_${new Date().toISOString().split('T')[0]}.csv`;
+        const now = new Date();
+        const todayStr = (typeof now.toLocaleDateString === 'function') ? now.toLocaleDateString('sv') : now.toISOString().split('T')[0];
+        a.download = `transacoes_tonucontrole_${todayStr}.csv`;
         a.click();
         URL.revokeObjectURL(url);
     }

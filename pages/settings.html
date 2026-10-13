@@ -332,6 +332,28 @@
                             </div>
                         </div>
 
+                        <!-- CARD: GESTÃO DE EVENTOS CORPORATIVOS (ITEM 7) -->
+                        <div class="settings-card" id="corpEventsCard">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon" style="background: rgba(108, 92, 231, 0.15); color: #6C5CE7;">
+                                    <i class="fas fa-bolt" aria-hidden="true"></i>
+                                </div>
+                                <div class="settings-card-header-content">
+                                    <h3>Eventos Corporativos (B3)</h3>
+                                    <p>Gerencie desdobramentos, agrupamentos e bonificações na sua carteira de investimentos.</p>
+                                </div>
+                            </div>
+                            <div class="setting-row" style="display:flex; justify-content:space-between; align-items:center;">
+                                <div class="setting-row-text">
+                                    <strong>Ativar gestão de eventos corporativos</strong>
+                                    <small>Quando ligado, exibe a aba e o botão de eventos na tela de Investimentos. Escondido por padrão sem apagar dados.</small>
+                                </div>
+                                <label style="display:inline-flex; align-items:center; cursor:pointer;">
+                                    <input type="checkbox" id="toggleCorpEventsPref" onchange="toggleCorporateEventsPref(this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary, #6C5CE7);">
+                                </label>
+                            </div>
+                        </div>
+
                         <!-- CARD: CATEGORIAS & ORÇAMENTOS -->
                         <div class="settings-card">
                             <div class="settings-card-header">
@@ -914,22 +936,22 @@
                         </div>
 
                         <!-- CARD: LIMPAR DADOS (PERIGO) -->
-                        <div class="settings-card danger">
+                        <div class="settings-card danger" style="border: 1px solid rgba(255, 118, 117, 0.4); background: rgba(255, 118, 117, 0.03);">
                             <div class="settings-card-header">
                                 <div class="settings-card-icon danger">
                                     <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
                                 </div>
                                 <div class="settings-card-header-content">
-                                    <h3>Zona de Risco: Limpar Dados</h3>
-                                    <p>Remove permanentemente todas as suas transações, contas e metas do banco de dados local e em nuvem.</p>
+                                    <h3>Zona de Risco: Limpeza Local</h3>
+                                    <p>Limpa o cache offline e dados locais deste navegador. Seus registros na nuvem (Supabase) permanecem preservados e seguros.</p>
                                 </div>
                             </div>
-                            <div class="settings-actions" style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+                            <div class="settings-actions" style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
                                 <button class="btn btn-outline" style="border-color:#ff7675; color:#d63031;" onclick="logoutAllDevices()" aria-label="Sair de todos os dispositivos">
                                     <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair de Todos os Dispositivos
                                 </button>
-                                <button class="btn btn-danger" onclick="clearAllData()" aria-label="Limpar todos os dados">
-                                    <i class="fas fa-trash-alt" aria-hidden="true"></i> Limpar Todos os Dados
+                                <button class="btn btn-danger" onclick="openRiskZoneModalPC()" aria-label="Limpar dados locais">
+                                    <i class="fas fa-trash-alt" aria-hidden="true"></i> Limpar Dados Locais
                                 </button>
                             </div>
                         </div>
@@ -938,6 +960,37 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- MODAL CONFIRMAÇÃO: ZONA DE RISCO (ITEM 8) -->
+    <div class="modal-overlay" id="riskZoneModalPC" onclick="if(event.target===this) closeRiskZoneModalPC()">
+        <div class="modal" style="max-width:500px; border-top: 4px solid #FF7675;">
+            <div class="modal-header">
+                <div>
+                    <div class="sub" style="color:#d63031; font-weight:700;"><i class="fas fa-shield-alt"></i> Segurança & Dados Locais</div>
+                    <h3 style="color:#2D3436; margin:0;">Confirmar Limpeza Local</h3>
+                </div>
+                <button class="modal-close" onclick="closeRiskZoneModalPC()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:16px 20px;">
+                <p style="font-size:14px; color:var(--color-text,#333); line-height:1.5; margin-bottom:12px;">
+                    Esta ação irá <strong>limpar todo o armazenamento local e cache</strong> deste navegador (IndexedDB, offline queue e preferências salvas).
+                </p>
+                <div style="background:rgba(255,118,117,0.1); border:1px solid rgba(255,118,117,0.3); border-radius:10px; padding:12px; font-size:13px; color:#d63031; margin-bottom:16px; line-height:1.4;">
+                    <i class="fas fa-info-circle"></i> <strong>Seus dados no Supabase não serão afetados.</strong> Eles permanecem salvos em nuvem e poderão ser sincronizados novamente.
+                </div>
+                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--color-text-muted,#64748b);">
+                    Para confirmar, digite <span style="color:#d63031; font-weight:800; user-select:all;">APAGAR</span> abaixo:
+                </label>
+                <input type="text" id="confirmDeleteInputPC" placeholder="APAGAR" oninput="checkDeleteConfirmationPC(this.value)" autocomplete="off" autocapitalize="characters" class="form-control" style="width:100%; font-weight:700; text-transform:uppercase; font-size:15px; margin-bottom:16px; letter-spacing:1px;">
+            </div>
+            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; padding:12px 20px;">
+                <button type="button" class="btn btn-outline" onclick="closeRiskZoneModalPC()">Cancelar</button>
+                <button type="button" id="btnConfirmDeletePC" class="btn btn-danger" onclick="executeLocalDataWipePC()" disabled style="opacity:0.4; cursor:not-allowed;">
+                    <i class="fas fa-trash-alt"></i> Limpar Dados Locais
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- TOAST -->

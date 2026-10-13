@@ -312,7 +312,7 @@ Deno.serve(async (req) => {
 
     if (upcomingDividends && upcomingDividends.length > 0) {
       const filteredDividends = upcomingDividends.filter(d => {
-        const effectiveDate = d.date_com || d.date;
+        const effectiveDate = d.date || d.date_com;
         return effectiveDate >= tomorrowStr && effectiveDate <= in3DaysStr;
       });
 

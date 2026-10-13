@@ -16,6 +16,11 @@
     let categories = [];
     let currentEditBillId = null;
 
+    // ITEM 9: Estado de Seleção Múltipla & Soma Visual
+    let isSelectionMode = false;
+    let selectedBillIds = new Set();
+    let currentFilteredBillsList = [];
+
     const MONTH_NAMES = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -71,7 +76,7 @@
     }
 
     function getTodayString() {
-        return new Date().toISOString().split('T')[0];
+        return new Date().toLocaleDateString('sv');
     }
 
     function showToast(message, type = 'info') {
@@ -510,6 +515,7 @@
     }
 
     function renderBills(bills) {
+        currentFilteredBillsList = bills || [];
         const container = document.getElementById('billsContainer');
         const countBadge = document.getElementById('billsCountBadge');
         if (!container) return;
@@ -583,9 +589,16 @@
             // Metadados de Parcelamento / Recorrência
             const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(b) : null;
 
+            const isSelected = selectedBillIds.has(String(b.id));
+
             html += `
-                <div class="bill-card ${isOverdue ? 'overdue' : ''}" id="bill_item_${b.id}">
-                    <div class="bill-left">
+                <div class="bill-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_item_${b.id}">
+                    <div class="bill-left" style="align-items:center;">
+                        ${isSelectionMode ? `
+                            <div class="bill-select-box" style="margin-right:12px; display:flex; align-items:center;">
+                                <input type="checkbox" class="bill-checkbox" data-id="${b.id}" ${isSelected ? 'checked' : ''} onchange="toggleSelectBill('${b.id}', this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary,#6c5ce7);">
+                            </div>
+                        ` : ''}
                         <div class="bill-icon" style="background:${catColor};">
                             <i class="fas ${catIcon}"></i>
                         </div>
@@ -983,6 +996,78 @@
         }
     }
 
+    // ============================================
+    // ITEM 9: SELEÇÃO MÚLTIPLA + SOMA VISUAL (PC)
+    // ============================================
+    function updateSelectionFooter() {
+        const footer = document.getElementById('billsSelectionFooter');
+        const countText = document.getElementById('selectedBillsCountText');
+        const totalText = document.getElementById('selectedBillsTotalText');
+        if (!footer) return;
+
+        if (!isSelectionMode) {
+            footer.style.display = 'none';
+            return;
+        }
+
+        footer.style.display = 'flex';
+        const count = selectedBillIds.size;
+        let sum = 0;
+        allBills.forEach(b => {
+            if (selectedBillIds.has(String(b.id))) {
+                sum += Number(b.amount) || 0;
+            }
+        });
+
+        if (countText) countText.textContent = `${count} selecionada(s)`;
+        if (totalText) totalText.textContent = formatCurrency(sum);
+    }
+
+    function toggleBillSelectionMode() {
+        isSelectionMode = !isSelectionMode;
+        const btn = document.getElementById('btnToggleSelectBills');
+        const label = document.getElementById('btnSelectLabel');
+
+        if (isSelectionMode) {
+            if (btn) btn.classList.add('active');
+            if (label) label.textContent = 'Cancelar';
+            updateSelectionFooter();
+        } else {
+            cancelBillSelection();
+            return;
+        }
+        applyFiltersAndRender();
+    }
+
+    function cancelBillSelection() {
+        isSelectionMode = false;
+        selectedBillIds.clear();
+        const btn = document.getElementById('btnToggleSelectBills');
+        const label = document.getElementById('btnSelectLabel');
+        if (btn) btn.classList.remove('active');
+        if (label) label.textContent = 'Selecionar';
+
+        const footer = document.getElementById('billsSelectionFooter');
+        if (footer) footer.style.display = 'none';
+
+        applyFiltersAndRender();
+    }
+
+    function toggleSelectBill(id, checked) {
+        if (checked) {
+            selectedBillIds.add(String(id));
+        } else {
+            selectedBillIds.delete(String(id));
+        }
+        updateSelectionFooter();
+
+        const card = document.getElementById(`bill_item_${id}`);
+        if (card) {
+            if (checked) card.classList.add('selected');
+            else card.classList.remove('selected');
+        }
+    }
+
     // Exportação global de funções
     window.openBillModal = openBillModal;
     window.closeBillModal = closeBillModal;
@@ -994,5 +1079,8 @@
     window.changeMonthHandler = changeMonth;
     window.goToCurrentMonthHandler = goToCurrentMonth;
     window.loadBills = loadBills;
+    window.toggleBillSelectionMode = toggleBillSelectionMode;
+    window.cancelBillSelection = cancelBillSelection;
+    window.toggleSelectBill = toggleSelectBill;
 
 })();
