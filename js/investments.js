@@ -3990,7 +3990,7 @@ function buildChartData() {
 }
 
 // ============================================
-// GRÁFICO DE EVOLUÇÃO - DUAS CAMADAS
+// GRÁFICO DE EVOLUÇÃO - BARRAS AGRUPADAS (ESTILO INVESTIDOR 10)
 // ============================================
 function renderChart() {
     const canvas = document.getElementById('patrimonyChart');
@@ -4007,11 +4007,11 @@ function renderChart() {
     const isDark = document.body.classList.contains('dark-theme');
     const textColor = isDark ? '#E2E8F0' : '#2D3436';
     const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
-    const borderColor = isDark ? '#334155' : '#E8ECF1';
 
     const hasData = data && data.labels && data.labels.length > 0 &&
         (data.invested.some(v => v !== 0) || data.gain.some(v => v !== 0));
 
+    // --- CASO SEM DADOS ---
     if (!hasData) {
         patrimonyChart = new Chart(ctx, {
             type: 'bar',
@@ -4029,9 +4029,7 @@ function renderChart() {
                 responsive: true,
                 maintainAspectRatio: false,
                 resizeDelay: 50,
-                plugins: {
-                    legend: { display: false }
-                },
+                plugins: { legend: { display: false } },
                 scales: {
                     y: {
                         beginAtZero: true,
@@ -4039,9 +4037,7 @@ function renderChart() {
                         ticks: {
                             color: textColor,
                             font: { size: 10 },
-                            callback: function (value) {
-                                return formatCurrency(value);
-                            }
+                            callback: function (value) { return formatCurrency(value); }
                         }
                     },
                     x: {
@@ -4054,6 +4050,13 @@ function renderChart() {
         return;
     }
 
+    // --- CÁLCULO DO GANHO DE CAPITAL (diferença entre patrimônio e aplicado) ---
+    const gainCapital = data.total.map((total, i) => {
+        const inv = data.invested[i] || 0;
+        return Math.round((total - inv) * 100) / 100;
+    });
+
+    // --- GRÁFICO PRINCIPAL ---
     patrimonyChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -4062,24 +4065,24 @@ function renderChart() {
                 {
                     label: 'Valor aplicado',
                     data: data.invested,
-                    backgroundColor: '#00B894', // verde
+                    backgroundColor: '#00B894',
                     hoverBackgroundColor: '#009879',
                     borderRadius: 4,
                     borderSkipped: false,
-                    grouped: true,
-                    barPercentage: 0.9,
-                    categoryPercentage: 0.8
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8,
+                    order: 1 // Barra escura na frente (esquerda)
                 },
                 {
-                    label: 'Patrimônio',
-                    data: data.total,
-                    backgroundColor: '#55EFC4', // verde mais claro
+                    label: 'Ganho de Capital',
+                    data: gainCapital,
+                    backgroundColor: '#55EFC4',
                     hoverBackgroundColor: '#2ECC71',
                     borderRadius: 4,
                     borderSkipped: false,
-                    grouped: true,
-                    barPercentage: 0.9,
-                    categoryPercentage: 0.8
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8,
+                    order: 2 // Barra clara atrás (direita)
                 }
             ]
         },
@@ -4087,9 +4090,6 @@ function renderChart() {
             responsive: true,
             maintainAspectRatio: false,
             resizeDelay: 50,
-            categoryPercentage: 0.7,
-            barPercentage: 0.85,
-            maxBarThickness: 52,
             interaction: {
                 intersect: false,
                 mode: 'index'
@@ -4097,6 +4097,7 @@ function renderChart() {
             plugins: {
                 legend: {
                     display: true,
+                    position: 'top',
                     labels: {
                         color: textColor,
                         font: { size: 11, weight: '500' },
@@ -4129,19 +4130,12 @@ function renderChart() {
                         const label = data.labels[idx] || '';
                         const inv = data.invested[idx] || 0;
                         const tot = data.total[idx] || 0;
-                        const gn = Math.round((tot - inv) * 100) / 100;
+                        const gn = gainCapital[idx] || 0;
                         const gnPct = inv > 0 ? ((gn / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
                         const gainIndicatorColor = gn >= 0 ? '#55EFC4' : '#FF7675';
 
                         tooltipEl.innerHTML = `
                             <div class="tooltip-header">${label}</div>
-                            <div class="tooltip-row">
-                                <div class="tooltip-label">
-                                    <span class="tooltip-indicator" style="background: #55EFC4;"></span>
-                                    <span>Patrimônio</span>
-                                </div>
-                                <div class="tooltip-value">${formatCurrency(tot)}</div>
-                            </div>
                             <div class="tooltip-row">
                                 <div class="tooltip-label">
                                     <span class="tooltip-indicator" style="background: #00B894;"></span>
@@ -4151,12 +4145,18 @@ function renderChart() {
                             </div>
                             <div class="tooltip-row">
                                 <div class="tooltip-label">
-                                    <span class="tooltip-indicator" style="background: ${gainIndicatorColor};"></span>
+                                    <span class="tooltip-indicator" style="background: #55EFC4;"></span>
                                     <span>Ganho de Capital</span>
                                 </div>
                                 <div class="tooltip-value" style="color: ${gainIndicatorColor}; font-weight: 600;">
                                     ${gn < 0 ? '-' : '+'}${formatCurrency(Math.abs(gn))} (${gn < 0 ? '-' : '+'}${gnPct}%)
                                 </div>
+                            </div>
+                            <div class="tooltip-row" style="border-top: 1px solid rgba(0,0,0,0.1); margin-top: 4px; padding-top: 4px;">
+                                <div class="tooltip-label">
+                                    <span style="font-weight: 700;">Patrimônio Total</span>
+                                </div>
+                                <div class="tooltip-value" style="font-weight: 700;">${formatCurrency(tot)}</div>
                             </div>
                         `;
 
@@ -4165,7 +4165,7 @@ function renderChart() {
                         let left = caretX + 12;
                         let top = Math.max(8, caretY - 60);
 
-                        const tooltipWidth = 175;
+                        const tooltipWidth = 190;
                         if (left + tooltipWidth > container.clientWidth) {
                             left = Math.max(8, caretX - tooltipWidth - 12);
                         }
@@ -4183,25 +4183,23 @@ function renderChart() {
                     ticks: {
                         color: textColor,
                         font: { size: 10 },
+                        maxRotation: 45,
+                        minRotation: 45,
                         maxTicksLimit: 12
                     }
                 },
                 y: {
                     stacked: false,
-                    beginAtZero: true,
+                    beginAtZero: true, // <-- EIXO SEMPRE COMEÇA NO ZERO
                     grid: { color: gridColor },
                     ticks: {
                         color: textColor,
                         font: { size: 10 },
-                        callback: function (value) {
-                            return formatCurrency(value);
-                        }
+                        callback: function (value) { return formatCurrency(value); }
                     }
                 }
             },
-            animation: {
-                duration: 600
-            }
+            animation: { duration: 600 }
         }
     });
 }
