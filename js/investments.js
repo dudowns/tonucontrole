@@ -3279,7 +3279,125 @@ function updateSummary() {
 
     if (dividendsEl) dividendsEl.textContent = formatCurrency(totalDividends);
     if (dividendsCountEl) dividendsCountEl.textContent = `${dividendsCount} provento${dividendsCount !== 1 ? 's' : ''}`;
+
+    // ITEM 10: Atualizar Card de Conquistas com dados de portfolio_snapshots e proventos
+    updateAchievementCard(totalCurrentValue, totalInvested);
 }
+
+async function updateAchievementCard(totalCurrentEquity, totalInvested) {
+    try {
+        const todayStr = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+        const todayDate = new Date(todayStr + 'T12:00:00');
+        const d30 = new Date(todayDate);
+        d30.setDate(d30.getDate() - 30);
+        const date30DaysAgoStr = d30.toLocaleDateString('sv');
+
+        const d90 = new Date(todayDate);
+        d90.setDate(d90.getDate() - 90);
+        const date90DaysAgoStr = d90.toLocaleDateString('sv');
+
+        const formattedToday = typeof formatDate === 'function' ? formatDate(todayStr) : todayStr;
+
+        const dateElPC = document.getElementById('achievementDateLabelPC');
+        const valElPC = document.getElementById('achievementTotalValuePC');
+        const growthElPC = document.getElementById('achievementGrowthTextPC');
+        const divsElPC = document.getElementById('achievementDividendsTextPC');
+
+        const dateElMobile = document.getElementById('achievementDateLabelMobile');
+        const valElMobile = document.getElementById('achievementTotalValueMobile');
+        const growthElMobile = document.getElementById('achievementGrowthTextMobile');
+        const divsElMobile = document.getElementById('achievementDividendsTextMobile');
+
+        const totalFormatted = typeof formatCurrency === 'function' ? formatCurrency(totalCurrentEquity) : `R$ ${Number(totalCurrentEquity || 0).toFixed(2)}`;
+
+        if (dateElPC) dateElPC.textContent = `Valor até ${formattedToday}`;
+        if (valElPC) valElPC.textContent = totalFormatted;
+        if (dateElMobile) dateElMobile.textContent = `Valor até ${formattedToday}`;
+        if (valElMobile) valElMobile.textContent = totalFormatted;
+
+        let pastSnapshots = [];
+        let proventos90Dias = 0;
+
+        if (window.supabaseClient && currentUser?.id) {
+            try {
+                if (totalCurrentEquity > 0) {
+                    await window.supabaseClient.from('portfolio_snapshots').upsert({
+                        user_id: currentUser.id,
+                        date: todayStr,
+                        total_equity: Math.round(totalCurrentEquity * 100) / 100,
+                        total_invested: Math.round((totalInvested || 0) * 100) / 100
+                    }, { onConflict: 'user_id,date' });
+                }
+
+                const { data: snaps } = await window.supabaseClient
+                    .from('portfolio_snapshots')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('date', { ascending: true });
+
+                if (snaps && snaps.length > 0) {
+                    pastSnapshots = snaps;
+                }
+
+                const { data: divs } = await window.supabaseClient
+                    .from('dividends')
+                    .select('total_value, date')
+                    .eq('user_id', currentUser.id)
+                    .gte('date', date90DaysAgoStr)
+                    .lte('date', todayStr);
+
+                if (divs && divs.length > 0) {
+                    proventos90Dias = divs.reduce((acc, d) => acc + (parseFloat(d.total_value) || 0), 0);
+                }
+            } catch (err) {
+                console.warn('⚠️ Aviso ao buscar dados para Card de Conquista:', err);
+            }
+        }
+
+        if (proventos90Dias === 0 && Array.isArray(window.allDividends)) {
+            proventos90Dias = window.allDividends
+                .filter(d => d.date >= date90DaysAgoStr && d.date <= todayStr)
+                .reduce((acc, d) => acc + (parseFloat(d.total_value || d.amount) || 0), 0);
+        }
+
+        let growthHtml = '';
+        if (pastSnapshots.length > 0) {
+            let baseSnapshot = null;
+            for (let i = pastSnapshots.length - 1; i >= 0; i--) {
+                if (pastSnapshots[i].date <= date30DaysAgoStr) {
+                    baseSnapshot = pastSnapshots[i];
+                    break;
+                }
+            }
+
+            if (baseSnapshot && baseSnapshot.total_equity > 0) {
+                const diff = totalCurrentEquity - baseSnapshot.total_equity;
+                const pct = (diff / baseSnapshot.total_equity) * 100;
+                const sign = diff >= 0 ? '+' : '';
+                const diffFmt = typeof formatCurrency === 'function' ? formatCurrency(Math.abs(diff)) : `R$ ${Math.abs(diff).toFixed(2)}`;
+                const word = diff >= 0 ? 'cresceu' : 'variou';
+                const color = diff >= 0 ? '#00b894' : '#ef4444';
+                growthHtml = `Seu patrimônio ${word} <strong style="color:${color}; margin: 0 4px;">${sign}${diffFmt} (${sign}${pct.toFixed(2)}%)</strong> nos últimos 30 dias`;
+            } else {
+                const firstDate = pastSnapshots[0]?.date ? (typeof formatDate === 'function' ? formatDate(pastSnapshots[0].date) : pastSnapshots[0].date) : formattedToday;
+                growthHtml = `Histórico iniciado em ${firstDate} • Acompanhe a evolução diária da sua carteira`;
+            }
+        } else {
+            growthHtml = `Histórico iniciado em ${formattedToday} • Acompanhe a evolução diária da sua carteira`;
+        }
+
+        const provFmt = typeof formatCurrency === 'function' ? formatCurrency(proventos90Dias) : `R$ ${proventos90Dias.toFixed(2)}`;
+        const provHtml = `<i class="fas fa-coins" style="color:#00B894; margin-right:4px;"></i> Você recebeu <strong>${provFmt}</strong> em proventos nos últimos 90 dias`;
+
+        if (growthElPC) growthElPC.innerHTML = growthHtml;
+        if (divsElPC) divsElPC.innerHTML = provHtml;
+        if (growthElMobile) growthElMobile.innerHTML = growthHtml;
+        if (divsElMobile) divsElMobile.innerHTML = provHtml;
+    } catch (e) {
+        console.warn('Erro ao atualizar card de conquista:', e);
+    }
+}
+window.updateAchievementCard = updateAchievementCard;
 
 async function salvarPatrimonio(valor) {
     try {

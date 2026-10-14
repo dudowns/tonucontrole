@@ -701,7 +701,8 @@
                             if (!firstUrgentNotif) firstUrgentNotif = item;
                         }
                     } else {
-                        const dueTime = new Date(billDate + 'T00:00:00').getTime();
+                        const dueObj = (typeof window.parseLocalDate === 'function') ? window.parseLocalDate(billDate) : new Date(billDate + 'T12:00:00');
+                        const dueTime = dueObj.getTime();
                         const diffDays = Math.round((dueTime - today.getTime()) / (1000 * 60 * 60 * 24));
                         if (diffDays <= 3 && diffDays >= 0) {
                             dueSoonCount++;
@@ -950,8 +951,10 @@
                         }
                     } else {
                         // B) Provento a Receber nos próximos dias (1 a 5 dias)
-                        const dueTime = new Date(payIso + 'T00:00:00').getTime();
-                        const nowTime = new Date(todayStr + 'T00:00:00').getTime();
+                        const dueObj = (typeof window.parseLocalDate === 'function') ? window.parseLocalDate(payIso) : new Date(payIso + 'T12:00:00');
+                        const nowObj = (typeof window.parseLocalDate === 'function') ? window.parseLocalDate(todayStr) : new Date(todayStr + 'T12:00:00');
+                        const dueTime = dueObj.getTime();
+                        const nowTime = nowObj.getTime();
                         const diffDays = Math.round((dueTime - nowTime) / (1000 * 60 * 60 * 24));
 
                         if (diffDays >= 1 && diffDays <= 5) {

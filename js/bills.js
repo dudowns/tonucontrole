@@ -541,7 +541,13 @@
         }
 
         const todayStr = getTodayString();
-        const todayMs = new Date(todayStr + 'T00:00:00').getTime();
+        const safeParseLocalDate = (s) => {
+            if (typeof window.parseLocalDate === 'function') return window.parseLocalDate(s);
+            if (!s) return null;
+            const p = String(s).split('T')[0].trim().split('-');
+            return p.length === 3 ? new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10), 12, 0, 0) : new Date(s);
+        };
+        const todayDate = safeParseLocalDate(todayStr);
 
         let html = '<div class="bills-list-group">';
 
@@ -560,8 +566,8 @@
             if (isPaid) {
                 daysBadge = `<span class="days-left" style="color:#00B894;"><i class="fas fa-check"></i> Pago</span>`;
             } else if (b.date) {
-                const dueMs = new Date(b.date + 'T00:00:00').getTime();
-                const diffDays = Math.round((dueMs - todayMs) / (1000 * 60 * 60 * 24));
+                const dueDate = safeParseLocalDate(b.date);
+                const diffDays = Math.round((dueDate - todayDate) / 86400000);
 
                 if (diffDays < 0) {
                     daysBadge = `<span class="days-left overdue"><i class="fas fa-exclamation-circle"></i> Vencida há ${Math.abs(diffDays)} dia(s)</span>`;
@@ -872,6 +878,16 @@
         };
 
         try {
+            const genUuid = () => {
+                if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                    try { return crypto.randomUUID(); } catch (e) {}
+                }
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            };
+
             if (editId) {
                 const idx = allBills.findIndex(b => String(b.id) === String(editId));
                 if (idx !== -1) {
@@ -882,17 +898,47 @@
                     await window.tonuSync.setCachedBills(currentUser.id, allBills);
                     await window.tonuSync.enqueue('UPDATE_BILL', { id: editId, ...baseBillPayload });
                 }
-                showToast('Conta atualizada com sucesso! ✅', 'success');
-            } else {
-                const genUuid = () => {
-                    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-                        try { return crypto.randomUUID(); } catch (e) {}
+
+                // Geração automática dos 11 meses seguintes se ativou recorrente mensal na edição
+                if (recurrenceType === 'monthly') {
+                    const existingChildren = allBills.filter(b => String(b.parent_transaction_id) === String(editId));
+                    if (existingChildren.length === 0) {
+                        const batch = [];
+                        for (let m = 1; m < 12; m++) {
+                            const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, m) : date;
+                            const billId = genUuid();
+                            batch.push({
+                                ...baseBillPayload,
+                                id: billId,
+                                parent_transaction_id: editId,
+                                description: desc,
+                                amount: finalAmount,
+                                date: dueDate,
+                                installments: 12,
+                                current_installment: m + 1,
+                                installment_total: 12,
+                                installment_number: m + 1,
+                                is_recurring: true,
+                                recurrence_type: 'monthly',
+                                paid: false,
+                                paid_date: null
+                            });
+                        }
+                        batch.forEach(item => allBills.push(item));
+                        if (window.tonuSync && currentUser?.id) {
+                            await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                            for (const b of batch) {
+                                await window.tonuSync.enqueue('INSERT_BILL', b);
+                            }
+                        }
+                        showToast('Conta atualizada e 11 meses futuros gerados! 🔁', 'success');
+                    } else {
+                        showToast('Conta atualizada com sucesso! ✅', 'success');
                     }
-                    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-                        return v.toString(16);
-                    });
-                };
+                } else {
+                    showToast('Conta atualizada com sucesso! ✅', 'success');
+                }
+            } else {
 
                 if (generateFuture && installmentsTotal > installmentCurrent) {
                     // Geração em lote das parcelas futuras
@@ -928,6 +974,43 @@
                     }
 
                     showToast(`Compra parcelada criada com ${batch.length} parcelas registradas! 📦`, 'success');
+                } else if (recurrenceType === 'monthly') {
+                    // Geração em lote de 12 parcelas (mês original + 11 seguintes)
+                    const batch = [];
+                    const parentBillId = genUuid();
+                    for (let m = 0; m < 12; m++) {
+                        const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, m) : date;
+                        const itemPaid = (m === 0) ? paid : false;
+                        const billId = (m === 0) ? parentBillId : genUuid();
+
+                        batch.push({
+                            ...baseBillPayload,
+                            id: billId,
+                            parent_transaction_id: (m === 0 ? null : parentBillId),
+                            description: desc,
+                            amount: finalAmount,
+                            date: dueDate,
+                            installments: 12,
+                            current_installment: m + 1,
+                            installment_total: 12,
+                            installment_number: m + 1,
+                            is_recurring: true,
+                            recurrence_type: 'monthly',
+                            paid: itemPaid,
+                            paid_date: itemPaid ? getTodayString() : null
+                        });
+                    }
+
+                    batch.forEach(item => allBills.push(item));
+
+                    if (window.tonuSync && currentUser?.id) {
+                        await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                        for (const b of batch) {
+                            await window.tonuSync.enqueue('INSERT_BILL', b);
+                        }
+                    }
+
+                    showToast('Conta recorrente gerada com sucesso para 12 meses! 🔁', 'success');
                 } else {
                     const newBill = {
                         ...baseBillPayload,

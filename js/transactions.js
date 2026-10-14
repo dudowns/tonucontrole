@@ -889,6 +889,45 @@
                     }
 
                     if (window.showToast) window.showToast(`Lançamento parcelado criado com ${batch.length} parcelas registradas! 📦`, 'success');
+                } else if (recurrenceType === 'monthly') {
+                    // Geração em lote de 12 meses (mês original + 11 seguintes)
+                    const batch = [];
+                    const parentTxId = genUuid();
+
+                    for (let m = 0; m < 12; m++) {
+                        const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, m) : date;
+                        const itemPaid = (m === 0) ? paid : false;
+                        const txId = (m === 0) ? parentTxId : genUuid();
+
+                        batch.push({
+                            ...baseTransactionData,
+                            id: txId,
+                            description: desc,
+                            amount: finalAmount,
+                            date: dueDate,
+                            installments: 1,
+                            current_installment: 1,
+                            installment_total: 1,
+                            installment_number: 1,
+                            is_recurring: true,
+                            recurrence_type: 'monthly',
+                            parent_transaction_id: (m === 0) ? null : parentTxId,
+                            paid: itemPaid,
+                            created_at: new Date().toISOString()
+                        });
+                    }
+
+                    // Prepend to allTransactions
+                    batch.forEach(item => allTransactions.unshift(item));
+
+                    if (window.tonuSync && currentUser?.id) {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                        for (const item of batch) {
+                            await window.tonuSync.enqueue('INSERT_TRANSACTION', item);
+                        }
+                    }
+
+                    if (window.showToast) window.showToast('Transação recorrente gerada para os próximos 12 meses! 🔁', 'success');
                 } else {
                     const newId = genUuid();
                     const newTx = {

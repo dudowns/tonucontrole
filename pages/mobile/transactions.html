@@ -712,7 +712,7 @@ function exportTransactionsCSV() {
         return;
     }
 
-    let csv = 'ID,Data,Tipo,Descricao,Valor,Categoria,Status\n';
+    let csv = '\uFEFF' + ['ID', 'Data', 'Tipo', 'Descricao', 'Valor', 'Categoria', 'Status'].join(';') + '\r\n';
     txsToExport.forEach(t => {
         let cat = null;
         if (t.category_id && categories && categories.length > 0) {
@@ -726,13 +726,13 @@ function exportTransactionsCSV() {
         const row = [
             `"${t.id || ''}"`,
             `"${t.date || ''}"`,
-            `"${t.type || ''}"`,
+            `"${t.type === 'income' ? 'Receita' : 'Despesa'}"`,
             `"${(t.description || '').replace(/"/g, '""')}"`,
-            t.amount || 0,
+            `"${(Number(t.amount) || 0).toFixed(2).replace('.', ',')}"`,
             `"${catName.replace(/"/g, '""')}"`,
             isPaid ? 'Pago' : 'Pendente'
         ];
-        csv += row.join(',') + '\n';
+        csv += row.join(';') + '\r\n';
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

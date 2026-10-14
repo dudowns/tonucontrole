@@ -506,6 +506,44 @@
         </div>
     </div>
 
+    <!-- ITEM 12: CDI & RENDIMENTOS AUTOMÁTICOS DAS METAS (MOBILE) -->
+    <div class="cdi-yield-card-mobile" style="background:var(--color-surface, #ffffff); border:1px solid var(--color-border, #e2e8f0); border-radius:14px; padding:12px 14px; margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--color-border, #f1f5f9); padding-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:28px; height:28px; border-radius:8px; background:rgba(0,184,148,0.12); color:#00b894; display:flex; align-items:center; justify-content:center; font-size:13px;">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div>
+                    <strong style="font-size:12px; color:var(--color-text, #0f172a); display:block;">Rendimento CDI</strong>
+                    <span style="font-size:10px; color:var(--color-text-muted, #64748b);" id="mobileCdiStatusText">Taxa: ~10,65% a.a. (BCB Série 12)</span>
+                </div>
+            </div>
+            <span style="font-size:10px; color:#00b894; font-weight:700; background:rgba(0,184,148,0.1); padding:2px 8px; border-radius:6px;">100% CDI</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                <span style="font-size:10px; color:var(--color-text-muted, #64748b);">Aportado</span>
+                <strong style="display:block; font-size:13px; color:var(--color-text, #0f172a);" id="mobileCdiAportado">R$ 0,00</strong>
+            </div>
+            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                <span style="font-size:10px; color:#00b894;">Rend. Bruto</span>
+                <strong style="display:block; font-size:13px; color:#00b894;" id="mobileCdiBruto">+ R$ 0,00</strong>
+            </div>
+            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                <span style="font-size:10px; color:#ef4444;">IOF Estimado</span>
+                <strong style="display:block; font-size:13px; color:#ef4444;" id="mobileCdiIOF">- R$ 0,00</strong>
+            </div>
+            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                <span style="font-size:10px; color:#f59e0b;">IR Estimado</span>
+                <strong style="display:block; font-size:13px; color:#f59e0b;" id="mobileCdiIR">- R$ 0,00</strong>
+            </div>
+            <div style="grid-column:1/-1; background:rgba(0,184,148,0.08); padding:8px 10px; border-radius:8px; border:1px solid rgba(0,184,148,0.2); display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:11px; font-weight:700; color:#00b894;">Saldo Líquido</span>
+                <strong style="font-size:14px; font-weight:800; color:#00b894;" id="mobileCdiLiquido">R$ 0,00</strong>
+            </div>
+        </div>
+    </div>
+
     <!-- FILTROS -->
     <div class="chip-filters">
         <button class="chip-btn active" onclick="filterGoals('all', this)">Todas</button>
@@ -591,19 +629,27 @@
                         <input type="date" id="goalDeadline" class="sheet-input">
                     </div>
                 </div>
-                <div class="sheet-form-group">
-                    <label>Cor do Card</label>
-                    <div class="sheet-input-wrapper">
-                        <i class="fas fa-palette"></i>
-                        <input type="color" id="goalColor" class="sheet-input" value="#6C5CE7" style="height:42px; padding:2px 4px; cursor:pointer;">
+                    <div class="sheet-form-group">
+                        <label>Cor do Card</label>
+                        <div class="sheet-input-wrapper">
+                            <i class="fas fa-palette"></i>
+                            <input type="color" id="goalColor" class="sheet-input" value="#6C5CE7" style="height:42px; padding:2px 4px; cursor:pointer;">
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <button type="submit" class="sheet-submit-btn" id="goalSubmitBtn">Salvar Meta</button>
-        </form>
+                <div class="sheet-form-group">
+                    <label>% do CDI da Meta</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-percentage"></i>
+                        <input type="number" step="1" min="1" max="500" id="goalCdiPercent" class="sheet-input" placeholder="100" value="100">
+                    </div>
+                </div>
+
+                <button type="submit" class="sheet-submit-btn" id="goalSubmitBtn">Salvar Meta</button>
+            </form>
+        </div>
     </div>
-</div>
 
 <!-- MODAL: APORTAR NA META -->
 <div class="mobile-modal-overlay" id="modalDeposit" onclick="closeDepositModal(event)">
@@ -701,6 +747,77 @@
             <button type="button" class="celebration-btn-secondary" onclick="triggerGoalConfetti()">
                 🎊 Mais Confetes!
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: RENDIMENTO CDI & EXTRATO DE APORTES (MOBILE) -->
+<div class="mobile-modal-overlay" id="modalMobileYield" onclick="closeMobileYieldModal(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()" style="max-height:88vh; display:flex; flex-direction:column;">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <div>
+                <span style="font-size:11px; text-transform:uppercase; font-weight:700; color:#6C5CE7; letter-spacing:0.04em;">Rentabilidade</span>
+                <h3 id="mobileYieldGoalTitle" style="font-size:15px; margin:0;">Extrato da Meta</h3>
+            </div>
+            <button class="sheet-close-btn" onclick="closeMobileYieldModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="overflow-y:auto; padding: 12px 16px; flex:1;">
+            <!-- CDI % da Meta -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(108,92,231,0.08); padding:8px 12px; border-radius:10px; margin-bottom:12px; border:1px solid rgba(108,92,231,0.2);">
+                <span style="font-size:11px; font-weight:700; color:var(--color-text);">Taxa da Meta:</span>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <input type="number" id="mobileYieldCdiInput" value="100" min="1" max="500" style="width:60px; padding:3px 6px; font-size:11px; font-weight:700; border-radius:6px; border:1px solid var(--color-border); text-align:center;">
+                    <span style="font-size:11px; font-weight:700; color:var(--color-text);">% CDI</span>
+                    <button type="button" class="btn-goal-act" onclick="saveMobileGoalCdi()" style="padding:4px 8px; font-size:10px; background:#6C5CE7; color:#fff; border-radius:6px;">Salvar</button>
+                </div>
+            </div>
+
+            <!-- 6 Cards de métricas -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:12px;">
+                <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                    <span style="font-size:10px; color:var(--color-text-muted, #64748b);">Aportado</span>
+                    <strong style="display:block; font-size:13px; color:var(--color-text, #0f172a);" id="mobileYieldStatAportado">R$ 0,00</strong>
+                </div>
+                <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                    <span style="font-size:10px; color:#00b894;">Rend. Bruto</span>
+                    <strong style="display:block; font-size:13px; color:#00b894;" id="mobileYieldStatBruto">+ R$ 0,00</strong>
+                </div>
+                <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                    <span style="font-size:10px; color:var(--color-text-muted, #64748b);">Saldo Bruto</span>
+                    <strong style="display:block; font-size:13px; color:var(--color-text, #0f172a);" id="mobileYieldStatSaldoBruto">R$ 0,00</strong>
+                </div>
+                <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                    <span style="font-size:10px; color:#ef4444;">IOF Estimado</span>
+                    <strong style="display:block; font-size:13px; color:#ef4444;" id="mobileYieldStatIOF">- R$ 0,00</strong>
+                </div>
+                <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                    <span style="font-size:10px; color:#f59e0b;">IR Estimado</span>
+                    <strong style="display:block; font-size:13px; color:#f59e0b;" id="mobileYieldStatIR">- R$ 0,00</strong>
+                </div>
+                <div style="background:rgba(0,184,148,0.1); padding:8px 10px; border-radius:8px; border:1px solid rgba(0,184,148,0.25);">
+                    <span style="font-size:10px; color:#00b894; font-weight:700;">Saldo Líquido</span>
+                    <strong style="display:block; font-size:13.5px; color:#00b894; font-weight:800;" id="mobileYieldStatLiquido">R$ 0,00</strong>
+                </div>
+            </div>
+
+            <!-- Novo Aporte Rápido -->
+            <form onsubmit="handleMobileQuickDeposit(event)" style="background:var(--color-bg, #f8fafc); padding:10px; border-radius:10px; margin-bottom:12px; border:1px solid var(--color-border, #e2e8f0);">
+                <span style="font-size:11px; font-weight:700; color:var(--color-text); display:block; margin-bottom:6px;">
+                    <i class="fas fa-plus-circle" style="color:#00B894;"></i> Novo Aporte
+                </span>
+                <div style="display:flex; gap:6px;">
+                    <input type="number" step="0.01" min="1" id="mobileQuickDepositAmt" placeholder="Valor (R$)" required class="sheet-input" style="flex:1; height:36px; font-size:12px;">
+                    <input type="date" id="mobileQuickDepositDate" class="sheet-input" style="width:125px; height:36px; font-size:11px;" required>
+                    <button type="submit" class="btn-goal-act deposit" style="padding:0 12px; height:36px; font-size:11px; white-space:nowrap;">Aportar</button>
+                </div>
+            </form>
+
+            <!-- Lista de Aportes -->
+            <span style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--color-text-muted); display:block; margin-bottom:6px;">Histórico de Aportes</span>
+            <div id="mobileGoalDepositsList" style="display:flex; flex-direction:column; gap:6px;">
+                <div style="text-align:center; padding:12px; font-size:11px; color:#94a3b8;">Nenhum aporte registrado.</div>
+            </div>
         </div>
     </div>
 </div>
@@ -844,6 +961,7 @@ function updateHeroStats() {
     document.getElementById("heroTotalAcumulado").textContent = formatCurrency(totalAcumulado);
     document.getElementById("heroTotalAlvo").textContent = formatCurrency(totalAlvo);
     document.getElementById("heroMetasConcluidas").textContent = `${concluidas} de ${goals.length}`;
+    if (typeof updateMobileCdiGlobalCard === 'function') updateMobileCdiGlobalCard();
 }
 
 // ============================================
@@ -924,8 +1042,11 @@ function renderGoals() {
                     <span>${g.deadline ? '📅 ' + formatDate(g.deadline) : 'Sem prazo'}</span>
                 </div>
 
-                <!-- 4 AÇÕES: APORTAR, RESGATAR, EDITAR, EXCLUIR -->
-                <div class="goal-actions-grid">
+                <!-- AÇÕES: CDI, APORTAR, RESGATAR, EDITAR, EXCLUIR -->
+                <div class="goal-actions-grid" style="grid-template-columns: auto 1fr 1fr auto auto;">
+                    <button type="button" class="btn-goal-act" style="background:rgba(108,92,231,0.12); color:#6C5CE7; font-weight:700;" onclick="openMobileYieldModal('${g.id}')">
+                        <i class="fas fa-chart-line"></i> CDI
+                    </button>
                     <button type="button" class="btn-goal-act deposit" onclick="openDepositModal('${g.id}')">
                         <i class="fas fa-plus"></i> Aportar
                     </button>
@@ -973,6 +1094,7 @@ function openGoalModal() {
     document.getElementById("goalDeadline").value = "";
     document.getElementById("goalCategory").value = "emergency";
     document.getElementById("goalColor").value = CATEGORY_ICONS.emergency.color;
+    if (document.getElementById("goalCdiPercent")) document.getElementById("goalCdiPercent").value = "100";
     document.getElementById("modalGoal").classList.add("active");
 }
 
@@ -988,6 +1110,7 @@ function openEditGoalModal(id) {
     document.getElementById("goalDeadline").value = goal.deadline || "";
     document.getElementById("goalCategory").value = goal.category || "other";
     document.getElementById("goalColor").value = goal.color || "#6C5CE7";
+    if (document.getElementById("goalCdiPercent")) document.getElementById("goalCdiPercent").value = goal.cdi_percent || 100;
     document.getElementById("modalGoal").classList.add("active");
 }
 
@@ -1009,6 +1132,7 @@ async function handleGoalSubmit(e) {
     const current = parseFloat(document.getElementById("goalCurrent").value) || 0;
     const deadline = document.getElementById("goalDeadline").value || null;
     const color = document.getElementById("goalColor").value;
+    const cdiPercent = parseFloat(document.getElementById("goalCdiPercent")?.value) || 100;
     const completed = current >= target && target > 0;
 
     const payload = {
@@ -1019,6 +1143,7 @@ async function handleGoalSubmit(e) {
         current_amount: current,
         deadline: deadline,
         color: color,
+        cdi_percent: cdiPercent,
         completed: completed
     };
 
@@ -1144,6 +1269,15 @@ async function handleDepositSubmit(e) {
                     .eq("user_id", currentUser.id);
 
                 if (error) throw error;
+
+                // Registra aporte histórico em goal_deposits
+                const todayStr = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+                await supabaseClient.from("goal_deposits").insert([{
+                    goal_id: id,
+                    user_id: currentUser.id,
+                    amount: amount,
+                    deposit_date: todayStr
+                }]);
             } catch (netErr) {
                 console.warn("Falha online no aporte, enfileirando offline:", netErr);
                 isOnline = false;
@@ -1164,10 +1298,7 @@ async function handleDepositSubmit(e) {
 
         closeDepositModal();
         await loadGoals();
-
-        if (isCompleted) {
-            triggerCelebrationModal(goal.title, Math.max(Number(goal.target_amount) || 0, newAmount));
-        }
+        await checkMilestonesMobile(goal, newAmount);
     } catch (err) {
         showToast("Erro no aporte: " + err.message, "error");
     } finally {

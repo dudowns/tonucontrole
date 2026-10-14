@@ -13,6 +13,9 @@ create table public.transactions (
   recurrence_type text null,
   installments integer null default 1,
   current_installment integer null default 1,
+  parent_transaction_id uuid null,
+  installment_number integer null default 1,
+  installment_total integer null default 1,
   is_bill boolean null default false,
   paid_date date null,
   constraint transactions_pkey primary key (id),
@@ -36,3 +39,9 @@ create index IF not exists idx_transactions_user_id on public.transactions using
 create index IF not exists idx_transactions_paid on public.transactions using btree (paid) TABLESPACE pg_default;
 
 create index IF not exists idx_transactions_bill_date on public.transactions using btree (user_id, is_bill, date) TABLESPACE pg_default;
+
+-- MIGRAÇÃO / ATUALIZAÇÃO SEGURA PARA BANCOS JÁ PROVISIONADOS:
+ALTER TABLE public.transactions 
+  ADD COLUMN IF NOT EXISTS parent_transaction_id uuid NULL,
+  ADD COLUMN IF NOT EXISTS installment_number integer NULL,
+  ADD COLUMN IF NOT EXISTS installment_total integer NULL;

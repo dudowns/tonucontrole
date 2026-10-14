@@ -859,8 +859,8 @@ function renderBills() {
                 </div>
                 <div class="bill-bottom">
                     <button class="btn-toggle-paid ${isPaid ? 'is-paid' : ''}" onclick="togglePaid('${b.id}')">
-                        <i class="fas ${isPaid ? 'fa-check-circle' : 'fa-circle'}"></i>
-                        ${isPaid ? 'Marcar Pendente' : 'Marcar Paga'}
+                        <i class="fas ${isPaid ? 'fa-check-circle' : 'fa-check'}"></i>
+                        ${isPaid ? 'Marcar Pendente' : 'Pagar'}
                     </button>
                     <div class="bill-actions-mobile">
                         <button class="btn-act" onclick="openModal('${b.id}')" title="Editar"><i class="fas fa-pencil-alt"></i></button>
@@ -1097,6 +1097,16 @@ async function saveBill(event) {
     };
 
     try {
+        const genUuid = () => {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                try { return crypto.randomUUID(); } catch (e) {}
+            }
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        };
+
         if (editId) {
             const idx = allBills.findIndex(b => String(b.id) === String(editId));
             if (idx >= 0) allBills[idx] = { ...allBills[idx], ...payload };
@@ -1104,33 +1114,90 @@ async function saveBill(event) {
                 await window.tonuSync.setCachedBills(currentUser.id, allBills);
                 await window.tonuSync.enqueue('UPDATE_BILL', { id: editId, ...payload });
             }
-            showToast("Conta atualizada com sucesso! ✅", "success");
-        } else {
-            const genUuid = () => {
-                if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-                    try { return crypto.randomUUID(); } catch (e) {}
-                }
-                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-                    return v.toString(16);
-                });
-            };
 
+            // Geração automática dos 11 meses seguintes se ativou recorrente mensal na edição
+            if (recurrenceType === 'monthly') {
+                const existingChildren = allBills.filter(b => String(b.parent_transaction_id) === String(editId));
+                if (existingChildren.length === 0) {
+                    const batch = [];
+                    for (let m = 1; m < 12; m++) {
+                        const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, m) : date;
+                        const billItem = {
+                            id: genUuid(),
+                            ...payload,
+                            parent_transaction_id: editId,
+                            description: desc,
+                            amount: finalAmount,
+                            date: dueDate,
+                            installments: 12,
+                            current_installment: m + 1,
+                            installment_total: 12,
+                            installment_number: m + 1,
+                            is_recurring: true,
+                            recurrence_type: 'monthly',
+                            paid: false,
+                            paid_date: null
+                        };
+                        batch.push(billItem);
+                        allBills.push(billItem);
+                    }
+                    if (window.tonuSync && currentUser?.id) {
+                        await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                        for (const b of batch) {
+                            await window.tonuSync.enqueue('INSERT_BILL', b);
+                        }
+                    }
+                    showToast("Conta atualizada e 11 meses futuros gerados! 🔁", "success");
+                } else {
+                    showToast("Conta atualizada com sucesso! ✅", "success");
+                }
+            } else {
+                showToast("Conta atualizada com sucesso! ✅", "success");
+            }
+        } else {
             const batch = [];
             if (recurrenceType === 'installments' && generateFuture && installmentsTotal > installmentCurrent) {
                 const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
+                const parentBillId = genUuid();
                 for (let i = installmentCurrent; i <= installmentsTotal; i++) {
                     const monthOffset = i - installmentCurrent;
                     const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
                     const itemPaid = (i === installmentCurrent) ? paid : false;
                     const billItem = {
-                        id: genUuid(),
+                        id: (i === installmentCurrent ? parentBillId : genUuid()),
                         ...payload,
+                        parent_transaction_id: (i === installmentCurrent ? null : parentBillId),
                         description: `${cleanDesc} (${i}/${installmentsTotal})`,
                         amount: finalAmount,
                         date: dueDate,
                         installments: installmentsTotal,
                         current_installment: i,
+                        installment_total: installmentsTotal,
+                        installment_number: i,
+                        paid: itemPaid,
+                        paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
+                    };
+                    batch.push(billItem);
+                    allBills.push(billItem);
+                }
+            } else if (recurrenceType === 'monthly') {
+                const parentBillId = genUuid();
+                for (let m = 0; m < 12; m++) {
+                    const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, m) : date;
+                    const itemPaid = (m === 0) ? paid : false;
+                    const billItem = {
+                        id: (m === 0 ? parentBillId : genUuid()),
+                        ...payload,
+                        parent_transaction_id: (m === 0 ? null : parentBillId),
+                        description: desc,
+                        amount: finalAmount,
+                        date: dueDate,
+                        installments: 12,
+                        current_installment: m + 1,
+                        installment_total: 12,
+                        installment_number: m + 1,
+                        is_recurring: true,
+                        recurrence_type: 'monthly',
                         paid: itemPaid,
                         paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
                     };

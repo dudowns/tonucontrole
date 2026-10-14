@@ -646,6 +646,47 @@
         };
 
         const modalHtml = `
+        <style id="tonuIRPrintStyle">
+        @media print {
+            body * {
+                visibility: hidden !important;
+            }
+            #tonuIRReportModal, #tonuIRReportModal * {
+                visibility: visible !important;
+            }
+            #tonuIRReportModal {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                z-index: 9999999 !important;
+                box-shadow: none !important;
+            }
+            #tonuIRReportModal > div {
+                max-width: 100% !important;
+                width: 100% !important;
+                max-height: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                background: #ffffff !important;
+            }
+            #tonuIRReportModal button,
+            #tonuIRReportModal select,
+            #tonuIRReportModal .ir-tab-btn,
+            .sidebar, .topbar, .mobile-topbar, .bottom-nav, nav, header, footer {
+                display: none !important;
+            }
+            #irReportContentBody {
+                overflow: visible !important;
+                max-height: none !important;
+                padding: 10px 0 !important;
+            }
+        }
+        </style>
         <div id="tonuIRReportModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:999999; display:flex; align-items:center; justify-content:center; padding:12px; backdrop-filter:blur(6px); font-family:Inter,system-ui,-apple-system,sans-serif;">
             <div style="background:var(--color-surface, #ffffff); color:var(--color-text, #0f172a); border-radius:18px; max-width:880px; width:100%; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 25px 60px -15px rgba(0,0,0,0.4); border:1px solid var(--color-border, #e2e8f0); overflow:hidden;">
                 <!-- Header -->
@@ -668,6 +709,9 @@
                         <select id="irReportYearSelect" style="padding:6px 12px; border-radius:8px; border:1px solid var(--color-border, #cbd5e1); font-size:13px; font-weight:700; background:var(--color-surface, #fff); color:var(--color-text, #0f172a); cursor:pointer;">
                             ${yearsList.map(y => `<option value="${y}" ${y === targetYear ? 'selected' : ''}>${y} (Declaração ${y + 1})</option>`).join('')}
                         </select>
+                        <button type="button" onclick="window.print()" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid var(--color-border, #cbd5e1); background:var(--color-surface, #fff); color:var(--color-text, #0f172a); cursor:pointer; display:flex; align-items:center; gap:6px;" title="Imprimir Relatório IRPF">
+                            <i class="fas fa-print"></i> Imprimir
+                        </button>
                         <button type="button" onclick="document.getElementById('tonuIRReportModal').remove()" style="background:none; border:none; color:var(--color-text-muted, #64748b); font-size:18px; cursor:pointer; padding:6px; border-radius:8px; display:flex; align-items:center; justify-content:center;" title="Fechar">
                             <i class="fas fa-times"></i>
                         </button>

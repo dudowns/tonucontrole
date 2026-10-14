@@ -427,6 +427,21 @@ function formatDate(date, format) {
     return d.toLocaleDateString('pt-BR');
 }
 
+function parseLocalDate(dateStr) {
+    if (!dateStr) return null;
+    if (dateStr instanceof Date) return dateStr;
+    var str = String(dateStr).trim();
+    var match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+        var year = parseInt(match[1], 10);
+        var month = parseInt(match[2], 10) - 1;
+        var day = parseInt(match[3], 10);
+        return new Date(year, month, day, 12, 0, 0);
+    }
+    return new Date(dateStr);
+}
+window.parseLocalDate = parseLocalDate;
+
 function getToday() {
     var now = new Date();
     try {

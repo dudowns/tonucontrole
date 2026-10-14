@@ -992,7 +992,7 @@ async function exportData() {
             t.notes ? `"${t.notes.replace(/"/g, '""')}"` : ''
         ]);
 
-        const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+        const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -1331,7 +1331,7 @@ async function generateReportFromModal() {
                 (Number(t.amount) || 0).toFixed(2).replace('.', ','),
                 t.category || 'Outros'
             ]);
-            const csv = ['\uFEFF' + headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+            const csv = ['\uFEFF' + headers.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');

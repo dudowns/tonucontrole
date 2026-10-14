@@ -2205,4 +2205,57 @@ body.dark-theme .btn-outline-demo:hover {
     color: #ffffff;
 }
 
+/* ==========================================================================
+   ESTILOS DE IMPRESSÃO LIMPA (IRPF & RELATÓRIOS)
+   ========================================================================== */
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+    #tonuIRReportModal,
+    #tonuIRReportModal * {
+        visibility: visible !important;
+    }
+    #tonuIRReportModal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        background: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        z-index: 9999999 !important;
+        box-shadow: none !important;
+    }
+    #tonuIRReportModal > div {
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: none !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+    }
+    #tonuIRReportModal button,
+    #tonuIRReportModal select,
+    #tonuIRReportModal .ir-tab-btn,
+    .sidebar,
+    .topbar,
+    .mobile-topbar,
+    .bottom-nav,
+    nav,
+    header,
+    footer,
+    .theme-toggle-btn,
+    .notif-bell-btn {
+        display: none !important;
+    }
+    #irReportContentBody {
+        overflow: visible !important;
+        max-height: none !important;
+        padding: 10px 0 !important;
+    }
+}
+
+
 

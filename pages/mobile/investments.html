@@ -400,6 +400,28 @@
          ABA 1: CARTEIRA (VISÃO GERAL & ATIVOS)
          ========================================== -->
     <div id="tabContentCarteira" class="tab-content active">
+        <!-- ITEM 10: CARD DE CONQUISTA (MOBILE) -->
+        <div class="achievement-card-banner-mobile" id="achievementCardMobile" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.1) 0%, rgba(0, 206, 201, 0.08) 100%); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg, #6C5CE7, #a29bfe); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <span style="font-size:12px; font-weight:700; color:#6C5CE7;">Conquista da Carteira</span>
+                </div>
+                <div style="text-align:right;">
+                    <span style="font-size:10px; color:var(--color-text-muted, #94a3b8);" id="achievementDateLabelMobile">Até --/--/----</span>
+                    <strong style="display:block; font-size:14px; color:var(--color-text, #2d3436);" id="achievementTotalValueMobile">R$ 0,00</strong>
+                </div>
+            </div>
+            <div style="font-size:12px; font-weight:600; color:var(--color-text, #2d3436);" id="achievementGrowthTextMobile">
+                Calculando evolução dos últimos 30 dias...
+            </div>
+            <div style="font-size:11px; color:var(--color-text-muted, #64748b);" id="achievementDividendsTextMobile">
+                Proventos dos últimos 90 dias: calculando...
+            </div>
+        </div>
+
         <div class="invest-hero-grid">
             <div class="invest-hero-card full-width">
                 <div class="hero-label"><i class="fas fa-wallet"></i> Patrimônio Atual em Ativos</div>
@@ -1658,6 +1680,112 @@ function updateSummaryHero() {
     if (countRecEl) countRecEl.textContent = countRecebidos;
     const countARecEl = document.getElementById("countDivAReceber");
     if (countARecEl) countARecEl.textContent = countAReceber;
+
+    // ITEM 10: Atualizar Card de Conquista Mobile
+    updateMobileAchievementCard(totalPatrimonio, totalInvestido);
+}
+
+async function updateMobileAchievementCard(totalCurrentEquity, totalInvested) {
+    try {
+        const todayStr = new Date().toLocaleDateString('sv');
+        const todayDate = new Date(todayStr + 'T12:00:00');
+        const d30 = new Date(todayDate);
+        d30.setDate(d30.getDate() - 30);
+        const date30DaysAgoStr = d30.toLocaleDateString('sv');
+
+        const d90 = new Date(todayDate);
+        d90.setDate(d90.getDate() - 90);
+        const date90DaysAgoStr = d90.toLocaleDateString('sv');
+
+        const formattedToday = typeof formatDate === 'function' ? formatDate(todayStr) : todayStr;
+
+        const dateElMob = document.getElementById('achievementDateLabelMobile');
+        const valElMob = document.getElementById('achievementTotalValueMobile');
+        const growthElMob = document.getElementById('achievementGrowthTextMobile');
+        const divsElMob = document.getElementById('achievementDividendsTextMobile');
+
+        const totalFormatted = typeof formatCurrency === 'function' ? formatCurrency(totalCurrentEquity) : `R$ ${Number(totalCurrentEquity || 0).toFixed(2)}`;
+
+        if (dateElMob) dateElMob.textContent = `Até ${formattedToday}`;
+        if (valElMob) valElMob.textContent = totalFormatted;
+
+        let pastSnapshots = [];
+        let proventos90Dias = 0;
+
+        if (window.supabaseClient && currentUser?.id) {
+            try {
+                if (totalCurrentEquity > 0) {
+                    await window.supabaseClient.from('portfolio_snapshots').upsert({
+                        user_id: currentUser.id,
+                        date: todayStr,
+                        total_equity: Math.round(totalCurrentEquity * 100) / 100,
+                        total_invested: Math.round((totalInvested || 0) * 100) / 100
+                    }, { onConflict: 'user_id,date' });
+                }
+
+                const { data: snaps } = await window.supabaseClient
+                    .from('portfolio_snapshots')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('date', { ascending: true });
+
+                if (snaps && snaps.length > 0) pastSnapshots = snaps;
+
+                const { data: divs } = await window.supabaseClient
+                    .from('dividends')
+                    .select('total_value, date')
+                    .eq('user_id', currentUser.id)
+                    .gte('date', date90DaysAgoStr)
+                    .lte('date', todayStr);
+
+                if (divs && divs.length > 0) {
+                    proventos90Dias = divs.reduce((acc, d) => acc + (parseFloat(d.total_value) || 0), 0);
+                }
+            } catch (err) {
+                console.warn('⚠️ Erro ao atualizar snapshot mobile:', err);
+            }
+        }
+
+        if (proventos90Dias === 0 && Array.isArray(allRawDividends)) {
+            proventos90Dias = allRawDividends
+                .filter(d => d.date >= date90DaysAgoStr && d.date <= todayStr)
+                .reduce((acc, d) => acc + (parseFloat(d.total_value || d.amount) || 0), 0);
+        }
+
+        let growthHtml = '';
+        if (pastSnapshots.length > 0) {
+            let baseSnapshot = null;
+            for (let i = pastSnapshots.length - 1; i >= 0; i--) {
+                if (pastSnapshots[i].date <= date30DaysAgoStr) {
+                    baseSnapshot = pastSnapshots[i];
+                    break;
+                }
+            }
+
+            if (baseSnapshot && baseSnapshot.total_equity > 0) {
+                const diff = totalCurrentEquity - baseSnapshot.total_equity;
+                const pct = (diff / baseSnapshot.total_equity) * 100;
+                const sign = diff >= 0 ? '+' : '';
+                const diffFmt = typeof formatCurrency === 'function' ? formatCurrency(Math.abs(diff)) : `R$ ${Math.abs(diff).toFixed(2)}`;
+                const word = diff >= 0 ? 'cresceu' : 'variou';
+                const color = diff >= 0 ? '#00b894' : '#ef4444';
+                growthHtml = `Seu patrimônio ${word} <strong style="color:${color};">${sign}${diffFmt} (${sign}${pct.toFixed(2)}%)</strong> nos últimos 30 dias`;
+            } else {
+                const firstDate = pastSnapshots[0]?.date ? (typeof formatDate === 'function' ? formatDate(pastSnapshots[0].date) : pastSnapshots[0].date) : formattedToday;
+                growthHtml = `Histórico iniciado em ${firstDate}`;
+            }
+        } else {
+            growthHtml = `Histórico iniciado em ${formattedToday}`;
+        }
+
+        const provFmt = typeof formatCurrency === 'function' ? formatCurrency(proventos90Dias) : `R$ ${proventos90Dias.toFixed(2)}`;
+        const provHtml = `Você recebeu <strong>${provFmt}</strong> em proventos nos últimos 90 dias`;
+
+        if (growthElMob) growthElMob.innerHTML = growthHtml;
+        if (divsElMob) divsElMob.innerHTML = provHtml;
+    } catch (e) {
+        console.warn('Erro ao atualizar card de conquista mobile:', e);
+    }
 }
 
 // ============================================
