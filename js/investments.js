@@ -3990,7 +3990,7 @@ function buildChartData() {
 }
 
 // ============================================
-// GRÁFICO DE EVOLUÇÃO - BARRAS AGRUPADAS (ESTILO INVESTIDOR 10)
+// GRÁFICO DE EVOLUÇÃO - BARRAS EMPILHADAS (ESTILO INVESTIDOR 10)
 // ============================================
 function renderChart() {
     const canvas = document.getElementById('patrimonyChart');
@@ -4020,7 +4020,7 @@ function renderChart() {
                 datasets: [{
                     label: 'Patrimônio',
                     data: [0],
-                    backgroundColor: '#55EFC4',
+                    backgroundColor: '#96e9c1',
                     borderRadius: 6,
                     borderSkipped: false
                 }]
@@ -4050,13 +4050,13 @@ function renderChart() {
         return;
     }
 
-    // --- CÁLCULO DO GANHO DE CAPITAL (diferença entre patrimônio e aplicado) ---
+    // --- CÁLCULO DO GANHO DE CAPITAL (Patrimônio - Valor Aplicado) ---
     const gainCapital = data.total.map((total, i) => {
         const inv = data.invested[i] || 0;
         return Math.round((total - inv) * 100) / 100;
     });
 
-    // --- GRÁFICO PRINCIPAL ---
+    // --- GRÁFICO PRINCIPAL (BARRAS EMPILHADAS) ---
     patrimonyChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -4065,24 +4065,24 @@ function renderChart() {
                 {
                     label: 'Valor aplicado',
                     data: data.invested,
-                    backgroundColor: '#00B894',
-                    hoverBackgroundColor: '#009879',
-                    borderRadius: 4,
+                    backgroundColor: '#2cb875',       // Verde escuro (Investidor10)
+                    hoverBackgroundColor: '#24a565',
+                    borderRadius: 0,
                     borderSkipped: false,
+                    stack: 'patrimonio',               // ✅ EMPILHA
                     barPercentage: 0.7,
-                    categoryPercentage: 0.8,
-                    order: 1 // Barra escura na frente (esquerda)
+                    categoryPercentage: 0.8
                 },
                 {
                     label: 'Ganho de Capital',
                     data: gainCapital,
-                    backgroundColor: '#55EFC4',
-                    hoverBackgroundColor: '#2ECC71',
+                    backgroundColor: '#96e9c1',       // Verde claro (Investidor10)
+                    hoverBackgroundColor: '#7ddfb3',
                     borderRadius: 4,
                     borderSkipped: false,
+                    stack: 'patrimonio',               // ✅ MESMO grupo
                     barPercentage: 0.7,
-                    categoryPercentage: 0.8,
-                    order: 2 // Barra clara atrás (direita)
+                    categoryPercentage: 0.8
                 }
             ]
         },
@@ -4132,20 +4132,20 @@ function renderChart() {
                         const tot = data.total[idx] || 0;
                         const gn = gainCapital[idx] || 0;
                         const gnPct = inv > 0 ? ((gn / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
-                        const gainIndicatorColor = gn >= 0 ? '#55EFC4' : '#FF7675';
+                        const gainIndicatorColor = gn >= 0 ? '#2cb875' : '#FF7675';
 
                         tooltipEl.innerHTML = `
                             <div class="tooltip-header">${label}</div>
                             <div class="tooltip-row">
                                 <div class="tooltip-label">
-                                    <span class="tooltip-indicator" style="background: #00B894;"></span>
+                                    <span class="tooltip-indicator" style="background: #2cb875;"></span>
                                     <span>Valor aplicado</span>
                                 </div>
                                 <div class="tooltip-value">${formatCurrency(inv)}</div>
                             </div>
                             <div class="tooltip-row">
                                 <div class="tooltip-label">
-                                    <span class="tooltip-indicator" style="background: #55EFC4;"></span>
+                                    <span class="tooltip-indicator" style="background: #96e9c1;"></span>
                                     <span>Ganho de Capital</span>
                                 </div>
                                 <div class="tooltip-value" style="color: ${gainIndicatorColor}; font-weight: 600;">
@@ -4178,7 +4178,7 @@ function renderChart() {
             },
             scales: {
                 x: {
-                    stacked: false,
+                    stacked: true,                     // ✅ EMPILHA NO EIXO X
                     grid: { display: false },
                     ticks: {
                         color: textColor,
@@ -4189,8 +4189,8 @@ function renderChart() {
                     }
                 },
                 y: {
-                    stacked: false,
-                    beginAtZero: true, // <-- EIXO SEMPRE COMEÇA NO ZERO
+                    stacked: true,                     // ✅ EMPILHA NO EIXO Y
+                    beginAtZero: true,
                     grid: { color: gridColor },
                     ticks: {
                         color: textColor,
@@ -4203,7 +4203,6 @@ function renderChart() {
         }
     });
 }
-
 // ============================================
 // GRÁFICO DE PIZZA
 // ============================================
