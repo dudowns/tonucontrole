@@ -4056,6 +4056,19 @@ function renderChart() {
         return Math.round((total - inv) * 100) / 100;
     });
 
+    // --- CÁLCULO DO MIN/MAX DO EIXO Y PARA UMA PROPORÇÃO MELHOR ---
+    // Junta todos os valores (investido e ganho) para calcular os limites
+    const allValues = [...data.invested, ...gainCapital, ...data.total];
+    const maxPositive = Math.max(...allValues.filter(v => v > 0), 0);
+    const minNegative = Math.min(...allValues.filter(v => v < 0), 0);
+
+    // Calcula uma folga de 10% em cada lado para o gráfico respirar
+    const range = Math.max(maxPositive - minNegative, 100);
+    const padding = range * 0.1;
+
+    const suggestedMax = Math.ceil((maxPositive + padding) / 50) * 50;
+    const suggestedMin = Math.floor((minNegative - padding) / 50) * 50;
+
     // --- GRÁFICO PRINCIPAL (BARRAS EMPILHADAS) ---
     patrimonyChart = new Chart(ctx, {
         type: 'bar',
@@ -4065,22 +4078,22 @@ function renderChart() {
                 {
                     label: 'Valor aplicado',
                     data: data.invested,
-                    backgroundColor: '#2cb875',       // Verde escuro (Investidor10)
+                    backgroundColor: '#2cb875',
                     hoverBackgroundColor: '#24a565',
                     borderRadius: 0,
                     borderSkipped: false,
-                    stack: 'patrimonio',               // ✅ EMPILHA
+                    stack: 'patrimonio',
                     barPercentage: 0.7,
                     categoryPercentage: 0.8
                 },
                 {
                     label: 'Ganho de Capital',
                     data: gainCapital,
-                    backgroundColor: '#96e9c1',       // Verde claro (Investidor10)
+                    backgroundColor: '#96e9c1',
                     hoverBackgroundColor: '#7ddfb3',
                     borderRadius: 4,
                     borderSkipped: false,
-                    stack: 'patrimonio',               // ✅ MESMO grupo
+                    stack: 'patrimonio',
                     barPercentage: 0.7,
                     categoryPercentage: 0.8
                 }
@@ -4178,7 +4191,7 @@ function renderChart() {
             },
             scales: {
                 x: {
-                    stacked: true,                     // ✅ EMPILHA NO EIXO X
+                    stacked: true,
                     grid: { display: false },
                     ticks: {
                         color: textColor,
@@ -4189,9 +4202,21 @@ function renderChart() {
                     }
                 },
                 y: {
-                    stacked: true,                     // ✅ EMPILHA NO EIXO Y
-                    beginAtZero: true,
-                    grid: { color: gridColor },
+                    stacked: true,
+                    beginAtZero: false,
+                    suggestedMin: suggestedMin,
+                    suggestedMax: suggestedMax,
+                    grid: {
+                        color: function(context) {
+                            if (context.tick.value === 0) {
+                                return isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
+                            }
+                            return gridColor;
+                        },
+                        lineWidth: function(context) {
+                            return context.tick.value === 0 ? 2 : 1;
+                        }
+                    },
                     ticks: {
                         color: textColor,
                         font: { size: 10 },
