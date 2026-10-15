@@ -715,7 +715,132 @@ async function runUnitTests() {
         assert.ok(lastDayNum >= 28 && lastDayNum <= 31, 'Último dia do mês válido');
     });
 
+    test('Metas: Cálculo de Rendimento CDI com Tabelas Regressivas de IOF e IR', () => {
+        const IOF_TABLE = {
+            1: 0.96, 2: 0.93, 3: 0.90, 4: 0.86, 5: 0.83,
+            6: 0.80, 7: 0.76, 8: 0.73, 9: 0.70, 10: 0.66,
+            11: 0.63, 12: 0.60, 13: 0.56, 14: 0.53, 15: 0.50,
+            16: 0.46, 17: 0.43, 18: 0.40, 19: 0.36, 20: 0.33,
+            21: 0.30, 22: 0.26, 23: 0.23, 24: 0.20, 25: 0.16,
+            26: 0.13, 27: 0.10, 28: 0.06, 29: 0.03
+        };
+
+        function getIOF(days) {
+            if (days <= 0) return 0.96;
+            if (days >= 30) return 0;
+            return IOF_TABLE[days] !== undefined ? IOF_TABLE[days] : 0;
+        }
+
+        function getIR(days) {
+            if (days <= 180) return 0.225;
+            if (days <= 360) return 0.200;
+            if (days <= 720) return 0.175;
+            return 0.150;
+        }
+
+        // Teste de alíquotas de IOF
+        assert.strictEqual(getIOF(1), 0.96, 'Dia 1 IOF = 96%');
+        assert.strictEqual(getIOF(15), 0.50, 'Dia 15 IOF = 50%');
+        assert.strictEqual(getIOF(29), 0.03, 'Dia 29 IOF = 3%');
+        assert.strictEqual(getIOF(30), 0, 'Dia 30 IOF = 0%');
+        assert.strictEqual(getIOF(100), 0, 'Dia 100 IOF = 0%');
+
+        // Teste de alíquotas de IR
+        assert.strictEqual(getIR(30), 0.225, '30 dias IR = 22.5%');
+        assert.strictEqual(getIR(180), 0.225, '180 dias IR = 22.5%');
+        assert.strictEqual(getIR(181), 0.200, '181 dias IR = 20.0%');
+        assert.strictEqual(getIR(360), 0.200, '360 dias IR = 20.0%');
+        assert.strictEqual(getIR(361), 0.175, '361 dias IR = 17.5%');
+        assert.strictEqual(getIR(720), 0.175, '720 dias IR = 17.5%');
+        assert.strictEqual(getIR(721), 0.150, '721 dias IR = 15.0%');
+
+        // Simulação de rendimento com aporte de R$ 1.000 após 10 dias
+        const amount = 1000;
+        const cdiDaily = 0.040169; // 0.040169%
+        const cdiPct = 100;
+        const diffDays = 10;
+        const workDays = Math.floor(diffDays * (252 / 365));
+        const ratePerDay = (cdiDaily / 100) * (cdiPct / 100);
+        const grossYield = amount * (Math.pow(1 + ratePerDay, workDays) - 1);
+        const iof = grossYield * getIOF(diffDays);
+        const ir = Math.max(0, grossYield - iof) * getIR(diffDays);
+        const netYield = Math.max(0, grossYield - iof - ir);
+
+        assert.ok(grossYield > 0, 'Rendimento bruto positivo');
+        assert.ok(iof > 0, 'IOF incide nos primeiros 29 dias');
+        assert.ok(ir > 0, 'IR incide sobre bruto - iof');
+        assert.ok(netYield < grossYield, 'Rendimento líquido menor que o bruto após tributos');
+    });
+
+    test('Metas: Disparo Idempotente de Marcos de Progresso (25%, 50%, 75%, 90%, 100%)', () => {
+        function computeNewMilestones(targetAmount, newAmount, alreadyFired) {
+            if (!targetAmount || targetAmount <= 0) return { fired: alreadyFired, newFired: [] };
+            const pct = Math.min(100, Math.floor((newAmount / targetAmount) * 100));
+            const milestones = [25, 50, 75, 90, 100];
+            const fired = [...alreadyFired];
+            const newFired = [];
+
+            for (const m of milestones) {
+                if (pct >= m && !fired.includes(m)) {
+                    fired.push(m);
+                    newFired.push(m);
+                }
+            }
+            return { pct, fired, newFired };
+        }
+
+        const target = 1000;
+
+        // Aporte 1: R$ 300 (30% -> deve disparar 25%)
+        const res1 = computeNewMilestones(target, 300, []);
+        assert.deepStrictEqual(res1.newFired, [25]);
+        assert.deepStrictEqual(res1.fired, [25]);
+
+        // Aporte 2: R$ 300 adicional (Total 600 = 60% -> já disparou 25%, agora dispara 50%)
+        const res2 = computeNewMilestones(target, 600, res1.fired);
+        assert.deepStrictEqual(res2.newFired, [50]);
+        assert.deepStrictEqual(res2.fired, [25, 50]);
+
+        // Aporte 3: Mesmo valor ou aporte menor sem alcançar novo marco (Total 650 = 65% -> nenhum novo marco)
+        const res3 = computeNewMilestones(target, 650, res2.fired);
+        assert.deepStrictEqual(res3.newFired, []);
+        assert.deepStrictEqual(res3.fired, [25, 50]);
+
+        // Aporte 4: Salto grande direto para R$ 1.050 (100% -> dispara 75%, 90% e 100%)
+        const res4 = computeNewMilestones(target, 1050, res3.fired);
+        assert.deepStrictEqual(res4.newFired, [75, 90, 100]);
+        assert.deepStrictEqual(res4.fired, [25, 50, 75, 90, 100]);
+    });
+
+    test('Utilitários de Data: parseLocalDate e Comparação Timezone-Safe', () => {
+        function parseLocalDate(dateStr) {
+            if (!dateStr) return null;
+            if (dateStr instanceof Date) return dateStr;
+            var str = String(dateStr).trim();
+            var match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (match) {
+                var year = parseInt(match[1], 10);
+                var month = parseInt(match[2], 10) - 1;
+                var day = parseInt(match[3], 10);
+                return new Date(year, month, day, 12, 0, 0);
+            }
+            return new Date(dateStr);
+        }
+
+        const d1 = parseLocalDate('2026-10-15');
+        assert.strictEqual(d1.getFullYear(), 2026);
+        assert.strictEqual(d1.getMonth(), 9); // Outubro = mês 9 (0-indexed)
+        assert.strictEqual(d1.getDate(), 15);
+        assert.strictEqual(d1.getHours(), 12);
+
+        // Diferença em dias sem desvio de fuso
+        const d2 = parseLocalDate('2026-10-20');
+        const diffDays = Math.round((d2.getTime() - d1.getTime()) / 86400000);
+        assert.strictEqual(diffDays, 5, 'Diferença de 5 dias exata');
+    });
+
     return results;
 }
 
 module.exports = { runUnitTests };
+

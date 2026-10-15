@@ -1581,6 +1581,412 @@ function triggerGoalConfetti() {
         console.log('Confetti trigger skipped', e);
     }
 }
+
+// ============================================
+// ITEM 12: RENDIMENTO CDI, IOF, IR & MARCOS (MOBILE)
+// ============================================
+const IOF_TABLE_MOBILE = {
+    1: 0.96, 2: 0.93, 3: 0.90, 4: 0.86, 5: 0.83,
+    6: 0.80, 7: 0.76, 8: 0.73, 9: 0.70, 10: 0.66,
+    11: 0.63, 12: 0.60, 13: 0.56, 14: 0.53, 15: 0.50,
+    16: 0.46, 17: 0.43, 18: 0.40, 19: 0.36, 20: 0.33,
+    21: 0.30, 22: 0.26, 23: 0.23, 24: 0.20, 25: 0.16,
+    26: 0.13, 27: 0.10, 28: 0.06, 29: 0.03
+};
+
+function getIOFRateMobile(daysPassed) {
+    if (daysPassed <= 0) return 0.96;
+    if (daysPassed >= 30) return 0;
+    return IOF_TABLE_MOBILE[daysPassed] !== undefined ? IOF_TABLE_MOBILE[daysPassed] : 0;
+}
+
+function getIRRateMobile(daysPassed) {
+    if (daysPassed <= 180) return 0.225; // 22,5%
+    if (daysPassed <= 360) return 0.200; // 20,0%
+    if (daysPassed <= 720) return 0.175; // 17,5%
+    return 0.150; // 15,0%
+}
+
+let cachedMobileCDIDailyRate = 0.040169; // ~10.65% a.a.
+
+async function fetchMobileCDIRate() {
+    try {
+        if (window.supabaseClient && window.supabaseClient.functions) {
+            const { data, error } = await window.supabaseClient.functions.invoke('get-cdi');
+            if (!error && data?.cdi?.daily_rate) {
+                cachedMobileCDIDailyRate = data.cdi.daily_rate;
+                return cachedMobileCDIDailyRate;
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ Falha ao buscar CDI via Edge Function (Mobile):', e);
+    }
+    return cachedMobileCDIDailyRate;
+}
+
+async function checkMilestonesMobile(goal, newAmount) {
+    if (!goal || !goal.target_amount || goal.target_amount <= 0) return;
+    const pct = Math.min(100, Math.floor((newAmount / goal.target_amount) * 100));
+    const milestones = [25, 50, 75, 90, 100];
+    let fired = Array.isArray(goal.milestones_fired) ? [...goal.milestones_fired] : [];
+    let newFired = [];
+
+    for (const m of milestones) {
+        if (pct >= m && !fired.includes(m)) {
+            fired.push(m);
+            newFired.push(m);
+        }
+    }
+
+    if (newFired.length > 0) {
+        goal.milestones_fired = fired;
+        if (window.supabaseClient && currentUser?.id) {
+            try {
+                await window.supabaseClient
+                    .from('goals')
+                    .update({ milestones_fired: fired })
+                    .eq('id', goal.id)
+                    .eq('user_id', currentUser.id);
+            } catch (err) {
+                console.warn('⚠️ Erro ao persistir milestones_fired (Mobile):', err);
+            }
+        }
+
+        const highestMilestone = newFired[newFired.length - 1];
+        if (highestMilestone === 100) {
+            triggerCelebrationModal(goal.title, newAmount);
+        } else {
+            showToast(`🎯 Marco de ${highestMilestone}% alcançado na meta "${goal.title}"! 🚀`, 'success');
+            triggerGoalConfetti();
+        }
+
+        if (typeof window.sendRealtimePush === 'function') {
+            window.sendRealtimePush({
+                title: `🎯 Marco alcançado: ${highestMilestone}% da meta!`,
+                body: `Você conquistou ${highestMilestone}% da sua meta "${goal.title}"! Continue firme.`,
+                url: 'pages/mobile/goals.html',
+                tag: `goal-milestone-${goal.id}-${highestMilestone}`
+            });
+        }
+    }
+}
+
+let currentMobileYieldGoalId = null;
+
+async function openMobileYieldModal(goalId) {
+    const goal = goals.find(g => String(g.id) === String(goalId));
+    if (!goal) return;
+
+    currentMobileYieldGoalId = goal.id;
+
+    const overlay = document.getElementById('modalMobileYield');
+    if (overlay) overlay.classList.add('active');
+
+    const titleEl = document.getElementById('mobileYieldGoalTitle');
+    if (titleEl) titleEl.textContent = goal.title;
+
+    const cdiInput = document.getElementById('mobileYieldCdiInput');
+    if (cdiInput) cdiInput.value = goal.cdi_percent || 100;
+
+    const qDate = document.getElementById('mobileQuickDepositDate');
+    if (qDate) qDate.value = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+
+    const qAmt = document.getElementById('mobileQuickDepositAmt');
+    if (qAmt) qAmt.value = '';
+
+    await renderMobileYieldDetails(goal);
+}
+
+function closeMobileYieldModal(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.closest('.sheet-close-btn')) return;
+    const overlay = document.getElementById('modalMobileYield');
+    if (overlay) overlay.classList.remove('active');
+    currentMobileYieldGoalId = null;
+}
+
+async function renderMobileYieldDetails(goal) {
+    const listEl = document.getElementById('mobileGoalDepositsList');
+    if (listEl) {
+        listEl.innerHTML = '<div style="text-align:center; padding:12px; font-size:11px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Calculando rendimento CDI...</div>';
+    }
+
+    const cdiDaily = await fetchMobileCDIRate();
+    const cdiPercent = parseFloat(goal.cdi_percent) || 100;
+
+    let deposits = [];
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data } = await window.supabaseClient
+                .from('goal_deposits')
+                .select('*')
+                .eq('goal_id', goal.id)
+                .order('deposit_date', { ascending: false });
+            if (data && data.length > 0) deposits = data;
+        } catch (err) {
+            console.warn('⚠️ Erro ao buscar goal_deposits (Mobile):', err);
+        }
+    }
+
+    if (deposits.length === 0 && (Number(goal.current_amount) || 0) > 0) {
+        deposits = [{
+            id: 'initial',
+            amount: Number(goal.current_amount),
+            deposit_date: (goal.created_at ? goal.created_at.slice(0, 10) : ((typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv'))),
+            is_initial: true
+        }];
+    }
+
+    const todayDate = new Date();
+    let totalDeposited = 0;
+    let totalGrossYield = 0;
+    let totalIOF = 0;
+    let totalIR = 0;
+    let totalNetYield = 0;
+
+    const itemsHtml = deposits.map(dep => {
+        const amt = parseFloat(dep.amount) || 0;
+        const depDate = dep.deposit_date ? new Date(dep.deposit_date + 'T12:00:00') : todayDate;
+        const diffDays = Math.max(0, Math.floor((todayDate.getTime() - depDate.getTime()) / 86400000));
+        const workDays = Math.floor(diffDays * (252 / 365));
+
+        const ratePerDay = (cdiDaily / 100) * (cdiPercent / 100);
+        const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+        const grossYield = Math.max(0, amt * factor);
+
+        const iofRate = getIOFRateMobile(diffDays);
+        const iof = grossYield * iofRate;
+
+        const baseForIR = Math.max(0, grossYield - iof);
+        const irRate = getIRRateMobile(diffDays);
+        const ir = baseForIR * irRate;
+
+        const netYield = Math.max(0, grossYield - iof - ir);
+
+        totalDeposited += amt;
+        totalGrossYield += grossYield;
+        totalIOF += iof;
+        totalIR += ir;
+        totalNetYield += netYield;
+
+        const dateFormatted = typeof formatDate === 'function' ? formatDate(dep.deposit_date) : dep.deposit_date;
+
+        return `
+            <div style="background:var(--color-surface, #ffffff); border:1px solid var(--color-border, #e2e8f0); border-radius:8px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <strong style="font-size:12px; color:var(--color-text, #0f172a); display:block;">${formatCurrency(amt)} ${dep.is_initial ? '<span style="font-size:9.5px; color:#6C5CE7;">(Inicial)</span>' : ''}</strong>
+                    <span style="font-size:10px; color:var(--color-text-muted, #94a3b8);">${dateFormatted} • ${diffDays} dia(s)</span>
+                </div>
+                <div style="text-align:right; display:flex; align-items:center; gap:8px;">
+                    <div>
+                        <strong style="font-size:11.5px; color:#00b894; display:block;">+${formatCurrency(netYield)}</strong>
+                        <span style="font-size:9.5px; color:#ef4444;">IOF/IR: -${formatCurrency(iof + ir)}</span>
+                    </div>
+                    ${!dep.is_initial ? `
+                        <button type="button" onclick="deleteMobileGoalDeposit('${dep.id}', ${amt})" style="background:none; border:none; color:#ef4444; font-size:12px; padding:4px;" title="Remover Aporte">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    if (listEl) {
+        listEl.innerHTML = itemsHtml || '<div style="text-align:center; padding:12px; font-size:11px; color:#94a3b8;">Nenhum aporte registrado.</div>';
+    }
+
+    const grossTotal = totalDeposited + totalGrossYield;
+    const netTotal = totalDeposited + totalNetYield;
+
+    const elAportado = document.getElementById('mobileYieldStatAportado');
+    const elBruto = document.getElementById('mobileYieldStatBruto');
+    const elSaldoBruto = document.getElementById('mobileYieldStatSaldoBruto');
+    const elIOF = document.getElementById('mobileYieldStatIOF');
+    const elIR = document.getElementById('mobileYieldStatIR');
+    const elLiquido = document.getElementById('mobileYieldStatLiquido');
+
+    if (elAportado) elAportado.textContent = formatCurrency(totalDeposited);
+    if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
+    if (elSaldoBruto) elSaldoBruto.textContent = formatCurrency(grossTotal);
+    if (elIOF) elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
+    if (elIR) elIR.textContent = `- ${formatCurrency(totalIR)}`;
+    if (elLiquido) elLiquido.textContent = formatCurrency(netTotal);
+}
+
+async function saveMobileGoalCdi() {
+    if (!currentMobileYieldGoalId) return;
+    const input = document.getElementById('mobileYieldCdiInput');
+    const val = parseFloat(input?.value) || 100;
+
+    const goal = goals.find(g => String(g.id) === String(currentMobileYieldGoalId));
+    if (!goal) return;
+
+    goal.cdi_percent = val;
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            await window.supabaseClient.from('goals').update({ cdi_percent: val }).eq('id', goal.id).eq('user_id', currentUser.id);
+            showToast(`Taxa atualizada para ${val}% do CDI! 📈`, 'success');
+        } catch (err) {
+            console.warn('⚠️ Erro ao atualizar taxa CDI da meta (Mobile):', err);
+            showToast('Erro ao atualizar taxa', 'error');
+        }
+    }
+    await renderMobileYieldDetails(goal);
+    updateMobileCdiGlobalCard();
+}
+
+async function handleMobileQuickDeposit(e) {
+    e.preventDefault();
+    if (!currentMobileYieldGoalId) return;
+
+    const goal = goals.find(g => String(g.id) === String(currentMobileYieldGoalId));
+    if (!goal) return;
+
+    const amtInput = document.getElementById('mobileQuickDepositAmt');
+    const dateInput = document.getElementById('mobileQuickDepositDate');
+
+    const amount = parseFloat(amtInput?.value) || 0;
+    const depDate = dateInput?.value || ((typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv'));
+
+    if (amount <= 0) {
+        showToast('Digite um valor válido de aporte!', 'warning');
+        return;
+    }
+
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            await window.supabaseClient.from('goal_deposits').insert([{
+                goal_id: goal.id,
+                user_id: currentUser.id,
+                amount: amount,
+                deposit_date: depDate
+            }]);
+
+            const newAmount = (Number(goal.current_amount) || 0) + amount;
+            const completed = newAmount >= (Number(goal.target_amount) || 0);
+
+            await window.supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: completed,
+                updated_at: new Date().toISOString()
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            goal.current_amount = newAmount;
+            goal.completed = completed;
+            await checkMilestonesMobile(goal, newAmount);
+        }
+
+        if (amtInput) amtInput.value = '';
+        showToast(`Aporte de ${formatCurrency(amount)} registrado! 💰`, 'success');
+        await renderMobileYieldDetails(goal);
+        updateHeroStats();
+        renderGoals();
+    } catch (err) {
+        console.error('❌ Erro no aporte rápido (Mobile):', err);
+        showToast('Erro ao salvar aporte', 'error');
+    }
+}
+
+async function deleteMobileGoalDeposit(depId, amt) {
+    if (!currentMobileYieldGoalId) return;
+    if (!confirm(`Remover este aporte de ${formatCurrency(amt)}? O saldo da meta será recalculado.`)) return;
+
+    const goal = goals.find(g => String(g.id) === String(currentMobileYieldGoalId));
+    if (!goal) return;
+
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            await window.supabaseClient.from('goal_deposits').delete().eq('id', depId).eq('user_id', currentUser.id);
+
+            const newAmount = Math.max(0, (Number(goal.current_amount) || 0) - (Number(amt) || 0));
+            const completed = newAmount >= (Number(goal.target_amount) || 0);
+
+            await window.supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: completed,
+                updated_at: new Date().toISOString()
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            goal.current_amount = newAmount;
+            goal.completed = completed;
+        }
+
+        showToast('Aporte removido com sucesso!', 'success');
+        await renderMobileYieldDetails(goal);
+        updateHeroStats();
+        renderGoals();
+    } catch (err) {
+        console.error('❌ Erro ao remover aporte (Mobile):', err);
+        showToast('Erro ao remover aporte', 'error');
+    }
+}
+
+async function updateMobileCdiGlobalCard() {
+    const cdiDaily = await fetchMobileCDIRate();
+    const annualizedRate = ((Math.pow(1 + (cdiDaily / 100), 252) - 1) * 100).toFixed(2);
+
+    const statusEl = document.getElementById('mobileCdiStatusText');
+    if (statusEl) {
+        statusEl.textContent = `Taxa: ~${annualizedRate.replace('.', ',')}% a.a. (BCB Série 12)`;
+    }
+
+    let totalAportado = 0;
+    let totalBruto = 0;
+    let totalIOF = 0;
+    let totalIR = 0;
+    let totalLiquido = 0;
+
+    const todayDate = new Date();
+
+    for (const g of goals) {
+        const cur = Number(g.current_amount) || 0;
+        if (cur <= 0) continue;
+
+        const cdiPct = parseFloat(g.cdi_percent) || 100;
+        const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
+        const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
+        const workDays = Math.floor(diffDays * (252 / 365));
+
+        const ratePerDay = (cdiDaily / 100) * (cdiPct / 100);
+        const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+        const grossYield = Math.max(0, cur * factor);
+
+        const iofRate = getIOFRateMobile(diffDays);
+        const iof = grossYield * iofRate;
+
+        const baseForIR = Math.max(0, grossYield - iof);
+        const irRate = getIRRateMobile(diffDays);
+        const ir = baseForIR * irRate;
+
+        const netYield = Math.max(0, grossYield - iof - ir);
+
+        totalAportado += cur;
+        totalBruto += grossYield;
+        totalIOF += iof;
+        totalIR += ir;
+        totalLiquido += (cur + netYield);
+    }
+
+    const elAportado = document.getElementById('mobileCdiAportado');
+    const elBruto = document.getElementById('mobileCdiBruto');
+    const elIOF = document.getElementById('mobileCdiIOF');
+    const elIR = document.getElementById('mobileCdiIR');
+    const elLiquido = document.getElementById('mobileCdiLiquido');
+
+    if (elAportado) elAportado.textContent = formatCurrency(totalAportado);
+    if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalBruto)}`;
+    if (elIOF) elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
+    if (elIR) elIR.textContent = `- ${formatCurrency(totalIR)}`;
+    if (elLiquido) elLiquido.textContent = formatCurrency(totalLiquido);
+}
+
+window.openMobileYieldModal = openMobileYieldModal;
+window.closeMobileYieldModal = closeMobileYieldModal;
+window.saveMobileGoalCdi = saveMobileGoalCdi;
+window.handleMobileQuickDeposit = handleMobileQuickDeposit;
+window.deleteMobileGoalDeposit = deleteMobileGoalDeposit;
+window.updateMobileCdiGlobalCard = updateMobileCdiGlobalCard;
+window.checkMilestonesMobile = checkMilestonesMobile;
 </script>
 
 </body>
