@@ -570,11 +570,11 @@
             <!-- Legenda idêntica ao desktop (Recebidos vs A receber) -->
             <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px; font-size:10.5px; color:var(--color-text-muted, #64748b);">
                 <div style="display:flex; align-items:center; gap:5px;">
-                    <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#10b981;"></span>
-                    <span>Proventos recebidos</span>
+                    <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#0984E3;"></span>
+                    <span style="color:#0984E3; font-weight:600;">Proventos recebidos</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:5px;">
-                    <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#38bdf8;"></span>
+                    <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#74B9FF;"></span>
                     <span style="color:#0284c7; font-weight:600;">Proventos a receber</span>
                 </div>
             </div>
@@ -2057,7 +2057,13 @@ function renderMobileEvolutionChart() {
 
     const ctx = canvas.getContext("2d");
 
-    // Gráfico de Barras Agrupadas idêntico ao Desktop (mesmas cores e métricas)
+    // Cálculo do Ganho de Capital (Patrimônio - Valor Aplicado) - Estilo Investidor 10
+    const gainCapital = evoData.total.map((tot, i) => {
+        const inv = evoData.invested[i] || 0;
+        return Math.round((tot - inv) * 100) / 100;
+    });
+
+    // Gráfico de Barras Empilhadas idêntico ao Desktop / Investidor 10 (Uma barra só, uma sobre a outra)
     mobileAllocationChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -2066,24 +2072,24 @@ function renderMobileEvolutionChart() {
                 {
                     label: 'Valor aplicado',
                     data: evoData.invested,
-                    backgroundColor: '#00B894', // Verde (exatamente igual ao Desktop)
-                    hoverBackgroundColor: '#009879',
-                    borderRadius: 4,
+                    backgroundColor: '#2cb875',
+                    hoverBackgroundColor: '#24a565',
+                    borderRadius: 0,
                     borderSkipped: false,
-                    grouped: true,
-                    barPercentage: 0.85,
-                    categoryPercentage: 0.75
+                    stack: 'patrimonio',
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8
                 },
                 {
-                    label: 'Patrimônio',
-                    data: evoData.total,
-                    backgroundColor: '#55EFC4', // Verde menta (exatamente igual ao Desktop)
-                    hoverBackgroundColor: '#2ECC71',
+                    label: 'Ganho de Capital',
+                    data: gainCapital,
+                    backgroundColor: '#96e9c1',
+                    hoverBackgroundColor: '#7ddfb3',
                     borderRadius: 4,
                     borderSkipped: false,
-                    grouped: true,
-                    barPercentage: 0.85,
-                    categoryPercentage: 0.75
+                    stack: 'patrimonio',
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8
                 }
             ]
         },
@@ -2111,13 +2117,22 @@ function renderMobileEvolutionChart() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return ' ' + context.dataset.label + ': ' + formatCurrency(context.parsed.y || 0);
+                            const val = context.parsed.y || 0;
+                            const isGain = context.datasetIndex === 1;
+                            const sign = isGain && val > 0 ? '+' : '';
+                            return ` ${context.dataset.label}: ${sign}${formatCurrency(val)}`;
+                        },
+                        footer: function(items) {
+                            let total = 0;
+                            items.forEach(it => { total += (it.parsed.y || 0); });
+                            return `Patrimônio Total: ${formatCurrency(total)}`;
                         }
                     }
                 }
             },
             scales: {
                 x: {
+                    stacked: true,
                     grid: { display: false },
                     ticks: {
                         font: { size: 10, weight: '600' },
@@ -2125,6 +2140,7 @@ function renderMobileEvolutionChart() {
                     }
                 },
                 y: {
+                    stacked: true,
                     beginAtZero: true,
                     grid: { color: gridColor },
                     ticks: {
@@ -2327,8 +2343,8 @@ function renderMobileDividendsEvolutionChart() {
                 {
                     label: 'Proventos recebidos',
                     data: dataRecebidos.map(v => Math.round(v * 100) / 100),
-                    backgroundColor: '#10b981',
-                    hoverBackgroundColor: '#059669',
+                    backgroundColor: '#0984E3',
+                    hoverBackgroundColor: '#0767b3',
                     stack: 'provStack',
                     borderRadius: 4,
                     borderSkipped: false
@@ -2336,8 +2352,8 @@ function renderMobileDividendsEvolutionChart() {
                 {
                     label: 'Proventos a receber',
                     data: dataAReceber.map(v => Math.round(v * 100) / 100),
-                    backgroundColor: '#38bdf8',
-                    hoverBackgroundColor: '#0284c7',
+                    backgroundColor: '#74B9FF',
+                    hoverBackgroundColor: '#4ea3ff',
                     stack: 'provStack',
                     borderRadius: 4,
                     borderSkipped: false

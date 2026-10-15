@@ -1337,14 +1337,16 @@ let cachedCDIDailyRate = 0.040169; // ~10.65% a.a.
 async function fetchCDIRate() {
     try {
         if (window.supabaseClient && window.supabaseClient.functions) {
-            const { data, error } = await window.supabaseClient.functions.invoke('get-cdi');
-            if (!error && data?.cdi?.daily_rate) {
-                cachedCDIDailyRate = data.cdi.daily_rate;
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
+            const invokePromise = window.supabaseClient.functions.invoke('get-cdi');
+            const res = await Promise.race([invokePromise, timeoutPromise]);
+            if (res && !res.error && res.data?.cdi?.daily_rate) {
+                cachedCDIDailyRate = res.data.cdi.daily_rate;
                 return cachedCDIDailyRate;
             }
         }
     } catch (e) {
-        console.warn('⚠️ Falha ao buscar CDI via Edge Function:', e);
+        console.warn('⚠️ Falha ou timeout ao buscar CDI via Edge Function:', e);
     }
     return cachedCDIDailyRate;
 }

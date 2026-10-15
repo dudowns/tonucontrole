@@ -1613,14 +1613,16 @@ let cachedMobileCDIDailyRate = 0.040169; // ~10.65% a.a.
 async function fetchMobileCDIRate() {
     try {
         if (window.supabaseClient && window.supabaseClient.functions) {
-            const { data, error } = await window.supabaseClient.functions.invoke('get-cdi');
-            if (!error && data?.cdi?.daily_rate) {
-                cachedMobileCDIDailyRate = data.cdi.daily_rate;
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
+            const invokePromise = window.supabaseClient.functions.invoke('get-cdi');
+            const res = await Promise.race([invokePromise, timeoutPromise]);
+            if (res && !res.error && res.data?.cdi?.daily_rate) {
+                cachedMobileCDIDailyRate = res.data.cdi.daily_rate;
                 return cachedMobileCDIDailyRate;
             }
         }
     } catch (e) {
-        console.warn('⚠️ Falha ao buscar CDI via Edge Function (Mobile):', e);
+        console.warn('⚠️ Falha ou timeout ao buscar CDI via Edge Function (Mobile):', e);
     }
     return cachedMobileCDIDailyRate;
 }
@@ -2050,10 +2052,10 @@ async function updateMobileCdiGlobalCard() {
     const elLiquido = document.getElementById('mobileCdiLiquido');
 
     if (elAportado) elAportado.textContent = formatCurrency(totalAportado);
-    if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalBruto)}`;
+    if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
     if (elIOF) elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
     if (elIR) elIR.textContent = `- ${formatCurrency(totalIR)}`;
-    if (elLiquido) elLiquido.textContent = formatCurrency(totalLiquido);
+    if (elLiquido) elLiquido.textContent = formatCurrency(totalNet);
 }
 
 window.openMobileYieldModal = openMobileYieldModal;
