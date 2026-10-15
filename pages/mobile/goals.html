@@ -516,6 +516,7 @@
                 <div>
                     <strong style="font-size:12px; color:var(--color-text, #0f172a); display:block;">Rendimento CDI</strong>
                     <span style="font-size:10px; color:var(--color-text-muted, #64748b);" id="mobileCdiStatusText">Taxa: ~10,65% a.a. (BCB Série 12)</span>
+                    <span style="font-size:9px; color:var(--color-text-muted, #94a3b8); display:block; margin-top:1px;"><i class="fas fa-calendar-day" style="color:#6C5CE7;"></i> Apurado dia a dia útil</span>
                 </div>
             </div>
             <span style="font-size:10px; color:#00b894; font-weight:700; background:rgba(0,184,148,0.1); padding:2px 8px; border-radius:6px;">100% CDI</span>
@@ -1747,7 +1748,7 @@ async function renderMobileYieldDetails(goal) {
         const amt = parseFloat(dep.amount) || 0;
         const depDate = dep.deposit_date ? new Date(dep.deposit_date + 'T12:00:00') : todayDate;
         const diffDays = Math.max(0, Math.floor((todayDate.getTime() - depDate.getTime()) / 86400000));
-        const workDays = Math.floor(diffDays * (252 / 365));
+        const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
 
         const ratePerDay = (cdiDaily / 100) * (cdiPercent / 100);
         const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
@@ -1930,42 +1931,117 @@ async function updateMobileCdiGlobalCard() {
         statusEl.textContent = `Taxa: ~${annualizedRate.replace('.', ',')}% a.a. (BCB Série 12)`;
     }
 
+    let allDeposits = [];
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data } = await window.supabaseClient
+                .from('goal_deposits')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('deposit_date', { ascending: false });
+            if (data && data.length > 0) {
+                allDeposits = data;
+            }
+        } catch (err) {
+            console.warn('⚠️ Erro ao buscar goal_deposits global (Mobile):', err);
+        }
+    }
+
     let totalAportado = 0;
-    let totalBruto = 0;
+    let totalGrossYield = 0;
     let totalIOF = 0;
     let totalIR = 0;
-    let totalLiquido = 0;
+    let totalNetYield = 0;
 
     const todayDate = new Date();
 
-    for (const g of goals) {
+    goals.forEach(g => {
         const cur = Number(g.current_amount) || 0;
-        if (cur <= 0) continue;
+        if (cur <= 0) return;
 
         const cdiPct = parseFloat(g.cdi_percent) || 100;
-        const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
-        const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
-        const workDays = Math.floor(diffDays * (252 / 365));
-
         const ratePerDay = (cdiDaily / 100) * (cdiPct / 100);
-        const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
-        const grossYield = Math.max(0, cur * factor);
 
-        const iofRate = getIOFRateMobile(diffDays);
-        const iof = grossYield * iofRate;
+        const goalDeps = allDeposits.filter(d => String(d.goal_id) === String(g.id));
 
-        const baseForIR = Math.max(0, grossYield - iof);
-        const irRate = getIRRateMobile(diffDays);
-        const ir = baseForIR * irRate;
+        if (goalDeps.length > 0) {
+            let sumDeps = 0;
+            goalDeps.forEach(dep => {
+                const amt = parseFloat(dep.amount) || 0;
+                sumDeps += amt;
+                const depDate = dep.deposit_date ? new Date(dep.deposit_date + 'T12:00:00') : todayDate;
+                const diffDays = Math.max(0, Math.floor((todayDate.getTime() - depDate.getTime()) / 86400000));
+                const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
 
-        const netYield = Math.max(0, grossYield - iof - ir);
+                const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+                const grossYield = amt * factor;
 
-        totalAportado += cur;
-        totalBruto += grossYield;
-        totalIOF += iof;
-        totalIR += ir;
-        totalLiquido += (cur + netYield);
-    }
+                const iofRate = getIOFRateMobile(diffDays);
+                const iof = grossYield * iofRate;
+
+                const baseForIR = Math.max(0, grossYield - iof);
+                const irRate = getIRRateMobile(diffDays);
+                const ir = baseForIR * irRate;
+
+                const netYield = Math.max(0, grossYield - iof - ir);
+
+                totalAportado += amt;
+                totalGrossYield += grossYield;
+                totalIOF += iof;
+                totalIR += ir;
+                totalNetYield += netYield;
+            });
+
+            if (cur > sumDeps) {
+                const remAmt = cur - sumDeps;
+                const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
+                const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
+                const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+                const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+                const grossYield = remAmt * factor;
+
+                const iofRate = getIOFRateMobile(diffDays);
+                const iof = grossYield * iofRate;
+
+                const baseForIR = Math.max(0, grossYield - iof);
+                const irRate = getIRRateMobile(diffDays);
+                const ir = baseForIR * irRate;
+
+                const netYield = Math.max(0, grossYield - iof - ir);
+
+                totalAportado += remAmt;
+                totalGrossYield += grossYield;
+                totalIOF += iof;
+                totalIR += ir;
+                totalNetYield += netYield;
+            }
+        } else {
+            const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
+            const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
+            const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+            const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+            const grossYield = cur * factor;
+
+            const iofRate = getIOFRateMobile(diffDays);
+            const iof = grossYield * iofRate;
+
+            const baseForIR = Math.max(0, grossYield - iof);
+            const irRate = getIRRateMobile(diffDays);
+            const ir = baseForIR * irRate;
+
+            const netYield = Math.max(0, grossYield - iof - ir);
+
+            totalAportado += cur;
+            totalGrossYield += grossYield;
+            totalIOF += iof;
+            totalIR += ir;
+            totalNetYield += netYield;
+        }
+    });
+
+    const totalNet = totalAportado + totalNetYield;
 
     const elAportado = document.getElementById('mobileCdiAportado');
     const elBruto = document.getElementById('mobileCdiBruto');

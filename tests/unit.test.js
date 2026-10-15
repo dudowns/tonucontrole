@@ -839,6 +839,72 @@ async function runUnitTests() {
         assert.strictEqual(diffDays, 5, 'Diferença de 5 dias exata');
     });
 
+    test('Parcelamento de Contas (Mobile & Desktop): extração de parcelas, restante e cálculo "quanto as parcelas de quanto"', () => {
+        function getInstallmentInfo(item) {
+            if (!item) return { isInstallment: false };
+            let recurrenceType = item.recurrence_type || null;
+            let installments = parseInt(item.installments || item.installment_total, 10);
+            let current = parseInt(item.current_installment || item.installment_number || item.installment_current, 10);
+
+            const desc = (item.description || '') + ' ' + (item.notes || '');
+            const match = desc.match(/\b(\d+)\s*(?:\/|de)\s*(\d+)\b/i);
+            if (match && (!installments || installments <= 1)) {
+                current = parseInt(match[1], 10);
+                installments = parseInt(match[2], 10);
+                if (!recurrenceType && installments > 1) {
+                    recurrenceType = 'installments';
+                }
+            }
+
+            const isInstallment = recurrenceType === 'installments' || (installments && installments > 1);
+            if (!isInstallment) return { isInstallment: false };
+
+            const total = Math.max(2, installments || 2);
+            const curr = Math.max(1, Math.min(total, current || 1));
+            const remaining = Math.max(0, total - curr);
+            const unitAmount = parseFloat(item.amount) || 0;
+            const remainingAmount = remaining * unitAmount;
+
+            return {
+                isInstallment: true,
+                total: total,
+                current: curr,
+                remaining: remaining,
+                unitAmount: unitAmount,
+                remainingAmount: remainingAmount,
+                label: `Parcela ${curr} de ${total}`
+            };
+        }
+
+        // Caso 1: Objeto com campos estruturados (installments: 5, current_installment: 2, amount: 150)
+        const b1 = { id: '1', description: 'Curso de Inglês', installments: 5, current_installment: 2, amount: 150 };
+        const info1 = getInstallmentInfo(b1);
+        assert.strictEqual(info1.isInstallment, true);
+        assert.strictEqual(info1.current, 2);
+        assert.strictEqual(info1.total, 5);
+        assert.strictEqual(info1.remaining, 3);
+        assert.strictEqual(info1.remainingAmount, 450);
+        assert.strictEqual(info1.label, 'Parcela 2 de 5');
+
+        // Caso 2: Objeto com campos de sincronização alternativa (installment_total: 10, installment_number: 10)
+        const b2 = { id: '2', description: 'Notebook', installment_total: 10, installment_number: 10, amount: 350 };
+        const info2 = getInstallmentInfo(b2);
+        assert.strictEqual(info2.isInstallment, true);
+        assert.strictEqual(info2.current, 10);
+        assert.strictEqual(info2.total, 10);
+        assert.strictEqual(info2.remaining, 0);
+        assert.strictEqual(info2.remainingAmount, 0);
+
+        // Caso 3: Fallback de regex pela descrição "Celular (3/12)"
+        const b3 = { id: '3', description: 'Celular (3/12)', amount: 200 };
+        const info3 = getInstallmentInfo(b3);
+        assert.strictEqual(info3.isInstallment, true);
+        assert.strictEqual(info3.current, 3);
+        assert.strictEqual(info3.total, 12);
+        assert.strictEqual(info3.remaining, 9);
+        assert.strictEqual(info3.remainingAmount, 1800);
+    });
+
     return results;
 }
 

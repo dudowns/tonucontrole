@@ -1791,8 +1791,8 @@
             }
 
             let recurrenceType = item.recurrence_type || null;
-            let installments = parseInt(item.installments, 10);
-            let current = parseInt(item.current_installment, 10);
+            let installments = parseInt(item.installments || item.installment_total, 10);
+            let current = parseInt(item.current_installment || item.installment_number || item.installment_current, 10);
 
             // Fallback por detecção na descrição (ex: "(3/10)" ou "3 de 10")
             const desc = (item.description || '') + ' ' + (item.notes || '');

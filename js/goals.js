@@ -186,6 +186,9 @@ function updateGoalsStats(goals) {
     if (bActive) bActive.textContent = activeCount;
     if (bAlmost) bAlmost.textContent = almostCount;
     if (bCompleted) bCompleted.textContent = completedCount;
+
+    // Atualiza o Card de Rendimento CDI no Topo (Aportado, Rend. Bruto, IOF, IR, Saldo Líquido)
+    updateCdiGlobalCard(goals);
 }
 
 // ============================================
@@ -1395,6 +1398,143 @@ async function checkMilestones(goal, newAmount) {
     }
 }
 
+// ============================================
+// ITEM 12: CARD GLOBAL DE RENDIMENTO CDI (DESKTOP)
+// ============================================
+async function updateCdiGlobalCard(goals) {
+    const goalsList = Array.isArray(goals) ? goals : (allGoals || []);
+    const cdiDaily = await fetchCDIRate();
+    const annualizedRate = ((Math.pow(1 + (cdiDaily / 100), 252) - 1) * 100).toFixed(2);
+
+    const statusEl = document.getElementById('cdiStatusText');
+    if (statusEl) {
+        statusEl.textContent = `Taxa CDI Atual: ~${annualizedRate.replace('.', ',')}% a.a. (BCB SGS 12) • 100% CDI`;
+    }
+
+    let allDeposits = [];
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data } = await window.supabaseClient
+                .from('goal_deposits')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('deposit_date', { ascending: false });
+            if (data && data.length > 0) {
+                allDeposits = data;
+            }
+        } catch (err) {
+            console.warn('⚠️ Erro ao buscar goal_deposits global:', err);
+        }
+    }
+
+    const todayDate = new Date();
+    let totalAportado = 0;
+    let totalGrossYield = 0;
+    let totalIOF = 0;
+    let totalIR = 0;
+    let totalNetYield = 0;
+
+    goalsList.forEach(g => {
+        const cur = Number(g.current_amount) || 0;
+        if (cur <= 0) return;
+
+        const cdiPct = parseFloat(g.cdi_percent) || 100;
+        const ratePerDay = (cdiDaily / 100) * (cdiPct / 100);
+
+        const goalDeps = allDeposits.filter(d => String(d.goal_id) === String(g.id));
+
+        if (goalDeps.length > 0) {
+            let sumDeps = 0;
+            goalDeps.forEach(dep => {
+                const amt = parseFloat(dep.amount) || 0;
+                sumDeps += amt;
+                const depDate = dep.deposit_date ? new Date(dep.deposit_date + 'T12:00:00') : todayDate;
+                const diffDays = Math.max(0, Math.floor((todayDate.getTime() - depDate.getTime()) / 86400000));
+                const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+                const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+                const grossYield = amt * factor;
+
+                const iofRate = getIOFRate(diffDays);
+                const iof = grossYield * iofRate;
+
+                const baseForIR = Math.max(0, grossYield - iof);
+                const irRate = getIRRate(diffDays);
+                const ir = baseForIR * irRate;
+
+                const netYield = Math.max(0, grossYield - iof - ir);
+
+                totalAportado += amt;
+                totalGrossYield += grossYield;
+                totalIOF += iof;
+                totalIR += ir;
+                totalNetYield += netYield;
+            });
+
+            if (cur > sumDeps) {
+                const remAmt = cur - sumDeps;
+                const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
+                const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
+                const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+                const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+                const grossYield = remAmt * factor;
+
+                const iofRate = getIOFRate(diffDays);
+                const iof = grossYield * iofRate;
+
+                const baseForIR = Math.max(0, grossYield - iof);
+                const irRate = getIRRate(diffDays);
+                const ir = baseForIR * irRate;
+
+                const netYield = Math.max(0, grossYield - iof - ir);
+
+                totalAportado += remAmt;
+                totalGrossYield += grossYield;
+                totalIOF += iof;
+                totalIR += ir;
+                totalNetYield += netYield;
+            }
+        } else {
+            const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
+            const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
+            const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+            const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+            const grossYield = cur * factor;
+
+            const iofRate = getIOFRate(diffDays);
+            const iof = grossYield * iofRate;
+
+            const baseForIR = Math.max(0, grossYield - iof);
+            const irRate = getIRRate(diffDays);
+            const ir = baseForIR * irRate;
+
+            const netYield = Math.max(0, grossYield - iof - ir);
+
+            totalAportado += cur;
+            totalGrossYield += grossYield;
+            totalIOF += iof;
+            totalIR += ir;
+            totalNetYield += netYield;
+        }
+    });
+
+    const totalNet = totalAportado + totalNetYield;
+
+    const elAportado = document.getElementById('cdiStatAportado');
+    const elBruto = document.getElementById('cdiStatBruto');
+    const elIOF = document.getElementById('cdiStatIOF');
+    const elIR = document.getElementById('cdiStatIR');
+    const elLiquido = document.getElementById('cdiStatLiquido');
+
+    if (elAportado) elAportado.textContent = formatCurrency(totalAportado);
+    if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
+    if (elIOF) elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
+    if (elIR) elIR.textContent = `- ${formatCurrency(totalIR)}`;
+    if (elLiquido) elLiquido.textContent = formatCurrency(totalNet);
+}
+
 let currentYieldGoalId = null;
 
 async function openGoalYieldModal(goalId) {
@@ -1476,7 +1616,7 @@ async function renderGoalYieldDetails(goal) {
         const amt = parseFloat(dep.amount) || 0;
         const depDate = dep.deposit_date ? new Date(dep.deposit_date + 'T12:00:00') : todayDate;
         const diffDays = Math.max(0, Math.floor((todayDate.getTime() - depDate.getTime()) / 86400000));
-        const workDays = Math.floor(diffDays * (252 / 365));
+        const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
 
         const ratePerDay = (cdiDaily / 100) * (cdiPercent / 100);
         const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
@@ -1662,5 +1802,6 @@ window.closeGoalYieldModal = closeGoalYieldModal;
 window.saveGoalCdiPercentDirect = saveGoalCdiPercentDirect;
 window.submitQuickDeposit = submitQuickDeposit;
 window.deleteGoalDeposit = deleteGoalDeposit;
+window.updateCdiGlobalCard = updateCdiGlobalCard;
 
 console.log('✅ Goals.js carregado com sucesso (versão segura com CDI, marcos e celebração)!');
