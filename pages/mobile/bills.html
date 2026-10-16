@@ -865,6 +865,63 @@ function filterBillsByCategory(catId) {
     renderBills();
 }
 
+// Resolução inteligente e resiliente de metadados de parcelas para mobile
+function getMobileBillInstallmentInfo(b) {
+    if (!b) return null;
+    if (window.TonuInstallments && typeof window.TonuInstallments.getInstallmentInfo === 'function') {
+        const info = window.TonuInstallments.getInstallmentInfo(b);
+        if (info && (info.isInstallment || info.isRecurring)) return info;
+    }
+
+    let recType = b.recurrence_type || null;
+    let total = parseInt(b.installments || b.installment_total, 10);
+    let current = parseInt(b.current_installment || b.installment_number || b.installment_current, 10);
+
+    // Detecção direta via texto caso ainda não esteja categorizado nas colunas
+    const desc = (b.description || '') + ' ' + (b.notes || '');
+    const match = desc.match(/\b(\d+)\s*(?:\/|de)\s*(\d+)\b/i);
+    if (match && (!total || total <= 1)) {
+        current = parseInt(match[1], 10);
+        total = parseInt(match[2], 10);
+        recType = 'installments';
+    }
+
+    if (recType === 'monthly' || (b.is_recurring && recType !== 'semiannual')) {
+        return { isInstallment: false, isRecurring: true, type: 'monthly', label: 'Mensal', icon: 'fa-rotate' };
+    }
+    if (recType === 'semiannual') {
+        return { isInstallment: false, isRecurring: true, type: 'semiannual', label: 'Semestral', icon: 'fa-calendar-days' };
+    }
+
+    if (recType === 'installments' || (total && total > 1)) {
+        total = Math.max(2, total || 2);
+        current = Math.max(1, Math.min(total, current || 1));
+        const remaining = Math.max(0, total - current);
+        const unitAmount = parseFloat(b.amount) || 0;
+        const remainingAmount = remaining * unitAmount;
+        let remainingText = '';
+        if (remaining === 0) {
+            remainingText = b.paid ? 'Quitada 🎉' : 'Última parcela!';
+        } else if (remaining === 1) {
+            remainingText = 'Falta 1 parcela';
+        } else {
+            remainingText = `Faltam ${remaining} parcelas`;
+        }
+        return {
+            type: 'installments',
+            isInstallment: true,
+            isRecurring: false,
+            current: current,
+            total: total,
+            remaining: remaining,
+            remainingText: remainingText,
+            remainingAmount: remainingAmount
+        };
+    }
+
+    return null;
+}
+
 function renderBills() {
     const container = document.getElementById("billsContainer");
     const today = new Date().toISOString().split("T")[0];
@@ -884,10 +941,8 @@ function renderBills() {
             if (!matchesCat) return false;
         }
         if (onlyInstallmentsFilterMobile) {
-            const isInst = window.TonuInstallments
-                ? window.TonuInstallments.getInstallmentInfo(b).isInstallment
-                : (Number(b.installment_total) > 1);
-            if (!isInst) return false;
+            const inst = getMobileBillInstallmentInfo(b);
+            if (!inst || !inst.isInstallment) return false;
         }
         return true;
     });
@@ -917,22 +972,25 @@ function renderBills() {
 
         const isSelected = selectedBillIdsMobile.has(String(b.id));
 
-        // Metadados e exibição de Parcelas / Recorrência
-        const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(b) : null;
+        // Metadados e exibição de Parcelas / Recorrência (quantas parcelas de quanto)
+        const instInfo = getMobileBillInstallmentInfo(b);
         let installmentBadgeHtml = '';
         if (instInfo && instInfo.isInstallment) {
+            const unitVal = parseFloat(b.amount) || 0;
+            const remainingCount = instInfo.remaining;
+            const remainingVal = instInfo.remainingAmount || (remainingCount * unitVal);
             installmentBadgeHtml = `
                 <div class="installment-badge-wrap">
-                    <span class="badge-installment" title="Parcela ${instInfo.current} de ${instInfo.total}">
+                    <span class="badge-installment" title="Parcela ${instInfo.current} de ${instInfo.total} (${formatCurrency(unitVal)} cada)">
                         <i class="fas fa-layer-group"></i> Parcela ${instInfo.current} de ${instInfo.total}
                     </span>
-                    ${instInfo.remaining > 0 ? `
-                        <span class="installment-restam-val" title="Restam ${instInfo.remaining} parcelas de ${formatCurrency(b.amount)} • Saldo: ${formatCurrency(instInfo.remainingAmount)}">
-                            (Restam ${instInfo.remaining}x de ${formatCurrency(b.amount)})
+                    ${remainingCount > 0 ? `
+                        <span class="installment-restam-val" title="Restam ${remainingCount} parcelas de ${formatCurrency(unitVal)} • Saldo: ${formatCurrency(remainingVal)}">
+                            (Restam ${remainingCount}x de ${formatCurrency(unitVal)})
                         </span>
                     ` : `
                         <span class="installment-remaining-badge" style="color:#16a34a; font-weight:700;">
-                            (${instInfo.remainingText})
+                            (${instInfo.remainingText || (isPaid ? 'Quitada 🎉' : 'Última parcela!')})
                         </span>
                     `}
                 </div>

@@ -4069,6 +4069,33 @@ function renderChart() {
     const suggestedMax = Math.ceil((maxPositive + padding) / 50) * 50;
     const suggestedMin = Math.floor((minNegative - padding) / 50) * 50;
 
+    const gainBgColors = gainCapital.map(v => v >= 0 ? '#96e9c1' : '#FF7675');
+    const gainHoverColors = gainCapital.map(v => v >= 0 ? '#7ddfb3' : '#E84141');
+
+    // Plugin para barra fixa no eixo zero (Traço contínuo de fora a fora demarcando o zero total - Estilo Investidor 10)
+    const zeroLinePlugin = {
+        id: 'patrimonyZeroLinePlugin',
+        afterDatasetsDraw: (chart) => {
+            const yScale = chart.scales.y;
+            if (!yScale) return;
+            const rawY = yScale.getPixelForValue(0);
+            if (rawY === undefined || isNaN(rawY)) return;
+            const zeroY = Math.round(rawY);
+            if (zeroY >= chart.chartArea.top - 2 && zeroY <= chart.chartArea.bottom + 2) {
+                const c = chart.ctx;
+                c.save();
+                c.beginPath();
+                c.strokeStyle = isDark ? '#94A3B8' : '#475569';
+                c.lineWidth = 2.5; // Risco de fora a fora demarcando o zero total
+                // Atravessa de fora a fora o gráfico (da borda esquerda x = 0 à borda direita do gráfico)
+                c.moveTo(0, zeroY);
+                c.lineTo(chart.width, zeroY);
+                c.stroke();
+                c.restore();
+            }
+        }
+    };
+
     // --- GRÁFICO PRINCIPAL (BARRAS EMPILHADAS) ---
     patrimonyChart = new Chart(ctx, {
         type: 'bar',
@@ -4089,8 +4116,8 @@ function renderChart() {
                 {
                     label: 'Ganho de Capital',
                     data: gainCapital,
-                    backgroundColor: '#96e9c1',
-                    hoverBackgroundColor: '#7ddfb3',
+                    backgroundColor: gainBgColors,
+                    hoverBackgroundColor: gainHoverColors,
                     borderRadius: 4,
                     borderSkipped: false,
                     stack: 'patrimonio',
@@ -4099,6 +4126,7 @@ function renderChart() {
                 }
             ]
         },
+        plugins: [zeroLinePlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,

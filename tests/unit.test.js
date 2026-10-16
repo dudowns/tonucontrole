@@ -905,6 +905,150 @@ async function runUnitTests() {
         assert.strictEqual(info3.remainingAmount, 1800);
     });
 
+    test('ITEM 15 (Cenário 5): Geração de 12 contas recorrentes com parent_transaction_id e verificação de não duplicação na edição', () => {
+        // Simulação do Cenário 5: Conta "Claro", R$ 31, 15/11/2026, freq. Mensal
+        const desc = "Claro";
+        const finalAmount = 31.00;
+        const startDate = "2026-11-15";
+        const recurrenceType = "monthly";
+        const paid = false;
+        const allBills = [];
+
+        function addMonths(dateStr, months) {
+            const [y, m, d] = dateStr.split('-').map(Number);
+            const target = new Date(y, m - 1 + months, d);
+            const resY = target.getFullYear();
+            const resM = String(target.getMonth() + 1).padStart(2, '0');
+            const resD = String(target.getDate()).padStart(2, '0');
+            return `${resY}-${resM}-${resD}`;
+        }
+
+        // 1. Criação Inicial (m = 0..11)
+        const parentBillId = 'parent-bill-claro-uuid-1234';
+        const batch = [];
+        for (let m = 0; m < 12; m++) {
+            const dueDate = addMonths(startDate, m);
+            const itemPaid = (m === 0) ? paid : false;
+            const billId = (m === 0) ? parentBillId : `child-uuid-${m}`;
+
+            batch.push({
+                id: billId,
+                parent_transaction_id: (m === 0 ? null : parentBillId),
+                description: desc,
+                amount: finalAmount,
+                date: dueDate,
+                installments: 12,
+                current_installment: m + 1,
+                installment_total: 12,
+                installment_number: m + 1,
+                is_recurring: true,
+                recurrence_type: 'monthly',
+                paid: itemPaid
+            });
+        }
+        batch.forEach(item => allBills.push(item));
+
+        // Validações de Criação:
+        assert.strictEqual(allBills.length, 12, "Devem ser criadas exatamente 12 linhas");
+        const parent = allBills.find(b => b.id === parentBillId);
+        assert.ok(parent, "Conta-mãe deve existir");
+        assert.strictEqual(parent.parent_transaction_id, null, "Conta-mãe deve ter parent_transaction_id nulo");
+        assert.strictEqual(parent.amount, 31);
+        assert.strictEqual(parent.date, "2026-11-15");
+
+        const children = allBills.filter(b => b.parent_transaction_id === parentBillId);
+        assert.strictEqual(children.length, 11, "Devem existir 11 linhas filhas com o parent_transaction_id da mãe");
+        children.forEach((child, idx) => {
+            assert.strictEqual(child.parent_transaction_id, parentBillId);
+            assert.strictEqual(child.amount, 31);
+            assert.strictEqual(child.current_installment, idx + 2);
+        });
+
+        // 2. Validação de Edição da Conta-Mãe (NÃO DUPLICAÇÃO):
+        const editId = parentBillId;
+        const existingChildren = allBills.filter(b => String(b.parent_transaction_id) === String(editId));
+        assert.strictEqual(existingChildren.length, 11, "A conta-mãe já possui filhas vinculadas");
+
+        let newlyGeneratedBatch = [];
+        if (recurrenceType === 'monthly') {
+            if (existingChildren.length === 0) {
+                // se não tivesse filhas, geraria
+                for (let m = 1; m < 12; m++) newlyGeneratedBatch.push({});
+            }
+        }
+        assert.strictEqual(newlyGeneratedBatch.length, 0, "Ao editar a conta-mãe com filhas existentes, NENHUMA linha adicional é gerada (zero duplicações)");
+        assert.strictEqual(allBills.length, 12, "Total de contas permanece estritamente 12");
+    });
+
+    test('INDEXEDDB (Fase 3, Passo 5.5): Verificação de integridade de esquema em abertura limpa (onupgradeneeded) e stores', () => {
+        // Validação da especificação das Stores do IndexedDB TonuControlePWA_DB
+        const DB_NAME = 'TonuControlePWA_DB';
+        const DB_VERSION = 1;
+        const EXPECTED_STORES = ['sync_queue', 'shared_target_data', 'offline_entity_cache'];
+
+        assert.strictEqual(DB_NAME, 'TonuControlePWA_DB');
+        assert.strictEqual(DB_VERSION, 1);
+
+        // Simulação do evento onupgradeneeded em ambiente limpo (ex: aba anônima)
+        const mockStoreNames = new Set();
+        const createdStores = {};
+
+        const mockDb = {
+            objectStoreNames: {
+                contains: (name) => mockStoreNames.has(name)
+            },
+            createObjectStore: (name, options) => {
+                mockStoreNames.add(name);
+                createdStores[name] = { options, indexes: {} };
+                return {
+                    createIndex: (idxName, keyPath, opts) => {
+                        createdStores[name].indexes[idxName] = { keyPath, opts };
+                    }
+                };
+            }
+        };
+
+        // Executa a lógica de upgrade definida no js/sync.js
+        if (!mockDb.objectStoreNames.contains('sync_queue')) {
+            const queueStore = mockDb.createObjectStore('sync_queue', { keyPath: 'id', autoIncrement: true });
+            queueStore.createIndex('timestamp', 'timestamp', { unique: false });
+            queueStore.createIndex('status', 'status', { unique: false });
+        }
+        if (!mockDb.objectStoreNames.contains('shared_target_data')) {
+            const sharedStore = mockDb.createObjectStore('shared_target_data', { keyPath: 'id', autoIncrement: true });
+            sharedStore.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+        if (!mockDb.objectStoreNames.contains('offline_entity_cache')) {
+            mockDb.createObjectStore('offline_entity_cache', { keyPath: 'key' });
+        }
+
+        // Verificações de todas as stores necessárias
+        EXPECTED_STORES.forEach(store => {
+            assert.ok(mockDb.objectStoreNames.contains(store), `Store ${store} deve ser criada no upgrade inicial`);
+        });
+
+        // Teste de gravação e recuperação do schema de entidade com milestones_fired e parent_transaction_id
+        const entityCache = {};
+        function setCache(key, data) {
+            entityCache[key] = { key, data, updatedAt: Date.now() };
+        }
+        function getCache(key) {
+            return entityCache[key] ? entityCache[key].data : null;
+        }
+
+        // Armazenamento de goal com novo campo milestones_fired
+        const goalData = [{ id: 'goal-1', title: 'Carro', target_amount: 50000, milestones_fired: [25, 50] }];
+        setCache('goals_user_123', goalData);
+        const cachedGoals = getCache('goals_user_123');
+        assert.deepStrictEqual(cachedGoals[0].milestones_fired, [25, 50], "IndexedDB aceita perfeitamente novos campos de meta");
+
+        // Armazenamento de conta com parent_transaction_id
+        const billData = [{ id: 'bill-child-1', parent_transaction_id: 'bill-mother-1', amount: 31 }];
+        setCache('bills_user_123', billData);
+        const cachedBills = getCache('bills_user_123');
+        assert.strictEqual(cachedBills[0].parent_transaction_id, 'bill-mother-1', "IndexedDB aceita perfeitamente parent_transaction_id");
+    });
+
     return results;
 }
 

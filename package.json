@@ -1,6 +1,6 @@
 {
     "name": "tonucontrole",
-    "version": "2.1.0",
+    "version": "2.8.1",
     "private": true,
     "description": "TonuControle - Controle Financeiro Inteligente",
     "main": "server.js",

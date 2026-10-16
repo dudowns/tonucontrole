@@ -2063,7 +2063,45 @@ function renderMobileEvolutionChart() {
         return Math.round((tot - inv) * 100) / 100;
     });
 
-    // Gráfico de Barras Empilhadas idêntico ao Desktop / Investidor 10 (Uma barra só, uma sobre a outra)
+    // Cores dinâmicas para ganho/perda de capital
+    const gainBgColors = gainCapital.map(v => v >= 0 ? '#96e9c1' : '#FF7675');
+    const gainHoverColors = gainCapital.map(v => v >= 0 ? '#7ddfb3' : '#E84141');
+
+    // Cálculo proporcional do eixo Y com folga para respirar e apoio no eixo zero
+    const allValues = [...evoData.invested, ...gainCapital, ...evoData.total];
+    const maxPositive = Math.max(...allValues.filter(v => v > 0), 0);
+    const minNegative = Math.min(...allValues.filter(v => v < 0), 0);
+    const range = Math.max(maxPositive - minNegative, 100);
+    const padding = range * 0.12;
+    const suggestedMax = Math.ceil((maxPositive + padding) / 50) * 50;
+    const suggestedMin = Math.floor((minNegative - padding) / 50) * 50;
+
+    // Plugin para barra fixa no eixo zero (Linha de base sólida do Investidor 10)
+    // Plugin para barra fixa no eixo zero (Traço contínuo de fora a fora demarcando o zero total - Estilo Investidor 10)
+    const zeroLinePlugin = {
+        id: 'mobileZeroLinePlugin',
+        afterDatasetsDraw: (chart) => {
+            const yScale = chart.scales.y;
+            if (!yScale) return;
+            const rawY = yScale.getPixelForValue(0);
+            if (rawY === undefined || isNaN(rawY)) return;
+            const zeroY = Math.round(rawY);
+            if (zeroY >= chart.chartArea.top - 2 && zeroY <= chart.chartArea.bottom + 2) {
+                const c = chart.ctx;
+                c.save();
+                c.beginPath();
+                c.strokeStyle = isDark ? '#94A3B8' : '#475569';
+                c.lineWidth = 2.5; // Risco de fora a fora demarcando o zero total
+                // Atravessa de fora a fora o gráfico (da borda esquerda x = 0 à borda direita do gráfico)
+                c.moveTo(0, zeroY);
+                c.lineTo(chart.width, zeroY);
+                c.stroke();
+                c.restore();
+            }
+        }
+    };
+
+    // Gráfico de Barras Empilhadas idêntico ao Desktop / Investidor 10 (Uma barra só, uma sobre a outra, partindo do eixo zero)
     mobileAllocationChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -2083,8 +2121,8 @@ function renderMobileEvolutionChart() {
                 {
                     label: 'Ganho de Capital',
                     data: gainCapital,
-                    backgroundColor: '#96e9c1',
-                    hoverBackgroundColor: '#7ddfb3',
+                    backgroundColor: gainBgColors,
+                    hoverBackgroundColor: gainHoverColors,
                     borderRadius: 4,
                     borderSkipped: false,
                     stack: 'patrimonio',
@@ -2093,6 +2131,7 @@ function renderMobileEvolutionChart() {
                 }
             ]
         },
+        plugins: [zeroLinePlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -2141,8 +2180,20 @@ function renderMobileEvolutionChart() {
                 },
                 y: {
                     stacked: true,
-                    beginAtZero: true,
-                    grid: { color: gridColor },
+                    beginAtZero: false,
+                    suggestedMin: suggestedMin,
+                    suggestedMax: suggestedMax,
+                    grid: {
+                        color: function(context) {
+                            if (context.tick && context.tick.value === 0) {
+                                return isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
+                            }
+                            return gridColor;
+                        },
+                        lineWidth: function(context) {
+                            return (context.tick && context.tick.value === 0) ? 2.5 : 1;
+                        }
+                    },
                     ticks: {
                         font: { size: 9 },
                         color: textColor,

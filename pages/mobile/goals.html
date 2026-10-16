@@ -1628,49 +1628,81 @@ async function fetchMobileCDIRate() {
 }
 
 async function checkMilestonesMobile(goal, newAmount) {
-    if (!goal || !goal.target_amount || goal.target_amount <= 0) return;
-    const pct = Math.min(100, Math.floor((newAmount / goal.target_amount) * 100));
-    const milestones = [25, 50, 75, 90, 100];
-    let fired = Array.isArray(goal.milestones_fired) ? [...goal.milestones_fired] : [];
-    let newFired = [];
+    try {
+        if (!goal) return;
+        const target = Number(goal.target_amount) || 0;
+        if (target <= 0) return;
 
-    for (const m of milestones) {
-        if (pct >= m && !fired.includes(m)) {
-            fired.push(m);
-            newFired.push(m);
-        }
-    }
+        const amt = Number(newAmount) || 0;
+        const pct = Math.min(100, Math.floor((amt / target) * 100));
+        const milestones = [25, 50, 75, 90, 100];
 
-    if (newFired.length > 0) {
-        goal.milestones_fired = fired;
-        if (window.supabaseClient && currentUser?.id) {
+        let fired = [];
+        if (Array.isArray(goal.milestones_fired)) {
+            fired = [...goal.milestones_fired];
+        } else if (typeof goal.milestones_fired === 'string') {
             try {
-                await window.supabaseClient
-                    .from('goals')
-                    .update({ milestones_fired: fired })
-                    .eq('id', goal.id)
-                    .eq('user_id', currentUser.id);
-            } catch (err) {
-                console.warn('⚠️ Erro ao persistir milestones_fired (Mobile):', err);
+                const parsed = JSON.parse(goal.milestones_fired);
+                if (Array.isArray(parsed)) fired = parsed;
+            } catch (e) {
+                fired = [];
             }
         }
 
-        const highestMilestone = newFired[newFired.length - 1];
-        if (highestMilestone === 100) {
-            triggerCelebrationModal(goal.title, newAmount);
-        } else {
-            showToast(`🎯 Marco de ${highestMilestone}% alcançado na meta "${goal.title}"! 🚀`, 'success');
-            triggerGoalConfetti();
+        let newFired = [];
+        for (const m of milestones) {
+            if (pct >= m && !fired.includes(m)) {
+                fired.push(m);
+                newFired.push(m);
+            }
         }
 
-        if (typeof window.sendRealtimePush === 'function') {
-            window.sendRealtimePush({
-                title: `🎯 Marco alcançado: ${highestMilestone}% da meta!`,
-                body: `Você conquistou ${highestMilestone}% da sua meta "${goal.title}"! Continue firme.`,
-                url: 'pages/mobile/goals.html',
-                tag: `goal-milestone-${goal.id}-${highestMilestone}`
-            });
+        if (newFired.length > 0) {
+            goal.milestones_fired = fired;
+            const uid = (typeof currentUser !== 'undefined' && currentUser?.id) || window.currentUser?.id;
+            if (window.supabaseClient && uid) {
+                try {
+                    await window.supabaseClient
+                        .from('goals')
+                        .update({ milestones_fired: fired })
+                        .eq('id', goal.id)
+                        .eq('user_id', uid);
+                } catch (err) {
+                    console.warn('⚠️ Erro ao persistir milestones_fired (Mobile):', err);
+                }
+            }
+
+            const highestMilestone = newFired[newFired.length - 1];
+            if (highestMilestone === 100) {
+                if (typeof triggerCelebrationModal === 'function') {
+                    triggerCelebrationModal(goal.title || 'Meta', amt);
+                } else if (typeof showToast === 'function') {
+                    showToast(`🎉 Parabéns! Meta "${goal.title || ''}" concluída 100%!`, 'success');
+                }
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast(`🎯 Marco de ${highestMilestone}% alcançado na meta "${goal.title || ''}"! 🚀`, 'success');
+                }
+                if (typeof triggerGoalConfetti === 'function') {
+                    triggerGoalConfetti();
+                }
+            }
+
+            if (typeof window.sendRealtimePush === 'function') {
+                try {
+                    window.sendRealtimePush({
+                        title: `🎯 Marco alcançado: ${highestMilestone}% da meta!`,
+                        body: `Você conquistou ${highestMilestone}% da sua meta "${goal.title}"! Continue firme.`,
+                        url: 'pages/mobile/goals.html',
+                        tag: `goal-milestone-${goal.id}-${highestMilestone}`
+                    });
+                } catch (pushErr) {
+                    console.warn('⚠️ Erro ao enviar push notification de marco:', pushErr);
+                }
+            }
         }
+    } catch (err) {
+        console.warn('⚠️ Erro não impeditivo em checkMilestonesMobile:', err);
     }
 }
 
