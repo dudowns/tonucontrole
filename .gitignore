@@ -31,6 +31,10 @@ Thumbs.db
 
 # AI Studio
 metadata.json
+.aistudio/
+
+# Lockfiles alternativos
+bun.lock
 
 # Caches
 .cache/

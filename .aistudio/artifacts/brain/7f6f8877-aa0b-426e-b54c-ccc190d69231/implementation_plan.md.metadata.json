@@ -1,6 +1,0 @@
-{
-  "summary": "Relatório final e Plano de Implementação Estruturado consolidado do TonuControle, registrando a conclusão com sucesso das Fases 1, 2 e 3, bem como as validações do Item 15 (Cenário 5 - recorrência de 12 meses com parent_transaction_id sem duplicação) e do IndexedDB (Passo 5.5 - abertura limpa em aba anônima e stores do TonuControlePWA_DB com 47/47 testes automatizados aprovados).",
-  "updatedAt": "2026-10-16T09:15:21.465078143Z",
-  "requestFeedback": true,
-  "userFacing": true
-}
