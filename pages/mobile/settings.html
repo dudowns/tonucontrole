@@ -467,6 +467,26 @@
                     <input type="checkbox" id="checkNotifSound" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
                 </div>
             </div>
+            <div class="settings-item" style="flex-direction:column; align-items:flex-start; gap:8px;">
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                    <div class="left">
+                        <div class="item-icon-box amber" style="background:#e17055;"><i class="fas fa-certificate"></i></div>
+                        <div>
+                            <div class="item-text-title">Badge no Ícone (Contador)</div>
+                            <div class="item-text-sub">Mostra notificações no ícone do app</div>
+                        </div>
+                    </div>
+                    <span id="mobileBadgeStatusBadge" style="color:#00B894; font-weight:600; font-size:11px;">Ativo</span>
+                </div>
+                <div style="width:100%; display:flex; justify-content:flex-end; gap:8px; margin-top:2px;">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="window.testBadgeManually(3)" style="font-size:11px; padding:4px 10px;">
+                        <i class="fas fa-hashtag"></i> Testar Badge (3)
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.clearBadgeManually()" style="font-size:11px; padding:4px 10px;">
+                        <i class="fas fa-eraser"></i> Limpar
+                    </button>
+                </div>
+            </div>
             <div class="settings-item" onclick="testNotificationAlert()">
                 <div class="left">
                     <div class="item-icon-box purple"><i class="fas fa-paper-plane"></i></div>
@@ -791,6 +811,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Carregar preferências granulares de notificação push
     loadMobileNotifPrefs();
+
+    // Status do PWA (Instalado vs Instalável)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const pwaStatus = document.getElementById("pwaStatusText");
+    if (pwaStatus) {
+        if (isStandalone) {
+            pwaStatus.textContent = "Instalado ✅";
+            pwaStatus.style.color = "#00B894";
+        }
+    }
 
     try {
         let user = null;

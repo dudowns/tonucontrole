@@ -1612,6 +1612,30 @@
         }
     }
 
+    function testBadgeManually(count) {
+        const val = Number(count) || 3;
+        setAppBadgeNative(val);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        let msg = `Badge de teste (${val}) enviado!`;
+        if (isStandalone) {
+            msg += ' Verifique o ícone na barra de tarefas ou tela inicial.';
+        } else {
+            msg += ' (Abra como PWA instalado para ver o selo no ícone do Windows/celular).';
+        }
+        if (window.showToast) {
+            window.showToast(msg, 'success');
+        } else {
+            console.log(msg);
+        }
+    }
+
+    function clearBadgeManually() {
+        clearAppBadgeNative();
+        if (window.showToast) {
+            window.showToast('Badge removido do ícone!', 'info');
+        }
+    }
+
     // Exports to Global Scope
     window.toggleNotificationDropdown = toggleNotificationDropdown;
     window.openNotificationDropdown = openNotificationDropdown;
@@ -1632,6 +1656,8 @@
     window.sendRealtimePush = sendRealtimePush;
     window.clearAppBadgeNative = clearAppBadgeNative;
     window.setAppBadgeNative = setAppBadgeNative;
+    window.testBadgeManually = testBadgeManually;
+    window.clearBadgeManually = clearBadgeManually;
 
     // Initialization
     function initNotificationDropdownSystem() {

@@ -612,6 +612,21 @@
                                 </label>
                             </div>
 
+                            <div class="setting-row" style="padding: 12px 0; border-top: 1px solid var(--color-border-light);">
+                                <div class="setting-row-text">
+                                    <strong><i class="fas fa-certificate" style="color:#e17055; margin-right:6px;"></i> Badge no Ícone do App (Contador Numérico)</strong>
+                                    <small id="desktopBadgeStatusHint">Exibe o número de notificações não lidas no ícone do app na barra de tarefas (Windows) ou na tela de início (iPhone).</small>
+                                </div>
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <button type="button" class="btn btn-outline btn-sm" onclick="window.testBadgeManually(3)" title="Colocar número 3 no ícone para testar">
+                                        <i class="fas fa-hashtag" aria-hidden="true"></i> Testar Badge (3)
+                                    </button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.clearBadgeManually()" title="Remover número do ícone">
+                                        <i class="fas fa-eraser" aria-hidden="true"></i> Limpar
+                                    </button>
+                                </div>
+                            </div>
+
                             <div class="settings-actions" style="margin-top: var(--space-md); display:flex; flex-wrap:wrap; gap:8px;">
                                 <button class="btn btn-primary btn-sm" onclick="window.registerPushSubscription()"
                                     aria-label="Ativar Notificações Push">
