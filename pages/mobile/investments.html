@@ -1351,6 +1351,84 @@ window.decoratePositions = window.decoratePositions || decoratePositions;
 window.quotes = quotes;
 
 // ============================================
+// COTAÇÕES HISTÓRICAS MENSAIS (INVESTIDOR 10 STYLE)
+// ============================================
+let historicalMonthlyQuotes = new Map();
+try {
+    const rawHist = localStorage.getItem('tonu_historical_quotes');
+    if (rawHist) {
+        const parsed = JSON.parse(rawHist);
+        if (parsed && typeof parsed === 'object') {
+            for (const [k, v] of Object.entries(parsed)) {
+                historicalMonthlyQuotes.set(k, v);
+            }
+        }
+    }
+} catch (histCacheErr) {
+    console.warn('⚠️ Erro ao carregar cache de histórico mobile:', histCacheErr);
+}
+
+async function fetchHistoricalMonthlyQuotes() {
+    const allTickers = [
+        ...activePositions.map(p => p.ticker),
+        ...allRawInvestments.map(t => t.ticker)
+    ]
+    .filter(t => t && t.length >= 3 && /^[A-Z0-9\.\-]{3,}$/i.test(t) && !isTesouroTicker(t))
+    .map(t => t.toUpperCase().trim().replace(/\.SA$/, ''));
+
+    const uniqueTickers = [...new Set(allTickers)];
+    if (uniqueTickers.length === 0) return;
+
+    try {
+        const baseApi = (typeof window.getBaseUrl === 'function' ? window.getBaseUrl() : '').replace(/\/+$/, '');
+        const endpoint = (baseApi ? baseApi : '') + `/api/historical-quotes?tickers=${encodeURIComponent(uniqueTickers.join(','))}`;
+        const res = await fetch(endpoint);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (data && data.quotes) {
+            let loadedCount = 0;
+            for (const [tk, monthMap] of Object.entries(data.quotes)) {
+                const clean = tk.toUpperCase().replace(/\.SA$/, '');
+                historicalMonthlyQuotes.set(clean, monthMap);
+                historicalMonthlyQuotes.set(`${clean}.SA`, monthMap);
+                loadedCount++;
+            }
+            try {
+                const cacheObj = {};
+                for (const [k, v] of historicalMonthlyQuotes.entries()) {
+                    cacheObj[k] = v;
+                }
+                localStorage.setItem('tonu_historical_quotes', JSON.stringify(cacheObj));
+            } catch (e) {
+                console.warn('⚠️ Falha ao salvar histórico no localStorage:', e);
+            }
+            console.log(`✅ [Mobile] ${loadedCount} ativos com histórico mensal carregados`);
+            if (currentMobileInvestChartMode === 'evolution') {
+                renderMobileEvolutionChart();
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ Não foi possível carregar histórico mensal no mobile:', e);
+    }
+}
+
+function findClosestHistoricalPrice(histMap, targetMonthKey) {
+    if (!histMap) return null;
+    if (histMap[targetMonthKey] && Number.isFinite(histMap[targetMonthKey]) && histMap[targetMonthKey] > 0) {
+        return histMap[targetMonthKey];
+    }
+    const months = Object.keys(histMap).sort();
+    if (months.length === 0) return null;
+    const pastMonths = months.filter(m => m <= targetMonthKey);
+    if (pastMonths.length > 0) {
+        const closestPast = pastMonths[pastMonths.length - 1];
+        if (histMap[closestPast]) return histMap[closestPast];
+    }
+    return histMap[months[0]] || null;
+}
+
+// ============================================
 // CARREGAR DADOS DO SUPABASE OU INDEXEDDB CANÔNICO
 // ============================================
 async function loadAllInvestmentData() {
@@ -1439,14 +1517,19 @@ async function loadAllInvestmentData() {
         renderDividends();
         renderCorporateEventsList();
         updateSummaryHero();
+        renderMobileInvestChart();
 
         // 4.2. Busca cotações em tempo real via BRAPI e atualiza a Carteira
         try {
             await fetchQuotes();
             decoratePositions();
-            // Re-renderiza posições e resumo com cotações atualizadas
+            // Re-renderiza posições, resumo e gráfico com cotações atualizadas
             renderPositions();
             updateSummaryHero();
+            renderMobileInvestChart();
+
+            // Busca histórico mensal em background para enriquecer o gráfico de evolução
+            fetchHistoricalMonthlyQuotes().catch(() => {});
         } catch (quoteErr) {
             console.warn("⚠️ Fallback cotações:", quoteErr);
         }
@@ -2000,20 +2083,68 @@ function buildMobileEvolutionChartData() {
         let monthInvested = 0;
         let monthTotal = 0;
 
-        simulatedMap.forEach(p => {
-            if (p.quantity > 0.0001) {
-                monthInvested += p.costBasis;
-                monthTotal += p.costBasis;
+        simulatedMap.forEach((pos, ticker) => {
+            if (pos.quantity > 0.0001) {
+                const investedInAsset = Math.max(0, pos.costBasis || 0);
+                monthInvested += investedInAsset;
+
+                const cleanTk = ticker.toUpperCase().trim().replace(/\.SA$/, '');
+                let assetPrice = 0;
+
+                if (isCurrentMonth) {
+                    const quote = quotes.get(cleanTk) || quotes.get(ticker) || quotes.get(`${cleanTk}.SA`);
+                    if (quote && Number.isFinite(quote.price) && quote.price > 0) {
+                        assetPrice = quote.price;
+                    } else {
+                        assetPrice = pos.quantity > 0 ? (investedInAsset / pos.quantity) : 0;
+                    }
+                } else {
+                    const histMap = historicalMonthlyQuotes.get(cleanTk) || historicalMonthlyQuotes.get(ticker) || historicalMonthlyQuotes.get(`${cleanTk}.SA`);
+                    const monthPrice = histMap ? histMap[m.key] : null;
+
+                    if (monthPrice && Number.isFinite(monthPrice) && monthPrice > 0) {
+                        assetPrice = monthPrice;
+                    } else if (isTesouroTicker(ticker)) {
+                        assetPrice = pos.quantity > 0 ? (investedInAsset / pos.quantity) : 0;
+                    } else {
+                        const closestPrice = findClosestHistoricalPrice(histMap, m.key);
+                        if (closestPrice && Number.isFinite(closestPrice) && closestPrice > 0) {
+                            assetPrice = closestPrice;
+                        } else {
+                            const quote = quotes.get(cleanTk) || quotes.get(ticker);
+                            if (quote && Number.isFinite(quote.price) && quote.price > 0) {
+                                assetPrice = quote.price;
+                            } else {
+                                assetPrice = pos.quantity > 0 ? (investedInAsset / pos.quantity) : 0;
+                            }
+                        }
+                    }
+                }
+
+                monthTotal += pos.quantity * assetPrice;
             }
         });
 
-        // No mês atual, assegura consistência com a custódia ativa calculada
+        // No mês atual, assegura consistência absoluta com a custódia ativa e os cards do topo
         if (isCurrentMonth && activePositions && activePositions.length > 0) {
-            const cardTotal = activePositions.reduce((s, p) => s + (p.costBasis || 0), 0);
-            const cardPatrimonio = activePositions.reduce((s, p) => s + (p.currentValue !== undefined && Number.isFinite(p.currentValue) ? p.currentValue : (p.costBasis || 0)), 0);
-            if (cardTotal > 0) {
-                monthInvested = cardTotal;
-                monthTotal = cardPatrimonio > 0 ? cardPatrimonio : cardTotal;
+            let cardTotalInvestido = 0;
+            let cardTotalPatrimonio = 0;
+            activePositions.forEach(p => {
+                cardTotalInvestido += (p.costBasis || 0);
+                const cleanTk = (p.ticker || '').toUpperCase().trim().replace(/\.SA$/, '');
+                const quote = quotes.get(cleanTk) || quotes.get(p.ticker) || quotes.get(`${cleanTk}.SA`);
+                const livePrice = (quote && Number.isFinite(quote.price) && quote.price > 0)
+                    ? quote.price
+                    : (p.currentPrice || p.averageCost || 0);
+                const val = (p.currentValue !== undefined && Number.isFinite(p.currentValue) && p.currentValue > 0)
+                    ? p.currentValue
+                    : ((p.quantity || 0) * livePrice);
+                cardTotalPatrimonio += (val > 0 ? val : (p.costBasis || 0));
+            });
+
+            if (cardTotalInvestido > 0) {
+                monthInvested = cardTotalInvestido;
+                monthTotal = cardTotalPatrimonio > 0 ? cardTotalPatrimonio : cardTotalInvestido;
             }
         }
 
@@ -2158,8 +2289,13 @@ function renderMobileEvolutionChart() {
                         label: function(context) {
                             const val = context.parsed.y || 0;
                             const isGain = context.datasetIndex === 1;
-                            const sign = isGain && val > 0 ? '+' : '';
-                            return ` ${context.dataset.label}: ${sign}${formatCurrency(val)}`;
+                            if (isGain) {
+                                const inv = evoData.invested[context.dataIndex] || 0;
+                                const pct = inv > 0 ? ((val / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
+                                const sign = val > 0 ? '+' : (val < 0 ? '-' : '');
+                                return ` ${context.dataset.label}: ${sign}${formatCurrency(Math.abs(val))} (${sign}${pct}%)`;
+                            }
+                            return ` ${context.dataset.label}: ${formatCurrency(val)}`;
                         },
                         footer: function(items) {
                             let total = 0;
