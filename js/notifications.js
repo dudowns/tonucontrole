@@ -333,6 +333,32 @@
         renderNotificationList();
     }
 
+    // ============================================
+    // PWA APP BADGING API (Window & Service Worker Sync)
+    // ============================================
+    function clearAppBadgeNative() {
+        if ('clearAppBadge' in navigator) {
+            navigator.clearAppBadge().catch((e) => console.warn('[Badge] Falha ao limpar app badge:', e));
+        }
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_APP_BADGE' });
+        }
+    }
+
+    function setAppBadgeNative(count) {
+        const num = Number(count) || 0;
+        if (num <= 0) {
+            clearAppBadgeNative();
+            return;
+        }
+        if ('setAppBadge' in navigator) {
+            navigator.setAppBadge(num).catch((e) => console.warn('[Badge] Falha ao definir app badge:', e));
+        }
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'SET_APP_BADGE', count: num });
+        }
+    }
+
     // Update Topbar Badge & Dropdown Counters
     function updateNotificationBadge() {
         const readIds = getReadIds();
@@ -405,6 +431,9 @@
     function dismissNotification(id) {
         saveDismissedId(id);
         notifications = notifications.filter(n => n.id !== id);
+        if (notifications.length === 0) {
+            clearAppBadgeNative();
+        }
         updateNotificationBadge();
         renderNotificationList();
 
@@ -1031,6 +1060,7 @@
             saveDismissedId(n.id);
         });
         notifications = [];
+        clearAppBadgeNative();
         updateNotificationBadge();
         renderNotificationList();
 
@@ -1217,6 +1247,7 @@
             notifications.forEach(n => {
                 markAsReadSilently(n.id);
             });
+            clearAppBadgeNative();
             updateNotificationBadge();
             renderNotificationList();
             await loadNotificationHistory();
@@ -1249,6 +1280,7 @@
                 .eq('user_id', user.id);
 
             if (error) throw error;
+            clearAppBadgeNative();
             await loadNotificationHistory();
             if (window.showToast) {
                 window.showToast('Histórico de notificações limpo com sucesso! 🗑️', 'info');
@@ -1583,9 +1615,14 @@
     window.markAllHistoryRead = markAllHistoryRead;
     window.clearNotificationHistory = clearNotificationHistory;
     window.sendRealtimePush = sendRealtimePush;
+    window.clearAppBadgeNative = clearAppBadgeNative;
+    window.setAppBadgeNative = setAppBadgeNative;
 
     // Initialization
     function initNotificationDropdownSystem() {
+        // Limpar badge nativo ao abrir o app (inicialização DOMContentLoaded)
+        clearAppBadgeNative();
+
         getNotificationDropdown();
         getNotificationBackdrop();
         attachBellListeners();

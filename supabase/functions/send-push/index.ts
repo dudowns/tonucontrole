@@ -62,15 +62,7 @@ Deno.serve(async (req) => {
 
       if (!subs || subs.length === 0) return;
 
-      const payloadStr = JSON.stringify({
-        title: payloadObj.title,
-        body: payloadObj.body || '',
-        url: payloadObj.url || 'pages/dashboard.html',
-        icon: payloadObj.icon || '/icons/icon-192x192.png',
-        tag: payloadObj.tag || 'general-push'
-      });
-
-      // Gravar no histórico notification_log antes do envio (falhas não bloqueiam push)
+      // a) INSERT em notification_log (read_at=null, dismissed_at=null) antes do envio
       try {
         await supabase.from('notification_log').insert({
           user_id: userId,
@@ -78,11 +70,40 @@ Deno.serve(async (req) => {
           body: payloadObj.body || '',
           type: category || 'general',
           url: payloadObj.url || 'pages/dashboard.html',
-          icon: payloadObj.icon || '/icons/icon-192x192.png'
+          icon: payloadObj.icon || '/icons/icon-192x192.png',
+          read_at: null,
+          dismissed_at: null
         });
       } catch (logErr) {
         console.warn('[send-push] Falha ao gravar notification_log:', logErr);
       }
+
+      // b) COUNT de unread no notification_log para o usuário
+      let badgeCount = 1;
+      try {
+        const { count, error: countErr } = await supabase
+          .from('notification_log')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .is('read_at', null)
+          .is('dismissed_at', null);
+
+        if (!countErr && typeof count === 'number' && count > 0) {
+          badgeCount = count;
+        }
+      } catch (countEx) {
+        console.warn('[send-push] Falha ao calcular unread count:', countEx);
+      }
+
+      // c) Montar payload com badgeCount correto
+      const payloadStr = JSON.stringify({
+        title: payloadObj.title,
+        body: payloadObj.body || '',
+        url: payloadObj.url || 'pages/dashboard.html',
+        icon: payloadObj.icon || '/icons/icon-192x192.png',
+        tag: payloadObj.tag || 'general-push',
+        badgeCount: badgeCount
+      });
 
       for (const sub of subs) {
         // Se o usuário desmarcou esta categoria no app, pula o envio
@@ -167,12 +188,51 @@ Deno.serve(async (req) => {
       results.subsFound = subs?.length || 0;
 
       if (subs && subs.length > 0) {
+        // a) INSERT em notification_log (read_at=null, dismissed_at=null)
+        if (targetUserId) {
+          try {
+            await supabase.from('notification_log').insert({
+              user_id: targetUserId,
+              title: body.title,
+              body: body.body || '',
+              type: body.tag || 'direct',
+              url: body.url || 'pages/dashboard.html',
+              icon: body.icon || '/icons/icon-192x192.png',
+              read_at: null,
+              dismissed_at: null
+            });
+          } catch (logErr) {
+            console.warn('[send-push] Falha ao gravar notification_log em direct push:', logErr);
+          }
+        }
+
+        // b) COUNT de unread no notification_log para o usuário
+        let badgeCount = 1;
+        if (targetUserId) {
+          try {
+            const { count, error: countErr } = await supabase
+              .from('notification_log')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', targetUserId)
+              .is('read_at', null)
+              .is('dismissed_at', null);
+
+            if (!countErr && typeof count === 'number' && count > 0) {
+              badgeCount = count;
+            }
+          } catch (countEx) {
+            console.warn('[send-push] Falha ao calcular unread count em direct push:', countEx);
+          }
+        }
+
+        // c) Enviar push com badgeCount correto
         const payloadStr = JSON.stringify({
           title: body.title,
           body: body.body || '',
           url: body.url || 'pages/dashboard.html',
           icon: body.icon || '/icons/icon-192x192.png',
-          tag: body.tag || 'test-push'
+          tag: body.tag || 'test-push',
+          badgeCount: badgeCount
         });
 
         for (const sub of subs) {

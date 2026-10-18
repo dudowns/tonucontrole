@@ -88,6 +88,23 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
+  } else if (event.data && event.data.type === 'CLEAR_APP_BADGE') {
+    if ('clearAppBadge' in self.registration) {
+      self.registration.clearAppBadge().catch((err) => {
+        console.warn('[SW] Falha ao limpar app badge:', err);
+      });
+    }
+  } else if (event.data && event.data.type === 'SET_APP_BADGE') {
+    const count = Number(event.data.count || 0);
+    if ('setAppBadge' in self.registration) {
+      if (count > 0) {
+        self.registration.setAppBadge(count).catch((err) => {
+          console.warn('[SW] Falha ao definir app badge:', err);
+        });
+      } else if ('clearAppBadge' in self.registration) {
+        self.registration.clearAppBadge().catch(() => {});
+      }
+    }
   }
 });
 
@@ -117,23 +134,46 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     try { data = event.data.json(); } catch (e) { data.body = event.data.text(); }
   }
-  event.waitUntil(
-    self.registration.showNotification(data.title, {
+
+  const badgeCount = Number(data.badgeCount || data.badge_count || 1);
+
+  const promiseChain = (async () => {
+    // 1. Exibir notificação push nativa
+    await self.registration.showNotification(data.title, {
       body: data.body,
       icon: data.icon || '/icons/icon-192x192.png',
       badge: '/icons/icon-96x96.png',
       tag: data.tag || 'tonu-notification',
-      data: { url: data.url || './' },
+      data: { url: data.url || './', badgeCount: badgeCount },
       vibrate: [200, 100, 200],
       requireInteraction: true,
       silent: false,
       renotify: true
-    })
-  );
+    });
+
+    // 2. Definir Badge no ícone do App via self.registration (iOS 16.4+, Chrome/Edge PWA)
+    if ('setAppBadge' in self.registration) {
+      try {
+        await self.registration.setAppBadge(badgeCount);
+      } catch (badgeErr) {
+        console.warn('[SW] Falha ao definir setAppBadge no push:', badgeErr);
+      }
+    }
+  })();
+
+  event.waitUntil(promiseChain);
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
+  // Limpar App Badge nativo ao clicar na notificação
+  if ('clearAppBadge' in self.registration) {
+    self.registration.clearAppBadge().catch((badgeErr) => {
+      console.warn('[SW] Falha ao limpar app badge no notificationclick:', badgeErr);
+    });
+  }
+
   const rawUrl = event.notification.data?.url || './';
   // Garante que URLs relativas resolvam contra o escopo do PWA (ex: /tonucontrole/)
   const sanitizedUrl = (typeof rawUrl === 'string' && rawUrl.startsWith('/') && !rawUrl.startsWith('//'))
