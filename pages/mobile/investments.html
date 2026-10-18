@@ -299,7 +299,7 @@
         }
         .mobile-chart-container {
             position: relative;
-            height: 220px;
+            height: 340px;
             width: 100%;
             transition: opacity 0.2s ease;
         }
@@ -1730,7 +1730,8 @@ function updateSummaryHero() {
     }
     if (ganhoEl) {
         ganhoEl.textContent = `${sign}${formatCurrency(ganhoTotal)}`;
-        ganhoEl.style.color = Math.abs(ganhoTotal) < 0.001 ? 'var(--color-text, #0f172a)' : color;
+        // Ganho de capital sempre no verdinho mais claro, mesmo se negativo
+        ganhoEl.style.color = '#00B894';
     }
 
     // Cards da aba Proventos
@@ -2194,9 +2195,9 @@ function renderMobileEvolutionChart() {
         return Math.round((tot - inv) * 100) / 100;
     });
 
-    // Cores dinâmicas para ganho/perda de capital
-    const gainBgColors = gainCapital.map(v => v >= 0 ? '#96e9c1' : '#FF7675');
-    const gainHoverColors = gainCapital.map(v => v >= 0 ? '#7ddfb3' : '#E84141');
+    // Verde mais claro consistente para Ganho de Capital (sem vermelho, mesmo se negativo)
+    const gainBgColors = '#96e9c1';
+    const gainHoverColors = '#7ddfb3';
 
     // Cálculo proporcional do eixo Y com folga para respirar e apoio no eixo zero
     const allValues = [...evoData.invested, ...gainCapital, ...evoData.total];

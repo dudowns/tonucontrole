@@ -340,8 +340,14 @@
         if ('clearAppBadge' in navigator) {
             navigator.clearAppBadge().catch((e) => console.warn('[Badge] Falha ao limpar app badge:', e));
         }
-        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_APP_BADGE' });
+        if (navigator.serviceWorker) {
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_APP_BADGE' });
+            } else if (navigator.serviceWorker.ready) {
+                navigator.serviceWorker.ready.then(reg => {
+                    if (reg && reg.active) reg.active.postMessage({ type: 'CLEAR_APP_BADGE' });
+                }).catch(() => {});
+            }
         }
     }
 
@@ -354,8 +360,14 @@
         if ('setAppBadge' in navigator) {
             navigator.setAppBadge(num).catch((e) => console.warn('[Badge] Falha ao definir app badge:', e));
         }
-        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({ type: 'SET_APP_BADGE', count: num });
+        if (navigator.serviceWorker) {
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'SET_APP_BADGE', count: num });
+            } else if (navigator.serviceWorker.ready) {
+                navigator.serviceWorker.ready.then(reg => {
+                    if (reg && reg.active) reg.active.postMessage({ type: 'SET_APP_BADGE', count: num });
+                }).catch(() => {});
+            }
         }
     }
 
@@ -425,6 +437,9 @@
                 btn.classList.remove('has-urgent');
             }
         });
+
+        // 6. Sincronizar App Badge nativo (PWA Desktop / Mobile)
+        setAppBadgeNative(unreadCount);
     }
 
     // Dismiss a single notification permanently

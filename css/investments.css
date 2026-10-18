@@ -317,13 +317,12 @@
 }
 
 .chart-panel .chart-wrap {
-    height: 220px !important;
-    min-height: 220px !important;
-    max-height: 220px !important;
-    padding: 8px 12px;
+    height: 310px !important;
+    min-height: 310px !important;
+    max-height: 340px !important;
+    padding: 8px 12px 14px 12px;
     position: relative;
     width: 100%;
-    overflow: hidden;
     box-sizing: border-box;
 }
 

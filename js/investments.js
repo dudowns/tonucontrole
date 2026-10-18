@@ -4069,8 +4069,9 @@ function renderChart() {
     const suggestedMax = Math.ceil((maxPositive + padding) / 50) * 50;
     const suggestedMin = Math.floor((minNegative - padding) / 50) * 50;
 
-    const gainBgColors = gainCapital.map(v => v >= 0 ? '#96e9c1' : '#FF7675');
-    const gainHoverColors = gainCapital.map(v => v >= 0 ? '#7ddfb3' : '#E84141');
+    // Verde mais claro consistente para Ganho de Capital (sem vermelho, mesmo se negativo)
+    const gainBgColors = '#96e9c1';
+    const gainHoverColors = '#7ddfb3';
 
     // Plugin para barra fixa no eixo zero (Traço contínuo de fora a fora demarcando o zero total - Estilo Investidor 10)
     const zeroLinePlugin = {
@@ -4172,8 +4173,8 @@ function renderChart() {
                         const inv = data.invested[idx] || 0;
                         const tot = data.total[idx] || 0;
                         const gn = gainCapital[idx] || 0;
-                        const gnPct = inv > 0 ? ((gn / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
-                        const gainIndicatorColor = gn >= 0 ? '#2cb875' : '#FF7675';
+                        const gnPct = inv > 0 ? (Math.abs(gn / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
+                        const gainIndicatorColor = '#96e9c1';
 
                         tooltipEl.innerHTML = `
                             <div class="tooltip-header">${label}</div>
@@ -4189,7 +4190,7 @@ function renderChart() {
                                     <span class="tooltip-indicator" style="background: #96e9c1;"></span>
                                     <span>Ganho de Capital</span>
                                 </div>
-                                <div class="tooltip-value" style="color: ${gainIndicatorColor}; font-weight: 600;">
+                                <div class="tooltip-value" style="color: #2cb875; font-weight: 600;">
                                     ${gn < 0 ? '-' : '+'}${formatCurrency(Math.abs(gn))} (${gn < 0 ? '-' : '+'}${gnPct}%)
                                 </div>
                             </div>
@@ -4204,9 +4205,16 @@ function renderChart() {
                         const caretX = tooltipModel.caretX;
                         const caretY = tooltipModel.caretY;
                         let left = caretX + 12;
-                        let top = Math.max(8, caretY - 60);
-
+                        const tooltipHeight = tooltipEl.offsetHeight || 135;
                         const tooltipWidth = 190;
+
+                        // Clamping vertical para garantir que a tooltip nunca seja cortada no rodapé
+                        let top = caretY - 60;
+                        if (top + tooltipHeight > container.clientHeight - 8) {
+                            top = Math.max(8, container.clientHeight - tooltipHeight - 8);
+                        }
+                        if (top < 8) top = 8;
+
                         if (left + tooltipWidth > container.clientWidth) {
                             left = Math.max(8, caretX - tooltipWidth - 12);
                         }
