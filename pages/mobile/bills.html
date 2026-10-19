@@ -964,7 +964,8 @@ function renderBills() {
         const color = cat.color || "#6C5CE7";
         const icon = cat.icon || "fa-file-invoice-dollar";
         const isPaid = !!b.paid;
-        const isOverdue = !isPaid && b.date && b.date < today;
+        const dueDateVal = b.due_date || b.date;
+        const isOverdue = !isPaid && dueDateVal && dueDateVal < today;
 
         let badge = '<span class="bill-badge badge-pending">PENDENTE</span>';
         if (isPaid) badge = '<span class="bill-badge badge-paid">PAGA</span>';
@@ -1019,7 +1020,7 @@ function renderBills() {
                     <div class="bill-details">
                         <div class="bill-name">${b.description}</div>
                         ${installmentBadgeHtml}
-                        <div class="bill-meta">${formatDate(b.date)} • ${cat.name || 'Geral'}</div>
+                        <div class="bill-meta">${formatDate(b.due_date || b.date)} • ${cat.name || 'Geral'}</div>
                     </div>
                     <div class="bill-price">
                         <div class="bill-val ${isPaid ? 'text-success' : (isOverdue ? 'text-danger' : 'text-warning')}">
@@ -1115,28 +1116,56 @@ function toggleSelectBillMobile(id, checked) {
     }
 }
 
-async function togglePaid(id) {
+async function togglePaid(id, targetStatus = undefined) {
     const bill = allBills.find(b => String(b.id) === String(id));
     if (!bill) return;
 
-    const newStatus = !bill.paid;
-    const paidDate = newStatus ? new Date().toISOString().split("T")[0] : null;
+    // Guarda 1: Previne cliques duplos rápidos concorrentes
+    if (bill._updating) return;
 
-    bill.paid = newStatus;
-    bill.paid_date = paidDate;
-    updateStats();
-    renderBills();
+    const newStatus = (targetStatus !== undefined) ? !!targetStatus : !bill.paid;
 
-    // Persiste no IndexedDB canônico e enfileira para sincronização
-    if (window.tonuSync && currentUser?.id) {
-        await window.tonuSync.setCachedBills(currentUser.id, allBills);
-        await window.tonuSync.enqueue('UPDATE_BILL', {
-            id: id,
-            paid: newStatus,
-            paid_date: paidDate
-        });
+    // Guarda 3: Se já está no estado desejado (ex: pagar já pago), não faz nada
+    if (bill.paid === newStatus) return;
+
+    bill._updating = true;
+
+    try {
+        const paidDate = newStatus ? new Date().toISOString().split("T")[0] : null;
+
+        // Ao pagar: preserva vencimento em due_date e atualiza date para a data real de pagamento (extrato)
+        if (newStatus) {
+            if (!bill.due_date) {
+                bill.due_date = bill.date;
+            }
+            bill.date = paidDate;
+        } else {
+            // Ao reverter: restaura o campo date para o vencimento original
+            if (bill.due_date) {
+                bill.date = bill.due_date;
+            }
+        }
+
+        bill.paid = newStatus;
+        bill.paid_date = paidDate;
+        updateStats();
+        renderBills();
+
+        // Persiste no IndexedDB canônico e enfileira para sincronização
+        if (window.tonuSync && currentUser?.id) {
+            await window.tonuSync.setCachedBills(currentUser.id, allBills);
+            await window.tonuSync.enqueue('UPDATE_BILL', {
+                id: id,
+                paid: newStatus,
+                paid_date: paidDate,
+                date: bill.date,
+                due_date: bill.due_date || undefined
+            });
+        }
+        if (window.checkNotifications) window.checkNotifications();
+    } finally {
+        bill._updating = false;
     }
-    if (window.checkNotifications) window.checkNotifications();
 }
 
 function openModal(id = null) {

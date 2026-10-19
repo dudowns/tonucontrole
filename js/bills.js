@@ -492,7 +492,8 @@
             }
 
             // Status
-            const isOverdue = !b.paid && b.date && b.date < todayStr;
+            const dueDateStr = b.due_date || b.date;
+            const isOverdue = !b.paid && dueDateStr && dueDateStr < todayStr;
             if (status === 'paid' && !b.paid) return false;
             if (status === 'pending' && b.paid) return false;
             if (status === 'overdue' && (!isOverdue)) return false;
@@ -565,8 +566,8 @@
             let daysBadge = '';
             if (isPaid) {
                 daysBadge = `<span class="days-left" style="color:#00B894;"><i class="fas fa-check"></i> Pago</span>`;
-            } else if (b.date) {
-                const dueDate = safeParseLocalDate(b.date);
+            } else if (b.due_date || b.date) {
+                const dueDate = safeParseLocalDate(b.due_date || b.date);
                 const diffDays = Math.round((dueDate - todayDate) / 86400000);
 
                 if (diffDays < 0) {
@@ -612,7 +613,7 @@
                             <strong>${sanitize(b.description)}</strong>
                             ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
                             <small>
-                                <i class="fas fa-calendar-alt" style="margin-right:3px;"></i>${formatDate(b.date)} • ${sanitize(catName)}
+                                <i class="fas fa-calendar-alt" style="margin-right:3px;"></i>${formatDate(b.due_date || b.date)} • ${sanitize(catName)}
                                 ${b.notes ? ` • <span style="font-style:italic;" title="${sanitize(b.notes)}"><i class="fas fa-info-circle"></i> ${sanitize(b.notes)}</span>` : ''}
                             </small>
                             <div style="margin-top:2px;">${daysBadge}</div>
@@ -656,32 +657,56 @@
     // ============================================
     // AÇÃO RÁPIDA: ALTERNAR STATUS DE PAGAMENTO (1 CLIQUE)
     // ============================================
-    async function toggleBillPaid(id) {
+    async function toggleBillPaid(id, targetStatus = undefined) {
         const bill = allBills.find(b => String(b.id) === String(id));
         if (!bill) return;
 
-        const newPaidStatus = !bill.paid;
-        const newPaidDate = newPaidStatus ? getTodayString() : null;
+        // Guarda 1: Previne cliques duplos rápidos concorrentes
+        if (bill._updating) return;
 
-        // Feedback tátil instantâneo no clique
-        if (window.triggerHaptic) {
-            window.triggerHaptic(newPaidStatus ? 'success' : 'medium');
-        }
+        const newPaidStatus = (targetStatus !== undefined) ? !!targetStatus : !bill.paid;
 
-        // Atualização otimista na tela
-        bill.paid = newPaidStatus;
-        bill.paid_date = newPaidDate;
-        applyFiltersAndRender();
-        updateSummaryCards(allBills);
+        // Guarda 3: Se já está no estado desejado (ex: pagar já pago), não faz nada
+        if (bill.paid === newPaidStatus) return;
 
-        // Atualizar cache de contas no IndexedDB canônico e enfileirar para sync
+        bill._updating = true;
+
         try {
+            const newPaidDate = newPaidStatus ? getTodayString() : null;
+
+            // Ao pagar: preserva a data de vencimento em due_date e atualiza date para a data real de pagamento (extrato)
+            if (newPaidStatus) {
+                if (!bill.due_date) {
+                    bill.due_date = bill.date;
+                }
+                bill.date = newPaidDate;
+            } else {
+                // Ao reverter para pendente: restaura date para a data de vencimento original
+                if (bill.due_date) {
+                    bill.date = bill.due_date;
+                }
+            }
+
+            // Feedback tátil instantâneo no clique
+            if (window.triggerHaptic) {
+                window.triggerHaptic(newPaidStatus ? 'success' : 'medium');
+            }
+
+            // Atualização otimista na tela
+            bill.paid = newPaidStatus;
+            bill.paid_date = newPaidDate;
+            applyFiltersAndRender();
+            updateSummaryCards(allBills);
+
+            // Atualizar cache de contas no IndexedDB canônico e enfileirar para sync
             if (window.tonuSync && currentUser?.id) {
                 await window.tonuSync.setCachedBills(currentUser.id, allBills);
                 await window.tonuSync.enqueue('UPDATE_BILL', {
                     id: id,
                     paid: newPaidStatus,
-                    paid_date: newPaidDate
+                    paid_date: newPaidDate,
+                    date: bill.date,
+                    due_date: bill.due_date || undefined
                 });
             }
 
@@ -699,6 +724,8 @@
             applyFiltersAndRender();
             updateSummaryCards(allBills);
             showToast('Erro ao atualizar status: ' + err.message, 'error');
+        } finally {
+            bill._updating = false;
         }
     }
 

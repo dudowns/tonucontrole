@@ -1495,8 +1495,11 @@ async function forceAppCacheUpdate() {
         }
     }
     setTimeout(() => {
-        showMobileToast("Aplicativo atualizado com sucesso! 🎉", "success");
-    }, 1200);
+        showMobileToast("Aplicativo atualizado! Recarregando...", "success");
+        setTimeout(() => {
+            window.location.reload();
+        }, 600);
+    }, 800);
 }
 
 async function forceSyncNow() {

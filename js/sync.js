@@ -75,6 +75,26 @@
         async enqueue(action, data) {
             if (!this.db) await this.openDatabase();
 
+            // Guarda 2: Idempotência para UPDATE_BILL
+            // Se já existe um UPDATE_BILL pendente para o mesmo bill.id, substitui em vez de empilhar
+            let existingQueueId = null;
+            if (action === 'UPDATE_BILL' && data && data.id) {
+                try {
+                    const queue = await this.getQueue();
+                    const existing = queue.find(q =>
+                        q.action === 'UPDATE_BILL' &&
+                        q.status === 'pending' &&
+                        q.data &&
+                        String(q.data.id) === String(data.id)
+                    );
+                    if (existing && existing.id) {
+                        existingQueueId = existing.id;
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Erro ao verificar idempotência na fila de sync:', e);
+                }
+            }
+
             let payloadToStore = data;
             if (window.TonuCrypto && typeof window.TonuCrypto.encrypt === 'function') {
                 try {
@@ -92,14 +112,18 @@
                 status: 'pending'
             };
 
+            if (existingQueueId !== null) {
+                item.id = existingQueueId;
+            }
+
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction([QUEUE_STORE], 'readwrite');
                 const store = tx.objectStore(QUEUE_STORE);
-                const req = store.add(item);
+                const req = existingQueueId !== null ? store.put(item) : store.add(item);
 
                 req.onsuccess = (e) => {
                     item.id = e.target.result;
-                    console.log(`📥 Operação offline enfileirada e protegida [ID: ${item.id}]:`, action);
+                    console.log(`📥 Operação offline ${existingQueueId !== null ? 'substituída (idempotente)' : 'enfileirada e protegida'} [ID: ${item.id}]:`, action);
                     this.requestBackgroundSync();
 
                     if (typeof showToast === 'function') {
@@ -309,11 +333,21 @@
                     if (updates.category_id && !uuidRegex.test(String(updates.category_id))) {
                         delete updates.category_id;
                     }
-                    const { error } = await window.supabaseClient
+                    let { error } = await window.supabaseClient
                         .from('transactions')
                         .update(updates)
                         .eq('id', id)
                         .eq('user_id', userId);
+                    if (error && updates.due_date && (error.code === '42703' || (error.message && error.message.includes('due_date')))) {
+                        const fallbackUpdates = { ...updates };
+                        delete fallbackUpdates.due_date;
+                        const retryRes = await window.supabaseClient
+                            .from('transactions')
+                            .update(fallbackUpdates)
+                            .eq('id', id)
+                            .eq('user_id', userId);
+                        error = retryRes.error;
+                    }
                     if (error) throw error;
                     return true;
                 }

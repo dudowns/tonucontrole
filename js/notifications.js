@@ -1612,15 +1612,31 @@
         }
     }
 
-    function testBadgeManually(count) {
+    async function testBadgeManually(count) {
         const val = Number(count) || 3;
+
+        // No iOS e no navegador, a Badging API exige permissão de notificações concedida
+        if ('Notification' in window && Notification.permission !== 'granted') {
+            try {
+                const perm = await Notification.requestPermission();
+                if (perm !== 'granted') {
+                    if (window.showToast) {
+                        window.showToast('⚠️ No iPhone e PC, é necessário permitir notificações para o selo aparecer no ícone.', 'warning');
+                    }
+                    return;
+                }
+            } catch (e) {
+                console.warn('[Badge] Falha ao solicitar permissão:', e);
+            }
+        }
+
         setAppBadgeNative(val);
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-        let msg = `Badge de teste (${val}) enviado!`;
+        let msg = `Badge (${val}) ativado no ícone!`;
         if (isStandalone) {
-            msg += ' Verifique o ícone na barra de tarefas ou tela inicial.';
+            msg += ' Saia para a tela inicial do celular ou olhe a barra de tarefas do PC.';
         } else {
-            msg += ' (Abra como PWA instalado para ver o selo no ícone do Windows/celular).';
+            msg += ' (Abra pelo ícone do app instalado para visualizar).';
         }
         if (window.showToast) {
             window.showToast(msg, 'success');

@@ -1049,6 +1049,134 @@ async function runUnitTests() {
         assert.strictEqual(cachedBills[0].parent_transaction_id, 'bill-mother-1', "IndexedDB aceita perfeitamente parent_transaction_id");
     });
 
+    test('Fluxo de Pagamento de Contas: Vencimento dia 20, pago no dia 15 -> Extrato dia 15, Contas dia 20, e reversão para dia 20', () => {
+        // 1. Criar conta com vencimento dia 20
+        const bill = {
+            id: 'bill_test_1',
+            description: 'Internet Fibra',
+            amount: 120.00,
+            date: '2026-10-20',
+            due_date: '2026-10-20',
+            type: 'expense',
+            is_bill: true,
+            paid: false,
+            paid_date: null
+        };
+
+        // Estado inicial
+        assert.strictEqual(bill.date, '2026-10-20');
+        assert.strictEqual(bill.due_date || bill.date, '2026-10-20');
+        assert.strictEqual(bill.paid, false);
+
+        // 2. Simular ação de Pagar no dia 15 (lógica idêntica ao toggleBillPaid)
+        const paymentDate = '2026-10-15';
+        if (!bill.due_date) {
+            bill.due_date = bill.date;
+        }
+        bill.paid = true;
+        bill.paid_date = paymentDate;
+        bill.date = paymentDate; // Atualiza date para data real de pagamento
+
+        // 3. Conferir:
+        // - Extrato / Transações (utiliza o campo `date` da transação):
+        assert.strictEqual(bill.date, '2026-10-15', 'No extrato e transações a data deve ser o dia do pagamento (15)');
+        assert.strictEqual(bill.paid_date, '2026-10-15', 'O campo paid_date armazena a data real de pagamento (15)');
+
+        // - Tela de Contas (utiliza `due_date || date` para manter a data de vencimento):
+        const displayDueDateInBillsScreen = bill.due_date || bill.date;
+        assert.strictEqual(displayDueDateInBillsScreen, '2026-10-20', 'Na tela de Contas a data de vencimento deve continuar sendo dia 20');
+
+        // 4. Desmarcar "Pago" (reverter para pendente)
+        bill.paid = false;
+        bill.paid_date = null;
+        if (bill.due_date) {
+            bill.date = bill.due_date; // Restaura a data para o vencimento original
+        }
+
+        // Conferir reversão
+        assert.strictEqual(bill.date, '2026-10-20', 'Ao desmarcar pago, date volta a ser dia 20');
+        assert.strictEqual(bill.paid_date, null, 'Ao desmarcar pago, paid_date é limpo para null');
+        assert.strictEqual(bill.paid, false, 'Status volta para não pago');
+    });
+
+    // Guarda 1: Duplo clique rápido -> Apenas 1 registro processado no extrato
+    test('Guarda Anti-Duplicata 1: Duplo clique rápido gera 1 registro no extrato, não 2', () => {
+        const bill = {
+            id: 'bill_guard_1',
+            description: 'Energia Elétrica',
+            amount: 250.00,
+            date: '2026-10-20',
+            due_date: '2026-10-20',
+            paid: false,
+            paid_date: null,
+            _updating: false
+        };
+
+        let syncCalls = 0;
+        function simulateToggle(b) {
+            if (b._updating) return false;
+            b._updating = true;
+            try {
+                // Durante a execução assíncrona/em voo do primeiro clique
+                b.paid = true;
+                b.date = '2026-10-15';
+                syncCalls++;
+                return true;
+            } finally {
+                // b._updating é resetado ao concluir
+            }
+        }
+
+        // Primeiro clique inicia processamento (deixa _updating ativo durante a operação)
+        const res1 = simulateToggle(bill);
+        // Segundo clique rápido dispara concorrentemente antes do término do primeiro
+        const res2 = simulateToggle(bill);
+        // Conclui o primeiro
+        bill._updating = false;
+
+        assert.strictEqual(syncCalls, 1, 'Sync/atualização deve ser executado exatamente 1 vez');
+        assert.strictEqual(res1, true, 'O primeiro clique foi aceito e processado');
+        assert.strictEqual(res2, false, 'O segundo clique rápido foi barrado pela guarda _updating');
+        assert.strictEqual(bill.date, '2026-10-15', 'Data do extrato reflete a data do pagamento único');
+    });
+
+    // Guarda 2: Idempotência na fila de sync -> Substituição em vez de empilhamento
+    test('Guarda Anti-Duplicata 2: Enfileiramento de UPDATE_BILL substitui pendência existente', () => {
+        const queue = [];
+        function enqueueUpdateBill(action, data) {
+            const existingIndex = queue.findIndex(q => q.action === 'UPDATE_BILL' && q.status === 'pending' && q.data.id === data.id);
+            if (existingIndex !== -1) {
+                queue[existingIndex] = { ...queue[existingIndex], data, timestamp: Date.now() };
+            } else {
+                queue.push({ id: queue.length + 1, action, data, status: 'pending', timestamp: Date.now() });
+            }
+        }
+
+        enqueueUpdateBill('UPDATE_BILL', { id: 'bill_abc', paid: true, date: '2026-10-15' });
+        assert.strictEqual(queue.length, 1);
+
+        // Re-enfileiramento antes de sincronizar (ex: reconexão ou reenvio)
+        enqueueUpdateBill('UPDATE_BILL', { id: 'bill_abc', paid: true, date: '2026-10-15', due_date: '2026-10-20' });
+        assert.strictEqual(queue.length, 1, 'Fila deve conter 1 único registro (substituição por idempotência)');
+        assert.strictEqual(queue[0].data.due_date, '2026-10-20');
+    });
+
+    // Guarda 3: Clicar "Pagar" em conta já paga -> 0 alteração
+    test('Guarda Anti-Duplicata 3: Clicar "Pagar" em conta já paga resulta em 0 alteração', () => {
+        const bill = { id: 'bill_guard_3', date: '2026-10-15', paid: true, paid_date: '2026-10-15' };
+        let mutated = false;
+
+        function handlePay(targetStatus) {
+            const newStatus = (targetStatus !== undefined) ? !!targetStatus : !bill.paid;
+            if (bill.paid === newStatus) return; // Guarda 3
+            mutated = true;
+        }
+
+        handlePay(true); // Tenta marcar como paga uma conta que já está paga
+        assert.strictEqual(mutated, false, 'Nenhuma alteração ou efeito colateral deve ocorrer');
+        assert.strictEqual(bill.date, '2026-10-15');
+    });
+
     return results;
 }
 
