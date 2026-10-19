@@ -76,7 +76,15 @@
     }
 
     function getTodayString() {
-        return new Date().toLocaleDateString('sv');
+        if (typeof window.getToday === 'function') {
+            const t = window.getToday();
+            if (t && typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+        }
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     }
 
     function showToast(message, type = 'info') {
@@ -971,21 +979,25 @@
                     // Geração em lote das parcelas futuras
                     const batch = [];
                     const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
+                    const parentBillId = genUuid();
 
                     for (let i = installmentCurrent; i <= installmentsTotal; i++) {
                         const monthOffset = i - installmentCurrent;
                         const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
                         const itemPaid = (i === installmentCurrent) ? paid : false;
-                        const billId = genUuid();
+                        const billId = (i === installmentCurrent) ? parentBillId : genUuid();
 
                         batch.push({
                             ...baseBillPayload,
                             id: billId,
+                            parent_transaction_id: (i === installmentCurrent ? null : parentBillId),
                             description: `${cleanDesc} (${i}/${installmentsTotal})`,
                             amount: finalAmount,
                             date: dueDate,
                             installments: installmentsTotal,
                             current_installment: i,
+                            installment_total: installmentsTotal,
+                            installment_number: i,
                             paid: itemPaid,
                             paid_date: itemPaid ? getTodayString() : null
                         });
@@ -1081,17 +1093,42 @@
         const targetId = id || document.getElementById('billEditId')?.value || currentEditBillId;
         if (!targetId) return;
 
-        if (!confirm('Deseja realmente excluir esta conta?')) return;
+        const target = allBills.find(b => String(b.id) === String(targetId));
+        const remaining = (target && typeof window.findRemainingSeries === 'function')
+            ? window.findRemainingSeries(target, allBills)
+            : [];
+
+        let deleteMode = 'single';
+        if (remaining.length > 0 && typeof window.confirmRecurringDelete === 'function') {
+            deleteMode = await window.confirmRecurringDelete({
+                countRemaining: remaining.length,
+                itemName: target.description || 'Conta',
+                itemType: 'conta'
+            });
+            if (deleteMode === 'cancel') return;
+        } else {
+            if (!confirm('Deseja realmente excluir esta conta?')) return;
+        }
 
         try {
-            allBills = allBills.filter(b => String(b.id) !== String(targetId));
+            const idsToDelete = (deleteMode === 'all')
+                ? [String(targetId), ...remaining.map(r => String(r.id))]
+                : [String(targetId)];
+
+            const idSet = new Set(idsToDelete);
+            allBills = allBills.filter(b => !idSet.has(String(b.id)));
 
             if (window.tonuSync && currentUser?.id) {
                 await window.tonuSync.setCachedBills(currentUser.id, allBills);
-                await window.tonuSync.enqueue('DELETE_BILL', { id: targetId });
+                for (const delId of idsToDelete) {
+                    await window.tonuSync.enqueue('DELETE_BILL', { id: delId });
+                }
             }
 
-            showToast('Conta excluída com sucesso! 🗑️', 'info');
+            const msg = idsToDelete.length > 1
+                ? `${idsToDelete.length} contas excluídas com sucesso! 🗑️`
+                : 'Conta excluída com sucesso! 🗑️';
+            showToast(msg, 'info');
             closeBillModal();
             applyFiltersAndRender();
             updateSummaryCards(allBills);

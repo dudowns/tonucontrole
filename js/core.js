@@ -402,9 +402,15 @@ function formatDate(date, format) {
     format = format || 'short';
     if (!date) return '--/--/----';
 
+    var str = String(date).trim();
+    var match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match && format === 'short') {
+        return match[3] + '/' + match[2] + '/' + match[1];
+    }
+
     var d;
-    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date.trim())) {
-        d = new Date(date.trim().substring(0, 10) + 'T12:00:00');
+    if (match) {
+        d = new Date(str.substring(0, 10) + 'T12:00:00');
     } else {
         d = new Date(date);
     }
@@ -1936,6 +1942,130 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
 }
 
 // ============================================
+// 19B. EXCLUSÃO INTELIGENTE DE RECORRÊNCIA E PARCELAMENTO
+// ============================================
+function findRemainingSeries(target, list) {
+    if (!target || !Array.isArray(list)) return [];
+    var targetId = String(target.id);
+    var series = [];
+
+    // 1. Vinculação por parent_transaction_id
+    if (target.parent_transaction_id) {
+        var parentId = String(target.parent_transaction_id);
+        series = list.filter(function (x) {
+            return x && (String(x.id) === parentId || String(x.parent_transaction_id) === parentId);
+        });
+    } else {
+        var children = list.filter(function (x) {
+            return x && String(x.parent_transaction_id) === targetId;
+        });
+        if (children.length > 0) {
+            series = [target].concat(children);
+        }
+    }
+
+    // 2. Se não encontrou por parent_transaction_id, correlaciona por descrição de parcelas
+    if (series.length <= 1) {
+        var match = String(target.description || '').match(/^(.*?)\s*\((\d+)\/(\d+)\)$/);
+        var hasInst = (parseInt(target.installments, 10) > 1 || parseInt(target.installment_total, 10) > 1);
+        if (match || hasInst) {
+            var cleanDesc = match ? match[1].trim().toLowerCase() : String(target.description || '').trim().toLowerCase();
+            series = list.filter(function (x) {
+                if (!x) return false;
+                var xDesc = String(x.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+                var sameDesc = (xDesc === cleanDesc);
+                var sameType = (x.type === target.type);
+                var sameCategory = (!target.category_id || x.category_id === target.category_id || x.category === target.category);
+                return sameDesc && sameType && sameCategory;
+            });
+        }
+    }
+
+    // Filtrar apenas "o restante" (itens da mesma data/parcela em diante, excluindo o próprio target)
+    var targetDate = String(target.due_date || target.date || '').slice(0, 10);
+    var targetNum = parseInt(target.installment_number || target.current_installment, 10) || 0;
+
+    return series.filter(function (x) {
+        if (!x || String(x.id) === targetId) return false;
+        var xNum = parseInt(x.installment_number || x.current_installment, 10) || 0;
+        var xDate = String(x.due_date || x.date || '').slice(0, 10);
+
+        if (targetNum > 0 && xNum > 0) {
+            return xNum >= targetNum;
+        }
+        if (targetDate && xDate) {
+            return xDate >= targetDate;
+        }
+        return true;
+    });
+}
+
+function confirmRecurringDelete(options) {
+    var opts = options || {};
+    var countRemaining = opts.countRemaining || 0;
+    var itemName = opts.itemName || 'Este item';
+
+    return new Promise(function (resolve) {
+        if (typeof document === 'undefined') {
+            resolve('single');
+            return;
+        }
+
+        var overlay = document.createElement('div');
+        overlay.id = 'recurringDeleteModalOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;backdrop-filter:blur(3px);animation:fadeIn 0.15s ease;';
+
+        var card = document.createElement('div');
+        card.style.cssText = 'background:var(--color-surface,#ffffff);color:var(--color-text,#1e293b);border-radius:16px;padding:22px;max-width:400px;width:100%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);border:1px solid var(--color-border,#e2e8f0);text-align:center;display:flex;flex-direction:column;gap:14px;font-family:inherit;';
+
+        var cleanItemName = typeof sanitizeString === 'function' ? sanitizeString(itemName) : itemName;
+        var totalToDelete = countRemaining + 1;
+
+        card.innerHTML = `
+            <div style="width:48px;height:48px;border-radius:50%;background:#fee2e2;color:#dc2626;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:22px;">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <div>
+                <h3 style="margin:0 0 6px 0;font-size:17px;font-weight:700;color:var(--color-text,#1e293b);">Deseja apagar o restante?</h3>
+                <p style="margin:0;font-size:13px;color:var(--color-text-muted,#64748b);line-height:1.45;">
+                    "${cleanItemName}" possui mais <strong>${countRemaining}</strong> parcela(s) ou mês(es) futuro(s) vinculados.
+                </p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+                <button id="btnDeleteAllRecurring" style="background:#dc2626;color:#ffffff;border:none;padding:11px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-trash-alt"></i> Sim, apagar o restante (${totalToDelete})
+                </button>
+                <button id="btnDeleteSingleRecurring" style="background:var(--color-bg,#f1f5f9);color:var(--color-text,#334155);border:1px solid var(--color-border,#cbd5e1);padding:10px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;">
+                    Apagar somente esta
+                </button>
+                <button id="btnCancelRecurring" style="background:transparent;color:var(--color-text-muted,#64748b);border:none;padding:6px;font-size:13px;cursor:pointer;">
+                    Cancelar
+                </button>
+            </div>
+        `;
+
+        function cleanup(result) {
+            document.removeEventListener('keydown', onKeyDown);
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            resolve(result);
+        }
+
+        function onKeyDown(e) {
+            if (e.key === 'Escape') cleanup('cancel');
+        }
+
+        card.querySelector('#btnDeleteAllRecurring').onclick = function () { cleanup('all'); };
+        card.querySelector('#btnDeleteSingleRecurring').onclick = function () { cleanup('single'); };
+        card.querySelector('#btnCancelRecurring').onclick = function () { cleanup('cancel'); };
+        overlay.onclick = function (e) { if (e.target === overlay) cleanup('cancel'); };
+        document.addEventListener('keydown', onKeyDown);
+
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+    });
+}
+
+// ============================================
 // 20. EXPORTAR PARA O ESCOPO GLOBAL
 // ============================================
 window.showToast = showToast;
@@ -1978,6 +2108,8 @@ window.getCachedCategories = getCachedCategories;
 window.setCachedCategories = setCachedCategories;
 window.TonuVirtualScroller = TonuVirtualScroller;
 window.webShareTarget = new WebShareTargetHandler();
+window.findRemainingSeries = findRemainingSeries;
+window.confirmRecurringDelete = confirmRecurringDelete;
 
 // ============================================
 // LIMPEZA AUTOMÁTICA DE DEMO E CACHES OBSOLETOS

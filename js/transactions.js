@@ -986,17 +986,42 @@
         const id = document.getElementById('editId')?.value || currentEditId;
         if (!id) return;
 
-        if (!confirm('Deseja realmente excluir esta transação?')) return;
+        const target = allTransactions.find(t => String(t.id) === String(id));
+        const remaining = (target && typeof window.findRemainingSeries === 'function')
+            ? window.findRemainingSeries(target, allTransactions)
+            : [];
+
+        let deleteMode = 'single';
+        if (remaining.length > 0 && typeof window.confirmRecurringDelete === 'function') {
+            deleteMode = await window.confirmRecurringDelete({
+                countRemaining: remaining.length,
+                itemName: target.description || 'Transação',
+                itemType: 'transação'
+            });
+            if (deleteMode === 'cancel') return;
+        } else {
+            if (!confirm('Deseja realmente excluir esta transação?')) return;
+        }
 
         try {
-            allTransactions = allTransactions.filter(t => String(t.id) !== String(id));
+            const idsToDelete = (deleteMode === 'all')
+                ? [String(id), ...remaining.map(r => String(r.id))]
+                : [String(id)];
+
+            const idSet = new Set(idsToDelete);
+            allTransactions = allTransactions.filter(t => !idSet.has(String(t.id)));
 
             if (window.tonuSync && currentUser?.id) {
                 await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
-                await window.tonuSync.enqueue('DELETE_TRANSACTION', { id });
+                for (const delId of idsToDelete) {
+                    await window.tonuSync.enqueue('DELETE_TRANSACTION', { id: delId });
+                }
             }
 
-            if (window.showToast) window.showToast('Transação excluída! 🗑️', 'info');
+            const msg = idsToDelete.length > 1
+                ? `${idsToDelete.length} transações excluídas com sucesso! 🗑️`
+                : 'Transação excluída! 🗑️';
+            if (window.showToast) window.showToast(msg, 'info');
             closeModal();
             filterTransactions();
 

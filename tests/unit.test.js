@@ -837,6 +837,14 @@ async function runUnitTests() {
         const d2 = parseLocalDate('2026-10-20');
         const diffDays = Math.round((d2.getTime() - d1.getTime()) / 86400000);
         assert.strictEqual(diffDays, 5, 'Diferença de 5 dias exata');
+
+        // Formatação Timezone-Safe de '2026-10-19' sem desvio para dia 18
+        function formatDateSafe(dateStr) {
+            const match = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+            return dateStr;
+        }
+        assert.strictEqual(formatDateSafe('2026-10-19'), '19/10/2026', 'Data 2026-10-19 deve ser sempre exibida como 19/10/2026');
     });
 
     test('Parcelamento de Contas (Mobile & Desktop): extração de parcelas, restante e cálculo "quanto as parcelas de quanto"', () => {
@@ -1175,6 +1183,87 @@ async function runUnitTests() {
         handlePay(true); // Tenta marcar como paga uma conta que já está paga
         assert.strictEqual(mutated, false, 'Nenhuma alteração ou efeito colateral deve ocorrer');
         assert.strictEqual(bill.date, '2026-10-15');
+    });
+
+    // Exclusão de Parcelas e Recorrência: Detecção e Exclusão de "o restante"
+    test('Exclusão Inteligente: findRemainingSeries detecta parcelas futuras e permite apagar o restante', () => {
+        function findRemainingSeries(target, list) {
+            if (!target || !Array.isArray(list)) return [];
+            const targetId = String(target.id);
+            let series = [];
+
+            if (target.parent_transaction_id) {
+                const parentId = String(target.parent_transaction_id);
+                series = list.filter(x => x && (String(x.id) === parentId || String(x.parent_transaction_id) === parentId));
+            } else {
+                const children = list.filter(x => x && String(x.parent_transaction_id) === targetId);
+                if (children.length > 0) series = [target, ...children];
+            }
+
+            if (series.length <= 1) {
+                const match = String(target.description || '').match(/^(.*?)\s*\((\d+)\/(\d+)\)$/);
+                const hasInst = (parseInt(target.installments, 10) > 1 || parseInt(target.installment_total, 10) > 1);
+                if (match || hasInst) {
+                    const cleanDesc = match ? match[1].trim().toLowerCase() : String(target.description || '').trim().toLowerCase();
+                    series = list.filter(x => {
+                        if (!x) return false;
+                        const xDesc = String(x.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+                        return (xDesc === cleanDesc) && (x.type === target.type);
+                    });
+                }
+            }
+
+            const targetDate = String(target.due_date || target.date || '').slice(0, 10);
+            const targetNum = parseInt(target.installment_number || target.current_installment, 10) || 0;
+
+            return series.filter(x => {
+                if (!x || String(x.id) === targetId) return false;
+                const xNum = parseInt(x.installment_number || x.current_installment, 10) || 0;
+                const xDate = String(x.due_date || x.date || '').slice(0, 10);
+                if (targetNum > 0 && xNum > 0) return xNum >= targetNum;
+                if (targetDate && xDate) return xDate >= targetDate;
+                return true;
+            });
+        }
+
+        // Cenário 1: Série de 12 meses recorrentes
+        const parentId = 'rec_mother';
+        const recurringBills = [];
+        for (let m = 1; m <= 12; m++) {
+            const mStr = String(m).padStart(2, '0');
+            recurringBills.push({
+                id: m === 1 ? parentId : `rec_child_${m}`,
+                parent_transaction_id: m === 1 ? null : parentId,
+                description: 'Academia Mensal',
+                date: `2026-${mStr}-10`,
+                type: 'expense'
+            });
+        }
+
+        // Ao tentar excluir o mês 3:
+        const targetMonth3 = recurringBills[2]; // Março
+        const remainingMonths = findRemainingSeries(targetMonth3, recurringBills);
+        assert.strictEqual(remainingMonths.length, 9, 'Deve detectar os 9 meses restantes (Abril a Dezembro)');
+        assert.ok(remainingMonths.every(r => r.date >= '2026-03-10'), 'Todos os restantes devem ser da data de Março em diante');
+
+        // Cenário 2: Série de 5 parcelas
+        const installmentBills = [
+            { id: 'inst_1', description: 'Notebook (1/5)', current_installment: 1, installments: 5, date: '2026-01-10', type: 'expense' },
+            { id: 'inst_2', description: 'Notebook (2/5)', current_installment: 2, installments: 5, date: '2026-02-10', type: 'expense' },
+            { id: 'inst_3', description: 'Notebook (3/5)', current_installment: 3, installments: 5, date: '2026-03-10', type: 'expense' },
+            { id: 'inst_4', description: 'Notebook (4/5)', current_installment: 4, installments: 5, date: '2026-04-10', type: 'expense' },
+            { id: 'inst_5', description: 'Notebook (5/5)', current_installment: 5, installments: 5, date: '2026-05-10', type: 'expense' }
+        ];
+
+        // Ao tentar excluir a parcela 3:
+        const remainingInst = findRemainingSeries(installmentBills[2], installmentBills);
+        assert.strictEqual(remainingInst.length, 2, 'Faltam 2 parcelas (4/5 e 5/5)');
+        assert.strictEqual(remainingInst[0].id, 'inst_4');
+        assert.strictEqual(remainingInst[1].id, 'inst_5');
+
+        // Ao tentar excluir a última parcela (5/5):
+        const remainingLast = findRemainingSeries(installmentBills[4], installmentBills);
+        assert.strictEqual(remainingLast.length, 0, 'A última parcela não tem restantes');
     });
 
     return results;

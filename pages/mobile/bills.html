@@ -601,6 +601,18 @@ let allBills = [];
 let categories = [];
 let currentFilter = 'pending';
 
+function getTodayString() {
+    if (typeof window.getToday === 'function') {
+        const t = window.getToday();
+        if (t && typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+    }
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
 // ITEM 9: Estado de Seleção Múltipla & Soma Visual (Mobile)
 let isSelectionModeMobile = false;
 let selectedBillIdsMobile = new Set();
@@ -777,7 +789,7 @@ async function loadBills() {
 
 function updateStats() {
     let paid = 0, pending = 0, overdue = 0;
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayString();
 
     allBills.forEach(b => {
         const amt = parseFloat(b.amount) || 0;
@@ -924,7 +936,7 @@ function getMobileBillInstallmentInfo(b) {
 
 function renderBills() {
     const container = document.getElementById("billsContainer");
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayString();
     const selectedCat = document.getElementById("filterCategory")?.value || "all";
 
     const filtered = allBills.filter(b => {
@@ -1131,7 +1143,7 @@ async function togglePaid(id, targetStatus = undefined) {
     bill._updating = true;
 
     try {
-        const paidDate = newStatus ? new Date().toISOString().split("T")[0] : null;
+        const paidDate = newStatus ? getTodayString() : null;
 
         // Ao pagar: preserva vencimento em due_date e atualiza date para a data real de pagamento (extrato)
         if (newStatus) {
@@ -1289,7 +1301,7 @@ async function saveBill(event) {
         category_id: catId,
         notes: notes,
         paid: paid,
-        paid_date: paid ? new Date().toISOString().split("T")[0] : null,
+        paid_date: paid ? getTodayString() : null,
         recurrence_type: recurrenceType,
         is_recurring: isRecurring,
         installments: recurrenceType === 'installments' ? installmentsTotal : 1,
@@ -1375,7 +1387,7 @@ async function saveBill(event) {
                         installment_total: installmentsTotal,
                         installment_number: i,
                         paid: itemPaid,
-                        paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
+                        paid_date: itemPaid ? getTodayString() : null
                     };
                     batch.push(billItem);
                     allBills.push(billItem);
@@ -1399,7 +1411,7 @@ async function saveBill(event) {
                         is_recurring: true,
                         recurrence_type: 'monthly',
                         paid: itemPaid,
-                        paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
+                        paid_date: itemPaid ? getTodayString() : null
                     };
                     batch.push(billItem);
                     allBills.push(billItem);
@@ -1430,14 +1442,42 @@ async function saveBill(event) {
 }
 
 async function deleteBillDirect(id) {
-    if (!confirm("Deseja excluir esta conta?")) return;
+    const target = allBills.find(b => String(b.id) === String(id));
+    const remaining = (target && typeof window.findRemainingSeries === 'function')
+        ? window.findRemainingSeries(target, allBills)
+        : [];
+
+    let deleteMode = 'single';
+    if (remaining.length > 0 && typeof window.confirmRecurringDelete === 'function') {
+        deleteMode = await window.confirmRecurringDelete({
+            countRemaining: remaining.length,
+            itemName: target.description || 'Conta',
+            itemType: 'conta'
+        });
+        if (deleteMode === 'cancel') return;
+    } else {
+        if (!confirm("Deseja excluir esta conta?")) return;
+    }
+
     try {
-        allBills = allBills.filter(b => String(b.id) !== String(id));
+        const idsToDelete = (deleteMode === 'all')
+            ? [String(id), ...remaining.map(r => String(r.id))]
+            : [String(id)];
+
+        const idSet = new Set(idsToDelete);
+        allBills = allBills.filter(b => !idSet.has(String(b.id)));
+
         if (window.tonuSync && currentUser?.id) {
             await window.tonuSync.setCachedBills(currentUser.id, allBills);
-            await window.tonuSync.enqueue('DELETE_BILL', { id });
+            for (const delId of idsToDelete) {
+                await window.tonuSync.enqueue('DELETE_BILL', { id: delId });
+            }
         }
-        showToast("Conta excluída!", "info");
+
+        const msg = idsToDelete.length > 1
+            ? `${idsToDelete.length} contas excluídas com sucesso! 🗑️`
+            : "Conta excluída!";
+        showToast(msg, "info");
 
         await loadBills();
         if (window.checkNotifications) window.checkNotifications();
