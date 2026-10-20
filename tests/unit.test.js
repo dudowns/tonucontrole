@@ -1264,6 +1264,33 @@ async function runUnitTests() {
         // Ao tentar excluir a última parcela (5/5):
         const remainingLast = findRemainingSeries(installmentBills[4], installmentBills);
         assert.strictEqual(remainingLast.length, 0, 'A última parcela não tem restantes');
+
+        // Cenário 3: Exemplo do Usuário com 20 parcelas (Mãe + 19 seguintes)
+        let twentyBills = [];
+        const motherId = 'mother_bill_20';
+        for (let i = 1; i <= 20; i++) {
+            twentyBills.push({
+                id: i === 1 ? motherId : `child_bill_${i}`,
+                parent_transaction_id: i === 1 ? null : motherId,
+                description: `Compra Parcelada (${i}/20)`,
+                current_installment: i,
+                installments: 20,
+                installment_number: i,
+                installment_total: 20,
+                date: `2026-${String((i % 12) + 1).padStart(2, '0')}-15`,
+                type: 'expense'
+            });
+        }
+
+        // Ao apagar a 1ª parcela (1/20), detecta as outras 19 restantes
+        const remainingTwenty = findRemainingSeries(twentyBills[0], twentyBills);
+        assert.strictEqual(remainingTwenty.length, 19, 'Deve identificar as 19 parcelas restantes ao excluir a 1ª');
+
+        // Simulação da exclusão "Apagar o restante":
+        const idsToDelete = [twentyBills[0].id, ...remainingTwenty.map(r => r.id)];
+        const idSet = new Set(idsToDelete.map(String));
+        twentyBills = twentyBills.filter(b => !idSet.has(String(b.id)));
+        assert.strictEqual(twentyBills.length, 0, 'Todas as 20 parcelas são removidas, não deixando 2/20 no mês seguinte');
     });
 
     return results;
