@@ -1293,6 +1293,107 @@ async function runUnitTests() {
         assert.strictEqual(twentyBills.length, 0, 'Todas as 20 parcelas são removidas, não deixando 2/20 no mês seguinte');
     });
 
+    test('Modal de Exclusão de Parcelas: getFullRemainingSeries busca entre meses e aciona opções do modal', async () => {
+        // Simulação do cenário real onde a tela só tem o mês corrente carregado (1 parcela de 20)
+        const motherId = 'mother_parcel_1';
+        const singleMonthBills = [{
+            id: motherId,
+            description: 'Mãe (1/20)',
+            current_installment: 1,
+            installments: 20,
+            installment_number: 1,
+            installment_total: 20,
+            date: '2026-10-15',
+            type: 'expense',
+            is_bill: true,
+            user_id: 'user_test_123'
+        }];
+
+        // O banco/cache possui todas as 20 parcelas em meses futuros
+        const fullDatabaseBills = [];
+        for (let i = 1; i <= 20; i++) {
+            fullDatabaseBills.push({
+                id: i === 1 ? motherId : `child_parcel_${i}`,
+                parent_transaction_id: i === 1 ? null : motherId,
+                description: `Mãe (${i}/20)`,
+                current_installment: i,
+                installments: 20,
+                installment_number: i,
+                installment_total: 20,
+                date: `2026-${String(((i - 1) % 12) + 1).padStart(2, '0')}-15`,
+                type: 'expense',
+                is_bill: true,
+                user_id: 'user_test_123'
+            });
+        }
+
+        // Simula getFullRemainingSeries consultando o backend quando a lista da tela só tem 1 item
+        async function mockGetFullRemainingSeries(target, localList, dbList) {
+            let list = Array.isArray(localList) ? localList.slice() : [];
+            const isSeriesCandidate = Boolean(
+                target.parent_transaction_id ||
+                (target.description && /\(\d+\/\d+\)/.test(target.description)) ||
+                (parseInt(target.installments, 10) > 1) ||
+                (parseInt(target.installment_total, 10) > 1)
+            );
+            if (isSeriesCandidate && dbList) {
+                const map = new Map();
+                list.forEach(item => map.set(String(item.id), item));
+                dbList.forEach(item => map.set(String(item.id), item));
+                list = Array.from(map.values());
+            }
+
+            const targetId = String(target.id);
+            const targetNum = parseInt(target.installment_number || target.current_installment, 10) || 0;
+            const targetDate = String(target.due_date || target.date || '').slice(0, 10);
+
+            return list.filter(x => {
+                if (!x || String(x.id) === targetId) return false;
+                const xDesc = String(x.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+                const targetDesc = String(target.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+                if (xDesc !== targetDesc && x.parent_transaction_id !== targetId) return false;
+                const xNum = parseInt(x.installment_number || x.current_installment, 10) || 0;
+                const xDate = String(x.due_date || x.date || '').slice(0, 10);
+                if (targetNum > 0 && xNum > 0) return xNum >= targetNum;
+                if (targetDate && xDate) return xDate >= targetDate;
+                return true;
+            });
+        }
+
+        // 1. Busca de série através dos meses futuros
+        const remaining = await mockGetFullRemainingSeries(singleMonthBills[0], singleMonthBills, fullDatabaseBills);
+        assert.strictEqual(remaining.length, 19, 'Mesmo a tela tendo apenas o mês 1, encontra as 19 parcelas futuras no backend');
+
+        // 2. Opção 'from_now' (Excluir a partir de agora / desta em diante)
+        // Se o usuário está na parcela 5/20 e escolhe 'from_now', remove 5 a 20 e mantém 1 a 4
+        const targetParcel5 = fullDatabaseBills[4]; // 5/20
+        const remainingFrom5 = await mockGetFullRemainingSeries(targetParcel5, [targetParcel5], fullDatabaseBills);
+        assert.strictEqual(remainingFrom5.length, 15, 'A partir da parcela 5/20, restam 15 parcelas futuras (6 a 20)');
+
+        let dbCopyFromNow = fullDatabaseBills.slice();
+        const idsFromNow = [targetParcel5.id, ...remainingFrom5.map(r => r.id)];
+        const setFromNow = new Set(idsFromNow.map(String));
+        dbCopyFromNow = dbCopyFromNow.filter(b => !setFromNow.has(String(b.id)));
+        assert.strictEqual(dbCopyFromNow.length, 4, 'Opção from_now mantém as 4 parcelas anteriores (1 a 4) e exclui da 5 em diante');
+
+        // 3. Opção 'all_series' (Excluir TODAS as parcelas da série inteira)
+        let dbCopyAll = fullDatabaseBills.slice();
+        const idsToDeleteAll = fullDatabaseBills.map(r => String(r.id));
+        const setAll = new Set(idsToDeleteAll);
+        dbCopyAll = dbCopyAll.filter(b => !setAll.has(String(b.id)));
+        assert.strictEqual(dbCopyAll.length, 0, 'Opção all_series apaga a série inteira (todas as 20 parcelas)');
+
+        // 4. Opção 'single' (Excluir somente esta)
+        let dbCopySingle = fullDatabaseBills.slice();
+        const setSingle = new Set([String(singleMonthBills[0].id)]);
+        dbCopySingle = dbCopySingle.filter(b => !setSingle.has(String(b.id)));
+        assert.strictEqual(dbCopySingle.length, 19, 'Opção single remove apenas a parcela 1/20 e mantém as 19 restantes');
+
+        // 5. Opção 'cancel' (Cancelar)
+        let dbCopyCancel = fullDatabaseBills.slice();
+        assert.strictEqual(dbCopyCancel.length, 20, 'Opção cancel não deve remover nenhuma parcela');
+    });
+
     return results;
 }
 

@@ -2313,11 +2313,13 @@ async function loadCategoryChart() {
 
                 const name = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : 'Outros');
                 const style = getCategoryStyle(name, 0, cat);
+                const amt = Math.abs(Number(t.amount || 0));
+                if (isNaN(amt) || amt <= 0) return;
 
                 if (!groups[name]) {
                     groups[name] = { total: 0, color: style.color, icon: style.icon, name: name };
                 }
-                groups[name].total += Number(t.amount);
+                groups[name].total += amt;
                 if (style.color) groups[name].color = style.color;
                 if (style.icon) groups[name].icon = style.icon;
             });

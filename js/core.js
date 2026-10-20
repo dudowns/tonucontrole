@@ -1944,8 +1944,8 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
 // ============================================
 // 19B. EXCLUSÃO INTELIGENTE DE RECORRÊNCIA E PARCELAMENTO
 // ============================================
-function findRemainingSeries(target, list) {
-    if (!target || !Array.isArray(list)) return [];
+function findSeriesInfo(target, list) {
+    if (!target || !Array.isArray(list)) return { target: target, fromNow: [], all: [] };
     var targetId = String(target.id);
     var series = [];
 
@@ -1974,22 +1974,24 @@ function findRemainingSeries(target, list) {
                 if (!x) return false;
                 var xDesc = String(x.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
                 var sameDesc = (xDesc === cleanDesc);
-                var sameType = (x.type === target.type);
-                var sameCategory = (!target.category_id || x.category_id === target.category_id || x.category === target.category);
-                return sameDesc && sameType && sameCategory;
+                var sameType = (!target.type || !x.type || x.type === target.type);
+                return sameDesc && sameType;
             });
         }
     }
 
-    // Filtrar apenas "o restante" (itens da mesma data/parcela em diante, excluindo o próprio target)
+    // Itens de toda a série (exceto o próprio target)
+    var allOther = series.filter(function (x) {
+        return x && String(x.id) !== targetId;
+    });
+
+    // Itens "desta em diante" (mesma data/parcela ou superior)
     var targetDate = String(target.due_date || target.date || '').slice(0, 10);
     var targetNum = parseInt(target.installment_number || target.current_installment, 10) || 0;
 
-    return series.filter(function (x) {
-        if (!x || String(x.id) === targetId) return false;
+    var fromNow = allOther.filter(function (x) {
         var xNum = parseInt(x.installment_number || x.current_installment, 10) || 0;
         var xDate = String(x.due_date || x.date || '').slice(0, 10);
-
         if (targetNum > 0 && xNum > 0) {
             return xNum >= targetNum;
         }
@@ -1998,12 +2000,117 @@ function findRemainingSeries(target, list) {
         }
         return true;
     });
+
+    return {
+        target: target,
+        fromNow: fromNow,
+        all: allOther
+    };
+}
+
+function findRemainingSeries(target, list) {
+    var info = findSeriesInfo(target, list);
+    return info.fromNow;
+}
+
+async function getFullSeriesInfo(target, list, options) {
+    if (!target) return { target: null, fromNow: [], all: [] };
+    var opts = options || {};
+
+    var mergedList = Array.isArray(list) ? list.slice() : [];
+    var map = new Map();
+    mergedList.forEach(function (x) { if (x && x.id) map.set(String(x.id), x); });
+
+    var isSeriesCandidate = Boolean(
+        target.parent_transaction_id ||
+        (target.description && /\(\d+\/\d+\)/.test(target.description)) ||
+        (parseInt(target.installments, 10) > 1) ||
+        (parseInt(target.installment_total, 10) > 1) ||
+        target.is_recurring
+    );
+
+    if (isSeriesCandidate && typeof window !== 'undefined') {
+        var userId = opts.userId || target.user_id || (window.currentUser && window.currentUser.id);
+        if (!userId && window.supabaseClient && window.supabaseClient.auth) {
+            try {
+                var sess = (await window.supabaseClient.auth.getSession())?.data?.session;
+                userId = sess?.user?.id;
+            } catch (_) {}
+        }
+        if (!userId) {
+            try {
+                var rawOff = localStorage.getItem('tonu_cached_session') || localStorage.getItem('supabase.auth.token');
+                if (rawOff) {
+                    var parsed = JSON.parse(rawOff);
+                    userId = parsed?.user?.id || parsed?.id;
+                }
+            } catch (_) {}
+        }
+
+        // 1. Busca no Supabase (transactions com is_bill ou todas do usuário)
+        if (window.supabaseClient && userId && navigator.onLine) {
+            try {
+                var promises = [];
+                if (target.parent_transaction_id) {
+                    var pId = String(target.parent_transaction_id);
+                    promises.push(
+                        window.supabaseClient.from('transactions').select('*').eq('user_id', userId).or(`parent_transaction_id.eq.${pId},id.eq.${pId}`)
+                    );
+                }
+                if (target.id) {
+                    var tId = String(target.id);
+                    promises.push(
+                        window.supabaseClient.from('transactions').select('*').eq('user_id', userId).eq('parent_transaction_id', tId)
+                    );
+                }
+                var cleanDesc = String(target.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim();
+                if (cleanDesc.length >= 2) {
+                    promises.push(
+                        window.supabaseClient.from('transactions').select('*').eq('user_id', userId).ilike('description', `${cleanDesc}%`)
+                    );
+                }
+
+                var results = await Promise.allSettled(promises);
+                results.forEach(function (res) {
+                    if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.data)) {
+                        res.value.data.forEach(function (item) {
+                            if (item && item.id) map.set(String(item.id), item);
+                        });
+                    }
+                });
+            } catch (err) {
+                console.warn('Erro ao consultar parcelas no Supabase:', err);
+            }
+        }
+
+        // 2. Busca no cache tonuSync (IndexedDB)
+        if (window.tonuSync && userId) {
+            try {
+                var cached = target.is_bill
+                    ? await window.tonuSync.getCachedBills(userId)
+                    : await window.tonuSync.getCachedTransactions(userId);
+                if (Array.isArray(cached)) {
+                    cached.forEach(function (item) {
+                        if (item && item.id) map.set(String(item.id), item);
+                    });
+                }
+            } catch (_) {}
+        }
+    }
+
+    return findSeriesInfo(target, Array.from(map.values()));
+}
+
+async function getFullRemainingSeries(target, list, options) {
+    var info = await getFullSeriesInfo(target, list, options);
+    return info.fromNow;
 }
 
 function confirmRecurringDelete(options) {
     var opts = options || {};
-    var countRemaining = opts.countRemaining || 0;
-    var itemName = opts.itemName || 'Este item';
+    var countFromNow = opts.countFromNow !== undefined ? opts.countFromNow : (opts.countRemaining || 0);
+    var countAll = opts.countAll !== undefined ? opts.countAll : (opts.countRemaining || 0);
+    var itemName = opts.itemName || 'Esta conta';
 
     return new Promise(function (resolve) {
         if (typeof document === 'undefined') {
@@ -2016,27 +2123,37 @@ function confirmRecurringDelete(options) {
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;backdrop-filter:blur(3px);animation:fadeIn 0.15s ease;';
 
         var card = document.createElement('div');
-        card.style.cssText = 'background:var(--color-surface,#ffffff);color:var(--color-text,#1e293b);border-radius:16px;padding:22px;max-width:400px;width:100%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);border:1px solid var(--color-border,#e2e8f0);text-align:center;display:flex;flex-direction:column;gap:14px;font-family:inherit;';
+        card.style.cssText = 'background:var(--color-surface,#ffffff);color:var(--color-text,#1e293b);border-radius:16px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);border:1px solid var(--color-border,#e2e8f0);text-align:center;display:flex;flex-direction:column;gap:14px;font-family:inherit;';
 
         var cleanItemName = typeof sanitizeString === 'function' ? sanitizeString(itemName) : itemName;
-        var totalToDelete = countRemaining + 1;
+        var totalFromNow = countFromNow + 1;
+        var totalAll = countAll + 1;
 
         card.innerHTML = `
             <div style="width:48px;height:48px;border-radius:50%;background:#fee2e2;color:#dc2626;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:22px;">
                 <i class="fas fa-trash-alt"></i>
             </div>
             <div>
-                <h3 style="margin:0 0 6px 0;font-size:17px;font-weight:700;color:var(--color-text,#1e293b);">Deseja apagar o restante?</h3>
+                <h3 style="margin:0 0 6px 0;font-size:17px;font-weight:700;color:var(--color-text,#1e293b);">Deseja excluir as próximas parcelas?</h3>
                 <p style="margin:0;font-size:13px;color:var(--color-text-muted,#64748b);line-height:1.45;">
-                    "${cleanItemName}" possui mais <strong>${countRemaining}</strong> parcela(s) ou mês(es) futuro(s) vinculados.
+                    "${cleanItemName}" faz parte de uma série de parcelas ou recorrência. Como deseja excluir?
                 </p>
             </div>
             <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
-                <button id="btnDeleteAllRecurring" style="background:#dc2626;color:#ffffff;border:none;padding:11px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
-                    <i class="fas fa-trash-alt"></i> Sim, apagar o restante (${totalToDelete})
+                <button id="btnDeleteFromNow" style="background:#dc2626;color:#ffffff;border:none;padding:11px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-forward"></i> Excluir a partir de agora (${totalFromNow} parcelas/meses)
                 </button>
+                ${countAll > countFromNow ? `
+                <button id="btnDeleteAllSeries" style="background:#991b1b;color:#ffffff;border:none;padding:10px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-trash-alt"></i> Excluir TODAS as parcelas da série (${totalAll})
+                </button>
+                ` : `
+                <button id="btnDeleteAllSeries" style="background:#991b1b;color:#ffffff;border:none;padding:10px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-trash-alt"></i> Excluir todas as parcelas (${totalAll})
+                </button>
+                `}
                 <button id="btnDeleteSingleRecurring" style="background:var(--color-bg,#f1f5f9);color:var(--color-text,#334155);border:1px solid var(--color-border,#cbd5e1);padding:10px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;">
-                    Apagar somente esta
+                    Excluir somente esta parcela deste mês
                 </button>
                 <button id="btnCancelRecurring" style="background:transparent;color:var(--color-text-muted,#64748b);border:none;padding:6px;font-size:13px;cursor:pointer;">
                     Cancelar
@@ -2054,9 +2171,18 @@ function confirmRecurringDelete(options) {
             if (e.key === 'Escape') cleanup('cancel');
         }
 
-        card.querySelector('#btnDeleteAllRecurring').onclick = function () { cleanup('all'); };
-        card.querySelector('#btnDeleteSingleRecurring').onclick = function () { cleanup('single'); };
-        card.querySelector('#btnCancelRecurring').onclick = function () { cleanup('cancel'); };
+        var btnFromNow = card.querySelector('#btnDeleteFromNow');
+        if (btnFromNow) btnFromNow.onclick = function () { cleanup('from_now'); };
+
+        var btnAll = card.querySelector('#btnDeleteAllSeries');
+        if (btnAll) btnAll.onclick = function () { cleanup('all_series'); };
+
+        var btnSingle = card.querySelector('#btnDeleteSingleRecurring');
+        if (btnSingle) btnSingle.onclick = function () { cleanup('single'); };
+
+        var btnCancel = card.querySelector('#btnCancelRecurring');
+        if (btnCancel) btnCancel.onclick = function () { cleanup('cancel'); };
+
         overlay.onclick = function (e) { if (e.target === overlay) cleanup('cancel'); };
         document.addEventListener('keydown', onKeyDown);
 
@@ -2108,7 +2234,10 @@ window.getCachedCategories = getCachedCategories;
 window.setCachedCategories = setCachedCategories;
 window.TonuVirtualScroller = TonuVirtualScroller;
 window.webShareTarget = new WebShareTargetHandler();
+window.findSeriesInfo = findSeriesInfo;
 window.findRemainingSeries = findRemainingSeries;
+window.getFullSeriesInfo = getFullSeriesInfo;
+window.getFullRemainingSeries = getFullRemainingSeries;
 window.confirmRecurringDelete = confirmRecurringDelete;
 
 // ============================================

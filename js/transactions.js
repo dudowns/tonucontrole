@@ -987,9 +987,14 @@
         if (!id) return;
 
         const target = allTransactions.find(t => String(t.id) === String(id));
-        const remaining = (target && typeof window.findRemainingSeries === 'function')
-            ? window.findRemainingSeries(target, allTransactions)
-            : [];
+        let remaining = [];
+        if (target) {
+            if (typeof window.getFullRemainingSeries === 'function') {
+                remaining = await window.getFullRemainingSeries(target, allTransactions);
+            } else if (typeof window.findRemainingSeries === 'function') {
+                remaining = window.findRemainingSeries(target, allTransactions);
+            }
+        }
 
         let deleteMode = 'single';
         if (remaining.length > 0 && typeof window.confirmRecurringDelete === 'function') {
@@ -1016,6 +1021,12 @@
                 for (const delId of idsToDelete) {
                     await window.tonuSync.enqueue('DELETE_TRANSACTION', { id: delId });
                 }
+            }
+
+            if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+                try {
+                    await window.supabaseClient.from('transactions').delete().in('id', idsToDelete);
+                } catch (_) {}
             }
 
             const msg = idsToDelete.length > 1

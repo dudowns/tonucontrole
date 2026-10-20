@@ -141,6 +141,7 @@
             }
 
             currentUser = user;
+            if (typeof window !== 'undefined') window.currentUser = user;
             console.log('✅ Contas: Usuário autenticado:', currentUser.email);
 
             if (window.loadGlobalUserProfile) {
@@ -1094,14 +1095,23 @@
         if (!targetId) return;
 
         const target = allBills.find(b => String(b.id) === String(targetId));
-        const remaining = (target && typeof window.findRemainingSeries === 'function')
-            ? window.findRemainingSeries(target, allBills)
-            : [];
+        let seriesInfo = { fromNow: [], all: [] };
+        if (target) {
+            if (typeof window.getFullSeriesInfo === 'function') {
+                seriesInfo = await window.getFullSeriesInfo(target, allBills, { userId: currentUser?.id });
+            } else if (typeof window.findSeriesInfo === 'function') {
+                seriesInfo = window.findSeriesInfo(target, allBills);
+            } else if (typeof window.findRemainingSeries === 'function') {
+                const rem = window.findRemainingSeries(target, allBills);
+                seriesInfo = { fromNow: rem, all: rem };
+            }
+        }
 
         let deleteMode = 'single';
-        if (remaining.length > 0 && typeof window.confirmRecurringDelete === 'function') {
+        if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
             deleteMode = await window.confirmRecurringDelete({
-                countRemaining: remaining.length,
+                countFromNow: seriesInfo.fromNow.length,
+                countAll: seriesInfo.all.length,
                 itemName: target.description || 'Conta',
                 itemType: 'conta'
             });
@@ -1111,17 +1121,37 @@
         }
 
         try {
-            const idsToDelete = (deleteMode === 'all')
-                ? [String(targetId), ...remaining.map(r => String(r.id))]
-                : [String(targetId)];
+            let idsToDelete = [String(targetId)];
+            if (deleteMode === 'from_now') {
+                idsToDelete = [String(targetId), ...seriesInfo.fromNow.map(r => String(r.id))];
+            } else if (deleteMode === 'all_series' || deleteMode === 'all') {
+                idsToDelete = [String(targetId), ...seriesInfo.all.map(r => String(r.id))];
+            }
 
             const idSet = new Set(idsToDelete);
             allBills = allBills.filter(b => !idSet.has(String(b.id)));
 
             if (window.tonuSync && currentUser?.id) {
-                await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                try {
+                    const cached = await window.tonuSync.getCachedBills(currentUser.id);
+                    if (Array.isArray(cached)) {
+                        const filteredCached = cached.filter(b => !idSet.has(String(b.id)));
+                        await window.tonuSync.setCachedBills(currentUser.id, filteredCached);
+                    } else {
+                        await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                    }
+                } catch (_) {}
+
                 for (const delId of idsToDelete) {
                     await window.tonuSync.enqueue('DELETE_BILL', { id: delId });
+                }
+            }
+
+            if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+                try {
+                    await window.supabaseClient.from('transactions').delete().in('id', idsToDelete).eq('user_id', currentUser.id);
+                } catch (supaErr) {
+                    console.warn('Erro ao remover contas do Supabase:', supaErr);
                 }
             }
 

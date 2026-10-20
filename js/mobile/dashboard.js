@@ -439,8 +439,10 @@ function renderSummary() {
     allTransactions.forEach(t => {
         if (!isTxPaid(t)) return;
         paidCount++;
-        if (t.type === "income") income += Number(t.amount);
-        else if (t.type === "expense") expense += Number(t.amount);
+        const amt = Math.abs(Number(t.amount || 0));
+        if (isNaN(amt) || amt <= 0) return;
+        if (t.type === "income") income += amt;
+        else if (t.type === "expense") expense += amt;
     });
     const balance = income - expense;
 
@@ -583,7 +585,8 @@ function renderMobileChart() {
             : { color: cat?.color || '#0984E3', icon: cat?.icon || 'fa-tag', name: name };
 
         const groupKey = cat?.id || name;
-        const amt = Number(t.amount) || 0;
+        const amt = Math.abs(Number(t.amount || 0));
+        if (isNaN(amt) || amt <= 0) return;
 
         if (!catMap[groupKey]) {
             catMap[groupKey] = {
@@ -599,11 +602,28 @@ function renderMobileChart() {
         if (style.icon) catMap[groupKey].icon = style.icon;
     });
 
-    const sorted = Object.values(catMap)
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 6);
+    const allSorted = Object.values(catMap)
+        .sort((a, b) => b.amount - a.amount);
 
-    const totalExpensesAmount = sorted.reduce((sum, item) => sum + item.amount, 0);
+    // Soma total real de TODAS as despesas pagas (idêntica ao card Saídas Pagas)
+    const totalExpensesAmount = allSorted.reduce((sum, item) => sum + item.amount, 0);
+
+    // Se houver mais de 6 categorias, agrupa o excedente em "Outros" para que o gráfico feche em 100% e bata exatamente com o card
+    let sorted = allSorted;
+    if (allSorted.length > 6) {
+        const top5 = allSorted.slice(0, 5);
+        const othersAmount = allSorted.slice(5).reduce((sum, item) => sum + item.amount, 0);
+        sorted = [
+            ...top5,
+            {
+                id: 'outros-agrupados',
+                name: `Outros (${allSorted.length - 5})`,
+                icon: 'fa-ellipsis-h',
+                color: '#94a3b8',
+                amount: othersAmount
+            }
+        ];
+    }
 
     // Gera lista de categorias integrada abaixo do gráfico
     let categoriesHtml = "";
@@ -716,8 +736,10 @@ function renderMobileChart() {
         let inc = 0, exp = 0;
         allTransactions.forEach(t => {
             if (!isTxPaid(t)) return;
-            if (t.type === 'income') inc += Number(t.amount);
-            else if (t.type === 'expense') exp += Number(t.amount);
+            const amt = Math.abs(Number(t.amount || 0));
+            if (isNaN(amt) || amt <= 0) return;
+            if (t.type === 'income') inc += amt;
+            else if (t.type === 'expense') exp += amt;
         });
 
         mobileChartInstance = new Chart(ctx, {
