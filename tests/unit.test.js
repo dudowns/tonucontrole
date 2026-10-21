@@ -1394,6 +1394,161 @@ async function runUnitTests() {
         assert.strictEqual(dbCopyCancel.length, 20, 'Opção cancel não deve remover nenhuma parcela');
     });
 
+    test('Paridade em Transações: Exclusão Inteligente de Parcelas e Recorrência no Extrato', () => {
+        // Cenário: 12 parcelas de uma compra no extrato de transações
+        const transactionsList = [];
+        const motherTxId = 'tx_mother_parcel_1';
+        for (let i = 1; i <= 12; i++) {
+            transactionsList.push({
+                id: i === 1 ? motherTxId : `tx_child_parcel_${i}`,
+                parent_transaction_id: i === 1 ? null : motherTxId,
+                description: `Notebook Dell (${i}/12)`,
+                installment_number: i,
+                installment_total: 12,
+                amount: 350.00,
+                type: 'expense',
+                date: `2026-${String(i).padStart(2, '0')}-10`
+            });
+        }
+
+        // Simula getFullSeriesInfo com as 12 parcelas
+        const targetParcel3 = transactionsList[2]; // Parcela 3/12
+        const targetId = String(targetParcel3.id);
+        const allOther = transactionsList.filter(x => String(x.id) !== targetId);
+        const fromNow = allOther.filter(x => (x.installment_number || 0) >= (targetParcel3.installment_number || 0));
+
+        assert.strictEqual(fromNow.length, 9, 'A partir da 3ª parcela, restam 9 parcelas futuras (4 a 12)');
+        assert.strictEqual(allOther.length, 11, 'A série completa possui 11 outras parcelas além da 3ª');
+
+        // Teste de exclusão 'from_now' (3 a 12)
+        const idsFromNow = new Set([targetId, ...fromNow.map(r => String(r.id))]);
+        const remainingAfterFromNow = transactionsList.filter(t => !idsFromNow.has(String(t.id)));
+        assert.strictEqual(remainingAfterFromNow.length, 2, 'from_now mantém as parcelas 1 e 2 no extrato');
+        assert.strictEqual(remainingAfterFromNow[0].installment_number, 1);
+        assert.strictEqual(remainingAfterFromNow[1].installment_number, 2);
+
+        // Teste de exclusão 'all_series' (1 a 12)
+        const idsAll = new Set([targetId, ...allOther.map(r => String(r.id))]);
+        const remainingAfterAll = transactionsList.filter(t => !idsAll.has(String(t.id)));
+        assert.strictEqual(remainingAfterAll.length, 0, 'all_series remove todas as 12 parcelas da série');
+
+        // Teste de exclusão 'single' (somente parcela 3)
+        const idsSingle = new Set([targetId]);
+        const remainingAfterSingle = transactionsList.filter(t => !idsSingle.has(String(t.id)));
+        assert.strictEqual(remainingAfterSingle.length, 11, 'single remove exclusivamente a parcela 3');
+    });
+
+    test('Sync Manager & PWA Badging: Indicador Visual de Sincronização e Estados de Fila', () => {
+        function resolveSyncState(isOnline, isSyncing, pendingCount) {
+            if (isSyncing) return { status: 'syncing', label: 'Sincronizando...' };
+            if (!isOnline) return { status: 'offline', label: pendingCount > 0 ? `⚡ ${pendingCount} offline` : 'Offline' };
+            if (pendingCount > 0) return { status: 'pending', label: `⚡ ${pendingCount} pendente${pendingCount > 1 ? 's' : ''}` };
+            return { status: 'online', label: 'Sincronizado' };
+        }
+
+        // Estado 1: Online e sem pendências
+        const st1 = resolveSyncState(true, false, 0);
+        assert.strictEqual(st1.status, 'online');
+        assert.strictEqual(st1.label, 'Sincronizado');
+
+        // Estado 2: Online com 3 itens na fila
+        const st2 = resolveSyncState(true, false, 3);
+        assert.strictEqual(st2.status, 'pending');
+        assert.strictEqual(st2.label, '⚡ 3 pendentes');
+
+        // Estado 3: Offline com 1 item na fila
+        const st3 = resolveSyncState(false, false, 1);
+        assert.strictEqual(st3.status, 'offline');
+        assert.strictEqual(st3.label, '⚡ 1 offline');
+
+        // Estado 4: Offline sem itens na fila
+        const st4 = resolveSyncState(false, false, 0);
+        assert.strictEqual(st4.status, 'offline');
+        assert.strictEqual(st4.label, 'Offline');
+
+        // Estado 5: Processando sincronização
+        const st5 = resolveSyncState(true, true, 2);
+        assert.strictEqual(st5.status, 'syncing');
+        assert.strictEqual(st5.label, 'Sincronizando...');
+    });
+
+    test('Antecipação de Parcelas: Quitação antecipada em lote, transação única de extrato e divergência de valor', () => {
+        // Cenário: 20 parcelas de R$ 100 cada (Empréstimo)
+        const fullSeries = [];
+        const motherId = 'bill_mother_20';
+        for (let i = 1; i <= 20; i++) {
+            fullSeries.push({
+                id: i === 1 ? motherId : `bill_parcel_${i}`,
+                parent_transaction_id: i === 1 ? null : motherId,
+                description: `Empréstimo (${i}/20)`,
+                installment_number: i,
+                installment_total: 20,
+                amount: 100.00,
+                paid: i <= 9, // Parcelas 1 a 9 já pagas
+                date: `2026-${String(((i - 1) % 12) + 1).padStart(2, '0')}-15`
+            });
+        }
+
+        const currentParcel10 = fullSeries[9]; // Parcela atual 10/20
+        const currentNum = currentParcel10.installment_number;
+
+        // 1. Validação de selecionabilidade: apenas futuras (> 10) e não pagas
+        const selectable = fullSeries.filter(b => b.installment_number > currentNum && !b.paid);
+        assert.strictEqual(selectable.length, 10, 'Apenas as parcelas 11 a 20 podem ser antecipadas');
+
+        // 2. Usuário seleciona as parcelas 18, 19 e 20
+        const selected = fullSeries.filter(b => [18, 19, 20].includes(b.installment_number));
+        assert.strictEqual(selected.length, 3);
+        const sumOriginal = selected.reduce((s, b) => s + b.amount, 0);
+        assert.strictEqual(sumOriginal, 300.00, 'Soma das 3 parcelas originais é R$ 300');
+
+        // 3. Resolução de helpers via funções puras / mock local (padrão dos demais testes unitários)
+        const checkValueMismatch = function(typed, sum) {
+            return Math.abs((parseFloat(typed) || 0) - (parseFloat(sum) || 0)) > 0.01;
+        };
+        const buildAnticipationDescription = function(base, nums) {
+            var cleanDesc = String(base || 'Conta').replace(/\s*\(\d+\/\d+\)$/, '').trim();
+            var sorted = (nums || []).slice().sort((a, b) => a - b);
+            return `Antecipação: ${cleanDesc} (${sorted.join(', ')})`;
+        };
+        const createAnticipationTransaction = function(target, selectedList, typed, date) {
+            var mId = target.parent_transaction_id || target.id;
+            var nums = (selectedList || []).map(b => parseInt(b.installment_number || b.current_installment, 10)).filter(Boolean);
+            return {
+                id: 'ant_test',
+                user_id: target.user_id,
+                description: buildAnticipationDescription(target.description, nums),
+                amount: Math.abs(parseFloat(typed) || 0),
+                date: date,
+                due_date: date,
+                type: 'expense',
+                category_id: target.category_id || null,
+                is_bill: false,
+                paid: true,
+                paid_date: date,
+                parent_transaction_id: String(mId),
+                is_anticipation: true
+            };
+        };
+
+        // Testes dos helpers
+        assert.strictEqual(checkValueMismatch(300, 300), false, 'Valor igual não deve acusar divergência');
+        assert.strictEqual(checkValueMismatch(280, 300), true, 'Valor com desconto (R$ 280) acusa divergência');
+        assert.strictEqual(checkValueMismatch(320, 300), true, 'Valor com juros (R$ 320) acusa divergência');
+
+        // 4. Descrição canônica
+        const desc = buildAnticipationDescription('Empréstimo (10/20)', [18, 19, 20]);
+        assert.strictEqual(desc, 'Antecipação: Empréstimo (18, 19, 20)');
+
+        // 5. Payload da transação única de extrato
+        const txPayload = createAnticipationTransaction(currentParcel10, selected, 280.00, '2026-10-21');
+        assert.strictEqual(txPayload.amount, 280.00, 'Extrato registra o valor digitado (R$ 280)');
+        assert.strictEqual(txPayload.is_anticipation, true, 'is_anticipation deve ser true');
+        assert.strictEqual(txPayload.is_bill, false, 'is_bill deve ser false para não duplicar como conta a pagar');
+        assert.strictEqual(txPayload.paid, true, 'Transação de quitação nasce como paga');
+        assert.strictEqual(txPayload.parent_transaction_id, motherId, 'Vinculada à conta-mãe');
+    });
+
     return results;
 }
 

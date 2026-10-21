@@ -647,6 +647,11 @@
                             </button>
                         `)}
                         <div class="bill-actions">
+                            ${(parseInt(b.installments, 10) > 1 || (b.description && /\(\d+\/\d+\)/.test(b.description))) ? `
+                                <button class="btn-icon-sm" onclick="openAnticipationModal('${b.id}')" title="Antecipar / Quitar Parcelas Futuras">
+                                    <i class="fas fa-forward-step" style="color:#0284c7;"></i>
+                                </button>
+                            ` : ''}
                             <button class="btn-icon-sm" onclick="openBillModal('${b.id}')" title="Editar conta">
                                 <i class="fas fa-pencil-alt" style="color:var(--color-primary,#6c5ce7);"></i>
                             </button>
@@ -1245,6 +1250,94 @@
         }
     }
 
+    // ============================================
+    // ANTECIPAÇÃO / QUITAÇÃO DE PARCELAS
+    // ============================================
+    async function openAnticipationModal(billId) {
+        const target = allBills.find(b => String(b.id) === String(billId));
+        if (!target) return;
+
+        let series = allBills;
+        if (typeof window.getFullSeriesInfo === 'function') {
+            const info = await window.getFullSeriesInfo(target, allBills, { userId: currentUser?.id });
+            series = [info.target, ...info.all].filter(Boolean);
+        }
+
+        const modalFn = window.getAnticipationModal || window.showAnticipationModal;
+        if (typeof modalFn === 'function') {
+            modalFn({
+                target: target,
+                allSeries: series,
+                onConfirm: async function (selectedBills, typedAmount, paymentDate) {
+                    await processAnticipation(target, selectedBills, typedAmount, paymentDate);
+                }
+            });
+        }
+    }
+
+    async function processAnticipation(target, selectedBills, typedAmount, paymentDate) {
+        // Guarda obrigatória
+        if (!typedAmount || typedAmount <= 0) {
+            showToast('❌ Informe o valor pago para quitar as parcelas.', 'error');
+            return;
+        }
+
+        const today = paymentDate || getTodayString();
+        const selectedIds = selectedBills.map(b => String(b.id));
+        const idSet = new Set(selectedIds);
+
+        // 1. Marca as parcelas selecionadas como pagas preservando suas datas futuras
+        allBills.forEach(b => {
+            if (idSet.has(String(b.id))) {
+                b.paid = true;
+                b.paid_date = today;
+            }
+        });
+
+        // 2. Cria 1 única transação de extrato com amount = typedAmount e is_anticipation = true
+        const createFn = window.createAnticipationTransaction || window.createAnticipationPayload;
+        const txPayload = typeof createFn === 'function'
+            ? createFn(target, selectedBills, typedAmount, today)
+            : {
+                id: genUuid(),
+                user_id: target.user_id,
+                description: `Antecipação: ${(target.description || 'Conta').replace(/\s*\(\d+\/\d+\)$/, '').trim()}`,
+                amount: typedAmount,
+                date: today,
+                due_date: today,
+                type: 'expense',
+                category_id: target.category_id || null,
+                is_bill: false,
+                paid: true,
+                paid_date: today,
+                parent_transaction_id: String(target.parent_transaction_id || target.id),
+                is_anticipation: true
+            };
+
+        // 3. Atualiza cache local IndexedDB e enfileira
+        if (window.tonuSync && currentUser?.id) {
+            await window.tonuSync.setCachedBills(currentUser.id, allBills);
+            for (const bId of selectedIds) {
+                await window.tonuSync.enqueue('UPDATE_BILL', { id: bId, paid: true, paid_date: today });
+            }
+            await window.tonuSync.enqueue('INSERT_TRANSACTION', txPayload);
+        }
+
+        // 4. Grava no Supabase
+        if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+            try {
+                await window.supabaseClient.from('transactions').update({ paid: true, paid_date: today }).in('id', selectedIds).eq('user_id', currentUser.id);
+                await window.supabaseClient.from('transactions').insert(txPayload);
+            } catch (err) {
+                console.warn('Erro ao salvar antecipação no Supabase:', err);
+            }
+        }
+
+        showToast(`✅ ${selectedBills.length} parcelas quitadas por ${formatCurrency(typedAmount)}!`, 'success');
+        applyFiltersAndRender();
+        updateSummaryCards(allBills);
+    }
+
     // Exportação global de funções
     window.openBillModal = openBillModal;
     window.closeBillModal = closeBillModal;
@@ -1259,5 +1352,6 @@
     window.toggleBillSelectionMode = toggleBillSelectionMode;
     window.cancelBillSelection = cancelBillSelection;
     window.toggleSelectBill = toggleSelectBill;
+    window.openAnticipationModal = openAnticipationModal;
 
 })();

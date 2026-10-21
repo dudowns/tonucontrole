@@ -1615,6 +1615,9 @@ class WebShareTargetHandler {
     }
 
     init() {
+        if (typeof window === 'undefined' || typeof document === 'undefined' || !window.location || !document.addEventListener) {
+            return;
+        }
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function () { this.checkIncomingShare(); }.bind(this));
         } else {
@@ -1623,6 +1626,9 @@ class WebShareTargetHandler {
     }
 
     async checkIncomingShare() {
+        if (typeof window === 'undefined' || !window.location || !window.location.search) {
+            return;
+        }
         var urlParams = new URLSearchParams(window.location.search);
         var isShareTargetReceived = urlParams.get('share_target') === 'received';
         var sharedTitle = urlParams.get('title');
@@ -2192,6 +2198,255 @@ function confirmRecurringDelete(options) {
 }
 
 // ============================================
+// 19C. ANTECIPAÇÃO E QUITAÇÃO DE PARCELAS
+// ============================================
+function checkValueMismatch(typedValue, sumValue) {
+    var typed = parseFloat(typedValue) || 0;
+    var sum = parseFloat(sumValue) || 0;
+    return Math.abs(typed - sum) > 0.01;
+}
+
+function buildAnticipationDescription(baseDescription, selectedNumbers) {
+    var cleanDesc = String(baseDescription || 'Conta').replace(/\s*\(\d+\/\d+\)$/, '').trim();
+    var sortedNums = (selectedNumbers || []).slice().sort(function (a, b) { return a - b; });
+    return `Antecipação: ${cleanDesc} (${sortedNums.join(', ')})`;
+}
+
+function createAnticipationTransaction(target, selectedBills, typedAmount, paymentDate) {
+    var motherId = target.parent_transaction_id || target.id;
+    var nums = (selectedBills || []).map(function (b) {
+        return parseInt(b.installment_number || b.current_installment, 10);
+    }).filter(Boolean);
+
+    var desc = buildAnticipationDescription(target.description, nums);
+    var date = paymentDate || (typeof getTodayString === 'function' ? getTodayString() : new Date().toISOString().split('T')[0]);
+
+    return {
+        id: typeof genUuid === 'function' ? genUuid() : 'ant_' + Date.now(),
+        user_id: target.user_id,
+        description: desc,
+        amount: Math.abs(parseFloat(typedAmount) || 0),
+        date: date,
+        due_date: date,
+        type: 'expense',
+        category_id: target.category_id || null,
+        is_bill: false,
+        paid: true,
+        paid_date: date,
+        parent_transaction_id: String(motherId),
+        is_anticipation: true,
+        notes: `Quitação antecipada das parcelas: ${nums.join(', ')}`
+    };
+}
+
+function getAnticipationModal(options) {
+    var opts = options || {};
+    var target = opts.target;
+    if (!target) return;
+    var allSeries = Array.isArray(opts.allSeries) ? opts.allSeries : [target];
+    var onConfirm = opts.onConfirm || function () {};
+
+    if (typeof document === 'undefined') return;
+
+    var currentNum = parseInt(target.installment_number || target.current_installment, 10) || 1;
+    var totalNum = parseInt(target.installment_total || target.installments, 10) || allSeries.length || 1;
+    var cleanDesc = String(target.description || 'Conta').replace(/\s*\(\d+\/\d+\)$/, '').trim();
+
+    // Ordena de 1 a N
+    var sortedBills = allSeries.slice().sort(function (a, b) {
+        var nA = parseInt(a.installment_number || a.current_installment, 10) || 0;
+        var nB = parseInt(b.installment_number || b.current_installment, 10) || 0;
+        return nA - nB;
+    });
+
+    var overlay = document.createElement('div');
+    overlay.id = 'anticipationModalOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;backdrop-filter:blur(3px);animation:fadeIn 0.15s ease;';
+
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--color-surface,#ffffff);color:var(--color-text,#1e293b);border-radius:16px;padding:22px;max-width:480px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);border:1px solid var(--color-border,#e2e8f0);font-family:inherit;overflow:hidden;box-sizing:border-box;';
+
+    card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--color-border,#e2e8f0);padding-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:38px;height:38px;border-radius:10px;background:#e0f2fe;color:#0284c7;display:flex;align-items:center;justify-content:center;font-size:16px;">
+                    <i class="fas fa-forward-fast"></i>
+                </div>
+                <div>
+                    <h3 style="margin:0;font-size:16px;font-weight:700;color:var(--color-text,#1e293b);">Antecipar / Quitar Parcelas</h3>
+                    <small style="color:var(--color-text-muted,#64748b);font-size:12px;">${cleanDesc} (Parcela atual: ${currentNum}/${totalNum})</small>
+                </div>
+            </div>
+            <button id="btnCloseAnticipation" style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;padding:4px;line-height:1;">&times;</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+            <span style="color:var(--color-text-muted,#64748b);">Selecione as parcelas futuras para quitação:</span>
+            <button id="btnSelectLast3" type="button" style="background:none;border:none;color:#0284c7;font-weight:700;font-size:12px;cursor:pointer;padding:2px 4px;">
+                <i class="fas fa-magic"></i> + Últimas 3
+            </button>
+        </div>
+        <div id="anticipationListContainer" style="overflow-y:auto;max-height:220px;display:flex;flex-direction:column;gap:6px;padding-right:4px;">
+            ${sortedBills.map(function (b) {
+                var num = parseInt(b.installment_number || b.current_installment, 10) || 0;
+                var isPaid = !!b.paid;
+                var isCurrent = (num === currentNum);
+                var isFuture = (num > currentNum && !isPaid);
+                var disabled = !isFuture;
+                var badgeLabel = isPaid ? 'PAGA' : (isCurrent ? 'ATUAL' : 'FUTURA');
+                var badgeBg = isPaid ? '#10b981' : (isCurrent ? '#f59e0b' : '#0284c7');
+                var valFormatted = typeof formatCurrency === 'function' ? formatCurrency(b.amount) : 'R$ ' + (Number(b.amount) || 0).toFixed(2);
+
+                return `
+                    <label style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;border:1px solid var(--color-border,#e2e8f0);background:${disabled ? 'var(--color-bg,#f8fafc)' : 'var(--color-surface,#ffffff)'};opacity:${disabled ? '0.6' : '1'};cursor:${disabled ? 'not-allowed' : 'pointer'};">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" class="chk-anticipate" data-id="${b.id}" data-num="${num}" data-amount="${b.amount}" ${disabled ? 'disabled' : ''} style="accent-color:#0284c7;width:17px;height:17px;cursor:${disabled ? 'not-allowed' : 'pointer'};">
+                            <span style="font-weight:600;font-size:13px;">Parcela ${num}/${totalNum}</span>
+                            <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;color:#ffffff;background:${badgeBg};">${badgeLabel}</span>
+                        </div>
+                        <span style="font-size:13px;font-weight:700;color:var(--color-text,#1e293b);">${valFormatted}</span>
+                    </label>
+                `;
+            }).join('')}
+        </div>
+        <div style="background:var(--color-bg,#f8fafc);border-radius:10px;padding:12px;border:1px solid var(--color-border,#e2e8f0);display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:var(--color-text-muted,#64748b);">Soma das parcelas selecionadas:</span>
+                <strong id="lblAnticipationSum" style="color:var(--color-text,#1e293b);font-size:14px;">R$ 0,00</strong>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:12px;font-weight:600;color:var(--color-text,#1e293b);">Valor Total Pago (com desconto ou juros):</label>
+                <input type="number" step="0.01" id="inputAnticipationPaid" placeholder="0,00" style="padding:9px 12px;border-radius:8px;border:1px solid var(--color-border,#cbd5e1);font-size:14px;font-weight:700;width:100%;box-sizing:border-box;background:var(--color-surface,#ffffff);color:var(--color-text,#1e293b);">
+            </div>
+            <div id="mismatchWarning" style="display:none;background:#fef3c7;color:#92400e;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;border:1px solid #fde68a;">
+                ⚠️ O valor pago é diferente da soma das parcelas selecionadas.
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+            <button id="btnCancelAnticipation" style="background:transparent;border:1px solid var(--color-border,#cbd5e1);padding:9px 16px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;color:var(--color-text,#334155);">Cancelar</button>
+            <button id="btnConfirmAnticipation" disabled style="background:#0284c7;color:#ffffff;border:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:13px;cursor:not-allowed;opacity:0.4;transition:all 0.2s;">Confirmar Quitação</button>
+        </div>
+    `;
+
+    function cleanup() {
+        document.removeEventListener('keydown', onKeyDown);
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+
+    function onKeyDown(e) {
+        if (e.key === 'Escape') cleanup();
+    }
+
+    var chks = card.querySelectorAll('.chk-anticipate:not([disabled])');
+    var lblSum = card.querySelector('#lblAnticipationSum');
+    var inputPaid = card.querySelector('#inputAnticipationPaid');
+    var warningEl = card.querySelector('#mismatchWarning');
+    var btnConfirm = card.querySelector('#btnConfirmAnticipation');
+    var currentSum = 0;
+    var userModifiedPaid = false;
+
+    function recalculate() {
+        currentSum = 0;
+        var selectedCount = 0;
+        chks.forEach(function (c) {
+            if (c.checked) {
+                currentSum += parseFloat(c.getAttribute('data-amount') || 0);
+                selectedCount++;
+            }
+        });
+
+        lblSum.textContent = typeof formatCurrency === 'function' ? formatCurrency(currentSum) : 'R$ ' + currentSum.toFixed(2).replace('.', ',');
+
+        if (!userModifiedPaid) {
+            inputPaid.value = selectedCount > 0 ? currentSum.toFixed(2) : '';
+        }
+
+        btnConfirm.disabled = (selectedCount === 0);
+        btnConfirm.style.opacity = selectedCount > 0 ? '1' : '0.4';
+        btnConfirm.style.cursor = selectedCount > 0 ? 'pointer' : 'not-allowed';
+
+        checkWarning();
+    }
+
+    function checkWarning() {
+        var typed = parseFloat(inputPaid.value) || 0;
+        if (currentSum > 0 && inputPaid.value && checkValueMismatch(typed, currentSum)) {
+            var diff = typed - currentSum;
+            var diffText = typeof formatCurrency === 'function' ? formatCurrency(Math.abs(diff)) : 'R$ ' + Math.abs(diff).toFixed(2);
+            var msg = diff < 0 ? `Desconto de ${diffText}` : `Acréscimo de ${diffText}`;
+            warningEl.innerHTML = `⚠️ O valor digitado (<strong>${typeof formatCurrency === 'function' ? formatCurrency(typed) : 'R$ ' + typed.toFixed(2)}</strong>) é diferente da soma das parcelas (<strong>${typeof formatCurrency === 'function' ? formatCurrency(currentSum) : 'R$ ' + currentSum.toFixed(2)}</strong>) — ${msg}.`;
+            warningEl.style.display = 'block';
+        } else {
+            warningEl.style.display = 'none';
+        }
+    }
+
+    chks.forEach(function (c) {
+        c.onchange = function () {
+            userModifiedPaid = false;
+            recalculate();
+        };
+    });
+
+    inputPaid.oninput = function () {
+        userModifiedPaid = true;
+        checkWarning();
+    };
+
+    var btnLast3 = card.querySelector('#btnSelectLast3');
+    if (btnLast3) {
+        btnLast3.onclick = function () {
+            var available = Array.from(chks);
+            if (available.length === 0) return;
+            available.forEach(function (c) { c.checked = false; });
+            var last3 = available.slice(-3);
+            last3.forEach(function (c) { c.checked = true; });
+            userModifiedPaid = false;
+            recalculate();
+        };
+    }
+
+    card.querySelector('#btnCloseAnticipation').onclick = cleanup;
+    card.querySelector('#btnCancelAnticipation').onclick = cleanup;
+    overlay.onclick = function (e) { if (e.target === overlay) cleanup(); };
+    document.addEventListener('keydown', onKeyDown);
+
+    btnConfirm.onclick = function () {
+        var typed = parseFloat(inputPaid.value) || 0;
+        if (!typed || typed <= 0) {
+            if (typeof showToast === 'function') showToast('❌ Informe o valor pago para quitar as parcelas.', 'error');
+            return;
+        }
+
+        var selectedBills = [];
+        chks.forEach(function (c) {
+            if (c.checked) {
+                var bId = c.getAttribute('data-id');
+                var item = allSeries.find(function (x) { return String(x.id) === String(bId); });
+                if (item) selectedBills.push(item);
+            }
+        });
+
+        if (selectedBills.length === 0) {
+            if (typeof showToast === 'function') showToast('Selecione pelo menos uma parcela.', 'warning');
+            return;
+        }
+
+        if (checkValueMismatch(typed, currentSum)) {
+            var formattedTyped = typeof formatCurrency === 'function' ? formatCurrency(typed) : 'R$ ' + typed.toFixed(2);
+            var formattedSum = typeof formatCurrency === 'function' ? formatCurrency(currentSum) : 'R$ ' + currentSum.toFixed(2);
+            var confirmMsg = `O valor pago (${formattedTyped}) é diferente da soma das parcelas (${formattedSum}).\n\nTem certeza que deseja confirmar a quitação?`;
+            if (!confirm(confirmMsg)) return;
+        }
+
+        cleanup();
+        onConfirm(selectedBills, typed, typeof getTodayString === 'function' ? getTodayString() : new Date().toISOString().split('T')[0]);
+    };
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+}
+
+// ============================================
 // 20. EXPORTAR PARA O ESCOPO GLOBAL
 // ============================================
 window.showToast = showToast;
@@ -2239,6 +2494,12 @@ window.findRemainingSeries = findRemainingSeries;
 window.getFullSeriesInfo = getFullSeriesInfo;
 window.getFullRemainingSeries = getFullRemainingSeries;
 window.confirmRecurringDelete = confirmRecurringDelete;
+window.checkValueMismatch = checkValueMismatch;
+window.buildAnticipationDescription = buildAnticipationDescription;
+window.createAnticipationTransaction = createAnticipationTransaction;
+window.createAnticipationPayload = createAnticipationTransaction;
+window.getAnticipationModal = getAnticipationModal;
+window.showAnticipationModal = getAnticipationModal;
 
 // ============================================
 // LIMPEZA AUTOMÁTICA DE DEMO E CACHES OBSOLETOS
@@ -2551,22 +2812,32 @@ function executeQuickCommand(index) {
 window.executeQuickCommand = executeQuickCommand;
 
 // Ouvinte global para teclado
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeAnyActiveModal();
-    } else if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
-        e.preventDefault();
-        const overlay = document.getElementById('quickCmdOverlay');
-        if (overlay && overlay.classList.contains('active')) {
-            closeQuickSearch();
-        } else {
-            openQuickSearch();
+if (typeof document !== 'undefined') {
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeAnyActiveModal();
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+            e.preventDefault();
+            const overlay = document.getElementById('quickCmdOverlay');
+            if (overlay && overlay.classList.contains('active')) {
+                closeQuickSearch();
+            } else {
+                openQuickSearch();
+            }
         }
-    }
-});
+    });
+}
 
 // Busca rápida acessível via atalho Ctrl + K
 // Nota: O botão visual de busca no topo foi removido conforme solicitação do usuário.
 
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        checkValueMismatch,
+        buildAnticipationDescription,
+        createAnticipationTransaction,
+        getAnticipationModal
+    };
+}
 
 console.log('✅ Core.js configurado com transições, busca rápida e animações!');

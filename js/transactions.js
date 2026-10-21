@@ -981,25 +981,29 @@
         }
     }
 
-    // Delete transaction
+    // Delete transaction com paridade inteligente de parcelas e recorrência
     async function deleteTransaction() {
         const id = document.getElementById('editId')?.value || currentEditId;
         if (!id) return;
 
         const target = allTransactions.find(t => String(t.id) === String(id));
-        let remaining = [];
+        let seriesInfo = { fromNow: [], all: [] };
         if (target) {
-            if (typeof window.getFullRemainingSeries === 'function') {
-                remaining = await window.getFullRemainingSeries(target, allTransactions);
+            if (typeof window.getFullSeriesInfo === 'function') {
+                seriesInfo = await window.getFullSeriesInfo(target, allTransactions, { userId: currentUser?.id });
+            } else if (typeof window.findSeriesInfo === 'function') {
+                seriesInfo = window.findSeriesInfo(target, allTransactions);
             } else if (typeof window.findRemainingSeries === 'function') {
-                remaining = window.findRemainingSeries(target, allTransactions);
+                const rem = window.findRemainingSeries(target, allTransactions);
+                seriesInfo = { fromNow: rem, all: rem };
             }
         }
 
         let deleteMode = 'single';
-        if (remaining.length > 0 && typeof window.confirmRecurringDelete === 'function') {
+        if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
             deleteMode = await window.confirmRecurringDelete({
-                countRemaining: remaining.length,
+                countFromNow: seriesInfo.fromNow.length,
+                countAll: seriesInfo.all.length,
                 itemName: target.description || 'Transação',
                 itemType: 'transação'
             });
@@ -1009,15 +1013,27 @@
         }
 
         try {
-            const idsToDelete = (deleteMode === 'all')
-                ? [String(id), ...remaining.map(r => String(r.id))]
-                : [String(id)];
+            let idsToDelete = [String(id)];
+            if (deleteMode === 'from_now') {
+                idsToDelete = [String(id), ...seriesInfo.fromNow.map(r => String(r.id))];
+            } else if (deleteMode === 'all_series' || deleteMode === 'all') {
+                idsToDelete = [String(id), ...seriesInfo.all.map(r => String(r.id))];
+            }
 
             const idSet = new Set(idsToDelete);
             allTransactions = allTransactions.filter(t => !idSet.has(String(t.id)));
 
             if (window.tonuSync && currentUser?.id) {
-                await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                try {
+                    const cached = await window.tonuSync.getCachedTransactions(currentUser.id);
+                    if (Array.isArray(cached)) {
+                        const filteredCached = cached.filter(t => !idSet.has(String(t.id)));
+                        await window.tonuSync.setCachedTransactions(currentUser.id, filteredCached);
+                    } else {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                    }
+                } catch (_) {}
+
                 for (const delId of idsToDelete) {
                     await window.tonuSync.enqueue('DELETE_TRANSACTION', { id: delId });
                 }
@@ -1025,13 +1041,15 @@
 
             if (window.supabaseClient && currentUser?.id && navigator.onLine) {
                 try {
-                    await window.supabaseClient.from('transactions').delete().in('id', idsToDelete);
-                } catch (_) {}
+                    await window.supabaseClient.from('transactions').delete().in('id', idsToDelete).eq('user_id', currentUser.id);
+                } catch (supaErr) {
+                    console.warn('Erro ao remover transações do Supabase:', supaErr);
+                }
             }
 
             const msg = idsToDelete.length > 1
                 ? `${idsToDelete.length} transações excluídas com sucesso! 🗑️`
-                : 'Transação excluída! 🗑️';
+                : 'Transação excluída com sucesso! 🗑️';
             if (window.showToast) window.showToast(msg, 'info');
             closeModal();
             filterTransactions();
@@ -1100,5 +1118,24 @@
     window.filterTransactions = filterTransactions;
     window.exportTransactionsCSV = exportTransactionsCSV;
     window.loadTransactions = loadTransactions;
+
+    // Atalhos Rápidos (App Shortcuts PWA)
+    if (typeof window !== 'undefined') {
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const action = params.get('action');
+                if (action === 'new_expense' || action === 'new') {
+                    setTimeout(() => {
+                        if (typeof openModal === 'function') openModal('expense');
+                    }, 400);
+                } else if (action === 'new_income') {
+                    setTimeout(() => {
+                        if (typeof openModal === 'function') openModal('income');
+                    }, 400);
+                }
+            } catch (_) {}
+        });
+    }
 
 })();

@@ -29,12 +29,123 @@
                 this.setupNetworkListeners();
                 this.setupServiceWorkerSync();
                 this.setupVisibilityListeners();
+                this.ensureSyncStyles();
+
+                if (typeof document !== 'undefined') {
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', () => this.updateSyncBadgeUI());
+                    } else {
+                        setTimeout(() => this.updateSyncBadgeUI(), 200);
+                    }
+                }
 
                 if (this.isOnline) {
                     setTimeout(() => this.flushQueue(), 1500);
+                } else {
+                    this.updateSyncBadgeUI();
                 }
             } catch (err) {
                 console.error('❌ Erro ao inicializar TonuSyncManager:', err);
+            }
+        }
+
+        ensureSyncStyles() {
+            if (typeof document === 'undefined') return;
+            if (!document.querySelector('link[href*="sync-status.css"]')) {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                const pathname = (typeof window !== 'undefined' && window.location.pathname) ? window.location.pathname : '';
+                let prefix = './css/';
+                if (pathname.includes('/pages/mobile/')) {
+                    prefix = '../../css/';
+                } else if (pathname.includes('/pages/')) {
+                    prefix = '../css/';
+                }
+                link.href = prefix + 'sync-status.css';
+                document.head.appendChild(link);
+            }
+        }
+
+        async updateSyncBadgeUI() {
+            if (typeof document === 'undefined') return;
+            this.ensureSyncStyles();
+
+            let pendingCount = 0;
+            try {
+                pendingCount = await this.getPendingCount();
+            } catch (_) {}
+
+            // Suporte nativo à PWA Web App Badging API
+            if (typeof navigator !== 'undefined') {
+                try {
+                    if ('setAppBadge' in navigator && pendingCount > 0) {
+                        navigator.setAppBadge(pendingCount).catch(() => {});
+                    } else if ('clearAppBadge' in navigator && pendingCount === 0) {
+                        navigator.clearAppBadge().catch(() => {});
+                    }
+                } catch (_) {}
+            }
+
+            let badge = document.getElementById('tonuSyncIndicator');
+            if (!badge) {
+                const targetContainer = document.querySelector('.topbar-actions') || 
+                                        document.querySelector('.topbar-right') ||
+                                        document.querySelector('.mobile-topbar') ||
+                                        document.querySelector('.topbar') ||
+                                        document.querySelector('header');
+                if (targetContainer) {
+                    badge = document.createElement('div');
+                    badge.id = 'tonuSyncIndicator';
+                    badge.className = 'sync-status-indicator';
+                    targetContainer.insertBefore(badge, targetContainer.firstChild);
+                }
+            }
+            if (!badge) return;
+
+            badge.onclick = (e) => {
+                e.stopPropagation();
+                if (this.isOnline) {
+                    this.flushQueue();
+                    if (typeof showToast === 'function') {
+                        showToast('🔄 Verificando e sincronizando dados com a nuvem...', 'info');
+                    }
+                } else {
+                    if (typeof showToast === 'function') {
+                        showToast('📶 Modo Offline: alterações salvas no aparelho e serão enviadas ao reconectar.', 'warning');
+                    }
+                }
+            };
+
+            badge.className = 'sync-status-indicator';
+            if (this.isSyncing) {
+                badge.classList.add('syncing');
+                badge.innerHTML = `
+                    <span class="sync-dot"></span>
+                    <span class="sync-text">Sincronizando...</span>
+                    <span class="sync-tooltip">Enviando dados para a nuvem...</span>
+                `;
+            } else if (!this.isOnline) {
+                badge.classList.add('offline');
+                badge.innerHTML = `
+                    <span class="sync-dot"></span>
+                    <span class="sync-text">${pendingCount > 0 ? '⚡ ' + pendingCount + ' offline' : 'Offline'}</span>
+                    <span class="sync-tooltip">Sem internet. Alterações salvas com segurança no dispositivo.</span>
+                `;
+            } else if (pendingCount > 0) {
+                badge.classList.add('pending');
+                badge.innerHTML = `
+                    <span class="sync-dot"></span>
+                    <span class="sync-text">⚡ ${pendingCount} pendente${pendingCount > 1 ? 's' : ''}</span>
+                    <span class="sync-badge">${pendingCount}</span>
+                    <span class="sync-tooltip">${pendingCount} alteração(ões) salva(s) localmente. Clique para enviar agora.</span>
+                `;
+            } else {
+                badge.classList.add('online');
+                badge.innerHTML = `
+                    <span class="sync-dot"></span>
+                    <span class="sync-text">Sincronizado</span>
+                    <span class="sync-tooltip">Tudo em dia! Dados 100% sincronizados com a nuvem.</span>
+                `;
             }
         }
 
@@ -125,6 +236,7 @@
                     item.id = e.target.result;
                     console.log(`📥 Operação offline ${existingQueueId !== null ? 'substituída (idempotente)' : 'enfileirada e protegida'} [ID: ${item.id}]:`, action);
                     this.requestBackgroundSync();
+                    this.updateSyncBadgeUI();
 
                     if (typeof showToast === 'function') {
                         if (!navigator.onLine) {
@@ -207,6 +319,7 @@
 
             this.isSyncing = true;
             console.log(`🔄 Iniciando sincronização de ${pending.length} itens pendentes...`);
+            this.updateSyncBadgeUI();
 
             let successCount = 0;
             let failureCount = 0;
@@ -228,6 +341,7 @@
             }
 
             this.isSyncing = false;
+            this.updateSyncBadgeUI();
 
             if (successCount > 0) {
                 console.log(`✅ Sincronização concluída: ${successCount} ações sincronizadas`);
@@ -651,6 +765,7 @@
             window.addEventListener('online', () => {
                 this.isOnline = true;
                 console.log('🌐 Conexão de rede restaurada! Online.');
+                this.updateSyncBadgeUI();
                 if (typeof showToast === 'function') {
                     showToast('🌐 Conexão restaurada! Sincronizando...', 'info');
                 }
@@ -660,6 +775,7 @@
             window.addEventListener('offline', () => {
                 this.isOnline = false;
                 console.log('📶 Você está offline no momento.');
+                this.updateSyncBadgeUI();
                 if (typeof showToast === 'function') {
                     showToast('📶 Modo Offline ativo. Todas as alterações serão salvas localmente.', 'warning');
                 }

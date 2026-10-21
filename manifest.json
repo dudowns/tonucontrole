@@ -25,30 +25,30 @@
   ],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "short_name": "Início",
-      "description": "Ver resumo financeiro",
+      "name": "Nova Despesa",
+      "short_name": "Nova Despesa",
+      "description": "Lançar nova despesa rapidamente",
+      "url": "./pages/transactions.html?action=new_expense",
+      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Contas a Pagar",
+      "short_name": "Contas",
+      "description": "Controle de contas e vencimentos",
+      "url": "./pages/bills.html?filter=pending",
+      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Resumo do Mês",
+      "short_name": "Dashboard",
+      "description": "Ver resumo financeiro e gráficos",
       "url": "./index.html",
       "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
-      "name": "Transações",
-      "short_name": "Transações",
-      "description": "Ver e adicionar transações",
-      "url": "./pages/transactions.html",
-      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Contas",
-      "short_name": "Contas",
-      "description": "Controle de contas a pagar",
-      "url": "./pages/bills.html",
-      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Metas",
+      "name": "Metas Financeiras",
       "short_name": "Metas",
-      "description": "Acompanhar metas financeiras",
+      "description": "Acompanhar objetivos e reservas",
       "url": "./pages/goals.html",
       "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
     }
