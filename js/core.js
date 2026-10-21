@@ -2248,15 +2248,67 @@ function getAnticipationModal(options) {
 
     if (typeof document === 'undefined') return;
 
+    var targetId = String(target.id);
+    var targetPId = target.parent_transaction_id ? String(target.parent_transaction_id) : targetId;
     var currentNum = parseInt(target.installment_number || target.current_installment, 10) || 1;
-    var totalNum = parseInt(target.installment_total || target.installments, 10) || allSeries.length || 1;
+    var totalNum = parseInt(target.installment_total || target.installments, 10) || 1;
     var cleanDesc = String(target.description || 'Conta').replace(/\s*\(\d+\/\d+\)$/, '').trim();
+    var cleanTargetDescLower = cleanDesc.toLowerCase();
 
-    // Ordena de 1 a N
-    var sortedBills = allSeries.slice().sort(function (a, b) {
+    // 1. FILTRAGEM ESTRITA DE LINHAGEM:
+    // Se o target possui parent_transaction_id (ou target.id é a mãe), qualquer conta com parent diferente
+    // pertence a OUTRA conta (ex: dois 'Empréstimo' separados) e é descartada imediatamente.
+    var seriesOfThisBill = allSeries.filter(function (b) {
+        if (!b) return false;
+        var bId = String(b.id);
+        if (bId === targetId) return true;
+
+        var bPId = b.parent_transaction_id ? String(b.parent_transaction_id) : null;
+        if (targetPId) {
+            if (bId === targetPId) return true;
+            if (bPId) {
+                return bPId === targetPId;
+            }
+        }
+
+        // Fallback para contas legadas sem parent_transaction_id:
+        // Exige mesma descrição, mesmo número total de parcelas, mesma categoria e sem parent divergente
+        var bClean = String(b.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+        var sameDesc = cleanTargetDescLower && bClean === cleanTargetDescLower;
+        var bTotal = parseInt(b.installment_total || b.installments, 10) || 0;
+        var sameTotal = (totalNum > 1 && bTotal > 1) ? (bTotal === totalNum) : true;
+        var sameCat = (!target.category_id || !b.category_id || String(target.category_id) === String(b.category_id));
+
+        return sameDesc && sameTotal && sameCat && !bPId;
+    });
+
+    if (seriesOfThisBill.length === 0) {
+        seriesOfThisBill = [target];
+    }
+
+    // 2. Remove duplicatas por ID
+    var seenIds = new Set();
+    var dedupedBills = [];
+    seriesOfThisBill.forEach(function (b) {
+        var idStr = String(b.id);
+        if (!seenIds.has(idStr)) {
+            seenIds.add(idStr);
+            dedupedBills.push(b);
+        }
+    });
+
+    if (totalNum < dedupedBills.length) {
+        totalNum = dedupedBills.length;
+    }
+
+    // 3. Ordena de 1 a N
+    var sortedBills = dedupedBills.slice().sort(function (a, b) {
         var nA = parseInt(a.installment_number || a.current_installment, 10) || 0;
         var nB = parseInt(b.installment_number || b.current_installment, 10) || 0;
-        return nA - nB;
+        if (nA !== nB) return nA - nB;
+        var dA = String(a.due_date || a.date || '');
+        var dB = String(b.due_date || b.date || '');
+        return dA.localeCompare(dB);
     });
 
     var overlay = document.createElement('div');
@@ -2279,29 +2331,36 @@ function getAnticipationModal(options) {
             </div>
             <button id="btnCloseAnticipation" style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;padding:4px;line-height:1;">&times;</button>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-            <span style="color:var(--color-text-muted,#64748b);">Selecione as parcelas futuras para quitação:</span>
-            <button id="btnSelectLast3" type="button" style="background:none;border:none;color:#0284c7;font-weight:700;font-size:12px;cursor:pointer;padding:2px 4px;">
-                <i class="fas fa-magic"></i> + Últimas 3
-            </button>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:6px;flex-wrap:wrap;">
+            <span style="color:var(--color-text-muted,#64748b);">Selecione as parcelas para quitação:</span>
+            <div style="display:flex;gap:6px;">
+                <button id="btnSelectAllOpen" type="button" style="background:none;border:none;color:#0284c7;font-weight:700;font-size:12px;cursor:pointer;padding:2px 4px;">
+                    <i class="fas fa-check-square"></i> Todas em aberto
+                </button>
+                <button id="btnSelectLast3" type="button" style="background:none;border:none;color:#0284c7;font-weight:700;font-size:12px;cursor:pointer;padding:2px 4px;">
+                    <i class="fas fa-magic"></i> + Últimas 3
+                </button>
+            </div>
         </div>
         <div id="anticipationListContainer" style="overflow-y:auto;max-height:220px;display:flex;flex-direction:column;gap:6px;padding-right:4px;">
             ${sortedBills.map(function (b) {
                 var num = parseInt(b.installment_number || b.current_installment, 10) || 0;
                 var isPaid = !!b.paid;
-                var isCurrent = (num === currentNum);
-                var isFuture = (num > currentNum && !isPaid);
-                var disabled = !isFuture;
-                var badgeLabel = isPaid ? 'PAGA' : (isCurrent ? 'ATUAL' : 'FUTURA');
-                var badgeBg = isPaid ? '#10b981' : (isCurrent ? '#f59e0b' : '#0284c7');
+                var isCurrent = (num === currentNum) || (String(b.id) === targetId);
+                // Permite selecionar a conta do mês atual e parcelas futuras em aberto!
+                var disabled = isPaid; // Apenas as já quitadas ficam desabilitadas
+                var badgeLabel = isPaid ? 'PAGA' : (isCurrent ? 'ATUAL' : (num > currentNum ? 'FUTURA' : 'PENDENTE'));
+                var badgeBg = isPaid ? '#10b981' : (isCurrent ? '#f59e0b' : (num > currentNum ? '#0284c7' : '#ef4444'));
                 var valFormatted = typeof formatCurrency === 'function' ? formatCurrency(b.amount) : 'R$ ' + (Number(b.amount) || 0).toFixed(2);
+                var dateStr = b.due_date || b.date ? (typeof formatDate === 'function' ? formatDate(b.due_date || b.date) : String(b.due_date || b.date).slice(0, 10)) : '';
 
                 return `
-                    <label style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;border:1px solid var(--color-border,#e2e8f0);background:${disabled ? 'var(--color-bg,#f8fafc)' : 'var(--color-surface,#ffffff)'};opacity:${disabled ? '0.6' : '1'};cursor:${disabled ? 'not-allowed' : 'pointer'};">
+                    <label style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;border:1px solid ${isCurrent ? '#f59e0b' : 'var(--color-border,#e2e8f0)'};background:${disabled ? 'var(--color-bg,#f8fafc)' : 'var(--color-surface,#ffffff)'};opacity:${disabled ? '0.6' : '1'};cursor:${disabled ? 'not-allowed' : 'pointer'};">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <input type="checkbox" class="chk-anticipate" data-id="${b.id}" data-num="${num}" data-amount="${b.amount}" ${disabled ? 'disabled' : ''} style="accent-color:#0284c7;width:17px;height:17px;cursor:${disabled ? 'not-allowed' : 'pointer'};">
                             <span style="font-weight:600;font-size:13px;">Parcela ${num}/${totalNum}</span>
                             <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;color:#ffffff;background:${badgeBg};">${badgeLabel}</span>
+                            ${dateStr ? `<span style="font-size:11px;color:var(--color-text-muted,#64748b);">${dateStr}</span>` : ''}
                         </div>
                         <span style="font-size:13px;font-weight:700;color:var(--color-text,#1e293b);">${valFormatted}</span>
                     </label>
@@ -2400,6 +2459,18 @@ function getAnticipationModal(options) {
             available.forEach(function (c) { c.checked = false; });
             var last3 = available.slice(-3);
             last3.forEach(function (c) { c.checked = true; });
+            userModifiedPaid = false;
+            recalculate();
+        };
+    }
+
+    var btnAllOpen = card.querySelector('#btnSelectAllOpen');
+    if (btnAllOpen) {
+        btnAllOpen.onclick = function () {
+            var available = Array.from(chks);
+            if (available.length === 0) return;
+            var anyUnchecked = available.some(function (c) { return !c.checked; });
+            available.forEach(function (c) { c.checked = anyUnchecked; });
             userModifiedPaid = false;
             recalculate();
         };

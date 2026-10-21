@@ -1492,15 +1492,25 @@ async function runUnitTests() {
         const currentParcel10 = fullSeries[9]; // Parcela atual 10/20
         const currentNum = currentParcel10.installment_number;
 
-        // 1. Validação de selecionabilidade: apenas futuras (> 10) e não pagas
-        const selectable = fullSeries.filter(b => b.installment_number > currentNum && !b.paid);
-        assert.strictEqual(selectable.length, 10, 'Apenas as parcelas 11 a 20 podem ser antecipadas');
+        // 1. Validação de selecionabilidade: parcelas em aberto (incluindo a atual 10 e futuras 11 a 20)
+        const selectable = fullSeries.filter(b => !b.paid);
+        assert.strictEqual(selectable.length, 11, 'As 11 parcelas em aberto (10 a 20) podem ser selecionadas para quitação');
+
+        // 1b. Parcelas já pagas (1 a 9) ficam desabilitadas
+        const disabledPaid = fullSeries.filter(b => b.paid);
+        assert.strictEqual(disabledPaid.length, 9, 'As 9 parcelas anteriores já quitadas ficam desabilitadas');
 
         // 2. Usuário seleciona as parcelas 18, 19 e 20
         const selected = fullSeries.filter(b => [18, 19, 20].includes(b.installment_number));
         assert.strictEqual(selected.length, 3);
         const sumOriginal = selected.reduce((s, b) => s + b.amount, 0);
         assert.strictEqual(sumOriginal, 300.00, 'Soma das 3 parcelas originais é R$ 300');
+
+        // 2b. Usuário também tem o poder de selecionar a parcela atual (10) junto com 18, 19 e 20
+        const selectedWithCurrent = fullSeries.filter(b => [10, 18, 19, 20].includes(b.installment_number));
+        assert.strictEqual(selectedWithCurrent.length, 4);
+        const sumWithCurrent = selectedWithCurrent.reduce((s, b) => s + b.amount, 0);
+        assert.strictEqual(sumWithCurrent, 400.00, 'Soma incluindo a parcela atual é R$ 400');
 
         // 3. Resolução de helpers via funções puras / mock local (padrão dos demais testes unitários)
         const checkValueMismatch = function(typed, sum) {
@@ -1536,17 +1546,51 @@ async function runUnitTests() {
         assert.strictEqual(checkValueMismatch(280, 300), true, 'Valor com desconto (R$ 280) acusa divergência');
         assert.strictEqual(checkValueMismatch(320, 300), true, 'Valor com juros (R$ 320) acusa divergência');
 
-        // 4. Descrição canônica
-        const desc = buildAnticipationDescription('Empréstimo (10/20)', [18, 19, 20]);
-        assert.strictEqual(desc, 'Antecipação: Empréstimo (18, 19, 20)');
+        // 4. Descrição canônica (ambos os cenários: só futuras E atual + futuras)
+        const descOnlyFuture = buildAnticipationDescription('Empréstimo (10/20)', [18, 19, 20]);
+        assert.strictEqual(descOnlyFuture, 'Antecipação: Empréstimo (18, 19, 20)', 'Cenário só futuras 18, 19, 20');
 
-        // 5. Payload da transação única de extrato
-        const txPayload = createAnticipationTransaction(currentParcel10, selected, 280.00, '2026-10-21');
-        assert.strictEqual(txPayload.amount, 280.00, 'Extrato registra o valor digitado (R$ 280)');
-        assert.strictEqual(txPayload.is_anticipation, true, 'is_anticipation deve ser true');
-        assert.strictEqual(txPayload.is_bill, false, 'is_bill deve ser false para não duplicar como conta a pagar');
-        assert.strictEqual(txPayload.paid, true, 'Transação de quitação nasce como paga');
-        assert.strictEqual(txPayload.parent_transaction_id, motherId, 'Vinculada à conta-mãe');
+        const descWithCurrent = buildAnticipationDescription('Empréstimo (10/20)', [10, 18, 19, 20]);
+        assert.strictEqual(descWithCurrent, 'Antecipação: Empréstimo (10, 18, 19, 20)', 'Cenário incluindo atual 10 + 18, 19, 20');
+
+        // 5. Payload da transação única de extrato (cenário quitação conjunta 10 + 18 + 19 + 20)
+        const txPayloadJoint = createAnticipationTransaction(currentParcel10, selectedWithCurrent, 380.00, '2026-10-21');
+        assert.strictEqual(txPayloadJoint.amount, 380.00, 'Extrato registra o valor digitado da quitação conjunta (R$ 380)');
+        assert.strictEqual(txPayloadJoint.description, 'Antecipação: Empréstimo (10, 18, 19, 20)');
+        assert.strictEqual(txPayloadJoint.is_anticipation, true, 'is_anticipation deve ser true');
+        assert.strictEqual(txPayloadJoint.is_bill, false, 'is_bill deve ser false para não duplicar como conta a pagar');
+        assert.strictEqual(txPayloadJoint.paid, true, 'Transação de quitação nasce como paga');
+        assert.strictEqual(txPayloadJoint.parent_transaction_id, motherId, 'Vinculada à conta-mãe');
+
+        // 6. Teste de Isolamento de Linhagem: 2 contas com MESMA descrição ("Empréstimo")
+        const otherLoanSeries = [];
+        const otherMotherId = 'bill_other_loan_12';
+        for (let j = 1; j <= 12; j++) {
+            otherLoanSeries.push({
+                id: `other_loan_${j}`,
+                parent_transaction_id: otherMotherId,
+                description: `Empréstimo (${j}/12)`,
+                installment_number: j,
+                installment_total: 12,
+                amount: 50.00,
+                paid: false
+            });
+        }
+        const mixedSeries = [...fullSeries, ...otherLoanSeries];
+        // Filtro estrito por parent_transaction_id
+        const targetPId = currentParcel10.parent_transaction_id || currentParcel10.id;
+        const isolated = mixedSeries.filter(b => {
+            const bId = String(b.id);
+            if (bId === String(currentParcel10.id)) return true;
+            const bPId = b.parent_transaction_id ? String(b.parent_transaction_id) : null;
+            if (targetPId) {
+                if (bId === targetPId) return true;
+                if (bPId) return bPId === targetPId;
+            }
+            return false;
+        });
+        assert.strictEqual(isolated.length, 20, 'Filtro de linhagem isola exatamente as 20 parcelas do Empréstimo A');
+        assert.ok(isolated.every(b => !String(b.id).startsWith('other_loan_')), 'Nenhuma parcela do Empréstimo B entra na série do Empréstimo A');
     });
 
     return results;

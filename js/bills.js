@@ -1257,17 +1257,63 @@
         const target = allBills.find(b => String(b.id) === String(billId));
         if (!target) return;
 
-        let series = allBills;
-        if (typeof window.getFullSeriesInfo === 'function') {
-            const info = await window.getFullSeriesInfo(target, allBills, { userId: currentUser?.id });
-            series = [info.target, ...info.all].filter(Boolean);
+        let series = [target];
+        try {
+            if (typeof window.getFullSeriesInfo === 'function') {
+                const info = await window.getFullSeriesInfo(target, allBills, { userId: currentUser?.id });
+                if (info && (info.all?.length > 0 || info.fromNow?.length > 0)) {
+                    series = [info.target, ...(info.all || [])].filter(Boolean);
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao consultar getFullSeriesInfo:', e);
         }
+
+        // Se ainda tem apenas o target (ex: meses futuros não carregados na tela atual), busca no IndexedDB local completo
+        if (series.length <= 1 && window.tonuSync && currentUser?.id) {
+            try {
+                const allCached = await window.tonuSync.getCachedBills(currentUser.id);
+                if (Array.isArray(allCached) && allCached.length > 0) {
+                    const cleanDesc = String(target.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+                    const pId = target.parent_transaction_id ? String(target.parent_transaction_id) : String(target.id);
+                    const matched = allCached.filter(b => {
+                        if (!b) return false;
+                        if (String(b.id) === String(target.id)) return true;
+                        if (b.parent_transaction_id && (String(b.parent_transaction_id) === pId || String(b.id) === pId)) return true;
+                        if (target.parent_transaction_id && String(b.parent_transaction_id) === String(target.parent_transaction_id)) return true;
+                        const bDesc = String(b.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+                        return cleanDesc && bDesc === cleanDesc;
+                    });
+                    if (matched.length > 1) {
+                        series = matched;
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // Garante que APENAS parcelas desta conta estão na lista enviada ao modal (isolamento estrito)
+        const cleanTargetDesc = String(target.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+        const targetPId = target.parent_transaction_id ? String(target.parent_transaction_id) : String(target.id);
+        const filteredSeries = series.filter(b => {
+            if (!b) return false;
+            const bId = String(b.id);
+            if (bId === String(target.id)) return true;
+
+            const bPId = b.parent_transaction_id ? String(b.parent_transaction_id) : null;
+            if (targetPId) {
+                if (bId === targetPId) return true;
+                if (bPId) return bPId === targetPId;
+            }
+
+            const bDesc = String(b.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+            return cleanTargetDesc && bDesc === cleanTargetDesc && !bPId;
+        });
 
         const modalFn = window.getAnticipationModal || window.showAnticipationModal;
         if (typeof modalFn === 'function') {
             modalFn({
                 target: target,
-                allSeries: series,
+                allSeries: filteredSeries.length > 0 ? filteredSeries : [target],
                 onConfirm: async function (selectedBills, typedAmount, paymentDate) {
                     await processAnticipation(target, selectedBills, typedAmount, paymentDate);
                 }
@@ -1316,7 +1362,21 @@
 
         // 3. Atualiza cache local IndexedDB e enfileira
         if (window.tonuSync && currentUser?.id) {
-            await window.tonuSync.setCachedBills(currentUser.id, allBills);
+            try {
+                const cached = await window.tonuSync.getCachedBills(currentUser.id);
+                if (Array.isArray(cached)) {
+                    cached.forEach(b => {
+                        if (idSet.has(String(b.id))) {
+                            b.paid = true;
+                            b.paid_date = today;
+                        }
+                    });
+                    await window.tonuSync.setCachedBills(currentUser.id, cached);
+                } else {
+                    await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                }
+            } catch (_) {}
+
             for (const bId of selectedIds) {
                 await window.tonuSync.enqueue('UPDATE_BILL', { id: bId, paid: true, paid_date: today });
             }
@@ -1333,7 +1393,7 @@
             }
         }
 
-        showToast(`✅ ${selectedBills.length} parcelas quitadas por ${formatCurrency(typedAmount)}!`, 'success');
+        showToast(`✅ ${selectedBills.length} parcela(s) quitada(s) por ${formatCurrency(typedAmount)}!`, 'success');
         applyFiltersAndRender();
         updateSummaryCards(allBills);
     }
