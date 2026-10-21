@@ -1,313 +1,134 @@
 /* ============================================
-   SYNC-STATUS.CSS - Status de Sincronização
+   SYNC-STATUS.CSS - Status de Sincronização Discreto
    TonuControle v2.1.0
    ============================================ */
 
-/* ============================================
-   INDICADOR DE STATUS
-   ============================================ */
-
+/* Botão indicador discreto (Dot) no Topbar */
 .sync-status-indicator {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: 10px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 500;
+    justify-content: center;
     cursor: pointer;
-    background: rgba(0, 0, 0, 0.03);
-    color: #8395a7;
-    transition: all 0.2s ease;
+    background: transparent !important;
+    border: 1px solid var(--color-border, #e2e8f0) !important;
+    padding: 0 !important;
+    margin: 0;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     user-select: none;
     position: relative;
-    border: 1px solid transparent;
+    box-sizing: border-box;
+    outline: none;
+    flex-shrink: 0;
 }
 
 .sync-status-indicator:hover {
-    background: rgba(0, 0, 0, 0.06);
+    background: rgba(0, 0, 0, 0.04) !important;
+    transform: translateY(-1px);
 }
 
+body.dark-theme .sync-status-indicator {
+    border-color: #334155 !important;
+}
+
+body.dark-theme .sync-status-indicator:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Bolinha indicadora centralizada */
 .sync-status-indicator .sync-dot {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    background: #b2bec3;
-    display: inline-block;
+    display: block;
     transition: all 0.3s ease;
 }
 
-.sync-status-indicator .sync-text {
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.sync-status-indicator .sync-badge {
-    background: #6c5ce7;
-    color: white;
-    font-size: 9px;
-    font-weight: 700;
-    padding: 0 5px;
-    border-radius: 10px;
-    min-width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    border: 2px solid white;
-}
-
-.sync-status-indicator .sync-badge.hidden {
+/* Ocultar textos e badges intrusivos no mobile e desktop */
+.sync-status-indicator .sync-text,
+.sync-status-indicator .sync-badge,
+.sync-status-indicator .sync-tooltip {
     display: none !important;
 }
 
-.sync-status-indicator .sync-tooltip {
-    display: none;
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: #1e293b;
-    color: #f8fafc;
-    padding: 4px 12px;
-    border-radius: 6px;
-    font-size: 11px;
-    white-space: nowrap;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 9999;
-}
-
-.sync-status-indicator:hover .sync-tooltip {
-    display: block;
-}
-
 /* ============================================
-   STATUS ONLINE
+   STATUS 1: ONLINE / 100% SINCRONIZADO
+   Verde Estático (Sem Animação)
    ============================================ */
-
-.sync-status-indicator.online {
-    color: #10b981;
-    background: rgba(16, 185, 129, 0.08);
-    border-color: rgba(16, 185, 129, 0.2);
-}
-
 .sync-status-indicator.online .sync-dot {
     background: #10b981;
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
-    animation: none;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+    animation: none !important;
 }
 
 /* ============================================
-   STATUS OFFLINE
+   STATUS 2: PENDENTE (1+ itens na fila)
+   Âmbar Pulsando
    ============================================ */
-
-.sync-status-indicator.offline {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.08);
-    border-color: rgba(239, 68, 68, 0.2);
-    animation: pulseOffline 2s infinite;
-}
-
-.sync-status-indicator.offline .sync-dot {
-    background: #ef4444;
-    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
-}
-
-@keyframes pulseOffline {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
-}
-
-/* ============================================
-   STATUS SYNCING
-   ============================================ */
-
-.sync-status-indicator.syncing {
-    color: #6c5ce7;
-    background: rgba(108, 92, 231, 0.08);
-    border-color: rgba(108, 92, 231, 0.2);
-}
-
-.sync-status-indicator.syncing .sync-dot {
-    background: #6c5ce7;
-    animation: spinDot 1s linear infinite;
-}
-
-@keyframes spinDot {
-    0% {
-        transform: rotate(0deg) scale(1);
-    }
-
-    50% {
-        transform: rotate(180deg) scale(1.3);
-    }
-
-    100% {
-        transform: rotate(360deg) scale(1);
-    }
-}
-
-/* ============================================
-   STATUS PENDING
-   ============================================ */
-
-.sync-status-indicator.pending {
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.08);
-    border-color: rgba(245, 158, 11, 0.2);
-}
-
 .sync-status-indicator.pending .sync-dot {
     background: #f59e0b;
-    animation: pulsePending 1.5s infinite;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
+    animation: pulseAmberDot 1.4s infinite ease-in-out;
 }
 
-@keyframes pulsePending {
-
-    0%,
-    100% {
-        opacity: 1;
+@keyframes pulseAmberDot {
+    0%, 100% {
         transform: scale(1);
+        opacity: 1;
+        box-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
     }
-
     50% {
-        opacity: 0.5;
-        transform: scale(1.2);
+        transform: scale(1.25);
+        opacity: 0.65;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.9);
     }
 }
 
 /* ============================================
-   OFFLINE BANNER
+   STATUS 3: OFFLINE
+   Se houver pendência: âmbar pulsando.
+   Se sem pendências: cinza discreto estático.
    ============================================ */
+.sync-status-indicator.offline .sync-dot {
+    background: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
+    animation: pulseAmberDot 1.4s infinite ease-in-out;
+}
 
+.sync-status-indicator.offline.no-pending .sync-dot {
+    background: #94a3b8;
+    box-shadow: none;
+    animation: none !important;
+}
+
+/* ============================================
+   STATUS 4: SINCRONIZANDO COM A NUVEM
+   ============================================ */
+.sync-status-indicator.syncing .sync-dot {
+    background: #6c5ce7;
+    box-shadow: 0 0 8px rgba(108, 92, 231, 0.7);
+    animation: pulseSyncing 0.9s infinite alternate;
+}
+
+@keyframes pulseSyncing {
+    0% { transform: scale(0.9); opacity: 0.6; }
+    100% { transform: scale(1.25); opacity: 1; }
+}
+
+/* Evitar banners intrusivos fixos cobrindo o header */
 .offline-banner {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 999999;
-    background: #fef3c7;
-    color: #92400e;
-    text-align: center;
-    padding: 8px 16px;
-    font-size: 12px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    font-family: 'Inter', sans-serif;
-    border-bottom: 2px solid #f59e0b;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transform: translateY(0);
-    transition: transform 0.3s ease, opacity 0.3s ease;
-    min-height: 40px;
+    display: none !important;
 }
 
-.offline-banner.hidden {
-    transform: translateY(-100%);
-    opacity: 0;
-    pointer-events: none;
-}
-
-.offline-banner i {
-    font-size: 16px;
-}
-
-.offline-banner .retry-btn {
-    background: white;
-    border: none;
-    padding: 4px 14px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 11px;
-    cursor: pointer;
-    color: #92400e;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-family: 'Inter', sans-serif;
-}
-
-.offline-banner .retry-btn:hover {
-    background: #f3f4f6;
-    transform: scale(1.02);
-}
-
-/* ============================================
-   RESPONSIVIDADE
-   ============================================ */
-
-@media (max-width: 768px) {
-    .sync-status-indicator .sync-text {
-        display: none;
-    }
-
-    .sync-status-indicator {
-        padding: 4px 8px;
-    }
-
-    .offline-banner {
-        font-size: 11px;
-        padding: 6px 12px;
-        gap: 8px;
-        min-height: 36px;
-    }
-}
-
-@media (max-width: 480px) {
-    .sync-status-indicator {
-        padding: 4px 6px;
-    }
-
-    .sync-status-indicator .sync-dot {
-        width: 6px;
-        height: 6px;
-    }
-
-    .offline-banner {
-        font-size: 10px;
-        padding: 4px 10px;
-        gap: 6px;
-        min-height: 32px;
-        flex-wrap: wrap;
-    }
-
-    .offline-banner .retry-btn {
-        padding: 2px 10px;
-        font-size: 10px;
-    }
-}
-
-/* ============================================
-   PREFERS-REDUCED-MOTION
-   ============================================ */
-
+/* Redução de movimento */
 @media (prefers-reduced-motion: reduce) {
-    .sync-status-indicator.offline {
-        animation: none !important;
-    }
-
+    .sync-status-indicator.pending .sync-dot,
+    .sync-status-indicator.offline .sync-dot,
     .sync-status-indicator.syncing .sync-dot {
         animation: none !important;
-    }
-
-    .sync-status-indicator.pending .sync-dot {
-        animation: none !important;
-    }
-
-    .offline-banner {
-        transition: none !important;
     }
 }

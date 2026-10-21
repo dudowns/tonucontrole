@@ -94,8 +94,9 @@
                                         document.querySelector('.topbar') ||
                                         document.querySelector('header');
                 if (targetContainer) {
-                    badge = document.createElement('div');
+                    badge = document.createElement('button');
                     badge.id = 'tonuSyncIndicator';
+                    badge.type = 'button';
                     badge.className = 'sync-status-indicator';
                     targetContainer.insertBefore(badge, targetContainer.firstChild);
                 }
@@ -104,14 +105,28 @@
 
             badge.onclick = (e) => {
                 e.stopPropagation();
-                if (this.isOnline) {
-                    this.flushQueue();
+                if (this.isSyncing) {
                     if (typeof showToast === 'function') {
-                        showToast('🔄 Verificando e sincronizando dados com a nuvem...', 'info');
+                        showToast('🔄 Sincronizando dados com a nuvem...', 'info');
+                    }
+                } else if (pendingCount > 0) {
+                    if (this.isOnline) {
+                        this.flushQueue();
+                        if (typeof showToast === 'function') {
+                            showToast(`⚡ ${pendingCount} alteração(ões) pendente(s). Sincronizando agora...`, 'info');
+                        }
+                    } else {
+                        if (typeof showToast === 'function') {
+                            showToast(`📶 Modo Offline: ${pendingCount} alteração(ões) salva(s) no aparelho.`, 'warning');
+                        }
+                    }
+                } else if (!this.isOnline) {
+                    if (typeof showToast === 'function') {
+                        showToast('📶 Modo Offline: alterações salvas no aparelho.', 'info');
                     }
                 } else {
                     if (typeof showToast === 'function') {
-                        showToast('📶 Modo Offline: alterações salvas no aparelho e serão enviadas ao reconectar.', 'warning');
+                        showToast('✅ Tudo em dia! Dados 100% sincronizados.', 'success');
                     }
                 }
             };
@@ -119,33 +134,21 @@
             badge.className = 'sync-status-indicator';
             if (this.isSyncing) {
                 badge.classList.add('syncing');
-                badge.innerHTML = `
-                    <span class="sync-dot"></span>
-                    <span class="sync-text">Sincronizando...</span>
-                    <span class="sync-tooltip">Enviando dados para a nuvem...</span>
-                `;
-            } else if (!this.isOnline) {
-                badge.classList.add('offline');
-                badge.innerHTML = `
-                    <span class="sync-dot"></span>
-                    <span class="sync-text">${pendingCount > 0 ? '⚡ ' + pendingCount + ' offline' : 'Offline'}</span>
-                    <span class="sync-tooltip">Sem internet. Alterações salvas com segurança no dispositivo.</span>
-                `;
+                badge.title = 'Sincronizando com a nuvem...';
+                badge.innerHTML = `<span class="sync-dot"></span>`;
             } else if (pendingCount > 0) {
                 badge.classList.add('pending');
-                badge.innerHTML = `
-                    <span class="sync-dot"></span>
-                    <span class="sync-text">⚡ ${pendingCount} pendente${pendingCount > 1 ? 's' : ''}</span>
-                    <span class="sync-badge">${pendingCount}</span>
-                    <span class="sync-tooltip">${pendingCount} alteração(ões) salva(s) localmente. Clique para enviar agora.</span>
-                `;
+                badge.title = `${pendingCount} alteração(ões) pendente(s) (Clique para sincronizar)`;
+                badge.innerHTML = `<span class="sync-dot"></span>`;
+            } else if (!this.isOnline) {
+                badge.classList.add('offline');
+                badge.classList.add('no-pending');
+                badge.title = 'Modo Offline';
+                badge.innerHTML = `<span class="sync-dot"></span>`;
             } else {
                 badge.classList.add('online');
-                badge.innerHTML = `
-                    <span class="sync-dot"></span>
-                    <span class="sync-text">Sincronizado</span>
-                    <span class="sync-tooltip">Tudo em dia! Dados 100% sincronizados com a nuvem.</span>
-                `;
+                badge.title = '100% Sincronizado com a nuvem';
+                badge.innerHTML = `<span class="sync-dot"></span>`;
             }
         }
 
