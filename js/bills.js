@@ -1332,11 +1332,12 @@
         const selectedIds = selectedBills.map(b => String(b.id));
         const idSet = new Set(selectedIds);
 
-        // 1. Marca as parcelas selecionadas como pagas preservando suas datas futuras
+        // 1. Marca as parcelas como pagas mantendo datas de vencimento e amount original intactos
         allBills.forEach(b => {
             if (idSet.has(String(b.id))) {
                 b.paid = true;
                 b.paid_date = today;
+                if (!b.amount_paid) b.amount_paid = b.amount;
             }
         });
 
@@ -1369,6 +1370,7 @@
                         if (idSet.has(String(b.id))) {
                             b.paid = true;
                             b.paid_date = today;
+                            if (!b.amount_paid) b.amount_paid = b.amount;
                         }
                     });
                     await window.tonuSync.setCachedBills(currentUser.id, cached);
@@ -1378,7 +1380,8 @@
             } catch (_) {}
 
             for (const bId of selectedIds) {
-                await window.tonuSync.enqueue('UPDATE_BILL', { id: bId, paid: true, paid_date: today });
+                const matchingBill = selectedBills.find(b => String(b.id) === String(bId));
+                await window.tonuSync.enqueue('UPDATE_BILL', { id: bId, paid: true, paid_date: today, amount_paid: matchingBill?.amount });
             }
             await window.tonuSync.enqueue('INSERT_TRANSACTION', txPayload);
         }
