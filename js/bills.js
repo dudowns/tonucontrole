@@ -712,9 +712,23 @@
             applyFiltersAndRender();
             updateSummaryCards(allBills);
 
-            // Atualizar cache de contas no IndexedDB canônico e enfileirar para sync
+            // Atualizar cache de contas e transações no IndexedDB canônico
             if (window.tonuSync && currentUser?.id) {
                 await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                try {
+                    const cachedTx = await window.tonuSync.getCachedTransactions(currentUser.id);
+                    if (Array.isArray(cachedTx)) {
+                        const targetTx = cachedTx.find(t => String(t.id) === String(id));
+                        if (targetTx) {
+                            targetTx.paid = newPaidStatus;
+                            targetTx.paid_date = newPaidDate;
+                            targetTx.date = bill.date;
+                            targetTx.due_date = bill.due_date || targetTx.due_date;
+                            await window.tonuSync.setCachedTransactions(currentUser.id, cachedTx);
+                        }
+                    }
+                } catch (_) {}
+
                 await window.tonuSync.enqueue('UPDATE_BILL', {
                     id: id,
                     paid: newPaidStatus,
@@ -722,6 +736,24 @@
                     date: bill.date,
                     due_date: bill.due_date || undefined
                 });
+            }
+
+            // Sincroniza diretamente no Supabase se online
+            if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+                try {
+                    await window.supabaseClient
+                        .from('transactions')
+                        .update({
+                            paid: newPaidStatus,
+                            paid_date: newPaidDate,
+                            date: bill.date,
+                            due_date: bill.due_date || null
+                        })
+                        .eq('id', id)
+                        .eq('user_id', currentUser.id);
+                } catch (supaErr) {
+                    console.warn('Erro ao atualizar Supabase ao pagar conta:', supaErr);
+                }
             }
 
             showToast(newPaidStatus ? 'Conta paga e lançada nas transações com sucesso! ✅' : 'Conta retornou para PENDENTE ⏳', 'success');
@@ -1346,20 +1378,25 @@
         const txPayload = typeof createFn === 'function'
             ? createFn(target, selectedBills, typedAmount, today)
             : {
-                id: genUuid(),
-                user_id: target.user_id,
+                id: (typeof genUuid === 'function' ? genUuid() : (window.genUuid ? window.genUuid() : '00000000-0000-4000-8000-000000000000')),
+                user_id: currentUser?.id || target.user_id,
                 description: `Antecipação: ${(target.description || 'Conta').replace(/\s*\(\d+\/\d+\)$/, '').trim()}`,
                 amount: typedAmount,
                 date: today,
                 due_date: today,
                 type: 'expense',
                 category_id: target.category_id || null,
+                category: target.category || 'Contas / Empréstimos',
                 is_bill: false,
                 paid: true,
                 paid_date: today,
                 parent_transaction_id: String(target.parent_transaction_id || target.id),
                 is_anticipation: true
             };
+
+        if (currentUser?.id && !txPayload.user_id) {
+            txPayload.user_id = currentUser.id;
+        }
 
         // 3. Atualiza cache local IndexedDB e enfileira
         if (window.tonuSync && currentUser?.id) {
@@ -1379,6 +1416,23 @@
                 }
             } catch (_) {}
 
+            // Atualiza cache de transações também para aparecer imediatamente no extrato
+            try {
+                const cachedTx = await window.tonuSync.getCachedTransactions(currentUser.id);
+                const txList = Array.isArray(cachedTx) ? cachedTx : [];
+                txList.forEach(t => {
+                    if (idSet.has(String(t.id))) {
+                        t.paid = true;
+                        t.paid_date = today;
+                        if (!t.amount_paid) t.amount_paid = t.amount;
+                    }
+                });
+                if (!txList.some(t => String(t.id) === String(txPayload.id))) {
+                    txList.unshift(txPayload);
+                }
+                await window.tonuSync.setCachedTransactions(currentUser.id, txList);
+            } catch (_) {}
+
             for (const bId of selectedIds) {
                 const matchingBill = selectedBills.find(b => String(b.id) === String(bId));
                 await window.tonuSync.enqueue('UPDATE_BILL', { id: bId, paid: true, paid_date: today, amount_paid: matchingBill?.amount });
@@ -1390,7 +1444,12 @@
         if (window.supabaseClient && currentUser?.id && navigator.onLine) {
             try {
                 await window.supabaseClient.from('transactions').update({ paid: true, paid_date: today }).in('id', selectedIds).eq('user_id', currentUser.id);
-                await window.supabaseClient.from('transactions').insert(txPayload);
+                const { error: insErr } = await window.supabaseClient.from('transactions').insert(txPayload);
+                if (insErr) {
+                    console.error('❌ Erro ao salvar antecipação no Supabase:', insErr);
+                } else {
+                    console.log('✅ Antecipação registrada com sucesso no Supabase');
+                }
             } catch (err) {
                 console.warn('Erro ao salvar antecipação no Supabase:', err);
             }

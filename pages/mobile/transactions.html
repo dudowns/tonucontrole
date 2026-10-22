@@ -373,8 +373,7 @@ async function loadTransactions() {
         const selDate = getSelectedMonthDate();
         const year = selDate.getFullYear();
         const month = String(selDate.getMonth() + 1).padStart(2, "0");
-        const firstDay = `${year}-${month}-01`;
-        const lastDay = `${year}-${month}-${new Date(year, selDate.getMonth() + 1, 0).getDate()}`;
+        const ym = `${year}-${month}`;
 
         let txs = [];
         let fetchedOnline = false;
@@ -384,8 +383,6 @@ async function loadTransactions() {
                     .from("transactions")
                     .select("*")
                     .eq("user_id", currentUser.id)
-                    .gte("date", firstDay)
-                    .lte("date", lastDay)
                     .order("date", { ascending: false });
 
                 if (!error && data) {
@@ -403,7 +400,7 @@ async function loadTransactions() {
         if (!fetchedOnline && window.tonuSync) {
             const cached = await window.tonuSync.getCachedTransactions(currentUser?.id);
             if (cached && cached.length > 0) {
-                txs = cached.filter(t => t.date >= firstDay && t.date <= lastDay);
+                txs = cached;
             }
         }
 
@@ -414,7 +411,30 @@ async function loadTransactions() {
             }).cleanList;
         }
 
-        allTransactions = txs;
+        // Normalização de data de pagamento vs vencimento:
+        // Se a conta ou transação foi paga e tem paid_date, date deve ser a data real do clique/pagamento
+        txs.forEach(t => {
+            if (t.paid && t.paid_date) {
+                if (!t.due_date && t.date && t.date !== t.paid_date) {
+                    t.due_date = t.date;
+                }
+                t.date = t.paid_date;
+            }
+        });
+
+        // Filtrar pelo mês selecionado
+        allTransactions = txs.filter(t => {
+            const tDate = t.date || '';
+            return tDate.startsWith(ym);
+        });
+
+        allTransactions.sort((a, b) => {
+            const dateA = a.date || '';
+            const dateB = b.date || '';
+            if (dateA !== dateB) return dateB.localeCompare(dateA);
+            return (b.created_at || '').localeCompare(a.created_at || '');
+        });
+
         filterTransactions();
     } catch (error) {
         console.error("Erro ao carregar:", error);
@@ -472,6 +492,8 @@ function renderTransactions() {
         }
 
         const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
+        const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
+        const dueNote = (t.due_date && t.due_date !== effectiveDate) ? ` • Venc: ${formatDate(t.due_date)}` : '';
 
         return `
             <div class="mobile-transaction" style="display:flex; justify-content:space-between; align-items:center;">
@@ -481,7 +503,7 @@ function renderTransactions() {
                     </div>
                     <div class="tx-info">
                         <strong>${displayDesc} ${badge}</strong>
-                        <small style="display:block; color:#94a3b8; font-size:11px;">${formatDate(t.date)} • ${cat?.name || 'Geral'}</small>
+                        <small style="display:block; color:#94a3b8; font-size:11px;">${formatDate(effectiveDate)} • ${cat?.name || 'Geral'}${dueNote}</small>
                     </div>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">

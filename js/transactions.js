@@ -347,6 +347,16 @@
                 }
             }
 
+            // Garante que para qualquer conta ou transação paga com paid_date, o campo date reflita a data real do clique/pagamento
+            txs.forEach(t => {
+                if (t.paid && t.paid_date) {
+                    if (!t.due_date && t.date && t.date !== t.paid_date) {
+                        t.due_date = t.date;
+                    }
+                    t.date = t.paid_date;
+                }
+            });
+
             allTransactions = txs;
             // Aplica imediatamente o filtro do mês selecionado
             filterTransactions();
@@ -483,6 +493,11 @@
                 ? `<span class="badge-anticipation" style="font-size:10px; padding:1px 6px; background:#e0f2fe; color:#0284c7; border:1px solid #bae6fd; border-radius:4px; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><i class="fas fa-bolt" style="font-size:9px;"></i> Antecipação</span>`
                 : '';
 
+            const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
+            const dueNote = (t.due_date && t.due_date !== effectiveDate)
+                ? `<span style="font-size:11px; opacity:0.85;">(Venc: ${formatDateDisplay(t.due_date)})</span>`
+                : '';
+
             html += `
                 <div class="transaction-card" onclick="openModal('${sanitize(t.id)}')">
                     <div class="t-icon" style="background:${catInfo.color}20; color:${catInfo.color}; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:16px;" title="${sanitize(catInfo.name)}">
@@ -494,8 +509,9 @@
                             ${antBadge}
                         </div>
                         ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
-                        <div style="font-size:12px; color:var(--color-text-muted,#94a3b8); display:flex; gap:8px; align-items:center; margin-top:2px;">
-                            <span>${formatDateDisplay(t.date)}</span>
+                        <div style="font-size:12px; color:var(--color-text-muted,#94a3b8); display:flex; gap:8px; align-items:center; margin-top:2px; flex-wrap:wrap;">
+                            <span>${formatDateDisplay(effectiveDate)}</span>
+                            ${dueNote}
                             <span>•</span>
                             <span>${sanitize(catInfo.name)}</span>
                             ${statusBadge}
@@ -639,6 +655,13 @@
             }
 
             return true;
+        });
+
+        filtered.sort((a, b) => {
+            const dateA = a.date || '';
+            const dateB = b.date || '';
+            if (dateA !== dateB) return dateB.localeCompare(dateA);
+            return (b.created_at || '').localeCompare(a.created_at || '');
         });
 
         currentFilteredTransactions = filtered;

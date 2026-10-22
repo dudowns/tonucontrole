@@ -2015,6 +2015,12 @@
 
         areDuplicates(t1, t2) {
             if (!t1 || !t2) return false;
+            // Antecipações são lançamentos únicos e nunca devem ser tratadas como duplicatas
+            if (t1.is_anticipation || t2.is_anticipation) return false;
+            const desc1Raw = String(t1.description || '').toLowerCase();
+            const desc2Raw = String(t2.description || '').toLowerCase();
+            if (desc1Raw.startsWith('antecipação:') || desc2Raw.startsWith('antecipação:')) return false;
+
             // 1. Mesmo ID
             if (t1.id && t2.id && String(t1.id) === String(t2.id)) return true;
 

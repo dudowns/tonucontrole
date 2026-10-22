@@ -17,6 +17,19 @@ if (typeof global !== 'undefined') {
     global.TONU_JCP_TAX_RATE = 0.20;
 }
 
+function genUuid() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        try { return crypto.randomUUID(); } catch (_) {}
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16 | 0;
+        var v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+if (typeof window !== 'undefined') window.genUuid = genUuid;
+if (typeof globalThis !== 'undefined') globalThis.genUuid = genUuid;
+
 // Units de Ações brasileiras que terminam em 11 (AÇÕES ordinárias/preferenciais, NÃO FIIs)
 var KNOWN_STOCK_UNITS = (typeof window !== 'undefined' && window.KNOWN_STOCK_UNITS) || (typeof globalThis !== 'undefined' && globalThis.KNOWN_STOCK_UNITS) || new Set([
     'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
@@ -2221,15 +2234,35 @@ function createAnticipationTransaction(target, selectedBills, typedAmount, payme
     var desc = buildAnticipationDescription(target.description, nums);
     var date = paymentDate || (typeof getTodayString === 'function' ? getTodayString() : new Date().toISOString().split('T')[0]);
 
+    // Resolução segura de user_id
+    var uid = target.user_id ||
+        (typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null) ||
+        (typeof window !== 'undefined' && window.currentUser ? window.currentUser.id : null);
+    if (!uid && typeof sessionStorage !== 'undefined') {
+        try {
+            var raw = sessionStorage.getItem('tonu_user');
+            if (raw) {
+                var parsed = JSON.parse(raw);
+                uid = (parsed.user || parsed)?.id;
+            }
+        } catch (_) {}
+    }
+
+    // Validação estrita de UUID para category_id (evita erro de constraint no Supabase)
+    var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    var validCatId = (target.category_id && uuidRegex.test(String(target.category_id))) ? String(target.category_id) : null;
+    var catName = target.category || (target.categories && target.categories.name) || 'Contas / Empréstimos';
+
     return {
-        id: typeof genUuid === 'function' ? genUuid() : 'ant_' + Date.now(),
-        user_id: target.user_id,
+        id: genUuid(),
+        user_id: uid,
         description: desc,
         amount: Math.abs(parseFloat(typedAmount) || 0),
         date: date,
         due_date: date,
         type: 'expense',
-        category_id: target.category_id || null,
+        category_id: validCatId,
+        category: catName,
         is_bill: false,
         paid: true,
         paid_date: date,
