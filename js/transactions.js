@@ -478,6 +478,10 @@
 
             const rawDesc = t.description || 'Sem descrição';
             const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(rawDesc) : rawDesc;
+            const isAnticipation = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+            const antBadge = isAnticipation
+                ? `<span class="badge-anticipation" style="font-size:10px; padding:1px 6px; background:#e0f2fe; color:#0284c7; border:1px solid #bae6fd; border-radius:4px; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><i class="fas fa-bolt" style="font-size:9px;"></i> Antecipação</span>`
+                : '';
 
             html += `
                 <div class="transaction-card" onclick="openModal('${sanitize(t.id)}')">
@@ -485,8 +489,9 @@
                         <i class="fas ${catInfo.icon}"></i>
                     </div>
                     <div class="t-info" style="flex:1; min-width:0; margin-left:12px;">
-                        <div style="font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                            ${sanitize(displayDesc)}
+                        <div style="font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px;">
+                            <span>${sanitize(displayDesc)}</span>
+                            ${antBadge}
                         </div>
                         ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
                         <div style="font-size:12px; color:var(--color-text-muted,#94a3b8); display:flex; gap:8px; align-items:center; margin-top:2px;">
@@ -594,14 +599,26 @@
                 if (!descMatch && !catMatch && !tagMatch) return false;
             }
 
-            if (type && type !== 'all' && t.type !== type) return false;
+            if (type && type !== 'all') {
+                if (type === 'anticipation') {
+                    const isAnt = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+                    if (!isAnt) return false;
+                } else if (t.type !== type) {
+                    return false;
+                }
+            }
 
-            // Recorrência / Parcelamento
+            // Recorrência / Parcelamento / Antecipações
             if (recurrenceFilter !== 'all') {
-                const info = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : { type: 'single' };
-                if (recurrenceFilter === 'installments' && !info.isInstallment) return false;
-                if (recurrenceFilter === 'recurring' && !info.isRecurring) return false;
-                if (recurrenceFilter === 'single' && (info.isInstallment || info.isRecurring)) return false;
+                if (recurrenceFilter === 'anticipation') {
+                    const isAnt = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+                    if (!isAnt) return false;
+                } else {
+                    const info = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : { type: 'single' };
+                    if (recurrenceFilter === 'installments' && !info.isInstallment) return false;
+                    if (recurrenceFilter === 'recurring' && !info.isRecurring) return false;
+                    if (recurrenceFilter === 'single' && (info.isInstallment || info.isRecurring)) return false;
+                }
             }
 
             if (cat && cat !== 'all' && cat !== '' && t.category !== cat) return false;
@@ -1000,7 +1017,20 @@
         }
 
         let deleteMode = 'single';
-        if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
+        const isAnticipation = !!(target && (target.is_anticipation || (target.description && String(target.description).toLowerCase().startsWith('antecipação:'))));
+        let shouldRevertBills = false;
+
+        if (isAnticipation) {
+            const match = String(target.description || '').match(/\(([\d,\s]+)\)$/);
+            const numsStr = match ? match[1] : '';
+            if (!confirm(`Deseja realmente excluir esta transação de antecipação?`)) return;
+            shouldRevertBills = confirm(
+                `Esta transação refere-se a uma antecipação de parcelas${numsStr ? ` (${numsStr})` : ''}.\n\n` +
+                `Deseja também REVERTER essas parcelas para o estado NÃO PAGO em Contas a Pagar?\n\n` +
+                `• OK: Exclui a transação e reverte as parcelas para pendentes.\n` +
+                `• Cancelar: Exclui apenas a transação do extrato mantendo as parcelas quitadas.`
+            );
+        } else if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
             deleteMode = await window.confirmRecurringDelete({
                 countFromNow: seriesInfo.fromNow.length,
                 countAll: seriesInfo.all.length,
@@ -1013,6 +1043,17 @@
         }
 
         try {
+            if (shouldRevertBills && typeof window.revertAnticipatedBills === 'function') {
+                try {
+                    const revRes = await window.revertAnticipatedBills(target, { userId: currentUser?.id });
+                    if (revRes && revRes.revertedCount > 0 && window.showToast) {
+                        window.showToast(`${revRes.revertedCount} parcelas foram revertidas para pendentes em Contas! 🔄`, 'info');
+                    }
+                } catch (revErr) {
+                    console.warn('Erro ao reverter parcelas antecipadas:', revErr);
+                }
+            }
+
             let idsToDelete = [String(id)];
             if (deleteMode === 'from_now') {
                 idsToDelete = [String(id), ...seriesInfo.fromNow.map(r => String(r.id))];

@@ -2376,6 +2376,14 @@ function getAnticipationModal(options) {
                 <label style="font-size:12px;font-weight:600;color:var(--color-text,#1e293b);">Valor Total Pago (com desconto ou juros):</label>
                 <input type="number" step="0.01" id="inputAnticipationPaid" placeholder="0,00" style="padding:9px 12px;border-radius:8px;border:1px solid var(--color-border,#cbd5e1);font-size:14px;font-weight:700;width:100%;box-sizing:border-box;background:var(--color-surface,#ffffff);color:var(--color-text,#1e293b);">
             </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:2px;">
+                <span style="font-size:11px;color:var(--color-text-muted,#64748b);margin-right:2px;">Atalhos:</span>
+                <button type="button" class="btn-discount-quick" data-pct="0" style="padding:3px 7px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--color-border,#cbd5e1);background:var(--color-surface,#ffffff);color:var(--color-text,#334155);cursor:pointer;">100%</button>
+                <button type="button" class="btn-discount-quick" data-pct="5" style="padding:3px 7px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;">-5%</button>
+                <button type="button" class="btn-discount-quick" data-pct="10" style="padding:3px 7px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;">-10%</button>
+                <button type="button" class="btn-discount-quick" data-pct="15" style="padding:3px 7px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;">-15%</button>
+                <button type="button" class="btn-discount-quick" data-pct="20" style="padding:3px 7px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;">-20%</button>
+            </div>
             <div id="mismatchWarning" style="display:none;background:#fef3c7;color:#92400e;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;border:1px solid #fde68a;">
                 ⚠️ O valor pago é diferente da soma das parcelas selecionadas.
             </div>
@@ -2451,6 +2459,17 @@ function getAnticipationModal(options) {
         checkWarning();
     };
 
+    card.querySelectorAll('.btn-discount-quick').forEach(function (btn) {
+        btn.onclick = function () {
+            if (!currentSum || currentSum <= 0) return;
+            var pct = parseFloat(btn.getAttribute('data-pct')) || 0;
+            var finalVal = currentSum * (1 - (pct / 100));
+            inputPaid.value = Math.max(0, finalVal).toFixed(2);
+            userModifiedPaid = true;
+            checkWarning();
+        };
+    });
+
     var btnLast3 = card.querySelector('#btnSelectLast3');
     if (btnLast3) {
         btnLast3.onclick = function () {
@@ -2518,6 +2537,101 @@ function getAnticipationModal(options) {
 }
 
 // ============================================
+// REVERSÃO INTELIGENTE DE ANTECIPAÇÃO EM CONTAS
+// ============================================
+async function revertAnticipatedBills(targetTx, options = {}) {
+    if (!targetTx) return { revertedCount: 0, revertedBills: [] };
+    const isAnticipation = !!(targetTx.is_anticipation || (targetTx.description && String(targetTx.description).toLowerCase().startsWith('antecipação:')));
+    if (!isAnticipation) return { revertedCount: 0, revertedBills: [] };
+
+    // Extrai números das parcelas: "Antecipação: Nome (10, 18, 19, 20)"
+    const match = String(targetTx.description || '').match(/\(([\d,\s]+)\)$/);
+    const nums = match ? match[1].split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)) : [];
+
+    const userId = options.userId || (typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null);
+    const motherId = targetTx.parent_transaction_id ? String(targetTx.parent_transaction_id) : null;
+
+    let bills = [];
+    if (window.tonuSync && userId) {
+        try {
+            const cached = await window.tonuSync.getCachedBills(userId);
+            if (Array.isArray(cached)) bills = cached;
+        } catch (_) {}
+    }
+
+    if (bills.length === 0 && options.bills && Array.isArray(options.bills)) {
+        bills = options.bills;
+    }
+
+    const cleanDesc = String(targetTx.description || '')
+        .replace(/^antecipação:\s*/i, '')
+        .replace(/\s*\([\d,\s]+\)$/, '')
+        .trim().toLowerCase();
+
+    const revertedBills = [];
+    const numSet = new Set(nums);
+
+    bills.forEach(b => {
+        const bNum = parseInt(b.installment_number || b.current_installment, 10);
+        const bMotherId = b.parent_transaction_id ? String(b.parent_transaction_id) : String(b.id);
+        const bDesc = String(b.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+
+        let matches = false;
+        if (motherId && (bMotherId === motherId || String(b.id) === motherId)) {
+            if (numSet.size === 0 || numSet.has(bNum)) {
+                matches = true;
+            }
+        } else if (cleanDesc && bDesc === cleanDesc && numSet.has(bNum)) {
+            matches = true;
+        }
+
+        if (matches && (b.paid || b.amount_paid)) {
+            b.paid = false;
+            b.paid_date = null;
+            b.amount_paid = null;
+            revertedBills.push(b);
+        }
+    });
+
+    if (revertedBills.length > 0) {
+        if (window.tonuSync && userId) {
+            try {
+                await window.tonuSync.setCachedBills(userId, bills);
+                for (const rb of revertedBills) {
+                    await window.tonuSync.enqueue('UPDATE_BILL', {
+                        id: rb.id,
+                        paid: false,
+                        paid_date: null,
+                        amount_paid: null
+                    });
+                }
+            } catch (err) {
+                console.warn('Erro ao sincronizar reversão de contas:', err);
+            }
+        }
+
+        if (window.supabaseClient && userId && (typeof navigator === 'undefined' || navigator.onLine)) {
+            try {
+                const ids = revertedBills.map(b => b.id);
+                await window.supabaseClient
+                    .from('bills')
+                    .update({ paid: false, paid_date: null, amount_paid: null })
+                    .in('id', ids)
+                    .eq('user_id', userId);
+            } catch (supaErr) {
+                console.warn('Erro ao atualizar Supabase na reversão:', supaErr);
+            }
+        }
+    }
+
+    return {
+        revertedCount: revertedBills.length,
+        revertedBills,
+        installmentNumbers: nums
+    };
+}
+
+// ============================================
 // 20. EXPORTAR PARA O ESCOPO GLOBAL
 // ============================================
 window.showToast = showToast;
@@ -2571,6 +2685,7 @@ window.createAnticipationTransaction = createAnticipationTransaction;
 window.createAnticipationPayload = createAnticipationTransaction;
 window.getAnticipationModal = getAnticipationModal;
 window.showAnticipationModal = getAnticipationModal;
+window.revertAnticipatedBills = revertAnticipatedBills;
 
 // ============================================
 // LIMPEZA AUTOMÁTICA DE DEMO E CACHES OBSOLETOS
@@ -2880,10 +2995,13 @@ function executeQuickCommand(index) {
         }
     }
 }
-window.executeQuickCommand = executeQuickCommand;
+
+if (typeof window !== 'undefined') {
+    window.executeQuickCommand = executeQuickCommand;
+}
 
 // Ouvinte global para teclado
-if (typeof document !== 'undefined') {
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closeAnyActiveModal();
@@ -2907,7 +3025,8 @@ if (typeof module !== 'undefined' && module.exports) {
         checkValueMismatch,
         buildAnticipationDescription,
         createAnticipationTransaction,
-        getAnticipationModal
+        getAnticipationModal,
+        revertAnticipatedBills
     };
 }
 

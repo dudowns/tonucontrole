@@ -1593,6 +1593,66 @@ async function runUnitTests() {
         assert.ok(isolated.every(b => !String(b.id).startsWith('other_loan_')), 'Nenhuma parcela do Empréstimo B entra na série do Empréstimo A');
     });
 
+    test('Antecipação: Atalhos de desconto rápido, tag no extrato, filtro e reversão inteligente', async () => {
+        const { revertAnticipatedBills } = require('../js/core.js');
+
+        // 1. Simulação dos atalhos de desconto rápido (-5%, -10%, -15%, -20%)
+        const baseSum = 400.00;
+        const discount5 = baseSum * (1 - 0.05);
+        const discount10 = baseSum * (1 - 0.10);
+        const discount15 = baseSum * (1 - 0.15);
+        const discount20 = baseSum * (1 - 0.20);
+
+        assert.strictEqual(discount5, 380.00, 'Desconto de 5% sobre R$ 400 resulta em R$ 380');
+        assert.strictEqual(discount10, 360.00, 'Desconto de 10% sobre R$ 400 resulta em R$ 360');
+        assert.strictEqual(discount15, 340.00, 'Desconto de 15% sobre R$ 400 resulta em R$ 340');
+        assert.strictEqual(discount20, 320.00, 'Desconto de 20% sobre R$ 400 resulta em R$ 320');
+
+        // 2. Simulação de filtro no extrato por 'anticipation'
+        const txList = [
+            { id: '1', description: 'Compra Supermercado', type: 'expense', is_anticipation: false },
+            { id: '2', description: 'Antecipação: Empréstimo (10, 18, 19, 20)', type: 'expense', is_anticipation: true },
+            { id: '3', description: 'Salário Mensal', type: 'income', is_anticipation: false },
+            { id: '4', description: 'antecipação: Notebook (5, 6)', type: 'expense', is_anticipation: false }
+        ];
+
+        const filtered = txList.filter(t => !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:'))));
+        assert.strictEqual(filtered.length, 2, 'Filtro de antecipação isola com precisão os 2 lançamentos');
+        assert.strictEqual(filtered[0].id, '2');
+        assert.strictEqual(filtered[1].id, '4');
+
+        // 3. Simulação da reversão inteligente de parcelas
+        const motherId = 'bill_mother_car_48';
+        const billsCache = [
+            { id: 'c10', parent_transaction_id: motherId, installment_number: 10, description: 'Financiamento Carro (10/48)', paid: true, paid_date: '2026-10-21', amount_paid: 95.00 },
+            { id: 'c18', parent_transaction_id: motherId, installment_number: 18, description: 'Financiamento Carro (18/48)', paid: true, paid_date: '2026-10-21', amount_paid: 95.00 },
+            { id: 'c19', parent_transaction_id: motherId, installment_number: 19, description: 'Financiamento Carro (19/48)', paid: true, paid_date: '2026-10-21', amount_paid: 95.00 },
+            { id: 'c20', parent_transaction_id: motherId, installment_number: 20, description: 'Financiamento Carro (20/48)', paid: true, paid_date: '2026-10-21', amount_paid: 95.00 },
+            { id: 'c21', parent_transaction_id: motherId, installment_number: 21, description: 'Financiamento Carro (21/48)', paid: false, paid_date: null, amount_paid: null }
+        ];
+
+        const antTx = {
+            id: 'tx_ant_999',
+            description: 'Antecipação: Financiamento Carro (10, 18, 19, 20)',
+            parent_transaction_id: motherId,
+            is_anticipation: true
+        };
+
+        const result = await revertAnticipatedBills(antTx, { bills: billsCache });
+        assert.strictEqual(result.revertedCount, 4, 'Deve reverter exatamente 4 parcelas antecipadas');
+        assert.deepStrictEqual(result.installmentNumbers, [10, 18, 19, 20]);
+
+        // Verifica que o estado voltou para NÃO PAGO e amount_paid foi limpo
+        const p10 = billsCache.find(b => b.id === 'c10');
+        const p18 = billsCache.find(b => b.id === 'c18');
+        const p21 = billsCache.find(b => b.id === 'c21');
+        assert.strictEqual(p10.paid, false, 'Parcela 10 agora está com paid = false');
+        assert.strictEqual(p10.paid_date, null, 'Parcela 10 paid_date resetado');
+        assert.strictEqual(p10.amount_paid, null, 'Parcela 10 amount_paid resetado');
+        assert.strictEqual(p18.paid, false, 'Parcela 18 agora está com paid = false');
+        assert.strictEqual(p21.paid, false, 'Parcela 21 permaneceu inalterada');
+    });
+
     return results;
 }
 

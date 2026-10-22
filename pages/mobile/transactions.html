@@ -121,6 +121,7 @@
             <option value="all">Todos</option>
             <option value="income">Receitas</option>
             <option value="expense">Despesas</option>
+            <option value="anticipation">⚡ Antecipações</option>
         </select>
         <select id="filterCategory" onchange="filterTransactions()" style="font-weight:600; min-width:110px;" title="Filtrar por categoria">
             <option value="all">Todas as categorias</option>
@@ -459,6 +460,10 @@ function renderTransactions() {
         const isPaid = isTransactionPaid(t);
 
         let badge = "";
+        const isAnticipation = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+        if (isAnticipation) {
+            badge += `<span style="font-size:9px; background:#e0f2fe; color:#0284c7; border:1px solid #bae6fd; padding:2px 6px; border-radius:4px; margin-left:4px; font-weight:700;"><i class="fas fa-bolt"></i> Antecipação</span>`;
+        }
         if (t.is_bill) badge += `<span style="font-size:9px; background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; margin-left:4px;">Conta</span>`;
         if (isPaid) {
             badge += `<span style="font-size:9px; background:#d4edda; color:#155724; padding:2px 6px; border-radius:4px; margin-left:4px;">${isIncome ? 'Recebido' : 'Pago'}</span>`;
@@ -501,7 +506,14 @@ function filterTransactions() {
     filteredTransactions = allTransactions.filter(t => {
         const desc = (t.description || "").toLowerCase();
         const matchSearch = !search || desc.includes(search);
-        const matchType = type === "all" || t.type === type;
+        let matchType = false;
+        if (type === "all") {
+            matchType = true;
+        } else if (type === "anticipation") {
+            matchType = !!(t.is_anticipation || desc.startsWith("antecipação:"));
+        } else {
+            matchType = t.type === type;
+        }
         const matchCategory = category === "all" ||
             t.category_id === category ||
             t.category === category ||
@@ -658,7 +670,20 @@ async function deleteTransaction(id) {
     }
 
     let deleteMode = 'single';
-    if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
+    const isAnticipation = !!(target && (target.is_anticipation || (target.description && String(target.description).toLowerCase().startsWith('antecipação:'))));
+    let shouldRevertBills = false;
+
+    if (isAnticipation) {
+        const match = String(target.description || '').match(/\(([\d,\s]+)\)$/);
+        const numsStr = match ? match[1] : '';
+        if (!confirm("Deseja realmente excluir esta transação de antecipação?")) return;
+        shouldRevertBills = confirm(
+            `Esta transação refere-se a uma antecipação de parcelas${numsStr ? ` (${numsStr})` : ''}.\n\n` +
+            `Deseja também REVERTER essas parcelas para o estado NÃO PAGO em Contas a Pagar?\n\n` +
+            `• OK: Exclui a transação e reverte as parcelas para pendentes.\n` +
+            `• Cancelar: Exclui apenas a transação do extrato mantendo as parcelas quitadas.`
+        );
+    } else if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
         deleteMode = await window.confirmRecurringDelete({
             countFromNow: seriesInfo.fromNow.length,
             countAll: seriesInfo.all.length,
@@ -671,6 +696,17 @@ async function deleteTransaction(id) {
     }
 
     try {
+        if (shouldRevertBills && typeof window.revertAnticipatedBills === 'function') {
+            try {
+                const revRes = await window.revertAnticipatedBills(target, { userId: currentUser?.id });
+                if (revRes && revRes.revertedCount > 0 && typeof showToast === 'function') {
+                    showToast(`${revRes.revertedCount} parcelas foram revertidas para pendentes em Contas! 🔄`, "info");
+                }
+            } catch (revErr) {
+                console.warn('Erro ao reverter parcelas antecipadas:', revErr);
+            }
+        }
+
         let idsToDelete = [String(id)];
         if (deleteMode === 'from_now') {
             idsToDelete = [String(id), ...seriesInfo.fromNow.map(r => String(r.id))];
