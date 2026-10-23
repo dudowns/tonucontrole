@@ -2232,6 +2232,7 @@ function createAnticipationTransaction(target, selectedBills, typedAmount, payme
     }).filter(Boolean);
 
     var desc = buildAnticipationDescription(target.description, nums);
+    var totalInstallments = parseInt(target.installment_total || target.installments, 10) || null;
     var date = paymentDate || (typeof getTodayString === 'function' ? getTodayString() : new Date().toISOString().split('T')[0]);
 
     // Resolução segura de user_id
@@ -2267,6 +2268,8 @@ function createAnticipationTransaction(target, selectedBills, typedAmount, payme
         paid: true,
         paid_date: date,
         parent_transaction_id: String(motherId),
+        installments: totalInstallments,
+        installment_total: totalInstallments,
         is_anticipation: true,
         notes: `Quitação antecipada das parcelas: ${nums.join(', ')}`
     };

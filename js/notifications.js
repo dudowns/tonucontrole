@@ -439,7 +439,14 @@
         });
 
         // 6. Sincronizar App Badge nativo (PWA Desktop / Mobile)
-        setAppBadgeNative(unreadCount);
+        // Se o app estiver aberto e visível pelo usuário, o badge do ícone do SO permanece limpo.
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+            clearAppBadgeNative();
+        } else if (unreadCount > 0) {
+            setAppBadgeNative(unreadCount);
+        } else {
+            clearAppBadgeNative();
+        }
     }
 
     // Dismiss a single notification permanently
@@ -866,26 +873,17 @@
                 }
             }
 
-            // 3. Sync status notification if offline queue has items
-            if (window.tonuSync && window.tonuSync.db) {
+            // 3. Fila de Sincronização offline: gerenciada exclusivamente pelo indicador visual de sync (bolinha)
+            // Se a fila estiver vazia (0 pendências), assegura a limpeza do App Badge nativo
+            if (window.tonuSync) {
                 try {
-                    const queue = await window.tonuSync.getQueue?.();
-                    if (queue && queue.length > 0) {
-                        const notifId = 'sync_queue';
-                        if (!dismissed[notifId]) {
-                            notifications.push({
-                                id: notifId,
-                                type: 'info',
-                                tag: 'Offline',
-                                icon: 'fa-sync',
-                                title: 'Sincronização pendente',
-                                message: `Há ${queue.length} alteração(ões) offline aguardando conexão.`,
-                                link: '#',
-                                actionBtnText: 'Sincronizar'
-                            });
-                        }
+                    const queueCount = (typeof window.tonuSync.getPendingCount === 'function')
+                        ? await window.tonuSync.getPendingCount()
+                        : ((await window.tonuSync.getQueue?.())?.length || 0);
+                    if (queueCount === 0) {
+                        clearAppBadgeNative();
                     }
-                } catch {}
+                } catch (_) {}
             }
 
             // 4. Check Dividends / Proventos (Recebidos hoje ou a receber em breve)
@@ -1688,6 +1686,21 @@
         if (typeof window.renderNotificationSettingsUI === 'function') {
             window.renderNotificationSettingsUI();
         }
+    }
+
+    // Limpar badge nativo ao abrir o app (DOMContentLoaded, visibilitychange, focus ou esvaziamento da fila de sync)
+    if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                clearAppBadgeNative();
+            }
+        });
+        window.addEventListener('focus', () => {
+            clearAppBadgeNative();
+        });
+        window.addEventListener('tonu:sync-queue-empty', () => {
+            clearAppBadgeNative();
+        });
     }
 
     if (document.readyState === 'loading') {

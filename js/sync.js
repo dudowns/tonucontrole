@@ -75,13 +75,14 @@
                 pendingCount = await this.getPendingCount();
             } catch (_) {}
 
-            // Suporte nativo à PWA Web App Badging API
+            // Garante que a fila de sincronização NUNCA sobrescreva o badge do ícone do SO
             if (typeof navigator !== 'undefined') {
                 try {
-                    if ('setAppBadge' in navigator && pendingCount > 0) {
-                        navigator.setAppBadge(pendingCount).catch(() => {});
-                    } else if ('clearAppBadge' in navigator && pendingCount === 0) {
+                    if ('clearAppBadge' in navigator && pendingCount === 0) {
                         navigator.clearAppBadge().catch(() => {});
+                        if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('tonu:sync-queue-empty'));
+                        }
                     }
                 } catch (_) {}
             }

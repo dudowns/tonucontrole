@@ -1790,6 +1790,57 @@
                 return { type: 'single', isInstallment: false, isRecurring: false, label: 'Único' };
             }
 
+            // 0. Caso especial: Transação de Antecipação de Parcelas
+            const isAnticipation = !!(item.is_anticipation || (item.description && String(item.description).toLowerCase().startsWith('antecipação:')));
+            if (isAnticipation) {
+                const descStr = String(item.description || '') + ' ' + String(item.notes || '');
+                // Extrai o conteúdo entre parênteses da descrição (ex: "Antecipação: Teste (8, 9, 10)")
+                const parenMatch = (item.description || '').match(/\(([^)]+)\)/);
+                const numsStr = parenMatch ? parenMatch[1].trim() : '';
+
+                // Obtém o total de parcelas da série (ex: 50)
+                let total = parseInt(item.installments || item.installment_total, 10) || null;
+                if (!total) {
+                    const totalMatch = descStr.match(/(?:de|\/)\s*(\d+)/i);
+                    if (totalMatch) total = parseInt(totalMatch[1], 10);
+                }
+
+                const numParts = numsStr ? numsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+                const isPlural = numParts.length > 1 || numsStr.includes('-') || numsStr.includes(',');
+                const antWord = isPlural ? 'Antecipadas' : 'Antecipada';
+
+                // Formatação: "8, 9, 10 / 50 (Antecipadas)" ou "10 / 50 (Antecipada)"
+                let labelText = '';
+                if (numsStr && total) {
+                    labelText = `${numsStr} / ${total} (${antWord})`;
+                } else if (numsStr) {
+                    labelText = isPlural ? `Parcelas ${numsStr} (${antWord})` : `Parcela ${numsStr} (${antWord})`;
+                } else if (total) {
+                    labelText = `Antecipada / ${total}`;
+                } else {
+                    labelText = 'Antecipada';
+                }
+
+                const badgeHtml = `
+                    <div class="installment-badge-wrap" title="Antecipação de Parcelas: ${numsStr}${total ? ' de ' + total : ''}">
+                        <span class="badge-installment" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:700;">
+                            <i class="fas fa-layer-group"></i> ${labelText}
+                        </span>
+                    </div>
+                `;
+
+                return {
+                    type: 'anticipation',
+                    isInstallment: true,
+                    isRecurring: false,
+                    isAnticipation: true,
+                    total: total,
+                    installmentsText: numsStr,
+                    label: labelText,
+                    badgeHtml: badgeHtml
+                };
+            }
+
             let recurrenceType = item.recurrence_type || null;
             let installments = parseInt(item.installments || item.installment_total, 10);
             let current = parseInt(item.current_installment || item.installment_number || item.installment_current, 10);

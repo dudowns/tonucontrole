@@ -478,6 +478,7 @@ function renderTransactions() {
         const color = cat?.color || style.color || (isIncome ? "#00B894" : "#FF6B6B");
         const icon = cat?.icon || style.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
         const isPaid = isTransactionPaid(t);
+        const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
 
         let badge = "";
         const isAnticipation = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
@@ -503,6 +504,7 @@ function renderTransactions() {
                     </div>
                     <div class="tx-info">
                         <strong>${displayDesc} ${badge}</strong>
+                        ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
                         <small style="display:block; color:#94a3b8; font-size:11px;">${formatDate(effectiveDate)} • ${cat?.name || 'Geral'}${dueNote}</small>
                     </div>
                 </div>

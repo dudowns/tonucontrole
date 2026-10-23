@@ -178,9 +178,6 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  // Limpar App Badge nativo ao clicar na notificação
-  clearSWAppBadge();
-
   const rawUrl = event.notification.data?.url || './';
   // Garante que URLs relativas resolvam contra o escopo do PWA (ex: /tonucontrole/)
   const sanitizedUrl = (typeof rawUrl === 'string' && rawUrl.startsWith('/') && !rawUrl.startsWith('//'))
@@ -189,7 +186,11 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = new URL(sanitizedUrl || './', self.registration.scope).href;
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    (async () => {
+      // Limpar App Badge nativo com garantia de conclusão antes de fechar o handler
+      await clearSWAppBadge();
+
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       for (const client of clientList) {
         if (client.url.includes(self.registration.scope) && 'focus' in client) {
           client.navigate(targetUrl);
@@ -199,7 +200,7 @@ self.addEventListener('notificationclick', (event) => {
       if (self.clients.openWindow) {
         return self.clients.openWindow(targetUrl);
       }
-    })
+    })()
   );
 });
 
