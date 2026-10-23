@@ -904,6 +904,147 @@ function renderMobileInsights() {
         rateLabel = `${savingsRate}% Déficit`;
     }
 
+    // ============================================
+    // CÁLCULO DO SCORE 360º MOBILE (0 A 100)
+    // ============================================
+    const safeFreeCashMob = income - (expense + pendingBillsAmount);
+    const todayStrMob = today.toISOString().split('T')[0];
+    const overdueBillsMob = pendingBills.filter(b => {
+        const d = (b.date || b.due_date || '').substring(0, 10);
+        return d && d < todayStrMob;
+    });
+
+    let nearestGoalMob = null;
+    let highestProgMob = -1;
+    (allGoals || []).filter(g => !g.completed).forEach(g => {
+        const cur = Number(g.current_amount || 0);
+        const tgt = Number(g.target_amount || 0);
+        if (tgt > 0) {
+            const pct = (cur / tgt) * 100;
+            if (pct > highestProgMob) {
+                highestProgMob = pct;
+                nearestGoalMob = { title: g.title, pct: Math.round(pct), current: cur, target: tgt };
+            }
+        }
+    });
+
+    let budgetAlertMob = null;
+    if (window.TonuBudget && currentUser) {
+        try {
+            const progress = window.TonuBudget.calculateCategoryProgress(currentUser.id, allTransactions, categories || []);
+            const exceeded = progress.filter(b => b.isExceeded);
+            if (exceeded.length > 0) {
+                budgetAlertMob = { type: 'danger', text: `${exceeded[0].name} estourou o teto` };
+            }
+        } catch (_) {}
+    }
+
+    const mobilePillars = [];
+    // Pilar 1: Equilíbrio (30%)
+    if (income > 0) {
+        let eqScore = 0;
+        if (savingsRate >= 20) eqScore = 100;
+        else if (savingsRate > 0) eqScore = Math.round((savingsRate / 20) * 100);
+        else if (savingsRate >= -10) eqScore = 25;
+        mobilePillars.push({ weight: 30, score: eqScore });
+    }
+    // Pilar 2: Pontualidade & Contas (30%)
+    if (monthBills.length > 0) {
+        let pScore = 0;
+        if (overdueBillsMob.length > 0) pScore = Math.max(0, 100 - (overdueBillsMob.length * 35));
+        else if (pendingBills.length === 0) pScore = 100;
+        else if (safeFreeCashMob >= 0) pScore = 90;
+        else pScore = 60;
+        mobilePillars.push({ weight: 30, score: pScore });
+    }
+    // Pilar 3: Endividamento (20%)
+    if (income > 0) {
+        const debtPct = (loansPaid / income) * 100;
+        let dScore = 100;
+        if (debtPct > 30) dScore = Math.max(10, Math.round(50 - (debtPct - 30) * 2));
+        else if (debtPct > 15) dScore = 65;
+        else if (debtPct > 0) dScore = 85;
+        mobilePillars.push({ weight: 20, score: dScore });
+    }
+    // Pilar 4: Futuros & Metas / Proventos (20%)
+    let futScoreMobile = 0;
+    let futActiveMobile = false;
+    if (totalDivs > 0) { futScoreMobile += 50; futActiveMobile = true; }
+    if (nearestGoalMob && nearestGoalMob.pct > 0) { futScoreMobile += 50; futActiveMobile = true; }
+    if (futActiveMobile) mobilePillars.push({ weight: 20, score: Math.min(100, futScoreMobile) });
+
+    const totalWeightMob = mobilePillars.reduce((a, b) => a + b.weight, 0);
+    const finalScoreMob = totalWeightMob > 0 
+        ? Math.round(mobilePillars.reduce((a, b) => a + (b.score * b.weight), 0) / totalWeightMob)
+        : 70;
+
+    let mobBadge = { label: 'Bom', color: '#3B82F6', bg: '#EFF6FF' };
+    if (finalScoreMob >= 80) mobBadge = { label: 'Excelente', color: '#10B981', bg: '#ECFDF5' };
+    else if (finalScoreMob < 40) mobBadge = { label: 'Atenção', color: '#EF4444', bg: '#FEF2F2' };
+    else if (finalScoreMob < 60) mobBadge = { label: 'Regular', color: '#F59E0B', bg: '#FFFBEB' };
+
+    const circMob = 2 * Math.PI * 30;
+    const offsetMob = circMob - (finalScoreMob / 100) * circMob;
+
+    // CHECKLIST RÁPIDO MOBILE ("O QUE FAZER HOJE?")
+    const mobActionCards = [];
+    const urgentMobBill = overdueBillsMob[0] || pendingBills.find(b => {
+        const bDate = (b.date || b.due_date || '').substring(0, 10);
+        if (!bDate) return false;
+        const diffDays = Math.ceil((new Date(bDate) - new Date(todayStrMob)) / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 && diffDays <= 2;
+    });
+    if (urgentMobBill) {
+        const isOverdue = overdueBillsMob.includes(urgentMobBill);
+        mobActionCards.push(`
+            <div class="mob-action-card" onclick="window.location.href='bills.html'" style="border-left:3px solid #ef4444;">
+                <i class="fas ${isOverdue ? 'fa-exclamation-triangle' : 'fa-clock'}" style="color:#ef4444; font-size:14px;"></i>
+                <div class="mob-action-desc">
+                    <strong>Pagar: ${urgentMobBill.description || 'Conta'}</strong>
+                    <small>${isOverdue ? 'Conta atrasada' : 'Vence em até 48h'} • ${formatCurrency(urgentMobBill.amount)}</small>
+                </div>
+                <span class="mob-action-tag" style="background:#fee2e2; color:#b91c1c;">Pagar</span>
+            </div>
+        `);
+    }
+    if (budgetAlertMob && budgetAlertMob.type === 'danger') {
+        mobActionCards.push(`
+            <div class="mob-action-card" onclick="window.location.href='transactions.html'" style="border-left:3px solid #f59e0b;">
+                <i class="fas fa-chart-pie" style="color:#f59e0b; font-size:14px;"></i>
+                <div class="mob-action-desc">
+                    <strong>Ver Gastos: Limite Estourado</strong>
+                    <small>${budgetAlertMob.text}</small>
+                </div>
+                <span class="mob-action-tag" style="background:#fef3c7; color:#b45309;">Revisar</span>
+            </div>
+        `);
+    } else if (topCatPercent > 35 && topCatName && topCatName !== 'Nenhum gasto') {
+        mobActionCards.push(`
+            <div class="mob-action-card" onclick="window.location.href='transactions.html'" style="border-left:3px solid #f59e0b;">
+                <i class="fas fa-fire" style="color:#f59e0b; font-size:14px;"></i>
+                <div class="mob-action-desc">
+                    <strong>${typeof sanitizeString === 'function' ? sanitizeString(topCatName) : topCatName}: ${topCatPercent}% da renda</strong>
+                    <small>Maior centro de custo</small>
+                </div>
+                <span class="mob-action-tag" style="background:#fef3c7; color:#b45309;">Ver</span>
+            </div>
+        `);
+    }
+    if (safeFreeCashMob > 50) {
+        mobActionCards.push(`
+            <div class="mob-action-card" onclick="window.location.href='investments.html'" style="border-left:3px solid #10b981;">
+                <i class="fas fa-coins" style="color:#10b981; font-size:14px;"></i>
+                <div class="mob-action-desc">
+                    <strong>Novo Aporte Seguro</strong>
+                    <small>${formatCurrency(safeFreeCashMob)} disponíveis após contas</small>
+                </div>
+                <span class="mob-action-tag" style="background:#d1fae5; color:#047857;">Aportar</span>
+            </div>
+        `);
+    }
+
+    const displayedMobActionCards = mobActionCards.slice(0, 3);
+
     container.innerHTML = `
         <div class="mobile-insights-card">
             <div class="mobile-insights-header">
@@ -911,6 +1052,35 @@ function renderMobileInsights() {
                     <i class="fas fa-compass" style="color:#6C5CE7;"></i> Diagnóstico 360º
                 </div>
                 <span class="mobile-insights-pill">Inteligência Financeira</span>
+            </div>
+
+            <!-- ANEL DO SCORE 360º NO MOBILE -->
+            <div class="mob-score-container">
+                <div class="mob-score-ring-wrap">
+                    <svg viewBox="0 0 72 72" class="mob-score-svg">
+                        <circle cx="36" cy="36" r="30" fill="none" stroke="#e2e8f0" stroke-width="6" />
+                        <circle cx="36" cy="36" r="30" fill="none" stroke="${mobBadge.color}" stroke-width="6" stroke-dasharray="${circMob.toFixed(1)}" stroke-dashoffset="${offsetMob.toFixed(1)}" stroke-linecap="round" />
+                    </svg>
+                    <div class="mob-score-center">
+                        <span class="mob-score-val">${finalScoreMob}</span>
+                        <span class="mob-score-sub">/100</span>
+                    </div>
+                </div>
+                <div>
+                    <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:9999px; background:${mobBadge.bg}; color:${mobBadge.color};">${mobBadge.label}</span>
+                    <h4 style="margin:4px 0 2px 0; font-size:14px; font-weight:700; color:var(--color-text,#1e293b);">Saúde Financeira</h4>
+                    <p style="margin:0; font-size:11px; color:#64748b;">Equilíbrio • Contas • Dívidas • Futuro</p>
+                </div>
+            </div>
+
+            <!-- CHECKLIST DE AÇÕES RÁPIDAS NO MOBILE -->
+            <div class="mob-checklist-wrap">
+                <div class="mob-checklist-title"><i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?</div>
+                ${displayedMobActionCards.length > 0 ? displayedMobActionCards.join('') : `
+                    <div style="padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; font-size:11px; color:#15803d; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-check-circle" style="font-size:14px;"></i> Tudo em dia! Sem pendências críticas. ✨
+                    </div>
+                `}
             </div>
 
             <!-- 1. Taxa de Poupança -->

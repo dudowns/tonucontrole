@@ -1963,8 +1963,165 @@ async function generateDashboardInsights() {
             `;
         }
 
+        // ============================================
+        // 9. CÁLCULO DO SCORE 360º (0 a 100) & REDISTRIBUIÇÃO DE PESOS
+        // ============================================
+        const scorePillars = [];
+
+        // Pilar 1: Equilíbrio Orçamentário (Peso base: 30%)
+        if (totalIncome > 0) {
+            let eqScore = 0;
+            if (savingsRate >= 20) eqScore = 100;
+            else if (savingsRate > 0) eqScore = Math.round((savingsRate / 20) * 100);
+            else if (savingsRate >= -10) eqScore = 25;
+            else eqScore = 0;
+            scorePillars.push({ name: 'Equilíbrio', weight: 30, score: eqScore });
+        }
+
+        // Pilar 2: Pontualidade & Contas (Peso base: 30%)
+        if (totalBillsCount > 0) {
+            let pontScore = 0;
+            if (overdueBills.length > 0) pontScore = Math.max(0, 100 - (overdueBills.length * 35));
+            else if (pendingBills.length === 0) pontScore = 100;
+            else if (safeFreeCash >= 0) pontScore = 90;
+            else pontScore = 60;
+            scorePillars.push({ name: 'Pontualidade', weight: 30, score: pontScore });
+        }
+
+        // Pilar 3: Endividamento & Dívidas (Peso base: 20%)
+        if (totalIncome > 0) {
+            const debtRatio = (totalLoansPaid / totalIncome) * 100;
+            let debtScore = 100;
+            if (debtRatio > 30) debtScore = Math.max(10, Math.round(50 - (debtRatio - 30) * 2));
+            else if (debtRatio > 15) debtScore = 65;
+            else if (debtRatio > 0) debtScore = 85;
+            scorePillars.push({ name: 'Endividamento', weight: 20, score: debtScore });
+        }
+
+        // Pilar 4: Futuros & Investimentos (Peso base: 20%)
+        let futScore = 0;
+        let futActive = false;
+        if (totalDividends > 0) { futScore += 40; futActive = true; }
+        if (nearestGoal && nearestGoal.pct > 0) { futScore += 30; futActive = true; }
+        if (totalAportes > 0) { futScore += 30; futActive = true; }
+        if (futActive) scorePillars.push({ name: 'Futuro', weight: 20, score: Math.min(100, futScore) });
+
+        // Redistribuição proporcional caso falte dados em algum pilar
+        const totalWeight = scorePillars.reduce((acc, p) => acc + p.weight, 0);
+        const finalScore = totalWeight > 0
+            ? Math.round(scorePillars.reduce((acc, p) => acc + (p.score * p.weight), 0) / totalWeight)
+            : 70;
+
+        let scoreBadge = { label: 'Bom', color: '#3B82F6', bg: '#EFF6FF' };
+        if (finalScore >= 80) scoreBadge = { label: 'Excelente', color: '#10B981', bg: '#ECFDF5' };
+        else if (finalScore < 40) scoreBadge = { label: 'Atenção', color: '#EF4444', bg: '#FEF2F2' };
+        else if (finalScore < 60) scoreBadge = { label: 'Regular', color: '#F59E0B', bg: '#FFFBEB' };
+
+        const circumference = 2 * Math.PI * 38;
+        const strokeOffset = circumference - (finalScore / 100) * circumference;
+
+        // ============================================
+        // 10. CHECKLIST DE AÇÕES RÁPIDAS ("O QUE FAZER HOJE?")
+        // ============================================
+        const actionCards = [];
+
+        // Ação 1: Contas vencendo em até 48h ou atrasadas (🔴 Pagar Agora)
+        const urgentBill = overdueBills[0] || pendingBills.find(b => {
+            const bDate = normalizeDateOnly(b.date);
+            if (!bDate) return false;
+            const diffDays = Math.ceil((new Date(bDate) - new Date(todayStr)) / (1000 * 60 * 60 * 24));
+            return diffDays >= 0 && diffDays <= 2;
+        });
+        if (urgentBill) {
+            const isOverdue = overdueBills.includes(urgentBill);
+            actionCards.push(`
+                <div class="action-card urgent" onclick="window.location.href='bills.html'" title="Ir para Contas a Pagar">
+                    <div class="action-icon" style="background:#fee2e2; color:#ef4444;"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="action-info">
+                        <strong>Pagar Agora: ${stripHTML(urgentBill.description || 'Conta')}</strong>
+                        <span>${isOverdue ? 'Conta atrasada' : 'Vencimento em até 48h'} • ${formatCurrency(urgentBill.amount)}</span>
+                    </div>
+                    <span class="action-btn-pill" style="background:#fee2e2; color:#b91c1c;">Pagar</span>
+                </div>
+            `);
+        }
+
+        // Ação 2: Teto orçamentário estourado ou maior gasto elevado (🟡 Ver Gastos)
+        if (budgetAlert && budgetAlert.type === 'danger') {
+            actionCards.push(`
+                <div class="action-card warning" onclick="window.location.href='transactions.html'" title="Ver Transações">
+                    <div class="action-icon" style="background:#fef3c7; color:#f59e0b;"><i class="fas fa-chart-pie"></i></div>
+                    <div class="action-info">
+                        <strong>Ver Gastos: Limite Estourado</strong>
+                        <span>${stripHTML(budgetAlert.text)}</span>
+                    </div>
+                    <span class="action-btn-pill" style="background:#fef3c7; color:#b45309;">Revisar</span>
+                </div>
+            `);
+        } else if (topCatPct > 35 && topCategory && topCategory !== 'Nenhuma') {
+            actionCards.push(`
+                <div class="action-card warning" onclick="window.location.href='transactions.html'" title="Ver Transações da Categoria">
+                    <div class="action-icon" style="background:#fef3c7; color:#f59e0b;"><i class="fas fa-fire"></i></div>
+                    <div class="action-info">
+                        <strong>Ver Gastos: ${stripHTML(topCategory)}</strong>
+                        <span>Consome ${topCatPct}% de todas as despesas do mês</span>
+                    </div>
+                    <span class="action-btn-pill" style="background:#fef3c7; color:#b45309;">Ver Gastos</span>
+                </div>
+            `);
+        }
+
+        // Ação 3: Capacidade livre para investir (🟢 Novo Aporte)
+        if (safeFreeCash > 50) {
+            actionCards.push(`
+                <div class="action-card positive" onclick="window.location.href='investments.html'" title="Ir para Investimentos">
+                    <div class="action-icon" style="background:#d1fae5; color:#10b981;"><i class="fas fa-coins"></i></div>
+                    <div class="action-info">
+                        <strong>Novo Aporte Seguro</strong>
+                        <span>${formatCurrency(safeFreeCash)} livres após provisionar as contas</span>
+                    </div>
+                    <span class="action-btn-pill" style="background:#d1fae5; color:#047857;">Aportar</span>
+                </div>
+            `);
+        }
+
+        // Limita a até 3 cards acionáveis
+        const displayedActionCards = actionCards.slice(0, 3);
+
         // RENDERIZAÇÃO COMPLETA DO DIAGNÓSTICO
         container.innerHTML = `
+            <!-- ANEL VELOCÍMETRO DO SCORE 360º -->
+            <div class="score-ring-card">
+                <div class="score-ring-wrap">
+                    <svg class="score-svg" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="38" class="score-ring-bg" />
+                        <circle cx="50" cy="50" r="38" class="score-ring-fg" stroke="${scoreBadge.color}" stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="${strokeOffset.toFixed(1)}" />
+                    </svg>
+                    <div class="score-text-inner">
+                        <span class="score-num">${finalScore}</span>
+                        <span class="score-total">/100</span>
+                    </div>
+                </div>
+                <div class="score-header-text">
+                    <div class="score-badge-pill" style="background:${scoreBadge.bg}; color:${scoreBadge.color};">${scoreBadge.label}</div>
+                    <h4 style="margin:4px 0 2px 0; font-size:15px; font-weight:700; color:var(--color-text,#1e293b);">Saúde Financeira 360º</h4>
+                    <p style="margin:0; font-size:12px; color:var(--color-text-muted,#64748b);">Equilíbrio • Pontualidade • Dívidas • Futuro</p>
+                </div>
+            </div>
+
+            <!-- CHECKLIST DE AÇÕES RÁPIDAS ("O QUE FAZER HOJE?") -->
+            <div class="quick-actions-section">
+                <div class="quick-actions-title"><i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?</div>
+                <div class="quick-actions-grid">
+                    ${displayedActionCards.length > 0 ? displayedActionCards.join('') : `
+                        <div class="action-card all-good">
+                            <i class="fas fa-check-circle" style="color:#10b981; font-size:18px;"></i>
+                            <span>Tudo em dia! Suas contas estão pagas e o orçamento equilibrado. ✨</span>
+                        </div>
+                    `}
+                </div>
+            </div>
+
             <!-- PILARES DO APLICATIVO -->
             <div class="insight-pillars-list">
                 <!-- Pilar 1: Renda Poupada & Taxa de Poupança -->

@@ -1335,6 +1335,119 @@ body.dark-theme .sheet-drag-handle {
     color: #6C5CE7;
 }
 
+/* SCORE RING NO MOBILE */
+.mob-score-container {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.08) 0%, rgba(108, 92, 231, 0.02) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.15);
+    border-radius: 14px;
+    margin-bottom: 12px;
+}
+
+.mob-score-ring-wrap {
+    position: relative;
+    width: 68px;
+    height: 68px;
+    flex-shrink: 0;
+}
+
+.mob-score-svg {
+    width: 68px;
+    height: 68px;
+    transform: rotate(-90deg);
+}
+
+.mob-score-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.mob-score-val {
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--color-text, #1e293b);
+}
+
+.mob-score-sub {
+    font-size: 9px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+/* CHECKLIST RÁPIDO NO MOBILE */
+.mob-checklist-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.mob-checklist-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 2px;
+}
+
+.mob-action-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--color-bg, #f8fafc);
+    border: 1px solid var(--color-border-light, #f1f5f9);
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.mob-action-card:active {
+    background: #f1f5f9;
+}
+
+.mob-action-desc {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.mob-action-desc strong {
+    font-size: 12px;
+    color: var(--color-text, #1e293b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mob-action-desc small {
+    font-size: 10px;
+    color: #64748b;
+}
+
+.mob-action-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--color-primary-bg, #ede9fe);
+    color: var(--color-primary, #6c5ce7);
+    flex-shrink: 0;
+}
+
 .mobile-insight-row {
     display: flex;
     align-items: center;
