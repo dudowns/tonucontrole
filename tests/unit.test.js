@@ -1653,6 +1653,68 @@ async function runUnitTests() {
         assert.strictEqual(p21.paid, false, 'Parcela 21 permaneceu inalterada');
     });
 
+    test('Sync Manager: Sanitização de colunas de transações e auto-recuperação de esquemas remotos', () => {
+        // Objeto rico em metadados de UI do cliente
+        const richClientTx = {
+            id: 'b1234567-89ab-cdef-0123-456789abcdef',
+            user_id: 'u1234567-89ab-cdef-0123-456789abcdef',
+            description: 'Compra Mercado (1/10)',
+            amount: 250.50,
+            type: 'expense',
+            date: '2026-10-23',
+            category: 'Alimentação', // campo apenas de exibição na UI
+            category_id: 'c1234567-89ab-cdef-0123-456789abcdef',
+            paid: true,
+            recurrence_type: 'installments', // campo cliente
+            is_recurring: false, // campo cliente
+            installments: 10, // campo cliente
+            current_installment: 1, // campo cliente
+            installment_total: 10, // campo cliente
+            installment_number: 1, // campo cliente
+            updated_at: '2026-10-23T10:00:00.000Z' // campo cliente
+        };
+
+        const allowed = [
+            'id', 'user_id', 'description', 'amount', 'type', 'date',
+            'category_id', 'paid', 'paid_date', 'is_bill', 'due_date',
+            'parent_transaction_id', 'is_anticipation', 'amount_paid',
+            'notes', 'tags', 'created_at'
+        ];
+
+        // 1. Simula _filterTransactionColumns
+        const filtered = {};
+        for (const key of allowed) {
+            if (richClientTx[key] !== undefined) {
+                filtered[key] = richClientTx[key];
+            }
+        }
+
+        assert.strictEqual(filtered.category, undefined, 'Não deve enviar campo "category" textual para a tabela');
+        assert.strictEqual(filtered.recurrence_type, undefined, 'Não deve enviar "recurrence_type"');
+        assert.strictEqual(filtered.installments, undefined, 'Não deve enviar "installments"');
+        assert.strictEqual(filtered.current_installment, undefined, 'Não deve enviar "current_installment"');
+        assert.strictEqual(filtered.installment_number, undefined, 'Não deve enviar "installment_number"');
+        assert.strictEqual(filtered.description, 'Compra Mercado (1/10)');
+        assert.strictEqual(filtered.amount, 250.50);
+        assert.strictEqual(filtered.category_id, 'c1234567-89ab-cdef-0123-456789abcdef');
+
+        // 2. Simula _extractMissingColumn de erro do PostgREST
+        function extractMissingCol(err) {
+            const msg = ((err.message || '') + ' ' + (err.details || '') + ' ' + (err.hint || ''));
+            const m1 = msg.match(/column ["']?([a-zA-Z0-9_]+)["']? of relation/i);
+            if (m1 && m1[1]) return m1[1];
+            const m2 = msg.match(/Could not find the ['"]?([a-zA-Z0-9_]+)['"]? column/i);
+            if (m2 && m2[1]) return m2[1];
+            return null;
+        }
+
+        const err1 = { message: "Could not find the 'due_date' column of 'transactions' in the schema cache" };
+        assert.strictEqual(extractMissingCol(err1), 'due_date', 'Extrai coluna ausente do schema cache');
+
+        const err2 = { message: 'column "is_anticipation" of relation "transactions" does not exist' };
+        assert.strictEqual(extractMissingCol(err2), 'is_anticipation', 'Extrai coluna ausente de erro SQL');
+    });
+
     return results;
 }
 

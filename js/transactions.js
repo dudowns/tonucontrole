@@ -1006,10 +1006,10 @@
 
             if (typeof window.sendRealtimePush === 'function') {
                 const isExpense = type === 'expense';
-                const formattedAmt = typeof formatCurrency === 'function' ? formatCurrency(Math.abs(amount)) : `R$ ${Math.abs(amount)}`;
+                const formattedAmt = typeof formatCurrency === 'function' ? formatCurrency(Math.abs(finalAmount)) : `R$ ${Math.abs(finalAmount)}`;
                 window.sendRealtimePush({
                     title: isExpense ? '💸 Despesa Registrada' : '💰 Receita Registrada',
-                    body: `${description} no valor de ${formattedAmt}`,
+                    body: `${desc} no valor de ${formattedAmt}`,
                     url: 'pages/transactions.html',
                     tag: `tx-realtime-${Date.now()}`
                 });

@@ -8,6 +8,7 @@
     let notifications = [];
     let isDropdownOpen = false;
     let activeFilter = 'all'; // 'all' | 'unread'
+    let isNotificationLogAvailable = true;
 
     // Armazenamento de notificações dispensadas pelo usuário
     const DISMISSED_STORAGE_KEY = 'tonu_dismissed_notifications';
@@ -1020,15 +1021,22 @@
             }
 
             // 5. Integração com histórico do Supabase (notification_log)
-            if (user && window.supabaseClient) {
+            if (user && window.supabaseClient && isNotificationLogAvailable) {
                 try {
-                    const { data: logData } = await window.supabaseClient
+                    const { data: logData, error: logErr } = await window.supabaseClient
                         .from('notification_log')
                         .select('*')
                         .eq('user_id', user.id)
                         .is('dismissed_at', null)
                         .order('created_at', { ascending: false })
                         .limit(50);
+
+                    if (logErr) {
+                        if (logErr.status === 403 || logErr.code === '42501' || logErr.code === '42P01' || logErr.status === 404) {
+                            isNotificationLogAvailable = false;
+                        }
+                        throw logErr;
+                    }
 
                     if (logData && logData.length > 0) {
                         logData.forEach(item => {
@@ -1055,7 +1063,10 @@
                         });
                     }
                 } catch (logErr) {
-                    console.warn('[Notifications] Erro ao integrar notification_log em checkNotifications:', logErr);
+                    if (logErr && (logErr.status === 403 || logErr.code === '42501' || logErr.code === '42P01' || logErr.status === 404)) {
+                        isNotificationLogAvailable = false;
+                    }
+                    console.warn('[Notifications] notification_log não disponível ou restrito (403/404):', logErr?.message || logErr);
                 }
             }
 
@@ -1140,11 +1151,11 @@
             } catch (_) {}
         }
 
-        if (!user || !window.supabaseClient) {
+        if (!user || !window.supabaseClient || !isNotificationLogAvailable) {
             containers.forEach(c => {
                 c.innerHTML = `
                     <div style="text-align:center; padding:20px; color:var(--color-text-muted, #64748b);">
-                        <p style="font-size:13px; margin:0;">Faça login para visualizar o histórico de notificações.</p>
+                        <p style="font-size:13px; margin:0;">${!isNotificationLogAvailable ? 'Histórico em nuvem indisponível ou tabela não provisionada.' : 'Faça login para visualizar o histórico de notificações.'}</p>
                     </div>
                 `;
             });
@@ -1211,7 +1222,10 @@
                 c.innerHTML = html;
             });
         } catch (err) {
-            console.warn('[Notifications] Erro ao carregar notification_log:', err);
+            if (err && (err.status === 403 || err.code === '42501' || err.code === '42P01' || err.status === 404)) {
+                isNotificationLogAvailable = false;
+            }
+            console.warn('[Notifications] Erro ao carregar notification_log:', err?.message || err);
             containers.forEach(c => {
                 c.innerHTML = `
                     <div style="text-align:center; padding:20px; color:var(--color-danger, #ff7675);">

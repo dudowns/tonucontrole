@@ -300,6 +300,17 @@
             });
         }
 
+        async updateQueueItem(item) {
+            if (!this.db || !item || !item.id) return;
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([QUEUE_STORE], 'readwrite');
+                const store = tx.objectStore(QUEUE_STORE);
+                const req = store.put(item);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
         async clearQueue() {
             if (!this.db) return;
             return new Promise((resolve, reject) => {
@@ -337,10 +348,23 @@
                     } else {
                         item.retries = (item.retries || 0) + 1;
                         failureCount++;
+                        if (item.retries >= 3) {
+                            console.warn(`⚠️ Item #${item.id} (${item.action}) atingiu limite de tentativas e foi removido da fila.`);
+                            await this.removeQueueItem(item.id);
+                        } else {
+                            await this.updateQueueItem(item);
+                        }
                     }
                 } catch (err) {
-                    console.error(`❌ Erro ao sincronizar item #${item.id}:`, err);
+                    console.error(`❌ Erro ao sincronizar item #${item.id}:`, err?.message || err);
                     failureCount++;
+                    item.retries = (item.retries || 0) + 1;
+                    if (item.retries >= 3) {
+                        console.warn(`⚠️ Item #${item.id} (${item.action}) falhou permanentemente e foi desempilhado da fila.`);
+                        await this.removeQueueItem(item.id);
+                    } else {
+                        await this.updateQueueItem(item);
+                    }
                 }
             }
 
@@ -375,6 +399,40 @@
                 delete copy.id;
             }
             return copy;
+        }
+
+        // Helper para sanitizar colunas enviadas para a tabela transactions do Supabase
+        _filterTransactionColumns(record) {
+            if (!record || typeof record !== 'object') return record;
+            // Campos canônicos aceitos pela tabela transactions no Supabase
+            const allowed = [
+                'id', 'user_id', 'description', 'amount', 'type', 'date',
+                'category_id', 'paid', 'paid_date', 'is_bill', 'due_date',
+                'parent_transaction_id', 'is_anticipation', 'amount_paid',
+                'notes', 'tags', 'created_at'
+            ];
+            const filtered = {};
+            for (const key of allowed) {
+                if (record[key] !== undefined) {
+                    filtered[key] = record[key];
+                }
+            }
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (filtered.category_id && !uuidRegex.test(String(filtered.category_id))) {
+                delete filtered.category_id;
+            }
+            return filtered;
+        }
+
+        // Helper para extrair nome da coluna inexistente em erros 400/42703/PGRST104
+        _extractMissingColumn(error) {
+            if (!error) return null;
+            const msg = ((error.message || '') + ' ' + (error.details || '') + ' ' + (error.hint || ''));
+            const match1 = msg.match(/column ["']?([a-zA-Z0-9_]+)["']? of relation/i);
+            if (match1 && match1[1]) return match1[1];
+            const match2 = msg.match(/Could not find the ['"]?([a-zA-Z0-9_]+)['"]? column/i);
+            if (match2 && match2[1]) return match2[1];
+            return null;
         }
 
         // Helper para identificar erros de chave duplicada / conflito no banco (409 / 23505)
@@ -426,48 +484,68 @@
                 case 'INSERT_BILL': {
                     const cleanData = this._sanitizeForInsert(data);
                     const rawPayload = Array.isArray(cleanData) ? cleanData : [cleanData];
-                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                    const payload = rawPayload.map(item => {
-                        const copy = { ...item };
-                        if (copy.category_id && !uuidRegex.test(String(copy.category_id))) {
-                            delete copy.category_id;
+                    let payload = rawPayload.map(item => this._filterTransactionColumns(item));
+
+                    let insertSucceeded = false;
+                    for (let attempt = 0; attempt < 4; attempt++) {
+                        const { error } = await window.supabaseClient.from('transactions').insert(payload);
+                        if (!error) {
+                            insertSucceeded = true;
+                            break;
                         }
-                        return copy;
-                    });
-                    const { error } = await window.supabaseClient.from('transactions').insert(payload);
-                    if (error) {
                         if (this._isDuplicateOrConflictError(error)) {
                             console.warn('⚠️ Transação já cadastrada na nuvem (409/23505). Marcando como sincronizada.');
-                            return true;
+                            insertSucceeded = true;
+                            break;
                         }
+
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol) {
+                            console.warn(`⚠️ Coluna '${missingCol}' ausente no Supabase. Removendo do payload e retentando...`);
+                            payload = payload.map(item => {
+                                const copy = { ...item };
+                                delete copy[missingCol];
+                                return copy;
+                            });
+                            continue;
+                        }
+
+                        console.error('❌ Erro Supabase insert:', error.message || error.details || error);
                         throw error;
                     }
-                    return true;
+                    return insertSucceeded;
                 }
                 case 'UPDATE_TRANSACTION':
                 case 'UPDATE_BILL': {
                     const { id, ...updates } = data;
-                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                    if (updates.category_id && !uuidRegex.test(String(updates.category_id))) {
-                        delete updates.category_id;
-                    }
-                    let { error } = await window.supabaseClient
-                        .from('transactions')
-                        .update(updates)
-                        .eq('id', id)
-                        .eq('user_id', userId);
-                    if (error && updates.due_date && (error.code === '42703' || (error.message && error.message.includes('due_date')))) {
-                        const fallbackUpdates = { ...updates };
-                        delete fallbackUpdates.due_date;
-                        const retryRes = await window.supabaseClient
+                    let filteredUpdates = this._filterTransactionColumns(updates);
+                    delete filteredUpdates.id;
+                    delete filteredUpdates.user_id;
+                    delete filteredUpdates.created_at;
+
+                    let updateSucceeded = false;
+                    for (let attempt = 0; attempt < 4; attempt++) {
+                        const { error } = await window.supabaseClient
                             .from('transactions')
-                            .update(fallbackUpdates)
+                            .update(filteredUpdates)
                             .eq('id', id)
                             .eq('user_id', userId);
-                        error = retryRes.error;
+
+                        if (!error) {
+                            updateSucceeded = true;
+                            break;
+                        }
+
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol && filteredUpdates[missingCol] !== undefined) {
+                            console.warn(`⚠️ Coluna '${missingCol}' ausente no Supabase para update. Removendo e retentando...`);
+                            delete filteredUpdates[missingCol];
+                            continue;
+                        }
+
+                        throw error;
                     }
-                    if (error) throw error;
-                    return true;
+                    return updateSucceeded;
                 }
                 case 'DELETE_TRANSACTION':
                 case 'DELETE_BILL': {
@@ -491,7 +569,8 @@
 
                     if (paymentData) {
                         const cleanPayment = this._sanitizeForInsert(paymentData);
-                        const { error: insertErr } = await window.supabaseClient.from('transactions').insert([cleanPayment]);
+                        const filteredPayment = this._filterTransactionColumns(cleanPayment);
+                        const { error: insertErr } = await window.supabaseClient.from('transactions').insert([filteredPayment]);
                         if (insertErr && !this._isDuplicateOrConflictError(insertErr)) {
                             throw insertErr;
                         }

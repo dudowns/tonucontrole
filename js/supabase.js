@@ -144,8 +144,8 @@ if (creds && creds.url && creds.anonKey) {
     initializeSupabaseClient(creds.url, creds.anonKey);
 }
 
-// Busca assíncrona em background para atualizar credenciais dinâmicas do servidor (se houver)
-if (typeof fetch === 'function') {
+// Busca assíncrona em background para atualizar credenciais dinâmicas do servidor (se houver e não for host puramente estático como GitHub Pages)
+if (typeof fetch === 'function' && typeof window !== 'undefined' && !window.location.hostname.includes('github.io')) {
     var baseApi = (typeof window.getBaseUrl === 'function' ? window.getBaseUrl() : '').replace(/\/+$/, '');
     var configEndpoint = baseApi ? (baseApi + '/api/config') : '/api/config';
 
