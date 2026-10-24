@@ -287,6 +287,137 @@ function renderGoals(goals) {
     }
 
     container.innerHTML = goals.map(g => {
+        const goalType = g.type || 'financial';
+        const catInfo = resolveGoalCategory(g);
+        const color = g.color || catInfo.color || '#6C5CE7';
+
+        // TIPO 1: PROJETO / HÁBITO (📌)
+        if (goalType === 'habit') {
+            const isCompleted = !!g.completed;
+            const completedDateText = g.completed_at ? formatDate(g.completed_at) : (g.deadline ? formatDate(g.deadline) : null);
+
+            return `
+                <div class="goal-card ${isCompleted ? 'completed' : ''}" 
+                     style="--goal-accent-color: ${color};"
+                     onclick="editGoal('${g.id}')">
+                    
+                    <div class="goal-card-top">
+                        <div class="goal-badge-icon" style="background: ${color}20; color: ${color};">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <div class="goal-title-wrap">
+                            <div class="goal-category-tag">
+                                <span>📌 Projeto / Hábito</span>
+                            </div>
+                            <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
+                        </div>
+                        <span class="goal-status-badge ${isCompleted ? 'completed-badge' : 'in-progress'}">
+                            ${isCompleted ? '🏆 Concluído' : '⏳ Pendente'}
+                        </span>
+                    </div>
+
+                    <div class="goal-finance-row" style="background: var(--color-bg, #f8fafc); border-radius: 8px; padding: 10px 12px; margin: 10px 0;">
+                        <div class="goal-val-box">
+                            <span class="goal-val-label">Status do Hábito</span>
+                            <span class="goal-val-current" style="font-size: 13.5px; color:${isCompleted ? '#10b981' : '#f59e0b'};">
+                                ${isCompleted ? '✅ Concluído com sucesso' : '⏳ Em andamento'}
+                            </span>
+                        </div>
+                        <div class="goal-val-box" style="text-align: right;">
+                            <span class="goal-val-label">${isCompleted ? 'Concluído em' : 'Prazo'}</span>
+                            <span class="goal-val-target" style="font-size: 12.5px;">${completedDateText || 'Sem prazo'}</span>
+                        </div>
+                    </div>
+
+                    <div class="goal-progress-box">
+                        <div class="goal-progress-meta">
+                            <span>${isCompleted ? '100% Concluído' : 'Pendente de conclusão'}</span>
+                            <span class="goal-progress-pct">${isCompleted ? '100%' : '0%'}</span>
+                        </div>
+                        <div class="goal-progress-track">
+                            <div class="goal-progress-fill ${isCompleted ? 'completed' : ''}" style="width: ${isCompleted ? '100%' : '0%'}; background:${isCompleted ? '#10b981' : color};"></div>
+                        </div>
+                    </div>
+
+                    <div class="goal-actions-bar" onclick="event.stopPropagation();">
+                        <button type="button" class="btn-card-action" onclick="toggleHabitStatus('${g.id}')" style="background:${isCompleted ? '#d1fae5' : '#f1f0fd'}; color:${isCompleted ? '#047857' : '#6C5CE7'}; font-weight:700; flex:1;">
+                            <i class="fas ${isCompleted ? 'fa-check-circle' : 'fa-circle'}"></i> ${isCompleted ? 'Reabrir Hábito' : 'Marcar como Concluído'}
+                        </button>
+                        <button type="button" class="btn-card-icon-only" onclick="editGoal('${g.id}')" title="Editar detalhes">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" class="btn-card-icon-only danger" onclick="deleteGoal('${g.id}')" title="Excluir meta">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // TIPO 2: DIVIDENDOS (📈 Renda Passiva Mensal)
+        if (goalType === 'dividends') {
+            const monthlyDivs = getMonthlyDividendsTotal();
+            const targetAmount = Number(g.target_amount) || 1;
+            const percent = Math.min(100, Math.round((monthlyDivs / targetAmount) * 100));
+            const isCompleted = monthlyDivs >= targetAmount;
+
+            return `
+                <div class="goal-card ${isCompleted ? 'completed' : ''}" 
+                     style="--goal-accent-color: #10B981;"
+                     onclick="editGoal('${g.id}')">
+                    
+                    <div class="goal-card-top">
+                        <div class="goal-badge-icon" style="background: rgba(16, 185, 129, 0.15); color: #10B981;">
+                            <i class="fas fa-hand-holding-usd"></i>
+                        </div>
+                        <div class="goal-title-wrap">
+                            <div class="goal-category-tag">
+                                <span>📈 Dividendos Mensais</span>
+                            </div>
+                            <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
+                        </div>
+                        <span class="goal-status-badge ${isCompleted ? 'completed-badge' : 'in-progress'}">
+                            ${isCompleted ? '🏆 Atingido' : `${percent}%`}
+                        </span>
+                    </div>
+
+                    <div class="goal-finance-row">
+                        <div class="goal-val-box">
+                            <span class="goal-val-label">Recebido este Mês</span>
+                            <span class="goal-val-current" style="color:#10b981;">${formatCurrency(monthlyDivs)}</span>
+                        </div>
+                        <div class="goal-val-box" style="text-align: right;">
+                            <span class="goal-val-label">Meta Mensal</span>
+                            <span class="goal-val-target">${formatCurrency(targetAmount)}/mês</span>
+                        </div>
+                    </div>
+
+                    <div class="goal-progress-box">
+                        <div class="goal-progress-meta">
+                            <span>Progresso: <strong>${formatCurrency(monthlyDivs)} de ${formatCurrency(targetAmount)}</strong></span>
+                            <span class="goal-progress-pct">${percent}%</span>
+                        </div>
+                        <div class="goal-progress-track">
+                            <div class="goal-progress-fill ${isCompleted ? 'completed' : ''}" style="width: ${percent}%; background:#10B981;"></div>
+                        </div>
+                    </div>
+
+                    <div class="goal-actions-bar" onclick="event.stopPropagation();">
+                        <button type="button" class="btn-card-action" onclick="window.location.href='investments.html'" style="background:rgba(16,185,129,0.12); color:#047857; font-weight:700; flex:1;">
+                            <i class="fas fa-chart-line"></i> Ver Proventos
+                        </button>
+                        <button type="button" class="btn-card-icon-only" onclick="editGoal('${g.id}')" title="Editar detalhes">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" class="btn-card-icon-only danger" onclick="deleteGoal('${g.id}')" title="Excluir meta">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // TIPO 3: FINANCEIRA (💰 Padrão)
         const percent = g.target_amount > 0
             ? Math.min(100, (g.current_amount / g.target_amount) * 100)
             : 0;
@@ -294,10 +425,6 @@ function renderGoals(goals) {
         const pctDisplay = Math.round(percent);
         const remaining = Math.max(0, (g.target_amount || 0) - (g.current_amount || 0));
 
-        const catInfo = resolveGoalCategory(g);
-        const color = g.color || catInfo.color || '#6C5CE7';
-
-        // Análise de prazo e cálculo de aporte mensal necessário
         let deadlineLabel = 'Sem prazo definido';
         let monthlyNeedText = '';
         if (g.deadline) {
@@ -324,7 +451,6 @@ function renderGoals(goals) {
                  style="--goal-accent-color: ${color};"
                  onclick="editGoal('${g.id}')">
                 
-                <!-- TOP HEADER -->
                 <div class="goal-card-top">
                     <div class="goal-badge-icon" style="background: ${color}20; color: ${color};">
                         <i class="fas ${catInfo.icon}"></i>
@@ -340,7 +466,6 @@ function renderGoals(goals) {
                     </span>
                 </div>
 
-                <!-- VALORES PRINCIPAIS -->
                 <div class="goal-finance-row">
                     <div class="goal-val-box">
                         <span class="goal-val-label">Valor Poupado</span>
@@ -352,7 +477,6 @@ function renderGoals(goals) {
                     </div>
                 </div>
 
-                <!-- PROGRESS TRACK -->
                 <div class="goal-progress-box">
                     <div class="goal-progress-meta">
                         <span>${isCompleted ? '🎉 100% atingido!' : `Faltam ${formatCurrency(remaining)}`}</span>
@@ -363,7 +487,6 @@ function renderGoals(goals) {
                     </div>
                 </div>
 
-                <!-- ESTIMATIVA / HORIZONTE -->
                 <div class="goal-insight-pill">
                     <div style="display:flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                         <i class="fas fa-calendar-alt"></i>
@@ -372,7 +495,6 @@ function renderGoals(goals) {
                     ${monthlyNeedText ? `<div>${monthlyNeedText}</div>` : ''}
                 </div>
 
-                <!-- AÇÕES RÁPIDAS -->
                 <div class="goal-actions-bar" onclick="event.stopPropagation();">
                     <button type="button" class="btn-card-action" onclick="openGoalYieldModal('${g.id}')" title="Extrato e Rendimento CDI" style="background:rgba(108,92,231,0.1); color:#6C5CE7; font-weight:700;">
                         <i class="fas fa-chart-line"></i> CDI
@@ -425,6 +547,7 @@ function openModal(id = null) {
     document.getElementById('editId').value = '';
     document.getElementById('gCurrent').value = '';
     document.getElementById('gDeadline').value = '';
+    if (document.getElementById('gType')) document.getElementById('gType').value = 'financial';
     document.getElementById('gCategory').value = 'other';
     document.getElementById('gColor').value = '#6C5CE7';
     if (document.getElementById('gCdiPercent')) document.getElementById('gCdiPercent').value = '100';
@@ -448,6 +571,7 @@ function openModal(id = null) {
         const goal = allGoals.find(g => g.id === id);
         if (goal) {
             document.getElementById('editId').value = goal.id;
+            if (document.getElementById('gType')) document.getElementById('gType').value = goal.type || 'financial';
             document.getElementById('gTitle').value = goal.title;
             document.getElementById('gTarget').value = formatNumberInput(goal.target_amount);
             document.getElementById('gCurrent').value = formatNumberInput(goal.current_amount || 0);
@@ -465,6 +589,10 @@ function openModal(id = null) {
         }
     }
 
+    if (typeof toggleGoalTypeFields === 'function') {
+        toggleGoalTypeFields();
+    }
+
     overlay.classList.add('active');
     modal.classList.remove('hidden');
 
@@ -472,6 +600,112 @@ function openModal(id = null) {
         document.getElementById('gTitle')?.focus();
     }, 100);
 }
+
+function toggleGoalTypeFields() {
+    const type = document.getElementById('gType')?.value || 'financial';
+    const amountRow = document.getElementById('goalAmountRow');
+    const currentGroup = document.getElementById('goalCurrentGroup');
+    const cdiGroup = document.getElementById('goalCdiGroup');
+    const lblTarget = document.getElementById('lblTarget');
+    const gTarget = document.getElementById('gTarget');
+    const gCurrent = document.getElementById('gCurrent');
+
+    if (type === 'habit') {
+        if (amountRow) amountRow.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (gTarget) { gTarget.required = false; gTarget.value = '1'; }
+        if (gCurrent) gCurrent.value = '0';
+    } else if (type === 'dividends') {
+        if (amountRow) amountRow.style.display = 'flex';
+        if (currentGroup) currentGroup.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (lblTarget) lblTarget.innerHTML = 'Meta Mensal de Proventos (R$/mês) *';
+        if (gTarget) { gTarget.required = true; gTarget.placeholder = '50,00'; }
+        if (gCurrent) gCurrent.value = '0';
+    } else { // 'financial'
+        if (amountRow) amountRow.style.display = 'flex';
+        if (currentGroup) currentGroup.style.display = 'block';
+        if (cdiGroup) cdiGroup.style.display = 'block';
+        if (lblTarget) lblTarget.innerHTML = 'Valor Total (R$) *';
+        if (gTarget) { gTarget.required = true; gTarget.placeholder = '50.000,00'; }
+    }
+}
+window.toggleGoalTypeFields = toggleGoalTypeFields;
+
+function getMonthlyDividendsTotal(targetMonthStr) {
+    const ym = targetMonthStr || (new Date().toISOString().substring(0, 7));
+    let divs = [];
+    if (Array.isArray(window.allDividends) && window.allDividends.length > 0) {
+        divs = window.allDividends;
+    } else {
+        try {
+            const uid = (currentUser && currentUser.id) ? currentUser.id : 'demo';
+            const raw = localStorage.getItem('tonucontrole_dividends_' + uid) || 
+                        localStorage.getItem('tonu_dividends_' + uid) ||
+                        localStorage.getItem('tonu_dividends_current');
+            if (raw) divs = JSON.parse(raw);
+        } catch (_) {}
+    }
+    return (divs || [])
+        .filter(d => {
+            const dt = d.payment_date || d.date || d.created_at || '';
+            return dt.startsWith(ym);
+        })
+        .reduce((sum, d) => sum + (Number(d.net_value ?? d.amount ?? d.total_value ?? 0) || 0), 0);
+}
+window.getMonthlyDividendsTotal = getMonthlyDividendsTotal;
+
+async function toggleHabitStatus(goalId) {
+    const goal = allGoals.find(g => String(g.id) === String(goalId));
+    if (!goal) return;
+    const newStatus = !goal.completed;
+    goal.completed = newStatus;
+    goal.current_amount = newStatus ? 1 : 0;
+    goal.target_amount = 1;
+    goal.updated_at = new Date().toISOString();
+    if (newStatus) {
+        goal.completed_at = new Date().toISOString();
+    } else {
+        delete goal.completed_at;
+    }
+
+    renderGoals(allGoals);
+    updateGoalsStats(allGoals);
+
+    if (newStatus && typeof triggerCelebration === 'function') {
+        triggerCelebration(goal.title, 0);
+    }
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', {
+            id: goal.id,
+            completed: newStatus,
+            current_amount: goal.current_amount,
+            target_amount: 1,
+            completed_at: goal.completed_at || null,
+            updated_at: goal.updated_at
+        });
+    }
+
+    if (supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            await supabaseClient.from('goals').update({
+                completed: newStatus,
+                current_amount: goal.current_amount,
+                target_amount: 1,
+                completed_at: goal.completed_at || null,
+                updated_at: goal.updated_at
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+        } catch (e) {
+            console.warn('⚠️ Erro ao atualizar status do hábito no Supabase:', e);
+        }
+    }
+
+    if (typeof showToast === 'function') {
+        showToast(newStatus ? '🎉 Projeto/Hábito concluído com sucesso!' : '⏳ Hábito retornado para Pendente', 'info');
+    }
+}
+window.toggleHabitStatus = toggleHabitStatus;
 
 function formatNumberInput(value) {
     if (value === null || value === undefined || isNaN(value)) return '';
@@ -508,35 +742,54 @@ async function saveGoal(event) {
     const prevGoal = editId ? allGoals.find(g => g.id === editId) : null;
     const wasCompleted = prevGoal ? (prevGoal.completed || (prevGoal.current_amount >= prevGoal.target_amount)) : false;
 
+    const type = document.getElementById('gType')?.value || 'financial';
     const title = document.getElementById('gTitle').value.trim();
-    const target = parseNumberInput(document.getElementById('gTarget').value);
-    const current = parseNumberInput(document.getElementById('gCurrent').value);
+    let target = parseNumberInput(document.getElementById('gTarget')?.value);
+    let current = parseNumberInput(document.getElementById('gCurrent')?.value);
     const deadline = document.getElementById('gDeadline').value || null;
     const category = document.getElementById('gCategory') ? document.getElementById('gCategory').value : 'other';
     const color = document.getElementById('gColor').value;
-    const completed = document.getElementById('gCompleted').checked || (current >= target);
 
-    const validation = window.validateGoal({
-        title: title,
-        target_amount: target,
-        current_amount: current,
-        deadline: deadline
-    });
-
-    if (!validation.valid) {
-        showToast('❌ ' + validation.errors.join('\n'), 'error');
+    if (!title) {
+        showToast('Informe o título da meta!', 'error');
         return;
     }
 
-    if (current > target) {
-        showToast('O valor atual não pode ser maior que a meta!', 'error');
-        return;
+    let completed = false;
+    if (type === 'habit') {
+        target = 1;
+        completed = document.getElementById('gCompleted')?.checked || false;
+        current = completed ? 1 : 0;
+    } else if (type === 'dividends') {
+        current = getMonthlyDividendsTotal();
+        completed = target > 0 ? (current >= target) : false;
+        if (target <= 0) {
+            showToast('Informe o valor mensal esperado de dividendos!', 'error');
+            return;
+        }
+    } else {
+        completed = document.getElementById('gCompleted').checked || (current >= target);
+        const validation = window.validateGoal({
+            title: title,
+            target_amount: target,
+            current_amount: current,
+            deadline: deadline
+        });
+        if (!validation.valid) {
+            showToast('❌ ' + validation.errors.join('\n'), 'error');
+            return;
+        }
+        if (current > target) {
+            showToast('O valor atual não pode ser maior que a meta!', 'error');
+            return;
+        }
     }
 
     const cdiPercent = parseFloat(document.getElementById('gCdiPercent')?.value) || 100;
 
     const data = {
         user_id: currentUser.id,
+        type: type,
         title: stripHTML(title),
         target_amount: target,
         current_amount: current,

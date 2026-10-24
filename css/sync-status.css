@@ -1,134 +1,94 @@
 /* ============================================
-   SYNC-STATUS.CSS - Status de Sincronização Discreto
-   TonuControle v2.1.0
+   SYNC-STATUS.CSS - Pontinho de Sincronização (8px)
+   TonuControle v2.2.0
    ============================================ */
 
-/* Botão indicador discreto (Dot) no Topbar */
-.sync-status-indicator {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
-    border-radius: 10px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    background: transparent !important;
-    border: 1px solid var(--color-border, #e2e8f0) !important;
-    padding: 0 !important;
-    margin: 0;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    user-select: none;
-    position: relative;
-    box-sizing: border-box;
-    outline: none;
-    flex-shrink: 0;
+/* Container de avatar com posicionamento relativo */
+.sidebar-user-profile,
+.sidebar-user-avatar-wrap,
+.mobile-user-avatar-wrap,
+.avatar-circle,
+.mobile-topbar-avatar,
+.mobile-avatar-wrapper {
+    position: relative !important;
 }
 
-.sync-status-indicator:hover {
-    background: rgba(0, 0, 0, 0.04) !important;
-    transform: translateY(-1px);
-}
-
-body.dark-theme .sync-status-indicator {
-    border-color: #334155 !important;
-}
-
-body.dark-theme .sync-status-indicator:hover {
-    background: rgba(255, 255, 255, 0.05) !important;
-}
-
-/* Bolinha indicadora centralizada */
-.sync-status-indicator .sync-dot {
-    width: 10px;
-    height: 10px;
+/* Pontinho (dot) de 8px de diâmetro */
+.sync-dot-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    min-height: 8px;
     border-radius: 50%;
-    display: block;
-    transition: all 0.3s ease;
+    border: 1.5px solid var(--color-surface, #ffffff);
+    box-sizing: content-box;
+    z-index: 25;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: background-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
 }
 
-/* Ocultar textos e badges intrusivos no mobile e desktop */
-.sync-status-indicator .sync-text,
-.sync-status-indicator .sync-badge,
-.sync-status-indicator .sync-tooltip {
-    display: none !important;
+body.dark-theme .sync-dot-badge {
+    border-color: #1e293b;
 }
 
-/* ============================================
-   STATUS 1: ONLINE / 100% SINCRONIZADO
-   Verde Estático (Sem Animação)
-   ============================================ */
-.sync-status-indicator.online .sync-dot {
-    background: #10b981;
-    box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+/* STATUS 1: ONLINE / 100% SINCRONIZADO -> Verde Estático */
+.sync-dot-badge.online {
+    background-color: #10b981 !important;
+    box-shadow: 0 0 4px rgba(16, 185, 129, 0.4);
     animation: none !important;
 }
 
-/* ============================================
-   STATUS 2: PENDENTE (1+ itens na fila)
-   Âmbar Pulsando
-   ============================================ */
-.sync-status-indicator.pending .sync-dot {
-    background: #f59e0b;
-    box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
-    animation: pulseAmberDot 1.4s infinite ease-in-out;
+/* STATUS 2: PENDENTE (1+ itens na fila) -> Âmbar Pulsando */
+.sync-dot-badge.pending {
+    background-color: #f59e0b !important;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.7);
+    animation: pulseAmberSyncDot 1.4s infinite ease-in-out;
 }
 
-@keyframes pulseAmberDot {
+/* STATUS 3: OFFLINE -> Vermelho */
+.sync-dot-badge.offline {
+    background-color: #ef4444 !important;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+    animation: none !important;
+}
+
+/* STATUS 4: SINCRONIZANDO (ativo) -> Roxo / Azul pulsando */
+.sync-dot-badge.syncing {
+    background-color: #6c5ce7 !important;
+    box-shadow: 0 0 6px rgba(108, 92, 231, 0.7);
+    animation: pulseAmberSyncDot 0.8s infinite alternate;
+}
+
+@keyframes pulseAmberSyncDot {
     0%, 100% {
         transform: scale(1);
         opacity: 1;
-        box-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
+        box-shadow: 0 0 3px rgba(245, 158, 11, 0.4);
     }
     50% {
-        transform: scale(1.25);
-        opacity: 0.65;
-        box-shadow: 0 0 10px rgba(245, 158, 11, 0.9);
+        transform: scale(1.35);
+        opacity: 0.75;
+        box-shadow: 0 0 8px rgba(245, 158, 11, 0.85);
     }
 }
 
-/* ============================================
-   STATUS 3: OFFLINE
-   Se houver pendência: âmbar pulsando.
-   Se sem pendências: cinza discreto estático.
-   ============================================ */
-.sync-status-indicator.offline .sync-dot {
-    background: #f59e0b;
-    box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
-    animation: pulseAmberDot 1.4s infinite ease-in-out;
+/* Ocultar antigo botão quadrado de 36x36px */
+.sync-status-indicator {
+    display: none !important;
 }
 
-.sync-status-indicator.offline.no-pending .sync-dot {
-    background: #94a3b8;
-    box-shadow: none;
-    animation: none !important;
-}
-
-/* ============================================
-   STATUS 4: SINCRONIZANDO COM A NUVEM
-   ============================================ */
-.sync-status-indicator.syncing .sync-dot {
-    background: #6c5ce7;
-    box-shadow: 0 0 8px rgba(108, 92, 231, 0.7);
-    animation: pulseSyncing 0.9s infinite alternate;
-}
-
-@keyframes pulseSyncing {
-    0% { transform: scale(0.9); opacity: 0.6; }
-    100% { transform: scale(1.25); opacity: 1; }
-}
-
-/* Evitar banners intrusivos fixos cobrindo o header */
+/* Ocultar banner offline obstrutivo */
 .offline-banner {
     display: none !important;
 }
 
-/* Redução de movimento */
 @media (prefers-reduced-motion: reduce) {
-    .sync-status-indicator.pending .sync-dot,
-    .sync-status-indicator.offline .sync-dot,
-    .sync-status-indicator.syncing .sync-dot {
+    .sync-dot-badge.pending,
+    .sync-dot-badge.syncing {
         animation: none !important;
     }
 }

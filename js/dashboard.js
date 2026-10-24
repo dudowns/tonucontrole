@@ -2071,22 +2071,8 @@ async function generateDashboardInsights() {
             `);
         }
 
-        // Ação 3: Capacidade livre para investir (🟢 Novo Aporte)
-        if (safeFreeCash > 50) {
-            actionCards.push(`
-                <div class="action-card positive" onclick="window.location.href='investments.html'" title="Ir para Investimentos">
-                    <div class="action-icon" style="background:#d1fae5; color:#10b981;"><i class="fas fa-coins"></i></div>
-                    <div class="action-info">
-                        <strong>Novo Aporte Seguro</strong>
-                        <span>${formatCurrency(safeFreeCash)} livres após provisionar as contas</span>
-                    </div>
-                    <span class="action-btn-pill" style="background:#d1fae5; color:#047857;">Aportar</span>
-                </div>
-            `);
-        }
-
-        // Limita a até 3 cards acionáveis
-        const displayedActionCards = actionCards.slice(0, 3);
+        // Checklist acionável limitado estritamente a "Pagar Agora" e "Ver Gastos"
+        const displayedActionCards = actionCards.slice(0, 2);
 
         // RENDERIZAÇÃO COMPLETA DO DIAGNÓSTICO
         container.innerHTML = `
@@ -2485,12 +2471,44 @@ async function loadCategoryChart() {
         const sortedEntries = Object.entries(groups)
             .sort((a, b) => b[1].total - a[1].total);
 
+        // Agrupamento sem duplicidade de "Outros":
+        // Se houver mais de 5 categorias ou se já existir uma categoria "Outros",
+        // soma qualquer categoria menor diretamente nessa única entrada "Outros".
+        const isOutrosName = (name) => {
+            const clean = (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+            return clean === 'outros' || clean === 'outro';
+        };
+
+        const existingOutros = sortedEntries.find(([k]) => isOutrosName(k));
+        const nonOutros = sortedEntries.filter(([k]) => !isOutrosName(k));
+        const maxMainCategories = 5;
+        const topCategories = nonOutros.slice(0, maxMainCategories);
+        const tailCategories = nonOutros.slice(maxMainCategories);
+
+        const tailSum = tailCategories.reduce((sum, [, obj]) => sum + obj.total, 0);
+
+        const consolidatedEntries = [...topCategories];
+        if (tailSum > 0 || existingOutros) {
+            const outrosTotal = (existingOutros ? existingOutros[1].total : 0) + tailSum;
+            if (outrosTotal > 0) {
+                consolidatedEntries.push([
+                    'Outros',
+                    {
+                        total: outrosTotal,
+                        color: (existingOutros && existingOutros[1].color) || '#94a3b8',
+                        icon: (existingOutros && existingOutros[1].icon) || 'fa-ellipsis-h',
+                        name: 'Outros'
+                    }
+                ]);
+            }
+        }
+
         const labels = [];
         const values = [];
         const colors = [];
         const icons = [];
 
-        sortedEntries.forEach(([key, valObj], idx) => {
+        consolidatedEntries.forEach(([key, valObj], idx) => {
             const fallbackStyle = getCategoryStyle(key, idx);
             labels.push(key);
             values.push(valObj.total);
@@ -2509,17 +2527,11 @@ async function loadCategoryChart() {
                     </div>
                 `;
             } else {
-                const maxDisplay = 5;
-                const displayLabels = labels.slice(0, maxDisplay);
-                const displayValues = values.slice(0, maxDisplay);
-                const displayColors = colors.slice(0, maxDisplay);
-                const displayIcons = icons.slice(0, maxDisplay);
-
-                legendContainer.innerHTML = displayLabels.map((label, idx) => {
-                    const val = displayValues[idx];
+                legendContainer.innerHTML = labels.map((label, idx) => {
+                    const val = values[idx];
                     const pct = total > 0 ? Math.round((val / total) * 100) : 0;
-                    const color = displayColors[idx];
-                    const icon = displayIcons[idx];
+                    const color = colors[idx];
+                    const icon = icons[idx];
 
                     return `
                         <div style="display:flex;flex-direction:column;gap:3px;padding:4px 4px;font-size:11px;border-bottom:1px solid var(--color-border-light,#f1f5f9);">
@@ -2538,27 +2550,6 @@ async function loadCategoryChart() {
                         </div>
                     `;
                 }).join('');
-
-                if (labels.length > maxDisplay) {
-                    const otherTotal = values.slice(maxDisplay).reduce((a, b) => a + b, 0);
-                    const otherPct = total > 0 ? Math.round((otherTotal / total) * 100) : 0;
-                    legendContainer.innerHTML += `
-                        <div style="display:flex;flex-direction:column;gap:3px;padding:4px 4px;font-size:10px;border-top:1px solid var(--color-border-light,#f1f5f9);margin-top:2px;">
-                            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-                                <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-                                    <span style="color:#94a3b8;font-size:9px;flex-shrink:0;width:14px;text-align:center;">
-                                        <i class="fas fa-ellipsis-h"></i>
-                                    </span>
-                                    <span style="color:#94a3b8;font-size:10px;font-weight:500;">Outros (${labels.length - maxDisplay})</span>
-                                </div>
-                                <span style="color:#94a3b8;font-size:10px;font-weight:700;">${otherPct}%</span>
-                            </div>
-                            <div style="width:100%;height:3px;background:rgba(148,163,184,0.15);border-radius:2px;overflow:hidden;">
-                                <div style="width:${otherPct}%;height:100%;background:#94a3b8;border-radius:2px;"></div>
-                            </div>
-                        </div>
-                    `;
-                }
             }
         }
 

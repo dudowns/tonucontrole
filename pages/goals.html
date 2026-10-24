@@ -341,17 +341,25 @@
                 <input type="hidden" id="editId">
                 <div class="modal-body">
                     <div class="form-group">
+                        <label for="gType">Tipo de Meta *</label>
+                        <select id="gType" class="form-control" onchange="toggleGoalTypeFields()">
+                            <option value="financial" selected>💰 Financeira (Patrimônio / Reserva / Compra)</option>
+                            <option value="habit">📌 Projeto / Hábito (Checklist de Conclusão)</option>
+                            <option value="dividends">📈 Dividendos (Renda Passiva Mensal)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="gTitle">Título da Meta *</label>
-                        <input type="text" id="gTitle" class="form-control" placeholder="Ex: Reserva de Emergência, Viagem, Carro Novo" required
+                        <input type="text" id="gTitle" class="form-control" placeholder="Ex: Reserva de Emergência, Viagem, Ler 12 Livros" required
                             aria-required="true">
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="gTarget">Valor Total (R$) *</label>
+                    <div class="form-row" id="goalAmountRow">
+                        <div class="form-group" id="goalTargetGroup">
+                            <label for="gTarget" id="lblTarget">Valor Total (R$) *</label>
                             <input type="text" id="gTarget" class="form-control" placeholder="50.000,00" required
                                 aria-required="true">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="goalCurrentGroup">
                             <label for="gCurrent">Valor Inicial (R$)</label>
                             <input type="text" id="gCurrent" class="form-control" placeholder="0,00">
                         </div>
@@ -389,7 +397,7 @@
                                 <option value="#10B981">🌲 Verde Floresta</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="goalCdiGroup">
                             <label for="gCdiPercent">% do CDI da Meta</label>
                             <div style="display:flex; align-items:center; gap:6px;">
                                 <input type="number" id="gCdiPercent" class="form-control" placeholder="100" value="100" step="1" min="1" max="500">

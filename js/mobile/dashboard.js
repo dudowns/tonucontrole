@@ -608,21 +608,35 @@ function renderMobileChart() {
     // Soma total real de TODAS as despesas pagas (idêntica ao card Saídas Pagas)
     const totalExpensesAmount = allSorted.reduce((sum, item) => sum + item.amount, 0);
 
-    // Se houver mais de 6 categorias, agrupa o excedente em "Outros" para que o gráfico feche em 100% e bata exatamente com o card
-    let sorted = allSorted;
-    if (allSorted.length > 6) {
-        const top5 = allSorted.slice(0, 5);
-        const othersAmount = allSorted.slice(5).reduce((sum, item) => sum + item.amount, 0);
-        sorted = [
-            ...top5,
-            {
+    // REGRA TAREFA 3: NUNCA duplicar "Outros". Se já existe "Outros", somar o excedente a ela.
+    const isOutrosItem = (item) => {
+        const clean = (item.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        return clean === 'outros' || clean === 'outro' || String(item.id || '').includes('outros');
+    };
+
+    let sorted = [];
+    if (allSorted.length <= 6) {
+        sorted = allSorted;
+    } else {
+        const existingOutros = allSorted.find(isOutrosItem);
+        const nonOutros = allSorted.filter(item => !isOutrosItem(item));
+        const top5 = nonOutros.slice(0, 5);
+        const tail = nonOutros.slice(5);
+        const tailAmount = tail.reduce((sum, item) => sum + item.amount, 0);
+
+        sorted = [...top5];
+        if (tailAmount > 0 || existingOutros) {
+            const combinedOutros = {
                 id: 'outros-agrupados',
-                name: `Outros (${allSorted.length - 5})`,
+                name: 'Outros',
                 icon: 'fa-ellipsis-h',
-                color: '#94a3b8',
-                amount: othersAmount
+                color: (existingOutros && existingOutros.color) || '#94a3b8',
+                amount: (existingOutros ? existingOutros.amount : 0) + tailAmount
+            };
+            if (combinedOutros.amount > 0) {
+                sorted.push(combinedOutros);
             }
-        ];
+        }
     }
 
     // Gera lista de categorias integrada abaixo do gráfico
@@ -1030,20 +1044,9 @@ function renderMobileInsights() {
             </div>
         `);
     }
-    if (safeFreeCashMob > 50) {
-        mobActionCards.push(`
-            <div class="mob-action-card" onclick="window.location.href='investments.html'" style="border-left:3px solid #10b981;">
-                <i class="fas fa-coins" style="color:#10b981; font-size:14px;"></i>
-                <div class="mob-action-desc">
-                    <strong>Novo Aporte Seguro</strong>
-                    <small>${formatCurrency(safeFreeCashMob)} disponíveis após contas</small>
-                </div>
-                <span class="mob-action-tag" style="background:#d1fae5; color:#047857;">Aportar</span>
-            </div>
-        `);
-    }
 
-    const displayedMobActionCards = mobActionCards.slice(0, 3);
+    // Checklist de ações rápidas no mobile restrito a "Pagar Agora" e "Ver Gastos"
+    const displayedMobActionCards = mobActionCards.slice(0, 2);
 
     container.innerHTML = `
         <div class="mobile-insights-card">

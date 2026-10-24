@@ -87,25 +87,77 @@
                 } catch (_) {}
             }
 
-            let badge = document.getElementById('tonuSyncIndicator');
-            if (!badge) {
-                const targetContainer = document.querySelector('.topbar-actions') || 
-                                        document.querySelector('.topbar-right') ||
-                                        document.querySelector('.mobile-topbar') ||
-                                        document.querySelector('.topbar') ||
-                                        document.querySelector('header');
-                if (targetContainer) {
-                    badge = document.createElement('button');
-                    badge.id = 'tonuSyncIndicator';
-                    badge.type = 'button';
-                    badge.className = 'sync-status-indicator';
-                    targetContainer.insertBefore(badge, targetContainer.firstChild);
-                }
-            }
-            if (!badge) return;
+            // Limpar botão antigo de 36x36 se existir
+            const oldBtn = document.getElementById('tonuSyncIndicator');
+            if (oldBtn) oldBtn.remove();
 
-            badge.onclick = (e) => {
+            // Garantir avatar no mobile topbar se não houver avatar na tela
+            const mobileActions = document.querySelector('.mobile-topbar .topbar-actions');
+            if (mobileActions && !document.getElementById('mobileTopAvatar')) {
+                const mobAvatar = document.createElement('div');
+                mobAvatar.id = 'mobileTopAvatar';
+                mobAvatar.className = 'mobile-topbar-avatar';
+                mobAvatar.title = 'Perfil e Status de Sincronização';
+                mobAvatar.style.cssText = 'width:30px; height:30px; border-radius:50%; background:var(--color-primary-light, #f1f0fd); color:#6C5CE7; font-weight:700; font-size:12px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; position:relative; margin-left:4px;';
+                mobAvatar.textContent = 'U';
+                mobAvatar.onclick = (e) => this.showStatusToast(e);
+                mobileActions.appendChild(mobAvatar);
+            }
+
+            // Selecionar todos os avatares / ícones de perfil presentes (PC e Mobile)
+            const targets = document.querySelectorAll('#sidebarUserAvatar, #mobileTopAvatar, #mobileUserAvatar, .avatar-circle, .mobile-avatar-wrapper, #sidebarUserProfile');
+            if (!targets || targets.length === 0) return;
+
+            let statusClass = 'online';
+            let titleText = '100% Sincronizado com a nuvem';
+
+            if (this.isSyncing) {
+                statusClass = 'syncing';
+                titleText = 'Sincronizando com a nuvem...';
+            } else if (pendingCount > 0) {
+                statusClass = 'pending';
+                titleText = `${pendingCount} alteração(ões) pendente(s) (Clique para sincronizar)`;
+            } else if (!this.isOnline) {
+                statusClass = 'offline';
+                titleText = 'Modo Offline (Alterações salvas localmente)';
+            }
+
+            targets.forEach(container => {
+                // Aplica posição relativa
+                if (window.getComputedStyle(container).position === 'static') {
+                    container.style.position = 'relative';
+                }
+
+                let dot = container.querySelector('.sync-dot-badge');
+                if (!dot) {
+                    dot = document.createElement('span');
+                    dot.className = 'sync-dot-badge';
+                    container.appendChild(dot);
+                }
+
+                dot.className = `sync-dot-badge ${statusClass}`;
+                dot.title = titleText;
+                dot.onclick = (e) => this.showStatusToast(e);
+
+                // Permite clicar no próprio avatar para exibir o toast de status
+                if (!container.dataset.syncClickAttached) {
+                    container.dataset.syncClickAttached = 'true';
+                    container.addEventListener('click', (e) => {
+                        // Se for clique no avatar, exibe toast discreto
+                        if (e.target === container || e.target.classList?.contains('sync-dot-badge') || e.target.closest?.('.sync-dot-badge')) {
+                            this.showStatusToast(e);
+                        }
+                    });
+                }
+            });
+        }
+
+        async showStatusToast(e) {
+            if (e) {
                 e.stopPropagation();
+            }
+            try {
+                const pendingCount = await this.getPendingCount();
                 if (this.isSyncing) {
                     if (typeof showToast === 'function') {
                         showToast('🔄 Sincronizando dados com a nuvem...', 'info');
@@ -123,34 +175,14 @@
                     }
                 } else if (!this.isOnline) {
                     if (typeof showToast === 'function') {
-                        showToast('📶 Modo Offline: alterações salvas no aparelho.', 'info');
+                        showToast('📶 Modo Offline: alterações salvas no aparelho.', 'error');
                     }
                 } else {
                     if (typeof showToast === 'function') {
                         showToast('✅ Tudo em dia! Dados 100% sincronizados.', 'success');
                     }
                 }
-            };
-
-            badge.className = 'sync-status-indicator';
-            if (this.isSyncing) {
-                badge.classList.add('syncing');
-                badge.title = 'Sincronizando com a nuvem...';
-                badge.innerHTML = `<span class="sync-dot"></span>`;
-            } else if (pendingCount > 0) {
-                badge.classList.add('pending');
-                badge.title = `${pendingCount} alteração(ões) pendente(s) (Clique para sincronizar)`;
-                badge.innerHTML = `<span class="sync-dot"></span>`;
-            } else if (!this.isOnline) {
-                badge.classList.add('offline');
-                badge.classList.add('no-pending');
-                badge.title = 'Modo Offline';
-                badge.innerHTML = `<span class="sync-dot"></span>`;
-            } else {
-                badge.classList.add('online');
-                badge.title = '100% Sincronizado com a nuvem';
-                badge.innerHTML = `<span class="sync-dot"></span>`;
-            }
+            } catch (_) {}
         }
 
         // ==================================================================
