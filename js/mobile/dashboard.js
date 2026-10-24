@@ -579,12 +579,19 @@ function renderMobileChart() {
             });
         }
 
-        const name = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : "Outros");
+        let name = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : "Outros");
+        const cleanName = String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        const isOutros = !name || cleanName === 'outros' || cleanName === 'outro' || cleanName === 'sem categoria' || cleanName === 'outras' || cleanName === 'outra' || cleanName.startsWith('outros') || cleanName.startsWith('outro');
+
+        if (isOutros) {
+            name = "Outros";
+        }
+
         const style = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
             ? window.getBackendCategoryStyle(name, cat)
-            : { color: cat?.color || '#0984E3', icon: cat?.icon || 'fa-tag', name: name };
+            : { color: isOutros ? '#94a3b8' : (cat?.color || '#0984E3'), icon: isOutros ? 'fa-ellipsis-h' : (cat?.icon || 'fa-tag'), name: name };
 
-        const groupKey = cat?.id || name;
+        const groupKey = isOutros ? '__canonical_outros__' : (cat?.id || name);
         const amt = Math.abs(Number(t.amount || 0));
         if (isNaN(amt) || amt <= 0) return;
 
@@ -608,35 +615,36 @@ function renderMobileChart() {
     // Soma total real de TODAS as despesas pagas (idêntica ao card Saídas Pagas)
     const totalExpensesAmount = allSorted.reduce((sum, item) => sum + item.amount, 0);
 
-    // REGRA TAREFA 3: NUNCA duplicar "Outros". Se já existe "Outros", somar o excedente a ela.
-    const isOutrosItem = (item) => {
-        const clean = (item.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        return clean === 'outros' || clean === 'outro' || String(item.id || '').includes('outros');
+    // REGRA TAREFA 3: NUNCA duplicar "Outros".
+    // 1. Isola qualquer item que seja "Outros" ou uncategorized
+    const isOutrosCheck = (item) => {
+        if (!item || !item.name) return true;
+        const c = String(item.name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        return c === 'outros' || c === 'outro' || c === 'sem categoria' || c === 'outras' || c === 'outra' || c.startsWith('outros') || c.startsWith('outro') || item.id === '__canonical_outros__' || String(item.id || '').includes('outros');
     };
 
-    let sorted = [];
-    if (allSorted.length <= 6) {
-        sorted = allSorted;
-    } else {
-        const existingOutros = allSorted.find(isOutrosItem);
-        const nonOutros = allSorted.filter(item => !isOutrosItem(item));
-        const top5 = nonOutros.slice(0, 5);
-        const tail = nonOutros.slice(5);
-        const tailAmount = tail.reduce((sum, item) => sum + item.amount, 0);
+    const regularCategories = allSorted.filter(item => !isOutrosCheck(item));
+    const outrosCategories = allSorted.filter(item => isOutrosCheck(item));
 
-        sorted = [...top5];
-        if (tailAmount > 0 || existingOutros) {
-            const combinedOutros = {
-                id: 'outros-agrupados',
-                name: 'Outros',
-                icon: 'fa-ellipsis-h',
-                color: (existingOutros && existingOutros.color) || '#94a3b8',
-                amount: (existingOutros ? existingOutros.amount : 0) + tailAmount
-            };
-            if (combinedOutros.amount > 0) {
-                sorted.push(combinedOutros);
-            }
-        }
+    const maxMainCategories = 5;
+    const topCategories = regularCategories.slice(0, maxMainCategories);
+    const tailCategories = regularCategories.slice(maxMainCategories);
+
+    // Soma as categorias menores da cauda + todas as instâncias de "Outros"
+    const tailAmount = tailCategories.reduce((sum, item) => sum + item.amount, 0);
+    const existingOutrosAmount = outrosCategories.reduce((sum, item) => sum + item.amount, 0);
+    const combinedOutrosTotal = existingOutrosAmount + tailAmount;
+
+    // Constrói o array 'sorted' final: até 5 categorias principais + no máximo UMA fatia "Outros"
+    const sorted = [...topCategories];
+    if (combinedOutrosTotal > 0) {
+        sorted.push({
+            id: 'outros-agrupados',
+            name: 'Outros',
+            icon: 'fa-ellipsis-h',
+            color: '#94a3b8',
+            amount: combinedOutrosTotal
+        });
     }
 
     // Gera lista de categorias integrada abaixo do gráfico

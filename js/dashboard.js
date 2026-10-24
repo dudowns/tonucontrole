@@ -2454,17 +2454,24 @@ async function loadCategoryChart() {
                     }
                 }
 
-                const name = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : 'Outros');
+                let name = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : 'Outros');
+                const cleanName = String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                const isOutros = !name || cleanName === 'outros' || cleanName === 'outro' || cleanName === 'sem categoria' || cleanName === 'outras' || cleanName === 'outra' || cleanName.startsWith('outros') || cleanName.startsWith('outro');
+
+                if (isOutros) {
+                    name = 'Outros';
+                }
+
                 const style = getCategoryStyle(name, 0, cat);
                 const amt = Math.abs(Number(t.amount || 0));
                 if (isNaN(amt) || amt <= 0) return;
 
                 if (!groups[name]) {
-                    groups[name] = { total: 0, color: style.color, icon: style.icon, name: name };
+                    groups[name] = { total: 0, color: isOutros ? '#94a3b8' : style.color, icon: isOutros ? 'fa-ellipsis-h' : style.icon, name: name };
                 }
                 groups[name].total += amt;
-                if (style.color) groups[name].color = style.color;
-                if (style.icon) groups[name].icon = style.icon;
+                if (style.color && !isOutros) groups[name].color = style.color;
+                if (style.icon && !isOutros) groups[name].icon = style.icon;
             });
         }
 
@@ -2472,35 +2479,33 @@ async function loadCategoryChart() {
             .sort((a, b) => b[1].total - a[1].total);
 
         // Agrupamento sem duplicidade de "Outros":
-        // Se houver mais de 5 categorias ou se já existir uma categoria "Outros",
-        // soma qualquer categoria menor diretamente nessa única entrada "Outros".
         const isOutrosName = (name) => {
-            const clean = (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-            return clean === 'outros' || clean === 'outro';
+            if (!name) return true;
+            const clean = String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+            return clean === 'outros' || clean === 'outro' || clean === 'sem categoria' || clean === 'outras' || clean === 'outra' || clean.startsWith('outros') || clean.startsWith('outro');
         };
 
-        const existingOutros = sortedEntries.find(([k]) => isOutrosName(k));
+        const outrosEntries = sortedEntries.filter(([k]) => isOutrosName(k));
         const nonOutros = sortedEntries.filter(([k]) => !isOutrosName(k));
         const maxMainCategories = 5;
         const topCategories = nonOutros.slice(0, maxMainCategories);
         const tailCategories = nonOutros.slice(maxMainCategories);
 
         const tailSum = tailCategories.reduce((sum, [, obj]) => sum + obj.total, 0);
+        const existingOutrosSum = outrosEntries.reduce((sum, [, obj]) => sum + obj.total, 0);
+        const combinedOutrosTotal = existingOutrosSum + tailSum;
 
         const consolidatedEntries = [...topCategories];
-        if (tailSum > 0 || existingOutros) {
-            const outrosTotal = (existingOutros ? existingOutros[1].total : 0) + tailSum;
-            if (outrosTotal > 0) {
-                consolidatedEntries.push([
-                    'Outros',
-                    {
-                        total: outrosTotal,
-                        color: (existingOutros && existingOutros[1].color) || '#94a3b8',
-                        icon: (existingOutros && existingOutros[1].icon) || 'fa-ellipsis-h',
-                        name: 'Outros'
-                    }
-                ]);
-            }
+        if (combinedOutrosTotal > 0) {
+            consolidatedEntries.push([
+                'Outros',
+                {
+                    total: combinedOutrosTotal,
+                    color: '#94a3b8',
+                    icon: 'fa-ellipsis-h',
+                    name: 'Outros'
+                }
+            ]);
         }
 
         const labels = [];
