@@ -3,7 +3,7 @@
 // ============================================
 
 // NOTA: Sincronizar CACHE_NAME com a versão em package.json a cada release
-const CACHE_NAME = 'tonucontrole-v2.8.4';
+const CACHE_NAME = 'tonucontrole-v2.8.5';
 
 const RELATIVE_ASSETS = [
   './',
@@ -155,17 +155,13 @@ self.addEventListener('push', (event) => {
   const badgeCount = Number(data.badgeCount || data.badge_count || 1);
 
   const promiseChain = (async () => {
-    // 1. Exibir notificação push nativa
+    // 1. Exibir notificação push nativa (compatibilidade iOS Safari 16.4+, Android e Desktop)
     await self.registration.showNotification(data.title, {
       body: data.body,
       icon: data.icon || '/icons/icon-192x192.png',
       badge: '/icons/icon-96x96.png',
       tag: data.tag || 'tonu-notification',
-      data: { url: data.url || './', badgeCount: badgeCount },
-      vibrate: [200, 100, 200],
-      requireInteraction: true,
-      silent: false,
-      renotify: true
+      data: { url: data.url || './', badgeCount: badgeCount }
     });
 
     // 2. Definir Badge no ícone do App (suporta iOS 16.4+ via self.navigator e Windows/Chrome via self.navigator / self.registration)
