@@ -2454,58 +2454,62 @@ async function loadCategoryChart() {
                     }
                 }
 
-                let name = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : 'Outros');
-                const cleanName = String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-                const isOutros = !name || cleanName === 'outros' || cleanName === 'outro' || cleanName === 'sem categoria' || cleanName === 'outras' || cleanName === 'outra' || cleanName.startsWith('outros') || cleanName.startsWith('outro');
+                const normalizeCatKey = (val) => {
+                    if (!val) return 'outros';
+                    const clean = String(val)
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+                        .trim();
+                    if (clean.includes('outro') || clean.includes('outra') || clean.includes('sem categoria') || clean === '' || clean === 'diversos' || clean === 'geral') {
+                        return 'outros';
+                    }
+                    return clean;
+                };
 
-                if (isOutros) {
-                    name = 'Outros';
-                }
+                const rawName = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : 'Outros');
+                const normKey = normalizeCatKey(rawName);
+                const displayName = normKey === 'outros' ? 'Outros' : rawName;
 
-                const style = getCategoryStyle(name, 0, cat);
+                const style = getCategoryStyle(displayName, 0, cat);
                 const amt = Math.abs(Number(t.amount || 0));
                 if (isNaN(amt) || amt <= 0) return;
 
-                if (!groups[name]) {
-                    groups[name] = { total: 0, color: isOutros ? '#94a3b8' : style.color, icon: isOutros ? 'fa-ellipsis-h' : style.icon, name: name };
+                if (!groups[normKey]) {
+                    groups[normKey] = {
+                        total: 0,
+                        color: normKey === 'outros' ? '#94a3b8' : style.color,
+                        icon: normKey === 'outros' ? 'fa-ellipsis-h' : style.icon,
+                        name: displayName
+                    };
                 }
-                groups[name].total += amt;
-                if (style.color && !isOutros) groups[name].color = style.color;
-                if (style.icon && !isOutros) groups[name].icon = style.icon;
+                groups[normKey].total += amt;
             });
         }
 
-        const sortedEntries = Object.entries(groups)
-            .sort((a, b) => b[1].total - a[1].total);
+        const allCategories = Object.values(groups).sort((a, b) => b.total - a.total);
 
-        // Agrupamento sem duplicidade de "Outros":
-        const isOutrosName = (name) => {
-            if (!name) return true;
-            const clean = String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-            return clean === 'outros' || clean === 'outro' || clean === 'sem categoria' || clean === 'outras' || clean === 'outra' || clean.startsWith('outros') || clean.startsWith('outro');
-        };
+        // OPÇÃO A: Se até 8 categorias, mostra TODAS no gráfico
+        let consolidatedEntries = [];
+        if (allCategories.length <= 8) {
+            consolidatedEntries = allCategories.map(item => [item.name, item]);
+        } else {
+            // Se > 8 categorias, top 8 + cauda em Outros
+            const regularCategories = allCategories.filter(item => item.name !== 'Outros' && !String(item.name).toLowerCase().includes('outro'));
+            const existingOutros = allCategories.find(item => item.name === 'Outros' || String(item.name).toLowerCase().includes('outro'));
+            const top8 = regularCategories.slice(0, 8);
+            const tail = regularCategories.slice(8);
+            const tailSum = tail.reduce((sum, item) => sum + item.total, 0);
+            const combinedOutrosTotal = (existingOutros ? existingOutros.total : 0) + tailSum;
 
-        const outrosEntries = sortedEntries.filter(([k]) => isOutrosName(k));
-        const nonOutros = sortedEntries.filter(([k]) => !isOutrosName(k));
-        const maxMainCategories = 5;
-        const topCategories = nonOutros.slice(0, maxMainCategories);
-        const tailCategories = nonOutros.slice(maxMainCategories);
-
-        const tailSum = tailCategories.reduce((sum, [, obj]) => sum + obj.total, 0);
-        const existingOutrosSum = outrosEntries.reduce((sum, [, obj]) => sum + obj.total, 0);
-        const combinedOutrosTotal = existingOutrosSum + tailSum;
-
-        const consolidatedEntries = [...topCategories];
-        if (combinedOutrosTotal > 0) {
-            consolidatedEntries.push([
-                'Outros',
-                {
-                    total: combinedOutrosTotal,
-                    color: '#94a3b8',
-                    icon: 'fa-ellipsis-h',
-                    name: 'Outros'
-                }
-            ]);
+            consolidatedEntries = top8.map(item => [item.name, item]);
+            if (combinedOutrosTotal > 0) {
+                consolidatedEntries.push([
+                    'Outros',
+                    { total: combinedOutrosTotal, color: '#94a3b8', icon: 'fa-ellipsis-h', name: 'Outros' }
+                ]);
+            }
         }
 
         const labels = [];

@@ -547,6 +547,10 @@ body.dark-theme .mobile-tabs {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    max-height: 380px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 4px;
 }
 
 .mobile-cat-row {

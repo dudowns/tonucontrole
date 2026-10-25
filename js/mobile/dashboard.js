@@ -579,72 +579,70 @@ function renderMobileChart() {
             });
         }
 
-        let name = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : "Outros");
-        const cleanName = String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        const isOutros = !name || cleanName === 'outros' || cleanName === 'outro' || cleanName === 'sem categoria' || cleanName === 'outras' || cleanName === 'outra' || cleanName.startsWith('outros') || cleanName.startsWith('outro');
+        const normalizeCatKey = (val) => {
+            if (!val) return 'outros';
+            const clean = String(val)
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+                .trim();
+            if (clean.includes('outro') || clean.includes('outra') || clean.includes('sem categoria') || clean === '' || clean === 'diversos' || clean === 'geral') {
+                return 'outros';
+            }
+            return clean;
+        };
 
-        if (isOutros) {
-            name = "Outros";
-        }
+        const rawName = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : "Outros");
+        const normKey = normalizeCatKey(rawName);
+        const displayName = normKey === 'outros' ? 'Outros' : rawName;
 
         const style = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
-            ? window.getBackendCategoryStyle(name, cat)
-            : { color: isOutros ? '#94a3b8' : (cat?.color || '#0984E3'), icon: isOutros ? 'fa-ellipsis-h' : (cat?.icon || 'fa-tag'), name: name };
+            ? window.getBackendCategoryStyle(displayName, cat)
+            : { color: normKey === 'outros' ? '#94a3b8' : (cat?.color || '#0984E3'), icon: normKey === 'outros' ? 'fa-ellipsis-h' : (cat?.icon || 'fa-tag'), name: displayName };
 
-        const groupKey = isOutros ? '__canonical_outros__' : (cat?.id || name);
         const amt = Math.abs(Number(t.amount || 0));
         if (isNaN(amt) || amt <= 0) return;
 
-        if (!catMap[groupKey]) {
-            catMap[groupKey] = {
-                id: groupKey,
-                name: name,
-                icon: style.icon,
-                color: style.color,
+        if (!catMap[normKey]) {
+            catMap[normKey] = {
+                id: normKey,
+                name: displayName,
+                icon: normKey === 'outros' ? 'fa-ellipsis-h' : style.icon,
+                color: normKey === 'outros' ? '#94a3b8' : style.color,
                 amount: 0
             };
         }
-        catMap[groupKey].amount += amt;
-        if (style.color) catMap[groupKey].color = style.color;
-        if (style.icon) catMap[groupKey].icon = style.icon;
+        catMap[normKey].amount += amt;
     });
 
-    const allSorted = Object.values(catMap)
-        .sort((a, b) => b.amount - a.amount);
+    // Todas as categorias unificadas por nome normalizado
+    const allCategories = Object.values(catMap).sort((a, b) => b.amount - a.amount);
+    const totalExpensesAmount = allCategories.reduce((sum, item) => sum + item.amount, 0);
 
-    // Soma total real de TODAS as despesas pagas (idêntica ao card Saídas Pagas)
-    const totalExpensesAmount = allSorted.reduce((sum, item) => sum + item.amount, 0);
+    // OPÇÃO A: Se até 8 categorias, mostra TODAS no gráfico sem esconder cauda em Outros
+    let sorted = [];
+    if (allCategories.length <= 8) {
+        sorted = [...allCategories];
+    } else {
+        // Se houver mais de 8 categorias, top 8 + cauda em Outros
+        const regularCategories = allCategories.filter(item => item.id !== 'outros');
+        const existingOutros = allCategories.find(item => item.id === 'outros');
+        const top8 = regularCategories.slice(0, 8);
+        const tail = regularCategories.slice(8);
+        const tailAmount = tail.reduce((sum, item) => sum + item.amount, 0);
+        const combinedOutrosTotal = (existingOutros ? existingOutros.amount : 0) + tailAmount;
 
-    // REGRA TAREFA 3: NUNCA duplicar "Outros".
-    // 1. Isola qualquer item que seja "Outros" ou uncategorized
-    const isOutrosCheck = (item) => {
-        if (!item || !item.name) return true;
-        const c = String(item.name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        return c === 'outros' || c === 'outro' || c === 'sem categoria' || c === 'outras' || c === 'outra' || c.startsWith('outros') || c.startsWith('outro') || item.id === '__canonical_outros__' || String(item.id || '').includes('outros');
-    };
-
-    const regularCategories = allSorted.filter(item => !isOutrosCheck(item));
-    const outrosCategories = allSorted.filter(item => isOutrosCheck(item));
-
-    const maxMainCategories = 5;
-    const topCategories = regularCategories.slice(0, maxMainCategories);
-    const tailCategories = regularCategories.slice(maxMainCategories);
-
-    // Soma as categorias menores da cauda + todas as instâncias de "Outros"
-    const tailAmount = tailCategories.reduce((sum, item) => sum + item.amount, 0);
-    const existingOutrosAmount = outrosCategories.reduce((sum, item) => sum + item.amount, 0);
-    const combinedOutrosTotal = existingOutrosAmount + tailAmount;
-
-    // Constrói o array 'sorted' final: até 5 categorias principais + no máximo UMA fatia "Outros"
-    const sorted = [...topCategories];
-    if (combinedOutrosTotal > 0) {
-        sorted.push({
-            id: 'outros-agrupados',
-            name: 'Outros',
-            icon: 'fa-ellipsis-h',
-            color: '#94a3b8',
-            amount: combinedOutrosTotal
-        });
+        sorted = [...top8];
+        if (combinedOutrosTotal > 0) {
+            sorted.push({
+                id: 'outros',
+                name: 'Outros',
+                icon: 'fa-ellipsis-h',
+                color: '#94a3b8',
+                amount: combinedOutrosTotal
+            });
+        }
     }
 
     // Gera lista de categorias integrada abaixo do gráfico
