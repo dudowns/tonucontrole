@@ -36,6 +36,9 @@ function createZipArchive(options = {}) {
 
 const app = express();
 
+// Habilita confiança no proxy reverso do Google AI Studio / Cloud Run
+app.set('trust proxy', 1);
+
 // A porta 3000 é estritamente exigida pelo proxy reverso do Google AI Studio.
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const ROOT_DIR = __dirname;
@@ -58,6 +61,7 @@ const globalLimiter = rateLimit({
     max: 1500, // Limite seguro para requisições por IP
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
     message: {
         error: 'Muitas requisições deste IP. Por favor, tente novamente em alguns instantes.'
     }
@@ -70,6 +74,7 @@ const zipDownloadLimiter = rateLimit({
     max: 15,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
     message: {
         error: 'Limite de downloads de código-fonte atingido. Aguarde alguns minutos.'
     }
