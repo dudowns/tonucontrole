@@ -1821,6 +1821,73 @@
         }
     }
 
+    // ============================================
+    // AUTO-RESTAURAÇÃO SILENCIOSA DE SUBSCRIPTION (iOS / Safari / PWA)
+    // ============================================
+    async function ensurePushSubscriptionSilent() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+            return;
+        }
+
+        // Só executa se a permissão já foi concedida previamente
+        if (Notification.permission !== 'granted') {
+            return;
+        }
+
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        if (isIOS && !isStandalone) {
+            return;
+        }
+
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            let subscription = await registration.pushManager.getSubscription();
+
+            if (subscription) {
+                console.log('[Push] Subscription existe? Sim');
+            } else {
+                console.log('[Push] Subscription existe? Não');
+                try {
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                    });
+                    console.log(`[Push] Re-inscrição feita com sucesso: ${subscription.endpoint}`);
+                } catch (subErr) {
+                    console.warn(`[Push] Falha na re-inscrição: ${subErr?.message || subErr}`);
+                    return;
+                }
+            }
+
+            // Envia / atualiza silenciosamente no Supabase (upsert)
+            if (subscription && window.supabaseClient) {
+                let user = window.currentUser;
+                if (!user && window.supabaseClient.auth) {
+                    const sessionRes = await window.supabaseClient.auth.getSession();
+                    user = sessionRes?.data?.session?.user;
+                }
+
+                if (user && user.id) {
+                    const pushPrefs = billNotificationManager.getPushPreferences();
+                    const subJson = subscription.toJSON();
+                    await window.supabaseClient
+                        .from('push_subscriptions')
+                        .upsert({
+                            user_id: user.id,
+                            endpoint: subJson.endpoint,
+                            keys: subJson.keys,
+                            user_agent: navigator.userAgent,
+                            preferences: pushPrefs,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id,endpoint' });
+                }
+            }
+        } catch (err) {
+            console.debug('[Push] Falha na verificação de subscription:', err?.message || err);
+        }
+    }
+
     async function unregisterPushSubscription() {
         if (!('serviceWorker' in navigator)) return;
         try {
@@ -1845,8 +1912,16 @@
     // Expor globalmente
     window.registerPushSubscription = registerPushSubscription;
     window.unregisterPushSubscription = unregisterPushSubscription;
+    window.ensurePushSubscriptionSilent = ensurePushSubscriptionSilent;
     window.getPushPreferences = () => billNotificationManager.getPushPreferences();
     window.savePushPreferences = (prefs) => billNotificationManager.savePushPreferences(prefs);
+
+    // Executa ao abrir o app (DOMContentLoaded) com delay leve para não concorrer com o dashboard
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => setTimeout(ensurePushSubscriptionSilent, 1200));
+    } else {
+        setTimeout(ensurePushSubscriptionSilent, 1200);
+    }
 
     console.log('🔔 Notifications.js Premium carregado com sucesso!');
 })();
