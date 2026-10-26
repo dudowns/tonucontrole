@@ -3,7 +3,7 @@
 // ============================================
 
 // NOTA: Sincronizar CACHE_NAME com a versão em package.json a cada release
-const CACHE_NAME = 'tonucontrole-v2.8.5';
+const CACHE_NAME = 'tonucontrole-v2.8.6';
 
 const RELATIVE_ASSETS = [
   './',
@@ -154,21 +154,18 @@ self.addEventListener('push', (event) => {
 
   const badgeCount = Number(data.badgeCount || data.badge_count || 1);
 
-  const promiseChain = (async () => {
-    // 1. Exibir notificação push nativa (compatibilidade iOS Safari 16.4+, Android e Desktop)
-    await self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: data.icon || '/icons/icon-192x192.png',
-      badge: '/icons/icon-96x96.png',
-      tag: data.tag || 'tonu-notification',
-      data: { url: data.url || './', badgeCount: badgeCount }
-    });
+  // Exibição imediata dentro de event.waitUntil para garantir ciclo de vida no iOS WebKit
+  const notificationPromise = self.registration.showNotification(data.title || 'TonuControle', {
+    body: data.body || '',
+    icon: data.icon || '/icons/icon-192x192.png',
+    badge: '/icons/icon-96x96.png',
+    tag: data.tag || 'tonu-notification',
+    data: { url: data.url || './', badgeCount: badgeCount }
+  });
 
-    // 2. Definir Badge no ícone do App (suporta iOS 16.4+ via self.navigator e Windows/Chrome via self.navigator / self.registration)
-    await setSWAppBadge(badgeCount);
-  })();
+  const badgePromise = setSWAppBadge(badgeCount).catch(() => {});
 
-  event.waitUntil(promiseChain);
+  event.waitUntil(Promise.all([notificationPromise, badgePromise]));
 });
 
 self.addEventListener('notificationclick', (event) => {

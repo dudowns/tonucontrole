@@ -1736,7 +1736,8 @@
         for (let i = 0; i < rawData.length; ++i) {
             outputArray[i] = rawData.charCodeAt(i);
         }
-        return outputArray;
+        // Retorna ArrayBuffer puro fatiado para compatibilidade estrita com iOS WebKit
+        return outputArray.buffer.slice(0);
     }
 
     async function registerPushSubscription() {
