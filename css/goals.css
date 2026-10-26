@@ -875,3 +875,292 @@
         flex: 1 1 calc(50% - 4px);
     }
 }
+
+/* ============================================
+   TEMPORAL CONTROL (ANO VS LONGO PRAZO)
+   ============================================ */
+.temporal-control-bar {
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 14px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.year-stepper-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.year-stepper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-bg, #f8fafc);
+    padding: 3px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.step-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted, #64748b);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 12px;
+}
+
+.step-btn:hover:not(:disabled) {
+    background: var(--color-surface, #ffffff);
+    color: #6C5CE7;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.current-year-label {
+    font-size: 15px;
+    font-weight: 800;
+    padding: 0 8px;
+    font-family: 'Inter', -apple-system, sans-serif;
+    letter-spacing: -0.3px;
+    color: var(--color-text, #0f172a);
+}
+
+.year-badge-status {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.status-badge-current {
+    background: rgba(108, 92, 231, 0.12);
+    color: #6C5CE7;
+}
+
+.status-badge-past {
+    background: rgba(100, 116, 139, 0.12);
+    color: #64748B;
+}
+
+.status-badge-future {
+    background: rgba(245, 158, 11, 0.12);
+    color: #D97706;
+}
+
+.view-mode-toggle {
+    display: flex;
+    background: var(--color-bg, #f8fafc);
+    padding: 3px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.view-mode-btn {
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted, #64748b);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.view-mode-btn.active {
+    background: #6C5CE7;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(108, 92, 231, 0.3);
+}
+
+/* ============================================
+   BANNER DE RESUMO DO CICLO DE CONQUISTAS
+   ============================================ */
+.cycle-summary-banner {
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.06) 0%, rgba(0, 184, 148, 0.05) 100%);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-left: 4px solid #6C5CE7;
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.cycle-summary-banner h2 {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--color-text, #0f172a);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cycle-summary-banner p {
+    font-size: 11.5px;
+    color: var(--color-text-muted, #64748b);
+    margin: 2px 0 0;
+}
+
+.cycle-score-box {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.cycle-score-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: #00B894;
+    letter-spacing: -0.3px;
+}
+
+.cycle-score-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-text-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+/* ============================================
+   CARD ELEMENTS: PROJETOS, AUTO & BADGES
+   ============================================ */
+.project-toggle-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 2px solid var(--color-border, #cbd5e1);
+    background: var(--color-surface, #ffffff);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    flex-shrink: 0;
+    color: transparent;
+    font-size: 13px;
+}
+
+.project-toggle-btn:hover {
+    border-color: #00B894;
+    transform: scale(1.05);
+}
+
+.project-toggle-btn.checked {
+    background: #00B894;
+    border-color: #00B894;
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(0, 184, 148, 0.45);
+}
+
+.auto-sync-tag {
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: fit-content;
+    margin-top: 6px;
+}
+
+.auto-sync-tag.dividends {
+    background: rgba(0, 184, 148, 0.1);
+    color: #00B894;
+    border: 1px solid rgba(0, 184, 148, 0.2);
+}
+
+.auto-sync-tag.wealth {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8B5CF6;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.btn-postpone-action {
+    background: var(--color-bg, #f8fafc);
+    border: 1px solid var(--color-border, #cbd5e1);
+    color: var(--color-text-muted, #64748b);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-postpone-action:hover {
+    background: rgba(108, 92, 231, 0.08);
+    border-color: #6C5CE7;
+    color: #6C5CE7;
+}
+
+/* ============================================
+   MODAL DE SELEÇÃO DOS 4 TIPOS DE META
+   ============================================ */
+.type-selector-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.type-card-opt {
+    background: var(--color-bg, #f8fafc);
+    border: 2px solid var(--color-border, #e2e8f0);
+    border-radius: 10px;
+    padding: 10px 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+}
+
+.type-card-opt:hover {
+    border-color: #a29bfe;
+}
+
+.type-card-opt.selected {
+    border-color: #6C5CE7;
+    background: rgba(108, 92, 231, 0.08);
+}
+
+.type-card-opt i {
+    font-size: 16px;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.type-card-opt .type-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--color-text, #0f172a);
+}
+
+.type-card-opt .type-desc {
+    font-size: 9.5px;
+    color: var(--color-text-muted, #64748b);
+    margin-top: 1px;
+}

@@ -244,6 +244,232 @@
         .btn-goal-icon:hover { color: #6C5CE7; border-color: #6C5CE7; }
         .btn-goal-icon.del:hover { color: #ef4444; border-color: #ef4444; }
 
+        /* ========================================================
+           CONTROLE TEMPORAL MOBILE (Ano vs Longo Prazo)
+           ======================================================== */
+        .temporal-control-mobile {
+            background: var(--color-surface, #ffffff);
+            border: 1px solid var(--color-border, #e2e8f0);
+            border-radius: 14px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .year-stepper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--color-bg, #f8fafc);
+            padding: 3px 6px;
+            border-radius: 999px;
+            border: 1px solid var(--color-border, #e2e8f0);
+        }
+        .step-btn {
+            background: transparent;
+            border: none;
+            color: var(--color-text-muted, #64748b);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 11px;
+        }
+        .step-btn:hover { background: rgba(108, 92, 231, 0.1); color: #6C5CE7; }
+        .current-year-label {
+            font-size: 14px;
+            font-weight: 800;
+            padding: 0 6px;
+            font-family: monospace;
+            color: var(--color-text, #0f172a);
+        }
+        .year-badge-status {
+            font-size: 9.5px;
+            padding: 3px 7px;
+            border-radius: 999px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+        }
+        .status-current { background: rgba(108, 92, 231, 0.15); color: #6C5CE7; }
+        .status-past { background: rgba(100, 116, 139, 0.15); color: #64748B; }
+        .status-future { background: rgba(245, 158, 11, 0.15); color: #D97706; }
+
+        .view-mode-toggle {
+            display: flex;
+            background: var(--color-bg, #f8fafc);
+            padding: 3px;
+            border-radius: 999px;
+            border: 1px solid var(--color-border, #e2e8f0);
+        }
+        .view-mode-btn {
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: none;
+            background: transparent;
+            color: var(--color-text-muted, #64748b);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .view-mode-btn.active {
+            background: #6C5CE7;
+            color: #ffffff;
+            box-shadow: 0 1px 4px rgba(108, 92, 231, 0.3);
+        }
+
+        /* BANNER DO CICLO MOBILE */
+        .cycle-summary-mobile {
+            background: linear-gradient(135deg, rgba(108, 92, 231, 0.08) 0%, rgba(162, 155, 254, 0.12) 100%);
+            border: 1px solid rgba(108, 92, 231, 0.2);
+            border-radius: 14px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .cycle-summary-mobile::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #6C5CE7;
+        }
+        .cycle-summary-mobile .cycle-info h3 {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--color-text, #0f172a);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .cycle-summary-mobile .cycle-info p {
+            font-size: 10.5px;
+            color: var(--color-text-muted, #64748b);
+            margin: 2px 0 0 0;
+        }
+        .cycle-summary-mobile .cycle-score {
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .cycle-summary-mobile .cycle-score .score-value {
+            font-size: 17px;
+            font-weight: 800;
+            color: #00B894;
+            font-family: monospace;
+        }
+        .cycle-summary-mobile .cycle-score .score-label {
+            font-size: 9.5px;
+            color: var(--color-text-muted, #64748b);
+            text-transform: uppercase;
+        }
+
+        /* PROJETO / HÁBITO TOGGLE (CHECKLIST DIRECT ACTION) */
+        .project-toggle-mobile {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 2px solid var(--color-border, #cbd5e1);
+            background: var(--color-bg, #f8fafc);
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            flex-shrink: 0;
+            color: transparent;
+        }
+        .project-toggle-mobile:active { transform: scale(0.92); }
+        .project-toggle-mobile.checked {
+            background: #00B894;
+            border-color: #00B894;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(0, 184, 148, 0.4);
+        }
+
+        .auto-sync-tag-mobile {
+            font-size: 10px;
+            color: #00B894;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(0, 184, 148, 0.1);
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+
+        .btn-postpone-mobile {
+            background: rgba(100, 116, 139, 0.12);
+            color: #475569;
+            border: 1px solid rgba(100, 116, 139, 0.25);
+            padding: 5px 8px;
+            border-radius: 8px;
+            font-size: 10.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-postpone-mobile:hover { background: rgba(100, 116, 139, 0.2); }
+
+        /* MODAL TYPE GRID (MOBILE) */
+        .type-selector-mobile-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .type-card-mobile-opt {
+            background: var(--color-bg, #f8fafc);
+            border: 2px solid var(--color-border, #e2e8f0);
+            border-radius: 10px;
+            padding: 10px 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s ease;
+        }
+        .type-card-mobile-opt:active { transform: scale(0.97); }
+        .type-card-mobile-opt.selected {
+            border-color: #6C5CE7;
+            background: rgba(108, 92, 231, 0.08);
+        }
+        .type-card-mobile-opt i {
+            font-size: 16px;
+            margin-bottom: 4px;
+            display: block;
+        }
+        .type-card-mobile-opt .type-title {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--color-text, #0f172a);
+        }
+        .type-card-mobile-opt .type-desc {
+            font-size: 9.5px;
+            color: var(--color-text-muted, #94a3b8);
+            margin-top: 1px;
+        }
+
         .tab-action-bar {
             display: flex;
             justify-content: space-between;
@@ -490,6 +716,44 @@
 
 <main class="mobile-content" style="padding: 12px 14px;">
 
+    <!-- BARRA DE CONTROLE TEMPORAL (Ano vs Contínuo) -->
+    <div class="temporal-control-mobile">
+        <div id="mobileYearStepperWrapper" style="display:flex; align-items:center; gap:8px;">
+            <div class="year-stepper">
+                <button type="button" class="step-btn" onclick="changeMobileYear(-1)" title="Ano anterior">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="current-year-label">
+                    <span id="mobileLabelCurrentYear">2026</span>
+                </div>
+                <button type="button" class="step-btn" onclick="changeMobileYear(1)" title="Próximo ano">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <span id="mobileYearStatusBadge" class="year-badge-status status-current">Ciclo Atual</span>
+        </div>
+        <div class="view-mode-toggle">
+            <button type="button" id="btnMobileViewYear" class="view-mode-btn active" onclick="setMobileTemporalMode('year')">
+                <i class="fas fa-calendar-alt"></i> Anual
+            </button>
+            <button type="button" id="btnMobileViewContinuous" class="view-mode-btn" onclick="setMobileTemporalMode('continuous')">
+                <i class="fas fa-infinity"></i> Longo Prazo
+            </button>
+        </div>
+    </div>
+
+    <!-- BANNER DE RESUMO DO CICLO -->
+    <div class="cycle-summary-mobile" id="mobileCycleSummaryBanner">
+        <div class="cycle-info">
+            <h3 id="mobileCycleTitle"><i class="fas fa-trophy" style="color:#F59E0B;"></i> Checklist 2026</h3>
+            <p id="mobileCycleSubtitle">Objetivos prioritários para este ano</p>
+        </div>
+        <div class="cycle-score">
+            <div class="score-value" id="mobileCycleScoreText">0 / 0</div>
+            <div class="score-label" id="mobileCycleScoreLabel">Conquistadas (0%)</div>
+        </div>
+    </div>
+
     <!-- RESUMO HERO -->
     <div class="goals-hero-grid">
         <div class="goals-hero-card full-width">
@@ -547,9 +811,11 @@
 
     <!-- FILTROS -->
     <div class="chip-filters">
-        <button class="chip-btn active" onclick="filterGoals('all', this)">Todas</button>
-        <button class="chip-btn" onclick="filterGoals('ongoing', this)">Em Andamento</button>
-        <button class="chip-btn" onclick="filterGoals('completed', this)">Concluídas 🏆</button>
+        <button class="chip-btn active" onclick="filterGoals('all', this)"><i class="fas fa-layer-group"></i> Todas</button>
+        <button class="chip-btn" onclick="filterGoals('project', this)"><i class="fas fa-check-circle" style="color:#38BDF8;"></i> 📌 Projetos</button>
+        <button class="chip-btn" onclick="filterGoals('money', this)"><i class="fas fa-piggy-bank" style="color:#F59E0B;"></i> 💰 Dinheiro</button>
+        <button class="chip-btn" onclick="filterGoals('auto', this)"><i class="fas fa-bolt" style="color:#10B981;"></i> ⚡ Automáticas</button>
+        <button class="chip-btn" onclick="filterGoals('completed', this)"><i class="fas fa-star" style="color:#00B894;"></i> 🏆 Concluídas</button>
     </div>
 
     <div class="tab-action-bar">
@@ -580,22 +846,47 @@
         <form id="goalForm" onsubmit="handleGoalSubmit(event)">
             <input type="hidden" id="goalEditId" value="">
 
+            <!-- Seletor dos 4 Tipos de Meta -->
+            <div class="type-selector-mobile-grid">
+                <div class="type-card-mobile-opt selected" onclick="selectMobileGoalType('project', this)">
+                    <i class="fas fa-tasks" style="color:#38BDF8;"></i>
+                    <div class="type-title">📌 Projeto</div>
+                    <div class="type-desc">Checklist sim/não</div>
+                </div>
+                <div class="type-card-mobile-opt" onclick="selectMobileGoalType('financial', this)">
+                    <i class="fas fa-piggy-bank" style="color:#F59E0B;"></i>
+                    <div class="type-title">💰 Dinheiro</div>
+                    <div class="type-desc">Aportes manuais</div>
+                </div>
+                <div class="type-card-mobile-opt" onclick="selectMobileGoalType('dividends', this)">
+                    <i class="fas fa-hand-holding-usd" style="color:#10B981;"></i>
+                    <div class="type-title">📈 Proventos</div>
+                    <div class="type-desc">Auto da B3/mês</div>
+                </div>
+                <div class="type-card-mobile-opt" onclick="selectMobileGoalType('wealth', this)">
+                    <i class="fas fa-chart-pie" style="color:#8B5CF6;"></i>
+                    <div class="type-title">🏦 Patrimônio</div>
+                    <div class="type-desc">Auto da custódia</div>
+                </div>
+            </div>
+            <input type="hidden" id="goalType" value="project">
+
             <div class="sheet-form-group">
-                <label>Título da Meta (Ex: Reserva de Emergência, Viagem Europa)</label>
+                <label>Título da Meta (Ex: Motor de correr no portão, Reserva de Emergência)</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-bullseye"></i>
-                    <input type="text" id="goalTitle" class="sheet-input" placeholder="Ex: Reserva de Emergência" required>
+                    <input type="text" id="goalTitle" class="sheet-input" placeholder="Ex: Motor de correr no portão" required>
                 </div>
             </div>
 
             <div class="sheet-form-group">
-                <label>Tipo de Meta</label>
+                <label>Alocação Temporal</label>
                 <div class="sheet-input-wrapper">
-                    <i class="fas fa-shapes"></i>
-                    <select id="goalType" class="sheet-input" onchange="toggleMobileGoalTypeFields()" required>
-                        <option value="financial" selected>💰 Financeira (Patrimônio / Poupança)</option>
-                        <option value="habit">📌 Projeto / Hábito (Checklist de Conclusão)</option>
-                        <option value="dividends">📈 Dividendos (Renda Passiva Mensal)</option>
+                    <i class="fas fa-clock"></i>
+                    <select id="goalCycleSelect" class="sheet-input">
+                        <option value="2026" selected>Ciclo 2026 (Atual)</option>
+                        <option value="2027">Ciclo 2027 (Planejamento)</option>
+                        <option value="continuous">♾️ Meta Contínua (Longo Prazo)</option>
                     </select>
                 </div>
             </div>
@@ -847,6 +1138,9 @@
 let currentUser = null;
 let goals = [];
 let currentFilter = 'all';
+let currentCycleYear = 2026;
+let currentTemporalMode = 'year'; // 'year' | 'continuous'
+let selectedMobileType = 'project';
 
 const CATEGORY_ICONS = {
     emergency: { icon: 'fa-shield-alt', color: '#00B894', label: 'Reserva de Emergência' },
@@ -858,6 +1152,243 @@ const CATEGORY_ICONS = {
     purchase: { icon: 'fa-shopping-bag', color: '#FDCB6E', label: 'Compras' },
     other: { icon: 'fa-bullseye', color: '#6C5CE7', label: 'Objetivo Geral' }
 };
+
+// ============================================
+// RESOLUÇÃO DE ANO E CONTROLE TEMPORAL
+// ============================================
+function resolveGoalYear(g) {
+    if (!g) return currentCycleYear;
+    if (g.year === 'continuous' || g.target_year === 'continuous' || g.temporal_mode === 'continuous') {
+        return 'continuous';
+    }
+    if (g.target_year && !isNaN(parseInt(g.target_year))) {
+        return parseInt(g.target_year);
+    }
+    if (g.year && !isNaN(parseInt(g.year))) {
+        return parseInt(g.year);
+    }
+    if (g.deadline && typeof g.deadline === 'string' && g.deadline.length >= 4) {
+        const y = parseInt(g.deadline.slice(0, 4));
+        if (!isNaN(y) && y >= 2020 && y <= 2040) return y;
+    }
+    if (g.created_at && typeof g.created_at === 'string' && g.created_at.length >= 4) {
+        const y = parseInt(g.created_at.slice(0, 4));
+        if (!isNaN(y) && y >= 2020 && y <= 2040) return y;
+    }
+    return currentCycleYear;
+}
+
+function changeMobileYear(delta) {
+    currentCycleYear += delta;
+    updateMobileTemporalHeader();
+    renderGoals();
+}
+window.changeMobileYear = changeMobileYear;
+
+function setMobileTemporalMode(mode) {
+    currentTemporalMode = mode;
+    const btnYear = document.getElementById('btnMobileViewYear');
+    const btnContinuous = document.getElementById('btnMobileViewContinuous');
+    if (btnYear) btnYear.classList.toggle('active', mode === 'year');
+    if (btnContinuous) btnContinuous.classList.toggle('active', mode === 'continuous');
+    updateMobileTemporalHeader();
+    renderGoals();
+}
+window.setMobileTemporalMode = setMobileTemporalMode;
+
+function updateMobileTemporalHeader() {
+    const stepper = document.getElementById('mobileYearStepperWrapper');
+    const labelYear = document.getElementById('mobileLabelCurrentYear');
+    const badge = document.getElementById('mobileYearStatusBadge');
+    const title = document.getElementById('mobileCycleTitle');
+    const subtitle = document.getElementById('mobileCycleSubtitle');
+
+    if (currentTemporalMode === 'continuous') {
+        if (stepper) {
+            stepper.style.opacity = '0.4';
+            stepper.style.pointerEvents = 'none';
+        }
+        if (badge) {
+            badge.textContent = 'Permanente';
+            badge.className = 'year-badge-status status-current';
+        }
+        if (title) title.innerHTML = '<i class="fas fa-infinity" style="color:#6C5CE7;"></i> Metas de Longo Prazo';
+        if (subtitle) subtitle.textContent = 'Objetivos perenes sem ciclo anual fixo';
+    } else {
+        if (stepper) {
+            stepper.style.opacity = '1';
+            stepper.style.pointerEvents = 'auto';
+        }
+        if (labelYear) labelYear.textContent = currentCycleYear;
+        if (badge) {
+            if (currentCycleYear === 2026) {
+                badge.textContent = 'Ciclo Atual';
+                badge.className = 'year-badge-status status-current';
+            } else if (currentCycleYear < 2026) {
+                badge.textContent = 'Histórico';
+                badge.className = 'year-badge-status status-past';
+            } else {
+                badge.textContent = 'Planejamento';
+                badge.className = 'year-badge-status status-future';
+            }
+        }
+        if (title) title.innerHTML = `<i class="fas fa-trophy" style="color:#F59E0B;"></i> Checklist ${currentCycleYear}`;
+        if (subtitle) subtitle.textContent = `Objetivos prioritários para ${currentCycleYear}`;
+    }
+
+    // Calcula progresso do ciclo
+    let inCycle = goals.filter(g => {
+        const y = resolveGoalYear(g);
+        return currentTemporalMode === 'continuous' ? y === 'continuous' : y === currentCycleYear;
+    });
+
+    const total = inCycle.length;
+    const done = inCycle.filter(isGoalCompleteMobile).length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    const scoreText = document.getElementById('mobileCycleScoreText');
+    const scoreLabel = document.getElementById('mobileCycleScoreLabel');
+    if (scoreText) scoreText.textContent = `${done} / ${total}`;
+    if (scoreLabel) scoreLabel.textContent = `Conquistadas (${pct}%)`;
+}
+window.updateMobileTemporalHeader = updateMobileTemporalHeader;
+
+function isGoalCompleteMobile(g) {
+    if (!g) return false;
+    const type = g.type || 'financial';
+    if (type === 'habit' || type === 'project') return !!g.completed;
+    if (type === 'dividends') {
+        const tgt = Number(g.target_amount) || 0;
+        return tgt > 0 && getMonthlyDividendsTotalMobile() >= tgt;
+    }
+    const cur = Number(g.current_amount) || 0;
+    const tgt = Number(g.target_amount) || 0;
+    return !!g.completed || (tgt > 0 && cur >= tgt);
+}
+
+async function getLatestPortfolioValueMobile() {
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            const { data } = await window.supabaseClient
+                .from('portfolio_snapshots')
+                .select('total_equity')
+                .eq('user_id', currentUser.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            if (data && data[0]?.total_equity) {
+                return Number(data[0].total_equity);
+            }
+        }
+        const cached = localStorage.getItem('tonu_portfolio_equity_' + (currentUser?.id || 'demo'));
+        if (cached) return Number(cached) || 0;
+    } catch (_) {}
+    return 0;
+}
+
+// Seletor de Tipo no Modal (Mobile)
+function selectMobileGoalType(type, elem) {
+    selectedMobileType = type;
+    const inputType = document.getElementById('goalType');
+    if (inputType) inputType.value = type;
+
+    document.querySelectorAll('.type-card-mobile-opt').forEach(c => c.classList.remove('selected'));
+    if (elem) elem.classList.add('selected');
+
+    toggleMobileGoalTypeFields();
+}
+window.selectMobileGoalType = selectMobileGoalType;
+
+// Adiar / Mover meta para o próximo ciclo sem digitação
+async function postponeMobileGoal(id, nextYear) {
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+
+    const targetYear = nextYear || (currentCycleYear + 1);
+    goal.target_year = targetYear;
+    goal.year = targetYear;
+    goal.deadline = `${targetYear}-12-31`;
+    goal.updated_at = new Date().toISOString();
+
+    showToast(`🎯 Meta "${goal.title}" reprogramada para o Ciclo ${targetYear}!`, 'success');
+    updateHeroStats();
+    renderGoals();
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', {
+            id: goal.id,
+            target_year: targetYear,
+            deadline: goal.deadline,
+            updated_at: goal.updated_at
+        });
+        await window.tonuSync.setCachedGoals(currentUser.id, goals);
+    }
+
+    if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            const res = await window.supabaseClient.from('goals').update({
+                target_year: targetYear,
+                deadline: goal.deadline,
+                updated_at: goal.updated_at
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            if (res.error && (res.error.code === 'PGRST204' || res.error.message.includes('target_year'))) {
+                await window.supabaseClient.from('goals').update({
+                    deadline: goal.deadline,
+                    updated_at: goal.updated_at
+                }).eq('id', goal.id).eq('user_id', currentUser.id);
+            }
+        } catch (e) {
+            console.warn('Erro ao mover meta no Supabase:', e);
+        }
+    }
+}
+window.postponeMobileGoal = postponeMobileGoal;
+
+// Aporte Rápido (+ R$ 500)
+async function quickAddMobileAmount(id, amt) {
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+
+    const newAmount = (Number(goal.current_amount) || 0) + amt;
+    const isCompleted = newAmount >= (Number(goal.target_amount) || 0);
+    goal.current_amount = newAmount;
+    goal.completed = isCompleted;
+
+    if (isCompleted) {
+        triggerCelebrationModal(goal.title, Math.max(goal.target_amount || 0, newAmount));
+    } else {
+        showToast(`Aporte rápido de ${formatCurrency(amt)} adicionado!`, 'success');
+    }
+
+    updateHeroStats();
+    renderGoals();
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', { id: goal.id, current_amount: newAmount, completed: isCompleted });
+        await window.tonuSync.setCachedGoals(currentUser.id, goals);
+    }
+
+    if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            await window.supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: isCompleted,
+                updated_at: new Date().toISOString()
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            const todayStr = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+            await window.supabaseClient.from('goal_deposits').insert([{
+                goal_id: goal.id,
+                user_id: currentUser.id,
+                amount: amt,
+                deposit_date: todayStr
+            }]);
+        } catch (e) {
+            console.warn('Erro no aporte rápido online:', e);
+        }
+    }
+}
+window.quickAddMobileAmount = quickAddMobileAmount;
 
 document.addEventListener("DOMContentLoaded", async () => {
     const savedTheme = localStorage.getItem("tonu_theme") || "light";
@@ -966,14 +1497,19 @@ function updateHeroStats() {
         const tgt = Number(g.target_amount) || 0;
         totalAcumulado += cur;
         totalAlvo += tgt;
-        if (g.completed || (tgt > 0 && cur >= tgt)) {
+        if (isGoalCompleteMobile(g)) {
             concluidas++;
         }
     });
 
-    document.getElementById("heroTotalAcumulado").textContent = formatCurrency(totalAcumulado);
-    document.getElementById("heroTotalAlvo").textContent = formatCurrency(totalAlvo);
-    document.getElementById("heroMetasConcluidas").textContent = `${concluidas} de ${goals.length}`;
+    const elTot = document.getElementById("heroTotalAcumulado");
+    const elAlv = document.getElementById("heroTotalAlvo");
+    const elCon = document.getElementById("heroMetasConcluidas");
+    if (elTot) elTot.textContent = formatCurrency(totalAcumulado);
+    if (elAlv) elAlv.textContent = formatCurrency(totalAlvo);
+    if (elCon) elCon.textContent = `${concluidas} de ${goals.length}`;
+    
+    updateMobileTemporalHeader();
     if (typeof updateMobileCdiGlobalCard === 'function') updateMobileCdiGlobalCard();
 }
 
@@ -984,19 +1520,34 @@ function renderGoals() {
     const container = document.getElementById("goalsContainer");
     if (!container) return;
 
-    let filtered = goals;
-    if (currentFilter === 'ongoing') {
-        filtered = goals.filter(g => !g.completed && (Number(g.current_amount) || 0) < (Number(g.target_amount) || 0));
+    // 1. Filtragem por Ciclo Temporal
+    let visible = goals.filter(g => {
+        const y = resolveGoalYear(g);
+        if (currentTemporalMode === 'continuous') {
+            return y === 'continuous';
+        }
+        return y === currentCycleYear;
+    });
+
+    // 2. Filtragem por Chips
+    if (currentFilter === 'project') {
+        visible = visible.filter(g => g.type === 'habit' || g.type === 'project');
+    } else if (currentFilter === 'money') {
+        visible = visible.filter(g => !g.type || g.type === 'financial');
+    } else if (currentFilter === 'auto') {
+        visible = visible.filter(g => g.type === 'dividends' || g.type === 'wealth' || g.type === 'net_worth');
     } else if (currentFilter === 'completed') {
-        filtered = goals.filter(g => g.completed || (Number(g.current_amount) || 0) >= (Number(g.target_amount) || 0));
+        visible = visible.filter(isGoalCompleteMobile);
+    } else if (currentFilter === 'ongoing') {
+        visible = visible.filter(g => !isGoalCompleteMobile(g));
     }
 
-    if (filtered.length === 0) {
+    if (visible.length === 0) {
         container.innerHTML = `
             <div style="text-align:center; padding:32px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
                 <i class="fas fa-bullseye" style="font-size:36px; color:#a29bfe; margin-bottom:10px; display:block;"></i>
                 <h3 style="font-size:14px; font-weight:700; color:var(--color-text,#0f172a); margin-bottom:4px;">Nenhuma meta encontrada</h3>
-                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">Defina um objetivo financeiro e acompanhe seu progresso!</p>
+                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">${currentTemporalMode === 'continuous' ? 'Você ainda não cadastrou metas contínuas.' : `Nenhuma meta ativa para o Ciclo ${currentCycleYear}.`}</p>
                 <button class="btn-add-primary" style="margin:0 auto;" onclick="openGoalModal()">
                     <i class="fas fa-plus"></i> Criar Primeira Meta
                 </button>
@@ -1005,56 +1556,58 @@ function renderGoals() {
         return;
     }
 
-    container.innerHTML = filtered.map(g => {
+    container.innerHTML = visible.map(g => {
         const goalType = g.type || 'financial';
+        const isCompleted = isGoalCompleteMobile(g);
         const catInfo = CATEGORY_ICONS[g.category] || CATEGORY_ICONS.other;
         const color = g.color || catInfo.color;
 
-        // TIPO 1: PROJETO / HÁBITO MOBILE (📌)
-        if (goalType === 'habit') {
-            const isCompleted = !!g.completed;
+        // TIPO 1: PROJETO / HÁBITO MOBILE (📌 - Portão, Reforma, etc.)
+        if (goalType === 'habit' || goalType === 'project') {
             const completedDateText = g.completed_at ? formatDate(g.completed_at) : (g.deadline ? formatDate(g.deadline) : null);
+            const isPostponed = !isCompleted && (g.postponed_to || (currentCycleYear < 2026));
 
             return `
-                <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${isCompleted ? '#10b981' : color};">
+                <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${isCompleted ? '#00B894' : '#38BDF8'};">
                     <div class="goal-card-top">
                         <div class="goal-title-group">
-                            <div class="goal-category-icon" style="background:${isCompleted ? '#10b981' : color};">
-                                <i class="fas fa-tasks"></i>
-                            </div>
+                            <button type="button" class="project-toggle-mobile ${isCompleted ? 'checked' : ''}" onclick="toggleMobileHabitStatus('${g.id}')" title="Marcar como Concluído">
+                                <i class="fas fa-check" style="font-size:12px;"></i>
+                            </button>
                             <div>
-                                <h3>${g.title}</h3>
-                                <small>📌 Projeto / Hábito</small>
+                                <h3 style="${isCompleted ? 'text-decoration: line-through; opacity:0.85;' : ''}">${g.title}</h3>
+                                <small style="color:#38BDF8; font-weight:600;"><i class="fas fa-tasks"></i> Projeto / Checklist</small>
                             </div>
                         </div>
-                        <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
-                            <i class="fas ${isCompleted ? 'fa-check' : 'fa-hourglass-half'}"></i>
-                            ${isCompleted ? 'Concluído' : 'Pendente'}
+                        <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}" style="${isPostponed ? 'background:rgba(100,116,139,0.15); color:#64748B;' : ''}">
+                            <i class="fas ${isCompleted ? 'fa-check' : (isPostponed ? 'fa-redo' : 'fa-hourglass-half')}"></i>
+                            ${isCompleted ? 'Concluído' : (isPostponed ? 'Reprogramada' : 'Em andamento')}
                         </span>
                     </div>
 
-                    <div style="background:var(--color-bg,#f8fafc); border-radius:10px; padding:10px 12px; margin:8px 0; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="background:var(--color-bg,#f8fafc); border-radius:10px; padding:9px 12px; margin:8px 0; display:flex; justify-content:space-between; align-items:center;">
                         <div>
                             <span style="font-size:10px; color:#94a3b8; display:block;">Status</span>
-                            <span style="font-size:13px; font-weight:700; color:${isCompleted ? '#10b981' : '#f59e0b'};">
-                                ${isCompleted ? '✅ Concluído' : '⏳ Em Andamento'}
+                            <span style="font-size:12.5px; font-weight:700; color:${isCompleted ? '#00B894' : (isPostponed ? '#64748B' : '#F59E0B')};">
+                                ${isCompleted ? `🏆 Concluído ${completedDateText ? '('+completedDateText+')' : ''}` : (isPostponed ? `🔄 Reprogramada para ${g.postponed_to || (currentCycleYear + 1)}` : '⏳ Em Andamento')}
                             </span>
                         </div>
                         <div style="text-align:right;">
-                            <span style="font-size:10px; color:#94a3b8; display:block;">${isCompleted ? 'Concluído em' : 'Prazo'}</span>
-                            <span style="font-size:12px; font-weight:600;">${completedDateText || 'Sem prazo'}</span>
+                            <span style="font-size:10px; color:#94a3b8; display:block;">Alocação</span>
+                            <span style="font-size:11.5px; font-weight:600;">${g.target_year ? `Ciclo ${g.target_year}` : (g.deadline ? formatDate(g.deadline) : 'Ciclo Atual')}</span>
                         </div>
                     </div>
 
-                    <div class="goal-progress-bar">
-                        <div class="goal-progress-fill" style="width: ${isCompleted ? '100%' : '0%'}; background:${isCompleted ? '#10b981' : color};"></div>
-                    </div>
-
-                    <!-- AÇÕES DO HÁBITO -->
-                    <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
-                        <button type="button" class="btn-goal-act" style="background:${isCompleted ? '#d1fae5' : 'rgba(108,92,231,0.12)'}; color:${isCompleted ? '#047857' : '#6C5CE7'}; font-weight:700;" onclick="toggleMobileHabitStatus('${g.id}')">
-                            <i class="fas ${isCompleted ? 'fa-undo' : 'fa-check'}"></i> ${isCompleted ? 'Reabrir Hábito' : 'Concluir Hábito'}
+                    <!-- AÇÕES DO PROJETO / HÁBITO -->
+                    <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto auto;">
+                        <button type="button" class="btn-goal-act" style="background:${isCompleted ? '#d1fae5' : 'rgba(56,189,248,0.12)'}; color:${isCompleted ? '#047857' : '#0284C7'}; font-weight:700;" onclick="toggleMobileHabitStatus('${g.id}')">
+                            <i class="fas ${isCompleted ? 'fa-undo' : 'fa-check'}"></i> ${isCompleted ? 'Reabrir' : 'Concluir'}
                         </button>
+                        ${!isCompleted ? `
+                            <button type="button" class="btn-postpone-mobile" onclick="postponeMobileGoal('${g.id}', ${currentCycleYear + 1})" title="Mover para o próximo ano">
+                                <i class="fas fa-arrow-right"></i> Mover p/ ${currentCycleYear + 1}
+                            </button>
+                        ` : ''}
                         <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
                             <i class="fas fa-pen"></i>
                         </button>
@@ -1066,12 +1619,11 @@ function renderGoals() {
             `;
         }
 
-        // TIPO 2: DIVIDENDOS MOBILE (📈)
+        // TIPO 2: DIVIDENDOS MENSAIS AUTOMÁTICOS (📈)
         if (goalType === 'dividends') {
             const monthlyDivs = getMonthlyDividendsTotalMobile();
             const tgt = Number(g.target_amount) || 1;
             const percent = Math.min(100, Math.round((monthlyDivs / tgt) * 100));
-            const isCompleted = monthlyDivs >= tgt;
 
             return `
                 <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:#10B981;">
@@ -1082,24 +1634,24 @@ function renderGoals() {
                             </div>
                             <div>
                                 <h3>${g.title}</h3>
-                                <small>📈 Dividendos Mensais</small>
+                                <small style="color:#10B981; font-weight:600;">📈 Proventos B3</small>
                             </div>
                         </div>
                         <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
                             <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-chart-line'}"></i>
-                            ${isCompleted ? 'Atingido' : `${percent}%`}
+                            ${isCompleted ? 'Atingido!' : `${percent}%`}
                         </span>
                     </div>
 
                     <div class="goal-values-row">
                         <div>
                             <span style="font-size:10px; color:#94a3b8; display:block;">Recebido este Mês</span>
-                            <span class="goal-current-val" style="color:#10b981;">${formatCurrency(monthlyDivs)}</span>
+                            <span class="goal-current-val" style="color:#10B981;">${formatCurrency(monthlyDivs)}</span>
                         </div>
                         <div style="text-align:right;">
                             <span class="goal-target-val">Alvo Mensal: <strong>${formatCurrency(tgt)}</strong></span>
                             <span style="font-size:10px; color:#94a3b8; display:block;">
-                                ${isCompleted ? 'Meta atingida! 🎉' : `Falta: ${formatCurrency(Math.max(0, tgt - monthlyDivs))}`}
+                                ${isCompleted ? 'Meta batida! 🎉' : `Falta: ${formatCurrency(Math.max(0, tgt - monthlyDivs))}`}
                             </span>
                         </div>
                     </div>
@@ -1108,12 +1660,10 @@ function renderGoals() {
                         <div class="goal-progress-fill" style="width: ${percent}%; background: #10B981;"></div>
                     </div>
 
-                    <div class="goal-footer-info">
-                        <span>Progresso: ${formatCurrency(monthlyDivs)} de ${formatCurrency(tgt)} (${percent}%)</span>
-                        <span>${g.deadline ? '📅 ' + formatDate(g.deadline) : 'Meta contínua'}</span>
+                    <div class="auto-sync-tag-mobile">
+                        <i class="fas fa-bolt"></i> Conectado em tempo real aos Proventos da B3
                     </div>
 
-                    <!-- AÇÕES DIVIDENDOS -->
                     <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
                         <button type="button" class="btn-goal-act" style="background:rgba(16,185,129,0.12); color:#047857; font-weight:700;" onclick="window.location.href='investments.html'">
                             <i class="fas fa-chart-line"></i> Ver Proventos
@@ -1129,11 +1679,70 @@ function renderGoals() {
             `;
         }
 
-        // TIPO 3: FINANCEIRA PADRÃO MOBILE (💰)
+        // TIPO 3: PATRIMÔNIO TOTAL AUTOMÁTICO (🏦)
+        if (goalType === 'wealth' || goalType === 'net_worth') {
+            const cur = Number(g.current_amount) || 0;
+            const tgt = Number(g.target_amount) || 1;
+            const percent = Math.min(100, Math.round((cur / tgt) * 100));
+
+            return `
+                <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:#8B5CF6;">
+                    <div class="goal-card-top">
+                        <div class="goal-title-group">
+                            <div class="goal-category-icon" style="background:#8B5CF6;">
+                                <i class="fas fa-chart-pie"></i>
+                            </div>
+                            <div>
+                                <h3>${g.title}</h3>
+                                <small style="color:#8B5CF6; font-weight:600;">🏦 Patrimônio Total</small>
+                            </div>
+                        </div>
+                        <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
+                            <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-gem'}"></i>
+                            ${isCompleted ? 'Conquistado!' : `${percent}%`}
+                        </span>
+                    </div>
+
+                    <div class="goal-values-row">
+                        <div>
+                            <span style="font-size:10px; color:#94a3b8; display:block;">Custódia Total</span>
+                            <span class="goal-current-val" style="color:#8B5CF6;">${formatCurrency(cur)}</span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="goal-target-val">Alvo: <strong>${formatCurrency(tgt)}</strong></span>
+                            <span style="font-size:10px; color:#94a3b8; display:block;">
+                                ${isCompleted ? 'Meta atingida! 🏆' : `Faltam: ${formatCurrency(Math.max(0, tgt - cur))}`}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="goal-progress-bar">
+                        <div class="goal-progress-fill" style="width: ${percent}%; background: #8B5CF6;"></div>
+                    </div>
+
+                    <div class="auto-sync-tag-mobile" style="color:#8B5CF6; background:rgba(139,92,246,0.1);">
+                        <i class="fas fa-sync-alt"></i> Custódia consolidada (Ações + FIIs + Renda Fixa)
+                    </div>
+
+                    <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
+                        <button type="button" class="btn-goal-act" style="background:rgba(139,92,246,0.12); color:#6D28D9; font-weight:700;" onclick="window.location.href='investments.html'">
+                            <i class="fas fa-chart-pie"></i> Carteira
+                        </button>
+                        <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // TIPO 4: FINANCEIRA MANUAL (💰 - Poupança com Aportes)
         const cur = Number(g.current_amount) || 0;
         const tgt = Number(g.target_amount) || 0;
         const percent = tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : 0;
-        const isCompleted = g.completed || percent >= 100;
         const remaining = Math.max(0, tgt - cur);
 
         return `
@@ -1149,7 +1758,7 @@ function renderGoals() {
                         </div>
                     </div>
                     <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
-                        <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-spinner fa-spin'}"></i>
+                        <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-piggy-bank'}"></i>
                         ${isCompleted ? 'Concluída' : `${percent}%`}
                     </span>
                 </div>
@@ -1173,11 +1782,16 @@ function renderGoals() {
 
                 <div class="goal-footer-info">
                     <span>${percent}% concluído</span>
-                    <span>${g.deadline ? '📅 ' + formatDate(g.deadline) : 'Sem prazo'}</span>
+                    <span>${g.target_year ? 'Ciclo ' + g.target_year : (g.deadline ? '📅 ' + formatDate(g.deadline) : 'Sem prazo')}</span>
                 </div>
 
-                <!-- AÇÕES: CDI, APORTAR, RESGATAR, EDITAR, EXCLUIR -->
-                <div class="goal-actions-grid" style="grid-template-columns: auto 1fr 1fr auto auto;">
+                <!-- AÇÕES: + R$ 500, APORTAR, RESGATAR, CDI, EDITAR, EXCLUIR -->
+                <div class="goal-actions-grid" style="grid-template-columns: auto auto 1fr 1fr auto auto;">
+                    ${!isCompleted ? `
+                        <button type="button" class="btn-goal-act" style="background:rgba(245,158,11,0.15); color:#D97706; font-weight:700;" onclick="quickAddMobileAmount('${g.id}', 500)">
+                            <i class="fas fa-plus"></i> R$ 500
+                        </button>
+                    ` : ''}
                     <button type="button" class="btn-goal-act" style="background:rgba(108,92,231,0.12); color:#6C5CE7; font-weight:700;" onclick="openMobileYieldModal('${g.id}')">
                         <i class="fas fa-chart-line"></i> CDI
                     </button>
@@ -1220,7 +1834,7 @@ function applyCategoryColor(cat) {
 // MODAL & HANDLER: CRIAR / EDITAR META
 // ============================================
 function toggleMobileGoalTypeFields() {
-    const type = document.getElementById('goalType')?.value || 'financial';
+    const type = selectedMobileType || document.getElementById('goalType')?.value || 'project';
     const amountRow = document.getElementById('mobileGoalAmountRow');
     const targetGroup = document.getElementById('mobileGoalTargetGroup');
     const currentGroup = document.getElementById('mobileGoalCurrentGroup');
@@ -1229,7 +1843,7 @@ function toggleMobileGoalTypeFields() {
     const targetInput = document.getElementById('goalTarget');
     const currentInput = document.getElementById('goalCurrent');
 
-    if (type === 'habit') {
+    if (type === 'project' || type === 'habit') {
         if (amountRow) amountRow.style.display = 'none';
         if (cdiGroup) cdiGroup.style.display = 'none';
         if (targetInput) { targetInput.required = false; targetInput.value = '1'; }
@@ -1244,6 +1858,17 @@ function toggleMobileGoalTypeFields() {
         if (cdiGroup) cdiGroup.style.display = 'none';
         if (lblTarget) lblTarget.textContent = 'Alvo Mensal de Proventos (R$/mês)';
         if (targetInput) { targetInput.required = true; targetInput.placeholder = '50,00'; }
+        if (currentInput) currentInput.value = '0';
+    } else if (type === 'wealth') {
+        if (amountRow) {
+            amountRow.style.display = 'grid';
+            amountRow.style.gridTemplateColumns = '1fr';
+        }
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (lblTarget) lblTarget.textContent = 'Alvo de Patrimônio Total (R$)';
+        if (targetInput) { targetInput.required = true; targetInput.placeholder = '10.000,00'; }
         if (currentInput) currentInput.value = '0';
     } else { // 'financial'
         if (amountRow) {
@@ -1330,14 +1955,28 @@ window.toggleMobileHabitStatus = toggleMobileHabitStatus;
 function openGoalModal() {
     document.getElementById("goalModalTitle").textContent = "Nova Meta";
     document.getElementById("goalEditId").value = "";
-    if (document.getElementById("goalType")) document.getElementById("goalType").value = "financial";
+    
+    // Default: Projeto (Checklist)
+    selectedMobileType = 'project';
+    if (document.getElementById("goalType")) document.getElementById("goalType").value = "project";
+    
+    // Atualiza cards de seleção de tipo
+    document.querySelectorAll('.type-card-mobile-opt').forEach((card, idx) => {
+        card.classList.toggle('selected', idx === 0);
+    });
+
     document.getElementById("goalTitle").value = "";
     document.getElementById("goalTarget").value = "";
     document.getElementById("goalCurrent").value = "";
     document.getElementById("goalDeadline").value = "";
+    
+    const cycleSelect = document.getElementById("goalCycleSelect");
+    if (cycleSelect) cycleSelect.value = currentTemporalMode === 'continuous' ? 'continuous' : String(currentCycleYear);
+
     document.getElementById("goalCategory").value = "emergency";
     document.getElementById("goalColor").value = CATEGORY_ICONS.emergency.color;
     if (document.getElementById("goalCdiPercent")) document.getElementById("goalCdiPercent").value = "100";
+    
     toggleMobileGoalTypeFields();
     document.getElementById("modalGoal").classList.add("active");
 }
@@ -1348,14 +1987,39 @@ function openEditGoalModal(id) {
 
     document.getElementById("goalModalTitle").textContent = "Editar Meta";
     document.getElementById("goalEditId").value = goal.id;
-    if (document.getElementById("goalType")) document.getElementById("goalType").value = goal.type || "financial";
+    
+    selectedMobileType = goal.type || "financial";
+    if (document.getElementById("goalType")) document.getElementById("goalType").value = selectedMobileType;
+
+    // Atualiza visualização dos cards de tipo
+    document.querySelectorAll('.type-card-mobile-opt').forEach(card => {
+        const isSel = (selectedMobileType === 'project' && card.textContent.includes('Projeto')) ||
+                      (selectedMobileType === 'financial' && card.textContent.includes('Dinheiro')) ||
+                      (selectedMobileType === 'dividends' && card.textContent.includes('Proventos')) ||
+                      (selectedMobileType === 'wealth' && card.textContent.includes('Patrimônio'));
+        card.classList.toggle('selected', isSel);
+    });
+
     document.getElementById("goalTitle").value = goal.title;
     document.getElementById("goalTarget").value = goal.target_amount;
     document.getElementById("goalCurrent").value = goal.current_amount || 0;
     document.getElementById("goalDeadline").value = goal.deadline || "";
+
+    const cycleSelect = document.getElementById("goalCycleSelect");
+    if (cycleSelect) {
+        if (goal.target_year === 'continuous' || goal.temporal_mode === 'continuous') {
+            cycleSelect.value = 'continuous';
+        } else if (goal.target_year) {
+            cycleSelect.value = String(goal.target_year);
+        } else {
+            cycleSelect.value = String(currentCycleYear);
+        }
+    }
+
     document.getElementById("goalCategory").value = goal.category || "other";
     document.getElementById("goalColor").value = goal.color || "#6C5CE7";
     if (document.getElementById("goalCdiPercent")) document.getElementById("goalCdiPercent").value = goal.cdi_percent || 100;
+    
     toggleMobileGoalTypeFields();
     document.getElementById("modalGoal").classList.add("active");
 }
@@ -1372,17 +2036,23 @@ async function handleGoalSubmit(e) {
     btn.textContent = "Salvando...";
 
     const editId = document.getElementById("goalEditId").value;
-    const type = document.getElementById("goalType")?.value || "financial";
+    const type = selectedMobileType || document.getElementById("goalType")?.value || "project";
     const title = document.getElementById("goalTitle").value.trim();
     const category = document.getElementById("goalCategory").value;
     let target = parseFloat(document.getElementById("goalTarget").value) || 0;
     let current = parseFloat(document.getElementById("goalCurrent").value) || 0;
-    const deadline = document.getElementById("goalDeadline").value || null;
+    let deadline = document.getElementById("goalDeadline").value || null;
     const color = document.getElementById("goalColor").value;
     const cdiPercent = parseFloat(document.getElementById("goalCdiPercent")?.value) || 100;
-    
+    const cycle = document.getElementById("goalCycleSelect")?.value || String(currentCycleYear);
+
+    const targetYear = cycle === 'continuous' ? null : parseInt(cycle);
+    if (!deadline && targetYear) {
+        deadline = `${targetYear}-12-31`;
+    }
+
     let completed = false;
-    if (type === 'habit') {
+    if (type === 'project' || type === 'habit') {
         target = 1;
         current = 0;
         completed = false;
@@ -1391,6 +2061,15 @@ async function handleGoalSubmit(e) {
         completed = target > 0 ? (current >= target) : false;
         if (target <= 0) {
             showToast("Informe o valor mensal esperado de dividendos!", "error");
+            btn.disabled = false;
+            btn.textContent = "Salvar Meta";
+            return;
+        }
+    } else if (type === 'wealth') {
+        current = await getLatestPortfolioValueMobile();
+        completed = target > 0 ? (current >= target) : false;
+        if (target <= 0) {
+            showToast("Informe o valor alvo de patrimônio!", "error");
             btn.disabled = false;
             btn.textContent = "Salvar Meta";
             return;
@@ -1406,10 +2085,12 @@ async function handleGoalSubmit(e) {
         category: category,
         target_amount: target,
         current_amount: current,
+        target_year: targetYear,
         deadline: deadline,
         color: color,
         cdi_percent: cdiPercent,
-        completed: completed
+        completed: completed,
+        updated_at: new Date().toISOString()
     };
 
     try {
@@ -1429,12 +2110,14 @@ async function handleGoalSubmit(e) {
                         .insert([payload]);
                 }
 
-                if (res.error && res.error.message && res.error.message.includes("category")) {
-                    delete payload.category;
+                if (res.error && (res.error.code === 'PGRST204' || (res.error.message && (res.error.message.includes("category") || res.error.message.includes("target_year"))))) {
+                    const fallbackPayload = { ...payload };
+                    delete fallbackPayload.category;
+                    delete fallbackPayload.target_year;
                     if (editId) {
-                        await supabaseClient.from("goals").update(payload).eq("id", editId).eq("user_id", currentUser.id);
+                        await supabaseClient.from("goals").update(fallbackPayload).eq("id", editId).eq("user_id", currentUser.id);
                     } else {
-                        await supabaseClient.from("goals").insert([payload]);
+                        await supabaseClient.from("goals").insert([fallbackPayload]);
                     }
                 } else if (res.error) {
                     throw res.error;

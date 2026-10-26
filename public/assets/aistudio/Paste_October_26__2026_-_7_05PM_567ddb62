@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Metas & Conquistas • TonuControle</title>
+  
+  <!-- Fontes e Ícones -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <style>
+    /* ========================================================
+       DESIGN SYSTEM • TONUCONTROLE MODERN METAS
+       Cores intencionais, contraste refinado, tipografia imersiva
+       ======================================================== */
+    :root {
+      --bg-page: #0B0F17;
+      --bg-card: #111827;
+      --bg-card-hover: #162032;
+      --bg-surface: #1F2937;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(99, 102, 241, 0.5);
+      
+      --text-main: #F9FAFB;
+      --text-muted: #9CA3AF;
+      --text-dim: #6B7280;
+      
+      --brand-primary: #6366F1;       /* Indigo moderno */
+      --brand-gradient: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+      --accent-project: #38BDF8;      /* Azul céu para Projetos/Vida */
+      --accent-money: #F59E0B;        /* Dourado quente para Dinheiro manual */
+      --accent-dividends: #10B981;    /* Esmeralda para Proventos */
+      --accent-wealth: #8B5CF6;       /* Violeta para Patrimônio */
+      --success: #10B981;
+      --postponed: #64748B;          /* Ardósia suave (zero culpa) */
+      
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+      
+      --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border-subtle);
+      --shadow-hover: 0 8px 30px -4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(99, 102, 241, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding-bottom: 80px;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Glow Background */
+    .ambient-glow {
+      position: fixed;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(16, 185, 129, 0.05) 50%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 20px 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header & Logo */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .brand-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-title span {
+      background: var(--brand-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .btn-create {
+      background: var(--brand-gradient);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      font-size: 13.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .btn-create:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+    }
+
+    .btn-create:active {
+      transform: translateY(0);
+    }
+
+    /* ========================================================
+       BARRA DE CONTROLE TEMPORAL (Ano vs Contínuo)
+       ======================================================== */
+    .temporal-control {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    @media (min-width: 640px) {
+      .temporal-control {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+    }
+
+    /* Seletor de Ano ‹ 2026 › */
+    .year-stepper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-surface);
+      padding: 4px 6px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-subtle);
+      width: fit-content;
+    }
+
+    .step-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-size: 13px;
+    }
+
+    .step-btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+    }
+
+    .step-btn:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+    }
+
+    .current-year-label {
+      font-size: 15px;
+      font-weight: 800;
+      padding: 0 10px;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .year-badge-status {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-current {
+      background: rgba(99, 102, 241, 0.2);
+      color: #A5B4FC;
+    }
+
+    .status-past {
+      background: rgba(100, 116, 139, 0.2);
+      color: #94A3B8;
+    }
+
+    .status-future {
+      background: rgba(245, 158, 11, 0.2);
+      color: #FCD34D;
+    }
+
+    /* Alternador: Ano Atual vs Metas Contínuas */
+    .view-switch {
+      display: flex;
+      background: var(--bg-surface);
+      padding: 4px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .view-btn {
+      padding: 8px 16px;
+      border-radius: var(--radius-full);
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .view-btn.active {
+      background: var(--brand-primary);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Banner do Ciclo Anual (Progresso das Conquistas) */
+    .cycle-summary {
+      background: linear-gradient(135deg, rgba(31, 41, 55, 0.7) 0%, rgba(17, 24, 39, 0.9) 100%);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cycle-summary::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: var(--brand-gradient);
+    }
+
+    .cycle-info h2 {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cycle-info p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .cycle-score {
+      text-align: right;
+    }
+
+    .cycle-score .score-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--success);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .cycle-score .score-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Chips de Filtro por Categoria */
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+      scrollbar-width: none;
+    }
+
+    .filter-chips::-webkit-scrollbar {
+      display: none;
+    }
+
+    .chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 7px 14px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chip:hover {
+      background: var(--bg-surface);
+      color: var(--text-main);
+    }
+
+    .chip.active {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: var(--text-main);
+    }
+
+    /* ========================================================
+       GRID E CARDS DE METAS
+       ======================================================== */
+    .goals-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 768px) {
+      .goals-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .goal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: var(--shadow-card);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .goal-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-hover);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Status Concluído Brilhante */
+    .goal-card.is-completed {
+      border-color: rgba(16, 185, 129, 0.4);
+      background: linear-gradient(145deg, rgba(16, 185, 129, 0.05) 0%, var(--bg-card) 60%);
+    }
+
+    /* Topo do Card */
+    .goal-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    /* Botão de Checkbox Especial para Projetos */
+    .project-toggle {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      background: var(--bg-surface);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      flex-shrink: 0;
+      color: transparent;
+    }
+
+    .project-toggle:hover {
+      border-color: var(--success);
+      transform: scale(1.05);
+    }
+
+    .project-toggle.checked {
+      background: var(--success);
+      border-color: var(--success);
+      color: #fff;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.5);
+    }
+
+    /* Ícone Geral de Tipo */
+    .goal-type-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      display: grid;
+      place-items: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .goal-title-wrap {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .goal-badge-tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .goal-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .goal-card.is-completed .goal-name {
+      color: #E2E8F0;
+    }
+
+    /* Seção de Progresso e Métricas */
+    .goal-stats-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      font-size: 12px;
+    }
+
+    .stat-current {
+      font-size: 18px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-main);
+    }
+
+    .stat-target {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* Barra de Progresso Fina e Elegante */
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: var(--bg-surface);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Tag de Origem Automática (Investimentos / Proventos) */
+    .auto-sync-tag {
+      font-size: 11px;
+      color: var(--accent-dividends);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(16, 185, 129, 0.1);
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      width: fit-content;
+      font-weight: 600;
+    }
+
+    /* Rodapé do Card e Ações */
+    .goal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-subtle);
+      font-size: 11.5px;
+      color: var(--text-dim);
+    }
+
+    .btn-action-sm {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-action-sm:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+    }
+
+    .btn-action-sm.btn-postpone {
+      color: #94A3B8;
+      border-color: rgba(148, 163, 184, 0.25);
+    }
+
+    .btn-action-sm.btn-postpone:hover {
+      background: rgba(148, 163, 184, 0.15);
+      color: #E2E8F0;
+    }
+
+    .btn-deposit-fast {
+      background: rgba(245, 158, 11, 0.15);
+      color: #FBBF24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .btn-deposit-fast:hover {
+      background: rgba(245, 158, 11, 0.25);
+      color: #FDE68A;
+    }
+
+    /* ========================================================
+       MODAL DE NOVA META (DINÂMICO)
+       ======================================================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 500px;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      transform: scale(0.95);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-overlay.active .modal-box {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 11px 14px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: var(--brand-primary);
+    }
+
+    .type-selector-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .type-card-opt {
+      background: var(--bg-surface);
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+
+    .type-card-opt:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .type-card-opt.selected {
+      border-color: var(--brand-primary);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .type-card-opt i {
+      font-size: 18px;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .type-card-opt .type-title {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .type-card-opt .type-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .btn-submit-modal {
+      width: 100%;
+      background: var(--brand-gradient);
+      color: #fff;
+      border: none;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Toast Notification */
+    .toast-msg {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1E293B;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      padding: 12px 24px;
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast-msg.show {
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-glow"></div>
+
+  <div class="container">
+    
+    <!-- Header -->
+    <header class="header">
+      <div class="brand-title">
+        <i class="fas fa-bullseye" style="color: #6366F1;"></i>
+        <span>Metas & Conquistas</span>
+      </div>
+      <button class="btn-create" onclick="openNewGoalModal()">
+        <i class="fas fa-plus"></i> Nova Meta
+      </button>
+    </header>
+
+    <!-- Barra de Controle Temporal: Anual vs Contínuo -->
+    <div class="temporal-control">
+      <!-- Seletor de Ano ‹ 2026 › -->
+      <div id="yearStepperWrapper" style="display: flex; align-items: center; gap: 12px;">
+        <div class="year-stepper">
+          <button class="step-btn" onclick="changeYear(-1)" title="Ano anterior">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <div class="current-year-label">
+            <span id="labelCurrentYear">2026</span>
+          </div>
+          <button class="step-btn" onclick="changeYear(1)" title="Próximo ano">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+        <span id="yearStatusBadge" class="year-badge-status status-current">Ciclo Atual</span>
+      </div>
+
+      <!-- Alternador de Modo: Anos vs Metas Contínuas -->
+      <div class="view-switch">
+        <button id="btnViewYear" class="view-btn active" onclick="setViewMode('year')">
+          <i class="fas fa-calendar-alt"></i> Anual
+        </button>
+        <button id="btnViewContinuous" class="view-btn" onclick="setViewMode('continuous')">
+          <i class="fas fa-infinity"></i> Longo Prazo
+        </button>
+      </div>
+    </div>
+
+    <!-- Resumo do Ciclo -->
+    <div class="cycle-summary">
+      <div class="cycle-info">
+        <h2 id="cycleTitle"><i class="fas fa-trophy" style="color: #F59E0B;"></i> Checklist de Conquistas 2026</h2>
+        <p id="cycleSubtitle">Objetivos prioritários definidos para este ano</p>
+      </div>
+      <div class="cycle-score">
+        <div class="score-value" id="cycleScoreText">4 / 6</div>
+        <div class="score-label">Conquistadas (67%)</div>
+      </div>
+    </div>
+
+    <!-- Chips de Filtro por Categoria -->
+    <div class="filter-chips">
+      <button class="chip active" onclick="setFilter('all', this)">
+        <i class="fas fa-layer-group"></i> Todas
+      </button>
+      <button class="chip" onclick="setFilter('project', this)">
+        <i class="fas fa-check-circle" style="color: var(--accent-project);"></i> 📌 Projetos
+      </button>
+      <button class="chip" onclick="setFilter('money', this)">
+        <i class="fas fa-piggy-bank" style="color: var(--accent-money);"></i> 💰 Dinheiro
+      </button>
+      <button class="chip" onclick="setFilter('auto', this)">
+        <i class="fas fa-bolt" style="color: var(--accent-dividends);"></i> ⚡ Automáticas
+      </button>
+      <button class="chip" onclick="setFilter('completed', this)">
+        <i class="fas fa-star" style="color: var(--success);"></i> 🏆 Concluídas
+      </button>
+    </div>
+
+    <!-- Grid de Metas -->
+    <div class="goals-grid" id="goalsGrid">
+      <!-- Injetado dinamicamente via JavaScript -->
+    </div>
+
+  </div>
+
+  <!-- Modal Nova Meta -->
+  <div class="modal-overlay" id="goalModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">Criar Nova Meta</h3>
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      </div>
+
+      <!-- Seletor dos 4 Tipos -->
+      <div class="type-selector-grid">
+        <div class="type-card-opt selected" onclick="selectGoalType('project', this)">
+          <i class="fas fa-tasks" style="color: var(--accent-project);"></i>
+          <div class="type-title">📌 Projeto</div>
+          <div class="type-desc">Checklist sim/não</div>
+        </div>
+        <div class="type-card-opt" onclick="selectGoalType('money', this)">
+          <i class="fas fa-piggy-bank" style="color: var(--accent-money);"></i>
+          <div class="type-title">💰 Dinheiro</div>
+          <div class="type-desc">Aportes manuais</div>
+        </div>
+        <div class="type-card-opt" onclick="selectGoalType('dividends', this)">
+          <i class="fas fa-hand-holding-usd" style="color: var(--accent-dividends);"></i>
+          <div class="type-title">📈 Proventos</div>
+          <div class="type-desc">Auto da carteira</div>
+        </div>
+        <div class="type-card-opt" onclick="selectGoalType('wealth', this)">
+          <i class="fas fa-chart-pie" style="color: var(--accent-wealth);"></i>
+          <div class="type-title">🏦 Patrimônio</div>
+          <div class="type-desc">Auto de custódia</div>
+        </div>
+      </div>
+
+      <form id="newGoalForm" onsubmit="handleCreateGoal(event)">
+        <div class="form-group">
+          <label class="form-label">Título da Meta</label>
+          <input type="text" id="goalTitleInput" class="form-input" placeholder="Ex: Motor de correr no portão..." required>
+        </div>
+
+        <!-- Campos específicos para metas financeiras/automáticas -->
+        <div id="targetAmountGroup" class="form-group" style="display: none;">
+          <label class="form-label" id="targetAmountLabel">Valor Alvo (R$)</label>
+          <input type="number" step="0.01" id="goalTargetInput" class="form-input" placeholder="1000.00">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Alocação Temporal</label>
+          <select id="goalCycleSelect" class="form-select">
+            <option value="2026">Ciclo 2026 (Atual)</option>
+            <option value="2027">Ciclo 2027 (Planejamento)</option>
+            <option value="continuous">♾️ Meta Contínua (Longo Prazo)</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn-submit-modal">Salvar Meta</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast-msg">
+    <i class="fas fa-check-circle" style="color: #10B981;"></i>
+    <span id="toastText">Ação realizada</span>
+  </div>
+
+  <script>
+    /* ========================================================
+       ESTADO E DADOS MOCK (Cenários Reais do Usuário)
+       ======================================================== */
+    let currentYear = 2026;
+    let currentViewMode = 'year'; // 'year' | 'continuous'
+    let currentFilter = 'all';
+    let selectedTypeInModal = 'project';
+
+    const INITIAL_GOALS = [
+      // 2026
+      {
+        id: 'g1',
+        title: 'Motor de correr no portão',
+        type: 'project',
+        year: 2026,
+        completed: true,
+        completed_at: '15/03/2026',
+        category: 'home'
+      },
+      {
+        id: 'g2',
+        title: 'Casinha para o cachorro',
+        type: 'project',
+        year: 2026,
+        completed: false,
+        category: 'home'
+      },
+      {
+        id: 'g3',
+        title: 'Viajar em família',
+        type: 'project',
+        year: 2026,
+        completed: false,
+        category: 'travel'
+      },
+      {
+        id: 'g4',
+        title: 'Juntar R$ 10.000',
+        type: 'money',
+        year: 2026,
+        current: 5000,
+        target: 10000,
+        category: 'finance'
+      },
+      {
+        id: 'g5',
+        title: 'Receber R$ 1 de dividendos/mês',
+        type: 'dividends',
+        year: 2026,
+        current: 0.40,
+        target: 1.00,
+        category: 'invest'
+      },
+      {
+        id: 'g6',
+        title: 'Patrimônio R$ 10.000',
+        type: 'wealth',
+        year: 2026,
+        current: 7250,
+        target: 10000,
+        category: 'invest'
+      },
+
+      // 2025 (Ano Arquivado)
+      {
+        id: 'g2025_1',
+        title: 'Comprar Notebook Novo',
+        type: 'money',
+        year: 2025,
+        current: 4200,
+        target: 4200,
+        completed: true,
+        completed_at: '20/11/2025'
+      },
+      {
+        id: 'g2025_2',
+        title: 'Pintura da Fachada',
+        type: 'project',
+        year: 2025,
+        completed: false,
+        postponedTo: 2026 // Reprogramada elegantemente
+      },
+
+      // Metas Contínuas (Longo Prazo / Sem ano)
+      {
+        id: 'gc_1',
+        title: 'Reserva de Emergência R$ 15.000',
+        type: 'money',
+        year: 'continuous',
+        current: 15000,
+        target: 15000,
+        completed: true
+      },
+      {
+        id: 'gc_2',
+        title: 'Patrimônio R$ 50.000 (Longo Prazo)',
+        type: 'wealth',
+        year: 'continuous',
+        current: 22400,
+        target: 50000
+      }
+    ];
+
+    let goalsData = [...INITIAL_GOALS];
+
+    // ========================================================
+    // RENDERIZAÇÃO
+    // ========================================================
+    function render() {
+      // 1. Atualiza cabeçalho do ano
+      const labelYear = document.getElementById('labelCurrentYear');
+      const badgeStatus = document.getElementById('yearStatusBadge');
+      const stepper = document.getElementById('yearStepperWrapper');
+      const cycleTitle = document.getElementById('cycleTitle');
+      const cycleSubtitle = document.getElementById('cycleSubtitle');
+
+      if (currentViewMode === 'continuous') {
+        stepper.style.opacity = '0.35';
+        stepper.style.pointerEvents = 'none';
+        badgeStatus.textContent = 'Permanente';
+        badgeStatus.className = 'year-badge-status status-current';
+        cycleTitle.innerHTML = '<i class="fas fa-infinity" style="color: #6366F1;"></i> Metas de Longo Prazo';
+        cycleSubtitle.textContent = 'Objetivos perenes que ultrapassam o ciclo de 1 ano';
+      } else {
+        stepper.style.opacity = '1';
+        stepper.style.pointerEvents = 'auto';
+        labelYear.textContent = currentYear;
+
+        if (currentYear === 2026) {
+          badgeStatus.textContent = 'Ciclo Atual';
+          badgeStatus.className = 'year-badge-status status-current';
+        } else if (currentYear < 2026) {
+          badgeStatus.textContent = 'Histórico';
+          badgeStatus.className = 'year-badge-status status-past';
+        } else {
+          badgeStatus.textContent = 'Planejamento';
+          badgeStatus.className = 'year-badge-status status-future';
+        }
+
+        cycleTitle.innerHTML = `<i class="fas fa-trophy" style="color: #F59E0B;"></i> Checklist de Conquistas ${currentYear}`;
+        cycleSubtitle.textContent = `Objetivos prioritários definidos para ${currentYear}`;
+      }
+
+      // 2. Filtra metas
+      let visible = goalsData.filter(g => {
+        if (currentViewMode === 'continuous') return g.year === 'continuous';
+        return g.year === currentYear;
+      });
+
+      // Filtro por chip
+      if (currentFilter === 'project') visible = visible.filter(g => g.type === 'project');
+      if (currentFilter === 'money') visible = visible.filter(g => g.type === 'money');
+      if (currentFilter === 'auto') visible = visible.filter(g => g.type === 'dividends' || g.type === 'wealth');
+      if (currentFilter === 'completed') visible = visible.filter(g => isGoalComplete(g));
+
+      // 3. Calcula score do ciclo
+      const totalInView = visible.length;
+      const completedInView = visible.filter(isGoalComplete).length;
+      const pct = totalInView > 0 ? Math.round((completedInView / totalInView) * 100) : 0;
+      document.getElementById('cycleScoreText').textContent = `${completedInView} / ${totalInView}`;
+      document.querySelector('.score-label').textContent = `Conquistadas (${pct}%)`;
+
+      // 4. Renderiza grid
+      const grid = document.getElementById('goalsGrid');
+      if (visible.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column: 1/-1; text-align: center; padding: 40px 20px; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px dashed var(--border-subtle);">
+            <i class="fas fa-compass" style="font-size: 28px; color: var(--text-dim); margin-bottom: 10px;"></i>
+            <h3 style="font-size: 15px; font-weight: 700;">Nenhuma meta cadastrada aqui</h3>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Clique em "+ Nova Meta" acima para criar o seu primeiro objetivo.</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = visible.map(g => renderGoalCard(g)).join('');
+    }
+
+    function isGoalComplete(g) {
+      if (g.type === 'project') return !!g.completed;
+      if (g.target && g.current) return g.current >= g.target;
+      return !!g.completed;
+    }
+
+    // Renderizador Individual de Card
+    function renderGoalCard(g) {
+      const isComplete = isGoalComplete(g);
+
+      // TIPO 1: PROJETO / HÁBITO (O caso do Portão!)
+      if (g.type === 'project') {
+        const isPostponed = !isComplete && g.postponedTo;
+        return `
+          <div class="goal-card ${isComplete ? 'is-completed' : ''}">
+            <div class="goal-top">
+              <button class="project-toggle ${isComplete ? 'checked' : ''}" onclick="toggleProjectGoal('${g.id}')" title="Marcar como Concluído">
+                <i class="fas fa-check" style="font-size: 13px;"></i>
+              </button>
+              <div class="goal-title-wrap">
+                <div class="goal-badge-tag" style="color: var(--accent-project);">
+                  <i class="fas fa-tasks"></i> Projeto / Realização
+                </div>
+                <div class="goal-name" title="${g.title}">${g.title}</div>
+              </div>
+            </div>
+
+            <div style="font-size: 12.5px; padding: 8px 12px; background: var(--bg-surface); border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
+              <span>Status:</span>
+              <strong style="color: ${isComplete ? 'var(--success)' : (isPostponed ? 'var(--postponed)' : '#F59E0B')};">
+                ${isComplete ? `🏆 Concluído ${g.completed_at ? '('+g.completed_at+')' : ''}` : (isPostponed ? `🔄 Reprogramada para ${g.postponedTo}` : '⏳ Em andamento')}
+              </strong>
+            </div>
+
+            <div class="goal-footer">
+              <span>${g.year === 'continuous' ? 'Meta Contínua' : `Ciclo ${g.year}`}</span>
+              <div style="display: flex; gap: 6px;">
+                ${!isComplete && currentYear === 2026 ? `
+                  <button class="btn-action-sm btn-postpone" onclick="postponeGoal('${g.id}', 2027)" title="Adiar para o próximo ano">
+                    <i class="fas fa-arrow-right"></i> Mover para 2027
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // TIPO 2: FINANCEIRA MANUAL
+      if (g.type === 'money') {
+        const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+        return `
+          <div class="goal-card ${isComplete ? 'is-completed' : ''}">
+            <div class="goal-top">
+              <div class="goal-type-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-money);">
+                <i class="fas fa-piggy-bank"></i>
+              </div>
+              <div class="goal-title-wrap">
+                <div class="goal-badge-tag" style="color: var(--accent-money);">
+                  <i class="fas fa-coins"></i> Poupança Manual
+                </div>
+                <div class="goal-name" title="${g.title}">${g.title}</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="goal-stats-row" style="margin-bottom: 6px;">
+                <div>
+                  <span class="stat-current">${formatBRL(g.current)}</span>
+                  <span class="stat-target">de ${formatBRL(g.target)}</span>
+                </div>
+                <strong style="color: ${isComplete ? 'var(--success)' : 'var(--accent-money)'}; font-family: 'JetBrains Mono', monospace;">${pct}%</strong>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" style="width: ${pct}%; background: ${isComplete ? 'var(--success)' : 'var(--accent-money)'};"></div>
+              </div>
+            </div>
+
+            <div class="goal-footer">
+              <span>${isComplete ? '🎉 Meta 100% Batida!' : `Faltam ${formatBRL(g.target - g.current)}`}</span>
+              <div style="display: flex; gap: 6px;">
+                ${!isComplete ? `
+                  <button class="btn-action-sm btn-deposit-fast" onclick="simulateDeposit('${g.id}', 500)">
+                    <i class="fas fa-plus"></i> + R$ 500
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // TIPO 3: PROVENTOS AUTOMÁTICOS
+      if (g.type === 'dividends') {
+        const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+        return `
+          <div class="goal-card ${isComplete ? 'is-completed' : ''}">
+            <div class="goal-top">
+              <div class="goal-type-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-dividends);">
+                <i class="fas fa-hand-holding-usd"></i>
+              </div>
+              <div class="goal-title-wrap">
+                <div class="goal-badge-tag" style="color: var(--accent-dividends);">
+                  <i class="fas fa-chart-line"></i> Proventos Mensais
+                </div>
+                <div class="goal-name" title="${g.title}">${g.title}</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="goal-stats-row" style="margin-bottom: 6px;">
+                <div>
+                  <span class="stat-current" style="color: var(--accent-dividends);">${formatBRL(g.current)}</span>
+                  <span class="stat-target">alvo ${formatBRL(g.target)}/mês</span>
+                </div>
+                <strong style="color: var(--accent-dividends); font-family: 'JetBrains Mono', monospace;">${pct}%</strong>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" style="width: ${pct}%; background: var(--accent-dividends);"></div>
+              </div>
+            </div>
+
+            <div class="auto-sync-tag">
+              <i class="fas fa-bolt"></i> Conectado em tempo real aos Proventos da B3
+            </div>
+
+            <div class="goal-footer">
+              <span>${isComplete ? '🏆 Conquista Mensal Atingida!' : 'Recebido este mês'}</span>
+              ${!isComplete ? `
+                <button class="btn-action-sm" onclick="simulateDividend('${g.id}', 0.70)" style="color: var(--accent-dividends);">
+                  <i class="fas fa-plus-circle"></i> + R$ 0,70 recebido
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      // TIPO 4: PATRIMÔNIO AUTOMÁTICO
+      if (g.type === 'wealth') {
+        const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+        return `
+          <div class="goal-card ${isComplete ? 'is-completed' : ''}">
+            <div class="goal-top">
+              <div class="goal-type-icon" style="background: rgba(139, 92, 246, 0.15); color: var(--accent-wealth);">
+                <i class="fas fa-chart-pie"></i>
+              </div>
+              <div class="goal-title-wrap">
+                <div class="goal-badge-tag" style="color: var(--accent-wealth);">
+                  <i class="fas fa-university"></i> Patrimônio Total
+                </div>
+                <div class="goal-name" title="${g.title}">${g.title}</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="goal-stats-row" style="margin-bottom: 6px;">
+                <div>
+                  <span class="stat-current" style="color: #C4B5FD;">${formatBRL(g.current)}</span>
+                  <span class="stat-target">alvo ${formatBRL(g.target)}</span>
+                </div>
+                <strong style="color: var(--accent-wealth); font-family: 'JetBrains Mono', monospace;">${pct}%</strong>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" style="width: ${pct}%; background: var(--accent-wealth);"></div>
+              </div>
+            </div>
+
+            <div class="auto-sync-tag" style="color: #A78BFA; background: rgba(139, 92, 246, 0.1);">
+              <i class="fas fa-sync-alt"></i> Custódia sincronizada (Ações + FIIs + Renda Fixa)
+            </div>
+
+            <div class="goal-footer">
+              <span>${isComplete ? '🏆 Patrimônio Conquistado!' : `Faltam ${formatBRL(g.target - g.current)}`}</span>
+              ${!isComplete ? `
+                <button class="btn-action-sm" onclick="simulateWealthGrowth('${g.id}', 1000)" style="color: #A78BFA;">
+                  <i class="fas fa-arrow-trend-up"></i> + R$ 1.000 aporte
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // ========================================================
+    // INTERAÇÕES E AÇÕES
+    // ========================================================
+    function changeYear(delta) {
+      currentYear += delta;
+      render();
+    }
+
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      document.getElementById('btnViewYear').classList.toggle('active', mode === 'year');
+      document.getElementById('btnViewContinuous').classList.toggle('active', mode === 'continuous');
+      render();
+    }
+
+    function setFilter(filter, elem) {
+      currentFilter = filter;
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      elem.classList.add('active');
+      render();
+    }
+
+    // Alternar Conclusão de Projeto (Portão / Casinha)
+    function toggleProjectGoal(id) {
+      const g = goalsData.find(item => item.id === id);
+      if (!g) return;
+
+      g.completed = !g.completed;
+      if (g.completed) {
+        g.completed_at = new Date().toLocaleDateString('pt-BR');
+        triggerConfetti();
+        showToast(`🎉 Parabéns! "${g.title}" concluída com sucesso!`);
+      } else {
+        g.completed_at = null;
+        showToast(`Meta "${g.title}" reaberta em andamento.`);
+      }
+      render();
+    }
+
+    // Adiar / Mover para o próximo ano
+    function postponeGoal(id, nextYear) {
+      const g = goalsData.find(item => item.id === id);
+      if (!g) return;
+
+      g.year = nextYear;
+      showToast(`Meta "${g.title}" movida para o Ciclo ${nextYear}!`);
+      render();
+    }
+
+    // Simular Aporte Manual
+    function simulateDeposit(id, amt) {
+      const g = goalsData.find(item => item.id === id);
+      if (!g) return;
+
+      g.current = Math.min(g.target, g.current + amt);
+      if (g.current >= g.target) {
+        triggerConfetti();
+        showToast(`🚀 Parabéns! Meta "${g.title}" 100% batida!`);
+      } else {
+        showToast(`Aporte de ${formatBRL(amt)} adicionado a "${g.title}"!`);
+      }
+      render();
+    }
+
+    // Simular Dividendo Recebido
+    function simulateDividend(id, amt) {
+      const g = goalsData.find(item => item.id === id);
+      if (!g) return;
+
+      g.current = parseFloat((g.current + amt).toFixed(2));
+      if (g.current >= g.target) {
+        triggerConfetti();
+        showToast(`💰 PROVENTO BATEU A META! Você recebeu ${formatBRL(g.current)} de dividendos!`);
+      } else {
+        showToast(`Provento recebido: +${formatBRL(amt)} em dividendos!`);
+      }
+      render();
+    }
+
+    // Simular Crescimento de Patrimônio
+    function simulateWealthGrowth(id, amt) {
+      const g = goalsData.find(item => item.id === id);
+      if (!g) return;
+
+      g.current = Math.min(g.target, g.current + amt);
+      if (g.current >= g.target) {
+        triggerConfetti();
+        showToast(`🏆 INCRÍVEL! Meta de Patrimônio "${g.title}" conquistada!`);
+      } else {
+        showToast(`Patrimônio atualizado: ${formatBRL(g.current)}!`);
+      }
+      render();
+    }
+
+    // Confetes de Dopamina
+    function triggerConfetti() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 70,
+          spread: 60,
+          origin: { y: 0.65 },
+          colors: ['#6366F1', '#10B981', '#F59E0B', '#38BDF8']
+        });
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      document.getElementById('toastText').textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3500);
+    }
+
+    function formatBRL(val) {
+      return Number(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    // ========================================================
+    // MODAL DE NOVA META
+    // ========================================================
+    function openNewGoalModal() {
+      document.getElementById('goalModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('goalModal').classList.remove('active');
+    }
+
+    function selectGoalType(type, elem) {
+      selectedTypeInModal = type;
+      document.querySelectorAll('.type-card-opt').forEach(c => c.classList.remove('selected'));
+      elem.classList.add('selected');
+
+      const targetGroup = document.getElementById('targetAmountGroup');
+      const targetLabel = document.getElementById('targetAmountLabel');
+
+      if (type === 'project') {
+        targetGroup.style.display = 'none';
+      } else {
+        targetGroup.style.display = 'block';
+        if (type === 'dividends') targetLabel.textContent = 'Alvo Mensal de Proventos (R$)';
+        else if (type === 'wealth') targetLabel.textContent = 'Alvo de Patrimônio (R$)';
+        else targetLabel.textContent = 'Valor Alvo da Meta (R$)';
+      }
+    }
+
+    function handleCreateGoal(e) {
+      e.preventDefault();
+      const title = document.getElementById('goalTitleInput').value.trim();
+      const cycle = document.getElementById('goalCycleSelect').value;
+      const targetVal = parseFloat(document.getElementById('goalTargetInput').value) || 0;
+
+      if (!title) return;
+
+      const newGoal = {
+        id: 'g_' + Date.now(),
+        title: title,
+        type: selectedTypeInModal,
+        year: cycle === 'continuous' ? 'continuous' : parseInt(cycle),
+        completed: false
+      };
+
+      if (selectedTypeInModal !== 'project') {
+        newGoal.target = targetVal || 1000;
+        newGoal.current = 0;
+      }
+
+      goalsData.unshift(newGoal);
+      closeModal();
+      document.getElementById('newGoalForm').reset();
+      showToast(`🎯 Nova meta "${title}" criada com sucesso!`);
+      render();
+    }
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+      render();
+    });
+  </script>
+</body>
+</html>

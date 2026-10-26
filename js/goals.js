@@ -13,6 +13,237 @@ let isProcessing = false;
 let currentFilter = 'all';
 let currentSearch = '';
 
+// Variáveis de Ciclo Temporal e Conquistas
+let currentCycleYear = 2026;
+let currentTemporalMode = 'year'; // 'year' | 'continuous'
+let selectedModalType = 'financial';
+let cachedTotalEquity = 0;
+
+// Resolve o ano de uma meta (para histórico, ano atual ou longo prazo)
+function resolveGoalYear(g) {
+    if (!g) return currentCycleYear;
+    if (g.target_year === 'continuous' || g.year === 'continuous') return 'continuous';
+    if (g.target_year && !isNaN(parseInt(g.target_year))) return parseInt(g.target_year);
+    if (g.year && !isNaN(parseInt(g.year))) return parseInt(g.year);
+    if (g.deadline) {
+        const y = parseInt(String(g.deadline).substring(0, 4));
+        if (!isNaN(y) && y > 1900 && y < 2200) return y;
+    }
+    const t = (g.title || '').toLowerCase();
+    if (t.includes('longo prazo') || t.includes('reserva de emergência')) return 'continuous';
+    return 2026;
+}
+window.resolveGoalYear = resolveGoalYear;
+
+// Busca o patrimônio total atual da carteira de investimentos
+async function getLatestPortfolioValue() {
+    if (cachedTotalEquity > 0) return cachedTotalEquity;
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            const { data } = await window.supabaseClient
+                .from('portfolio_snapshots')
+                .select('total_equity')
+                .eq('user_id', currentUser.id)
+                .order('date', { ascending: false })
+                .limit(1);
+            if (data && data.length > 0 && Number(data[0].total_equity) > 0) {
+                cachedTotalEquity = Number(data[0].total_equity);
+                return cachedTotalEquity;
+            }
+        }
+    } catch (_) {}
+
+    try {
+        const uid = currentUser?.id || 'demo';
+        const raw = localStorage.getItem('tonu_total_equity_' + uid) || 
+                    localStorage.getItem('tonu_total_equity') ||
+                    localStorage.getItem('tonu_investments_equity');
+        if (raw) {
+            const val = parseFloat(raw);
+            if (!isNaN(val) && val > 0) {
+                cachedTotalEquity = val;
+                return cachedTotalEquity;
+            }
+        }
+    } catch (_) {}
+
+    return cachedTotalEquity;
+}
+window.getLatestPortfolioValue = getLatestPortfolioValue;
+
+// Altera o ano selecionado no stepper ‹ 2026 ›
+function changeYear(delta) {
+    currentCycleYear += delta;
+    updateTemporalHeader();
+    renderFilteredGoals();
+}
+window.changeYear = changeYear;
+
+// Alterna entre Ciclo Anual e Metas de Longo Prazo
+function setTemporalMode(mode) {
+    currentTemporalMode = mode;
+    const btnYear = document.getElementById('btnViewYear');
+    const btnCont = document.getElementById('btnViewContinuous');
+    if (btnYear) btnYear.classList.toggle('active', mode === 'year');
+    if (btnCont) btnCont.classList.toggle('active', mode === 'continuous');
+    updateTemporalHeader();
+    renderFilteredGoals();
+}
+window.setTemporalMode = setTemporalMode;
+
+// Atualiza cabeçalhos temporais e badges de status
+function updateTemporalHeader() {
+    const labelYear = document.getElementById('labelCurrentYear');
+    const badgeStatus = document.getElementById('yearStatusBadge');
+    const stepper = document.getElementById('yearStepperWrapper');
+    const cycleTitle = document.getElementById('cycleTitle');
+    const cycleSubtitle = document.getElementById('cycleSubtitle');
+
+    if (currentTemporalMode === 'continuous') {
+        if (stepper) {
+            stepper.style.opacity = '0.4';
+            stepper.style.pointerEvents = 'none';
+        }
+        if (badgeStatus) {
+            badgeStatus.textContent = 'Permanente';
+            badgeStatus.className = 'year-badge-status status-badge-current';
+        }
+        if (cycleTitle) {
+            cycleTitle.innerHTML = '<i class="fas fa-infinity" style="color: #6C5CE7;"></i> Metas de Longo Prazo';
+        }
+        if (cycleSubtitle) {
+            cycleSubtitle.textContent = 'Objetivos perenes e patrimônio que ultrapassam o ciclo de 1 ano';
+        }
+    } else {
+        if (stepper) {
+            stepper.style.opacity = '1';
+            stepper.style.pointerEvents = 'auto';
+        }
+        if (labelYear) labelYear.textContent = currentCycleYear;
+
+        if (badgeStatus) {
+            if (currentCycleYear === 2026) {
+                badgeStatus.textContent = 'Ciclo Atual';
+                badgeStatus.className = 'year-badge-status status-badge-current';
+            } else if (currentCycleYear < 2026) {
+                badgeStatus.textContent = 'Histórico';
+                badgeStatus.className = 'year-badge-status status-badge-past';
+            } else {
+                badgeStatus.textContent = 'Planejamento';
+                badgeStatus.className = 'year-badge-status status-badge-future';
+            }
+        }
+
+        if (cycleTitle) {
+            cycleTitle.innerHTML = `<i class="fas fa-trophy" style="color: #F59E0B;"></i> Checklist de Conquistas ${currentCycleYear}`;
+        }
+        if (cycleSubtitle) {
+            cycleSubtitle.textContent = `Objetivos prioritários definidos para ${currentCycleYear}`;
+        }
+    }
+}
+window.updateTemporalHeader = updateTemporalHeader;
+
+// Adia / reprograma uma meta não concluída para o próximo ano com 1 clique
+async function postponeGoal(goalId, targetYear) {
+    const goal = allGoals.find(g => String(g.id) === String(goalId));
+    if (!goal) return;
+    const nextYear = targetYear || (currentCycleYear + 1);
+    goal.target_year = nextYear;
+    goal.deadline = `${nextYear}-12-31`;
+    goal.updated_at = new Date().toISOString();
+
+    renderFilteredGoals();
+    updateGoalsStats(allGoals);
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', {
+            id: goal.id,
+            target_year: nextYear,
+            deadline: goal.deadline,
+            updated_at: goal.updated_at
+        });
+    }
+
+    if (supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            const { error } = await supabaseClient.from('goals').update({
+                deadline: goal.deadline,
+                target_year: nextYear,
+                updated_at: goal.updated_at
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            if (error && error.message && error.message.includes('target_year')) {
+                await supabaseClient.from('goals').update({
+                    deadline: goal.deadline,
+                    updated_at: goal.updated_at
+                }).eq('id', goal.id).eq('user_id', currentUser.id);
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao adiar meta no Supabase:', e);
+        }
+    }
+
+    showToast(`🔄 Meta "${goal.title}" reprogramada para ${nextYear}!`, 'info');
+}
+window.postponeGoal = postponeGoal;
+
+// Aporte rápido na meta (+ R$ 500 ou valor rápido)
+async function quickAddAmount(goalId, amount) {
+    const goal = allGoals.find(g => String(g.id) === String(goalId));
+    if (!goal) return;
+    const cur = Number(goal.current_amount) || 0;
+    const tgt = Number(goal.target_amount) || 0;
+    const newAmount = cur + amount;
+    const isCompleted = tgt > 0 && newAmount >= tgt;
+
+    goal.current_amount = newAmount;
+    goal.completed = isCompleted;
+    if (isCompleted) goal.completed_at = new Date().toISOString();
+    goal.updated_at = new Date().toISOString();
+
+    renderFilteredGoals();
+    updateGoalsStats(allGoals);
+
+    if (isCompleted && typeof triggerCelebration === 'function') {
+        triggerCelebration(goal.title, newAmount);
+    }
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', {
+            id: goal.id,
+            current_amount: newAmount,
+            completed: isCompleted,
+            completed_at: goal.completed_at || null,
+            updated_at: goal.updated_at
+        });
+    }
+
+    if (supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            await supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: isCompleted,
+                completed_at: goal.completed_at || null,
+                updated_at: goal.updated_at
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            const todayStr = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+            await supabaseClient.from('goal_deposits').insert([{
+                goal_id: goal.id,
+                user_id: currentUser.id,
+                amount: amount,
+                deposit_date: todayStr
+            }]).catch(() => {});
+        } catch (e) {
+            console.warn('⚠️ Erro no aporte rápido:', e);
+        }
+    }
+
+    showToast(`💰 Aporte de ${formatCurrency(amount)} adicionado a "${goal.title}"!`, 'success');
+}
+window.quickAddAmount = quickAddAmount;
+
 // Mapeamento de categorias visuais para metas
 const GOAL_CATEGORY_MAP = {
     emergency: { label: 'Reserva de Emergência', icon: 'fa-shield-alt', emoji: '🛡️', color: '#00B894' },
@@ -34,9 +265,9 @@ function resolveGoalCategory(goal) {
     if (t.includes('reserva') || t.includes('emergência') || t.includes('segurança')) return { key: 'emergency', ...GOAL_CATEGORY_MAP.emergency };
     if (t.includes('viagem') || t.includes('férias') || t.includes('praia') || t.includes('euro') || t.includes('dólar') || t.includes('passagem')) return { key: 'travel', ...GOAL_CATEGORY_MAP.travel };
     if (t.includes('carro') || t.includes('moto') || t.includes('veículo') || t.includes('cnh') || t.includes('auto')) return { key: 'vehicle', ...GOAL_CATEGORY_MAP.vehicle };
-    if (t.includes('casa') || t.includes('apê') || t.includes('apartamento') || t.includes('imóvel') || t.includes('reforma') || t.includes('obra')) return { key: 'home', ...GOAL_CATEGORY_MAP.home };
+    if (t.includes('portão') || t.includes('casa') || t.includes('apê') || t.includes('apartamento') || t.includes('imóvel') || t.includes('reforma') || t.includes('obra')) return { key: 'home', ...GOAL_CATEGORY_MAP.home };
     if (t.includes('curso') || t.includes('faculdade') || t.includes('pós') || t.includes('estudo') || t.includes('livro') || t.includes('mba')) return { key: 'education', ...GOAL_CATEGORY_MAP.education };
-    if (t.includes('invest') || t.includes('ação') || t.includes('fii') || t.includes('aposentadoria') || t.includes('renda passiva') || t.includes('patrimônio')) return { key: 'investment', ...GOAL_CATEGORY_MAP.investment };
+    if (t.includes('invest') || t.includes('ação') || t.includes('fii') || t.includes('aposentadoria') || t.includes('renda passiva') || t.includes('patrimônio') || t.includes('dividendo')) return { key: 'investment', ...GOAL_CATEGORY_MAP.investment };
     if (t.includes('celular') || t.includes('iphone') || t.includes('macbook') || t.includes('notebook') || t.includes('compra') || t.includes('tv')) return { key: 'purchase', ...GOAL_CATEGORY_MAP.purchase };
     return { key: 'other', ...GOAL_CATEGORY_MAP.other };
 }
@@ -145,19 +376,33 @@ async function loadGoals() {
 // ATUALIZAR ESTATÍSTICAS E CONTADORES DO TOPO
 // ============================================
 function updateGoalsStats(goals) {
+    // Metas visíveis no ciclo atual ou longo prazo
+    const cycleGoals = (goals || []).filter(g => {
+        if (currentTemporalMode === 'continuous') {
+            return resolveGoalYear(g) === 'continuous';
+        }
+        return resolveGoalYear(g) === currentCycleYear;
+    });
+
+    // Score do Ciclo de Conquistas
+    const cycleTotal = cycleGoals.length;
+    const cycleCompleted = cycleGoals.filter(isGoalComplete).length;
+    const cyclePct = cycleTotal > 0 ? Math.round((cycleCompleted / cycleTotal) * 100) : 0;
+
+    const elCycleScore = document.getElementById('cycleScoreText');
+    const elCyclePct = document.getElementById('cycleScorePct');
+    if (elCycleScore) elCycleScore.textContent = `${cycleCompleted} / ${cycleTotal}`;
+    if (elCyclePct) elCyclePct.textContent = `${cyclePct}% Conquistadas`;
+
+    // Métricas Globais (Todas as metas cadastradas)
     const totalAccumulated = goals.reduce((acc, g) => acc + (Number(g.current_amount) || 0), 0);
     const globalTarget = goals.reduce((acc, g) => acc + (Number(g.target_amount) || 0), 0);
-    const completedCount = goals.filter(g => g.completed || (g.target_amount > 0 && g.current_amount >= g.target_amount)).length;
-    const activeCount = goals.length - completedCount;
-    const almostCount = goals.filter(g => {
-        const pct = g.target_amount > 0 ? (g.current_amount / g.target_amount) * 100 : 0;
-        return pct >= 75 && !g.completed && pct < 100;
-    }).length;
+    const completedCount = goals.filter(isGoalComplete).length;
 
     const globalPct = globalTarget > 0 ? Math.min(100, Math.round((totalAccumulated / globalTarget) * 100)) : 0;
     const remainingGlobal = Math.max(0, globalTarget - totalAccumulated);
 
-    // Elementos do DOM
+    // Elementos do DOM do Hero
     const elAccumulated = document.getElementById('statsTotalAccumulated');
     const elTarget = document.getElementById('statsGlobalTarget');
     const elCompleted = document.getElementById('statsCompletedCount');
@@ -176,20 +421,48 @@ function updateGoalsStats(goals) {
             : `🏆 Parabéns! Todos os objetivos globais foram atingidos!`;
     }
 
-    // Atualizar Badges das abas de filtro
+    // Contadores das Abas de Filtro dentro do ciclo selecionado
+    const projectCount = cycleGoals.filter(g => g.type === 'habit' || g.type === 'project').length;
+    const financialCount = cycleGoals.filter(g => g.type === 'financial' || !g.type).length;
+    const autoCount = cycleGoals.filter(g => g.type === 'dividends' || g.type === 'wealth' || g.type === 'net_worth').length;
+    const completedInCycle = cycleGoals.filter(isGoalComplete).length;
+
     const bAll = document.getElementById('badgeFilterAll');
-    const bActive = document.getElementById('badgeFilterActive');
-    const bAlmost = document.getElementById('badgeFilterAlmost');
+    const bProject = document.getElementById('badgeFilterProject');
+    const bFinancial = document.getElementById('badgeFilterFinancial');
+    const bAuto = document.getElementById('badgeFilterAuto');
     const bCompleted = document.getElementById('badgeFilterCompleted');
 
-    if (bAll) bAll.textContent = goals.length;
-    if (bActive) bActive.textContent = activeCount;
-    if (bAlmost) bAlmost.textContent = almostCount;
-    if (bCompleted) bCompleted.textContent = completedCount;
+    if (bAll) bAll.textContent = cycleGoals.length;
+    if (bProject) bProject.textContent = projectCount;
+    if (bFinancial) bFinancial.textContent = financialCount;
+    if (bAuto) bAuto.textContent = autoCount;
+    if (bCompleted) bCompleted.textContent = completedInCycle;
 
-    // Atualiza o Card de Rendimento CDI no Topo (Aportado, Rend. Bruto, IOF, IR, Saldo Líquido)
-    updateCdiGlobalCard(goals);
+    // Atualiza o Card de Rendimento CDI no Topo
+    if (typeof updateCdiGlobalCard === 'function') {
+        updateCdiGlobalCard(goals);
+    }
 }
+
+// Verifica se a meta está concluída independente do tipo
+function isGoalComplete(g) {
+    if (!g) return false;
+    if (g.type === 'habit' || g.type === 'project') return !!g.completed;
+    if (g.type === 'dividends') {
+        const divs = getMonthlyDividendsTotal();
+        const tgt = Number(g.target_amount) || 1;
+        return divs >= tgt;
+    }
+    if (g.type === 'wealth' || g.type === 'net_worth') {
+        const tgt = Number(g.target_amount) || 1;
+        return (cachedTotalEquity > 0 && cachedTotalEquity >= tgt) || !!g.completed;
+    }
+    const tgt = Number(g.target_amount) || 0;
+    const cur = Number(g.current_amount) || 0;
+    return g.completed || (tgt > 0 && cur >= tgt);
+}
+window.isGoalComplete = isGoalComplete;
 
 // ============================================
 // CONTROLES DE FILTRO E PESQUISA
@@ -201,6 +474,7 @@ function setGoalsFilter(filter) {
     });
     renderFilteredGoals();
 }
+window.setGoalsFilter = setGoalsFilter;
 
 function handleGoalsSearch(event) {
     currentSearch = (event.target.value || '').trim().toLowerCase();
@@ -210,6 +484,7 @@ function handleGoalsSearch(event) {
     }
     renderFilteredGoals();
 }
+window.handleGoalsSearch = handleGoalsSearch;
 
 function clearGoalsSearch() {
     const input = document.getElementById('goalsSearchInput');
@@ -221,23 +496,32 @@ function clearGoalsSearch() {
     if (clearBtn) clearBtn.classList.add('hidden');
     renderFilteredGoals();
 }
+window.clearGoalsSearch = clearGoalsSearch;
 
 function renderFilteredGoals() {
     let list = [...allGoals];
 
-    // Aplicar Filtro de Status
-    if (currentFilter === 'active') {
-        list = list.filter(g => !g.completed && (g.target_amount <= 0 || (g.current_amount < g.target_amount)));
-    } else if (currentFilter === 'almost') {
-        list = list.filter(g => {
-            const pct = g.target_amount > 0 ? (g.current_amount / g.target_amount) * 100 : 0;
-            return pct >= 75 && !g.completed && pct < 100;
-        });
+    // 1. Filtro Temporal (Ano Selecionado vs Metas de Longo Prazo)
+    list = list.filter(g => {
+        const goalYear = resolveGoalYear(g);
+        if (currentTemporalMode === 'continuous') {
+            return goalYear === 'continuous';
+        }
+        return goalYear === currentCycleYear;
+    });
+
+    // 2. Filtro de Categorias / Abas
+    if (currentFilter === 'project') {
+        list = list.filter(g => g.type === 'habit' || g.type === 'project');
+    } else if (currentFilter === 'financial') {
+        list = list.filter(g => g.type === 'financial' || !g.type);
+    } else if (currentFilter === 'auto') {
+        list = list.filter(g => g.type === 'dividends' || g.type === 'wealth' || g.type === 'net_worth');
     } else if (currentFilter === 'completed') {
-        list = list.filter(g => g.completed || (g.target_amount > 0 && g.current_amount >= g.target_amount));
+        list = list.filter(isGoalComplete);
     }
 
-    // Aplicar Filtro de Busca
+    // 3. Filtro de Busca por Texto
     if (currentSearch) {
         list = list.filter(g => {
             const titleMatch = (g.title || '').toLowerCase().includes(currentSearch);
@@ -249,23 +533,27 @@ function renderFilteredGoals() {
 
     renderGoals(list);
 }
+window.renderFilteredGoals = renderFilteredGoals;
 
 // ============================================
 // RENDERIZAÇÃO DOS CARDS REDESENHADOS
 // ============================================
-function renderGoals(goals) {
+async function renderGoals(goals) {
     const container = document.getElementById('goalsContainer');
     if (!container) return;
 
+    // Atualiza patrimônio em cache para metas automáticas
+    await getLatestPortfolioValue();
+
     if (goals.length === 0) {
-        if (allGoals.length > 0 && (currentFilter !== 'all' || currentSearch)) {
+        if (allGoals.length > 0) {
             container.innerHTML = `
                 <div class="empty-state" style="grid-column:1/-1;padding:40px 16px;">
-                    <span class="empty-icon">🔍</span>
-                    <h3>Nenhuma meta encontrada</h3>
-                    <p>Nenhuma meta corresponde ao filtro ou termo pesquisado.</p>
-                    <button class="btn btn-secondary" onclick="clearGoalsSearch(); setGoalsFilter('all');" style="margin-top:10px; font-size:12.5px;">
-                        <i class="fas fa-undo"></i> Limpar filtros
+                    <span class="empty-icon">📅</span>
+                    <h3>Nenhuma meta neste filtro ou ciclo</h3>
+                    <p>Você não tem metas cadastradas para ${currentTemporalMode === 'continuous' ? 'Longo Prazo' : 'o ciclo de ' + currentCycleYear}.</p>
+                    <button class="btn btn-primary" onclick="openModal()" style="margin-top:10px; font-size:12.5px;">
+                        <i class="fas fa-plus"></i> Criar meta para este ciclo
                     </button>
                 </div>
             `;
@@ -276,7 +564,7 @@ function renderGoals(goals) {
             <div class="empty-state" style="grid-column:1/-1;padding:40px 16px;">
                 <span class="empty-icon">🎯</span>
                 <h3>Nenhuma meta ainda</h3>
-                <p>Defina seus objetivos financeiros e acompanhe seu progresso!</p>
+                <p>Defina seus objetivos e acompanhe seu progresso ano após ano!</p>
                 <button class="btn btn-primary" onclick="openModal()" style="margin-top:10px; font-size:13px;"
                     aria-label="Criar primeira meta">
                     <i class="fas fa-plus"></i> Criar primeira meta
@@ -290,59 +578,72 @@ function renderGoals(goals) {
         const goalType = g.type || 'financial';
         const catInfo = resolveGoalCategory(g);
         const color = g.color || catInfo.color || '#6C5CE7';
+        const isComplete = isGoalComplete(g);
+        const goalYear = resolveGoalYear(g);
 
-        // TIPO 1: PROJETO / HÁBITO (📌)
-        if (goalType === 'habit') {
-            const isCompleted = !!g.completed;
+        // TIPO 1: PROJETO / HÁBITO (📌 Check Simples - O caso do Portão!)
+        if (goalType === 'habit' || goalType === 'project') {
             const completedDateText = g.completed_at ? formatDate(g.completed_at) : (g.deadline ? formatDate(g.deadline) : null);
+            const isPostponed = !isComplete && g.target_year && g.target_year > currentCycleYear;
 
             return `
-                <div class="goal-card ${isCompleted ? 'completed' : ''}" 
-                     style="--goal-accent-color: ${color};"
+                <div class="goal-card ${isComplete ? 'completed' : ''}" 
+                     style="--goal-accent-color: #38BDF8;"
                      onclick="editGoal('${g.id}')">
                     
                     <div class="goal-card-top">
-                        <div class="goal-badge-icon" style="background: ${color}20; color: ${color};">
-                            <i class="fas fa-tasks"></i>
-                        </div>
+                        <button type="button" class="project-toggle-btn ${isComplete ? 'checked' : ''}" 
+                                onclick="event.stopPropagation(); toggleHabitStatus('${g.id}')" 
+                                title="${isComplete ? 'Reabrir meta' : 'Marcar como Concluído!'}">
+                            <i class="fas fa-check"></i>
+                        </button>
+
                         <div class="goal-title-wrap">
                             <div class="goal-category-tag">
-                                <span>📌 Projeto / Hábito</span>
+                                <span style="color:#0284c7; font-weight:700;"><i class="fas fa-tasks"></i> 📌 Projeto / Realização</span>
                             </div>
                             <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
                         </div>
-                        <span class="goal-status-badge ${isCompleted ? 'completed-badge' : 'in-progress'}">
-                            ${isCompleted ? '🏆 Concluído' : '⏳ Pendente'}
+
+                        <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}" style="${!isComplete && isPostponed ? 'background:rgba(100,116,139,0.15); color:#64748B;' : ''}">
+                            ${isComplete ? '🏆 Concluído' : (isPostponed ? `🔄 Para ${g.target_year}` : '⏳ Em andamento')}
                         </span>
                     </div>
 
-                    <div class="goal-finance-row" style="background: var(--color-bg, #f8fafc); border-radius: 8px; padding: 10px 12px; margin: 10px 0;">
-                        <div class="goal-val-box">
-                            <span class="goal-val-label">Status do Hábito</span>
-                            <span class="goal-val-current" style="font-size: 13.5px; color:${isCompleted ? '#10b981' : '#f59e0b'};">
-                                ${isCompleted ? '✅ Concluído com sucesso' : '⏳ Em andamento'}
-                            </span>
+                    <div class="goal-finance-row" style="background: var(--color-bg, #f8fafc); border-radius: 8px; padding: 10px 12px; margin: 10px 0; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <span class="goal-val-label">Status da Conquista</span>
+                            <strong style="font-size: 13px; color:${isComplete ? '#10b981' : (isPostponed ? '#64748B' : '#d97706')}; display:block;">
+                                ${isComplete ? '✅ Conquistado com sucesso' : (isPostponed ? `🔄 Reprogramada para ${g.target_year}` : '⏳ Em andamento')}
+                            </strong>
                         </div>
-                        <div class="goal-val-box" style="text-align: right;">
-                            <span class="goal-val-label">${isCompleted ? 'Concluído em' : 'Prazo'}</span>
-                            <span class="goal-val-target" style="font-size: 12.5px;">${completedDateText || 'Sem prazo'}</span>
+                        <div style="text-align: right;">
+                            <span class="goal-val-label">${isComplete ? 'Concluído em' : 'Alocação'}</span>
+                            <span class="goal-val-target" style="font-size: 12px; font-weight:600;">
+                                ${isComplete ? (completedDateText || 'Hoje') : (goalYear === 'continuous' ? 'Longo Prazo' : `Ciclo ${goalYear}`)}
+                            </span>
                         </div>
                     </div>
 
                     <div class="goal-progress-box">
                         <div class="goal-progress-meta">
-                            <span>${isCompleted ? '100% Concluído' : 'Pendente de conclusão'}</span>
-                            <span class="goal-progress-pct">${isCompleted ? '100%' : '0%'}</span>
+                            <span>${isComplete ? '100% Conquistado' : 'Checklist de Ação'}</span>
+                            <span class="goal-progress-pct" style="color:${isComplete ? '#10b981' : '#64748b'};">${isComplete ? '100%' : '0%'}</span>
                         </div>
                         <div class="goal-progress-track">
-                            <div class="goal-progress-fill ${isCompleted ? 'completed' : ''}" style="width: ${isCompleted ? '100%' : '0%'}; background:${isCompleted ? '#10b981' : color};"></div>
+                            <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${isComplete ? '100%' : '0%'}; background:${isComplete ? '#10b981' : '#38BDF8'};"></div>
                         </div>
                     </div>
 
                     <div class="goal-actions-bar" onclick="event.stopPropagation();">
-                        <button type="button" class="btn-card-action" onclick="toggleHabitStatus('${g.id}')" style="background:${isCompleted ? '#d1fae5' : '#f1f0fd'}; color:${isCompleted ? '#047857' : '#6C5CE7'}; font-weight:700; flex:1;">
-                            <i class="fas ${isCompleted ? 'fa-check-circle' : 'fa-circle'}"></i> ${isCompleted ? 'Reabrir Hábito' : 'Marcar como Concluído'}
+                        <button type="button" class="btn-card-action" onclick="toggleHabitStatus('${g.id}')" style="background:${isComplete ? '#d1fae5' : '#e0f2fe'}; color:${isComplete ? '#047857' : '#0369a1'}; font-weight:700; flex:1;">
+                            <i class="fas ${isComplete ? 'fa-undo' : 'fa-check'}"></i> ${isComplete ? 'Reabrir Meta' : 'Concluir Agora'}
                         </button>
+                        ${!isComplete && currentCycleYear <= 2026 ? `
+                            <button type="button" class="btn-postpone-action" onclick="postponeGoal('${g.id}', ${currentCycleYear + 1})" title="Mover meta para o próximo ciclo">
+                                <i class="fas fa-arrow-right"></i> Mover p/ ${currentCycleYear + 1}
+                            </button>
+                        ` : ''}
                         <button type="button" class="btn-card-icon-only" onclick="editGoal('${g.id}')" title="Editar detalhes">
                             <i class="fas fa-pen"></i>
                         </button>
@@ -354,15 +655,14 @@ function renderGoals(goals) {
             `;
         }
 
-        // TIPO 2: DIVIDENDOS (📈 Renda Passiva Mensal)
+        // TIPO 2: DIVIDENDOS MENSAIS AUTOMÁTICOS (📈)
         if (goalType === 'dividends') {
             const monthlyDivs = getMonthlyDividendsTotal();
             const targetAmount = Number(g.target_amount) || 1;
             const percent = Math.min(100, Math.round((monthlyDivs / targetAmount) * 100));
-            const isCompleted = monthlyDivs >= targetAmount;
 
             return `
-                <div class="goal-card ${isCompleted ? 'completed' : ''}" 
+                <div class="goal-card ${isComplete ? 'completed' : ''}" 
                      style="--goal-accent-color: #10B981;"
                      onclick="editGoal('${g.id}')">
                     
@@ -372,12 +672,12 @@ function renderGoals(goals) {
                         </div>
                         <div class="goal-title-wrap">
                             <div class="goal-category-tag">
-                                <span>📈 Dividendos Mensais</span>
+                                <span style="color:#059669; font-weight:700;"><i class="fas fa-chart-line"></i> 📈 Proventos Mensais</span>
                             </div>
                             <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
                         </div>
-                        <span class="goal-status-badge ${isCompleted ? 'completed-badge' : 'in-progress'}">
-                            ${isCompleted ? '🏆 Atingido' : `${percent}%`}
+                        <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}">
+                            ${isComplete ? '🏆 Atingido' : `${percent}%`}
                         </span>
                     </div>
 
@@ -395,11 +695,15 @@ function renderGoals(goals) {
                     <div class="goal-progress-box">
                         <div class="goal-progress-meta">
                             <span>Progresso: <strong>${formatCurrency(monthlyDivs)} de ${formatCurrency(targetAmount)}</strong></span>
-                            <span class="goal-progress-pct">${percent}%</span>
+                            <span class="goal-progress-pct" style="color:#10b981;">${percent}%</span>
                         </div>
                         <div class="goal-progress-track">
-                            <div class="goal-progress-fill ${isCompleted ? 'completed' : ''}" style="width: ${percent}%; background:#10B981;"></div>
+                            <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${percent}%; background:#10B981;"></div>
                         </div>
+                    </div>
+
+                    <div class="auto-sync-tag dividends">
+                        <i class="fas fa-bolt"></i> Sincronizado automaticamente com os Proventos da B3
                     </div>
 
                     <div class="goal-actions-bar" onclick="event.stopPropagation();">
@@ -417,37 +721,95 @@ function renderGoals(goals) {
             `;
         }
 
-        // TIPO 3: FINANCEIRA (💰 Padrão)
+        // TIPO 3: PATRIMÔNIO TOTAL AUTOMÁTICO (🏦)
+        if (goalType === 'wealth' || goalType === 'net_worth') {
+            const currentEquity = cachedTotalEquity || 0;
+            const targetAmount = Number(g.target_amount) || 1;
+            const percent = Math.min(100, Math.round((currentEquity / targetAmount) * 100));
+
+            return `
+                <div class="goal-card ${isComplete ? 'completed' : ''}" 
+                     style="--goal-accent-color: #8B5CF6;"
+                     onclick="editGoal('${g.id}')">
+                    
+                    <div class="goal-card-top">
+                        <div class="goal-badge-icon" style="background: rgba(139, 92, 246, 0.15); color: #8B5CF6;">
+                            <i class="fas fa-university"></i>
+                        </div>
+                        <div class="goal-title-wrap">
+                            <div class="goal-category-tag">
+                                <span style="color:#7C3AED; font-weight:700;"><i class="fas fa-chart-pie"></i> 🏦 Patrimônio Total</span>
+                            </div>
+                            <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
+                        </div>
+                        <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}" style="${isComplete ? '' : 'background:rgba(139, 92, 246, 0.12); color:#7C3AED;'}">
+                            ${isComplete ? '🏆 Conquistado' : `${percent}%`}
+                        </span>
+                    </div>
+
+                    <div class="goal-finance-row">
+                        <div class="goal-val-box">
+                            <span class="goal-val-label">Patrimônio em Custódia</span>
+                            <span class="goal-val-current" style="color:#7C3AED;">${formatCurrency(currentEquity)}</span>
+                        </div>
+                        <div class="goal-val-box" style="text-align: right;">
+                            <span class="goal-val-label">Meta de Patrimônio</span>
+                            <span class="goal-val-target">${formatCurrency(targetAmount)}</span>
+                        </div>
+                    </div>
+
+                    <div class="goal-progress-box">
+                        <div class="goal-progress-meta">
+                            <span>${isComplete ? '🎉 Conquista de Patrimônio Batida!' : `Faltam ${formatCurrency(Math.max(0, targetAmount - currentEquity))}`}</span>
+                            <span class="goal-progress-pct" style="color:#7C3AED;">${percent}%</span>
+                        </div>
+                        <div class="goal-progress-track">
+                            <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${percent}%; background:#8B5CF6;"></div>
+                        </div>
+                    </div>
+
+                    <div class="auto-sync-tag wealth">
+                        <i class="fas fa-sync-alt"></i> Custódia sincronizada (Ações + FIIs + Renda Fixa)
+                    </div>
+
+                    <div class="goal-actions-bar" onclick="event.stopPropagation();">
+                        <button type="button" class="btn-card-action" onclick="window.location.href='investments.html'" style="background:rgba(139,92,246,0.12); color:#6D28D9; font-weight:700; flex:1;">
+                            <i class="fas fa-chart-pie"></i> Ver Carteira
+                        </button>
+                        <button type="button" class="btn-card-icon-only" onclick="editGoal('${g.id}')" title="Editar detalhes">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" class="btn-card-icon-only danger" onclick="deleteGoal('${g.id}')" title="Excluir meta">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // TIPO 4: FINANCEIRA MANUAL (💰 Poupança / Aportes)
         const percent = g.target_amount > 0
             ? Math.min(100, (g.current_amount / g.target_amount) * 100)
             : 0;
-        const isCompleted = g.completed || percent >= 99.99;
         const pctDisplay = Math.round(percent);
         const remaining = Math.max(0, (g.target_amount || 0) - (g.current_amount || 0));
 
         let deadlineLabel = 'Sem prazo definido';
-        let monthlyNeedText = '';
         if (g.deadline) {
             const now = new Date();
             const targetDate = new Date(g.deadline);
             const daysDiff = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24));
-            const monthsDiff = Math.max(1, Math.ceil(daysDiff / 30.4));
-
-            if (isCompleted) {
+            if (isComplete) {
                 deadlineLabel = `🏆 Concluída`;
             } else if (daysDiff > 0) {
                 deadlineLabel = `⏰ ${daysDiff} dias restantes (${formatDate(g.deadline)})`;
-                if (remaining > 0 && monthsDiff >= 1) {
-                    const monthlyNeed = remaining / monthsDiff;
-                    monthlyNeedText = `Aporte sugerido: <strong>${formatCurrency(monthlyNeed)}/mês</strong> (${monthsDiff} meses)`;
-                }
             } else {
-                deadlineLabel = `⚠️ Prazo expirou em ${formatDate(g.deadline)}`;
+                deadlineLabel = `Ciclo ${goalYear}`;
             }
         }
 
         return `
-            <div class="goal-card ${isCompleted ? 'completed' : ''}" 
+            <div class="goal-card ${isComplete ? 'completed' : ''}" 
                  style="--goal-accent-color: ${color};"
                  onclick="editGoal('${g.id}')">
                 
@@ -461,8 +823,8 @@ function renderGoals(goals) {
                         </div>
                         <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
                     </div>
-                    <span class="goal-status-badge ${isCompleted ? 'completed-badge' : 'in-progress'}">
-                        ${isCompleted ? '🏆 Concluída' : `${pctDisplay}%`}
+                    <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}">
+                        ${isComplete ? '🏆 Concluída' : `${pctDisplay}%`}
                     </span>
                 </div>
 
@@ -479,11 +841,11 @@ function renderGoals(goals) {
 
                 <div class="goal-progress-box">
                     <div class="goal-progress-meta">
-                        <span>${isCompleted ? '🎉 100% atingido!' : `Faltam ${formatCurrency(remaining)}`}</span>
+                        <span>${isComplete ? '🎉 100% atingido!' : `Faltam ${formatCurrency(remaining)}`}</span>
                         <span class="goal-progress-pct">${pctDisplay}%</span>
                     </div>
                     <div class="goal-progress-track">
-                        <div class="goal-progress-fill ${isCompleted ? 'completed' : ''}" style="width: ${pctDisplay}%;"></div>
+                        <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${pctDisplay}%;"></div>
                     </div>
                 </div>
 
@@ -492,22 +854,21 @@ function renderGoals(goals) {
                         <i class="fas fa-calendar-alt"></i>
                         <span>${deadlineLabel}</span>
                     </div>
-                    ${monthlyNeedText ? `<div>${monthlyNeedText}</div>` : ''}
                 </div>
 
                 <div class="goal-actions-bar" onclick="event.stopPropagation();">
                     <button type="button" class="btn-card-action" onclick="openGoalYieldModal('${g.id}')" title="Extrato e Rendimento CDI" style="background:rgba(108,92,231,0.1); color:#6C5CE7; font-weight:700;">
                         <i class="fas fa-chart-line"></i> CDI
                     </button>
-                    ${!isCompleted ? `
+                    ${!isComplete ? `
+                        <button type="button" class="btn-card-action" onclick="quickAddAmount('${g.id}', 500)" style="background:rgba(245,158,11,0.15); color:#D97706; font-weight:700;" title="Aporte rápido de R$ 500">
+                            <i class="fas fa-plus"></i> + R$ 500
+                        </button>
                         <button type="button" class="btn-card-action btn-deposit" onclick="openAddValue('${g.id}')" title="Fazer um aporte nesta meta">
                             <i class="fas fa-plus"></i> Aportar
                         </button>
                         <button type="button" class="btn-card-action btn-withdraw" onclick="openWithdrawModal('${g.id}')" title="Resgatar ou ajustar valor">
                             <i class="fas fa-minus"></i> Resgatar
-                        </button>
-                        <button type="button" class="btn-card-icon-only quick-check" onclick="quickCompleteGoal('${g.id}')" title="Marcar como 100% Concluída!">
-                            <i class="fas fa-check"></i>
                         </button>
                     ` : `
                         <button type="button" class="btn-card-action btn-withdraw" onclick="openWithdrawModal('${g.id}')" title="Ajustar ou reabrir meta com resgate">
@@ -527,8 +888,76 @@ function renderGoals(goals) {
 }
 
 // ============================================
-// MODAL PRINCIPAL
+// MODAL PRINCIPAL & SELEÇÃO DE TIPOS
 // ============================================
+function selectModalGoalType(type) {
+    selectedModalType = type;
+    const typeInput = document.getElementById('gType');
+    if (typeInput) typeInput.value = type;
+
+    document.querySelectorAll('.type-card-opt').forEach(el => el.classList.remove('selected'));
+    if (type === 'habit' || type === 'project') {
+        document.getElementById('typeOptProject')?.classList.add('selected');
+    } else if (type === 'dividends') {
+        document.getElementById('typeOptDividends')?.classList.add('selected');
+    } else if (type === 'wealth' || type === 'net_worth') {
+        document.getElementById('typeOptWealth')?.classList.add('selected');
+    } else {
+        document.getElementById('typeOptFinancial')?.classList.add('selected');
+    }
+
+    const amountRow = document.getElementById('goalAmountRow');
+    const targetGroup = document.getElementById('goalTargetGroup');
+    const currentGroup = document.getElementById('goalCurrentGroup');
+    const cdiGroup = document.getElementById('goalCdiGroup');
+    const lblTarget = document.getElementById('lblTarget');
+    const gTarget = document.getElementById('gTarget');
+    const gCurrent = document.getElementById('gCurrent');
+
+    if (type === 'habit' || type === 'project') {
+        if (amountRow) amountRow.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (gTarget) { gTarget.required = false; gTarget.value = '1'; }
+        if (gCurrent) gCurrent.value = '0';
+    } else if (type === 'dividends') {
+        if (amountRow) amountRow.style.display = 'flex';
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (lblTarget) lblTarget.innerHTML = 'Meta Mensal de Proventos (R$/mês) *';
+        if (gTarget) { gTarget.required = true; gTarget.placeholder = '1,00'; }
+        if (gCurrent) gCurrent.value = '0';
+    } else if (type === 'wealth' || type === 'net_worth') {
+        if (amountRow) amountRow.style.display = 'flex';
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (lblTarget) lblTarget.innerHTML = 'Meta de Patrimônio Total (R$) *';
+        if (gTarget) { gTarget.required = true; gTarget.placeholder = '10.000,00'; }
+        if (gCurrent) gCurrent.value = '0';
+    } else { // financial
+        if (amountRow) amountRow.style.display = 'flex';
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'block';
+        if (cdiGroup) cdiGroup.style.display = 'block';
+        if (lblTarget) lblTarget.innerHTML = 'Valor Total (R$) *';
+        if (gTarget) { gTarget.required = true; gTarget.placeholder = '10.000,00'; }
+    }
+}
+window.selectModalGoalType = selectModalGoalType;
+
+function handleCycleSelectChange() {
+    const cycleVal = document.getElementById('gCycleSelect')?.value;
+    const deadlineInput = document.getElementById('gDeadline');
+    if (!deadlineInput) return;
+    if (cycleVal === 'continuous') {
+        deadlineInput.value = '';
+    } else if (cycleVal && !deadlineInput.value) {
+        deadlineInput.value = `${cycleVal}-12-31`;
+    }
+}
+window.handleCycleSelectChange = handleCycleSelectChange;
+
 function openModal(id = null) {
     if (isProcessing) {
         showToast('Aguarde a operação atual terminar...', 'warning');
@@ -547,13 +976,19 @@ function openModal(id = null) {
     document.getElementById('editId').value = '';
     document.getElementById('gCurrent').value = '';
     document.getElementById('gDeadline').value = '';
-    if (document.getElementById('gType')) document.getElementById('gType').value = 'financial';
-    document.getElementById('gCategory').value = 'other';
+    document.getElementById('gCategory').value = 'home';
     document.getElementById('gColor').value = '#6C5CE7';
     if (document.getElementById('gCdiPercent')) document.getElementById('gCdiPercent').value = '100';
     document.getElementById('gCompleted').checked = false;
     deleteBtn.classList.add('hidden');
     title.textContent = 'Nova Meta';
+
+    const cycleSelect = document.getElementById('gCycleSelect');
+    if (cycleSelect) {
+        cycleSelect.value = currentTemporalMode === 'continuous' ? 'continuous' : String(currentCycleYear);
+    }
+
+    selectModalGoalType('financial');
 
     if (window.TonuCSRF) {
         let csrfInput = document.getElementById('csrfTokenGoal');
@@ -571,7 +1006,6 @@ function openModal(id = null) {
         const goal = allGoals.find(g => g.id === id);
         if (goal) {
             document.getElementById('editId').value = goal.id;
-            if (document.getElementById('gType')) document.getElementById('gType').value = goal.type || 'financial';
             document.getElementById('gTitle').value = goal.title;
             document.getElementById('gTarget').value = formatNumberInput(goal.target_amount);
             document.getElementById('gCurrent').value = formatNumberInput(goal.current_amount || 0);
@@ -584,13 +1018,16 @@ function openModal(id = null) {
                 document.getElementById('gCdiPercent').value = goal.cdi_percent || 100;
             }
             document.getElementById('gCompleted').checked = goal.completed || false;
+
+            const goalYear = resolveGoalYear(goal);
+            if (cycleSelect) {
+                cycleSelect.value = goalYear === 'continuous' ? 'continuous' : String(goalYear);
+            }
+
+            selectModalGoalType(goal.type || 'financial');
             title.textContent = 'Editar Meta';
             deleteBtn.classList.remove('hidden');
         }
-    }
-
-    if (typeof toggleGoalTypeFields === 'function') {
-        toggleGoalTypeFields();
     }
 
     overlay.classList.add('active');
@@ -600,35 +1037,10 @@ function openModal(id = null) {
         document.getElementById('gTitle')?.focus();
     }, 100);
 }
+window.openModal = openModal;
 
 function toggleGoalTypeFields() {
-    const type = document.getElementById('gType')?.value || 'financial';
-    const amountRow = document.getElementById('goalAmountRow');
-    const currentGroup = document.getElementById('goalCurrentGroup');
-    const cdiGroup = document.getElementById('goalCdiGroup');
-    const lblTarget = document.getElementById('lblTarget');
-    const gTarget = document.getElementById('gTarget');
-    const gCurrent = document.getElementById('gCurrent');
-
-    if (type === 'habit') {
-        if (amountRow) amountRow.style.display = 'none';
-        if (cdiGroup) cdiGroup.style.display = 'none';
-        if (gTarget) { gTarget.required = false; gTarget.value = '1'; }
-        if (gCurrent) gCurrent.value = '0';
-    } else if (type === 'dividends') {
-        if (amountRow) amountRow.style.display = 'flex';
-        if (currentGroup) currentGroup.style.display = 'none';
-        if (cdiGroup) cdiGroup.style.display = 'none';
-        if (lblTarget) lblTarget.innerHTML = 'Meta Mensal de Proventos (R$/mês) *';
-        if (gTarget) { gTarget.required = true; gTarget.placeholder = '50,00'; }
-        if (gCurrent) gCurrent.value = '0';
-    } else { // 'financial'
-        if (amountRow) amountRow.style.display = 'flex';
-        if (currentGroup) currentGroup.style.display = 'block';
-        if (cdiGroup) cdiGroup.style.display = 'block';
-        if (lblTarget) lblTarget.innerHTML = 'Valor Total (R$) *';
-        if (gTarget) { gTarget.required = true; gTarget.placeholder = '50.000,00'; }
-    }
+    selectModalGoalType(document.getElementById('gType')?.value || 'financial');
 }
 window.toggleGoalTypeFields = toggleGoalTypeFields;
 
@@ -669,7 +1081,7 @@ async function toggleHabitStatus(goalId) {
         delete goal.completed_at;
     }
 
-    renderGoals(allGoals);
+    renderFilteredGoals();
     updateGoalsStats(allGoals);
 
     if (newStatus && typeof triggerCelebration === 'function') {
@@ -722,10 +1134,12 @@ function closeModal() {
     document.getElementById('modalOverlay').classList.remove('active');
     document.getElementById('goalModal').classList.add('hidden');
 }
+window.closeModal = closeModal;
 
 function editGoal(id) {
     openModal(id);
 }
+window.editGoal = editGoal;
 
 // ============================================
 // SALVAR META
@@ -740,13 +1154,14 @@ async function saveGoal(event) {
 
     const editId = document.getElementById('editId').value;
     const prevGoal = editId ? allGoals.find(g => g.id === editId) : null;
-    const wasCompleted = prevGoal ? (prevGoal.completed || (prevGoal.current_amount >= prevGoal.target_amount)) : false;
+    const wasCompleted = prevGoal ? isGoalComplete(prevGoal) : false;
 
-    const type = document.getElementById('gType')?.value || 'financial';
+    const type = document.getElementById('gType')?.value || selectedModalType || 'financial';
     const title = document.getElementById('gTitle').value.trim();
     let target = parseNumberInput(document.getElementById('gTarget')?.value);
     let current = parseNumberInput(document.getElementById('gCurrent')?.value);
-    const deadline = document.getElementById('gDeadline').value || null;
+    let deadline = document.getElementById('gDeadline')?.value || null;
+    const cycle = document.getElementById('gCycleSelect')?.value || '2026';
     const category = document.getElementById('gCategory') ? document.getElementById('gCategory').value : 'other';
     const color = document.getElementById('gColor').value;
 
@@ -755,8 +1170,13 @@ async function saveGoal(event) {
         return;
     }
 
+    const targetYear = cycle === 'continuous' ? null : parseInt(cycle);
+    if (!deadline && targetYear) {
+        deadline = `${targetYear}-12-31`;
+    }
+
     let completed = false;
-    if (type === 'habit') {
+    if (type === 'habit' || type === 'project') {
         target = 1;
         completed = document.getElementById('gCompleted')?.checked || false;
         current = completed ? 1 : 0;
@@ -764,10 +1184,17 @@ async function saveGoal(event) {
         current = getMonthlyDividendsTotal();
         completed = target > 0 ? (current >= target) : false;
         if (target <= 0) {
-            showToast('Informe o valor mensal esperado de dividendos!', 'error');
+            showToast('Informe a meta mensal esperada de proventos!', 'error');
             return;
         }
-    } else {
+    } else if (type === 'wealth' || type === 'net_worth') {
+        current = await getLatestPortfolioValue();
+        completed = target > 0 ? (current >= target) : false;
+        if (target <= 0) {
+            showToast('Informe o valor alvo de patrimônio!', 'error');
+            return;
+        }
+    } else { // financial
         completed = document.getElementById('gCompleted').checked || (current >= target);
         const validation = window.validateGoal({
             title: title,
@@ -793,6 +1220,7 @@ async function saveGoal(event) {
         title: stripHTML(title),
         target_amount: target,
         current_amount: current,
+        target_year: targetYear,
         deadline: deadline,
         category: category,
         color: color,
@@ -800,12 +1228,6 @@ async function saveGoal(event) {
         completed: completed,
         updated_at: new Date().toISOString()
     };
-
-    // Validação local de CSRF sem poluir colunas do banco de dados
-    const formCsrf = event.target.querySelector('input[name="_csrf"]')?.value;
-    if (window.TonuCSRF && formCsrf && !window.TonuCSRF.validate(formCsrf)) {
-        console.warn('⚠️ Token CSRF inválido ou expirado');
-    }
 
     const payload = { ...data };
     delete payload._csrf;
@@ -852,10 +1274,10 @@ async function saveGoal(event) {
                 .insert([payload]);
         }
 
-        // Se o banco não tiver a coluna 'category' (PGRST204), tenta salvar sem esse campo
-        if (result.error && (result.error.code === 'PGRST204' || (result.error.message && result.error.message.includes('category')))) {
-            console.warn('⚠️ Coluna category não encontrada no Supabase, salvando sem category...');
+        // Se o banco remoto não tiver target_year ou category, faz fallback seguro
+        if (result.error && (result.error.code === 'PGRST204' || (result.error.message && (result.error.message.includes('target_year') || result.error.message.includes('category'))))) {
             const fallbackData = { ...payload };
+            delete fallbackData.target_year;
             delete fallbackData.category;
             if (editId) {
                 result = await supabaseClient
@@ -871,43 +1293,35 @@ async function saveGoal(event) {
         }
 
         if (result.error) {
-            console.error('❌ Erro detalhado:', result.error);
-            if (result.error.code === 'PGRST204') {
-                showToast('Erro: Coluna não encontrada. Execute o SQL de criação da tabela.', 'error');
-            } else if (result.error.code === '42P01') {
-                showToast('Tabela de metas não existe. Execute o SQL de criação.', 'error');
-            } else {
-                showToast(`Erro: ${result.error.message}`, 'error');
-            }
-            return;
-        }
-
-        showToast(editId ? 'Meta atualizada! 🎯' : 'Meta criada! 🎯', 'success');
-        if (window.triggerHaptic) window.triggerHaptic('success');
-        closeModal();
-        await loadGoals();
-        if (completed && !wasCompleted) {
-            triggerCelebration(title, Math.max(target, current));
-            if (typeof window.sendRealtimePush === 'function') {
-                const amtFormatted = typeof formatCurrency === 'function' ? formatCurrency(Math.max(target, current)) : `R$ ${Math.max(target, current)}`;
-                window.sendRealtimePush({
-                    title: `🎯 Meta Concluída: ${title}!`,
-                    body: `Parabéns! Você bateu 100% da sua meta no valor de ${amtFormatted}.`,
-                    url: 'pages/goals.html',
-                    tag: `goal-complete-${Date.now()}`
-                });
+            console.error('❌ Erro Supabase:', result.error);
+            showToast(`Erro ao salvar meta: ${result.error.message}`, 'error');
+        } else {
+            showToast(editId ? 'Meta atualizada com sucesso!' : '🎯 Nova meta criada!', 'success');
+            closeModal();
+            await loadGoals();
+            if (completed && !wasCompleted) {
+                triggerCelebration(title, Math.max(target, current));
+                if (typeof window.sendRealtimePush === 'function') {
+                    const amtFormatted = typeof formatCurrency === 'function' ? formatCurrency(Math.max(target, current)) : `R$ ${Math.max(target, current)}`;
+                    window.sendRealtimePush({
+                        title: `🎯 Meta Concluída: ${title}!`,
+                        body: `Parabéns! Você bateu 100% da sua meta no valor de ${amtFormatted}.`,
+                        url: 'pages/goals.html',
+                        tag: `goal-complete-${Date.now()}`
+                    });
+                }
             }
         }
-
-    } catch (error) {
-        console.error('❌ Erro ao salvar:', error);
-        showToast('Erro ao salvar meta', 'error');
+    } catch (err) {
+        console.error('❌ Erro inesperado em saveGoal:', err);
+        showToast('Erro inesperado ao salvar meta', 'error');
     } finally {
         btn.disabled = false;
         isProcessing = false;
         btn.innerHTML = originalText;
     }
 }
+window.saveGoal = saveGoal;
 
 // ============================================
 // EXCLUIR META

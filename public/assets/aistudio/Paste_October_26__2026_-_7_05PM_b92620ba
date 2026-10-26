@@ -1,0 +1,2367 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="../../manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png">
+    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png">
+    <title>TonuControle - Metas Mobile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/theme.css">
+    <link rel="stylesheet" href="../../css/dark-theme.css">
+    <link rel="stylesheet" href="../../css/mobile.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <style>
+        body { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)); background: var(--color-bg, #f8fafc); }
+
+        /* HERO STATS */
+        .goals-hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .goals-hero-card {
+            background: var(--color-surface, #ffffff);
+            border-radius: 14px;
+            padding: 12px 14px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .goals-hero-card.full-width {
+            grid-column: span 2;
+            background: linear-gradient(135deg, rgba(108, 92, 231, 0.08), rgba(162, 155, 254, 0.12));
+            border-color: rgba(108, 92, 231, 0.2);
+        }
+        .goals-hero-card .hero-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--color-text-muted, #64748b);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .goals-hero-card .hero-value {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--color-text, #0f172a);
+            letter-spacing: -0.3px;
+        }
+        .goals-hero-card.full-width .hero-value {
+            font-size: 24px;
+            color: #6C5CE7;
+        }
+
+        /* FILTROS */
+        .chip-filters {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            margin-bottom: 12px;
+            scrollbar-width: none;
+        }
+        .chip-filters::-webkit-scrollbar { display: none; }
+        .chip-btn {
+            border: 1px solid var(--color-border, #e2e8f0);
+            background: var(--color-surface, #ffffff);
+            color: var(--color-text-muted, #64748b);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 999px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .chip-btn.active {
+            background: #6C5CE7;
+            color: #ffffff;
+            border-color: #6C5CE7;
+        }
+
+        /* CARD DA META */
+        .goal-card {
+            background: var(--color-surface, #ffffff);
+            border-radius: 14px;
+            padding: 14px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            border-left: 5px solid #6C5CE7;
+            transition: transform 0.15s ease;
+        }
+        .goal-card.completed {
+            border-left-color: #00B894 !important;
+            opacity: 0.95;
+        }
+        .goal-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .goal-title-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .goal-category-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #ffffff;
+            flex-shrink: 0;
+        }
+        .goal-title-group h3 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--color-text, #0f172a);
+            margin: 0;
+        }
+        .goal-title-group small {
+            font-size: 10px;
+            color: var(--color-text-muted, #94a3b8);
+        }
+        .goal-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .goal-badge.ongoing {
+            background: rgba(108, 92, 231, 0.1);
+            color: #6C5CE7;
+        }
+        .goal-badge.done {
+            background: rgba(0, 184, 148, 0.12);
+            color: #00B894;
+        }
+
+        /* VALORES E PROGRESSO */
+        .goal-values-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin: 10px 0 6px 0;
+            font-size: 12px;
+        }
+        .goal-current-val {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--color-text, #0f172a);
+        }
+        .goal-target-val {
+            font-size: 11px;
+            color: var(--color-text-muted, #64748b);
+        }
+        .goal-progress-bar {
+            height: 8px;
+            background: var(--color-border, #e2e8f0);
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+        }
+        .goal-progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.4s ease;
+        }
+        .goal-footer-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10.5px;
+            color: var(--color-text-muted, #94a3b8);
+            margin-top: 6px;
+        }
+
+        /* BARRA DE AÇÕES DO CARD */
+        .goal-actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto auto;
+            gap: 6px;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--color-border, #f1f5f9);
+        }
+        .btn-goal-act {
+            border: none;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 7px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .btn-goal-act:active { transform: scale(0.96); }
+        .btn-goal-act.deposit {
+            background: rgba(0, 184, 148, 0.12);
+            color: #00B894;
+        }
+        .btn-goal-act.deposit:hover { background: #00B894; color: #fff; }
+        .btn-goal-act.withdraw {
+            background: rgba(225, 112, 85, 0.12);
+            color: #e17055;
+        }
+        .btn-goal-act.withdraw:hover { background: #e17055; color: #fff; }
+        .btn-goal-icon {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            background: var(--color-bg, #f8fafc);
+            color: var(--color-text-muted, #64748b);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-goal-icon:hover { color: #6C5CE7; border-color: #6C5CE7; }
+        .btn-goal-icon.del:hover { color: #ef4444; border-color: #ef4444; }
+
+        .tab-action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .tab-action-bar h2 {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-text, #0f172a);
+            margin: 0;
+        }
+        .btn-add-primary {
+            background: #6C5CE7;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(108, 92, 231, 0.3);
+        }
+        .btn-add-primary:active { transform: scale(0.96); }
+
+        /* ============================================
+           EFEITO DE COMEMORAÇÃO EM TELA INTEIRA (MOBILE)
+           ============================================ */
+        .celebration-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 16px;
+        }
+
+        .celebration-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .celebration-modal {
+            position: relative;
+            z-index: 2;
+            background: var(--color-surface, #ffffff);
+            border: 1px solid var(--color-border, #e2e8f0);
+            border-radius: 24px;
+            padding: 26px 20px;
+            max-width: 360px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 0 35px rgba(255, 215, 0, 0.3);
+            transform: scale(0.85) translateY(20px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .celebration-overlay.active .celebration-modal {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+
+        .celebration-badge-wrap {
+            position: relative;
+            width: 90px;
+            height: 90px;
+            margin: 0 auto 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .celebration-glow {
+            position: absolute;
+            inset: -12px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.45) 0%, rgba(108, 92, 231, 0.2) 60%, transparent 80%);
+            animation: celebrationPulse 2s infinite ease-in-out;
+        }
+
+        .celebration-rays {
+            position: absolute;
+            inset: -18px;
+            background: repeating-conic-gradient(
+                from 0deg,
+                rgba(255, 215, 0, 0.2) 0deg 15deg,
+                transparent 15deg 30deg
+            );
+            border-radius: 50%;
+            animation: celebrationRotate 14s linear infinite;
+        }
+
+        .celebration-icon-circle {
+            position: relative;
+            z-index: 2;
+            width: 76px;
+            height: 76px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            box-shadow: 0 10px 25px rgba(255, 165, 0, 0.45);
+            animation: trophyBounce 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .celebration-eyebrow {
+            display: inline-block;
+            font-size: 10.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #FFB300;
+            background: rgba(255, 179, 0, 0.12);
+            padding: 3px 10px;
+            border-radius: 9999px;
+            margin-bottom: 8px;
+        }
+
+        .celebration-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--color-text, #0f172a);
+            margin: 0 0 6px 0;
+            line-height: 1.2;
+        }
+
+        .celebration-goal-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--color-primary, #6C5CE7);
+            margin: 0 0 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .celebration-message {
+            font-size: 12.5px;
+            line-height: 1.5;
+            color: var(--color-text-muted, #64748b);
+            margin: 0 0 14px 0;
+        }
+
+        .celebration-badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 184, 148, 0.12);
+            color: #00B894;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(0, 184, 148, 0.25);
+        }
+
+        .celebration-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .celebration-btn-primary {
+            background: linear-gradient(135deg, #6C5CE7 0%, #a363d9 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .celebration-btn-primary:active { transform: scale(0.97); }
+
+        .celebration-btn-secondary {
+            background: var(--color-bg, #f8fafc);
+            color: var(--color-text, #0f172a);
+            border: 1px solid var(--color-border, #e2e8f0);
+            border-radius: 10px;
+            padding: 9px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        @keyframes trophyBounce {
+            0% { transform: scale(0.3) rotate(-15deg); }
+            50% { transform: scale(1.15) rotate(5deg); }
+            70% { transform: scale(0.95) rotate(-3deg); }
+            100% { transform: scale(1) rotate(0); }
+        }
+
+        @keyframes celebrationPulse {
+            0%, 100% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.25); opacity: 1; }
+        }
+
+        @keyframes celebrationRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="mobile-topbar">
+    <div class="topbar-header">
+        <div class="topbar-left">
+            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <h1>Tonu<span>Controle</span></h1>
+        </div>
+        <div class="topbar-actions">
+            <button onclick="toggleTheme()" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
+        </div>
+    </div>
+    <div class="greeting">🎯 Metas & Sonhos</div>
+</header>
+
+<main class="mobile-content" style="padding: 12px 14px;">
+
+    <!-- RESUMO HERO -->
+    <div class="goals-hero-grid">
+        <div class="goals-hero-card full-width">
+            <div class="hero-label"><i class="fas fa-piggy-bank"></i> Total Acumulado em Metas</div>
+            <div class="hero-value" id="heroTotalAcumulado">R$ 0,00</div>
+        </div>
+        <div class="goals-hero-card">
+            <div class="hero-label"><i class="fas fa-bullseye"></i> Alvo Total</div>
+            <div class="hero-value" id="heroTotalAlvo">R$ 0,00</div>
+        </div>
+        <div class="goals-hero-card">
+            <div class="hero-label"><i class="fas fa-trophy"></i> Metas Concluídas</div>
+            <div class="hero-value" id="heroMetasConcluidas" style="color:#00B894;">0 de 0</div>
+        </div>
+    </div>
+
+    <!-- ITEM 12: CDI & RENDIMENTOS AUTOMÁTICOS DAS METAS (MOBILE) -->
+    <div class="cdi-yield-card-mobile" style="background:var(--color-surface, #ffffff); border:1px solid var(--color-border, #e2e8f0); border-radius:14px; padding:12px 14px; margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--color-border, #f1f5f9); padding-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:28px; height:28px; border-radius:8px; background:rgba(0,184,148,0.12); color:#00b894; display:flex; align-items:center; justify-content:center; font-size:13px;">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div>
+                    <strong style="font-size:12px; color:var(--color-text, #0f172a); display:block;">Rendimento CDI</strong>
+                    <span style="font-size:10px; color:var(--color-text-muted, #64748b);" id="mobileCdiStatusText">Taxa: ~10,65% a.a. (BCB Série 12)</span>
+                    <span style="font-size:9px; color:var(--color-text-muted, #94a3b8); display:block; margin-top:1px;"><i class="fas fa-calendar-day" style="color:#6C5CE7;"></i> Apurado dia a dia útil</span>
+                </div>
+            </div>
+            <span style="font-size:10px; color:#00b894; font-weight:700; background:rgba(0,184,148,0.1); padding:2px 8px; border-radius:6px;">100% CDI</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                <span style="font-size:10px; color:var(--color-text-muted, #64748b);">Aportado</span>
+                <strong style="display:block; font-size:13px; color:var(--color-text, #0f172a);" id="mobileCdiAportado">R$ 0,00</strong>
+            </div>
+            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                <span style="font-size:10px; color:#00b894;">Rend. Bruto</span>
+                <strong style="display:block; font-size:13px; color:#00b894;" id="mobileCdiBruto">+ R$ 0,00</strong>
+            </div>
+            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                <span style="font-size:10px; color:#ef4444;">IOF Estimado</span>
+                <strong style="display:block; font-size:13px; color:#ef4444;" id="mobileCdiIOF">- R$ 0,00</strong>
+            </div>
+            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                <span style="font-size:10px; color:#f59e0b;">IR Estimado</span>
+                <strong style="display:block; font-size:13px; color:#f59e0b;" id="mobileCdiIR">- R$ 0,00</strong>
+            </div>
+            <div style="grid-column:1/-1; background:rgba(0,184,148,0.08); padding:8px 10px; border-radius:8px; border:1px solid rgba(0,184,148,0.2); display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:11px; font-weight:700; color:#00b894;">Saldo Líquido</span>
+                <strong style="font-size:14px; font-weight:800; color:#00b894;" id="mobileCdiLiquido">R$ 0,00</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="chip-filters">
+        <button class="chip-btn active" onclick="filterGoals('all', this)">Todas</button>
+        <button class="chip-btn" onclick="filterGoals('ongoing', this)">Em Andamento</button>
+        <button class="chip-btn" onclick="filterGoals('completed', this)">Concluídas 🏆</button>
+    </div>
+
+    <div class="tab-action-bar">
+        <h2>Minhas Metas</h2>
+        <button class="btn-add-primary" onclick="openGoalModal()">
+            <i class="fas fa-plus"></i> Nova Meta
+        </button>
+    </div>
+
+    <!-- LISTA DE METAS -->
+    <div id="goalsContainer">
+        <div style="text-align:center;padding:24px;">
+            <span class="spinner"></span>
+            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando metas...</p>
+        </div>
+    </div>
+
+</main>
+
+<!-- MODAL: NOVA / EDITAR META -->
+<div class="mobile-modal-overlay" id="modalGoal" onclick="closeGoalModal(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <h3 id="goalModalTitle">Nova Meta</h3>
+            <button class="sheet-close-btn" onclick="closeGoalModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="goalForm" onsubmit="handleGoalSubmit(event)">
+            <input type="hidden" id="goalEditId" value="">
+
+            <div class="sheet-form-group">
+                <label>Título da Meta (Ex: Reserva de Emergência, Viagem Europa)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-bullseye"></i>
+                    <input type="text" id="goalTitle" class="sheet-input" placeholder="Ex: Reserva de Emergência" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Tipo de Meta</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-shapes"></i>
+                    <select id="goalType" class="sheet-input" onchange="toggleMobileGoalTypeFields()" required>
+                        <option value="financial" selected>💰 Financeira (Patrimônio / Poupança)</option>
+                        <option value="habit">📌 Projeto / Hábito (Checklist de Conclusão)</option>
+                        <option value="dividends">📈 Dividendos (Renda Passiva Mensal)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Categoria</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-layer-group"></i>
+                    <select id="goalCategory" class="sheet-input" onchange="applyCategoryColor(this.value)" required>
+                        <option value="emergency">🛡️ Reserva de Emergência</option>
+                        <option value="travel">✈️ Viagem & Lazer</option>
+                        <option value="vehicle">🚗 Veículo</option>
+                        <option value="home">🏠 Imóvel / Reforma</option>
+                        <option value="education">🎓 Educação / Cursos</option>
+                        <option value="investment">📈 Aposentadoria & Investimentos</option>
+                        <option value="purchase">📱 Compras / Eletrônicos</option>
+                        <option value="other">🎯 Objetivo Geral</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;" id="mobileGoalAmountRow">
+                <div class="sheet-form-group" id="mobileGoalTargetGroup">
+                    <label id="lblMobileGoalTarget">Valor Alvo (R$)</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-flag-checkered"></i>
+                        <input type="number" step="0.01" min="1" id="goalTarget" class="sheet-input" placeholder="10.000,00" required>
+                    </div>
+                </div>
+                <div class="sheet-form-group" id="mobileGoalCurrentGroup">
+                    <label>Saldo Já Acumulado</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-wallet"></i>
+                        <input type="number" step="0.01" min="0" id="goalCurrent" class="sheet-input" placeholder="0,00">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="sheet-form-group">
+                    <label>Prazo Estimado</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-calendar-alt"></i>
+                        <input type="date" id="goalDeadline" class="sheet-input">
+                    </div>
+                </div>
+                <div class="sheet-form-group">
+                    <label>Cor do Card</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-palette"></i>
+                        <input type="color" id="goalColor" class="sheet-input" value="#6C5CE7" style="height:42px; padding:2px 4px; cursor:pointer;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sheet-form-group" id="mobileGoalCdiGroup">
+                <label>% do CDI da Meta</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-percentage"></i>
+                    <input type="number" step="1" min="1" max="500" id="goalCdiPercent" class="sheet-input" placeholder="100" value="100">
+                </div>
+            </div>
+
+            <button type="submit" class="sheet-submit-btn" id="goalSubmitBtn">Salvar Meta</button>
+            </form>
+        </div>
+    </div>
+
+<!-- MODAL: APORTAR NA META -->
+<div class="mobile-modal-overlay" id="modalDeposit" onclick="closeDepositModal(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <h3><i class="fas fa-plus" style="color:#00B894; margin-right:4px;"></i> Aportar na Meta</h3>
+            <button class="sheet-close-btn" onclick="closeDepositModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="background:var(--color-bg,#f8fafc); border-radius:10px; padding:10px 12px; margin-bottom:12px; border:1px solid var(--color-border,#e2e8f0);">
+            <strong id="depositGoalTitle" style="font-size:13px; color:var(--color-text,#0f172a); display:block;">Nome da Meta</strong>
+            <small style="color:var(--color-text-muted,#64748b);">Saldo atual: <span id="depositCurrentVal" style="font-weight:700; color:#6C5CE7;">R$ 0,00</span></small>
+        </div>
+        <form id="depositForm" onsubmit="handleDepositSubmit(event)">
+            <input type="hidden" id="depositGoalId" value="">
+            <div class="sheet-form-group">
+                <label>Valor do Aporte (R$)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-dollar-sign"></i>
+                    <input type="number" step="0.01" min="0.01" id="depositAmount" class="sheet-input" placeholder="0,00" required autofocus>
+                </div>
+            </div>
+            <button type="submit" class="sheet-submit-btn" id="depositSubmitBtn" style="background:#00B894;">Confirmar Aporte</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: RESGATAR DA META -->
+<div class="mobile-modal-overlay" id="modalWithdraw" onclick="closeWithdrawModal(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <h3><i class="fas fa-minus" style="color:#e17055; margin-right:4px;"></i> Resgatar da Meta</h3>
+            <button class="sheet-close-btn" onclick="closeWithdrawModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="background:var(--color-bg,#f8fafc); border-radius:10px; padding:10px 12px; margin-bottom:12px; border:1px solid var(--color-border,#e2e8f0);">
+            <strong id="withdrawGoalTitle" style="font-size:13px; color:var(--color-text,#0f172a); display:block;">Nome da Meta</strong>
+            <small style="color:var(--color-text-muted,#64748b);">Disponível para resgate: <span id="withdrawCurrentVal" style="font-weight:700; color:#e17055;">R$ 0,00</span></small>
+        </div>
+        <form id="withdrawForm" onsubmit="handleWithdrawSubmit(event)">
+            <input type="hidden" id="withdrawGoalId" value="">
+            <div class="sheet-form-group">
+                <label>Valor do Resgate (R$)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-dollar-sign"></i>
+                    <input type="number" step="0.01" min="0.01" id="withdrawAmount" class="sheet-input" placeholder="0,00" required autofocus>
+                </div>
+            </div>
+            <button type="submit" class="sheet-submit-btn" id="withdrawSubmitBtn" style="background:#e17055;">Confirmar Resgate</button>
+        </form>
+    </div>
+</div>
+
+<!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
+<nav class="bottom-nav">
+    <a href="dashboard.html"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
+    <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
+    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <div class="nav-center">
+        <button type="button" class="nav-add-btn" onclick="openGoalModal()" aria-label="Nova Meta" title="Nova Meta">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investimentos</span></a>
+    <a href="goals.html" class="active"><i class="fas fa-bullseye"></i><span>Metas</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Configurações</span></a>
+</nav>
+
+<!-- MODAL DE CELEBRAÇÃO EM TELA CHEIA (MOBILE) -->
+<div class="celebration-overlay" id="celebrationOverlay" onclick="if(event.target === this) dismissCelebration()" role="dialog" aria-modal="true" aria-label="Comemoração de Meta Concluída">
+    <div class="celebration-modal" id="celebrationModal">
+        <div class="celebration-badge-wrap">
+            <div class="celebration-rays"></div>
+            <div class="celebration-glow"></div>
+            <div class="celebration-icon-circle">🏆</div>
+        </div>
+        <div class="celebration-eyebrow">🎉 Meta Concluída! 🎉</div>
+        <h2 class="celebration-title">Parabéns pela Conquista!</h2>
+        <div class="celebration-goal-name">
+            <i class="fas fa-bullseye" style="color:#FFB300;"></i>
+            <span id="celebrationGoalTitle">Reserva de Emergência</span>
+        </div>
+        <p class="celebration-message">
+            Você alcançou seu objetivo de <strong id="celebrationGoalAmount" style="color:var(--color-text);">R$ 0,00</strong>! Mais um passo rumo à sua independência financeira.
+        </p>
+        <div>
+            <span class="celebration-badge-pill">
+                <i class="fas fa-check-circle"></i> 100% Alcançado
+            </span>
+        </div>
+        <div class="celebration-actions">
+            <button type="button" class="celebration-btn-primary" onclick="dismissCelebration()">
+                Continuar <i class="fas fa-arrow-right"></i>
+            </button>
+            <button type="button" class="celebration-btn-secondary" onclick="triggerGoalConfetti()">
+                🎊 Mais Confetes!
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: RENDIMENTO CDI & EXTRATO DE APORTES (MOBILE) -->
+<div class="mobile-modal-overlay" id="modalMobileYield" onclick="closeMobileYieldModal(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()" style="max-height:88vh; display:flex; flex-direction:column;">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <div>
+                <span style="font-size:11px; text-transform:uppercase; font-weight:700; color:#6C5CE7; letter-spacing:0.04em;">Rentabilidade</span>
+                <h3 id="mobileYieldGoalTitle" style="font-size:15px; margin:0;">Extrato da Meta</h3>
+            </div>
+            <button class="sheet-close-btn" onclick="closeMobileYieldModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="overflow-y:auto; padding: 12px 16px; flex:1;">
+            <!-- CDI % da Meta -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(108,92,231,0.08); padding:8px 12px; border-radius:10px; margin-bottom:12px; border:1px solid rgba(108,92,231,0.2);">
+                <span style="font-size:11px; font-weight:700; color:var(--color-text);">Taxa da Meta:</span>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <input type="number" id="mobileYieldCdiInput" value="100" min="1" max="500" style="width:60px; padding:3px 6px; font-size:11px; font-weight:700; border-radius:6px; border:1px solid var(--color-border); text-align:center;">
+                    <span style="font-size:11px; font-weight:700; color:var(--color-text);">% CDI</span>
+                    <button type="button" class="btn-goal-act" onclick="saveMobileGoalCdi()" style="padding:4px 8px; font-size:10px; background:#6C5CE7; color:#fff; border-radius:6px;">Salvar</button>
+                </div>
+            </div>
+
+            <!-- 6 Cards de métricas -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:12px;">
+                <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                    <span style="font-size:10px; color:var(--color-text-muted, #64748b);">Aportado</span>
+                    <strong style="display:block; font-size:13px; color:var(--color-text, #0f172a);" id="mobileYieldStatAportado">R$ 0,00</strong>
+                </div>
+                <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                    <span style="font-size:10px; color:#00b894;">Rend. Bruto</span>
+                    <strong style="display:block; font-size:13px; color:#00b894;" id="mobileYieldStatBruto">+ R$ 0,00</strong>
+                </div>
+                <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                    <span style="font-size:10px; color:var(--color-text-muted, #64748b);">Saldo Bruto</span>
+                    <strong style="display:block; font-size:13px; color:var(--color-text, #0f172a);" id="mobileYieldStatSaldoBruto">R$ 0,00</strong>
+                </div>
+                <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                    <span style="font-size:10px; color:#ef4444;">IOF Estimado</span>
+                    <strong style="display:block; font-size:13px; color:#ef4444;" id="mobileYieldStatIOF">- R$ 0,00</strong>
+                </div>
+                <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+                    <span style="font-size:10px; color:#f59e0b;">IR Estimado</span>
+                    <strong style="display:block; font-size:13px; color:#f59e0b;" id="mobileYieldStatIR">- R$ 0,00</strong>
+                </div>
+                <div style="background:rgba(0,184,148,0.1); padding:8px 10px; border-radius:8px; border:1px solid rgba(0,184,148,0.25);">
+                    <span style="font-size:10px; color:#00b894; font-weight:700;">Saldo Líquido</span>
+                    <strong style="display:block; font-size:13.5px; color:#00b894; font-weight:800;" id="mobileYieldStatLiquido">R$ 0,00</strong>
+                </div>
+            </div>
+
+            <!-- Novo Aporte Rápido -->
+            <form onsubmit="handleMobileQuickDeposit(event)" style="background:var(--color-bg, #f8fafc); padding:10px; border-radius:10px; margin-bottom:12px; border:1px solid var(--color-border, #e2e8f0);">
+                <span style="font-size:11px; font-weight:700; color:var(--color-text); display:block; margin-bottom:6px;">
+                    <i class="fas fa-plus-circle" style="color:#00B894;"></i> Novo Aporte
+                </span>
+                <div style="display:flex; gap:6px;">
+                    <input type="number" step="0.01" min="1" id="mobileQuickDepositAmt" placeholder="Valor (R$)" required class="sheet-input" style="flex:1; height:36px; font-size:12px;">
+                    <input type="date" id="mobileQuickDepositDate" class="sheet-input" style="width:125px; height:36px; font-size:11px;" required>
+                    <button type="submit" class="btn-goal-act deposit" style="padding:0 12px; height:36px; font-size:11px; white-space:nowrap;">Aportar</button>
+                </div>
+            </form>
+
+            <!-- Lista de Aportes -->
+            <span style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--color-text-muted); display:block; margin-bottom:6px;">Histórico de Aportes</span>
+            <div id="mobileGoalDepositsList" style="display:flex; flex-direction:column; gap:6px;">
+                <div style="text-align:center; padding:12px; font-size:11px; color:#94a3b8;">Nenhum aporte registrado.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../../js/supabase.js"></script>
+<script src="../../js/core.js"></script>
+<script src="../../js/sync.js"></script>
+<script src="../../js/sw-register.js"></script>
+<script>
+let currentUser = null;
+let goals = [];
+let currentFilter = 'all';
+
+const CATEGORY_ICONS = {
+    emergency: { icon: 'fa-shield-alt', color: '#00B894', label: 'Reserva de Emergência' },
+    travel: { icon: 'fa-plane-departure', color: '#0984E3', label: 'Viagem & Lazer' },
+    vehicle: { icon: 'fa-car', color: '#E17055', label: 'Veículo' },
+    home: { icon: 'fa-home', color: '#6C5CE7', label: 'Imóvel / Casa' },
+    education: { icon: 'fa-graduation-cap', color: '#A29BFE', label: 'Educação' },
+    investment: { icon: 'fa-chart-line', color: '#10B981', label: 'Investimentos' },
+    purchase: { icon: 'fa-shopping-bag', color: '#FDCB6E', label: 'Compras' },
+    other: { icon: 'fa-bullseye', color: '#6C5CE7', label: 'Objetivo Geral' }
+};
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const savedTheme = localStorage.getItem("tonu_theme") || "light";
+    if (savedTheme === "dark") {
+        document.body.classList.add("dark-theme");
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.querySelector("#themeIcon")?.classList.replace("fa-moon", "fa-sun");
+    }
+
+    try {
+        let user = null;
+        if (window.getAuthenticatedUser) user = await window.getAuthenticatedUser();
+        if (!user && window.supabaseOffline) user = await window.supabaseOffline.isAuthenticated();
+        if (!user && window.supabaseClient && window.supabaseClient.auth) {
+            try {
+                const { data: sessData } = await supabaseClient.auth.getSession();
+                user = sessData?.session?.user;
+                if (!user) {
+                    const { data: userData } = await supabaseClient.auth.getUser();
+                    user = userData?.user;
+                }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const s = sessionStorage.getItem("tonu_user");
+                if (s) { const p = JSON.parse(s); user = p.user || p; }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const off = localStorage.getItem("tonu_offline_session");
+                if (off) { const p = JSON.parse(off); user = p.user || p; }
+            } catch (_) {}
+        }
+        if (!user) { window.location.href = "../../index.html"; return; }
+        currentUser = user;
+        await loadGoals();
+    } catch (e) {
+        console.error("Erro auth mobile metas:", e);
+        window.location.href = "../../index.html";
+    }
+});
+
+// ============================================
+// CARREGAR METAS DO SUPABASE OU CACHE LOCAL
+// ============================================
+async function loadGoals() {
+    try {
+        let loaded = false;
+        if (navigator.onLine && window.supabaseClient && currentUser) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from("goals")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .order("created_at", { ascending: false });
+
+                if (!error && data) {
+                    goals = data;
+                    loaded = true;
+                    if (window.tonuSync) {
+                        await window.tonuSync.setCachedGoals(currentUser.id, goals);
+                    }
+                }
+            } catch (netErr) {
+                console.warn("Falha de rede ao buscar metas remotas:", netErr);
+            }
+        }
+
+        if (!loaded && window.tonuSync) {
+            const cached = await window.tonuSync.getCachedGoals(currentUser?.id);
+            if (cached && cached.length > 0) {
+                goals = cached;
+                loaded = true;
+            }
+        }
+
+        updateHeroStats();
+        renderGoals();
+    } catch (error) {
+        console.error("Erro ao carregar metas:", error);
+        if (window.tonuSync) {
+            const cached = await window.tonuSync.getCachedGoals(currentUser?.id);
+            if (cached && cached.length > 0) {
+                goals = cached;
+                updateHeroStats();
+                renderGoals();
+                return;
+            }
+        }
+        showToast("Erro ao carregar metas: " + (error.message || "Tente novamente"), "error");
+    }
+}
+
+// ============================================
+// ATUALIZAR ESTATÍSTICAS
+// ============================================
+function updateHeroStats() {
+    let totalAcumulado = 0;
+    let totalAlvo = 0;
+    let concluidas = 0;
+
+    goals.forEach(g => {
+        const cur = Number(g.current_amount) || 0;
+        const tgt = Number(g.target_amount) || 0;
+        totalAcumulado += cur;
+        totalAlvo += tgt;
+        if (g.completed || (tgt > 0 && cur >= tgt)) {
+            concluidas++;
+        }
+    });
+
+    document.getElementById("heroTotalAcumulado").textContent = formatCurrency(totalAcumulado);
+    document.getElementById("heroTotalAlvo").textContent = formatCurrency(totalAlvo);
+    document.getElementById("heroMetasConcluidas").textContent = `${concluidas} de ${goals.length}`;
+    if (typeof updateMobileCdiGlobalCard === 'function') updateMobileCdiGlobalCard();
+}
+
+// ============================================
+// RENDERIZAR LISTA DE METAS COM CARDS & AÇÕES
+// ============================================
+function renderGoals() {
+    const container = document.getElementById("goalsContainer");
+    if (!container) return;
+
+    let filtered = goals;
+    if (currentFilter === 'ongoing') {
+        filtered = goals.filter(g => !g.completed && (Number(g.current_amount) || 0) < (Number(g.target_amount) || 0));
+    } else if (currentFilter === 'completed') {
+        filtered = goals.filter(g => g.completed || (Number(g.current_amount) || 0) >= (Number(g.target_amount) || 0));
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:32px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
+                <i class="fas fa-bullseye" style="font-size:36px; color:#a29bfe; margin-bottom:10px; display:block;"></i>
+                <h3 style="font-size:14px; font-weight:700; color:var(--color-text,#0f172a); margin-bottom:4px;">Nenhuma meta encontrada</h3>
+                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">Defina um objetivo financeiro e acompanhe seu progresso!</p>
+                <button class="btn-add-primary" style="margin:0 auto;" onclick="openGoalModal()">
+                    <i class="fas fa-plus"></i> Criar Primeira Meta
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = filtered.map(g => {
+        const goalType = g.type || 'financial';
+        const catInfo = CATEGORY_ICONS[g.category] || CATEGORY_ICONS.other;
+        const color = g.color || catInfo.color;
+
+        // TIPO 1: PROJETO / HÁBITO MOBILE (📌)
+        if (goalType === 'habit') {
+            const isCompleted = !!g.completed;
+            const completedDateText = g.completed_at ? formatDate(g.completed_at) : (g.deadline ? formatDate(g.deadline) : null);
+
+            return `
+                <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${isCompleted ? '#10b981' : color};">
+                    <div class="goal-card-top">
+                        <div class="goal-title-group">
+                            <div class="goal-category-icon" style="background:${isCompleted ? '#10b981' : color};">
+                                <i class="fas fa-tasks"></i>
+                            </div>
+                            <div>
+                                <h3>${g.title}</h3>
+                                <small>📌 Projeto / Hábito</small>
+                            </div>
+                        </div>
+                        <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
+                            <i class="fas ${isCompleted ? 'fa-check' : 'fa-hourglass-half'}"></i>
+                            ${isCompleted ? 'Concluído' : 'Pendente'}
+                        </span>
+                    </div>
+
+                    <div style="background:var(--color-bg,#f8fafc); border-radius:10px; padding:10px 12px; margin:8px 0; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <span style="font-size:10px; color:#94a3b8; display:block;">Status</span>
+                            <span style="font-size:13px; font-weight:700; color:${isCompleted ? '#10b981' : '#f59e0b'};">
+                                ${isCompleted ? '✅ Concluído' : '⏳ Em Andamento'}
+                            </span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:10px; color:#94a3b8; display:block;">${isCompleted ? 'Concluído em' : 'Prazo'}</span>
+                            <span style="font-size:12px; font-weight:600;">${completedDateText || 'Sem prazo'}</span>
+                        </div>
+                    </div>
+
+                    <div class="goal-progress-bar">
+                        <div class="goal-progress-fill" style="width: ${isCompleted ? '100%' : '0%'}; background:${isCompleted ? '#10b981' : color};"></div>
+                    </div>
+
+                    <!-- AÇÕES DO HÁBITO -->
+                    <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
+                        <button type="button" class="btn-goal-act" style="background:${isCompleted ? '#d1fae5' : 'rgba(108,92,231,0.12)'}; color:${isCompleted ? '#047857' : '#6C5CE7'}; font-weight:700;" onclick="toggleMobileHabitStatus('${g.id}')">
+                            <i class="fas ${isCompleted ? 'fa-undo' : 'fa-check'}"></i> ${isCompleted ? 'Reabrir Hábito' : 'Concluir Hábito'}
+                        </button>
+                        <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // TIPO 2: DIVIDENDOS MOBILE (📈)
+        if (goalType === 'dividends') {
+            const monthlyDivs = getMonthlyDividendsTotalMobile();
+            const tgt = Number(g.target_amount) || 1;
+            const percent = Math.min(100, Math.round((monthlyDivs / tgt) * 100));
+            const isCompleted = monthlyDivs >= tgt;
+
+            return `
+                <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:#10B981;">
+                    <div class="goal-card-top">
+                        <div class="goal-title-group">
+                            <div class="goal-category-icon" style="background:#10B981;">
+                                <i class="fas fa-hand-holding-usd"></i>
+                            </div>
+                            <div>
+                                <h3>${g.title}</h3>
+                                <small>📈 Dividendos Mensais</small>
+                            </div>
+                        </div>
+                        <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
+                            <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-chart-line'}"></i>
+                            ${isCompleted ? 'Atingido' : `${percent}%`}
+                        </span>
+                    </div>
+
+                    <div class="goal-values-row">
+                        <div>
+                            <span style="font-size:10px; color:#94a3b8; display:block;">Recebido este Mês</span>
+                            <span class="goal-current-val" style="color:#10b981;">${formatCurrency(monthlyDivs)}</span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="goal-target-val">Alvo Mensal: <strong>${formatCurrency(tgt)}</strong></span>
+                            <span style="font-size:10px; color:#94a3b8; display:block;">
+                                ${isCompleted ? 'Meta atingida! 🎉' : `Falta: ${formatCurrency(Math.max(0, tgt - monthlyDivs))}`}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="goal-progress-bar">
+                        <div class="goal-progress-fill" style="width: ${percent}%; background: #10B981;"></div>
+                    </div>
+
+                    <div class="goal-footer-info">
+                        <span>Progresso: ${formatCurrency(monthlyDivs)} de ${formatCurrency(tgt)} (${percent}%)</span>
+                        <span>${g.deadline ? '📅 ' + formatDate(g.deadline) : 'Meta contínua'}</span>
+                    </div>
+
+                    <!-- AÇÕES DIVIDENDOS -->
+                    <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
+                        <button type="button" class="btn-goal-act" style="background:rgba(16,185,129,0.12); color:#047857; font-weight:700;" onclick="window.location.href='investments.html'">
+                            <i class="fas fa-chart-line"></i> Ver Proventos
+                        </button>
+                        <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // TIPO 3: FINANCEIRA PADRÃO MOBILE (💰)
+        const cur = Number(g.current_amount) || 0;
+        const tgt = Number(g.target_amount) || 0;
+        const percent = tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : 0;
+        const isCompleted = g.completed || percent >= 100;
+        const remaining = Math.max(0, tgt - cur);
+
+        return `
+            <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${color};">
+                <div class="goal-card-top">
+                    <div class="goal-title-group">
+                        <div class="goal-category-icon" style="background:${color};">
+                            <i class="fas ${catInfo.icon}"></i>
+                        </div>
+                        <div>
+                            <h3>${g.title}</h3>
+                            <small>${catInfo.label}</small>
+                        </div>
+                    </div>
+                    <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
+                        <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-spinner fa-spin'}"></i>
+                        ${isCompleted ? 'Concluída' : `${percent}%`}
+                    </span>
+                </div>
+
+                <div class="goal-values-row">
+                    <div>
+                        <span style="font-size:10px; color:#94a3b8; display:block;">Acumulado</span>
+                        <span class="goal-current-val">${formatCurrency(cur)}</span>
+                    </div>
+                    <div style="text-align:right;">
+                        <span class="goal-target-val">Alvo: <strong>${formatCurrency(tgt)}</strong></span>
+                        <span style="font-size:10px; color:#94a3b8; display:block;">
+                            ${isCompleted ? 'Meta atingida! 🎉' : `Falta: ${formatCurrency(remaining)}`}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="goal-progress-bar">
+                    <div class="goal-progress-fill" style="width: ${percent}%; background: ${color};"></div>
+                </div>
+
+                <div class="goal-footer-info">
+                    <span>${percent}% concluído</span>
+                    <span>${g.deadline ? '📅 ' + formatDate(g.deadline) : 'Sem prazo'}</span>
+                </div>
+
+                <!-- AÇÕES: CDI, APORTAR, RESGATAR, EDITAR, EXCLUIR -->
+                <div class="goal-actions-grid" style="grid-template-columns: auto 1fr 1fr auto auto;">
+                    <button type="button" class="btn-goal-act" style="background:rgba(108,92,231,0.12); color:#6C5CE7; font-weight:700;" onclick="openMobileYieldModal('${g.id}')">
+                        <i class="fas fa-chart-line"></i> CDI
+                    </button>
+                    <button type="button" class="btn-goal-act deposit" onclick="openDepositModal('${g.id}')">
+                        <i class="fas fa-plus"></i> Aportar
+                    </button>
+                    <button type="button" class="btn-goal-act withdraw" onclick="openWithdrawModal('${g.id}')">
+                        <i class="fas fa-minus"></i> Resgatar
+                    </button>
+                    <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+// ============================================
+// FILTROS
+// ============================================
+function filterGoals(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll(".chip-filters .chip-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    renderGoals();
+}
+
+function applyCategoryColor(cat) {
+    const info = CATEGORY_ICONS[cat];
+    if (info) {
+        document.getElementById("goalColor").value = info.color;
+    }
+}
+
+// ============================================
+// MODAL & HANDLER: CRIAR / EDITAR META
+// ============================================
+function toggleMobileGoalTypeFields() {
+    const type = document.getElementById('goalType')?.value || 'financial';
+    const amountRow = document.getElementById('mobileGoalAmountRow');
+    const targetGroup = document.getElementById('mobileGoalTargetGroup');
+    const currentGroup = document.getElementById('mobileGoalCurrentGroup');
+    const cdiGroup = document.getElementById('mobileGoalCdiGroup');
+    const lblTarget = document.getElementById('lblMobileGoalTarget');
+    const targetInput = document.getElementById('goalTarget');
+    const currentInput = document.getElementById('goalCurrent');
+
+    if (type === 'habit') {
+        if (amountRow) amountRow.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (targetInput) { targetInput.required = false; targetInput.value = '1'; }
+        if (currentInput) currentInput.value = '0';
+    } else if (type === 'dividends') {
+        if (amountRow) {
+            amountRow.style.display = 'grid';
+            amountRow.style.gridTemplateColumns = '1fr';
+        }
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (lblTarget) lblTarget.textContent = 'Alvo Mensal de Proventos (R$/mês)';
+        if (targetInput) { targetInput.required = true; targetInput.placeholder = '50,00'; }
+        if (currentInput) currentInput.value = '0';
+    } else { // 'financial'
+        if (amountRow) {
+            amountRow.style.display = 'grid';
+            amountRow.style.gridTemplateColumns = '1fr 1fr';
+        }
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'block';
+        if (cdiGroup) cdiGroup.style.display = 'block';
+        if (lblTarget) lblTarget.textContent = 'Valor Alvo (R$)';
+        if (targetInput) { targetInput.required = true; targetInput.placeholder = '10.000,00'; }
+    }
+}
+window.toggleMobileGoalTypeFields = toggleMobileGoalTypeFields;
+
+function getMonthlyDividendsTotalMobile(targetMonthStr) {
+    const ym = targetMonthStr || (new Date().toISOString().substring(0, 7));
+    let divs = [];
+    if (Array.isArray(window.allDividends) && window.allDividends.length > 0) {
+        divs = window.allDividends;
+    } else {
+        try {
+            const uid = (currentUser && currentUser.id) ? currentUser.id : 'demo';
+            const raw = localStorage.getItem('tonucontrole_dividends_' + uid) || 
+                        localStorage.getItem('tonu_dividends_' + uid) ||
+                        localStorage.getItem('tonu_dividends_current');
+            if (raw) divs = JSON.parse(raw);
+        } catch (_) {}
+    }
+    return (divs || [])
+        .filter(d => (d.payment_date || d.date || d.created_at || '').startsWith(ym))
+        .reduce((sum, d) => sum + (Number(d.net_value ?? d.amount ?? d.total_value ?? 0) || 0), 0);
+}
+window.getMonthlyDividendsTotalMobile = getMonthlyDividendsTotalMobile;
+
+async function toggleMobileHabitStatus(id) {
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+    const newStatus = !goal.completed;
+    goal.completed = newStatus;
+    goal.current_amount = newStatus ? 1 : 0;
+    goal.target_amount = 1;
+    goal.updated_at = new Date().toISOString();
+    if (newStatus) goal.completed_at = new Date().toISOString();
+    else delete goal.completed_at;
+
+    renderGoals();
+    updateHeroStats();
+
+    if (newStatus && typeof triggerCelebrationModal === 'function') {
+        triggerCelebrationModal(goal.title, 0);
+    }
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', {
+            id: goal.id,
+            completed: newStatus,
+            current_amount: goal.current_amount,
+            target_amount: 1,
+            completed_at: goal.completed_at || null,
+            updated_at: goal.updated_at
+        });
+        await window.tonuSync.setCachedGoals(currentUser.id, goals);
+    }
+
+    if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            await window.supabaseClient.from('goals').update({
+                completed: newStatus,
+                current_amount: goal.current_amount,
+                target_amount: 1,
+                completed_at: goal.completed_at || null,
+                updated_at: goal.updated_at
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+        } catch (e) {
+            console.warn('Erro ao atualizar hábito no Supabase:', e);
+        }
+    }
+
+    showToast(newStatus ? '🎉 Projeto/Hábito concluído!' : '⏳ Hábito retornado para Pendente', 'info');
+}
+window.toggleMobileHabitStatus = toggleMobileHabitStatus;
+
+function openGoalModal() {
+    document.getElementById("goalModalTitle").textContent = "Nova Meta";
+    document.getElementById("goalEditId").value = "";
+    if (document.getElementById("goalType")) document.getElementById("goalType").value = "financial";
+    document.getElementById("goalTitle").value = "";
+    document.getElementById("goalTarget").value = "";
+    document.getElementById("goalCurrent").value = "";
+    document.getElementById("goalDeadline").value = "";
+    document.getElementById("goalCategory").value = "emergency";
+    document.getElementById("goalColor").value = CATEGORY_ICONS.emergency.color;
+    if (document.getElementById("goalCdiPercent")) document.getElementById("goalCdiPercent").value = "100";
+    toggleMobileGoalTypeFields();
+    document.getElementById("modalGoal").classList.add("active");
+}
+
+function openEditGoalModal(id) {
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+
+    document.getElementById("goalModalTitle").textContent = "Editar Meta";
+    document.getElementById("goalEditId").value = goal.id;
+    if (document.getElementById("goalType")) document.getElementById("goalType").value = goal.type || "financial";
+    document.getElementById("goalTitle").value = goal.title;
+    document.getElementById("goalTarget").value = goal.target_amount;
+    document.getElementById("goalCurrent").value = goal.current_amount || 0;
+    document.getElementById("goalDeadline").value = goal.deadline || "";
+    document.getElementById("goalCategory").value = goal.category || "other";
+    document.getElementById("goalColor").value = goal.color || "#6C5CE7";
+    if (document.getElementById("goalCdiPercent")) document.getElementById("goalCdiPercent").value = goal.cdi_percent || 100;
+    toggleMobileGoalTypeFields();
+    document.getElementById("modalGoal").classList.add("active");
+}
+
+function closeGoalModal(e) {
+    if (e && e.target && e.target !== e.currentTarget) return;
+    document.getElementById("modalGoal").classList.remove("active");
+}
+
+async function handleGoalSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById("goalSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+
+    const editId = document.getElementById("goalEditId").value;
+    const type = document.getElementById("goalType")?.value || "financial";
+    const title = document.getElementById("goalTitle").value.trim();
+    const category = document.getElementById("goalCategory").value;
+    let target = parseFloat(document.getElementById("goalTarget").value) || 0;
+    let current = parseFloat(document.getElementById("goalCurrent").value) || 0;
+    const deadline = document.getElementById("goalDeadline").value || null;
+    const color = document.getElementById("goalColor").value;
+    const cdiPercent = parseFloat(document.getElementById("goalCdiPercent")?.value) || 100;
+    
+    let completed = false;
+    if (type === 'habit') {
+        target = 1;
+        current = 0;
+        completed = false;
+    } else if (type === 'dividends') {
+        current = getMonthlyDividendsTotalMobile();
+        completed = target > 0 ? (current >= target) : false;
+        if (target <= 0) {
+            showToast("Informe o valor mensal esperado de dividendos!", "error");
+            btn.disabled = false;
+            btn.textContent = "Salvar Meta";
+            return;
+        }
+    } else {
+        completed = current >= target && target > 0;
+    }
+
+    const payload = {
+        user_id: currentUser.id,
+        type: type,
+        title: title,
+        category: category,
+        target_amount: target,
+        current_amount: current,
+        deadline: deadline,
+        color: color,
+        cdi_percent: cdiPercent,
+        completed: completed
+    };
+
+    try {
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                let res;
+                if (editId) {
+                    res = await supabaseClient
+                        .from("goals")
+                        .update(payload)
+                        .eq("id", editId)
+                        .eq("user_id", currentUser.id);
+                } else {
+                    res = await supabaseClient
+                        .from("goals")
+                        .insert([payload]);
+                }
+
+                if (res.error && res.error.message && res.error.message.includes("category")) {
+                    delete payload.category;
+                    if (editId) {
+                        await supabaseClient.from("goals").update(payload).eq("id", editId).eq("user_id", currentUser.id);
+                    } else {
+                        await supabaseClient.from("goals").insert([payload]);
+                    }
+                } else if (res.error) {
+                    throw res.error;
+                }
+            } catch (netErr) {
+                console.warn("Falha online, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            if (editId) {
+                const idx = goals.findIndex(g => String(g.id) === String(editId));
+                if (idx !== -1) goals[idx] = { ...goals[idx], ...payload };
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('UPDATE_GOAL', { id: editId, ...payload });
+                    await window.tonuSync.setCachedGoals(currentUser.id, goals);
+                }
+            } else {
+                const offlineId = 'offline_goal_' + Date.now();
+                const newGoal = { id: offlineId, ...payload, created_at: new Date().toISOString() };
+                goals.unshift(newGoal);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_GOAL', payload);
+                    await window.tonuSync.setCachedGoals(currentUser.id, goals);
+                }
+            }
+            showToast("📦 Meta salva offline! Sincronizará quando a conexão retornar.", "info");
+        } else {
+            showToast(editId ? "Meta atualizada com sucesso!" : "Meta criada com sucesso!", "success");
+        }
+
+        closeGoalModal();
+        await loadGoals();
+
+        if (completed) {
+            triggerCelebrationModal(title, Math.max(target, current));
+        }
+    } catch (err) {
+        showToast("Erro ao salvar: " + err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Salvar Meta";
+    }
+}
+
+// ============================================
+// AÇÃO: APORTAR
+// ============================================
+function openDepositModal(id) {
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+
+    document.getElementById("depositGoalId").value = goal.id;
+    document.getElementById("depositGoalTitle").textContent = goal.title;
+    document.getElementById("depositCurrentVal").textContent = formatCurrency(goal.current_amount || 0);
+    document.getElementById("depositAmount").value = "";
+    document.getElementById("modalDeposit").classList.add("active");
+}
+
+function closeDepositModal(e) {
+    if (e && e.target && e.target !== e.currentTarget) return;
+    document.getElementById("modalDeposit").classList.remove("active");
+}
+
+async function handleDepositSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById("depositSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Aportando...";
+
+    const id = document.getElementById("depositGoalId").value;
+    const amount = parseFloat(document.getElementById("depositAmount").value) || 0;
+    if (amount <= 0) {
+        showToast("Insira um valor válido para aporte.", "error");
+        btn.disabled = false;
+        return;
+    }
+
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+
+    const newAmount = (Number(goal.current_amount) || 0) + amount;
+    const isCompleted = newAmount >= (Number(goal.target_amount) || 0);
+
+    try {
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from("goals")
+                    .update({
+                        current_amount: newAmount,
+                        completed: isCompleted
+                    })
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
+
+                if (error) throw error;
+
+                // Registra aporte histórico em goal_deposits
+                const todayStr = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+                await supabaseClient.from("goal_deposits").insert([{
+                    goal_id: id,
+                    user_id: currentUser.id,
+                    amount: amount,
+                    deposit_date: todayStr
+                }]);
+            } catch (netErr) {
+                console.warn("Falha online no aporte, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            goal.current_amount = newAmount;
+            goal.completed = isCompleted;
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('UPDATE_GOAL', { id, current_amount: newAmount, completed: isCompleted });
+                await window.tonuSync.setCachedGoals(currentUser.id, goals);
+            }
+            showToast(`📦 Aporte de ${formatCurrency(amount)} salvo offline!`, "info");
+        } else {
+            showToast(`Aporte de ${formatCurrency(amount)} realizado! ${isCompleted ? '🎉 Parabéns! Meta concluída!' : ''}`, "success");
+        }
+
+        closeDepositModal();
+        await loadGoals();
+        await checkMilestonesMobile(goal, newAmount);
+    } catch (err) {
+        showToast("Erro no aporte: " + err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Confirmar Aporte";
+    }
+}
+
+// ============================================
+// AÇÃO: RESGATAR
+// ============================================
+function openWithdrawModal(id) {
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+
+    const cur = Number(goal.current_amount) || 0;
+    if (cur <= 0) {
+        showToast("Esta meta não possui saldo para resgate.", "warning");
+        return;
+    }
+
+    document.getElementById("withdrawGoalId").value = goal.id;
+    document.getElementById("withdrawGoalTitle").textContent = goal.title;
+    document.getElementById("withdrawCurrentVal").textContent = formatCurrency(cur);
+    document.getElementById("withdrawAmount").value = "";
+    document.getElementById("modalWithdraw").classList.add("active");
+}
+
+function closeWithdrawModal(e) {
+    if (e && e.target && e.target !== e.currentTarget) return;
+    document.getElementById("modalWithdraw").classList.remove("active");
+}
+
+async function handleWithdrawSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById("withdrawSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Resgatando...";
+
+    const id = document.getElementById("withdrawGoalId").value;
+    const amount = parseFloat(document.getElementById("withdrawAmount").value) || 0;
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+
+    const cur = Number(goal.current_amount) || 0;
+    if (amount <= 0 || amount > cur) {
+        showToast(`Valor inválido. O saldo disponível é ${formatCurrency(cur)}.`, "error");
+        btn.disabled = false;
+        btn.textContent = "Confirmar Resgate";
+        return;
+    }
+
+    const newAmount = Math.max(0, cur - amount);
+    const isCompleted = newAmount >= (Number(goal.target_amount) || 0);
+
+    try {
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from("goals")
+                    .update({
+                        current_amount: newAmount,
+                        completed: isCompleted
+                    })
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
+
+                if (error) throw error;
+            } catch (netErr) {
+                console.warn("Falha online no resgate, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            goal.current_amount = newAmount;
+            goal.completed = isCompleted;
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('UPDATE_GOAL', { id, current_amount: newAmount, completed: isCompleted });
+                await window.tonuSync.setCachedGoals(currentUser.id, goals);
+            }
+            showToast(`📦 Resgate de ${formatCurrency(amount)} salvo offline!`, "info");
+        } else {
+            showToast(`Resgate de ${formatCurrency(amount)} realizado!`, "success");
+        }
+
+        closeWithdrawModal();
+        await loadGoals();
+    } catch (err) {
+        showToast("Erro no resgate: " + err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Confirmar Resgate";
+    }
+}
+
+// ============================================
+// AÇÃO: EXCLUIR META
+// ============================================
+async function deleteGoal(id) {
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+
+    if (!confirm(`Deseja realmente excluir a meta "${goal.title}"?`)) return;
+
+    try {
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from("goals")
+                    .delete()
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
+
+                if (error) throw error;
+            } catch (netErr) {
+                console.warn("Falha online na exclusão, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            goals = goals.filter(g => String(g.id) !== String(id));
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('DELETE_GOAL', { id });
+                await window.tonuSync.setCachedGoals(currentUser.id, goals);
+            }
+            showToast("📦 Meta excluída offline! Sincronizará quando a conexão retornar.", "info");
+        } else {
+            showToast("Meta excluída com sucesso!", "success");
+        }
+
+        await loadGoals();
+    } catch (err) {
+        showToast("Erro ao excluir: " + err.message, "error");
+    }
+}
+
+// ============================================
+// UTILITÁRIOS
+// ============================================
+function formatCurrency(val) {
+    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
+        return window.formatCurrency(val);
+    }
+    const num = parseFloat(val) || 0;
+    return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatDate(dStr) {
+    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
+        return window.formatDate(dStr);
+    }
+    if (!dStr) return "--/--/----";
+    const parts = dStr.split("T")[0].split("-");
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return new Date(dStr).toLocaleDateString("pt-BR");
+}
+
+function toggleTheme() {
+    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
+        return window.toggleTheme();
+    }
+    const isDark = document.body.classList.toggle("dark-theme");
+    localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
+    const icon = document.querySelector("#themeIcon");
+    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+}
+
+let celebrationAutoDismissTimer = null;
+
+function playCelebrationSound() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+
+        const notes = [
+            { freq: 523.25, time: 0.00, dur: 0.22 }, // C5
+            { freq: 659.25, time: 0.12, dur: 0.22 }, // E5
+            { freq: 783.99, time: 0.24, dur: 0.22 }, // G5
+            { freq: 1046.50, time: 0.38, dur: 0.45 }, // C6
+            { freq: 1318.51, time: 0.48, dur: 0.55 }  // E6
+        ];
+
+        notes.forEach(n => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(n.freq, ctx.currentTime + n.time);
+
+            gain.gain.setValueAtTime(0.001, ctx.currentTime + n.time);
+            gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + n.time + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n.time + n.dur);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(ctx.currentTime + n.time);
+            osc.stop(ctx.currentTime + n.time + n.dur + 0.05);
+        });
+    } catch (e) {
+        // Áudio opcional/graceful
+    }
+}
+
+function triggerCelebrationModal(title, amount) {
+    const overlay = document.getElementById('celebrationOverlay');
+    if (!overlay) {
+        triggerGoalConfetti();
+        return;
+    }
+
+    const titleEl = document.getElementById('celebrationGoalTitle');
+    const amountEl = document.getElementById('celebrationGoalAmount');
+
+    if (titleEl) titleEl.textContent = title || 'Sua Meta';
+    if (amountEl) amountEl.textContent = formatCurrency(amount || 0);
+
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    if (navigator.vibrate) {
+        navigator.vibrate([100, 50, 150]);
+    }
+
+    playCelebrationSound();
+    triggerGoalConfetti();
+
+    if (celebrationAutoDismissTimer) {
+        clearTimeout(celebrationAutoDismissTimer);
+    }
+    celebrationAutoDismissTimer = setTimeout(() => {
+        dismissCelebration();
+    }, 8000);
+}
+
+function dismissCelebration() {
+    const overlay = document.getElementById('celebrationOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+    document.body.style.overflow = '';
+
+    if (celebrationAutoDismissTimer) {
+        clearTimeout(celebrationAutoDismissTimer);
+        celebrationAutoDismissTimer = null;
+    }
+}
+
+function triggerGoalConfetti() {
+    try {
+        if (typeof confetti === 'function') {
+            confetti({
+                particleCount: 110,
+                spread: 75,
+                origin: { y: 0.6 }
+            });
+            setTimeout(() => {
+                confetti({
+                    particleCount: 60,
+                    angle: 60,
+                    spread: 60,
+                    origin: { x: 0 }
+                });
+                confetti({
+                    particleCount: 60,
+                    angle: 120,
+                    spread: 60,
+                    origin: { x: 1 }
+                });
+            }, 300);
+        }
+    } catch (e) {
+        console.log('Confetti trigger skipped', e);
+    }
+}
+
+// ============================================
+// ITEM 12: RENDIMENTO CDI, IOF, IR & MARCOS (MOBILE)
+// ============================================
+const IOF_TABLE_MOBILE = {
+    1: 0.96, 2: 0.93, 3: 0.90, 4: 0.86, 5: 0.83,
+    6: 0.80, 7: 0.76, 8: 0.73, 9: 0.70, 10: 0.66,
+    11: 0.63, 12: 0.60, 13: 0.56, 14: 0.53, 15: 0.50,
+    16: 0.46, 17: 0.43, 18: 0.40, 19: 0.36, 20: 0.33,
+    21: 0.30, 22: 0.26, 23: 0.23, 24: 0.20, 25: 0.16,
+    26: 0.13, 27: 0.10, 28: 0.06, 29: 0.03
+};
+
+function getIOFRateMobile(daysPassed) {
+    if (daysPassed <= 0) return 0.96;
+    if (daysPassed >= 30) return 0;
+    return IOF_TABLE_MOBILE[daysPassed] !== undefined ? IOF_TABLE_MOBILE[daysPassed] : 0;
+}
+
+function getIRRateMobile(daysPassed) {
+    if (daysPassed <= 180) return 0.225; // 22,5%
+    if (daysPassed <= 360) return 0.200; // 20,0%
+    if (daysPassed <= 720) return 0.175; // 17,5%
+    return 0.150; // 15,0%
+}
+
+let cachedMobileCDIDailyRate = 0.040169; // ~10.65% a.a.
+
+async function fetchMobileCDIRate() {
+    try {
+        if (window.supabaseClient && window.supabaseClient.functions) {
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
+            const invokePromise = window.supabaseClient.functions.invoke('get-cdi');
+            const res = await Promise.race([invokePromise, timeoutPromise]);
+            if (res && !res.error && res.data?.cdi?.daily_rate) {
+                cachedMobileCDIDailyRate = res.data.cdi.daily_rate;
+                return cachedMobileCDIDailyRate;
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ Falha ou timeout ao buscar CDI via Edge Function (Mobile):', e);
+    }
+    return cachedMobileCDIDailyRate;
+}
+
+async function checkMilestonesMobile(goal, newAmount) {
+    try {
+        if (!goal) return;
+        const target = Number(goal.target_amount) || 0;
+        if (target <= 0) return;
+
+        const amt = Number(newAmount) || 0;
+        const pct = Math.min(100, Math.floor((amt / target) * 100));
+        const milestones = [25, 50, 75, 90, 100];
+
+        let fired = [];
+        if (Array.isArray(goal.milestones_fired)) {
+            fired = [...goal.milestones_fired];
+        } else if (typeof goal.milestones_fired === 'string') {
+            try {
+                const parsed = JSON.parse(goal.milestones_fired);
+                if (Array.isArray(parsed)) fired = parsed;
+            } catch (e) {
+                fired = [];
+            }
+        }
+
+        let newFired = [];
+        for (const m of milestones) {
+            if (pct >= m && !fired.includes(m)) {
+                fired.push(m);
+                newFired.push(m);
+            }
+        }
+
+        if (newFired.length > 0) {
+            goal.milestones_fired = fired;
+            const uid = (typeof currentUser !== 'undefined' && currentUser?.id) || window.currentUser?.id;
+            if (window.supabaseClient && uid) {
+                try {
+                    await window.supabaseClient
+                        .from('goals')
+                        .update({ milestones_fired: fired })
+                        .eq('id', goal.id)
+                        .eq('user_id', uid);
+                } catch (err) {
+                    console.warn('⚠️ Erro ao persistir milestones_fired (Mobile):', err);
+                }
+            }
+
+            const highestMilestone = newFired[newFired.length - 1];
+            if (highestMilestone === 100) {
+                if (typeof triggerCelebrationModal === 'function') {
+                    triggerCelebrationModal(goal.title || 'Meta', amt);
+                } else if (typeof showToast === 'function') {
+                    showToast(`🎉 Parabéns! Meta "${goal.title || ''}" concluída 100%!`, 'success');
+                }
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast(`🎯 Marco de ${highestMilestone}% alcançado na meta "${goal.title || ''}"! 🚀`, 'success');
+                }
+                if (typeof triggerGoalConfetti === 'function') {
+                    triggerGoalConfetti();
+                }
+            }
+
+            if (typeof window.sendRealtimePush === 'function') {
+                try {
+                    window.sendRealtimePush({
+                        title: `🎯 Marco alcançado: ${highestMilestone}% da meta!`,
+                        body: `Você conquistou ${highestMilestone}% da sua meta "${goal.title}"! Continue firme.`,
+                        url: 'pages/mobile/goals.html',
+                        tag: `goal-milestone-${goal.id}-${highestMilestone}`
+                    });
+                } catch (pushErr) {
+                    console.warn('⚠️ Erro ao enviar push notification de marco:', pushErr);
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('⚠️ Erro não impeditivo em checkMilestonesMobile:', err);
+    }
+}
+
+let currentMobileYieldGoalId = null;
+
+async function openMobileYieldModal(goalId) {
+    const goal = goals.find(g => String(g.id) === String(goalId));
+    if (!goal) return;
+
+    currentMobileYieldGoalId = goal.id;
+
+    const overlay = document.getElementById('modalMobileYield');
+    if (overlay) overlay.classList.add('active');
+
+    const titleEl = document.getElementById('mobileYieldGoalTitle');
+    if (titleEl) titleEl.textContent = goal.title;
+
+    const cdiInput = document.getElementById('mobileYieldCdiInput');
+    if (cdiInput) cdiInput.value = goal.cdi_percent || 100;
+
+    const qDate = document.getElementById('mobileQuickDepositDate');
+    if (qDate) qDate.value = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+
+    const qAmt = document.getElementById('mobileQuickDepositAmt');
+    if (qAmt) qAmt.value = '';
+
+    await renderMobileYieldDetails(goal);
+}
+
+function closeMobileYieldModal(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.closest('.sheet-close-btn')) return;
+    const overlay = document.getElementById('modalMobileYield');
+    if (overlay) overlay.classList.remove('active');
+    currentMobileYieldGoalId = null;
+}
+
+async function renderMobileYieldDetails(goal) {
+    const listEl = document.getElementById('mobileGoalDepositsList');
+    if (listEl) {
+        listEl.innerHTML = '<div style="text-align:center; padding:12px; font-size:11px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Calculando rendimento CDI...</div>';
+    }
+
+    const cdiDaily = await fetchMobileCDIRate();
+    const cdiPercent = parseFloat(goal.cdi_percent) || 100;
+
+    let deposits = [];
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data } = await window.supabaseClient
+                .from('goal_deposits')
+                .select('*')
+                .eq('goal_id', goal.id)
+                .order('deposit_date', { ascending: false });
+            if (data && data.length > 0) deposits = data;
+        } catch (err) {
+            console.warn('⚠️ Erro ao buscar goal_deposits (Mobile):', err);
+        }
+    }
+
+    if (deposits.length === 0 && (Number(goal.current_amount) || 0) > 0) {
+        deposits = [{
+            id: 'initial',
+            amount: Number(goal.current_amount),
+            deposit_date: (goal.created_at ? goal.created_at.slice(0, 10) : ((typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv'))),
+            is_initial: true
+        }];
+    }
+
+    const todayDate = new Date();
+    let totalDeposited = 0;
+    let totalGrossYield = 0;
+    let totalIOF = 0;
+    let totalIR = 0;
+    let totalNetYield = 0;
+
+    const itemsHtml = deposits.map(dep => {
+        const amt = parseFloat(dep.amount) || 0;
+        const depDate = dep.deposit_date ? new Date(dep.deposit_date + 'T12:00:00') : todayDate;
+        const diffDays = Math.max(0, Math.floor((todayDate.getTime() - depDate.getTime()) / 86400000));
+        const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+        const ratePerDay = (cdiDaily / 100) * (cdiPercent / 100);
+        const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+        const grossYield = Math.max(0, amt * factor);
+
+        const iofRate = getIOFRateMobile(diffDays);
+        const iof = grossYield * iofRate;
+
+        const baseForIR = Math.max(0, grossYield - iof);
+        const irRate = getIRRateMobile(diffDays);
+        const ir = baseForIR * irRate;
+
+        const netYield = Math.max(0, grossYield - iof - ir);
+
+        totalDeposited += amt;
+        totalGrossYield += grossYield;
+        totalIOF += iof;
+        totalIR += ir;
+        totalNetYield += netYield;
+
+        const dateFormatted = typeof formatDate === 'function' ? formatDate(dep.deposit_date) : dep.deposit_date;
+
+        return `
+            <div style="background:var(--color-surface, #ffffff); border:1px solid var(--color-border, #e2e8f0); border-radius:8px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <strong style="font-size:12px; color:var(--color-text, #0f172a); display:block;">${formatCurrency(amt)} ${dep.is_initial ? '<span style="font-size:9.5px; color:#6C5CE7;">(Inicial)</span>' : ''}</strong>
+                    <span style="font-size:10px; color:var(--color-text-muted, #94a3b8);">${dateFormatted} • ${diffDays} dia(s)</span>
+                </div>
+                <div style="text-align:right; display:flex; align-items:center; gap:8px;">
+                    <div>
+                        <strong style="font-size:11.5px; color:#00b894; display:block;">+${formatCurrency(netYield)}</strong>
+                        <span style="font-size:9.5px; color:#ef4444;">IOF/IR: -${formatCurrency(iof + ir)}</span>
+                    </div>
+                    ${!dep.is_initial ? `
+                        <button type="button" onclick="deleteMobileGoalDeposit('${dep.id}', ${amt})" style="background:none; border:none; color:#ef4444; font-size:12px; padding:4px;" title="Remover Aporte">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    if (listEl) {
+        listEl.innerHTML = itemsHtml || '<div style="text-align:center; padding:12px; font-size:11px; color:#94a3b8;">Nenhum aporte registrado.</div>';
+    }
+
+    const grossTotal = totalDeposited + totalGrossYield;
+    const netTotal = totalDeposited + totalNetYield;
+
+    const elAportado = document.getElementById('mobileYieldStatAportado');
+    const elBruto = document.getElementById('mobileYieldStatBruto');
+    const elSaldoBruto = document.getElementById('mobileYieldStatSaldoBruto');
+    const elIOF = document.getElementById('mobileYieldStatIOF');
+    const elIR = document.getElementById('mobileYieldStatIR');
+    const elLiquido = document.getElementById('mobileYieldStatLiquido');
+
+    if (elAportado) elAportado.textContent = formatCurrency(totalDeposited);
+    if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
+    if (elSaldoBruto) elSaldoBruto.textContent = formatCurrency(grossTotal);
+    if (elIOF) elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
+    if (elIR) elIR.textContent = `- ${formatCurrency(totalIR)}`;
+    if (elLiquido) elLiquido.textContent = formatCurrency(netTotal);
+}
+
+async function saveMobileGoalCdi() {
+    if (!currentMobileYieldGoalId) return;
+    const input = document.getElementById('mobileYieldCdiInput');
+    const val = parseFloat(input?.value) || 100;
+
+    const goal = goals.find(g => String(g.id) === String(currentMobileYieldGoalId));
+    if (!goal) return;
+
+    goal.cdi_percent = val;
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            await window.supabaseClient.from('goals').update({ cdi_percent: val }).eq('id', goal.id).eq('user_id', currentUser.id);
+            showToast(`Taxa atualizada para ${val}% do CDI! 📈`, 'success');
+        } catch (err) {
+            console.warn('⚠️ Erro ao atualizar taxa CDI da meta (Mobile):', err);
+            showToast('Erro ao atualizar taxa', 'error');
+        }
+    }
+    await renderMobileYieldDetails(goal);
+    updateMobileCdiGlobalCard();
+}
+
+async function handleMobileQuickDeposit(e) {
+    e.preventDefault();
+    if (!currentMobileYieldGoalId) return;
+
+    const goal = goals.find(g => String(g.id) === String(currentMobileYieldGoalId));
+    if (!goal) return;
+
+    const amtInput = document.getElementById('mobileQuickDepositAmt');
+    const dateInput = document.getElementById('mobileQuickDepositDate');
+
+    const amount = parseFloat(amtInput?.value) || 0;
+    const depDate = dateInput?.value || ((typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv'));
+
+    if (amount <= 0) {
+        showToast('Digite um valor válido de aporte!', 'warning');
+        return;
+    }
+
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            await window.supabaseClient.from('goal_deposits').insert([{
+                goal_id: goal.id,
+                user_id: currentUser.id,
+                amount: amount,
+                deposit_date: depDate
+            }]);
+
+            const newAmount = (Number(goal.current_amount) || 0) + amount;
+            const completed = newAmount >= (Number(goal.target_amount) || 0);
+
+            await window.supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: completed,
+                updated_at: new Date().toISOString()
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            goal.current_amount = newAmount;
+            goal.completed = completed;
+            await checkMilestonesMobile(goal, newAmount);
+        }
+
+        if (amtInput) amtInput.value = '';
+        showToast(`Aporte de ${formatCurrency(amount)} registrado! 💰`, 'success');
+        await renderMobileYieldDetails(goal);
+        updateHeroStats();
+        renderGoals();
+    } catch (err) {
+        console.error('❌ Erro no aporte rápido (Mobile):', err);
+        showToast('Erro ao salvar aporte', 'error');
+    }
+}
+
+async function deleteMobileGoalDeposit(depId, amt) {
+    if (!currentMobileYieldGoalId) return;
+    if (!confirm(`Remover este aporte de ${formatCurrency(amt)}? O saldo da meta será recalculado.`)) return;
+
+    const goal = goals.find(g => String(g.id) === String(currentMobileYieldGoalId));
+    if (!goal) return;
+
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            await window.supabaseClient.from('goal_deposits').delete().eq('id', depId).eq('user_id', currentUser.id);
+
+            const newAmount = Math.max(0, (Number(goal.current_amount) || 0) - (Number(amt) || 0));
+            const completed = newAmount >= (Number(goal.target_amount) || 0);
+
+            await window.supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: completed,
+                updated_at: new Date().toISOString()
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            goal.current_amount = newAmount;
+            goal.completed = completed;
+        }
+
+        showToast('Aporte removido com sucesso!', 'success');
+        await renderMobileYieldDetails(goal);
+        updateHeroStats();
+        renderGoals();
+    } catch (err) {
+        console.error('❌ Erro ao remover aporte (Mobile):', err);
+        showToast('Erro ao remover aporte', 'error');
+    }
+}
+
+async function updateMobileCdiGlobalCard() {
+    const cdiDaily = await fetchMobileCDIRate();
+    const annualizedRate = ((Math.pow(1 + (cdiDaily / 100), 252) - 1) * 100).toFixed(2);
+
+    const statusEl = document.getElementById('mobileCdiStatusText');
+    if (statusEl) {
+        statusEl.textContent = `Taxa: ~${annualizedRate.replace('.', ',')}% a.a. (BCB Série 12)`;
+    }
+
+    let allDeposits = [];
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data } = await window.supabaseClient
+                .from('goal_deposits')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('deposit_date', { ascending: false });
+            if (data && data.length > 0) {
+                allDeposits = data;
+            }
+        } catch (err) {
+            console.warn('⚠️ Erro ao buscar goal_deposits global (Mobile):', err);
+        }
+    }
+
+    let totalAportado = 0;
+    let totalGrossYield = 0;
+    let totalIOF = 0;
+    let totalIR = 0;
+    let totalNetYield = 0;
+
+    const todayDate = new Date();
+
+    goals.forEach(g => {
+        const cur = Number(g.current_amount) || 0;
+        if (cur <= 0) return;
+
+        const cdiPct = parseFloat(g.cdi_percent) || 100;
+        const ratePerDay = (cdiDaily / 100) * (cdiPct / 100);
+
+        const goalDeps = allDeposits.filter(d => String(d.goal_id) === String(g.id));
+
+        if (goalDeps.length > 0) {
+            let sumDeps = 0;
+            goalDeps.forEach(dep => {
+                const amt = parseFloat(dep.amount) || 0;
+                sumDeps += amt;
+                const depDate = dep.deposit_date ? new Date(dep.deposit_date + 'T12:00:00') : todayDate;
+                const diffDays = Math.max(0, Math.floor((todayDate.getTime() - depDate.getTime()) / 86400000));
+                const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+                const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+                const grossYield = amt * factor;
+
+                const iofRate = getIOFRateMobile(diffDays);
+                const iof = grossYield * iofRate;
+
+                const baseForIR = Math.max(0, grossYield - iof);
+                const irRate = getIRRateMobile(diffDays);
+                const ir = baseForIR * irRate;
+
+                const netYield = Math.max(0, grossYield - iof - ir);
+
+                totalAportado += amt;
+                totalGrossYield += grossYield;
+                totalIOF += iof;
+                totalIR += ir;
+                totalNetYield += netYield;
+            });
+
+            if (cur > sumDeps) {
+                const remAmt = cur - sumDeps;
+                const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
+                const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
+                const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+                const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+                const grossYield = remAmt * factor;
+
+                const iofRate = getIOFRateMobile(diffDays);
+                const iof = grossYield * iofRate;
+
+                const baseForIR = Math.max(0, grossYield - iof);
+                const irRate = getIRRateMobile(diffDays);
+                const ir = baseForIR * irRate;
+
+                const netYield = Math.max(0, grossYield - iof - ir);
+
+                totalAportado += remAmt;
+                totalGrossYield += grossYield;
+                totalIOF += iof;
+                totalIR += ir;
+                totalNetYield += netYield;
+            }
+        } else {
+            const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
+            const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
+            const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+            const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+            const grossYield = cur * factor;
+
+            const iofRate = getIOFRateMobile(diffDays);
+            const iof = grossYield * iofRate;
+
+            const baseForIR = Math.max(0, grossYield - iof);
+            const irRate = getIRRateMobile(diffDays);
+            const ir = baseForIR * irRate;
+
+            const netYield = Math.max(0, grossYield - iof - ir);
+
+            totalAportado += cur;
+            totalGrossYield += grossYield;
+            totalIOF += iof;
+            totalIR += ir;
+            totalNetYield += netYield;
+        }
+    });
+
+    const totalNet = totalAportado + totalNetYield;
+
+    const elAportado = document.getElementById('mobileCdiAportado');
+    const elBruto = document.getElementById('mobileCdiBruto');
+    const elIOF = document.getElementById('mobileCdiIOF');
+    const elIR = document.getElementById('mobileCdiIR');
+    const elLiquido = document.getElementById('mobileCdiLiquido');
+
+    if (elAportado) elAportado.textContent = formatCurrency(totalAportado);
+    if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
+    if (elIOF) elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
+    if (elIR) elIR.textContent = `- ${formatCurrency(totalIR)}`;
+    if (elLiquido) elLiquido.textContent = formatCurrency(totalNet);
+}
+
+window.openMobileYieldModal = openMobileYieldModal;
+window.closeMobileYieldModal = closeMobileYieldModal;
+window.saveMobileGoalCdi = saveMobileGoalCdi;
+window.handleMobileQuickDeposit = handleMobileQuickDeposit;
+window.deleteMobileGoalDeposit = deleteMobileGoalDeposit;
+window.updateMobileCdiGlobalCard = updateMobileCdiGlobalCard;
+window.checkMilestonesMobile = checkMilestonesMobile;
+</script>
+
+</body>
+</html>

@@ -232,6 +232,49 @@
                 </section>
 
                 <!-- ==========================================
+                BARRA DE CONTROLE TEMPORAL (ANO VS LONGO PRAZO)
+                ========================================== -->
+                <div class="temporal-control-bar">
+                    <div class="year-stepper-wrap" id="yearStepperWrapper">
+                        <div class="year-stepper">
+                            <button type="button" class="step-btn" onclick="changeYear(-1)" title="Ano anterior" aria-label="Ano anterior">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <div class="current-year-label">
+                                <span id="labelCurrentYear">2026</span>
+                            </div>
+                            <button type="button" class="step-btn" onclick="changeYear(1)" title="Próximo ano" aria-label="Próximo ano">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                        <span id="yearStatusBadge" class="year-badge-status status-badge-current">Ciclo Atual</span>
+                    </div>
+
+                    <div class="view-mode-toggle">
+                        <button type="button" id="btnViewYear" class="view-mode-btn active" onclick="setTemporalMode('year')">
+                            <i class="fas fa-calendar-alt"></i> Anual
+                        </button>
+                        <button type="button" id="btnViewContinuous" class="view-mode-btn" onclick="setTemporalMode('continuous')">
+                            <i class="fas fa-infinity"></i> Longo Prazo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                BANNER DE RESUMO DO CICLO DE CONQUISTAS
+                ========================================== -->
+                <div class="cycle-summary-banner">
+                    <div>
+                        <h2 id="cycleTitle"><i class="fas fa-trophy" style="color: #F59E0B;"></i> Checklist de Conquistas 2026</h2>
+                        <p id="cycleSubtitle">Objetivos prioritários definidos para este ciclo anual</p>
+                    </div>
+                    <div class="cycle-score-box">
+                        <div class="cycle-score-value" id="cycleScoreText">0 / 0</div>
+                        <div class="cycle-score-label" id="cycleScorePct">0% Conquistadas</div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
                 ITEM 12: CDI & RENDIMENTOS AUTOMÁTICOS DAS METAS
                 ========================================== -->
                 <section class="cdi-yield-banner" id="cdiYieldBanner" style="background:var(--color-surface, #ffffff); border:1px solid var(--color-border, #e2e8f0); border-radius:16px; padding:16px 20px; margin-bottom:18px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
@@ -248,6 +291,7 @@
                                     Taxa CDI Atual: ~10,65% a.a. (BCB SGS 12) • 100% CDI
                                 </span>
                             </div>
+                        </div>
                         <div style="font-size:11px; color:var(--color-text-muted, #64748b); text-align:right;">
                             <div><i class="fas fa-shield-alt" style="color:#00B894; margin-right:4px;"></i> IOF e IR regressivo por tempo de aporte</div>
                             <div style="font-size:10px; margin-top:2px; opacity:0.85;"><i class="fas fa-calendar-day" style="color:#6C5CE7; margin-right:4px;"></i> Rendimento acumulado dia a dia útil</div>
@@ -284,14 +328,17 @@
                         <button type="button" class="goal-tab-btn active" data-filter="all" onclick="setGoalsFilter('all')">
                             Todas <span class="tab-badge" id="badgeFilterAll">0</span>
                         </button>
-                        <button type="button" class="goal-tab-btn" data-filter="active" onclick="setGoalsFilter('active')">
-                            Em Andamento <span class="tab-badge" id="badgeFilterActive">0</span>
+                        <button type="button" class="goal-tab-btn" data-filter="project" onclick="setGoalsFilter('project')">
+                            📌 Projetos <span class="tab-badge" id="badgeFilterProject">0</span>
                         </button>
-                        <button type="button" class="goal-tab-btn" data-filter="almost" onclick="setGoalsFilter('almost')">
-                            Quase Lá (&gt;75%) <span class="tab-badge" id="badgeFilterAlmost">0</span>
+                        <button type="button" class="goal-tab-btn" data-filter="financial" onclick="setGoalsFilter('financial')">
+                            💰 Dinheiro <span class="tab-badge" id="badgeFilterFinancial">0</span>
+                        </button>
+                        <button type="button" class="goal-tab-btn" data-filter="auto" onclick="setGoalsFilter('auto')">
+                            ⚡ Automáticas <span class="tab-badge" id="badgeFilterAuto">0</span>
                         </button>
                         <button type="button" class="goal-tab-btn" data-filter="completed" onclick="setGoalsFilter('completed')">
-                            Concluídas 🏆 <span class="tab-badge" id="badgeFilterCompleted">0</span>
+                            🏆 Concluídas <span class="tab-badge" id="badgeFilterCompleted">0</span>
                         </button>
                     </div>
 
@@ -339,72 +386,107 @@
             </div>
             <form id="goalForm" onsubmit="saveGoal(event)" novalidate>
                 <input type="hidden" id="editId">
+                <input type="hidden" id="gType" value="financial">
+                
                 <div class="modal-body">
-                    <div class="form-group">
-                        <label for="gType">Tipo de Meta *</label>
-                        <select id="gType" class="form-control" onchange="toggleGoalTypeFields()">
-                            <option value="financial" selected>💰 Financeira (Patrimônio / Reserva / Compra)</option>
-                            <option value="habit">📌 Projeto / Hábito (Checklist de Conclusão)</option>
-                            <option value="dividends">📈 Dividendos (Renda Passiva Mensal)</option>
-                        </select>
+                    <!-- SELETOR VISUAL DOS 4 TIPOS -->
+                    <label style="display:block; font-size:11.5px; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; margin-bottom:6px;">
+                        Tipo de Meta *
+                    </label>
+                    <div class="type-selector-grid">
+                        <div class="type-card-opt" id="typeOptProject" onclick="selectModalGoalType('habit')">
+                            <i class="fas fa-tasks" style="color: #38BDF8;"></i>
+                            <div class="type-title">📌 Projeto / Hábito</div>
+                            <div class="type-desc">Checklist sim/não</div>
+                        </div>
+                        <div class="type-card-opt selected" id="typeOptFinancial" onclick="selectModalGoalType('financial')">
+                            <i class="fas fa-piggy-bank" style="color: #F59E0B;"></i>
+                            <div class="type-title">💰 Dinheiro Manual</div>
+                            <div class="type-desc">Aportes e poupança</div>
+                        </div>
+                        <div class="type-card-opt" id="typeOptDividends" onclick="selectModalGoalType('dividends')">
+                            <i class="fas fa-hand-holding-usd" style="color: #10B981;"></i>
+                            <div class="type-title">📈 Proventos Mensais</div>
+                            <div class="type-desc">Auto da carteira</div>
+                        </div>
+                        <div class="type-card-opt" id="typeOptWealth" onclick="selectModalGoalType('wealth')">
+                            <i class="fas fa-chart-pie" style="color: #8B5CF6;"></i>
+                            <div class="type-title">🏦 Patrimônio Total</div>
+                            <div class="type-desc">Auto de custódia</div>
+                        </div>
                     </div>
+
                     <div class="form-group">
                         <label for="gTitle">Título da Meta *</label>
-                        <input type="text" id="gTitle" class="form-control" placeholder="Ex: Reserva de Emergência, Viagem, Ler 12 Livros" required
+                        <input type="text" id="gTitle" class="form-control" placeholder="Ex: Motor de correr no portão, Juntar R$ 10.000, R$ 1 de dividendos" required
                             aria-required="true">
                     </div>
+
+                    <!-- LINHA DE VALORES (ESCONDIDA PARA PROJETOS) -->
                     <div class="form-row" id="goalAmountRow">
                         <div class="form-group" id="goalTargetGroup">
                             <label for="gTarget" id="lblTarget">Valor Total (R$) *</label>
-                            <input type="text" id="gTarget" class="form-control" placeholder="50.000,00" required
+                            <input type="text" id="gTarget" class="form-control" placeholder="10.000,00" required
                                 aria-required="true">
                         </div>
                         <div class="form-group" id="goalCurrentGroup">
-                            <label for="gCurrent">Valor Inicial (R$)</label>
+                            <label for="gCurrent" id="lblCurrent">Valor Inicial (R$)</label>
                             <input type="text" id="gCurrent" class="form-control" placeholder="0,00">
                         </div>
                     </div>
+
                     <div class="form-row">
+                        <div class="form-group">
+                            <label for="gCycleSelect">Alocação Temporal / Ciclo</label>
+                            <select id="gCycleSelect" class="form-control" onchange="handleCycleSelectChange()">
+                                <option value="2026" selected>📅 Ciclo 2026 (Atual)</option>
+                                <option value="2027">📅 Ciclo 2027 (Planejamento)</option>
+                                <option value="2025">📅 Ciclo 2025 (Histórico)</option>
+                                <option value="continuous">♾️ Meta Contínua (Longo Prazo)</option>
+                            </select>
+                        </div>
                         <div class="form-group">
                             <label for="gDeadline">Data Limite (opcional)</label>
                             <input type="date" id="gDeadline" class="form-control">
                         </div>
+                    </div>
+
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="gCategory">Categoria do Objetivo</label>
                             <select id="gCategory" class="form-control">
+                                <option value="home">🏠 Imóvel / Reforma / Portão</option>
                                 <option value="emergency">🛡️ Reserva de Emergência</option>
                                 <option value="travel">✈️ Viagem & Lazer</option>
                                 <option value="vehicle">🚗 Veículo (Carro / Moto)</option>
-                                <option value="home">🏠 Imóvel / Casa Própria</option>
-                                <option value="education">🎓 Educação & Estudos</option>
                                 <option value="investment">📈 Aposentadoria & Investimentos</option>
+                                <option value="education">🎓 Educação & Estudos</option>
                                 <option value="purchase">📱 Compras & Eletrônicos</option>
                                 <option value="other" selected>🎯 Outro Objetivo</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="form-row">
                         <div class="form-group">
                             <label for="gColor">Cor de Destaque</label>
                             <select id="gColor" class="form-control">
                                 <option value="#6C5CE7">🟣 Roxo (Padrão)</option>
                                 <option value="#00B894">🟢 Verde Esmeralda</option>
-                                <option value="#0984E3">🔵 Azul Real</option>
-                                <option value="#FDCB6E">🟡 Ouro / Amarelo</option>
-                                <option value="#FF7675">🔴 Coral / Vermelho</option>
+                                <option value="#38BDF8">🔵 Azul Céu</option>
+                                <option value="#F59E0B">🟡 Ouro / Dourado</option>
+                                <option value="#8B5CF6">🟪 Violeta Real</option>
                                 <option value="#E17055">🟠 Laranja Queimado</option>
-                                <option value="#A29BFE">🟪 Lilás Suave</option>
                                 <option value="#10B981">🌲 Verde Floresta</option>
                             </select>
                         </div>
-                        <div class="form-group" id="goalCdiGroup">
-                            <label for="gCdiPercent">% do CDI da Meta</label>
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <input type="number" id="gCdiPercent" class="form-control" placeholder="100" value="100" step="1" min="1" max="500">
-                                <span style="font-size:12px; font-weight:700; color:var(--color-text-muted);">% CDI</span>
-                            </div>
+                    </div>
+
+                    <div class="form-group" id="goalCdiGroup">
+                        <label for="gCdiPercent">% do CDI da Meta</label>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <input type="number" id="gCdiPercent" class="form-control" placeholder="100" value="100" step="1" min="1" max="500">
+                            <span style="font-size:12px; font-weight:700; color:var(--color-text-muted);">% CDI</span>
                         </div>
                     </div>
+
                     <div class="form-group" style="margin-top: 8px;">
                         <div class="checkbox-group" style="padding: 10px 12px; background: var(--color-bg, #f8fafc); border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0); margin:0;">
                             <input type="checkbox" id="gCompleted">
