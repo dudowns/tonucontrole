@@ -1,10 +1,10 @@
 # 🪙 TonuControle — Suas Finanças
 
-![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.9.0-blue.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![PWA](https://img.shields.io/badge/PWA-Ready-orange.svg)
-![Tests](https://img.shields.io/badge/tests-34%2F34%20passing-success.svg)
+![Tests](https://img.shields.io/badge/tests-60%2F60%20passing-success.svg)
 
 > **Controle Financeiro Inteligente e Gestão de Investimentos com Suporte Offline-First e Alta Segurança.**
 
@@ -39,10 +39,22 @@ Diferente de planilhas complexas ou soluções lentas, o TonuControle une a simp
 - **Liquidação Rápida:** Pagamento em 1 clique com geração instantânea da respectiva despesa no fluxo de caixa.
 - **Banner de Contas Parceladas:** Resumo em destaque do progresso de parcelas e compromissos futuros.
 
-### 🎯 Metas Financeiras
-- **Criação e Monitoramento:** Definição de metas com prazos, valor-alvo e categoria.
-- **Aportes e Resgates:** Registro de movimentações com histórico detalhado e recálculo da barra de progresso.
-- **Modal de Celebração de Metas:** Ao atingir 100%, dispara celebração em tela cheia com troféu, raios animados, fanfarra por áudio sintetizado e chuva de confetes (`canvas-confetti`).
+### 🎯 Metas & Conquistas (Ciclos Anuais & 4 Tipos)
+- **Organização por Ciclos Temporais:**
+  - **Seletor de Ciclo Anual:** Navegação `‹ 2026 ›` com distinção visual entre Histórico, Ciclo Atual e Planejamento.
+  - **Aba ♾️ Longo Prazo:** Área dedicada para metas contínuas (ex: Reserva de Emergência, Aposentadoria) que superam o horizonte de 1 ano.
+  - **Checklist de Conquistas:** Banner dinâmico com pontuação e aproveitamento anual (ex: `4 / 6 Conquistadas (67%)`).
+- **4 Tipos Especializados de Meta:**
+  1. 📌 **Projeto / Hábito:** Checklist direto no card (sim/não), sem obrigação de definir valor financeiro ou percentual. Ao marcar, comemora com fanfarra, vibração e confetes.
+  2. 💰 **Financeira Manual:** Valor-alvo com botão de aporte rápido `+ R$ 500`, extrato histórico e simulação de rendimento CDI diário (100% CDI com tabela regressiva de IOF e IR).
+  3. 📈 **Proventos Mensais (Automático):** Sincronização em tempo real com os proventos e dividendos registrados na aba de Investimentos (B3).
+  4. 🏦 **Patrimônio Total (Automático):** Leitura direta da custódia consolidada em `portfolio_snapshots` (ações, FIIs, renda fixa) com botão "Atualizar agora", exibição de data/hora da última sincronização (`HH:MM`) e fallback visual amigável (`—`).
+- **Reprogramação Sem Culpa (Zero-Guilt Rollover):**
+  - Metas não concluídas no ciclo anterior exibem badge neutro em ardósia suave `🔄 Reprogramada para YYYY` (sem alertar "fracasso" em vermelho).
+  - Botão de 1 clique "Mover p/ [Próximo Ano]" que transfere o objetivo sem exigir redigitação do zero.
+- **Notificações Push & Marcos:**
+  - Disparo de notificações inteligentes via Web Push (`sendRealtimePush`) com tags idempotentes por meta para evitar repetições indesejadas.
+  - Marcos graduais para metas financeiras (25%, 50%, 75%, 90%) e celebração máxima com fanfarra aos 100%.
 
 ### 📈 Investimentos & Carteira
 - **Gestão de Custódia:** Ações, FIIs, BDRs, ETFs, Renda Fixa e Criptoativos.

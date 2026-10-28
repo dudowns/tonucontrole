@@ -1636,6 +1636,11 @@ async function fetchQuotes(customPositions) {
         }
 
         updateQuoteStatus();
+        try {
+            decoratePositions();
+            renderChart();
+            renderPieChart();
+        } catch (_) {}
 
     } catch (error) {
         console.error('❌ Erro ao buscar cotações:', error.message);
@@ -3239,6 +3244,15 @@ function updateSummary() {
 
     salvarPatrimonio(Math.round(totalCurrentValue * 100) / 100);
 
+    try {
+        const uid = currentUser?.id || 'demo';
+        localStorage.setItem('tonu_total_equity_' + uid, String(Math.round(totalCurrentValue * 100) / 100));
+        localStorage.setItem('tonu_total_invested_' + uid, String(Math.round(totalInvested * 100) / 100));
+        localStorage.setItem('tonu_unrealized_gain_' + uid, String(unrealizedGain));
+        localStorage.setItem('tonu_return_pct_' + uid, String(Math.round(returnPct * 100) / 100));
+        localStorage.setItem('tonu_total_equity_updated_at_' + uid, new Date().toISOString());
+    } catch (_) {}
+
     const patrimonyEl = document.getElementById('totalPatrimony');
     const variationEl = document.getElementById('patrimonyVariation');
     const assetCountEl = document.getElementById('assetCount');
@@ -3946,17 +3960,28 @@ function buildChartData() {
             }
         }
 
-        // No mês atual, assegura consistência absoluta com o card "Patrimônio" no topo
-        if (isCurrentMonth && (!selectedEvolutionClass || selectedEvolutionClass === 'all') && positions.length > 0) {
-            const cardTotalCurrentValue = positions.reduce((s, p) => s + (p.currentValue || 0), 0);
-            const cardTotalInvested = positions.reduce((s, p) => s + (p.costBasis || 0), 0);
-            runningInvested = cardTotalInvested;
-            totalSimulatedValue = cardTotalCurrentValue;
-        } else if (isCurrentMonth && selectedEvolutionClass && selectedEvolutionClass !== 'all' && activePositions.length > 0) {
-            const classCurrentValue = activePositions.reduce((s, p) => s + (p.currentValue || 0), 0);
-            const classInvested = activePositions.reduce((s, p) => s + (p.costBasis || 0), 0);
-            runningInvested = classInvested;
-            totalSimulatedValue = classCurrentValue;
+        // No mês atual, assegura consistência absoluta com a custódia ativa e os cards do topo (idêntico ao mobile)
+        if (isCurrentMonth && activePositions && activePositions.length > 0) {
+            let cardTotalInvestido = 0;
+            let cardTotalPatrimonio = 0;
+            activePositions.forEach(p => {
+                const cost = Number(p.costBasis) || 0;
+                cardTotalInvestido += cost;
+                const cleanTk = (p.ticker || '').toUpperCase().trim().replace(/\.SA$/, '');
+                const quote = quotes.get(cleanTk) || quotes.get(p.ticker) || quotes.get(`${cleanTk}.SA`);
+                const livePrice = (quote && Number.isFinite(quote.price) && quote.price > 0)
+                    ? quote.price
+                    : (Number(p.currentPrice) || Number(p.averageCost) || 0);
+                const val = (p.currentValue !== undefined && Number.isFinite(p.currentValue) && p.currentValue > 0)
+                    ? p.currentValue
+                    : ((Number(p.quantity) || 0) * livePrice);
+                cardTotalPatrimonio += (val > 0 ? val : cost);
+            });
+
+            if (cardTotalInvestido > 0) {
+                runningInvested = cardTotalInvestido;
+                totalSimulatedValue = cardTotalPatrimonio > 0 ? cardTotalPatrimonio : cardTotalInvestido;
+            }
         }
 
         // Se a carteira não possuía ativos no mês, valores são zerados

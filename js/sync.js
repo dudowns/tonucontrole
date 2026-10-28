@@ -610,26 +610,51 @@
                     return true;
                 }
                 case 'INSERT_GOAL': {
-                    const cleanData = this._sanitizeForInsert(data);
-                    const { error } = await window.supabaseClient.from('goals').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
-                    if (error) {
-                        if (this._isDuplicateOrConflictError(error)) {
-                            console.warn('⚠️ Meta já cadastrada na nuvem (409/23505). Marcando como sincronizada.');
-                            return true;
+                    let cleanData = this._sanitizeForInsert(data);
+                    let payload = Array.isArray(cleanData) ? cleanData : [cleanData];
+                    let insertSucceeded = false;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        const { error } = await window.supabaseClient.from('goals').insert(payload);
+                        if (!error || this._isDuplicateOrConflictError(error)) {
+                            insertSucceeded = true;
+                            break;
+                        }
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol) {
+                            payload = payload.map(item => {
+                                const copy = { ...item };
+                                delete copy[missingCol];
+                                return copy;
+                            });
+                            continue;
                         }
                         throw error;
                     }
-                    return true;
+                    return insertSucceeded;
                 }
+                case 'RENEW_GOAL':
                 case 'UPDATE_GOAL': {
                     const { id, ...updates } = data;
-                    const { error } = await window.supabaseClient
-                        .from('goals')
-                        .update(updates)
-                        .eq('id', id)
-                        .eq('user_id', userId);
-                    if (error) throw error;
-                    return true;
+                    let payload = { ...updates };
+                    let updateSucceeded = false;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        const { error } = await window.supabaseClient
+                            .from('goals')
+                            .update(payload)
+                            .eq('id', id)
+                            .eq('user_id', userId);
+                        if (!error) {
+                            updateSucceeded = true;
+                            break;
+                        }
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol) {
+                            delete payload[missingCol];
+                            continue;
+                        }
+                        throw error;
+                    }
+                    return updateSucceeded;
                 }
                 case 'DELETE_GOAL': {
                     const targetId = data.id || data;

@@ -812,6 +812,194 @@ async function runUnitTests() {
         assert.deepStrictEqual(res4.fired, [25, 50, 75, 90, 100]);
     });
 
+    test('Metas: Resolução de Ciclos Temporais, Reprogramação sem culpa e Aporte Rápido', () => {
+        function resolveGoalYear(g, currentCycleYear = 2026) {
+            if (!g) return currentCycleYear;
+            if (g.year === 'continuous' || g.target_year === 'continuous' || g.temporal_mode === 'continuous') {
+                return 'continuous';
+            }
+            if (g.target_year && !isNaN(parseInt(g.target_year))) {
+                return parseInt(g.target_year);
+            }
+            if (g.year && !isNaN(parseInt(g.year))) {
+                return parseInt(g.year);
+            }
+            if (g.deadline && typeof g.deadline === 'string' && g.deadline.length >= 4) {
+                const y = parseInt(g.deadline.slice(0, 4));
+                if (!isNaN(y) && y >= 2020 && y <= 2040) return y;
+            }
+            if (g.created_at && typeof g.created_at === 'string' && g.created_at.length >= 4) {
+                const y = parseInt(g.created_at.slice(0, 4));
+                if (!isNaN(y) && y >= 2020 && y <= 2040) return y;
+            }
+            return currentCycleYear;
+        }
+
+        // 1. Resolução de Ano
+        const g1 = { title: 'Portão', target_year: 2026 };
+        const g2 = { title: 'Casinha', deadline: '2027-12-31' };
+        const g3 = { title: 'Aposentadoria', year: 'continuous' };
+        const g4 = { title: 'Viagem Antiga', deadline: '2025-06-30' };
+
+        assert.strictEqual(resolveGoalYear(g1), 2026, 'Deve resolver target_year');
+        assert.strictEqual(resolveGoalYear(g2), 2027, 'Deve inferir ano da deadline');
+        assert.strictEqual(resolveGoalYear(g3), 'continuous', 'Deve identificar meta contínua');
+        assert.strictEqual(resolveGoalYear(g4), 2025, 'Deve identificar ano histórico');
+
+        // 2. Reprogramação sem culpa (postponeGoal)
+        function postponeGoalLogic(goal, currentCycleYear = 2026, targetYear = null) {
+            const nextYear = targetYear || (currentCycleYear + 1);
+            goal.target_year = nextYear;
+            goal.postponed_to = nextYear;
+            goal.deadline = `${nextYear}-12-31`;
+            return goal;
+        }
+
+        const projectGoal = { id: 'g_portao', title: 'Motor portão', target_year: 2026, completed: false };
+        const postponed = postponeGoalLogic(projectGoal, 2026, 2027);
+        assert.strictEqual(postponed.target_year, 2027, 'target_year atualizado');
+        assert.strictEqual(postponed.postponed_to, 2027, 'postponed_to atualizado');
+        assert.strictEqual(postponed.deadline, '2027-12-31', 'deadline atualizada');
+
+        // 3. Detecção de isPostponed consistente
+        function checkIsPostponed(g, isComplete, currentCycleYear = 2026) {
+            const goalYear = resolveGoalYear(g, currentCycleYear);
+            return !isComplete && (g.postponed_to || (g.target_year && g.target_year > currentCycleYear) || (typeof goalYear === 'number' && goalYear < currentCycleYear));
+        }
+
+        assert.strictEqual(checkIsPostponed(postponed, false, 2026), 2027, 'Detecta meta reprogramada para 2027');
+        assert.strictEqual(checkIsPostponed({ ...g4, completed: false }, false, 2026), true, 'Meta não concluída de 2025 vista em 2026 é tratada com status neutro de reprogramação');
+
+        // 4. Aporte Rápido (+ R$ 500)
+        function applyQuickAdd(goal, amt) {
+            const cur = Number(goal.current_amount || 0) + amt;
+            const isCompleted = cur >= Number(goal.target_amount || 0);
+            return { current_amount: cur, completed: isCompleted };
+        }
+
+        const finGoal = { id: 'g_fin', title: 'Poupança', current_amount: 1500, target_amount: 2000 };
+        const quickRes = applyQuickAdd(finGoal, 500);
+        assert.strictEqual(quickRes.current_amount, 2000, 'Saldo somado corretamente');
+        assert.strictEqual(quickRes.completed, true, 'Meta atinge 100% de conclusão');
+    });
+
+    test('Metas P2: postponeGoal entre ciclos, quickAddAmount com proteção de marcos e fallback temporal completo', () => {
+        // 1. postponeGoal entre múltiplos ciclos
+        function postponeGoalLogic(goal, currentCycleYear, targetYear = null) {
+            const nextYear = targetYear || (currentCycleYear + 1);
+            goal.target_year = nextYear;
+            goal.postponed_to = nextYear;
+            goal.year = nextYear;
+            goal.deadline = `${nextYear}-12-31`;
+            return goal;
+        }
+
+        const goalCycle = { id: 'g_multicycle', title: 'Pintura', target_year: 2026, completed: false };
+        postponeGoalLogic(goalCycle, 2026, 2027);
+        assert.strictEqual(goalCycle.target_year, 2027, 'Ciclo 2026 movido para 2027');
+        assert.strictEqual(goalCycle.deadline, '2027-12-31');
+
+        postponeGoalLogic(goalCycle, 2027, 2028);
+        assert.strictEqual(goalCycle.target_year, 2028, 'Ciclo 2027 movido para 2028');
+        assert.strictEqual(goalCycle.postponed_to, 2028);
+        assert.strictEqual(goalCycle.deadline, '2028-12-31');
+
+        // 2. quickAddAmount respeitando milestones_fired e evitando celebração duplicada
+        function simulateQuickAddWithMilestones(goal, amount) {
+            const cur = Number(goal.current_amount || 0) + amount;
+            const target = Number(goal.target_amount || 0);
+            const isCompleted = target > 0 && cur >= target;
+            goal.current_amount = cur;
+            goal.completed = isCompleted;
+
+            const pct = Math.min(100, Math.floor((cur / target) * 100));
+            const milestones = [25, 50, 75, 90, 100];
+            let fired = Array.isArray(goal.milestones_fired) ? [...goal.milestones_fired] : [];
+            let newFired = [];
+
+            for (const m of milestones) {
+                if (pct >= m && !fired.includes(m)) {
+                    fired.push(m);
+                    newFired.push(m);
+                }
+            }
+
+            let celebrationTriggered = false;
+            if (newFired.length > 0) {
+                goal.milestones_fired = fired;
+                if (newFired.includes(100)) {
+                    celebrationTriggered = true;
+                }
+            }
+
+            return { goal, celebrationTriggered, newFired };
+        }
+
+        const goalForQuickAdd = {
+            id: 'g_qa',
+            title: 'Viagem Japão',
+            current_amount: 800,
+            target_amount: 1000,
+            milestones_fired: [25, 50, 75]
+        };
+
+        // Aporte 1: R$ 200 leva a 100% (dispara 90% e 100%, comemora 1x)
+        const step1 = simulateQuickAddWithMilestones(goalForQuickAdd, 200);
+        assert.strictEqual(step1.goal.current_amount, 1000);
+        assert.strictEqual(step1.celebrationTriggered, true, 'Deve celebrar 100% atingido pela primeira vez');
+        assert.deepStrictEqual(step1.newFired, [90, 100]);
+        assert.deepStrictEqual(step1.goal.milestones_fired, [25, 50, 75, 90, 100]);
+
+        // Aporte 2: R$ 500 extra na meta já concluída (1500/1000) -> NÃO deve comemorar novamente
+        const step2 = simulateQuickAddWithMilestones(goalForQuickAdd, 500);
+        assert.strictEqual(step2.goal.current_amount, 1500);
+        assert.strictEqual(step2.celebrationTriggered, false, 'NÃO deve disparar celebração duplicada pois marco 100 já foi disparado');
+        assert.deepStrictEqual(step2.newFired, []);
+
+        // 3. resolveGoalYear: Hierarquia completa de fallback
+        function resolveGoalYearComplete(g, currentCycleYear = 2026) {
+            if (!g) return currentCycleYear;
+            if (g.target_year === 'continuous' || g.year === 'continuous' || g.is_continuous === true || g.temporal_mode === 'continuous') return 'continuous';
+            if (g.target_year && !isNaN(parseInt(g.target_year))) return parseInt(g.target_year);
+            if (g.year && !isNaN(parseInt(g.year))) return parseInt(g.year);
+            if (g.deadline) {
+                const y = parseInt(String(g.deadline).substring(0, 4));
+                if (!isNaN(y) && y > 1900 && y < 2200) return y;
+            }
+            const t = (g.title || '').toLowerCase();
+            if (t.includes('longo prazo') || t.includes('reserva de emergência')) return 'continuous';
+            if (g.created_at) {
+                const y = parseInt(String(g.created_at).substring(0, 4));
+                if (!isNaN(y) && y > 1900 && y < 2200) return y;
+            }
+            return currentCycleYear;
+        }
+
+        assert.strictEqual(resolveGoalYearComplete({ is_continuous: true }), 'continuous', 'Fallback para is_continuous');
+        assert.strictEqual(resolveGoalYearComplete({ temporal_mode: 'continuous' }), 'continuous', 'Fallback para temporal_mode');
+        assert.strictEqual(resolveGoalYearComplete({ title: 'Minha Reserva de Emergência' }), 'continuous', 'Fallback por palavra-chave reserva de emergência');
+        assert.strictEqual(resolveGoalYearComplete({ target_year: 2029 }), 2029, 'Prioridade target_year');
+        assert.strictEqual(resolveGoalYearComplete({ year: 2030 }), 2030, 'Fallback para year');
+        assert.strictEqual(resolveGoalYearComplete({ deadline: '2027-08-15' }), 2027, 'Fallback para ano de deadline');
+        assert.strictEqual(resolveGoalYearComplete({ created_at: '2024-03-01T10:00:00Z' }), 2024, 'Fallback para created_at');
+        assert.strictEqual(resolveGoalYearComplete({}), 2026, 'Fallback padrão para ciclo corrente 2026');
+
+        // 4. Notificação push de Patrimônio com tag idempotente
+        function generateWealthPushPayload(goal, currentEquity) {
+            return {
+                title: '🏆 Meta de Patrimônio Conquistada!',
+                body: `Parabéns! Você alcançou R$ ${currentEquity.toFixed(2)} na meta "${goal.title}"!`,
+                url: 'pages/goals.html',
+                tag: `goal-wealth-100-${goal.id}`
+            };
+        }
+
+        const wealthGoal = { id: 'g_patrimonio_10k', title: 'Patrimônio R$ 10.000', target_amount: 10000 };
+        const pushPayload = generateWealthPushPayload(wealthGoal, 10250.50);
+        assert.strictEqual(pushPayload.tag, 'goal-wealth-100-g_patrimonio_10k', 'Tag única e idempotente para evitar duplicação');
+        assert.ok(pushPayload.body.includes('R$ 10250.50'));
+    });
+
     test('Utilitários de Data: parseLocalDate e Comparação Timezone-Safe', () => {
         function parseLocalDate(dateStr) {
             if (!dateStr) return null;

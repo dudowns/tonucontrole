@@ -18,11 +18,235 @@ let currentCycleYear = 2026;
 let currentTemporalMode = 'year'; // 'year' | 'continuous'
 let selectedModalType = 'financial';
 let cachedTotalEquity = 0;
+let cachedTotalInvested = 0;
+let cachedEquityGain = 0;
+let cachedEquityReturnPct = 0;
+let cachedTotalEquityUpdatedAt = null;
+let isEquityLoaded = false;
+
+let cachedDividendsList = [];
+let isDividendsLoaded = false;
+let cachedDividendsUpdatedAt = null;
+
+// ============================================
+// AUXILIARES DE NÚMEROS E PROVENTOS DA CARTEIRA
+// ============================================
+function parseBrazilianNumber(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return isNaN(value) ? 0 : value;
+    let str = String(value).trim().replace(/[R$\s]/gi, '');
+    if (str.includes('.') && str.includes(',')) {
+        str = str.replace(/\./g, '').replace(',', '.');
+    } else if (str.includes(',')) {
+        str = str.replace(',', '.');
+    }
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+}
+window.parseBrazilianNumber = parseBrazilianNumber;
+
+function getDividendISODate(d) {
+    if (!d) return '';
+    let s = String(d.payment_date || d.date || d.paymentDate || d.created_at || '').trim();
+    if (!s) return '';
+    if (s.includes('T')) s = s.split('T')[0];
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const parts = s.split('/');
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) {
+        const parts = s.split('-');
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    }
+    return s;
+}
+window.getDividendISODate = getDividendISODate;
+
+function getDividendTotalValue(d) {
+    if (!d) return 0;
+    if (d.total_value !== undefined && d.total_value !== null && d.total_value !== '') {
+        const val = parseBrazilianNumber(d.total_value);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    if (d.net_value !== undefined && d.net_value !== null && d.net_value !== '') {
+        const val = parseBrazilianNumber(d.net_value);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    if (d.amount !== undefined && d.amount !== null && d.amount !== '') {
+        const val = parseBrazilianNumber(d.amount);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    const qty = parseBrazilianNumber(d.quantity);
+    const unit = parseBrazilianNumber(d.unit_value);
+    const calc = qty * unit;
+    return (!isNaN(calc) && calc > 0) ? calc : 0;
+}
+window.getDividendTotalValue = getDividendTotalValue;
+
+async function loadDividendsForGoals(forceRefresh = false) {
+    if (!forceRefresh && isDividendsLoaded && cachedDividendsList.length > 0) {
+        return cachedDividendsList;
+    }
+
+    let loaded = [];
+    if (Array.isArray(window.allDividends) && window.allDividends.length > 0) {
+        loaded = [...window.allDividends];
+    }
+
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('dividends')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('date', { ascending: false });
+            if (!error && data && data.length > 0) {
+                loaded = data;
+                window.allDividends = data;
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao buscar proventos para metas:', e);
+        }
+    }
+
+    if (loaded.length === 0) {
+        try {
+            const uid = currentUser?.id || 'demo';
+            const keys = [
+                'tonucontrole_dividends_' + uid,
+                'tonu_dividends_' + uid,
+                'tonucontrole_dividends_demo',
+                'tonu_dividends',
+                'tonu_dividends_current'
+            ];
+            for (const k of keys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+
+    cachedDividendsList = loaded;
+    isDividendsLoaded = true;
+    cachedDividendsUpdatedAt = new Date().toISOString();
+    return cachedDividendsList;
+}
+window.loadDividendsForGoals = loadDividendsForGoals;
+
+async function refreshDividendsForGoals() {
+    showToast('Atualizando proventos da carteira...', 'info');
+    await loadDividendsForGoals(true);
+    renderFilteredGoals();
+    updateGoalsStats(allGoals);
+    showToast('Proventos da carteira atualizados!', 'success');
+}
+window.refreshDividendsForGoals = refreshDividendsForGoals;
+
+function getMonthlyDividendsTotal(targetMonthStr) {
+    const ym = targetMonthStr || (new Date().toISOString().substring(0, 7));
+    const divs = (cachedDividendsList && cachedDividendsList.length > 0)
+        ? cachedDividendsList
+        : (Array.isArray(window.allDividends) ? window.allDividends : []);
+
+    return (divs || [])
+        .filter(d => {
+            const iso = getDividendISODate(d);
+            return iso && iso.startsWith(ym);
+        })
+        .reduce((sum, d) => sum + getDividendTotalValue(d), 0);
+}
+window.getMonthlyDividendsTotal = getMonthlyDividendsTotal;
+
+function getDividendGoalAnalysis(targetMonthlyAmount, targetYear) {
+    const yr = Number(targetYear) || currentCycleYear;
+    const now = new Date();
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const divs = (cachedDividendsList && cachedDividendsList.length > 0)
+        ? cachedDividendsList
+        : (Array.isArray(window.allDividends) ? window.allDividends : []);
+
+    const monthlyMap = new Map();
+    let totalYear = 0;
+
+    divs.forEach(d => {
+        const iso = getDividendISODate(d);
+        if (!iso) return;
+        const val = getDividendTotalValue(d);
+        if (val <= 0) return;
+
+        const ym = iso.substring(0, 7);
+        const itemYear = parseInt(iso.substring(0, 4), 10);
+
+        if (itemYear === yr) {
+            totalYear += val;
+        }
+
+        monthlyMap.set(ym, (monthlyMap.get(ym) || 0) + val);
+    });
+
+    const currentMonthVal = monthlyMap.get(currentYM) || 0;
+    const tgt = Number(targetMonthlyAmount) || 0;
+
+    let monthsOnTarget = 0;
+    let monthsWithDividendsInYear = 0;
+
+    for (let m = 1; m <= 12; m++) {
+        const key = `${yr}-${String(m).padStart(2, '0')}`;
+        const val = monthlyMap.get(key) || 0;
+        if (val > 0) monthsWithDividendsInYear++;
+        if (tgt > 0 && val >= tgt) {
+            monthsOnTarget++;
+        }
+    }
+
+    const avgYear = monthsWithDividendsInYear > 0 ? (totalYear / monthsWithDividendsInYear) : 0;
+
+    return {
+        currentMonthVal,
+        targetMonthlyAmount: tgt,
+        percentMonth: tgt > 0 ? Math.min(100, Math.round((currentMonthVal / tgt) * 100)) : 0,
+        rawPercentMonth: tgt > 0 ? Math.round((currentMonthVal / tgt) * 100) : 0,
+        monthsOnTarget,
+        totalYear,
+        avgYear,
+        monthsWithDividendsInYear
+    };
+}
+window.getDividendGoalAnalysis = getDividendGoalAnalysis;
+
+// Formata timestamp da última sincronização de patrimônio
+function formatEquityTimestamp(ts) {
+    if (!ts) return 'Atualizado';
+    try {
+        const d = new Date(ts);
+        if (isNaN(d.getTime())) return 'Atualizado';
+        const hours = String(d.getHours()).padStart(2, '0');
+        const mins = String(d.getMinutes()).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const today = new Date();
+        const isToday = d.toDateString() === today.toDateString();
+        return isToday ? `Hoje às ${hours}:${mins}` : `${day}/${month} às ${hours}:${mins}`;
+    } catch (_) {
+        return 'Atualizado';
+    }
+}
+window.formatEquityTimestamp = formatEquityTimestamp;
 
 // Resolve o ano de uma meta (para histórico, ano atual ou longo prazo)
 function resolveGoalYear(g) {
     if (!g) return currentCycleYear;
-    if (g.target_year === 'continuous' || g.year === 'continuous') return 'continuous';
+    if (g.target_year === 'continuous' || g.year === 'continuous' || g.is_continuous === true || g.temporal_mode === 'continuous') return 'continuous';
     if (g.target_year && !isNaN(parseInt(g.target_year))) return parseInt(g.target_year);
     if (g.year && !isNaN(parseInt(g.year))) return parseInt(g.year);
     if (g.deadline) {
@@ -31,45 +255,141 @@ function resolveGoalYear(g) {
     }
     const t = (g.title || '').toLowerCase();
     if (t.includes('longo prazo') || t.includes('reserva de emergência')) return 'continuous';
+    if (g.created_at) {
+        const y = parseInt(String(g.created_at).substring(0, 4));
+        if (!isNaN(y) && y > 1900 && y < 2200) return y;
+    }
     return 2026;
 }
 window.resolveGoalYear = resolveGoalYear;
 
-// Busca o patrimônio total atual da carteira de investimentos
-async function getLatestPortfolioValue() {
-    if (cachedTotalEquity > 0) return cachedTotalEquity;
+// Busca o patrimônio total atual da carteira de investimentos (portfolio_snapshots / user_stats / local cache)
+async function getLatestPortfolioValue(options = {}) {
+    const forceRefresh = !!(options && options.forceRefresh);
+    if (!forceRefresh && isEquityLoaded && cachedTotalEquity > 0) return cachedTotalEquity;
+
+    const uid = currentUser?.id || 'demo';
+
+    // 1. Tenta carregar do Supabase portfolio_snapshots (patrimônio em ativos e valor aplicado)
     try {
         if (window.supabaseClient && currentUser?.id) {
             const { data } = await window.supabaseClient
                 .from('portfolio_snapshots')
-                .select('total_equity')
+                .select('total_equity, total_invested, date, created_at')
                 .eq('user_id', currentUser.id)
                 .order('date', { ascending: false })
                 .limit(1);
             if (data && data.length > 0 && Number(data[0].total_equity) > 0) {
                 cachedTotalEquity = Number(data[0].total_equity);
+                cachedTotalInvested = Number(data[0].total_invested) || cachedTotalEquity;
+                cachedEquityGain = Math.round((cachedTotalEquity - cachedTotalInvested) * 100) / 100;
+                cachedEquityReturnPct = cachedTotalInvested > 0 ? (cachedEquityGain / cachedTotalInvested) * 100 : 0;
+                cachedTotalEquityUpdatedAt = data[0].created_at || data[0].date || new Date().toISOString();
+                isEquityLoaded = true;
+                try {
+                    localStorage.setItem('tonu_total_equity_' + uid, String(cachedTotalEquity));
+                    localStorage.setItem('tonu_total_invested_' + uid, String(cachedTotalInvested));
+                    localStorage.setItem('tonu_unrealized_gain_' + uid, String(cachedEquityGain));
+                    localStorage.setItem('tonu_return_pct_' + uid, String(cachedEquityReturnPct));
+                    localStorage.setItem('tonu_total_equity_updated_at_' + uid, cachedTotalEquityUpdatedAt);
+                } catch (_) {}
+                checkWealthGoalsCompletion();
                 return cachedTotalEquity;
             }
         }
     } catch (_) {}
 
+    // 2. Consulta user_stats como fallback secundário
     try {
-        const uid = currentUser?.id || 'demo';
-        const raw = localStorage.getItem('tonu_total_equity_' + uid) || 
-                    localStorage.getItem('tonu_total_equity') ||
-                    localStorage.getItem('tonu_investments_equity');
-        if (raw) {
-            const val = parseFloat(raw);
-            if (!isNaN(val) && val > 0) {
-                cachedTotalEquity = val;
+        if (window.supabaseClient && currentUser?.id) {
+            const { data: uStat } = await window.supabaseClient
+                .from('user_stats')
+                .select('patrimony, updated_at')
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+            if (uStat && Number(uStat.patrimony) > 0) {
+                cachedTotalEquity = Number(uStat.patrimony);
+                cachedTotalInvested = cachedTotalEquity;
+                cachedTotalEquityUpdatedAt = uStat.updated_at || new Date().toISOString();
+                isEquityLoaded = true;
+                checkWealthGoalsCompletion();
                 return cachedTotalEquity;
             }
         }
     } catch (_) {}
 
+    // 3. Fallback no localStorage
+    try {
+        const rawEq = localStorage.getItem('tonu_total_equity_' + uid) || 
+                      localStorage.getItem('tonu_total_equity') ||
+                      localStorage.getItem('tonu_investments_equity');
+        const rawInv = localStorage.getItem('tonu_total_invested_' + uid) ||
+                       localStorage.getItem('tonu_total_invested');
+        if (rawEq) {
+            const valEq = parseFloat(rawEq);
+            const valInv = rawInv ? parseFloat(rawInv) : valEq;
+            if (!isNaN(valEq) && valEq > 0) {
+                cachedTotalEquity = valEq;
+                cachedTotalInvested = !isNaN(valInv) ? valInv : valEq;
+                cachedEquityGain = Math.round((cachedTotalEquity - cachedTotalInvested) * 100) / 100;
+                cachedEquityReturnPct = cachedTotalInvested > 0 ? (cachedEquityGain / cachedTotalInvested) * 100 : 0;
+                cachedTotalEquityUpdatedAt = localStorage.getItem('tonu_total_equity_updated_at_' + uid) || null;
+                isEquityLoaded = true;
+                checkWealthGoalsCompletion();
+                return cachedTotalEquity;
+            }
+        }
+    } catch (_) {}
+
+    isEquityLoaded = true;
     return cachedTotalEquity;
 }
 window.getLatestPortfolioValue = getLatestPortfolioValue;
+
+// Força a atualização do patrimônio total para as metas
+async function refreshPortfolioValueForGoals() {
+    showToast('Atualizando patrimônio em custódia...', 'info');
+    await getLatestPortfolioValue({ forceRefresh: true });
+    renderFilteredGoals();
+    showToast('Patrimônio atualizado com sucesso!', 'success');
+}
+window.refreshPortfolioValueForGoals = refreshPortfolioValueForGoals;
+
+// Dispara celebração e notificação push quando meta de patrimônio atinge 100%
+function checkWealthGoalsCompletion() {
+    if (!cachedTotalEquity || cachedTotalEquity <= 0) return;
+    const wealthGoals = (allGoals || []).filter(g => (g.type === 'wealth' || g.type === 'net_worth') && !g.completed);
+    wealthGoals.forEach(g => {
+        const tgt = Number(g.target_amount) || 1;
+        if (cachedTotalEquity >= tgt) {
+            g.completed = true;
+            g.completed_at = new Date().toISOString();
+            if (typeof triggerCelebration === 'function') {
+                triggerCelebration(g.title, cachedTotalEquity);
+            }
+            if (typeof window.sendRealtimePush === 'function') {
+                try {
+                    window.sendRealtimePush({
+                        title: `🏆 Meta de Patrimônio Conquistada!`,
+                        body: `Parabéns! Você alcançou ${formatCurrency(cachedTotalEquity)} na meta "${g.title}"!`,
+                        url: 'pages/goals.html',
+                        tag: `goal-wealth-100-${g.id}`
+                    });
+                } catch (pushErr) {
+                    console.warn('⚠️ Erro ao enviar push de patrimônio:', pushErr);
+                }
+            }
+            if (window.supabaseClient && currentUser?.id) {
+                window.supabaseClient.from('goals').update({
+                    completed: true,
+                    completed_at: g.completed_at,
+                    updated_at: new Date().toISOString()
+                }).eq('id', g.id).eq('user_id', currentUser.id).then(() => {}).catch(() => {});
+            }
+        }
+    });
+}
+window.checkWealthGoalsCompletion = checkWealthGoalsCompletion;
 
 // Altera o ano selecionado no stepper ‹ 2026 ›
 function changeYear(delta) {
@@ -150,6 +470,7 @@ async function postponeGoal(goalId, targetYear) {
     if (!goal) return;
     const nextYear = targetYear || (currentCycleYear + 1);
     goal.target_year = nextYear;
+    goal.postponed_to = nextYear;
     goal.deadline = `${nextYear}-12-31`;
     goal.updated_at = new Date().toISOString();
 
@@ -160,6 +481,7 @@ async function postponeGoal(goalId, targetYear) {
         await window.tonuSync.enqueue('UPDATE_GOAL', {
             id: goal.id,
             target_year: nextYear,
+            postponed_to: nextYear,
             deadline: goal.deadline,
             updated_at: goal.updated_at
         });
@@ -205,7 +527,9 @@ async function quickAddAmount(goalId, amount) {
     renderFilteredGoals();
     updateGoalsStats(allGoals);
 
-    if (isCompleted && typeof triggerCelebration === 'function') {
+    if (typeof checkMilestones === 'function') {
+        await checkMilestones(goal, newAmount);
+    } else if (isCompleted && typeof triggerCelebration === 'function') {
         triggerCelebration(goal.title, newAmount);
     }
 
@@ -542,8 +866,11 @@ async function renderGoals(goals) {
     const container = document.getElementById('goalsContainer');
     if (!container) return;
 
-    // Atualiza patrimônio em cache para metas automáticas
-    await getLatestPortfolioValue();
+    // Atualiza patrimônio e proventos em cache para metas automáticas
+    await Promise.allSettled([
+        getLatestPortfolioValue(),
+        loadDividendsForGoals()
+    ]);
 
     if (goals.length === 0) {
         if (allGoals.length > 0) {
@@ -584,7 +911,8 @@ async function renderGoals(goals) {
         // TIPO 1: PROJETO / HÁBITO (📌 Check Simples - O caso do Portão!)
         if (goalType === 'habit' || goalType === 'project') {
             const completedDateText = g.completed_at ? formatDate(g.completed_at) : (g.deadline ? formatDate(g.deadline) : null);
-            const isPostponed = !isComplete && g.target_year && g.target_year > currentCycleYear;
+            const isPostponed = !isComplete && (g.postponed_to || (g.target_year && g.target_year > currentCycleYear) || (typeof goalYear === 'number' && goalYear < currentCycleYear));
+            const postponedYear = g.postponed_to || g.target_year || (currentCycleYear + 1);
 
             return `
                 <div class="goal-card ${isComplete ? 'completed' : ''}" 
@@ -606,7 +934,7 @@ async function renderGoals(goals) {
                         </div>
 
                         <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}" style="${!isComplete && isPostponed ? 'background:rgba(100,116,139,0.15); color:#64748B;' : ''}">
-                            ${isComplete ? '🏆 Concluído' : (isPostponed ? `🔄 Para ${g.target_year}` : '⏳ Em andamento')}
+                            ${isComplete ? '🏆 Concluído' : (isPostponed ? `🔄 Para ${postponedYear}` : '⏳ Em andamento')}
                         </span>
                     </div>
 
@@ -614,7 +942,7 @@ async function renderGoals(goals) {
                         <div>
                             <span class="goal-val-label">Status da Conquista</span>
                             <strong style="font-size: 13px; color:${isComplete ? '#10b981' : (isPostponed ? '#64748B' : '#d97706')}; display:block;">
-                                ${isComplete ? '✅ Conquistado com sucesso' : (isPostponed ? `🔄 Reprogramada para ${g.target_year}` : '⏳ Em andamento')}
+                                ${isComplete ? '✅ Conquistado com sucesso' : (isPostponed ? `🔄 Reprogramada para ${postponedYear}` : '⏳ Em andamento')}
                             </strong>
                         </div>
                         <div style="text-align: right;">
@@ -657,12 +985,23 @@ async function renderGoals(goals) {
 
         // TIPO 2: DIVIDENDOS MENSAIS AUTOMÁTICOS (📈)
         if (goalType === 'dividends') {
-            const monthlyDivs = getMonthlyDividendsTotal();
             const targetAmount = Number(g.target_amount) || 1;
-            const percent = Math.min(100, Math.round((monthlyDivs / targetAmount) * 100));
+            const analysis = getDividendGoalAnalysis(targetAmount, goalYear);
+            const monthlyDivs = analysis.currentMonthVal;
+            const percent = analysis.percentMonth;
+            const isMonthlyTargetMet = targetAmount > 0 && monthlyDivs >= targetAmount;
+
+            let consistencyText = '';
+            if (analysis.monthsOnTarget > 0) {
+                consistencyText = `<span>🎯 <strong>${analysis.monthsOnTarget} ${analysis.monthsOnTarget === 1 ? 'mês atingiu' : 'meses atingiram'}</strong> o alvo de ${formatCurrency(targetAmount)}</span>`;
+            } else if (analysis.totalYear > 0) {
+                consistencyText = `<span>📊 Acumulado em ${goalYear}: <strong>${formatCurrency(analysis.totalYear)}</strong> (Média: ${formatCurrency(analysis.avgYear)}/mês)</span>`;
+            } else {
+                consistencyText = `<span>Aguardando primeiros proventos registrados em ${goalYear}</span>`;
+            }
 
             return `
-                <div class="goal-card ${isComplete ? 'completed' : ''}" 
+                <div class="goal-card ${isComplete || isMonthlyTargetMet ? 'completed' : ''}" 
                      style="--goal-accent-color: #10B981;"
                      onclick="editGoal('${g.id}')">
                     
@@ -672,12 +1011,12 @@ async function renderGoals(goals) {
                         </div>
                         <div class="goal-title-wrap">
                             <div class="goal-category-tag">
-                                <span style="color:#059669; font-weight:700;"><i class="fas fa-chart-line"></i> 📈 Proventos Mensais</span>
+                                <span style="color:#059669; font-weight:700;"><i class="fas fa-chart-line"></i> 📈 Proventos da Carteira</span>
                             </div>
                             <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
                         </div>
-                        <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}">
-                            ${isComplete ? '🏆 Atingido' : `${percent}%`}
+                        <span class="goal-status-badge ${isComplete || isMonthlyTargetMet ? 'completed-badge' : 'in-progress'}">
+                            ${isComplete ? '🏆 Atingido' : (isMonthlyTargetMet ? `🏆 Meta do Mês!` : `${percent}%`)}
                         </span>
                     </div>
 
@@ -695,19 +1034,25 @@ async function renderGoals(goals) {
                     <div class="goal-progress-box">
                         <div class="goal-progress-meta">
                             <span>Progresso: <strong>${formatCurrency(monthlyDivs)} de ${formatCurrency(targetAmount)}</strong></span>
-                            <span class="goal-progress-pct" style="color:#10b981;">${percent}%</span>
+                            <span class="goal-progress-pct" style="color:#10b981;">${analysis.rawPercentMonth}%</span>
                         </div>
                         <div class="goal-progress-track">
-                            <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${percent}%; background:#10B981;"></div>
+                            <div class="goal-progress-fill ${isComplete || isMonthlyTargetMet ? 'completed' : ''}" style="width: ${percent}%; background:#10B981;"></div>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary, #64748B); margin-top: 6px; display: flex; align-items: center; gap: 5px;">
+                            ${consistencyText}
                         </div>
                     </div>
 
-                    <div class="auto-sync-tag dividends">
-                        <i class="fas fa-bolt"></i> Sincronizado automaticamente com os Proventos da B3
+                    <div class="auto-sync-tag dividends" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                        <span><i class="fas fa-wallet"></i> Sincronizado com os proventos da carteira TonuControle</span>
+                        <button type="button" onclick="event.stopPropagation(); refreshDividendsForGoals();" title="Recarregar proventos agora" style="background:transparent; border:none; color:#059669; cursor:pointer; font-size:11.5px; font-weight:700; display:flex; align-items:center; gap:4px; padding:2px 6px; border-radius:4px;">
+                            <i class="fas fa-redo-alt"></i> Atualizar agora
+                        </button>
                     </div>
 
                     <div class="goal-actions-bar" onclick="event.stopPropagation();">
-                        <button type="button" class="btn-card-action" onclick="window.location.href='investments.html'" style="background:rgba(16,185,129,0.12); color:#047857; font-weight:700; flex:1;">
+                        <button type="button" class="btn-card-action" onclick="window.location.href='investments.html#proventos'" style="background:rgba(16,185,129,0.12); color:#047857; font-weight:700; flex:1;">
                             <i class="fas fa-chart-line"></i> Ver Proventos
                         </button>
                         <button type="button" class="btn-card-icon-only" onclick="editGoal('${g.id}')" title="Editar detalhes">
@@ -724,8 +1069,19 @@ async function renderGoals(goals) {
         // TIPO 3: PATRIMÔNIO TOTAL AUTOMÁTICO (🏦)
         if (goalType === 'wealth' || goalType === 'net_worth') {
             const currentEquity = cachedTotalEquity || 0;
+            const currentInvested = cachedTotalInvested || currentEquity;
             const targetAmount = Number(g.target_amount) || 1;
             const percent = Math.min(100, Math.round((currentEquity / targetAmount) * 100));
+            const formattedTime = formatEquityTimestamp(cachedTotalEquityUpdatedAt);
+            const diffReturn = currentEquity - currentInvested;
+            const returnPct = currentInvested > 0 ? (diffReturn / currentInvested) * 100 : 0;
+            const sign = diffReturn >= 0 ? '+' : '';
+
+            let detailsReturn = '';
+            if (currentInvested > 0 && Math.abs(diffReturn) > 0.01) {
+                const colorRet = diffReturn >= 0 ? '#10B981' : '#F59E0B';
+                detailsReturn = `<span style="font-size:11px; color:${colorRet}; font-weight:600;">Aplicado: ${formatCurrency(currentInvested)} (${sign}${returnPct.toFixed(2)}%)</span>`;
+            }
 
             return `
                 <div class="goal-card ${isComplete ? 'completed' : ''}" 
@@ -743,33 +1099,40 @@ async function renderGoals(goals) {
                             <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
                         </div>
                         <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}" style="${isComplete ? '' : 'background:rgba(139, 92, 246, 0.12); color:#7C3AED;'}">
-                            ${isComplete ? '🏆 Conquistado' : `${percent}%`}
+                            ${isComplete ? '🏆 Conquistado' : (isEquityLoaded ? `${percent}%` : '—')}
                         </span>
                     </div>
 
                     <div class="goal-finance-row">
                         <div class="goal-val-box">
-                            <span class="goal-val-label">Patrimônio em Custódia</span>
-                            <span class="goal-val-current" style="color:#7C3AED;">${formatCurrency(currentEquity)}</span>
+                            <span class="goal-val-label">Patrimônio Atual em Ativos</span>
+                            <span class="goal-val-current" style="color:#7C3AED;">${isEquityLoaded ? formatCurrency(currentEquity) : '—'}</span>
+                            ${detailsReturn ? `<div style="margin-top:2px;">${detailsReturn}</div>` : ''}
                         </div>
                         <div class="goal-val-box" style="text-align: right;">
                             <span class="goal-val-label">Meta de Patrimônio</span>
                             <span class="goal-val-target">${formatCurrency(targetAmount)}</span>
+                            <div style="font-size:11px; color:var(--text-secondary, #64748B); margin-top:2px;">
+                                ${isComplete ? 'Meta alcançada!' : `Faltam: ${formatCurrency(Math.max(0, targetAmount - currentEquity))}`}
+                            </div>
                         </div>
                     </div>
 
                     <div class="goal-progress-box">
                         <div class="goal-progress-meta">
-                            <span>${isComplete ? '🎉 Conquista de Patrimônio Batida!' : `Faltam ${formatCurrency(Math.max(0, targetAmount - currentEquity))}`}</span>
-                            <span class="goal-progress-pct" style="color:#7C3AED;">${percent}%</span>
+                            <span>${isComplete ? '🎉 Conquista de Patrimônio Batida!' : (isEquityLoaded ? `Progresso: <strong>${formatCurrency(currentEquity)} de ${formatCurrency(targetAmount)}</strong>` : 'Carregando custódia...')}</span>
+                            <span class="goal-progress-pct" style="color:#7C3AED;">${isEquityLoaded ? percent + '%' : '—'}</span>
                         </div>
                         <div class="goal-progress-track">
-                            <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${percent}%; background:#8B5CF6;"></div>
+                            <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${isEquityLoaded ? percent : 0}%; background:#8B5CF6;"></div>
                         </div>
                     </div>
 
-                    <div class="auto-sync-tag wealth">
-                        <i class="fas fa-sync-alt"></i> Custódia sincronizada (Ações + FIIs + Renda Fixa)
+                    <div class="auto-sync-tag wealth" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                        <span><i class="fas fa-sync-alt"></i> Custódia • ${formattedTime}</span>
+                        <button type="button" onclick="event.stopPropagation(); refreshPortfolioValueForGoals();" title="Forçar atualização da custódia agora" style="background:transparent; border:none; color:#7C3AED; cursor:pointer; font-size:11.5px; font-weight:700; display:flex; align-items:center; gap:4px; padding:2px 6px; border-radius:4px;">
+                            <i class="fas fa-redo-alt"></i> Atualizar agora
+                        </button>
                     </div>
 
                     <div class="goal-actions-bar" onclick="event.stopPropagation();">
@@ -1044,28 +1407,6 @@ function toggleGoalTypeFields() {
 }
 window.toggleGoalTypeFields = toggleGoalTypeFields;
 
-function getMonthlyDividendsTotal(targetMonthStr) {
-    const ym = targetMonthStr || (new Date().toISOString().substring(0, 7));
-    let divs = [];
-    if (Array.isArray(window.allDividends) && window.allDividends.length > 0) {
-        divs = window.allDividends;
-    } else {
-        try {
-            const uid = (currentUser && currentUser.id) ? currentUser.id : 'demo';
-            const raw = localStorage.getItem('tonucontrole_dividends_' + uid) || 
-                        localStorage.getItem('tonu_dividends_' + uid) ||
-                        localStorage.getItem('tonu_dividends_current');
-            if (raw) divs = JSON.parse(raw);
-        } catch (_) {}
-    }
-    return (divs || [])
-        .filter(d => {
-            const dt = d.payment_date || d.date || d.created_at || '';
-            return dt.startsWith(ym);
-        })
-        .reduce((sum, d) => sum + (Number(d.net_value ?? d.amount ?? d.total_value ?? 0) || 0), 0);
-}
-window.getMonthlyDividendsTotal = getMonthlyDividendsTotal;
 
 async function toggleHabitStatus(goalId) {
     const goal = allGoals.find(g => String(g.id) === String(goalId));

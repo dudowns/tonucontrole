@@ -848,22 +848,22 @@
 
             <!-- Seletor dos 4 Tipos de Meta -->
             <div class="type-selector-mobile-grid">
-                <div class="type-card-mobile-opt selected" onclick="selectMobileGoalType('project', this)">
+                <div class="type-card-mobile-opt selected" data-type="project" onclick="selectMobileGoalType('project', this)">
                     <i class="fas fa-tasks" style="color:#38BDF8;"></i>
                     <div class="type-title">📌 Projeto</div>
                     <div class="type-desc">Checklist sim/não</div>
                 </div>
-                <div class="type-card-mobile-opt" onclick="selectMobileGoalType('financial', this)">
+                <div class="type-card-mobile-opt" data-type="financial" onclick="selectMobileGoalType('financial', this)">
                     <i class="fas fa-piggy-bank" style="color:#F59E0B;"></i>
                     <div class="type-title">💰 Dinheiro</div>
                     <div class="type-desc">Aportes manuais</div>
                 </div>
-                <div class="type-card-mobile-opt" onclick="selectMobileGoalType('dividends', this)">
+                <div class="type-card-mobile-opt" data-type="dividends" onclick="selectMobileGoalType('dividends', this)">
                     <i class="fas fa-hand-holding-usd" style="color:#10B981;"></i>
                     <div class="type-title">📈 Proventos</div>
-                    <div class="type-desc">Auto da B3/mês</div>
+                    <div class="type-desc">Auto da carteira</div>
                 </div>
-                <div class="type-card-mobile-opt" onclick="selectMobileGoalType('wealth', this)">
+                <div class="type-card-mobile-opt" data-type="wealth" onclick="selectMobileGoalType('wealth', this)">
                     <i class="fas fa-chart-pie" style="color:#8B5CF6;"></i>
                     <div class="type-title">🏦 Patrimônio</div>
                     <div class="type-desc">Auto da custódia</div>
@@ -1253,6 +1253,208 @@ function updateMobileTemporalHeader() {
 }
 window.updateMobileTemporalHeader = updateMobileTemporalHeader;
 
+let cachedTotalEquityMobile = 0;
+let cachedTotalInvestedMobile = 0;
+let cachedEquityGainMobile = 0;
+let cachedEquityReturnPctMobile = 0;
+let cachedTotalEquityUpdatedAtMobile = null;
+let isEquityLoadedMobile = false;
+
+let cachedDividendsListMobile = [];
+let isDividendsLoadedMobile = false;
+let cachedDividendsUpdatedAtMobile = null;
+
+function parseBrazilianNumberMobile(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return isNaN(value) ? 0 : value;
+    let str = String(value).trim().replace(/[R$\s]/gi, '');
+    if (str.includes('.') && str.includes(',')) {
+        str = str.replace(/\./g, '').replace(',', '.');
+    } else if (str.includes(',')) {
+        str = str.replace(',', '.');
+    }
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+}
+
+function getDividendISODateMobile(d) {
+    if (!d) return '';
+    let s = String(d.payment_date || d.date || d.paymentDate || d.created_at || '').trim();
+    if (!s) return '';
+    if (s.includes('T')) s = s.split('T')[0];
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const parts = s.split('/');
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) {
+        const parts = s.split('-');
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    }
+    return s;
+}
+
+function getDividendTotalValueMobile(d) {
+    if (!d) return 0;
+    if (d.total_value !== undefined && d.total_value !== null && d.total_value !== '') {
+        const val = parseBrazilianNumberMobile(d.total_value);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    if (d.net_value !== undefined && d.net_value !== null && d.net_value !== '') {
+        const val = parseBrazilianNumberMobile(d.net_value);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    if (d.amount !== undefined && d.amount !== null && d.amount !== '') {
+        const val = parseBrazilianNumberMobile(d.amount);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    const qty = parseBrazilianNumberMobile(d.quantity);
+    const unit = parseBrazilianNumberMobile(d.unit_value);
+    const calc = qty * unit;
+    return (!isNaN(calc) && calc > 0) ? calc : 0;
+}
+
+async function loadDividendsForGoalsMobile(force = false) {
+    if (!force && isDividendsLoadedMobile && cachedDividendsListMobile.length > 0) {
+        return cachedDividendsListMobile;
+    }
+
+    let loaded = [];
+    if (Array.isArray(window.allDividends) && window.allDividends.length > 0) {
+        loaded = [...window.allDividends];
+    }
+
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('dividends')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('date', { ascending: false });
+            if (!error && data && data.length > 0) {
+                loaded = data;
+                window.allDividends = data;
+            }
+        } catch (_) {}
+    }
+
+    if (loaded.length === 0) {
+        try {
+            const uid = currentUser?.id || 'demo';
+            const keys = [
+                'tonucontrole_dividends_' + uid,
+                'tonu_dividends_' + uid,
+                'tonucontrole_dividends_demo',
+                'tonu_dividends',
+                'tonu_dividends_current'
+            ];
+            for (const k of keys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+
+    cachedDividendsListMobile = loaded;
+    isDividendsLoadedMobile = true;
+    cachedDividendsUpdatedAtMobile = new Date().toISOString();
+    return cachedDividendsListMobile;
+}
+window.loadDividendsForGoalsMobile = loadDividendsForGoalsMobile;
+
+async function refreshMobileDividends() {
+    showToast('Atualizando proventos da carteira...', 'info');
+    await loadDividendsForGoalsMobile(true);
+    renderMobileGoals();
+    updateHeroStats();
+    showToast('Proventos atualizados!', 'success');
+}
+window.refreshMobileDividends = refreshMobileDividends;
+
+function getDividendGoalAnalysisMobile(targetMonthlyAmount, targetYear) {
+    const yr = Number(targetYear) || currentCycleYearMobile || 2026;
+    const now = new Date();
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const divs = (cachedDividendsListMobile && cachedDividendsListMobile.length > 0)
+        ? cachedDividendsListMobile
+        : (Array.isArray(window.allDividends) ? window.allDividends : []);
+
+    const monthlyMap = new Map();
+    let totalYear = 0;
+
+    divs.forEach(d => {
+        const iso = getDividendISODateMobile(d);
+        if (!iso) return;
+        const val = getDividendTotalValueMobile(d);
+        if (val <= 0) return;
+
+        const ym = iso.substring(0, 7);
+        const itemYear = parseInt(iso.substring(0, 4), 10);
+
+        if (itemYear === yr) {
+            totalYear += val;
+        }
+
+        monthlyMap.set(ym, (monthlyMap.get(ym) || 0) + val);
+    });
+
+    const currentMonthVal = monthlyMap.get(currentYM) || 0;
+    const tgt = Number(targetMonthlyAmount) || 0;
+
+    let monthsOnTarget = 0;
+    let monthsWithDividendsInYear = 0;
+
+    for (let m = 1; m <= 12; m++) {
+        const key = `${yr}-${String(m).padStart(2, '0')}`;
+        const val = monthlyMap.get(key) || 0;
+        if (val > 0) monthsWithDividendsInYear++;
+        if (tgt > 0 && val >= tgt) {
+            monthsOnTarget++;
+        }
+    }
+
+    const avgYear = monthsWithDividendsInYear > 0 ? (totalYear / monthsWithDividendsInYear) : 0;
+
+    return {
+        currentMonthVal,
+        targetMonthlyAmount: tgt,
+        percentMonth: tgt > 0 ? Math.min(100, Math.round((currentMonthVal / tgt) * 100)) : 0,
+        rawPercentMonth: tgt > 0 ? Math.round((currentMonthVal / tgt) * 100) : 0,
+        monthsOnTarget,
+        totalYear,
+        avgYear,
+        monthsWithDividendsInYear
+    };
+}
+window.getDividendGoalAnalysisMobile = getDividendGoalAnalysisMobile;
+
+function formatEquityTimestampMobile(ts) {
+    if (!ts) return 'Atualizado';
+    try {
+        const d = new Date(ts);
+        if (isNaN(d.getTime())) return 'Atualizado';
+        const hours = String(d.getHours()).padStart(2, '0');
+        const mins = String(d.getMinutes()).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const today = new Date();
+        const isToday = d.toDateString() === today.toDateString();
+        return isToday ? `Hoje às ${hours}:${mins}` : `${day}/${month} às ${hours}:${mins}`;
+    } catch (_) {
+        return 'Atualizado';
+    }
+}
+window.formatEquityTimestampMobile = formatEquityTimestampMobile;
+
 function isGoalCompleteMobile(g) {
     if (!g) return false;
     const type = g.type || 'financial';
@@ -1261,29 +1463,141 @@ function isGoalCompleteMobile(g) {
         const tgt = Number(g.target_amount) || 0;
         return tgt > 0 && getMonthlyDividendsTotalMobile() >= tgt;
     }
+    if (type === 'wealth' || type === 'net_worth') {
+        const tgt = Number(g.target_amount) || 0;
+        const eq = cachedTotalEquityMobile > 0 ? cachedTotalEquityMobile : (Number(g.current_amount) || 0);
+        return !!g.completed || (tgt > 0 && eq >= tgt);
+    }
     const cur = Number(g.current_amount) || 0;
     const tgt = Number(g.target_amount) || 0;
     return !!g.completed || (tgt > 0 && cur >= tgt);
 }
+window.isGoalCompleteMobile = isGoalCompleteMobile;
 
-async function getLatestPortfolioValueMobile() {
+async function getLatestPortfolioValueMobile(options = {}) {
+    const force = !!(options && options.forceRefresh);
+    if (!force && isEquityLoadedMobile && cachedTotalEquityMobile > 0) {
+        return cachedTotalEquityMobile;
+    }
+
+    const uid = currentUser?.id || 'demo';
+
     try {
         if (window.supabaseClient && currentUser?.id) {
             const { data } = await window.supabaseClient
                 .from('portfolio_snapshots')
-                .select('total_equity')
+                .select('total_equity, total_invested, date, created_at')
                 .eq('user_id', currentUser.id)
-                .order('created_at', { ascending: false })
+                .order('date', { ascending: false })
                 .limit(1);
-            if (data && data[0]?.total_equity) {
-                return Number(data[0].total_equity);
+            if (data && data[0]?.total_equity && Number(data[0].total_equity) > 0) {
+                cachedTotalEquityMobile = Number(data[0].total_equity);
+                cachedTotalInvestedMobile = Number(data[0].total_invested) || cachedTotalEquityMobile;
+                cachedEquityGainMobile = Math.round((cachedTotalEquityMobile - cachedTotalInvestedMobile) * 100) / 100;
+                cachedEquityReturnPctMobile = cachedTotalInvestedMobile > 0 ? (cachedEquityGainMobile / cachedTotalInvestedMobile) * 100 : 0;
+                cachedTotalEquityUpdatedAtMobile = data[0].created_at || data[0].date || new Date().toISOString();
+                isEquityLoadedMobile = true;
+                try {
+                    localStorage.setItem('tonu_total_equity_' + uid, String(cachedTotalEquityMobile));
+                    localStorage.setItem('tonu_total_invested_' + uid, String(cachedTotalInvestedMobile));
+                    localStorage.setItem('tonu_unrealized_gain_' + uid, String(cachedEquityGainMobile));
+                    localStorage.setItem('tonu_return_pct_' + uid, String(cachedEquityReturnPctMobile));
+                    localStorage.setItem('tonu_total_equity_updated_at_' + uid, cachedTotalEquityUpdatedAtMobile);
+                } catch (_) {}
+                checkMobileWealthGoalsCompletion();
+                return cachedTotalEquityMobile;
             }
         }
-        const cached = localStorage.getItem('tonu_portfolio_equity_' + (currentUser?.id || 'demo'));
-        if (cached) return Number(cached) || 0;
     } catch (_) {}
-    return 0;
+
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            const { data: uStat } = await window.supabaseClient
+                .from('user_stats')
+                .select('patrimony, updated_at')
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+            if (uStat && Number(uStat.patrimony) > 0) {
+                cachedTotalEquityMobile = Number(uStat.patrimony);
+                cachedTotalInvestedMobile = cachedTotalEquityMobile;
+                cachedTotalEquityUpdatedAtMobile = uStat.updated_at || new Date().toISOString();
+                isEquityLoadedMobile = true;
+                checkMobileWealthGoalsCompletion();
+                return cachedTotalEquityMobile;
+            }
+        }
+    } catch (_) {}
+
+    try {
+        const cached = localStorage.getItem('tonu_total_equity_' + uid) || 
+                       localStorage.getItem('tonu_portfolio_equity_' + uid) ||
+                       localStorage.getItem('tonu_total_equity');
+        const rawInv = localStorage.getItem('tonu_total_invested_' + uid) ||
+                       localStorage.getItem('tonu_total_invested');
+        if (cached) {
+            const val = Number(cached);
+            const valInv = rawInv ? Number(rawInv) : val;
+            if (!isNaN(val) && val > 0) {
+                cachedTotalEquityMobile = val;
+                cachedTotalInvestedMobile = !isNaN(valInv) ? valInv : val;
+                cachedEquityGainMobile = Math.round((cachedTotalEquityMobile - cachedTotalInvestedMobile) * 100) / 100;
+                cachedEquityReturnPctMobile = cachedTotalInvestedMobile > 0 ? (cachedEquityGainMobile / cachedTotalInvestedMobile) * 100 : 0;
+                cachedTotalEquityUpdatedAtMobile = localStorage.getItem('tonu_total_equity_updated_at_' + uid) || null;
+                isEquityLoadedMobile = true;
+                checkMobileWealthGoalsCompletion();
+                return cachedTotalEquityMobile;
+            }
+        }
+    } catch (_) {}
+
+    isEquityLoadedMobile = true;
+    return cachedTotalEquityMobile;
 }
+window.getLatestPortfolioValueMobile = getLatestPortfolioValueMobile;
+
+async function refreshMobilePortfolioValue() {
+    showToast('Atualizando patrimônio em custódia...', 'info');
+    await getLatestPortfolioValueMobile({ forceRefresh: true });
+    updateHeroStats();
+    renderGoals();
+    showToast('Patrimônio atualizado com sucesso!', 'success');
+}
+window.refreshMobilePortfolioValue = refreshMobilePortfolioValue;
+
+function checkMobileWealthGoalsCompletion() {
+    if (!cachedTotalEquityMobile || cachedTotalEquityMobile <= 0) return;
+    const wealthGoals = (goals || []).filter(g => (g.type === 'wealth' || g.type === 'net_worth') && !g.completed);
+    wealthGoals.forEach(g => {
+        const tgt = Number(g.target_amount) || 1;
+        if (cachedTotalEquityMobile >= tgt) {
+            g.completed = true;
+            g.completed_at = new Date().toISOString();
+            if (typeof triggerCelebrationModal === 'function') {
+                triggerCelebrationModal(g.title, cachedTotalEquityMobile);
+            }
+            if (typeof window.sendRealtimePush === 'function') {
+                try {
+                    window.sendRealtimePush({
+                        title: `🏆 Meta de Patrimônio Conquistada!`,
+                        body: `Parabéns! Você alcançou ${formatCurrency(cachedTotalEquityMobile)} na meta "${g.title}"!`,
+                        url: 'pages/mobile/goals.html',
+                        tag: `goal-wealth-100-${g.id}`
+                    });
+                } catch (pushErr) {
+                    console.warn('⚠️ Erro push wealth mobile:', pushErr);
+                }
+            }
+            if (window.supabaseClient && currentUser?.id) {
+                window.supabaseClient.from('goals').update({
+                    completed: true,
+                    completed_at: g.completed_at,
+                    updated_at: new Date().toISOString()
+                }).eq('id', g.id).eq('user_id', currentUser.id).then(() => {}).catch(() => {});
+            }
+        }
+    });
+}
+window.checkMobileWealthGoalsCompletion = checkMobileWealthGoalsCompletion;
 
 // Seletor de Tipo no Modal (Mobile)
 function selectMobileGoalType(type, elem) {
@@ -1305,6 +1619,7 @@ async function postponeMobileGoal(id, nextYear) {
 
     const targetYear = nextYear || (currentCycleYear + 1);
     goal.target_year = targetYear;
+    goal.postponed_to = targetYear;
     goal.year = targetYear;
     goal.deadline = `${targetYear}-12-31`;
     goal.updated_at = new Date().toISOString();
@@ -1317,6 +1632,7 @@ async function postponeMobileGoal(id, nextYear) {
         await window.tonuSync.enqueue('UPDATE_GOAL', {
             id: goal.id,
             target_year: targetYear,
+            postponed_to: targetYear,
             deadline: goal.deadline,
             updated_at: goal.updated_at
         });
@@ -1354,7 +1670,9 @@ async function quickAddMobileAmount(id, amt) {
     goal.current_amount = newAmount;
     goal.completed = isCompleted;
 
-    if (isCompleted) {
+    if (typeof checkMilestonesMobile === 'function') {
+        await checkMilestonesMobile(goal, newAmount);
+    } else if (isCompleted) {
         triggerCelebrationModal(goal.title, Math.max(goal.target_amount || 0, newAmount));
     } else {
         showToast(`Aporte rápido de ${formatCurrency(amt)} adicionado!`, 'success');
@@ -1467,6 +1785,10 @@ async function loadGoals() {
             }
         }
 
+        await Promise.allSettled([
+            getLatestPortfolioValueMobile(),
+            loadDividendsForGoalsMobile()
+        ]);
         updateHeroStats();
         renderGoals();
     } catch (error) {
@@ -1565,7 +1887,9 @@ function renderGoals() {
         // TIPO 1: PROJETO / HÁBITO MOBILE (📌 - Portão, Reforma, etc.)
         if (goalType === 'habit' || goalType === 'project') {
             const completedDateText = g.completed_at ? formatDate(g.completed_at) : (g.deadline ? formatDate(g.deadline) : null);
-            const isPostponed = !isCompleted && (g.postponed_to || (currentCycleYear < 2026));
+            const goalYear = resolveGoalYear(g);
+            const isPostponed = !isCompleted && (g.postponed_to || (g.target_year && g.target_year > currentCycleYear) || (typeof goalYear === 'number' && goalYear < currentCycleYear));
+            const postponedYear = g.postponed_to || g.target_year || (currentCycleYear + 1);
 
             return `
                 <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${isCompleted ? '#00B894' : '#38BDF8'};">
@@ -1581,7 +1905,7 @@ function renderGoals() {
                         </div>
                         <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}" style="${isPostponed ? 'background:rgba(100,116,139,0.15); color:#64748B;' : ''}">
                             <i class="fas ${isCompleted ? 'fa-check' : (isPostponed ? 'fa-redo' : 'fa-hourglass-half')}"></i>
-                            ${isCompleted ? 'Concluído' : (isPostponed ? 'Reprogramada' : 'Em andamento')}
+                            ${isCompleted ? 'Concluído' : (isPostponed ? `Para ${postponedYear}` : 'Em andamento')}
                         </span>
                     </div>
 
@@ -1589,7 +1913,7 @@ function renderGoals() {
                         <div>
                             <span style="font-size:10px; color:#94a3b8; display:block;">Status</span>
                             <span style="font-size:12.5px; font-weight:700; color:${isCompleted ? '#00B894' : (isPostponed ? '#64748B' : '#F59E0B')};">
-                                ${isCompleted ? `🏆 Concluído ${completedDateText ? '('+completedDateText+')' : ''}` : (isPostponed ? `🔄 Reprogramada para ${g.postponed_to || (currentCycleYear + 1)}` : '⏳ Em Andamento')}
+                                ${isCompleted ? `🏆 Concluído ${completedDateText ? '('+completedDateText+')' : ''}` : (isPostponed ? `🔄 Reprogramada para ${postponedYear}` : '⏳ Em Andamento')}
                             </span>
                         </div>
                         <div style="text-align:right;">
@@ -1621,12 +1945,23 @@ function renderGoals() {
 
         // TIPO 2: DIVIDENDOS MENSAIS AUTOMÁTICOS (📈)
         if (goalType === 'dividends') {
-            const monthlyDivs = getMonthlyDividendsTotalMobile();
             const tgt = Number(g.target_amount) || 1;
-            const percent = Math.min(100, Math.round((monthlyDivs / tgt) * 100));
+            const analysis = getDividendGoalAnalysisMobile(tgt, g.target_year || currentCycleYearMobile || 2026);
+            const monthlyDivs = analysis.currentMonthVal;
+            const percent = analysis.percentMonth;
+            const isMonthlyTargetMet = tgt > 0 && monthlyDivs >= tgt;
+
+            let consistencyText = '';
+            if (analysis.monthsOnTarget > 0) {
+                consistencyText = `🎯 <strong>${analysis.monthsOnTarget} ${analysis.monthsOnTarget === 1 ? 'mês bateu' : 'meses bateram'}</strong> o alvo de ${formatCurrency(tgt)}`;
+            } else if (analysis.totalYear > 0) {
+                consistencyText = `📊 Acumulado no ano: <strong>${formatCurrency(analysis.totalYear)}</strong>`;
+            } else {
+                consistencyText = `Aguardando primeiros proventos registrados`;
+            }
 
             return `
-                <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:#10B981;">
+                <div class="goal-card ${isCompleted || isMonthlyTargetMet ? 'completed' : ''}" style="border-left-color:#10B981;">
                     <div class="goal-card-top">
                         <div class="goal-title-group">
                             <div class="goal-category-icon" style="background:#10B981;">
@@ -1634,12 +1969,12 @@ function renderGoals() {
                             </div>
                             <div>
                                 <h3>${g.title}</h3>
-                                <small style="color:#10B981; font-weight:600;">📈 Proventos B3</small>
+                                <small style="color:#10B981; font-weight:600;">📈 Proventos da Carteira</small>
                             </div>
                         </div>
-                        <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
-                            <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-chart-line'}"></i>
-                            ${isCompleted ? 'Atingido!' : `${percent}%`}
+                        <span class="goal-badge ${isCompleted || isMonthlyTargetMet ? 'done' : 'ongoing'}">
+                            <i class="fas ${isCompleted || isMonthlyTargetMet ? 'fa-trophy' : 'fa-chart-line'}"></i>
+                            ${isCompleted ? 'Atingido!' : (isMonthlyTargetMet ? 'Meta do Mês! 🏆' : `${percent}%`)}
                         </span>
                     </div>
 
@@ -1651,7 +1986,7 @@ function renderGoals() {
                         <div style="text-align:right;">
                             <span class="goal-target-val">Alvo Mensal: <strong>${formatCurrency(tgt)}</strong></span>
                             <span style="font-size:10px; color:#94a3b8; display:block;">
-                                ${isCompleted ? 'Meta batida! 🎉' : `Falta: ${formatCurrency(Math.max(0, tgt - monthlyDivs))}`}
+                                ${isMonthlyTargetMet ? 'Meta batida! 🎉' : `Falta: ${formatCurrency(Math.max(0, tgt - monthlyDivs))}`}
                             </span>
                         </div>
                     </div>
@@ -1660,12 +1995,19 @@ function renderGoals() {
                         <div class="goal-progress-fill" style="width: ${percent}%; background: #10B981;"></div>
                     </div>
 
-                    <div class="auto-sync-tag-mobile">
-                        <i class="fas fa-bolt"></i> Conectado em tempo real aos Proventos da B3
+                    <div style="font-size:10.5px; color:#64748b; margin-top:5px;">
+                        ${consistencyText}
+                    </div>
+
+                    <div class="auto-sync-tag-mobile" style="color:#047857; background:rgba(16,185,129,0.1); display:flex; justify-content:space-between; align-items:center;">
+                        <span><i class="fas fa-wallet"></i> Proventos da Carteira</span>
+                        <button type="button" onclick="refreshMobileDividends()" style="background:none; border:none; color:#047857; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; padding:2px 4px;">
+                            <i class="fas fa-redo-alt"></i> Atualizar
+                        </button>
                     </div>
 
                     <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
-                        <button type="button" class="btn-goal-act" style="background:rgba(16,185,129,0.12); color:#047857; font-weight:700;" onclick="window.location.href='investments.html'">
+                        <button type="button" class="btn-goal-act" style="background:rgba(16,185,129,0.12); color:#047857; font-weight:700;" onclick="window.location.href='investments.html#proventos'">
                             <i class="fas fa-chart-line"></i> Ver Proventos
                         </button>
                         <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
@@ -1681,9 +2023,20 @@ function renderGoals() {
 
         // TIPO 3: PATRIMÔNIO TOTAL AUTOMÁTICO (🏦)
         if (goalType === 'wealth' || goalType === 'net_worth') {
-            const cur = Number(g.current_amount) || 0;
+            const cur = cachedTotalEquityMobile > 0 ? cachedTotalEquityMobile : (Number(g.current_amount) || 0);
+            const inv = cachedTotalInvestedMobile > 0 ? cachedTotalInvestedMobile : cur;
             const tgt = Number(g.target_amount) || 1;
             const percent = Math.min(100, Math.round((cur / tgt) * 100));
+            const formattedTime = formatEquityTimestampMobile(cachedTotalEquityUpdatedAtMobile);
+            const diffReturn = cur - inv;
+            const returnPct = inv > 0 ? (diffReturn / inv) * 100 : 0;
+            const sign = diffReturn >= 0 ? '+' : '';
+
+            let detailsReturn = '';
+            if (inv > 0 && Math.abs(diffReturn) > 0.01) {
+                const colorRet = diffReturn >= 0 ? '#10B981' : '#F59E0B';
+                detailsReturn = `<span style="font-size:10px; color:${colorRet}; font-weight:600;">Aplicado: ${formatCurrency(inv)} (${sign}${returnPct.toFixed(2)}%)</span>`;
+            }
 
             return `
                 <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:#8B5CF6;">
@@ -1699,29 +2052,33 @@ function renderGoals() {
                         </div>
                         <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
                             <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-gem'}"></i>
-                            ${isCompleted ? 'Conquistado!' : `${percent}%`}
+                            ${isCompleted ? 'Conquistado!' : (isEquityLoadedMobile ? `${percent}%` : '—')}
                         </span>
                     </div>
 
                     <div class="goal-values-row">
                         <div>
-                            <span style="font-size:10px; color:#94a3b8; display:block;">Custódia Total</span>
-                            <span class="goal-current-val" style="color:#8B5CF6;">${formatCurrency(cur)}</span>
+                            <span style="font-size:10px; color:#94a3b8; display:block;">Patrimônio Atual em Ativos</span>
+                            <span class="goal-current-val" style="color:#8B5CF6;">${isEquityLoadedMobile ? formatCurrency(cur) : '—'}</span>
+                            ${detailsReturn ? `<div style="margin-top:2px;">${detailsReturn}</div>` : ''}
                         </div>
                         <div style="text-align:right;">
                             <span class="goal-target-val">Alvo: <strong>${formatCurrency(tgt)}</strong></span>
                             <span style="font-size:10px; color:#94a3b8; display:block;">
-                                ${isCompleted ? 'Meta atingida! 🏆' : `Faltam: ${formatCurrency(Math.max(0, tgt - cur))}`}
+                                ${isCompleted ? 'Meta atingida! 🏆' : (isEquityLoadedMobile ? `Faltam: ${formatCurrency(Math.max(0, tgt - cur))}` : 'Carregando custódia...')}
                             </span>
                         </div>
                     </div>
 
                     <div class="goal-progress-bar">
-                        <div class="goal-progress-fill" style="width: ${percent}%; background: #8B5CF6;"></div>
+                        <div class="goal-progress-fill" style="width: ${isEquityLoadedMobile ? percent : 0}%; background: #8B5CF6;"></div>
                     </div>
 
-                    <div class="auto-sync-tag-mobile" style="color:#8B5CF6; background:rgba(139,92,246,0.1);">
-                        <i class="fas fa-sync-alt"></i> Custódia consolidada (Ações + FIIs + Renda Fixa)
+                    <div class="auto-sync-tag-mobile" style="color:#8B5CF6; background:rgba(139,92,246,0.1); display:flex; justify-content:space-between; align-items:center;">
+                        <span><i class="fas fa-sync-alt"></i> Custódia • ${formattedTime}</span>
+                        <button type="button" onclick="refreshMobilePortfolioValue()" style="background:none; border:none; color:#8B5CF6; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; padding:2px 4px;">
+                            <i class="fas fa-redo-alt"></i> Atualizar
+                        </button>
                     </div>
 
                     <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
@@ -1886,21 +2243,16 @@ window.toggleMobileGoalTypeFields = toggleMobileGoalTypeFields;
 
 function getMonthlyDividendsTotalMobile(targetMonthStr) {
     const ym = targetMonthStr || (new Date().toISOString().substring(0, 7));
-    let divs = [];
-    if (Array.isArray(window.allDividends) && window.allDividends.length > 0) {
-        divs = window.allDividends;
-    } else {
-        try {
-            const uid = (currentUser && currentUser.id) ? currentUser.id : 'demo';
-            const raw = localStorage.getItem('tonucontrole_dividends_' + uid) || 
-                        localStorage.getItem('tonu_dividends_' + uid) ||
-                        localStorage.getItem('tonu_dividends_current');
-            if (raw) divs = JSON.parse(raw);
-        } catch (_) {}
-    }
+    const divs = (cachedDividendsListMobile && cachedDividendsListMobile.length > 0)
+        ? cachedDividendsListMobile
+        : (Array.isArray(window.allDividends) ? window.allDividends : []);
+
     return (divs || [])
-        .filter(d => (d.payment_date || d.date || d.created_at || '').startsWith(ym))
-        .reduce((sum, d) => sum + (Number(d.net_value ?? d.amount ?? d.total_value ?? 0) || 0), 0);
+        .filter(d => {
+            const iso = getDividendISODateMobile(d);
+            return iso && iso.startsWith(ym);
+        })
+        .reduce((sum, d) => sum + getDividendTotalValueMobile(d), 0);
 }
 window.getMonthlyDividendsTotalMobile = getMonthlyDividendsTotalMobile;
 
@@ -1993,11 +2345,11 @@ function openEditGoalModal(id) {
 
     // Atualiza visualização dos cards de tipo
     document.querySelectorAll('.type-card-mobile-opt').forEach(card => {
-        const isSel = (selectedMobileType === 'project' && card.textContent.includes('Projeto')) ||
-                      (selectedMobileType === 'financial' && card.textContent.includes('Dinheiro')) ||
-                      (selectedMobileType === 'dividends' && card.textContent.includes('Proventos')) ||
-                      (selectedMobileType === 'wealth' && card.textContent.includes('Patrimônio'));
-        card.classList.toggle('selected', isSel);
+        const cType = card.dataset.type || card.getAttribute('data-type');
+        const isSel = cType === selectedMobileType || 
+                     ((selectedMobileType === 'habit' || selectedMobileType === 'project') && cType === 'project') ||
+                     ((selectedMobileType === 'wealth' || selectedMobileType === 'net_worth') && cType === 'wealth');
+        card.classList.toggle('selected', !!isSel);
     });
 
     document.getElementById("goalTitle").value = goal.title;
@@ -3044,6 +3396,18 @@ window.handleMobileQuickDeposit = handleMobileQuickDeposit;
 window.deleteMobileGoalDeposit = deleteMobileGoalDeposit;
 window.updateMobileCdiGlobalCard = updateMobileCdiGlobalCard;
 window.checkMilestonesMobile = checkMilestonesMobile;
+window.openDepositModal = openDepositModal;
+window.closeDepositModal = closeDepositModal;
+window.openWithdrawModal = openWithdrawModal;
+window.closeWithdrawModal = closeWithdrawModal;
+window.openGoalModal = openGoalModal;
+window.openEditGoalModal = openEditGoalModal;
+window.closeGoalModal = closeGoalModal;
+window.deleteGoal = deleteGoal;
+window.filterGoals = filterGoals;
+window.toggleMobileHabitStatus = toggleMobileHabitStatus;
+window.postponeMobileGoal = postponeMobileGoal;
+window.quickAddMobileAmount = quickAddMobileAmount;
 </script>
 
 </body>
