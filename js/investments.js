@@ -4256,6 +4256,8 @@ function renderChart() {
         const tot = data.total[idx] || 0;
         const gn = gainCapital[idx] || 0;
         const gnPct = inv > 0 ? (Math.abs(gn / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
+        const gnSign = gn < 0 ? '-' : (gn > 0 ? '+' : '');
+        const gnColor = gn < 0 ? '#ef4444' : '#2cb875';
 
         tooltipEl.innerHTML = `
             <div class="tooltip-header">
@@ -4274,8 +4276,8 @@ function renderChart() {
                     <span class="tooltip-indicator" style="background: #96e9c1;"></span>
                     <span>Ganho de Capital</span>
                 </div>
-                <div class="tooltip-value" style="color: #2cb875; font-weight: 600;">
-                    ${gn < 0 ? '-' : '+'}${formatCurrency(Math.abs(gn))} (${gn < 0 ? '-' : '+'}${gnPct}%)
+                <div class="tooltip-value" style="color: ${gnColor}; font-weight: 600;">
+                    ${gnSign}${formatCurrency(Math.abs(gn))} (${gnSign}${gnPct}%)
                 </div>
             </div>
             <div class="tooltip-row" style="border-top: 1px solid rgba(0,0,0,0.1); margin-top: 4px; padding-top: 4px;">
