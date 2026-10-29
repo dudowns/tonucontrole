@@ -2302,11 +2302,53 @@ function renderMobileEvolutionChart() {
                             const isGain = context.datasetIndex === 1;
                             if (isGain) {
                                 const inv = evoData.invested[context.dataIndex] || 0;
-                                const pct = inv > 0 ? ((val / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
-                                const sign = val > 0 ? '+' : (val < 0 ? '-' : '');
+                                const pct = inv > 0 ? ((Math.abs(val) / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
+                                const sign = val < -0.001 ? '-' : (val > 0.001 ? '+' : '');
                                 return ` ${context.dataset.label}: ${sign}${formatCurrency(Math.abs(val))} (${sign}${pct}%)`;
                             }
                             return ` ${context.dataset.label}: ${formatCurrency(val)}`;
+                        },
+                        labelTextColor: function(context) {
+                            if (context.datasetIndex === 1) {
+                                const val = context.parsed.y || 0;
+                                if (val < -0.001) return '#EF4444';
+                                if (val > 0.001) return '#00B894';
+                                return '#94A3B8';
+                            }
+                            return '#FFFFFF';
+                        },
+                        labelColor: function(context) {
+                            if (context.datasetIndex === 1) {
+                                const val = context.parsed.y || 0;
+                                if (val < -0.001) {
+                                    return {
+                                        borderColor: '#EF4444',
+                                        backgroundColor: '#EF4444',
+                                        borderWidth: 1,
+                                        borderRadius: 2
+                                    };
+                                } else if (val > 0.001) {
+                                    return {
+                                        borderColor: '#00B894',
+                                        backgroundColor: '#96e9c1',
+                                        borderWidth: 1,
+                                        borderRadius: 2
+                                    };
+                                } else {
+                                    return {
+                                        borderColor: '#94A3B8',
+                                        backgroundColor: '#94A3B8',
+                                        borderWidth: 1,
+                                        borderRadius: 2
+                                    };
+                                }
+                            }
+                            return {
+                                borderColor: '#2cb875',
+                                backgroundColor: '#2cb875',
+                                borderWidth: 1,
+                                borderRadius: 2
+                            };
                         },
                         footer: function(items) {
                             let total = 0;
