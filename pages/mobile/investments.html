@@ -1741,8 +1741,7 @@ function updateSummaryHero() {
     }
     if (ganhoEl) {
         ganhoEl.textContent = `${sign}${formatCurrency(ganhoTotal)}`;
-        // Ganho de capital sempre no verdinho mais claro, mesmo se negativo
-        ganhoEl.style.color = '#00B894';
+        ganhoEl.style.color = Math.abs(ganhoTotal) < 0.001 ? 'var(--color-text, #0f172a)' : color;
     }
 
     // Cards da aba Proventos
