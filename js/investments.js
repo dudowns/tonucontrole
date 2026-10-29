@@ -4146,36 +4146,45 @@ function renderChart() {
         }
     };
 
-    // Função utilitária para detectar com precisão absoluta o índice do mês sob o cursor do mouse
+    // Função utilitária para mapear com precisão cirúrgica a coluna inteira do mês sob o cursor
     function getBarIndexFromEvent(chart, event) {
         if (!chart || !chart.canvas) return null;
         const rect = chart.canvas.getBoundingClientRect();
-        const clientX = (event.clientX !== undefined) ? event.clientX : (event.native?.clientX ?? 0);
+        const clientX = (event.clientX !== undefined)
+            ? event.clientX
+            : (event.touches && event.touches[0] ? event.touches[0].clientX : (event.native?.clientX ?? 0));
+        const clientY = (event.clientY !== undefined)
+            ? event.clientY
+            : (event.touches && event.touches[0] ? event.touches[0].clientY : (event.native?.clientY ?? 0));
+
         const mouseX = clientX - rect.left;
-        const meta = chart.getDatasetMeta(0);
-        if (!meta || !meta.data || meta.data.length === 0) return null;
+        const mouseY = clientY - rect.top;
 
         const chartArea = chart.chartArea;
         if (!chartArea) return null;
 
-        // Tolerância nas bordas esquerda e direita para alcançar com facilidade o primeiro e o último mês
-        if (mouseX < chartArea.left - 25 || mouseX > chartArea.right + 45) {
+        const totalBars = chart.data?.labels?.length || 0;
+        if (totalBars === 0) return null;
+
+        // Limites verticais da área útil do gráfico (permite detectar o mês em qualquer altura da coluna)
+        if (mouseY < chartArea.top - 25 || mouseY > chartArea.bottom + 35) {
             return null;
         }
 
-        let closestIdx = 0;
-        let minDistance = Infinity;
-        for (let i = 0; i < meta.data.length; i++) {
-            const bar = meta.data[i];
-            if (bar && Number.isFinite(bar.x)) {
-                const dist = Math.abs(mouseX - bar.x);
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    closestIdx = i;
-                }
-            }
+        // Limites horizontais: tolerância para cobrir as extremidades esquerda e direita
+        if (mouseX < chartArea.left - 20 || mouseX > chartArea.right + 20) {
+            return null;
         }
-        return closestIdx;
+
+        // Hitbox por coluna inteira: divide a largura da área plotável pelo número de meses
+        const chartWidth = chartArea.right - chartArea.left;
+        if (chartWidth <= 0) return null;
+
+        const colWidth = chartWidth / totalBars;
+        const rawIdx = Math.floor((mouseX - chartArea.left) / colWidth);
+        const idx = Math.max(0, Math.min(totalBars - 1, rawIdx));
+
+        return idx;
     }
 
     // Plugin para realce visual da coluna/mês sob o mouse ou fixada por clique
@@ -4195,23 +4204,25 @@ function renderChart() {
             }
             if (activeIdx < 0) return;
 
-            const meta = chart.getDatasetMeta(0);
-            if (!meta || !meta.data || !meta.data[activeIdx]) return;
+            const totalBars = chart.data?.labels?.length || 0;
+            if (totalBars === 0) return;
 
-            const bar = meta.data[activeIdx];
-            const { x, width } = bar;
             const { ctx, chartArea } = chart;
             if (!chartArea) return;
 
+            const chartWidth = chartArea.right - chartArea.left;
+            const colWidth = chartWidth / totalBars;
+            const colLeft = chartArea.left + (activeIdx * colWidth);
+            const padX = 2;
+
             ctx.save();
-            const colWidth = Math.max(width + 12, width * 1.35);
             ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)';
             if (typeof ctx.roundRect === 'function') {
                 ctx.beginPath();
-                ctx.roundRect(x - colWidth / 2, chartArea.top, colWidth, chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
+                ctx.roundRect(colLeft + padX, chartArea.top, colWidth - (padX * 2), chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
                 ctx.fill();
             } else {
-                ctx.fillRect(x - colWidth / 2, chartArea.top, colWidth, chartArea.bottom - chartArea.top);
+                ctx.fillRect(colLeft + padX, chartArea.top, colWidth - (padX * 2), chartArea.bottom - chartArea.top);
             }
 
             if (selectedPatrimonyBarIndex === activeIdx) {
@@ -4219,10 +4230,10 @@ function renderChart() {
                 ctx.lineWidth = 2;
                 if (typeof ctx.roundRect === 'function') {
                     ctx.beginPath();
-                    ctx.roundRect(x - colWidth / 2, chartArea.top, colWidth, chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
+                    ctx.roundRect(colLeft + padX, chartArea.top, colWidth - (padX * 2), chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
                     ctx.stroke();
                 } else {
-                    ctx.strokeRect(x - colWidth / 2, chartArea.top, colWidth, chartArea.bottom - chartArea.top);
+                    ctx.strokeRect(colLeft + padX, chartArea.top, colWidth - (padX * 2), chartArea.bottom - chartArea.top);
                 }
             }
             ctx.restore();
@@ -4367,8 +4378,8 @@ function renderChart() {
                     borderRadius: 0,
                     borderSkipped: false,
                     stack: 'patrimonio',
-                    barPercentage: 0.7,
-                    categoryPercentage: 0.8
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.85
                 },
                 {
                     label: 'Ganho de Capital',
@@ -4380,8 +4391,8 @@ function renderChart() {
                     borderRadius: 4,
                     borderSkipped: false,
                     stack: 'patrimonio',
-                    barPercentage: 0.7,
-                    categoryPercentage: 0.8
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.85
                 }
             ]
         },
@@ -4390,10 +4401,14 @@ function renderChart() {
             responsive: true,
             maintainAspectRatio: false,
             resizeDelay: 50,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             layout: {
                 padding: {
                     left: 10,
-                    right: 45, // Margem de respiro dedicada à direita para a última barra ter foco perfeito
+                    right: 15,
                     top: 10,
                     bottom: 5
                 }

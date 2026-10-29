@@ -2257,8 +2257,8 @@ function renderMobileEvolutionChart() {
                     borderRadius: 0,
                     borderSkipped: false,
                     stack: 'patrimonio',
-                    barPercentage: 0.7,
-                    categoryPercentage: 0.8
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.85
                 },
                 {
                     label: 'Ganho de Capital',
@@ -2268,8 +2268,8 @@ function renderMobileEvolutionChart() {
                     borderRadius: 4,
                     borderSkipped: false,
                     stack: 'patrimonio',
-                    barPercentage: 0.7,
-                    categoryPercentage: 0.8
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.85
                 }
             ]
         },
@@ -2277,9 +2277,18 @@ function renderMobileEvolutionChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
             interaction: {
                 intersect: false,
                 mode: 'index'
+            },
+            layout: {
+                padding: {
+                    left: 5,
+                    right: 15,
+                    top: 10,
+                    bottom: 5
+                }
             },
             plugins: {
                 legend: {
