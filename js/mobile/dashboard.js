@@ -1202,7 +1202,34 @@ function renderMobileGoals() {
 
     const goal = allGoals[0]; // Primeira meta
     const target = Number(goal.target_amount || goal.target || 0);
-    const current = Number(goal.current_amount || goal.current || 0);
+    const goalType = goal.goal_type || goal.category || 'project';
+    let current = Number(goal.current_amount || goal.current || 0);
+
+    let currentLabel = `Atual: ${formatCurrency(current)}`;
+    let targetLabel = `Alvo: ${formatCurrency(target)}`;
+    let tagBadge = '';
+
+    if (goalType === 'dividends') {
+        const curY = (currentDate && currentDate.getFullYear()) || new Date().getFullYear();
+        const curM = (currentDate && currentDate.getMonth()) || new Date().getMonth();
+        const monthlyDivs = (allDividends || []).filter(d => {
+            const dt = (d.payment_date || d.date || '').substring(0, 10);
+            if (!dt) return false;
+            const parts = dt.split('-');
+            return parseInt(parts[0], 10) === curY && (parseInt(parts[1], 10) - 1) === curM;
+        }).reduce((acc, d) => acc + (parseFloat(d.total_value || d.amount || d.net_value) || 0), 0);
+        current = monthlyDivs;
+        currentLabel = `Recebido este mês: ${formatCurrency(current)}`;
+        targetLabel = `Alvo mensal: ${formatCurrency(target)}`;
+        tagBadge = `<span style="font-size:9.5px; color:#10B981; font-weight:700; margin-left:6px;"><i class="fas fa-hand-holding-usd"></i> Proventos</span>`;
+    } else if (goalType === 'wealth' || goalType === 'net_worth') {
+        const storedEquity = parseFloat(localStorage.getItem('tonu_cached_equity_val') || '0');
+        if (storedEquity > 0) current = storedEquity;
+        currentLabel = `Patrimônio atual: ${formatCurrency(current)}`;
+        targetLabel = `Alvo: ${formatCurrency(target)}`;
+        tagBadge = `<span style="font-size:9.5px; color:#8B5CF6; font-weight:700; margin-left:6px;"><i class="fas fa-chart-pie"></i> Carteira</span>`;
+    }
+
     const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
     const remaining = Math.max(0, target - current);
     const goalTitle = goal.title || goal.name || 'Minha Meta';
@@ -1211,7 +1238,7 @@ function renderMobileGoals() {
     container.innerHTML = `
         <div class="category-bars-card" style="margin-bottom:14px;">
             <div class="category-bars-header">
-                <h3><i class="fas fa-bullseye" style="color:#0984E3; margin-right:6px;"></i> Meta Prioritária</h3>
+                <h3><i class="fas fa-bullseye" style="color:#0984E3; margin-right:6px;"></i> Meta Prioritária ${tagBadge}</h3>
                 <a href="goals.html" style="font-size:11px; color:#6C5CE7; font-weight:600; text-decoration:none;">Ver todas →</a>
             </div>
             <div class="category-bar-item" style="margin-top:6px;">
@@ -1223,8 +1250,8 @@ function renderMobileGoals() {
                     <div class="category-bar-fill" style="width: ${percent}%; background: linear-gradient(90deg, #0984E3, #6C5CE7); border-radius:4px;"></div>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--color-text-muted, #94a3b8);">
-                    <span>Atual: ${formatCurrency(current)}</span>
-                    <span>Falta: ${formatCurrency(remaining)}</span>
+                    <span>${currentLabel}</span>
+                    <span>${targetLabel}</span>
                 </div>
             </div>
         </div>

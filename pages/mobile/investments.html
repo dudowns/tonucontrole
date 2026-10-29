@@ -378,10 +378,10 @@
     <div class="greeting">📈 Gestão de Investimentos</div>
 </header>
 
-<main class="mobile-content" style="padding: 12px 14px;">
+<main class="mobile-content">
 
     <!-- TABS PRINCIPAIS: CARTEIRA, LANÇAMENTOS, PROVENTOS, EVENTOS -->
-    <div class="mobile-tabs" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="mobile-tabs">
         <button class="mobile-tab-btn active" id="tabBtnCarteira" onclick="switchInvestTab('carteira')">
             <i class="fas fa-briefcase"></i> Carteira
         </button>
@@ -1112,6 +1112,16 @@ async function initMobileInvestmentsPage() {
         if (tabBtnEventos) tabBtnEventos.style.display = corpEventsEnabled ? "flex" : "none";
 
         await loadAllInvestmentData();
+
+        // Suporte a âncora direta de abas (ex: #proventos, #lancamentos, #carteira)
+        if (window.location.hash) {
+            const h = window.location.hash.toLowerCase();
+            if (h.includes('provento')) {
+                switchInvestTab('proventos');
+            } else if (h.includes('lancamento') || h.includes('operac')) {
+                switchInvestTab('lancamentos');
+            }
+        }
     } catch (e) {
         console.error("Erro na inicialização de investimentos mobile:", e);
         if (!currentUser) {

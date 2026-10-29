@@ -714,7 +714,7 @@
     <div class="greeting">🎯 Metas & Sonhos</div>
 </header>
 
-<main class="mobile-content" style="padding: 12px 14px;">
+<main class="mobile-content">
 
     <!-- BARRA DE CONTROLE TEMPORAL (Ano vs Contínuo) -->
     <div class="temporal-control-mobile">
@@ -2166,28 +2166,32 @@ function renderGoals() {
                     <span>${g.target_year ? 'Ciclo ' + g.target_year : (g.deadline ? '📅 ' + formatDate(g.deadline) : 'Sem prazo')}</span>
                 </div>
 
-                <!-- AÇÕES: + R$ 500, APORTAR, RESGATAR, CDI, EDITAR, EXCLUIR -->
-                <div class="goal-actions-grid" style="grid-template-columns: auto auto 1fr 1fr auto auto;">
-                    ${!isCompleted ? `
-                        <button type="button" class="btn-goal-act" style="background:rgba(245,158,11,0.15); color:#D97706; font-weight:700;" onclick="quickAddMobileAmount('${g.id}', 500)">
-                            <i class="fas fa-plus"></i> R$ 500
+                <!-- AÇÕES ORGANIZADAS EM DUAS LINHAS CONFORTÁVEIS -->
+                <div class="goal-actions-wrap" style="display:flex; flex-direction:column; gap:8px; margin-top:12px; padding-top:10px; border-top:1px solid var(--color-border,#f1f5f9);">
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <button type="button" class="btn-goal-act deposit" style="flex:1;" onclick="openDepositModal('${g.id}')">
+                            <i class="fas fa-plus"></i> Aportar
                         </button>
-                    ` : ''}
-                    <button type="button" class="btn-goal-act" style="background:rgba(108,92,231,0.12); color:#6C5CE7; font-weight:700;" onclick="openMobileYieldModal('${g.id}')">
-                        <i class="fas fa-chart-line"></i> CDI
-                    </button>
-                    <button type="button" class="btn-goal-act deposit" onclick="openDepositModal('${g.id}')">
-                        <i class="fas fa-plus"></i> Aportar
-                    </button>
-                    <button type="button" class="btn-goal-act withdraw" onclick="openWithdrawModal('${g.id}')">
-                        <i class="fas fa-minus"></i> Resgatar
-                    </button>
-                    <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
-                        <i class="fas fa-pen"></i>
-                    </button>
-                    <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                        <button type="button" class="btn-goal-act withdraw" style="flex:1;" onclick="openWithdrawModal('${g.id}')">
+                            <i class="fas fa-minus"></i> Resgatar
+                        </button>
+                        <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        ${!isCompleted ? `
+                            <button type="button" class="btn-goal-act" style="flex:1; background:rgba(245,158,11,0.15); color:#D97706; font-weight:700;" onclick="quickAddMobileAmount('${g.id}', 500)">
+                                <i class="fas fa-bolt"></i> + R$ 500
+                            </button>
+                        ` : ''}
+                        <button type="button" class="btn-goal-act" style="flex:1; background:rgba(108,92,231,0.12); color:#6C5CE7; font-weight:700;" onclick="openMobileYieldModal('${g.id}')">
+                            <i class="fas fa-chart-line"></i> Simular CDI
+                        </button>
+                    </div>
                 </div>
             </div>
         `;

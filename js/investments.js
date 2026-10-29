@@ -76,6 +76,7 @@ let selectedPeriod = '12m';
 let selectedEvolutionClass = 'all';
 let selectedPieClass = 'all';
 let patrimonyChart = null;
+let selectedPatrimonyBarIndex = null;
 let pieChart = null;
 let dividendsChart = null;
 let dividendsPieChart = null;
@@ -237,6 +238,18 @@ function closeAllModals() {
 document.addEventListener('click', (e) => {
     if (e.target.classList.contains('modal-overlay')) {
         closeModal(e.target.id);
+    }
+    if (selectedPatrimonyBarIndex !== null) {
+        const wrap = document.getElementById('patrimonyChart')?.closest('.chart-wrap');
+        if (wrap && !wrap.contains(e.target)) {
+            selectedPatrimonyBarIndex = null;
+            if (patrimonyChart) patrimonyChart.update('none');
+            const tooltipEl = wrap.querySelector('.custom-chart-tooltip');
+            if (tooltipEl) {
+                tooltipEl.style.opacity = '0';
+                tooltipEl.classList.remove('pinned');
+            }
+        }
     }
 });
 
@@ -4028,6 +4041,12 @@ function renderChart() {
         patrimonyChart.destroy();
         patrimonyChart = null;
     }
+    selectedPatrimonyBarIndex = null;
+    const oldTooltip = canvas.parentNode?.querySelector('.custom-chart-tooltip');
+    if (oldTooltip) {
+        oldTooltip.style.opacity = '0';
+        oldTooltip.classList.remove('pinned');
+    }
 
     const isDark = document.body.classList.contains('dark-theme');
     const textColor = isDark ? '#E2E8F0' : '#2D3436';
@@ -4122,6 +4141,164 @@ function renderChart() {
         }
     };
 
+    // Plugin para realce visual da coluna/mês sob o mouse ou fixada por clique
+    const patrimonyColumnHoverPlugin = {
+        id: 'patrimonyColumnHoverPlugin',
+        beforeDatasetsDraw: (chart) => {
+            const active = chart.tooltip?._active;
+            let activeIdx = -1;
+            if (active && active.length > 0) {
+                activeIdx = active[0].index;
+            } else if (selectedPatrimonyBarIndex !== null && selectedPatrimonyBarIndex >= 0) {
+                activeIdx = selectedPatrimonyBarIndex;
+            }
+            if (activeIdx < 0) return;
+
+            const meta = chart.getDatasetMeta(0);
+            if (!meta || !meta.data || !meta.data[activeIdx]) return;
+
+            const bar = meta.data[activeIdx];
+            const { x, width } = bar;
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return;
+
+            ctx.save();
+            const colWidth = Math.max(width + 12, width * 1.35);
+            ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)';
+            if (typeof ctx.roundRect === 'function') {
+                ctx.beginPath();
+                ctx.roundRect(x - colWidth / 2, chartArea.top, colWidth, chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
+                ctx.fill();
+            } else {
+                ctx.fillRect(x - colWidth / 2, chartArea.top, colWidth, chartArea.bottom - chartArea.top);
+            }
+
+            if (selectedPatrimonyBarIndex === activeIdx) {
+                ctx.strokeStyle = isDark ? '#A29BFE' : '#6C5CE7';
+                ctx.lineWidth = 1.5;
+                if (typeof ctx.roundRect === 'function') {
+                    ctx.beginPath();
+                    ctx.roundRect(x - colWidth / 2, chartArea.top, colWidth, chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
+                    ctx.stroke();
+                } else {
+                    ctx.strokeRect(x - colWidth / 2, chartArea.top, colWidth, chartArea.bottom - chartArea.top);
+                }
+            }
+            ctx.restore();
+        }
+    };
+
+    // Função para posicionar o tooltip exatamente centralizado sobre a barra ativa
+    function renderCustomPatrimonyTooltip(chart, targetIndex, tooltipModel) {
+        if (!chart || !chart.canvas) return;
+        const chartCanvas = chart.canvas;
+        const container = chartCanvas.parentNode;
+        if (!container) return;
+
+        let tooltipEl = container.querySelector('.custom-chart-tooltip');
+        if (!tooltipEl) {
+            tooltipEl = document.createElement('div');
+            tooltipEl.className = 'custom-chart-tooltip';
+            container.appendChild(tooltipEl);
+        }
+
+        if (targetIndex === null || targetIndex === undefined || targetIndex < 0 || targetIndex >= data.labels.length) {
+            tooltipEl.style.opacity = '0';
+            tooltipEl.classList.remove('pinned');
+            return;
+        }
+
+        const idx = targetIndex;
+        const isPinned = (selectedPatrimonyBarIndex === idx);
+        const label = data.labels[idx] || '';
+        const inv = data.invested[idx] || 0;
+        const tot = data.total[idx] || 0;
+        const gn = gainCapital[idx] || 0;
+        const gnPct = inv > 0 ? (Math.abs(gn / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
+
+        tooltipEl.innerHTML = `
+            <div class="tooltip-header">
+                <span>${label}</span>
+                ${isPinned ? '<span class="pinned-badge"><i class="fas fa-thumbtack"></i> Fixado</span>' : ''}
+            </div>
+            <div class="tooltip-row">
+                <div class="tooltip-label">
+                    <span class="tooltip-indicator" style="background: #2cb875;"></span>
+                    <span>Valor aplicado</span>
+                </div>
+                <div class="tooltip-value">${formatCurrency(inv)}</div>
+            </div>
+            <div class="tooltip-row">
+                <div class="tooltip-label">
+                    <span class="tooltip-indicator" style="background: #96e9c1;"></span>
+                    <span>Ganho de Capital</span>
+                </div>
+                <div class="tooltip-value" style="color: #2cb875; font-weight: 600;">
+                    ${gn < 0 ? '-' : '+'}${formatCurrency(Math.abs(gn))} (${gn < 0 ? '-' : '+'}${gnPct}%)
+                </div>
+            </div>
+            <div class="tooltip-row" style="border-top: 1px solid rgba(0,0,0,0.1); margin-top: 4px; padding-top: 4px;">
+                <div class="tooltip-label">
+                    <span style="font-weight: 700;">Patrimônio Total</span>
+                </div>
+                <div class="tooltip-value" style="font-weight: 700;">${formatCurrency(tot)}</div>
+            </div>
+            <div class="tooltip-arrow"></div>
+        `;
+
+        if (isPinned) {
+            tooltipEl.classList.add('pinned');
+        } else {
+            tooltipEl.classList.remove('pinned');
+        }
+
+        // Pega as coordenadas exatas da barra
+        const meta0 = chart.getDatasetMeta(0);
+        const barElem = meta0?.data?.[idx];
+        const barX = barElem ? barElem.x : (tooltipModel?.caretX ?? (chartCanvas.width / 2));
+        const barY = barElem ? barElem.y : (tooltipModel?.caretY ?? (chartCanvas.height / 2));
+
+        const canvasOffsetLeft = chartCanvas.offsetLeft || 0;
+        const canvasOffsetTop = chartCanvas.offsetTop || 0;
+        const barCenterX = Math.round(barX + canvasOffsetLeft);
+        const barCenterY = Math.round(barY + canvasOffsetTop);
+
+        const tooltipWidth = 195;
+        const tooltipHeight = tooltipEl.offsetHeight || 135;
+        const containerWidth = container.clientWidth;
+
+        // Centraliza exatamente acima da barra (sem desvio para a direita ou esquerda)
+        let left = Math.round(barCenterX - (tooltipWidth / 2));
+        if (left < 8) {
+            left = 8;
+        } else if (left + tooltipWidth > containerWidth - 8) {
+            left = Math.max(8, containerWidth - tooltipWidth - 8);
+        }
+
+        // Posição vertical: posiciona logo acima do topo da barra
+        let top = Math.round(barCenterY - tooltipHeight - 12);
+        let showArrow = true;
+        if (top < 8) {
+            top = 10;
+            if (barCenterY < top + tooltipHeight + 8) {
+                showArrow = false;
+            }
+        }
+
+        // Posiciona a seta no centro horizontal exato da barra
+        const arrowEl = tooltipEl.querySelector('.tooltip-arrow');
+        if (arrowEl) {
+            const arrowX = Math.round(barCenterX - left);
+            const clampedArrowX = Math.max(16, Math.min(tooltipWidth - 16, arrowX));
+            arrowEl.style.left = clampedArrowX + 'px';
+            arrowEl.style.display = showArrow ? 'block' : 'none';
+        }
+
+        tooltipEl.style.left = left + 'px';
+        tooltipEl.style.top = top + 'px';
+        tooltipEl.style.opacity = '1';
+    }
+
     // --- GRÁFICO PRINCIPAL (BARRAS EMPILHADAS) ---
     patrimonyChart = new Chart(ctx, {
         type: 'bar',
@@ -4133,6 +4310,8 @@ function renderChart() {
                     data: data.invested,
                     backgroundColor: '#2cb875',
                     hoverBackgroundColor: '#24a565',
+                    hoverBorderColor: isDark ? '#FFFFFF' : '#0F172A',
+                    hoverBorderWidth: 1.5,
                     borderRadius: 0,
                     borderSkipped: false,
                     stack: 'patrimonio',
@@ -4144,6 +4323,8 @@ function renderChart() {
                     data: gainCapital,
                     backgroundColor: gainBgColors,
                     hoverBackgroundColor: gainHoverColors,
+                    hoverBorderColor: isDark ? '#FFFFFF' : '#0F172A',
+                    hoverBorderWidth: 1.5,
                     borderRadius: 4,
                     borderSkipped: false,
                     stack: 'patrimonio',
@@ -4152,14 +4333,36 @@ function renderChart() {
                 }
             ]
         },
-        plugins: [zeroLinePlugin],
+        plugins: [zeroLinePlugin, patrimonyColumnHoverPlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
             resizeDelay: 50,
             interaction: {
                 intersect: false,
-                mode: 'index'
+                mode: 'index',
+                axis: 'x'
+            },
+            onHover: (event, chartElements) => {
+                if (event && event.native && event.native.target) {
+                    event.native.target.style.cursor = (chartElements && chartElements.length > 0) ? 'pointer' : 'default';
+                }
+            },
+            onClick: (event, elements, chart) => {
+                if (elements && elements.length > 0) {
+                    const idx = elements[0].index;
+                    if (selectedPatrimonyBarIndex === idx) {
+                        selectedPatrimonyBarIndex = null;
+                    } else {
+                        selectedPatrimonyBarIndex = idx;
+                    }
+                    chart.update('none');
+                    renderCustomPatrimonyTooltip(chart, selectedPatrimonyBarIndex);
+                } else {
+                    selectedPatrimonyBarIndex = null;
+                    chart.update('none');
+                    renderCustomPatrimonyTooltip(chart, null);
+                }
             },
             plugins: {
                 legend: {
@@ -4179,74 +4382,16 @@ function renderChart() {
                     enabled: false,
                     external: function (context) {
                         const tooltipModel = context.tooltip;
-                        const chartCanvas = context.chart.canvas;
-                        const container = chartCanvas.parentNode;
-                        let tooltipEl = container.querySelector('.custom-chart-tooltip');
-                        if (!tooltipEl) {
-                            tooltipEl = document.createElement('div');
-                            tooltipEl.className = 'custom-chart-tooltip';
-                            container.appendChild(tooltipEl);
+                        const chart = context.chart;
+                        let targetIndex = null;
+
+                        if (tooltipModel && tooltipModel.opacity !== 0 && tooltipModel.dataPoints && tooltipModel.dataPoints.length > 0) {
+                            targetIndex = tooltipModel.dataPoints[0].dataIndex;
+                        } else if (selectedPatrimonyBarIndex !== null) {
+                            targetIndex = selectedPatrimonyBarIndex;
                         }
 
-                        if (tooltipModel.opacity === 0 || !tooltipModel.dataPoints || tooltipModel.dataPoints.length === 0) {
-                            tooltipEl.style.opacity = '0';
-                            return;
-                        }
-
-                        const idx = tooltipModel.dataPoints[0].dataIndex;
-                        const label = data.labels[idx] || '';
-                        const inv = data.invested[idx] || 0;
-                        const tot = data.total[idx] || 0;
-                        const gn = gainCapital[idx] || 0;
-                        const gnPct = inv > 0 ? (Math.abs(gn / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
-                        const gainIndicatorColor = '#96e9c1';
-
-                        tooltipEl.innerHTML = `
-                            <div class="tooltip-header">${label}</div>
-                            <div class="tooltip-row">
-                                <div class="tooltip-label">
-                                    <span class="tooltip-indicator" style="background: #2cb875;"></span>
-                                    <span>Valor aplicado</span>
-                                </div>
-                                <div class="tooltip-value">${formatCurrency(inv)}</div>
-                            </div>
-                            <div class="tooltip-row">
-                                <div class="tooltip-label">
-                                    <span class="tooltip-indicator" style="background: #96e9c1;"></span>
-                                    <span>Ganho de Capital</span>
-                                </div>
-                                <div class="tooltip-value" style="color: #2cb875; font-weight: 600;">
-                                    ${gn < 0 ? '-' : '+'}${formatCurrency(Math.abs(gn))} (${gn < 0 ? '-' : '+'}${gnPct}%)
-                                </div>
-                            </div>
-                            <div class="tooltip-row" style="border-top: 1px solid rgba(0,0,0,0.1); margin-top: 4px; padding-top: 4px;">
-                                <div class="tooltip-label">
-                                    <span style="font-weight: 700;">Patrimônio Total</span>
-                                </div>
-                                <div class="tooltip-value" style="font-weight: 700;">${formatCurrency(tot)}</div>
-                            </div>
-                        `;
-
-                        const caretX = tooltipModel.caretX;
-                        const caretY = tooltipModel.caretY;
-                        let left = caretX + 12;
-                        const tooltipHeight = tooltipEl.offsetHeight || 135;
-                        const tooltipWidth = 190;
-
-                        // Clamping vertical para garantir que a tooltip nunca seja cortada no rodapé
-                        let top = caretY - 60;
-                        if (top + tooltipHeight > container.clientHeight - 8) {
-                            top = Math.max(8, container.clientHeight - tooltipHeight - 8);
-                        }
-                        if (top < 8) top = 8;
-
-                        if (left + tooltipWidth > container.clientWidth) {
-                            left = Math.max(8, caretX - tooltipWidth - 12);
-                        }
-
-                        tooltipEl.style.left = left + 'px';
-                        tooltipEl.style.top = top + 'px';
-                        tooltipEl.style.opacity = '1';
+                        renderCustomPatrimonyTooltip(chart, targetIndex, tooltipModel);
                     }
                 }
             },
