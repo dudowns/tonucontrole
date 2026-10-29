@@ -192,6 +192,7 @@
             dropdown = document.createElement('div');
             dropdown.id = 'notifDropdownMenu';
             dropdown.className = 'notif-dropdown';
+            dropdown.style.display = 'none';
             dropdown.style.zIndex = '999999';
             dropdown.innerHTML = `
                 <div class="notif-header">

@@ -1936,3 +1936,17 @@ body.dark-theme .mobile-input-select {
         animation: none !important;
     }
 }
+
+/* Safeguard: Central de Notificações oculta por padrão no mobile */
+.notif-dropdown {
+    display: none;
+}
+.notif-dropdown.show {
+    display: block !important;
+}
+.notif-backdrop {
+    display: none;
+}
+.notif-backdrop.show {
+    display: block !important;
+}

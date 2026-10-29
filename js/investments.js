@@ -77,6 +77,7 @@ let selectedEvolutionClass = 'all';
 let selectedPieClass = 'all';
 let patrimonyChart = null;
 let selectedPatrimonyBarIndex = null;
+let hoveredPatrimonyBarIndex = null;
 let pieChart = null;
 let dividendsChart = null;
 let dividendsPieChart = null;
@@ -4042,6 +4043,10 @@ function renderChart() {
         patrimonyChart = null;
     }
     selectedPatrimonyBarIndex = null;
+    hoveredPatrimonyBarIndex = null;
+    canvas.onmousemove = null;
+    canvas.onmouseleave = null;
+    canvas.onclick = null;
     const oldTooltip = canvas.parentNode?.querySelector('.custom-chart-tooltip');
     if (oldTooltip) {
         oldTooltip.style.opacity = '0';
@@ -4141,16 +4146,52 @@ function renderChart() {
         }
     };
 
+    // Função utilitária para detectar com precisão absoluta o índice do mês sob o cursor do mouse
+    function getBarIndexFromEvent(chart, event) {
+        if (!chart || !chart.canvas) return null;
+        const rect = chart.canvas.getBoundingClientRect();
+        const clientX = (event.clientX !== undefined) ? event.clientX : (event.native?.clientX ?? 0);
+        const mouseX = clientX - rect.left;
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data || meta.data.length === 0) return null;
+
+        const chartArea = chart.chartArea;
+        if (!chartArea) return null;
+
+        // Tolerância nas bordas esquerda e direita para alcançar com facilidade o primeiro e o último mês
+        if (mouseX < chartArea.left - 25 || mouseX > chartArea.right + 45) {
+            return null;
+        }
+
+        let closestIdx = 0;
+        let minDistance = Infinity;
+        for (let i = 0; i < meta.data.length; i++) {
+            const bar = meta.data[i];
+            if (bar && Number.isFinite(bar.x)) {
+                const dist = Math.abs(mouseX - bar.x);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    closestIdx = i;
+                }
+            }
+        }
+        return closestIdx;
+    }
+
     // Plugin para realce visual da coluna/mês sob o mouse ou fixada por clique
     const patrimonyColumnHoverPlugin = {
         id: 'patrimonyColumnHoverPlugin',
         beforeDatasetsDraw: (chart) => {
-            const active = chart.tooltip?._active;
             let activeIdx = -1;
-            if (active && active.length > 0) {
-                activeIdx = active[0].index;
+            if (hoveredPatrimonyBarIndex !== null && hoveredPatrimonyBarIndex >= 0) {
+                activeIdx = hoveredPatrimonyBarIndex;
             } else if (selectedPatrimonyBarIndex !== null && selectedPatrimonyBarIndex >= 0) {
                 activeIdx = selectedPatrimonyBarIndex;
+            } else {
+                const active = chart.tooltip?._active;
+                if (active && active.length > 0) {
+                    activeIdx = active[0].index;
+                }
             }
             if (activeIdx < 0) return;
 
@@ -4175,7 +4216,7 @@ function renderChart() {
 
             if (selectedPatrimonyBarIndex === activeIdx) {
                 ctx.strokeStyle = isDark ? '#A29BFE' : '#6C5CE7';
-                ctx.lineWidth = 1.5;
+                ctx.lineWidth = 2;
                 if (typeof ctx.roundRect === 'function') {
                     ctx.beginPath();
                     ctx.roundRect(x - colWidth / 2, chartArea.top, colWidth, chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
@@ -4189,7 +4230,7 @@ function renderChart() {
     };
 
     // Função para posicionar o tooltip exatamente centralizado sobre a barra ativa
-    function renderCustomPatrimonyTooltip(chart, targetIndex, tooltipModel) {
+    function renderCustomPatrimonyTooltip(chart, targetIndex) {
         if (!chart || !chart.canvas) return;
         const chartCanvas = chart.canvas;
         const container = chartCanvas.parentNode;
@@ -4255,8 +4296,8 @@ function renderChart() {
         // Pega as coordenadas exatas da barra
         const meta0 = chart.getDatasetMeta(0);
         const barElem = meta0?.data?.[idx];
-        const barX = barElem ? barElem.x : (tooltipModel?.caretX ?? (chartCanvas.width / 2));
-        const barY = barElem ? barElem.y : (tooltipModel?.caretY ?? (chartCanvas.height / 2));
+        const barX = barElem ? barElem.x : (chartCanvas.width / 2);
+        const barY = barElem ? barElem.y : (chartCanvas.height / 2);
 
         const canvasOffsetLeft = chartCanvas.offsetLeft || 0;
         const canvasOffsetTop = chartCanvas.offsetTop || 0;
@@ -4338,30 +4379,12 @@ function renderChart() {
             responsive: true,
             maintainAspectRatio: false,
             resizeDelay: 50,
-            interaction: {
-                intersect: false,
-                mode: 'index',
-                axis: 'x'
-            },
-            onHover: (event, chartElements) => {
-                if (event && event.native && event.native.target) {
-                    event.native.target.style.cursor = (chartElements && chartElements.length > 0) ? 'pointer' : 'default';
-                }
-            },
-            onClick: (event, elements, chart) => {
-                if (elements && elements.length > 0) {
-                    const idx = elements[0].index;
-                    if (selectedPatrimonyBarIndex === idx) {
-                        selectedPatrimonyBarIndex = null;
-                    } else {
-                        selectedPatrimonyBarIndex = idx;
-                    }
-                    chart.update('none');
-                    renderCustomPatrimonyTooltip(chart, selectedPatrimonyBarIndex);
-                } else {
-                    selectedPatrimonyBarIndex = null;
-                    chart.update('none');
-                    renderCustomPatrimonyTooltip(chart, null);
+            layout: {
+                padding: {
+                    left: 10,
+                    right: 45, // Margem de respiro dedicada à direita para a última barra ter foco perfeito
+                    top: 10,
+                    bottom: 5
                 }
             },
             plugins: {
@@ -4379,20 +4402,7 @@ function renderChart() {
                     }
                 },
                 tooltip: {
-                    enabled: false,
-                    external: function (context) {
-                        const tooltipModel = context.tooltip;
-                        const chart = context.chart;
-                        let targetIndex = null;
-
-                        if (tooltipModel && tooltipModel.opacity !== 0 && tooltipModel.dataPoints && tooltipModel.dataPoints.length > 0) {
-                            targetIndex = tooltipModel.dataPoints[0].dataIndex;
-                        } else if (selectedPatrimonyBarIndex !== null) {
-                            targetIndex = selectedPatrimonyBarIndex;
-                        }
-
-                        renderCustomPatrimonyTooltip(chart, targetIndex, tooltipModel);
-                    }
+                    enabled: false
                 }
             },
             scales: {
@@ -4433,6 +4443,50 @@ function renderChart() {
             animation: { duration: 600 }
         }
     });
+
+    // Eventos diretos no Canvas: garantem que qualquer movimento ou clique na coluna da última barra seja detectado com exatidão
+    canvas.onmousemove = (e) => {
+        if (!patrimonyChart) return;
+        const idx = getBarIndexFromEvent(patrimonyChart, e);
+        if (idx !== null) {
+            canvas.style.cursor = 'pointer';
+            if (hoveredPatrimonyBarIndex !== idx) {
+                hoveredPatrimonyBarIndex = idx;
+                patrimonyChart.update('none');
+                renderCustomPatrimonyTooltip(patrimonyChart, idx);
+            }
+        } else {
+            canvas.style.cursor = 'default';
+            if (hoveredPatrimonyBarIndex !== null) {
+                hoveredPatrimonyBarIndex = null;
+                patrimonyChart.update('none');
+                renderCustomPatrimonyTooltip(patrimonyChart, selectedPatrimonyBarIndex);
+            }
+        }
+    };
+
+    canvas.onmouseleave = () => {
+        canvas.style.cursor = 'default';
+        if (hoveredPatrimonyBarIndex !== null) {
+            hoveredPatrimonyBarIndex = null;
+            if (patrimonyChart) patrimonyChart.update('none');
+            renderCustomPatrimonyTooltip(patrimonyChart, selectedPatrimonyBarIndex);
+        }
+    };
+
+    canvas.onclick = (e) => {
+        if (!patrimonyChart) return;
+        const idx = getBarIndexFromEvent(patrimonyChart, e);
+        if (idx !== null) {
+            if (selectedPatrimonyBarIndex === idx) {
+                selectedPatrimonyBarIndex = null;
+            } else {
+                selectedPatrimonyBarIndex = idx;
+            }
+            patrimonyChart.update('none');
+            renderCustomPatrimonyTooltip(patrimonyChart, selectedPatrimonyBarIndex);
+        }
+    };
 }
 // ============================================
 // GRÁFICO DE PIZZA
