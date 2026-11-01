@@ -56,52 +56,84 @@
         .stats-carousel {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            padding: 0 14px 12px 14px;
+            gap: 10px;
+            padding: 0 14px 14px 14px;
         }
         .stat-card-mini {
             background: var(--color-surface, #ffffff);
             border: 1px solid var(--color-border, #e2e8f0);
-            border-radius: 10px;
-            padding: 10px;
+            border-radius: 16px;
+            padding: 12px 14px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 3px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .stat-card-mini .label {
             font-size: 11px;
-            color: var(--color-text-muted, #94a3b8);
-            font-weight: 500;
+            color: var(--color-text-muted, #64748b);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
         }
         .stat-card-mini .val {
-            font-size: 15px;
-            font-weight: 700;
+            font-size: 16px;
+            font-weight: 800;
+            font-feature-settings: 'tnum';
+            color: var(--color-text, #0f172a);
         }
 
         .filter-chips {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             overflow-x: auto;
-            padding: 0 14px 12px 14px;
+            padding: 0 14px 14px 14px;
             scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
         }
         .filter-chips::-webkit-scrollbar { display: none; }
         .chip {
-            padding: 6px 12px;
-            border-radius: 999px;
-            font-size: 11px;
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-size: 12px;
             font-weight: 600;
             background: var(--color-surface, #ffffff);
             border: 1px solid var(--color-border, #e2e8f0);
-            color: var(--color-text, #2d3436);
+            color: var(--color-text, #334155);
             white-space: nowrap;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            min-height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+            touch-action: manipulation;
         }
+        .chip:active { transform: scale(0.95); }
         .chip.active {
-            background: #6C5CE7;
+            background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%);
             color: #ffffff;
             border-color: #6C5CE7;
+            box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+        }
+        body.dark-theme .stat-card-mini {
+            background: #171f2e !important;
+            border-color: rgba(51, 65, 85, 0.7) !important;
+            color: #f8fafc !important;
+        }
+        body.dark-theme .stat-card-mini .val {
+            color: #f8fafc !important;
+        }
+        body.dark-theme .chip {
+            background: #171f2e !important;
+            border-color: rgba(51, 65, 85, 0.7) !important;
+            color: #94a3b8 !important;
+        }
+        body.dark-theme .chip.active {
+            background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%) !important;
+            color: #ffffff !important;
         }
         .chip-select {
             padding: 5px 10px;

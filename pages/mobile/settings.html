@@ -26,29 +26,30 @@
         
         .mobile-settings-profile {
             background: var(--color-surface, #ffffff);
-            border-radius: 16px;
-            padding: 20px 16px;
-            margin: 12px 14px;
-            border: 1px solid var(--color-border, #e8ecf1);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border-radius: 20px;
+            padding: 20px 18px;
+            margin: 14px 14px 16px 14px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 16px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .mobile-avatar {
-            width: 58px;
-            height: 58px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+            width: 60px;
+            height: 60px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #6C5CE7, #8B5CF6);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 22px;
+            font-size: 24px;
             color: white;
-            font-weight: 700;
+            font-weight: 800;
             flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.25);
+            box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35);
         }
 
         .mobile-profile-details {
@@ -57,17 +58,18 @@
         }
 
         .mobile-user-name {
-            font-weight: 700;
-            font-size: 16px;
-            color: var(--color-text, #2d3436);
+            font-weight: 800;
+            font-size: 17px;
+            color: var(--color-text, #0f172a);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            letter-spacing: -0.3px;
         }
 
         .mobile-user-email {
-            font-size: 12px;
-            color: var(--color-text-light, #636e72);
+            font-size: 12.5px;
+            color: var(--color-text-light, #64748b);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -80,11 +82,19 @@
             gap: 5px;
             background: rgba(0, 184, 148, 0.12);
             color: #00b894;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 2px 8px;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 3px 10px;
             border-radius: 999px;
-            margin-top: 4px;
+            margin-top: 6px;
+        }
+
+        body.dark-theme .mobile-settings-profile {
+            background: #171f2e !important;
+            border-color: rgba(51, 65, 85, 0.7) !important;
+        }
+        body.dark-theme .mobile-user-name {
+            color: #f8fafc !important;
         }
 
         .mobile-group-title {

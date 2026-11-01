@@ -36,64 +36,96 @@
         }
         .invest-hero-card {
             background: var(--color-surface, #ffffff);
-            border-radius: 14px;
-            padding: 12px 14px;
+            border-radius: 18px;
+            padding: 14px 16px;
             border: 1px solid var(--color-border, #e2e8f0);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .invest-hero-card.full-width {
             grid-column: span 2;
-            background: linear-gradient(135deg, rgba(108, 92, 231, 0.08), rgba(162, 155, 254, 0.12));
-            border-color: rgba(108, 92, 231, 0.2);
+            background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(162, 155, 254, 0.18));
+            border-color: rgba(108, 92, 231, 0.25);
+            box-shadow: 0 4px 16px rgba(108, 92, 231, 0.1);
         }
         .invest-hero-card .hero-label {
-            font-size: 10px;
+            font-size: 10.5px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.6px;
             color: var(--color-text-muted, #64748b);
-            margin-bottom: 4px;
+            margin-bottom: 5px;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
         }
         .invest-hero-card .hero-value {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 800;
             color: var(--color-text, #0f172a);
-            letter-spacing: -0.3px;
+            letter-spacing: -0.4px;
+            font-feature-settings: 'tnum';
         }
         .invest-hero-card.full-width .hero-value {
-            font-size: 24px;
+            font-size: 26px;
             color: #6C5CE7;
         }
 
         /* FILTROS CHIPS */
         .chip-filters {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             overflow-x: auto;
             padding-bottom: 6px;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
             scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
         }
         .chip-filters::-webkit-scrollbar { display: none; }
         .chip-btn {
             border: 1px solid var(--color-border, #e2e8f0);
             background: var(--color-surface, #ffffff);
             color: var(--color-text-muted, #64748b);
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
-            padding: 6px 12px;
-            border-radius: 999px;
+            padding: 8px 14px;
+            min-height: 38px;
+            border-radius: 12px;
             white-space: nowrap;
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+            touch-action: manipulation;
         }
+        .chip-btn:active { transform: scale(0.95); }
         .chip-btn.active {
-            background: #6C5CE7;
+            background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%);
             color: #ffffff;
             border-color: #6C5CE7;
+            box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+        }
+        body.dark-theme .invest-hero-card {
+            background: #171f2e !important;
+            border-color: rgba(51, 65, 85, 0.7) !important;
+        }
+        body.dark-theme .invest-hero-card.full-width {
+            background: linear-gradient(135deg, rgba(108, 92, 231, 0.22), rgba(162, 155, 254, 0.15)) !important;
+            border-color: rgba(108, 92, 231, 0.35) !important;
+        }
+        body.dark-theme .invest-hero-card .hero-value {
+            color: #f8fafc !important;
+        }
+        body.dark-theme .chip-btn {
+            background: #171f2e !important;
+            border-color: rgba(51, 65, 85, 0.7) !important;
+            color: #94a3b8 !important;
+        }
+        body.dark-theme .chip-btn.active {
+            background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%) !important;
+            color: #ffffff !important;
         }
 
         /* CARD DE ATIVO EM CUSTÓDIA */

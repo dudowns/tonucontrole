@@ -92,17 +92,19 @@
 
 <main class="mobile-content">
     <!-- SELETOR DE MÊS COM BOTÃO DE NOVA TRANSAÇÃO -->
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; background:var(--color-surface,#fff); padding:4px 10px; border-radius:12px; border:1px solid var(--color-border,#e2e8f0); flex:1; height:42px; box-sizing:border-box;">
-            <button onclick="changeMonth(-1)" aria-label="Mês anterior" style="background:none; border:none; width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--color-text,#1e293b); cursor:pointer; font-size:13px;">
-                <i class="fas fa-chevron-left"></i>
-            </button>
-            <span id="selectedMonth" style="font-weight:600; font-size:13.5px; color:var(--color-text,#1e293b);">Setembro 2026</span>
-            <button onclick="changeMonth(1)" aria-label="Próximo mês" style="background:none; border:none; width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--color-text,#1e293b); cursor:pointer; font-size:13px;">
-                <i class="fas fa-chevron-right"></i>
-            </button>
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+        <div class="mobile-month-selector-bar" style="margin-bottom:0; flex:1;">
+            <div class="month-selector">
+                <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="month-label" id="selectedMonth">Setembro 2026</span>
+                <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
         </div>
-        <button type="button" class="btn-primary" onclick="openAddTransaction()" style="height:42px; padding:0 14px; border-radius:12px; font-weight:600; font-size:13px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; border:none; background:linear-gradient(135deg, #6C5CE7, #8B5CF6); color:#fff; cursor:pointer; box-shadow:0 3px 10px rgba(108,92,231,0.25);">
+        <button type="button" class="btn-primary" onclick="openAddTransaction()" style="height:48px; padding:0 16px; border-radius:16px; font-weight:700; font-size:13px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; border:none; background:linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%); color:#fff; cursor:pointer; box-shadow:0 3px 10px rgba(108,92,231,0.3); transition:all 0.18s; touch-action:manipulation;">
             <i class="fas fa-plus"></i> Nova
         </button>
     </div>
