@@ -330,24 +330,44 @@
                         </div>
                     </div>
 
-                    <!-- INSIGHTS FINANCEIROS INTELIGENTES -->
-                    <div class="card insights-card" id="dashboardInsightsCard">
-                        <div class="card-header">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <h3>💡 Diagnóstico 360º</h3>
-                                <span class="badge badge-primary" id="insightsMonthBadge" style="font-size:10px; font-weight:700; background:rgba(108,92,231,0.12); color:#6C5CE7; padding:2px 8px; border-radius:9999px;">
-                                    Diagnóstico do Mês
-                                </span>
+                    <!-- COLUNA LATERAL: O QUE FAZER HOJE? + SAÚDE FINANCEIRA -->
+                    <div class="dashboard-sidebar-column" style="display: flex; flex-direction: column; gap: 20px;">
+                        <!-- CARD 1: O QUE FAZER HOJE? -->
+                        <div class="card quick-actions-panel" id="dashboardQuickActionsCard">
+                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <h3>⚡ O que fazer hoje?</h3>
+                                    <span class="badge" id="quickActionsBadge" style="font-size: 10px; font-weight: 700; background: rgba(245, 158, 11, 0.12); color: #D97706; padding: 2px 8px; border-radius: 9999px;">
+                                        Ações Rápidas
+                                    </span>
+                                </div>
                             </div>
-                            <button type="button" class="btn-ghost-sm" onclick="window.generateDashboardInsights && window.generateDashboardInsights()" title="Atualizar Diagnóstico">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
+                            <div class="card-body" id="dashboardQuickActionsBody" style="padding: 14px 18px;">
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <div class="skeleton-shimmer" style="width: 100%; height: 38px; border-radius: 10px;"></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="card-body" id="dashboardInsightsBody">
-                            <div style="display: flex; flex-direction: column; gap: 8px; padding: 6px 0;">
-                                <div class="skeleton-shimmer" style="width: 85%; height: 14px;"></div>
-                                <div class="skeleton-shimmer" style="width: 95%; height: 13px;"></div>
-                                <div class="skeleton-shimmer" style="width: 60%; height: 13px;"></div>
+
+                        <!-- CARD 2: SAÚDE FINANCEIRA (DIAGNÓSTICO 360º) -->
+                        <div class="card insights-card" id="dashboardInsightsCard">
+                            <div class="card-header">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <h3>💡 Saúde Financeira</h3>
+                                    <span class="badge badge-primary" id="insightsMonthBadge" style="font-size:10px; font-weight:700; background:rgba(108,92,231,0.12); color:#6C5CE7; padding:2px 8px; border-radius:9999px;">
+                                        Diagnóstico 360º
+                                    </span>
+                                </div>
+                                <button type="button" class="btn-ghost-sm" onclick="window.generateDashboardInsights && window.generateDashboardInsights()" title="Atualizar Diagnóstico">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                            <div class="card-body" id="dashboardInsightsBody">
+                                <div style="display: flex; flex-direction: column; gap: 8px; padding: 6px 0;">
+                                    <div class="skeleton-shimmer" style="width: 85%; height: 14px;"></div>
+                                    <div class="skeleton-shimmer" style="width: 95%; height: 13px;"></div>
+                                    <div class="skeleton-shimmer" style="width: 60%; height: 13px;"></div>
+                                </div>
                             </div>
                         </div>
                     </div>

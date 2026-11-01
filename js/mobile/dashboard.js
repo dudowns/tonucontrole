@@ -1055,12 +1055,33 @@ function renderMobileInsights() {
     const displayedMobActionCards = mobActionCards.slice(0, 2);
 
     container.innerHTML = `
-        <div class="mobile-insights-card">
+        <!-- CARD 1: O QUE FAZER HOJE? -->
+        <div class="mobile-insights-card mob-quick-actions-card">
             <div class="mobile-insights-header">
                 <div class="mobile-insights-title">
-                    <i class="fas fa-compass" style="color:#6C5CE7;"></i> Diagnóstico 360º
+                    <i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?
                 </div>
-                <span class="mobile-insights-pill">Inteligência Financeira</span>
+                <span class="mobile-insights-pill" style="${displayedMobActionCards.length > 0 ? 'background:rgba(239, 68, 68, 0.12); color:#dc2626;' : 'background:rgba(16, 185, 129, 0.12); color:#10b981;'}">
+                    ${displayedMobActionCards.length > 0 ? `${displayedMobActionCards.length} ${displayedMobActionCards.length === 1 ? 'pendência' : 'pendências'}` : 'Em dia ✨'}
+                </span>
+            </div>
+            <div class="mob-checklist-wrap" style="margin-bottom:0;">
+                ${displayedMobActionCards.length > 0 ? displayedMobActionCards.join('') : `
+                    <div style="padding:10px 12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; font-size:11.5px; color:#15803d; display:flex; align-items:center; gap:8px; font-weight:600;">
+                        <i class="fas fa-check-circle" style="font-size:15px; color:#10b981; flex-shrink:0;"></i>
+                        <span>Tudo em dia! Sem pendências críticas hoje. ✨</span>
+                    </div>
+                `}
+            </div>
+        </div>
+
+        <!-- CARD 2: SAÚDE FINANCEIRA (DIAGNÓSTICO 360º) -->
+        <div class="mobile-insights-card mob-health-score-card">
+            <div class="mobile-insights-header">
+                <div class="mobile-insights-title">
+                    <i class="fas fa-heart-pulse" style="color:#6C5CE7;"></i> Saúde Financeira
+                </div>
+                <span class="mobile-insights-pill">Diagnóstico 360º</span>
             </div>
 
             <!-- ANEL DO SCORE 360º NO MOBILE -->
@@ -1077,19 +1098,9 @@ function renderMobileInsights() {
                 </div>
                 <div>
                     <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:9999px; background:${mobBadge.bg}; color:${mobBadge.color};">${mobBadge.label}</span>
-                    <h4 style="margin:4px 0 2px 0; font-size:14px; font-weight:700; color:var(--color-text,#1e293b);">Saúde Financeira</h4>
+                    <h4 style="margin:4px 0 2px 0; font-size:14px; font-weight:700; color:var(--color-text,#1e293b);">Diagnóstico Geral</h4>
                     <p style="margin:0; font-size:11px; color:#64748b;">Equilíbrio • Contas • Dívidas • Futuro</p>
                 </div>
-            </div>
-
-            <!-- CHECKLIST DE AÇÕES RÁPIDAS NO MOBILE -->
-            <div class="mob-checklist-wrap">
-                <div class="mob-checklist-title"><i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?</div>
-                ${displayedMobActionCards.length > 0 ? displayedMobActionCards.join('') : `
-                    <div style="padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; font-size:11px; color:#15803d; display:flex; align-items:center; gap:8px;">
-                        <i class="fas fa-check-circle" style="font-size:14px;"></i> Tudo em dia! Sem pendências críticas. ✨
-                    </div>
-                `}
             </div>
 
             <!-- 1. Taxa de Poupança -->

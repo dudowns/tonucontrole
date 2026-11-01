@@ -2074,7 +2074,37 @@ async function generateDashboardInsights() {
         // Checklist acionável limitado estritamente a "Pagar Agora" e "Ver Gastos"
         const displayedActionCards = actionCards.slice(0, 2);
 
-        // RENDERIZAÇÃO COMPLETA DO DIAGNÓSTICO
+        // RENDERIZAÇÃO DO CARD DEDICADO: "O QUE FAZER HOJE?" (DESKTOP)
+        const quickActionsBody = document.getElementById('dashboardQuickActionsBody');
+        const quickActionsBadge = document.getElementById('quickActionsBadge');
+        if (quickActionsBody) {
+            if (displayedActionCards.length > 0) {
+                if (quickActionsBadge) {
+                    quickActionsBadge.textContent = `${displayedActionCards.length} ${displayedActionCards.length === 1 ? 'pendência' : 'pendências'}`;
+                    quickActionsBadge.style.background = 'rgba(239, 68, 68, 0.12)';
+                    quickActionsBadge.style.color = '#DC2626';
+                }
+                quickActionsBody.innerHTML = `
+                    <div class="quick-actions-grid" style="display: flex; flex-direction: column; gap: 8px;">
+                        ${displayedActionCards.join('')}
+                    </div>
+                `;
+            } else {
+                if (quickActionsBadge) {
+                    quickActionsBadge.textContent = 'Em dia ✨';
+                    quickActionsBadge.style.background = 'rgba(16, 185, 129, 0.12)';
+                    quickActionsBadge.style.color = '#10B981';
+                }
+                quickActionsBody.innerHTML = `
+                    <div class="action-card all-good">
+                        <i class="fas fa-check-circle" style="color:#10b981; font-size:18px;"></i>
+                        <span>Tudo em dia! Suas contas estão pagas e o orçamento equilibrado. ✨</span>
+                    </div>
+                `;
+            }
+        }
+
+        // RENDERIZAÇÃO COMPLETA DO CARD DE SAÚDE FINANCEIRA (DIAGNÓSTICO 360º)
         container.innerHTML = `
             <!-- ANEL VELOCÍMETRO DO SCORE 360º -->
             <div class="score-ring-card">
@@ -2095,18 +2125,20 @@ async function generateDashboardInsights() {
                 </div>
             </div>
 
-            <!-- CHECKLIST DE AÇÕES RÁPIDAS ("O QUE FAZER HOJE?") -->
-            <div class="quick-actions-section">
-                <div class="quick-actions-title"><i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?</div>
-                <div class="quick-actions-grid">
-                    ${displayedActionCards.length > 0 ? displayedActionCards.join('') : `
-                        <div class="action-card all-good">
-                            <i class="fas fa-check-circle" style="color:#10b981; font-size:18px;"></i>
-                            <span>Tudo em dia! Suas contas estão pagas e o orçamento equilibrado. ✨</span>
-                        </div>
-                    `}
+            ${!quickActionsBody ? `
+                <!-- FALLBACK CHECKLIST SE NÃO HOUVER CARD DEDICADO -->
+                <div class="quick-actions-section">
+                    <div class="quick-actions-title"><i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?</div>
+                    <div class="quick-actions-grid">
+                        ${displayedActionCards.length > 0 ? displayedActionCards.join('') : `
+                            <div class="action-card all-good">
+                                <i class="fas fa-check-circle" style="color:#10b981; font-size:18px;"></i>
+                                <span>Tudo em dia! Suas contas estão pagas e o orçamento equilibrado. ✨</span>
+                            </div>
+                        `}
+                    </div>
                 </div>
-            </div>
+            ` : ''}
 
             <!-- PILARES DO APLICATIVO -->
             <div class="insight-pillars-list">
