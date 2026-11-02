@@ -1624,6 +1624,86 @@ async function loadDividends(userId = currentUser?.id) {
     return loaded;
 }
 
+// ============================================
+// 💼 CÁLCULO DO CUSTO DE CUSTÓDIA ATUAL (OPÇÃO A)
+// ============================================
+function calculateCurrentCustodyCost(investments = []) {
+    if (!Array.isArray(investments) || investments.length === 0) return 0;
+
+    const parseVal = (val) => {
+        if (val === null || val === undefined || val === '') return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        let s = String(val).replace(/[R$\s]/gi, '').trim();
+        if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
+        else if (s.includes(',')) s = s.replace(',', '.');
+        const n = parseFloat(s);
+        return isNaN(n) ? 0 : n;
+    };
+
+    const sorted = [...investments].sort((a, b) => {
+        const da = new Date((a.date || '1970-01-01') + 'T12:00:00').getTime();
+        const db = new Date((b.date || '1970-01-01') + 'T12:00:00').getTime();
+        if (da !== db) return da - db;
+        const typeA = (a.type || '').toLowerCase();
+        const typeB = (b.type || '').toLowerCase();
+        const prioA = typeA.includes('compra') || typeA.includes('buy') ? 1 : 2;
+        const prioB = typeB.includes('compra') || typeB.includes('buy') ? 1 : 2;
+        return prioA - prioB;
+    });
+
+    const positionsMap = new Map();
+
+    sorted.forEach(item => {
+        const ticker = (item.ticker || '').toUpperCase().trim();
+        if (!ticker) return;
+
+        if (!positionsMap.has(ticker)) {
+            positionsMap.set(ticker, {
+                quantity: 0,
+                costBasis: 0,
+                averageCost: 0
+            });
+        }
+
+        const pos = positionsMap.get(ticker);
+        const qty = parseVal(item.quantity);
+        let unit = parseVal(item.unit_price || item.price);
+        let total = parseVal(item.total_value || item.amount);
+        if (total <= 0 && qty > 0 && unit > 0) total = qty * unit;
+        if (unit <= 0 && qty > 0 && total > 0) unit = total / qty;
+
+        const type = (item.type || '').toLowerCase();
+        if (type.includes('compra') || type.includes('buy')) {
+            pos.costBasis += total;
+            pos.quantity += qty;
+            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+        } else if (type.includes('venda') || type.includes('sell')) {
+            const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+            const sellQty = Math.min(qty, pos.quantity);
+            pos.costBasis = Math.max(0, pos.costBasis - (avg * sellQty));
+            pos.quantity = Math.max(0, pos.quantity - sellQty);
+            if (pos.quantity <= 0.0000001) {
+                pos.quantity = 0;
+                pos.costBasis = 0;
+                pos.averageCost = 0;
+            } else {
+                pos.averageCost = pos.costBasis / pos.quantity;
+            }
+        }
+    });
+
+    let totalCustody = 0;
+    for (const pos of positionsMap.values()) {
+        if (pos.quantity > 0.0000001) {
+            const cost = pos.quantity * (pos.averageCost || 0);
+            totalCustody += (cost > 0 ? cost : (pos.costBasis > 0 ? pos.costBasis : 0));
+        }
+    }
+
+    return Math.round(totalCustody * 100) / 100;
+}
+
+window.calculateCurrentCustodyCost = calculateCurrentCustodyCost;
 window.loadInvestments = loadInvestments;
 window.loadDividends = loadDividends;
 
@@ -1799,14 +1879,8 @@ async function generateDashboardInsights() {
             await loadDividends(currentUser?.id);
         }
 
-        const buyInvs = (window.allInvestments || []).filter(i => {
-            const t = String(i.type || '').toUpperCase();
-            return t === 'BUY' || t === 'COMPRA';
-        });
-        let totalAportes = buyInvs.reduce((s, i) => {
-            const val = Number(i.total_value) || (Number(i.price || 0) * Number(i.quantity || 0));
-            return s + (val > 0 ? val : 0);
-        }, 0);
+        // Custo de Custódia Atual (Opção A: Valor Aplicado das posições ativas)
+        let totalAportes = calculateCurrentCustodyCost(window.allInvestments);
         const uid = currentUser?.id || 'demo';
         const savedInvested = parseFloat(localStorage.getItem('tonu_total_invested_' + uid) || '0');
         if (totalAportes === 0 && savedInvested > 0) {
