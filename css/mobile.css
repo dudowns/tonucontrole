@@ -9,7 +9,7 @@
 }
 
 body {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: 0 !important;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -193,7 +193,6 @@ main,
 #main-content,
 .mobile-container,
 .mobile-page-content {
-    padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
 }
 

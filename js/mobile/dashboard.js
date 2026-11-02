@@ -9,7 +9,14 @@ let allTransactions = [];
 let categories = [];
 let allBills = [];
 let allDividends = [];
+let allInvestments = [];
 let allGoals = [];
+
+window.allDividends = window.allDividends || [];
+window.allInvestments = window.allInvestments || [];
+window.extraIncome = 0;
+window.totalAportes = 0;
+window.totalDividends = 0;
 let mobileChartInstance = null;
 let currentChartMode = 'categories';
 let isBalanceHidden = localStorage.getItem('tonu_hide_balance') === 'true';
@@ -175,6 +182,112 @@ async function loadCategories() {
 }
 
 // ============================================
+// 📈 CARREGADORES DE PROVENTOS E INVESTIMENTOS (MOBILE)
+// ============================================
+async function loadDividends() {
+    if (!currentUser || !currentUser.id) return [];
+    let loaded = [];
+    if (supabaseClient) {
+        try {
+            const { data, error } = await supabaseClient
+                .from("dividends")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .order("date", { ascending: false });
+            if (!error && Array.isArray(data)) {
+                loaded = data;
+            }
+        } catch (e) {
+            console.warn("⚠️ Erro ao carregar proventos mobile:", e);
+        }
+    }
+    if (loaded.length === 0 && window.tonuSync) {
+        try {
+            const cachedDivs = await window.tonuSync.getCachedDividends(currentUser.id);
+            if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
+                loaded = cachedDivs;
+            }
+        } catch (_) {}
+    }
+    if (loaded.length === 0) {
+        try {
+            const localKeys = [
+                `tonucontrole_dividends_${currentUser.id}`,
+                `tonu_dividends_${currentUser.id}`,
+                'tonucontrole_dividends_demo',
+                'tonu_dividends'
+            ];
+            for (const k of localKeys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+    allDividends = loaded;
+    window.allDividends = loaded;
+    return loaded;
+}
+
+async function loadInvestments() {
+    if (!currentUser || !currentUser.id) return [];
+    let loaded = [];
+    if (supabaseClient) {
+        try {
+            const { data, error } = await supabaseClient
+                .from("investments")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .order("date", { ascending: true });
+            if (!error && Array.isArray(data)) {
+                loaded = data;
+            }
+        } catch (e) {
+            console.warn("⚠️ Erro ao carregar investimentos mobile:", e);
+        }
+    }
+    if (loaded.length === 0 && window.tonuSync) {
+        try {
+            const cachedInv = await window.tonuSync.getCachedInvestments(currentUser.id);
+            if (Array.isArray(cachedInv) && cachedInv.length > 0) {
+                loaded = cachedInv;
+            }
+        } catch (_) {}
+    }
+    if (loaded.length === 0) {
+        try {
+            const localKeys = [
+                `tonucontrole_investments_${currentUser.id}`,
+                `tonu_investments_${currentUser.id}`,
+                'tonucontrole_investments_demo',
+                'tonu_investments'
+            ];
+            for (const k of localKeys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+    allInvestments = loaded;
+    window.allInvestments = loaded;
+    return loaded;
+}
+
+window.loadDividends = loadDividends;
+window.loadInvestments = loadInvestments;
+
+// ============================================
 // CARREGAR DADOS MOBILE UNIFICADOS
 // ============================================
 async function loadMobileData() {
@@ -219,11 +332,10 @@ async function loadMobileData() {
             }
         })();
 
-        // 3. Proventos
-        const divPromise = supabaseClient
-            .from("dividends")
-            .select("*")
-            .eq("user_id", currentUser.id);
+        // 3. Proventos (AWAIT)
+        const divPromise = (async () => {
+            return await loadDividends();
+        })();
 
         // 4. Metas
         const goalsPromise = supabaseClient
@@ -231,11 +343,17 @@ async function loadMobileData() {
             .select("*")
             .eq("user_id", currentUser.id);
 
-        const [txRes, billsRes, divRes, goalsRes] = await Promise.all([
+        // 5. Investimentos (AWAIT)
+        const invPromise = (async () => {
+            return await loadInvestments();
+        })();
+
+        const [txRes, billsRes, divData, goalsRes, invData] = await Promise.all([
             txPromise,
             billsPromise,
             divPromise,
-            goalsPromise
+            goalsPromise,
+            invPromise
         ]);
 
         let loadedData = txRes.data || [];
@@ -248,13 +366,14 @@ async function loadMobileData() {
         allTransactions = loadedData;
 
         allBills = billsRes?.data || [];
-        allDividends = divRes?.data || [];
         allGoals = goalsRes?.data || [];
+        allDividends = Array.isArray(divData) ? divData : (allDividends || []);
+        allInvestments = Array.isArray(invData) ? invData : (allInvestments || []);
 
         // ==================================================================
         // CANONICAL INDEXEDDB CACHE NO DASHBOARD MOBILE
         // ==================================================================
-        const isRemoteEmpty = (allTransactions.length === 0 && allBills.length === 0 && allDividends.length === 0 && allGoals.length === 0);
+        const isRemoteEmpty = (allTransactions.length === 0 && allBills.length === 0 && allDividends.length === 0 && allGoals.length === 0 && allInvestments.length === 0);
 
         if (isRemoteEmpty && currentUser && currentUser.id) {
             console.log("ℹ️ Dados remotos vazios, consultando cache canônico IndexedDB...");
@@ -289,6 +408,14 @@ async function loadMobileData() {
                     const cachedDivs = await window.tonuSync.getCachedDividends(currentUser.id);
                     if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
                         allDividends = cachedDivs;
+                        cacheFound = true;
+                    }
+                } catch (_) {}
+
+                try {
+                    const cachedInv = await window.tonuSync.getCachedInvestments(currentUser.id);
+                    if (Array.isArray(cachedInv) && cachedInv.length > 0) {
+                        allInvestments = cachedInv;
                         cacheFound = true;
                     }
                 } catch (_) {}
@@ -336,6 +463,16 @@ async function loadMobileData() {
                     }
                     localStorage.removeItem('tonu_dividends_' + currentUser.id);
                 }
+                const legacyInv = localStorage.getItem('tonu_investments_' + currentUser.id);
+                if (legacyInv && window.tonuSync) {
+                    const parsed = JSON.parse(legacyInv);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        await window.tonuSync.setCachedInvestments(currentUser.id, parsed);
+                        if (allInvestments.length === 0) allInvestments = parsed;
+                        cacheFound = true;
+                    }
+                    localStorage.removeItem('tonu_investments_' + currentUser.id);
+                }
             } catch (_) {}
 
             if (cacheFound) {
@@ -343,6 +480,7 @@ async function loadMobileData() {
                     transacoes: allTransactions.length,
                     contas: allBills.length,
                     proventos: allDividends.length,
+                    investimentos: allInvestments.length,
                     metas: allGoals.length
                 });
                 setMobileCacheBanner(true);
@@ -366,6 +504,9 @@ async function loadMobileData() {
                     if (allDividends.length > 0) {
                         await window.tonuSync.setCachedDividends(currentUser.id, allDividends);
                     }
+                    if (allInvestments.length > 0) {
+                        await window.tonuSync.setCachedInvestments(currentUser.id, allInvestments);
+                    }
                 } catch (_) {}
             }
             // Limpa chaves financeiras concorrentes antigas do localStorage
@@ -375,6 +516,7 @@ async function loadMobileData() {
                     localStorage.removeItem('tonu_bills_' + currentUser.id);
                     localStorage.removeItem('tonu_goals_' + currentUser.id);
                     localStorage.removeItem('tonu_dividends_' + currentUser.id);
+                    localStorage.removeItem('tonu_investments_' + currentUser.id);
                 } catch (_) {}
             }
         }
@@ -383,6 +525,7 @@ async function loadMobileData() {
             transacoes: allTransactions.length,
             contas: allBills.length,
             proventos: allDividends.length,
+            investimentos: allInvestments.length,
             metas: allGoals.length
         });
 
@@ -864,6 +1007,7 @@ function renderMobileInsights() {
         }
     });
 
+    window.extraIncome = extraIncome;
     const savings = income - expense;
     const savingsRate = income > 0 ? Math.round((savings / income) * 100) : 0;
     const extraIncomePercent = income > 0 ? Math.round((extraIncome / income) * 100) : 0;
@@ -906,9 +1050,27 @@ function renderMobileInsights() {
     const pendingBills = monthBills.filter(b => !isTxPaid(b));
     const pendingBillsAmount = pendingBills.reduce((a, b) => a + (Number(b.amount) || 0), 0);
 
-    // Proventos
-    const monthDivs = allDividends.filter(d => (d.payment_date || d.date || '').substring(0, 7) === currentMonthPrefix);
-    const totalDivs = monthDivs.reduce((a, d) => a + (Number(d.total_value || d.net_value || d.amount || d.total_amount) || 0), 0);
+    // Aportes & Investimentos (Custo de Custódia Atual)
+    const buyInvs = (window.allInvestments || allInvestments || []).filter(i => {
+        const t = String(i.type || '').toUpperCase();
+        return t === 'BUY' || t === 'COMPRA';
+    });
+    let totalAportes = buyInvs.reduce((s, i) => {
+        const val = Number(i.total_value) || (Number(i.price || 0) * Number(i.quantity || 0));
+        return s + (val > 0 ? val : 0);
+    }, 0);
+    const mobUid = currentUser?.id || 'demo';
+    const mobSavedInvested = parseFloat(localStorage.getItem('tonu_total_invested_' + mobUid) || '0');
+    if (totalAportes === 0 && mobSavedInvested > 0) {
+        totalAportes = mobSavedInvested;
+    }
+    window.totalAportes = totalAportes;
+
+    // Proventos Recebidos no Mês
+    const monthDivs = (window.allDividends || allDividends || []).filter(d => (d.payment_date || d.date || '').substring(0, 7) === currentMonthPrefix);
+    const totalDividends = monthDivs.reduce((a, d) => a + (Number(d.total_value || d.net_value || d.amount || d.total_amount) || (Number(d.unit_value || 0) * Number(d.quantity || 0))), 0);
+    const totalDivs = totalDividends;
+    window.totalDividends = totalDividends;
 
     // Badge Poupança
     let rateClass = "info";
@@ -989,7 +1151,7 @@ function renderMobileInsights() {
     // Pilar 4: Futuros & Metas / Proventos (20%)
     let futScoreMobile = 0;
     let futActiveMobile = false;
-    if (totalDivs > 0) { futScoreMobile += 50; futActiveMobile = true; }
+    if (totalDividends > 0 || totalAportes > 0) { futScoreMobile += 50; futActiveMobile = true; }
     if (nearestGoalMob && nearestGoalMob.pct > 0) { futScoreMobile += 50; futActiveMobile = true; }
     if (futActiveMobile) mobilePillars.push({ weight: 20, score: Math.min(100, futScoreMobile) });
 
@@ -1151,19 +1313,19 @@ function renderMobileInsights() {
                 </span>
             </div>
 
-            <!-- 4. Renda Passiva / Proventos -->
+            <!-- 4. Investimentos & Proventos -->
             <div class="mobile-insight-row">
                 <div class="mobile-insight-left">
                     <div class="mobile-insight-icon purple">
                         <i class="fas fa-coins"></i>
                     </div>
                     <div class="mobile-insight-text">
-                        <span class="title">Renda Passiva</span>
-                        <span class="detail">${monthDivs.length} proventos recebidos</span>
+                        <span class="title">Investimentos & Proventos</span>
+                        <span class="detail">${formatCurrency(totalDividends)} proventos • ${formatCurrency(totalAportes)} aportes</span>
                     </div>
                 </div>
                 <span class="mobile-insight-badge" style="background:#f3e8ff; color:#7e22ce;">
-                    ${formatCurrency(totalDivs)}
+                    ${formatCurrency(totalAportes + totalDividends)}
                 </span>
             </div>
 
@@ -1534,5 +1696,7 @@ function toggleTheme() {
         icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
     }
 }
+
+window.renderMobileInsights = renderMobileInsights;
 
 console.log("✅ Mobile Dashboard pronto!");

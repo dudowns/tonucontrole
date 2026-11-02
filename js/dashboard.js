@@ -1325,6 +1325,10 @@ async function loadDashboard() {
         }
 
         try {
+            await Promise.all([
+                loadInvestments(currentUser?.id),
+                loadDividends(currentUser?.id)
+            ]);
             await generateDashboardInsights();
         } catch (gErr) {
             console.warn('Erro ao gerar insights:', gErr);
@@ -1505,6 +1509,125 @@ async function loadRecentTransactions() {
 }
 
 // ============================================
+// 📈 VARIÁVEIS GLOBAIS DE INVESTIMENTOS & INSIGHTS
+// ============================================
+window.allDividends = window.allDividends || [];
+window.allInvestments = window.allInvestments || [];
+window.extraIncome = 0;
+window.totalAportes = 0;
+window.totalDividends = 0;
+
+// ============================================
+// 📈 CARREGADORES DE INVESTIMENTOS & PROVENTOS
+// ============================================
+async function loadInvestments(userId = currentUser?.id) {
+    if (!userId && currentUser?.id) userId = currentUser.id;
+    let loaded = [];
+    if (typeof supabaseClient !== 'undefined' && supabaseClient && userId) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('investments')
+                .select('*')
+                .eq('user_id', userId)
+                .order('date', { ascending: true });
+            if (!error && data && Array.isArray(data)) {
+                loaded = data;
+                if (window.tonuSync) {
+                    window.tonuSync.setCachedInvestments(userId, data);
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao consultar investimentos do Supabase:', e);
+        }
+    }
+    if (loaded.length === 0 && userId && window.tonuSync) {
+        try {
+            const cachedInv = await window.tonuSync.getCachedInvestments(userId);
+            if (Array.isArray(cachedInv) && cachedInv.length > 0) {
+                loaded = cachedInv;
+            }
+        } catch (_) {}
+    }
+    if (loaded.length === 0) {
+        try {
+            const localKeys = [
+                `tonucontrole_investments_${userId}`,
+                `tonu_investments_${userId}`,
+                'tonucontrole_investments_demo',
+                'tonu_investments'
+            ];
+            for (const k of localKeys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+    window.allInvestments = loaded;
+    return loaded;
+}
+
+async function loadDividends(userId = currentUser?.id) {
+    if (!userId && currentUser?.id) userId = currentUser.id;
+    let loaded = [];
+    if (typeof supabaseClient !== 'undefined' && supabaseClient && userId) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('dividends')
+                .select('*')
+                .eq('user_id', userId)
+                .order('date', { ascending: false });
+            if (!error && data && Array.isArray(data)) {
+                loaded = data;
+                if (window.tonuSync) {
+                    window.tonuSync.setCachedDividends(userId, data);
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao consultar proventos do Supabase:', e);
+        }
+    }
+    if (loaded.length === 0 && userId && window.tonuSync) {
+        try {
+            const cachedDivs = await window.tonuSync.getCachedDividends(userId);
+            if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
+                loaded = cachedDivs;
+            }
+        } catch (_) {}
+    }
+    if (loaded.length === 0) {
+        try {
+            const localKeys = [
+                `tonucontrole_dividends_${userId}`,
+                `tonu_dividends_${userId}`,
+                'tonucontrole_dividends_demo',
+                'tonu_dividends'
+            ];
+            for (const k of localKeys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+    window.allDividends = loaded;
+    return loaded;
+}
+
+window.loadInvestments = loadInvestments;
+window.loadDividends = loadDividends;
+
+// ============================================
 // 💡 DIAGNÓSTICO FINANCEIRO 360º DO DASHBOARD (MÊS A MÊS - TODAS AS ABAS)
 // ============================================
 async function generateDashboardInsights() {
@@ -1568,8 +1691,10 @@ async function generateDashboardInsights() {
         };
 
         const extraIncomeTxs = paidIncomeTxs.filter(isExtraIncomeTx);
-        const totalExtraIncome = extraIncomeTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
-        const extraIncomePct = totalIncome > 0 ? Math.round((totalExtraIncome / totalIncome) * 100) : 0;
+        const extraIncome = extraIncomeTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+        const totalExtraIncome = extraIncome;
+        window.extraIncome = extraIncome;
+        const extraIncomePct = totalIncome > 0 ? Math.round((extraIncome / totalIncome) * 100) : 0;
 
         // 1.0.1 DETECÇÃO DE EMPRÉSTIMOS E DÍVIDAS NO MÊS
         const isLoanOrDebtTx = (t) => {
@@ -1666,82 +1791,38 @@ async function generateDashboardInsights() {
             return bDate && bDate < todayStr;
         });
 
-        // 3. CARREGAR INVESTIMENTOS E PROVENTOS DO MÊS
-        let monthInvestments = [];
-        if (supabaseClient && currentUser) {
-            try {
-                const { data } = await supabaseClient
-                    .from('investments')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .gte('date', firstDay)
-                    .lte('date', lastDayStr);
-                if (data && Array.isArray(data)) {
-                    monthInvestments = data;
-                    if (window.tonuSync) {
-                        window.tonuSync.setCachedInvestments(currentUser.id, data);
-                    }
-                }
-            } catch (e) {
-                console.warn('Erro ao consultar investimentos do mês:', e);
-            }
+        // 3. CARREGAR INVESTIMENTOS E PROVENTOS (CUSTÓDIA ATUAL E PROVENTOS DO MÊS)
+        if (!window.allInvestments || window.allInvestments.length === 0) {
+            await loadInvestments(currentUser?.id);
         }
-        if (monthInvestments.length === 0 && currentUser && window.tonuSync) {
-            try {
-                const cachedInv = await window.tonuSync.getCachedInvestments(currentUser.id);
-                if (Array.isArray(cachedInv) && cachedInv.length > 0) {
-                    monthInvestments = cachedInv.filter(i => {
-                        const iDate = normalizeDateOnly(i.date);
-                        return iDate >= firstDay && iDate <= lastDayStr;
-                    });
-                }
-            } catch (_) {}
+        if (!window.allDividends || window.allDividends.length === 0) {
+            await loadDividends(currentUser?.id);
         }
 
-        const buyInvs = monthInvestments.filter(i => {
+        const buyInvs = (window.allInvestments || []).filter(i => {
             const t = String(i.type || '').toUpperCase();
             return t === 'BUY' || t === 'COMPRA';
         });
-        const totalAportes = buyInvs.reduce((s, i) => {
+        let totalAportes = buyInvs.reduce((s, i) => {
             const val = Number(i.total_value) || (Number(i.price || 0) * Number(i.quantity || 0));
             return s + (val > 0 ? val : 0);
         }, 0);
-
-        let monthDividends = [];
-        if (supabaseClient && currentUser) {
-            try {
-                const { data } = await supabaseClient
-                    .from('dividends')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .gte('date', firstDay)
-                    .lte('date', lastDayStr);
-                if (data && Array.isArray(data)) {
-                    monthDividends = data;
-                    if (window.tonuSync) {
-                        window.tonuSync.setCachedDividends(currentUser.id, data);
-                    }
-                }
-            } catch (e) {
-                console.warn('Erro ao consultar proventos do mês:', e);
-            }
+        const uid = currentUser?.id || 'demo';
+        const savedInvested = parseFloat(localStorage.getItem('tonu_total_invested_' + uid) || '0');
+        if (totalAportes === 0 && savedInvested > 0) {
+            totalAportes = savedInvested;
         }
-        if (monthDividends.length === 0 && currentUser && window.tonuSync) {
-            try {
-                const cachedDivs = await window.tonuSync.getCachedDividends(currentUser.id);
-                if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
-                    monthDividends = cachedDivs.filter(d => {
-                        const dDate = normalizeDateOnly(d.payment_date || d.date);
-                        return dDate >= firstDay && dDate <= lastDayStr && !d.is_demo && !String(d.id || '').startsWith('demo-');
-                    });
-                }
-            } catch (_) {}
-        }
+        window.totalAportes = totalAportes;
 
+        const monthDividends = (window.allDividends || []).filter(d => {
+            const dDate = normalizeDateOnly(d.payment_date || d.date);
+            return dDate >= firstDay && dDate <= lastDayStr && !d.is_demo && !String(d.id || '').startsWith('demo-');
+        });
         const totalDividends = monthDividends.reduce((s, d) => {
-            const val = Number(d.total_value) || (Number(d.unit_value || 0) * Number(d.quantity || 0));
+            const val = Number(d.total_value || d.net_value || d.amount || d.total_amount) || (Number(d.unit_value || 0) * Number(d.quantity || 0));
             return s + (val > 0 ? val : 0);
         }, 0);
+        window.totalDividends = totalDividends;
 
         let passiveCoveragePct = 0;
         if (totalBillsAmount > 0) {
