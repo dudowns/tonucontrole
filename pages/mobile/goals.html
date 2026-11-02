@@ -1041,18 +1041,23 @@
 </div>
 
 <!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
-<nav class="bottom-nav">
+<nav class="bottom-nav" aria-label="Navegação principal">
     <a href="dashboard.html"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
     <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
-    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
     <div class="nav-center">
         <button type="button" class="nav-add-btn" onclick="openGoalModal()" aria-label="Nova Meta" title="Nova Meta">
             <i class="fas fa-plus"></i>
         </button>
     </div>
-    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investimentos</span></a>
-    <a href="goals.html" class="active"><i class="fas fa-bullseye"></i><span>Metas</span></a>
-    <a href="settings.html"><i class="fas fa-cog"></i><span>Configurações</span></a>
+    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <details class="nav-more active" id="navMore">
+        <summary aria-label="Mais opções"><i class="fas fa-ellipsis"></i><span>Mais</span></summary>
+        <div class="dock-menu">
+            <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investimentos</span></a>
+            <a href="goals.html" class="active"><i class="fas fa-bullseye"></i><span>Metas</span></a>
+            <a href="settings.html"><i class="fas fa-cog"></i><span>Configurações</span></a>
+        </div>
+    </details>
 </nav>
 
 <!-- MODAL DE CELEBRAÇÃO EM TELA CHEIA (MOBILE) -->
@@ -1170,6 +1175,7 @@
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sync.js"></script>
 <script src="../../js/sw-register.js"></script>
+<script src="../../js/mobile/dock.js"></script>
 <script>
 let currentUser = null;
 let goals = [];

@@ -89,23 +89,23 @@
     <!-- AÇÕES RÁPIDAS -->
     <div class="mobile-quick-actions">
         <button class="quick-action-btn" onclick="openQuickAddModal('expense')">
-            <i class="fas fa-arrow-down" style="color: #FF7675;"></i>
+            <i class="fas fa-arrow-down qa-expense"></i>
             <span>Nova Despesa</span>
         </button>
         <button class="quick-action-btn" onclick="openQuickAddModal('income')">
-            <i class="fas fa-arrow-up" style="color: #00B894;"></i>
+            <i class="fas fa-arrow-up qa-income"></i>
             <span>Nova Receita</span>
         </button>
         <a href="bills.html" class="quick-action-btn">
-            <i class="fas fa-file-invoice-dollar" style="color: #FDCB6E;"></i>
+            <i class="fas fa-file-invoice-dollar qa-bills"></i>
             <span>Contas</span>
         </a>
         <a href="investments.html" class="quick-action-btn">
-            <i class="fas fa-chart-line" style="color: #6C5CE7;"></i>
+            <i class="fas fa-chart-line qa-invest"></i>
             <span>Investir</span>
         </a>
         <a href="goals.html" class="quick-action-btn">
-            <i class="fas fa-bullseye" style="color: #0984E3;"></i>
+            <i class="fas fa-bullseye qa-goals"></i>
             <span>Metas</span>
         </a>
     </div>
@@ -125,9 +125,9 @@
         <a href="transactions.html">Ver todas →</a>
     </div>
     <div id="mobileTransactions">
-        <div style="text-align:center;padding:20px;">
+        <div class="mobile-loading">
             <span class="spinner"></span>
-            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando dados...</p>
+            <p>Carregando dados...</p>
         </div>
     </div>
 </main>
@@ -190,19 +190,24 @@
     </div>
 </div>
 
-<!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
-<nav class="bottom-nav">
+<!-- BOTTOM NAV (4 DESTINOS + AÇÃO CENTRAL + MAIS) -->
+<nav class="bottom-nav" aria-label="Navegação principal">
     <a href="dashboard.html" class="active"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
     <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
-    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
     <div class="nav-center">
         <button type="button" class="nav-add-btn" onclick="openQuickAddModal('expense')" aria-label="Nova Transação" title="Nova Transação">
             <i class="fas fa-plus"></i>
         </button>
     </div>
-    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investimentos</span></a>
-    <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
-    <a href="settings.html"><i class="fas fa-cog"></i><span>Configurações</span></a>
+    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <details class="nav-more" id="navMore">
+        <summary aria-label="Mais opções"><i class="fas fa-ellipsis"></i><span>Mais</span></summary>
+        <div class="dock-menu">
+            <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investimentos</span></a>
+            <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
+            <a href="settings.html"><i class="fas fa-cog"></i><span>Configurações</span></a>
+        </div>
+    </details>
 </nav>
 
 <!-- TOAST -->
@@ -218,6 +223,7 @@
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
 <script src="../../js/mobile/dashboard.js"></script>
+<script src="../../js/mobile/dock.js"></script>
 
 </body>
 </html>

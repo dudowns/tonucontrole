@@ -702,7 +702,7 @@ function renderSummary() {
     });
 
     const displayMonthDivs = monthPaidDivs > 0 ? monthPaidDivs : (monthPendingDivs > 0 ? monthPendingDivs : 0);
-    const divValueColor = monthPaidDivs > 0 ? '#8b5cf6' : (monthPendingDivs > 0 ? '#0284c7' : '#8b5cf6');
+    const divValueClass = monthPaidDivs > 0 ? 'is-accent' : (monthPendingDivs > 0 ? 'is-info' : 'is-accent');
 
     const mask = (val) => isBalanceHidden ? '••••••' : val;
 
@@ -723,13 +723,13 @@ function renderSummary() {
             </div>
             <div class="mobile-hero-footer">
                 <div class="mobile-hero-stat">
-                    <span class="stat-label"><i class="fas fa-arrow-up" style="color:#4ade80;"></i> Entradas</span>
+                    <span class="stat-label"><i class="fas fa-arrow-up stat-icon-income"></i> Entradas</span>
                     <span class="stat-value income">${mask(formatCurrency(income))}</span>
                 </div>
                 <div class="mobile-hero-stat">
-                    <span class="stat-label"><i class="fas fa-arrow-down" style="color:#fca5a5;"></i> Saídas Pagas</span>
+                    <span class="stat-label"><i class="fas fa-arrow-down stat-icon-expense"></i> Saídas Pagas</span>
                     <span class="stat-value expense">${mask(formatCurrency(expense))}</span>
-                    ${pendingBillsAmount > 0 ? `<span style="font-size:9px; color:#fbbf24; margin-top:2px; display:block;">Falta pagar: ${mask(formatCurrency(pendingBillsAmount))}</span>` : ''}
+                    ${pendingBillsAmount > 0 ? `<span class="mobile-hero-note">Falta pagar: ${mask(formatCurrency(pendingBillsAmount))}</span>` : ''}
                 </div>
             </div>
         </div>
@@ -740,24 +740,24 @@ function renderSummary() {
                 <div class="card-icon bills"><i class="fas fa-file-invoice-dollar"></i></div>
                 <div class="card-info">
                     <div class="card-label">Contas Pendentes</div>
-                    <div class="card-value" style="color: ${pendingBills.length > 0 ? '#d97706' : '#10b981'}">
+                    <div class="card-value ${pendingBills.length > 0 ? 'is-warning' : 'is-ok'}">
                         ${mask(formatCurrency(pendingBillsAmount))}
                     </div>
                 </div>
             </div>
             <div class="mobile-card">
-                <div class="card-icon balance" style="background:#8b5cf6;"><i class="fas fa-coins"></i></div>
+                <div class="card-icon balance"><i class="fas fa-coins"></i></div>
                 <div class="card-info">
                     <div class="card-label">Proventos Mês</div>
-                    <div class="card-value" style="color: ${divValueColor};">
+                    <div class="card-value ${divValueClass}">
                         ${mask(formatCurrency(displayMonthDivs))}
                     </div>
                     ${monthPendingDivs > 0 ? `
-                        <div style="font-size:9.5px; color:#0284c7; font-weight:600; margin-top:2px;">
+                        <div class="card-note">
                             <i class="far fa-clock"></i> A receber: ${mask(formatCurrency(monthPendingDivs))}
                         </div>
                     ` : (totalFutureDivs > 0 ? `
-                        <div style="font-size:9.5px; color:#0284c7; font-weight:600; margin-top:2px;">
+                        <div class="card-note">
                             <i class="far fa-clock"></i> Previsto: ${mask(formatCurrency(totalFutureDivs))}
                         </div>
                     ` : '')}

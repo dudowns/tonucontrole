@@ -25,21 +25,23 @@ body.dark-theme {
 }
 
 /* ==========================================
-   TOPBAR MOBILE (FROSTED GLASSFINTECH)
+   TOPBAR MOBILE COMPACTA (FROSTED GLASS)
+   Barra baixa: logo + marca + ações. Sem !important:
+   a especificidade e a ordem de carregamento bastam.
    ========================================== */
 .mobile-topbar {
-    background: rgba(255, 255, 255, 0.88) !important;
-    color: #0f172a !important;
-    padding-top: max(12px, env(safe-area-inset-top, 0px));
-    padding-bottom: 12px;
-    padding-left: max(16px, env(safe-area-inset-left, 0px));
-    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    background: rgba(255, 255, 255, 0.92);
+    color: #0f172a;
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-bottom: 8px;
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(14px, env(safe-area-inset-right, 0px));
     position: sticky;
     top: 0;
     z-index: 1000;
     width: 100%;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
-    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.03) !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 1px 10px rgba(15, 23, 42, 0.03);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     box-sizing: border-box;
@@ -50,18 +52,20 @@ body.dark-theme {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
 }
 
 .mobile-topbar .topbar-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
+    min-width: 0;
 }
 
 .mobile-topbar .topbar-left .app-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 11px;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
     overflow: hidden;
     background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     border: 1px solid rgba(108, 92, 231, 0.22);
@@ -85,12 +89,13 @@ body.dark-theme {
 }
 
 .mobile-topbar .topbar-left h1 {
-    font-size: 17px;
+    font-size: 15.5px;
     font-weight: 800;
-    color: #0f172a !important;
+    color: #0f172a;
     margin: 0;
     letter-spacing: -0.4px;
     line-height: 1.15;
+    white-space: nowrap;
 }
 
 .mobile-topbar .topbar-left h1 span {
@@ -102,20 +107,21 @@ body.dark-theme {
 .mobile-topbar .topbar-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .mobile-topbar .topbar-actions button {
-    background: rgba(248, 250, 252, 0.95) !important;
-    border: 1px solid rgba(226, 232, 240, 0.9) !important;
-    color: #334155 !important;
-    width: 38px;
-    height: 38px;
-    min-width: 38px;
-    min-height: 38px;
-    border-radius: 12px;
+    background: rgba(248, 250, 252, 0.95);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    color: #334155;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    border-radius: 11px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     display: flex;
@@ -126,56 +132,59 @@ body.dark-theme {
 }
 
 .mobile-topbar .topbar-actions button i {
-    color: #334155 !important;
-    font-size: 15px;
+    color: #334155;
+    font-size: 14px;
     transition: transform 0.18s ease, color 0.18s ease;
 }
 
 .mobile-topbar .topbar-actions button:active {
     transform: scale(0.92);
-    background: #f1f5f9 !important;
+    background: #f1f5f9;
 }
 
 .mobile-topbar .topbar-actions button:hover i {
-    color: #6C5CE7 !important;
+    color: #6C5CE7;
 }
 
 .mobile-topbar .greeting {
-    font-size: 12.5px;
-    color: #64748b !important;
+    font-size: 11.5px;
+    color: #64748b;
     font-weight: 500;
-    margin-top: 4px;
-    padding-left: 46px;
+    margin-top: 2px;
+    padding-left: 41px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     letter-spacing: -0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 body.dark-theme .mobile-topbar {
-    background: rgba(15, 23, 42, 0.88) !important;
-    border-bottom-color: rgba(51, 65, 85, 0.6) !important;
-    color: #f8fafc !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+    background: rgba(15, 23, 42, 0.92);
+    border-bottom-color: rgba(51, 65, 85, 0.6);
+    color: #f8fafc;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
 body.dark-theme .mobile-topbar .topbar-left h1 {
-    color: #f8fafc !important;
+    color: #f8fafc;
 }
 
 body.dark-theme .mobile-topbar .topbar-actions button {
-    background: #28293d !important;
-    border-color: #3b3c54 !important;
-    color: #cbd5e1 !important;
-    box-shadow: none !important;
+    background: #28293d;
+    border-color: #3b3c54;
+    color: #cbd5e1;
+    box-shadow: none;
 }
 
 body.dark-theme .mobile-topbar .topbar-actions button i {
-    color: #cbd5e1 !important;
+    color: #cbd5e1;
 }
 
 body.dark-theme .mobile-topbar .greeting {
-    color: #94a3b8 !important;
+    color: #94a3b8;
 }
 
 /* ==========================================
@@ -184,7 +193,7 @@ body.dark-theme .mobile-topbar .greeting {
    sobreposto pelo menu inferior estilo Nubank
    ========================================== */
 .mobile-content {
-    padding: 12px 14px calc(96px + env(safe-area-inset-bottom, 0px)) 14px;
+    padding: 10px 14px calc(84px + env(safe-area-inset-bottom, 0px)) 14px;
     max-width: 100%;
     box-sizing: border-box;
 }
@@ -399,30 +408,32 @@ main,
 }
 
 /* ==========================================
-   BOTTOM NAVIGATION ESTILO NUBANK
-   Dock flutuante com cantos arredondados,
-   efeito frosted glass e descolamento da base
+   BOTTOM NAVIGATION — DOCK DE 5 DESTINOS
+   Antes: 6 links + botão central (7 alvos) com
+   rótulos de 9,5px. Agora: 4 destinos + ação
+   central + "Mais" (Investimentos, Metas,
+   Configurações). Sem !important.
    ========================================== */
 .bottom-nav {
     position: fixed;
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
     left: 12px;
     right: 12px;
     margin: 0 auto;
     max-width: 480px;
     width: auto;
-    background: rgba(255, 255, 255, 0.94) !important;
+    background: rgba(255, 255, 255, 0.94);
     backdrop-filter: blur(24px) saturate(190%);
     -webkit-backdrop-filter: blur(24px) saturate(190%);
-    border: 1px solid rgba(226, 232, 240, 0.9) !important;
-    border-radius: 28px !important;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 4px 6px;
     z-index: 1000;
-    box-shadow: 0 10px 28px -4px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.05) !important;
-    height: 62px;
+    box-shadow: 0 10px 28px -4px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.05);
+    height: 56px;
     box-sizing: border-box;
     transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
@@ -432,7 +443,7 @@ main,
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: 9.5px;
+    font-size: 10.5px;
     font-weight: 500;
     color: #64748b;
     text-decoration: none;
@@ -443,7 +454,7 @@ main,
     min-width: 0;
     flex: 1 1 0px;
     width: 0;
-    border-radius: 18px;
+    border-radius: 16px;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
@@ -451,13 +462,13 @@ main,
 }
 
 .bottom-nav a i {
-    font-size: 16px;
+    font-size: 17px;
     line-height: 1;
     transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), color 0.18s ease;
 }
 
 .bottom-nav a span {
-    font-size: 9.5px;
+    font-size: 10.5px;
     font-weight: 600;
     line-height: 1.15;
     letter-spacing: -0.2px;
@@ -470,28 +481,121 @@ main,
 }
 
 .bottom-nav a.active {
-    color: #6C5CE7 !important;
+    color: #6C5CE7;
     font-weight: 700;
-    background: rgba(108, 92, 231, 0.08);
+    background: rgba(108, 92, 231, 0.1);
 }
 
 .bottom-nav a.active i {
     transform: translateY(-1px);
-    color: #6C5CE7 !important;
-}
-
-.bottom-nav a.active::after {
-    content: '';
-    position: absolute;
-    bottom: 3px;
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: #6C5CE7;
+    color: #6C5CE7;
 }
 
 .bottom-nav a:active {
     transform: scale(0.92);
+}
+
+/* "Mais": menu suspenso do dock sem JavaScript */
+.bottom-nav .nav-more {
+    position: relative;
+    flex: 1 1 0px;
+    width: 0;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bottom-nav .nav-more > summary {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 100%;
+    height: 100%;
+    padding: 4px 2px;
+    border-radius: 16px;
+    color: #64748b;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: all 0.18s ease;
+}
+
+.bottom-nav .nav-more > summary::-webkit-details-marker {
+    display: none;
+}
+
+.bottom-nav .nav-more > summary i {
+    font-size: 17px;
+    line-height: 1;
+}
+
+.bottom-nav .nav-more > summary:active {
+    transform: scale(0.92);
+}
+
+.bottom-nav .nav-more[open] > summary,
+.bottom-nav .nav-more.active > summary {
+    color: #6C5CE7;
+    background: rgba(108, 92, 231, 0.1);
+}
+
+.bottom-nav .dock-menu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 10px);
+    min-width: 196px;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 16px;
+    box-shadow: 0 12px 32px -6px rgba(15, 23, 42, 0.22);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.bottom-nav .dock-menu a {
+    flex: 0 0 auto;
+    width: auto;
+    height: auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 11px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    white-space: nowrap;
+}
+
+.bottom-nav .dock-menu a i {
+    font-size: 14px;
+    color: #6C5CE7;
+    width: 16px;
+    text-align: center;
+}
+
+.bottom-nav .dock-menu a span {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.bottom-nav .dock-menu a:active {
+    background: rgba(108, 92, 231, 0.1);
+    transform: none;
 }
 
 .bottom-nav .nav-center {
@@ -504,9 +608,11 @@ main,
     height: 100%;
 }
 
-.bottom-nav .nav-add-btn {
-    width: 42px;
-    height: 42px;
+.bottom-nav .nav-add-btn,
+.bottom-nav a.nav-add-btn {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: linear-gradient(135deg, #820AD1 0%, #6C5CE7 100%);
     color: #ffffff;
@@ -515,10 +621,12 @@ main,
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 17px;
+    font-size: 16px;
     cursor: pointer;
     transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
     margin: 0;
+    padding: 0;
+    text-decoration: none;
     touch-action: manipulation;
 }
 
@@ -528,26 +636,39 @@ main,
 }
 
 body.dark-theme .bottom-nav {
-    background: rgba(23, 31, 46, 0.94) !important;
-    border: 1px solid rgba(51, 65, 85, 0.8) !important;
-    box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+    background: rgba(23, 31, 46, 0.96);
+    border-color: rgba(51, 65, 85, 0.8);
+    box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
-body.dark-theme .bottom-nav a {
+body.dark-theme .bottom-nav a,
+body.dark-theme .bottom-nav .nav-more > summary {
     color: #94a3b8;
 }
 
-body.dark-theme .bottom-nav a.active {
-    color: #A29BFE !important;
+body.dark-theme .bottom-nav a.active,
+body.dark-theme .bottom-nav .nav-more.active > summary,
+body.dark-theme .bottom-nav .nav-more[open] > summary {
+    color: #A29BFE;
     background: rgba(162, 155, 254, 0.12);
 }
 
 body.dark-theme .bottom-nav a.active i {
-    color: #A29BFE !important;
+    color: #A29BFE;
 }
 
-body.dark-theme .bottom-nav a.active::after {
-    background: #A29BFE;
+body.dark-theme .bottom-nav .dock-menu {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 12px 32px -6px rgba(0, 0, 0, 0.55);
+}
+
+body.dark-theme .bottom-nav .dock-menu a {
+    color: #f8fafc;
+}
+
+body.dark-theme .bottom-nav .dock-menu a i {
+    color: #A29BFE;
 }
 
 body.dark-theme .bottom-nav .nav-add-btn {
@@ -789,9 +910,9 @@ body.dark-theme .mobile-tabs {
 .mobile-quick-actions {
     display: flex;
     gap: 8px;
-    margin-bottom: 18px;
+    margin-bottom: 12px;
     overflow-x: auto;
-    padding: 2px 2px 6px 2px;
+    padding: 2px 2px 4px 2px;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
@@ -804,13 +925,13 @@ body.dark-theme .mobile-tabs {
 .quick-action-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 14px 8px 10px;
-    min-height: 44px;
+    gap: 7px;
+    padding: 6px 12px 6px 8px;
+    min-height: 38px;
     background: var(--color-surface, #ffffff);
     border: 1px solid var(--color-border, #e2e8f0);
-    border-radius: 14px;
-    font-size: 12.5px;
+    border-radius: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--color-text, #0f172a);
     text-decoration: none;
@@ -829,15 +950,36 @@ body.dark-theme .mobile-tabs {
 }
 
 .quick-action-btn i {
-    width: 28px;
-    height: 28px;
-    border-radius: 9px;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: 12px;
     background: rgba(108, 92, 231, 0.08);
     flex-shrink: 0;
+}
+
+/* Cores das ações rápidas em classes, sem style inline */
+.quick-action-btn i.qa-expense {
+    color: #FF7675;
+}
+
+.quick-action-btn i.qa-income {
+    color: #00B894;
+}
+
+.quick-action-btn i.qa-bills {
+    color: #FDCB6E;
+}
+
+.quick-action-btn i.qa-invest {
+    color: #6C5CE7;
+}
+
+.quick-action-btn i.qa-goals {
+    color: #0984E3;
 }
 
 /* ==========================================
@@ -1109,20 +1251,7 @@ body.dark-theme {
     color: #f8fafc;
 }
 
-body.dark-theme .bottom-nav {
-    background: rgba(23, 31, 46, 0.94) !important;
-    border: 1px solid rgba(51, 65, 85, 0.8) !important;
-    box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.35) !important;
-}
-
-body.dark-theme .bottom-nav a.active {
-    color: #A29BFE !important;
-    background: rgba(162, 155, 254, 0.12);
-}
-
-body.dark-theme .bottom-nav a.active i {
-    color: #A29BFE !important;
-}
+/* Dock no tema escuro: regras consolidadas acima, junto do bloco .bottom-nav. */
 
 body.dark-theme .mobile-card,
 body.dark-theme .mobile-transaction,
@@ -1206,12 +1335,16 @@ body.dark-theme .sheet-drag-handle {
     }
 
     .bottom-nav a {
-        font-size: 9px;
-        padding: 2px 1px;
+        font-size: 10px;
+        padding: 3px 1px;
     }
 
     .bottom-nav a i {
-        font-size: 15px;
+        font-size: 16px;
+    }
+
+    .bottom-nav .nav-more > summary {
+        font-size: 10px;
     }
 }
 
@@ -1237,29 +1370,36 @@ body.dark-theme .sheet-drag-handle {
         left: 8px;
         right: 8px;
         padding: 3px 4px;
-        height: 58px;
-        border-radius: 24px !important;
+        height: 52px;
+        border-radius: 20px;
     }
 
     .bottom-nav a {
-        font-size: 8.5px;
+        font-size: 9.5px;
         gap: 2px;
         padding: 3px 1px;
     }
 
-    .bottom-nav a i {
-        font-size: 14px;
+    .bottom-nav a i,
+    .bottom-nav .nav-more > summary i {
+        font-size: 15px;
+    }
+
+    .bottom-nav .nav-more > summary {
+        font-size: 9.5px;
+        gap: 2px;
+        padding: 3px 1px;
     }
 
     .bottom-nav .nav-center {
-        width: 40px;
+        width: 42px;
         padding: 0 1px;
     }
 
     .bottom-nav .nav-add-btn {
-        width: 38px;
-        height: 38px;
-        font-size: 15px;
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
     }
 }
 
@@ -1268,11 +1408,11 @@ body.dark-theme .sheet-drag-handle {
    ========================================== */
 .mobile-hero-balance {
     background: linear-gradient(135deg, #4338ca 0%, #6366f1 50%, #7c3aed 100%);
-    border-radius: 20px;
-    padding: 20px 18px 18px 18px;
+    border-radius: 18px;
+    padding: 14px 16px 14px 16px;
     color: #ffffff;
-    box-shadow: 0 10px 28px rgba(99, 102, 241, 0.32), 0 2px 8px rgba(0, 0, 0, 0.08);
-    margin-bottom: 16px;
+    box-shadow: 0 8px 22px rgba(99, 102, 241, 0.28), 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin-bottom: 12px;
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.16);
@@ -1347,10 +1487,10 @@ body.dark-theme .sheet-drag-handle {
 }
 
 .mobile-hero-value {
-    font-size: 28px;
+    font-size: 25px;
     font-weight: 800;
-    letter-spacing: -0.7px;
-    margin-bottom: 16px;
+    letter-spacing: -0.6px;
+    margin-bottom: 10px;
     line-height: 1.15;
     position: relative;
     z-index: 1;
@@ -1364,7 +1504,7 @@ body.dark-theme .sheet-drag-handle {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     position: relative;
     z-index: 1;
 }
@@ -1377,13 +1517,13 @@ body.dark-theme .sheet-drag-handle {
     background: rgba(255, 255, 255, 0.14);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    padding: 8px 12px;
-    border-radius: 12px;
+    padding: 7px 10px;
+    border-radius: 11px;
     border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .mobile-hero-stat .stat-label {
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 600;
     opacity: 0.9;
     display: flex;
@@ -1394,9 +1534,9 @@ body.dark-theme .sheet-drag-handle {
 }
 
 .mobile-hero-stat .stat-value {
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 700;
-    margin-top: 3px;
+    margin-top: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1409,6 +1549,22 @@ body.dark-theme .sheet-drag-handle {
 
 .mobile-hero-stat .stat-value.expense {
     color: #fca5a5;
+}
+
+/* Substituem os estilos inline que existiam no render do dashboard */
+.mobile-hero-stat .stat-icon-income {
+    color: #4ade80;
+}
+
+.mobile-hero-stat .stat-icon-expense {
+    color: #fca5a5;
+}
+
+.mobile-hero-note {
+    display: block;
+    margin-top: 2px;
+    font-size: 9.5px;
+    color: #fbbf24;
 }
 
 /* ==========================================
@@ -2132,7 +2288,7 @@ body.dark-theme .mobile-input-select {
    SELETOR DE MÊS UNIFICADO (MOBILE FINTECH)
    ========================================== */
 .mobile-month-selector-bar {
-    margin-bottom: 14px;
+    margin-bottom: 10px;
     width: 100%;
 }
 
@@ -2142,11 +2298,11 @@ body.dark-theme .mobile-input-select {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    min-height: 48px;
-    padding: 5px 8px;
+    min-height: 40px;
+    padding: 4px 6px;
     background: var(--color-surface, #ffffff);
     border: 1px solid var(--color-border, #e2e8f0);
-    border-radius: 16px;
+    border-radius: 14px;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
     box-sizing: border-box;
     transition: background 0.2s ease, border-color 0.2s ease;
@@ -2154,11 +2310,11 @@ body.dark-theme .mobile-input-select {
 
 .month-selector .month-nav,
 .month-bar .month-btn {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
-    border-radius: 11px;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 9px;
     border: 1px solid var(--color-border, #e2e8f0);
     background: var(--color-surface, #ffffff);
     color: var(--color-text, #1e293b);
@@ -2166,7 +2322,7 @@ body.dark-theme .mobile-input-select {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: 12px;
     transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
     touch-action: manipulation;
 }
@@ -2179,7 +2335,7 @@ body.dark-theme .mobile-input-select {
 
 .month-selector .month-label,
 .month-bar .month-title {
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 700;
     color: var(--color-text, #0f172a);
     text-align: center;
@@ -2188,15 +2344,15 @@ body.dark-theme .mobile-input-select {
 }
 
 .month-selector .btn-today {
-    padding: 6px 14px;
-    font-size: 11.5px;
+    padding: 4px 10px;
+    font-size: 11px;
     font-weight: 700;
-    border-radius: 10px;
+    border-radius: 9px;
     background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%);
     color: #ffffff;
     border: none;
     cursor: pointer;
-    min-height: 32px;
+    min-height: 26px;
     box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
     transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
     touch-action: manipulation;
@@ -2207,23 +2363,21 @@ body.dark-theme .mobile-input-select {
     transform: scale(0.92);
 }
 
-body.dark-theme .mobile-month-selector-bar .month-selector,
+/* Tema escuro do seletor vem de dark-theme.css (body.dark-theme .month-selector).
+   Aqui só cobrimos a variante .month-bar, sem duplicar regras com !important. */
 body.dark-theme .month-bar {
-    background: #171f2e !important;
-    border-color: rgba(51, 65, 85, 0.7) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+    background: var(--color-surface, #1e293b);
+    border-color: var(--color-border, #334155);
 }
 
-body.dark-theme .month-selector .month-nav,
 body.dark-theme .month-bar .month-btn {
-    background: #1e293b !important;
-    border-color: #334155 !important;
-    color: #f8fafc !important;
+    background: var(--color-surface, #1e293b);
+    border-color: var(--color-border, #334155);
+    color: var(--color-text, #f8fafc);
 }
 
-body.dark-theme .month-selector .month-label,
 body.dark-theme .month-bar .month-title {
-    color: #f8fafc !important;
+    color: var(--color-text, #f8fafc);
 }
 
 /* ==========================================
@@ -2320,4 +2474,44 @@ body.dark-theme .bill-item {
     background: #171f2e !important;
     border-color: rgba(51, 65, 85, 0.7) !important;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* ==========================================
+   UTILITÁRIOS DO REDESENHO MOBILE
+   Substituem os estilos inline que existiam no
+   render do dashboard e no carregamento
+   ========================================== */
+.mobile-card .card-value.is-warning {
+    color: #d97706;
+}
+
+.mobile-card .card-value.is-ok {
+    color: #10b981;
+}
+
+.mobile-card .card-value.is-accent {
+    color: #8b5cf6;
+}
+
+.mobile-card .card-value.is-info {
+    color: #0284c7;
+}
+
+.mobile-card .card-note {
+    display: block;
+    margin-top: 2px;
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #0284c7;
+}
+
+.mobile-loading {
+    text-align: center;
+    padding: 20px;
+}
+
+.mobile-loading p {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #94a3b8;
 }
