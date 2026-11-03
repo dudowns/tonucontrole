@@ -4149,42 +4149,16 @@ function renderChart() {
     // Função utilitária para mapear com precisão cirúrgica a coluna inteira do mês sob o cursor
     function getBarIndexFromEvent(chart, event) {
         if (!chart || !chart.canvas) return null;
-        const rect = chart.canvas.getBoundingClientRect();
-        const clientX = (event.clientX !== undefined)
-            ? event.clientX
-            : (event.touches && event.touches[0] ? event.touches[0].clientX : (event.native?.clientX ?? 0));
-        const clientY = (event.clientY !== undefined)
-            ? event.clientY
-            : (event.touches && event.touches[0] ? event.touches[0].clientY : (event.native?.clientY ?? 0));
-
-        const mouseX = clientX - rect.left;
-        const mouseY = clientY - rect.top;
-
-        const chartArea = chart.chartArea;
-        if (!chartArea) return null;
-
-        const totalBars = chart.data?.labels?.length || 0;
-        if (totalBars === 0) return null;
-
-        // Limites verticais da área útil do gráfico (permite detectar o mês em qualquer altura da coluna)
-        if (mouseY < chartArea.top - 25 || mouseY > chartArea.bottom + 35) {
-            return null;
+        const elements = chart.getElementsAtEventForMode(
+            event,
+            'index',
+            { intersect: false },
+            true
+        );
+        if (elements && elements.length > 0) {
+            return elements[0].index;
         }
-
-        // Limites horizontais: tolerância para cobrir as extremidades esquerda e direita
-        if (mouseX < chartArea.left - 20 || mouseX > chartArea.right + 20) {
-            return null;
-        }
-
-        // Hitbox por coluna inteira: divide a largura da área plotável pelo número de meses
-        const chartWidth = chartArea.right - chartArea.left;
-        if (chartWidth <= 0) return null;
-
-        const colWidth = chartWidth / totalBars;
-        const rawIdx = Math.floor((mouseX - chartArea.left) / colWidth);
-        const idx = Math.max(0, Math.min(totalBars - 1, rawIdx));
-
-        return idx;
+        return null;
     }
 
     // Plugin para realce visual da coluna/mês sob o mouse ou fixada por clique
@@ -4210,19 +4184,21 @@ function renderChart() {
             const { ctx, chartArea } = chart;
             if (!chartArea) return;
 
-            const chartWidth = chartArea.right - chartArea.left;
-            const colWidth = chartWidth / totalBars;
-            const colLeft = chartArea.left + (activeIdx * colWidth);
+            const meta0 = chart.getDatasetMeta(0);
+            const barElem = meta0 && meta0.data ? meta0.data[activeIdx] : null;
+            if (!barElem) return;
+            const barWidth = barElem.width;
+            const barLeft = barElem.x - (barWidth / 2);
             const padX = 2;
 
             ctx.save();
             ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)';
             if (typeof ctx.roundRect === 'function') {
                 ctx.beginPath();
-                ctx.roundRect(colLeft + padX, chartArea.top, colWidth - (padX * 2), chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
+                ctx.roundRect(barLeft + padX, chartArea.top, barWidth - (padX * 2), chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
                 ctx.fill();
             } else {
-                ctx.fillRect(colLeft + padX, chartArea.top, colWidth - (padX * 2), chartArea.bottom - chartArea.top);
+                ctx.fillRect(barLeft + padX, chartArea.top, barWidth - (padX * 2), chartArea.bottom - chartArea.top);
             }
 
             if (selectedPatrimonyBarIndex === activeIdx) {
@@ -4230,10 +4206,10 @@ function renderChart() {
                 ctx.lineWidth = 2;
                 if (typeof ctx.roundRect === 'function') {
                     ctx.beginPath();
-                    ctx.roundRect(colLeft + padX, chartArea.top, colWidth - (padX * 2), chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
+                    ctx.roundRect(barLeft + padX, chartArea.top, barWidth - (padX * 2), chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
                     ctx.stroke();
                 } else {
-                    ctx.strokeRect(colLeft + padX, chartArea.top, colWidth - (padX * 2), chartArea.bottom - chartArea.top);
+                    ctx.strokeRect(barLeft + padX, chartArea.top, barWidth - (padX * 2), chartArea.bottom - chartArea.top);
                 }
             }
             ctx.restore();

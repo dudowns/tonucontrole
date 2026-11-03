@@ -328,8 +328,8 @@
 
 .chart-panel .chart-wrap canvas {
     display: block !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .period-filter {
@@ -1714,8 +1714,8 @@ body.dark-theme .input-prefix span {
 
 .evolution-chart-wrap canvas {
     display: block !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .evolution-footer-hint {
