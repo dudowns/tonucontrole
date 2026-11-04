@@ -4177,16 +4177,25 @@ function renderChart() {
         }
 
         // Seleciona a barra com o centro mais próximo do clique (inclui a primeira e a última)
+        const labels = chart.data?.labels || [];
         const meta0 = chart.getDatasetMeta(0);
-        if (!meta0 || !meta0.data || meta0.data.length === 0) return null;
+        const bars = meta0 && meta0.data ? meta0.data : [];
+        const total = Math.max(labels.length, bars.length);
+        if (total === 0) return null;
 
-        const bars = meta0.data;
+        const xScale = chart.scales?.x;
+
         let closestIdx = null;
         let minDistance = Infinity;
-        for (let i = 0; i < bars.length; i++) {
+        for (let i = 0; i < total; i++) {
             const bar = bars[i];
-            if (!bar || !Number.isFinite(bar.x)) continue;
-            const dist = Math.abs(mouseX - bar.x);
+            // Centro da categoria na escala: existe mesmo quando a barra é pulada por valor nulo
+            let barX = xScale ? xScale.getPixelForValue(i) : null;
+            if (!Number.isFinite(barX) && bar && Number.isFinite(bar.x)) {
+                barX = bar.x;
+            }
+            if (!Number.isFinite(barX)) continue;
+            const dist = Math.abs(mouseX - barX);
             if (dist < minDistance) {
                 minDistance = dist;
                 closestIdx = i;
