@@ -4149,15 +4149,101 @@ function renderChart() {
     // Função utilitária para mapear com precisão cirúrgica a coluna inteira do mês sob o cursor
     function getBarIndexFromEvent(chart, event) {
         if (!chart || !chart.canvas) return null;
-        const elements = chart.getElementsAtEventForMode(
-            event,
-            'index',
-            { intersect: false },
-            true
-        );
-        if (elements && elements.length > 0) {
-            return elements[0].index;
+
+        // a) API nativa do Chart.js com includeInvisible: true e axis: 'x'
+        try {
+            const elements = chart.getElementsAtEventForMode(
+                event,
+                'index',
+                { intersect: false, axis: 'x', includeInvisible: true },
+                true
+            );
+            if (elements && elements.length > 0 && elements[0].index !== undefined && elements[0].index !== null) {
+                return elements[0].index;
+            }
+        } catch (e) {
+            // Em caso de erro na chamada nativa, segue para o fallback
         }
+
+        // b) Fallback: cálculo de coordenadas e geometria das barras
+        const rect = chart.canvas.getBoundingClientRect();
+        if (!rect || rect.width <= 0) return null;
+
+        const rawClientX = (event.clientX !== undefined)
+            ? event.clientX
+            : (event.touches && event.touches[0] ? event.touches[0].clientX : (event.native?.clientX ?? null));
+        const rawClientY = (event.clientY !== undefined)
+            ? event.clientY
+            : (event.touches && event.touches[0] ? event.touches[0].clientY : (event.native?.clientY ?? null));
+
+        if (rawClientX === null || rawClientY === null) return null;
+
+        const mouseX = rawClientX - rect.left;
+        const canvasY = rawClientY - rect.top;
+        const chartArea = chart.chartArea;
+        if (!chartArea) return null;
+
+        const meta0 = chart.getDatasetMeta(0);
+        if (!meta0 || !meta0.data || meta0.data.length === 0) return null;
+
+        const bars = meta0.data;
+        const totalBars = bars.length;
+        if (totalBars === 1) return 0;
+
+        const lastBar = bars[totalBars - 1];
+        const firstBar = bars[0];
+
+        // c) Atalho de BORDA DIREITA (12ª barra no padding direito com guarda vertical)
+        if (lastBar && mouseX !== null &&
+            mouseX >= lastBar.x &&
+            canvasY >= chartArea.top - 5 &&
+            canvasY <= chartArea.bottom + 5) {
+            return totalBars - 1;
+        }
+
+        // d) Atalho de BORDA ESQUERDA (1ª barra no padding esquerdo com guarda vertical)
+        if (firstBar && mouseX !== null &&
+            mouseX <= firstBar.x &&
+            canvasY >= chartArea.top - 5 &&
+            canvasY <= chartArea.bottom + 5) {
+            return 0;
+        }
+
+        // e) Fallback final para barras intermediárias
+        const prevBar = bars[totalBars - 2];
+        const nextBar = bars[1];
+
+        const thresholdLast = prevBar ? ((prevBar.x + lastBar.x) / 2) : (lastBar.x - 20);
+        if (mouseX >= thresholdLast &&
+            canvasY >= chartArea.top - 5 &&
+            canvasY <= chartArea.bottom + 5) {
+            return totalBars - 1;
+        }
+
+        const thresholdFirst = nextBar ? ((firstBar.x + nextBar.x) / 2) : (firstBar.x + 20);
+        if (mouseX <= thresholdFirst &&
+            canvasY >= chartArea.top - 5 &&
+            canvasY <= chartArea.bottom + 5) {
+            return 0;
+        }
+
+        let closestIdx = 0;
+        let minDistance = Infinity;
+        for (let i = 0; i < totalBars; i++) {
+            const bar = bars[i];
+            if (!bar) continue;
+            const dist = Math.abs(mouseX - bar.x);
+            if (dist < minDistance) {
+                minDistance = dist;
+                closestIdx = i;
+            }
+        }
+
+        if (canvasY >= chartArea.top - 5 && canvasY <= chartArea.bottom + 5) {
+            return closestIdx;
+        }
+
+        // f) Se nada bater, retornar null
         return null;
     }
 
