@@ -3118,7 +3118,8 @@ async function loadMonthlyChart() {
                 barPercentage: 0.85,
                 interaction: {
                     mode: 'index',
-                    intersect: false
+                    intersect: false,
+                    axis: 'x'
                 },
                 plugins: {
                     legend: {

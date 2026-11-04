@@ -2312,7 +2312,8 @@ function renderMobileEvolutionChart() {
             events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
             interaction: {
                 intersect: false,
-                mode: 'index'
+                mode: 'index',
+                axis: 'x'
             },
             layout: {
                 padding: {
@@ -2646,7 +2647,8 @@ function renderMobileDividendsEvolutionChart() {
             maintainAspectRatio: false,
             interaction: {
                 mode: 'index',
-                intersect: false
+                intersect: false,
+                axis: 'x'
             },
             plugins: {
                 legend: { display: false },

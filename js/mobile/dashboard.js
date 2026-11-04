@@ -999,6 +999,11 @@ function renderMobileChart() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                    axis: 'x'
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {

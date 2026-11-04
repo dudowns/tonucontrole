@@ -4150,22 +4150,6 @@ function renderChart() {
     function getBarIndexFromEvent(chart, event) {
         if (!chart || !chart.canvas) return null;
 
-        // a) API nativa do Chart.js com includeInvisible: true e axis: 'x'
-        try {
-            const elements = chart.getElementsAtEventForMode(
-                event,
-                'index',
-                { intersect: false, axis: 'x', includeInvisible: true },
-                true
-            );
-            if (elements && elements.length > 0 && elements[0].index !== undefined && elements[0].index !== null) {
-                return elements[0].index;
-            }
-        } catch (e) {
-            // Em caso de erro na chamada nativa, segue para o fallback
-        }
-
-        // b) Fallback: cálculo de coordenadas e geometria das barras
         const rect = chart.canvas.getBoundingClientRect();
         if (!rect || rect.width <= 0) return null;
 
@@ -4183,50 +4167,54 @@ function renderChart() {
         const chartArea = chart.chartArea;
         if (!chartArea) return null;
 
+        // Guarda vertical: só aceita se o cursor estiver dentro da área plotável (+ tolerância de 10px)
+        if (canvasY < chartArea.top - 10 || canvasY > chartArea.bottom + 10) {
+            return null;
+        }
+
+        // 1. Tenta a API nativa primeiro com includeInvisible: true e axis: 'x'
+        let nativeIndex = null;
+        try {
+            const elements = chart.getElementsAtEventForMode(
+                event,
+                'index',
+                { intersect: false, axis: 'x', includeInvisible: true },
+                true
+            );
+            if (elements && elements.length > 0 && elements[0].index !== undefined && elements[0].index !== null) {
+                nativeIndex = elements[0].index;
+            }
+        } catch (e) {
+            // Em caso de erro na chamada nativa, segue para o fallback
+        }
+
+        // 2. Fallback Matemático de Ponto Médio
         const meta0 = chart.getDatasetMeta(0);
-        if (!meta0 || !meta0.data || meta0.data.length === 0) return null;
+        if (!meta0 || !meta0.data || meta0.data.length === 0) return nativeIndex;
 
         const bars = meta0.data;
         const totalBars = bars.length;
         if (totalBars === 1) return 0;
 
-        const lastBar = bars[totalBars - 1];
-        const firstBar = bars[0];
+        const midLast = (bars[totalBars - 2].x + bars[totalBars - 1].x) / 2;
+        const midFirst = (bars[0].x + bars[1].x) / 2;
 
-        // c) Atalho de BORDA DIREITA (12ª barra no padding direito com guarda vertical)
-        if (lastBar && mouseX !== null &&
-            mouseX >= lastBar.x &&
-            canvasY >= chartArea.top - 5 &&
-            canvasY <= chartArea.bottom + 5) {
+        // Extremidade direita (última barra): da metade com a penúltima até todo o padding direito
+        if (mouseX >= midLast) {
             return totalBars - 1;
         }
 
-        // d) Atalho de BORDA ESQUERDA (1ª barra no padding esquerdo com guarda vertical)
-        if (firstBar && mouseX !== null &&
-            mouseX <= firstBar.x &&
-            canvasY >= chartArea.top - 5 &&
-            canvasY <= chartArea.bottom + 5) {
+        // Extremidade esquerda (1ª barra): da metade com a 2ª barra até todo o padding esquerdo
+        if (mouseX <= midFirst) {
             return 0;
         }
 
-        // e) Fallback final para barras intermediárias
-        const prevBar = bars[totalBars - 2];
-        const nextBar = bars[1];
-
-        const thresholdLast = prevBar ? ((prevBar.x + lastBar.x) / 2) : (lastBar.x - 20);
-        if (mouseX >= thresholdLast &&
-            canvasY >= chartArea.top - 5 &&
-            canvasY <= chartArea.bottom + 5) {
-            return totalBars - 1;
+        // Se a API nativa já retornou um índice intermediário válido, utiliza-o
+        if (nativeIndex !== null) {
+            return nativeIndex;
         }
 
-        const thresholdFirst = nextBar ? ((firstBar.x + nextBar.x) / 2) : (firstBar.x + 20);
-        if (mouseX <= thresholdFirst &&
-            canvasY >= chartArea.top - 5 &&
-            canvasY <= chartArea.bottom + 5) {
-            return 0;
-        }
-
+        // Se estiver no meio e nativo não retornou, seleciona pelo ponto médio do vizinho mais próximo
         let closestIdx = 0;
         let minDistance = Infinity;
         for (let i = 0; i < totalBars; i++) {
@@ -4239,12 +4227,7 @@ function renderChart() {
             }
         }
 
-        if (canvasY >= chartArea.top - 5 && canvasY <= chartArea.bottom + 5) {
-            return closestIdx;
-        }
-
-        // f) Se nada bater, retornar null
-        return null;
+        return closestIdx;
     }
 
     // Plugin para realce visual da coluna/mês sob o mouse ou fixada por clique
@@ -4465,7 +4448,8 @@ function renderChart() {
             resizeDelay: 50,
             interaction: {
                 mode: 'index',
-                intersect: false
+                intersect: false,
+                axis: 'x'
             },
             layout: {
                 padding: {
@@ -4900,11 +4884,12 @@ function renderDividendsChart() {
             resizeDelay: 50,
             interaction: {
                 mode: 'index',
-                intersect: false
+                intersect: false,
+                axis: 'x'
             },
             onClick: (event, elements) => {
-                if (elements && elements.length > 0) {
-                    const index = elements[0].index;
+                const index = getBarIndexFromEvent(dividendsChart, event.native || event) ?? (elements?.[0]?.index ?? null);
+                if (index !== null && index !== undefined && labels[index]) {
                     const clickedLabel = labels[index];
                     filterMeusProventosByChartClick(clickedLabel);
                 }
