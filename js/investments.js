@@ -4162,8 +4162,12 @@ function renderChart() {
 
         if (rawClientX === null || rawClientY === null) return null;
 
-        const mouseX = rawClientX - rect.left;
-        const canvasY = rawClientY - rect.top;
+        // Normaliza a posição do clique para o espaço de coordenadas do Chart.js
+        // (o canvas pode ser exibido num tamanho diferente do seu tamanho lógico)
+        const scaleX = rect.width > 0 ? chart.width / rect.width : 1;
+        const scaleY = rect.height > 0 ? chart.height / rect.height : 1;
+        const mouseX = (rawClientX - rect.left) * scaleX;
+        const canvasY = (rawClientY - rect.top) * scaleY;
         const chartArea = chart.chartArea;
         if (!chartArea) return null;
 
@@ -4172,54 +4176,16 @@ function renderChart() {
             return null;
         }
 
-        // 1. Tenta a API nativa primeiro com includeInvisible: true e axis: 'x'
-        let nativeIndex = null;
-        try {
-            const elements = chart.getElementsAtEventForMode(
-                event,
-                'index',
-                { intersect: false, axis: 'x', includeInvisible: true },
-                true
-            );
-            if (elements && elements.length > 0 && elements[0].index !== undefined && elements[0].index !== null) {
-                nativeIndex = elements[0].index;
-            }
-        } catch (e) {
-            // Em caso de erro na chamada nativa, segue para o fallback
-        }
-
-        // 2. Fallback Matemático de Ponto Médio
+        // Seleciona a barra com o centro mais próximo do clique (inclui a primeira e a última)
         const meta0 = chart.getDatasetMeta(0);
-        if (!meta0 || !meta0.data || meta0.data.length === 0) return nativeIndex;
+        if (!meta0 || !meta0.data || meta0.data.length === 0) return null;
 
         const bars = meta0.data;
-        const totalBars = bars.length;
-        if (totalBars === 1) return 0;
-
-        const midLast = (bars[totalBars - 2].x + bars[totalBars - 1].x) / 2;
-        const midFirst = (bars[0].x + bars[1].x) / 2;
-
-        // Extremidade direita (última barra): da metade com a penúltima até todo o padding direito
-        if (mouseX >= midLast) {
-            return totalBars - 1;
-        }
-
-        // Extremidade esquerda (1ª barra): da metade com a 2ª barra até todo o padding esquerdo
-        if (mouseX <= midFirst) {
-            return 0;
-        }
-
-        // Se a API nativa já retornou um índice intermediário válido, utiliza-o
-        if (nativeIndex !== null) {
-            return nativeIndex;
-        }
-
-        // Se estiver no meio e nativo não retornou, seleciona pelo ponto médio do vizinho mais próximo
-        let closestIdx = 0;
+        let closestIdx = null;
         let minDistance = Infinity;
-        for (let i = 0; i < totalBars; i++) {
+        for (let i = 0; i < bars.length; i++) {
             const bar = bars[i];
-            if (!bar) continue;
+            if (!bar || !Number.isFinite(bar.x)) continue;
             const dist = Math.abs(mouseX - bar.x);
             if (dist < minDistance) {
                 minDistance = dist;
