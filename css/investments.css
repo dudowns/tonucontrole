@@ -401,11 +401,16 @@ body.dark-theme .header-select-pill select option {
     border-radius: 8px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     padding: 10px 14px;
-    pointer-events: none;
+    pointer-events: none !important;
     z-index: 50;
     transition: opacity 0.15s ease;
     font-family: 'Inter', sans-serif;
     min-width: 175px;
+}
+
+.custom-chart-tooltip,
+.custom-chart-tooltip * {
+    pointer-events: none !important;
 }
 
 body.dark-theme .custom-chart-tooltip {
@@ -450,7 +455,7 @@ body.dark-theme .custom-chart-tooltip .pinned-badge {
     border-right: 6px solid transparent;
     border-top: 6px solid #FFFFFF;
     transform: translateX(-50%);
-    pointer-events: none;
+    pointer-events: none !important;
 }
 
 body.dark-theme .custom-chart-tooltip .tooltip-arrow {

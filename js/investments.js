@@ -4360,22 +4360,36 @@ function renderChart() {
             tooltipEl.classList.remove('pinned');
         }
 
-        // Pega as coordenadas exatas da barra
+        // Pega as coordenadas exatas da barra (considerando o topo da pilha empilhada)
         const meta0 = chart.getDatasetMeta(0);
-        const barElem = meta0?.data?.[idx];
-        const barX = barElem ? barElem.x : (chartCanvas.width / 2);
-        const barY = barElem ? barElem.y : (chartCanvas.height / 2);
+        const meta1 = chart.getDatasetMeta(1);
+        const bar0 = meta0?.data?.[idx];
+        const bar1 = meta1?.data?.[idx];
+        const barX = bar0 ? bar0.x : (chartCanvas.width / 2);
+
+        // O topo real da coluna é o ponto mais alto (menor coordenada Y)
+        const y0 = bar0 ? bar0.y : Infinity;
+        const y1 = bar1 ? bar1.y : Infinity;
+        const rawBarTop = Math.min(y0, y1);
+        const barTop = Number.isFinite(rawBarTop) ? rawBarTop : (chartCanvas.height / 2);
+
+        // A base da barra
+        const b0 = bar0 ? bar0.base : chartCanvas.height;
+        const b1 = bar1 ? bar1.base : chartCanvas.height;
+        const barBottom = Math.max(b0, b1);
 
         const canvasOffsetLeft = chartCanvas.offsetLeft || 0;
         const canvasOffsetTop = chartCanvas.offsetTop || 0;
         const barCenterX = Math.round(barX + canvasOffsetLeft);
-        const barCenterY = Math.round(barY + canvasOffsetTop);
+        const actualBarTop = Math.round(barTop + canvasOffsetTop);
+        const actualBarBottom = Math.round(barBottom + canvasOffsetTop);
 
         const tooltipWidth = 195;
         const tooltipHeight = tooltipEl.offsetHeight || 135;
         const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight || 370;
 
-        // Centraliza exatamente acima da barra (sem desvio para a direita ou esquerda)
+        // Centraliza horizontalmente acima da barra (sem vazar das bordas)
         let left = Math.round(barCenterX - (tooltipWidth / 2));
         if (left < 8) {
             left = 8;
@@ -4383,12 +4397,17 @@ function renderChart() {
             left = Math.max(8, containerWidth - tooltipWidth - 8);
         }
 
-        // Posição vertical: posiciona logo acima do topo da barra
-        let top = Math.round(barCenterY - tooltipHeight - 12);
+        // Posição vertical: posiciona acima do topo da barra (nunca sobreposta à área ativa)
+        let top = Math.round(actualBarTop - tooltipHeight - 12);
         let showArrow = true;
+        let arrowBelow = true;
+
+        // Se não houver espaço acima (top < 8), posiciona abaixo da base da barra
         if (top < 8) {
-            top = 10;
-            if (barCenterY < top + tooltipHeight + 8) {
+            top = Math.round(actualBarBottom + 12);
+            arrowBelow = false;
+            if (top + tooltipHeight > containerHeight - 8) {
+                top = 10;
                 showArrow = false;
             }
         }
@@ -4400,8 +4419,20 @@ function renderChart() {
             const clampedArrowX = Math.max(16, Math.min(tooltipWidth - 16, arrowX));
             arrowEl.style.left = clampedArrowX + 'px';
             arrowEl.style.display = showArrow ? 'block' : 'none';
+            if (arrowBelow) {
+                arrowEl.style.bottom = '-6px';
+                arrowEl.style.top = 'auto';
+                arrowEl.style.borderTop = `6px solid ${isDark ? '#1E293B' : '#FFFFFF'}`;
+                arrowEl.style.borderBottom = 'none';
+            } else {
+                arrowEl.style.top = '-6px';
+                arrowEl.style.bottom = 'auto';
+                arrowEl.style.borderBottom = `6px solid ${isDark ? '#1E293B' : '#FFFFFF'}`;
+                arrowEl.style.borderTop = 'none';
+            }
         }
 
+        tooltipEl.style.pointerEvents = 'none';
         tooltipEl.style.left = left + 'px';
         tooltipEl.style.top = top + 'px';
         tooltipEl.style.opacity = '1';
