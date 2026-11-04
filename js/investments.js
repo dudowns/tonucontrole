@@ -4151,7 +4151,7 @@ function renderChart() {
         if (!chart || !chart.canvas) return null;
 
         const rect = chart.canvas.getBoundingClientRect();
-        if (!rect || rect.width <= 0) return null;
+        if (!rect || rect.width <= 0 || rect.height <= 0) return null;
 
         const rawClientX = (event.clientX !== undefined)
             ? event.clientX
@@ -4164,57 +4164,53 @@ function renderChart() {
 
         const mouseX = rawClientX - rect.left;
         const canvasY = rawClientY - rect.top;
-        const chartArea = chart.chartArea;
-        if (!chartArea) return null;
 
-        // Guarda vertical: só aceita se o cursor estiver dentro da área plotável (+ tolerância de 10px)
-        if (canvasY < chartArea.top - 10 || canvasY > chartArea.bottom + 10) {
+        // Limites físicos do canvas
+        if (mouseX < 0 || mouseX > rect.width || canvasY < 0 || canvasY > rect.height) {
             return null;
         }
 
-        // 1. Tenta a API nativa primeiro com includeInvisible: true e axis: 'x'
-        let nativeIndex = null;
-        try {
-            const elements = chart.getElementsAtEventForMode(
-                event,
-                'index',
-                { intersect: false, axis: 'x', includeInvisible: true },
-                true
-            );
-            if (elements && elements.length > 0 && elements[0].index !== undefined && elements[0].index !== null) {
-                nativeIndex = elements[0].index;
-            }
-        } catch (e) {
-            // Em caso de erro na chamada nativa, segue para o fallback
+        const chartArea = chart.chartArea;
+        if (!chartArea) return null;
+
+        // Guarda vertical: protege apenas contra a área de legenda no topo (para permitir cliques nos rótulos de legenda)
+        // Permite todo o corpo da coluna e toda a área inferior de datas/eixo X até a base do canvas
+        if (canvasY < chartArea.top - 8) {
+            return null;
         }
 
-        // 2. Fallback Matemático de Ponto Médio
+        // Obtém as barras do dataset 0 (ou dataset 1 como fallback)
         const meta0 = chart.getDatasetMeta(0);
-        if (!meta0 || !meta0.data || meta0.data.length === 0) return nativeIndex;
-
-        const bars = meta0.data;
+        const meta1 = chart.getDatasetMeta(1);
+        const bars = (meta0 && meta0.data && meta0.data.length > 0) ? meta0.data : (meta1 && meta1.data ? meta1.data : []);
         const totalBars = bars.length;
+        if (totalBars === 0) return null;
         if (totalBars === 1) return 0;
 
+        // 1. Extremidade Direita (12ª barra / última barra):
+        // Ponto médio entre a penúltima e a última barra. Da metade até o fim do canvas e todo padding direito.
         const midLast = (bars[totalBars - 2].x + bars[totalBars - 1].x) / 2;
-        const midFirst = (bars[0].x + bars[1].x) / 2;
-
-        // Extremidade direita (última barra): da metade com a penúltima até todo o padding direito
         if (mouseX >= midLast) {
             return totalBars - 1;
         }
 
-        // Extremidade esquerda (1ª barra): da metade com a 2ª barra até todo o padding esquerdo
+        // 2. Extremidade Esquerda (1ª barra):
+        // Ponto médio entre a 1ª e a 2ª barra. Da metade até o início do canvas e todo padding esquerdo.
+        const midFirst = (bars[0].x + bars[1].x) / 2;
         if (mouseX <= midFirst) {
             return 0;
         }
 
-        // Se a API nativa já retornou um índice intermediário válido, utiliza-o
-        if (nativeIndex !== null) {
-            return nativeIndex;
+        // 3. Mapeamento contínuo por partições de ponto médio entre vizinhos consecutivos
+        for (let i = 0; i < totalBars - 1; i++) {
+            const midCurrent = (i === 0) ? midFirst : (bars[i - 1].x + bars[i].x) / 2;
+            const midNext = (bars[i].x + bars[i + 1].x) / 2;
+            if (mouseX >= midCurrent && mouseX < midNext) {
+                return i;
+            }
         }
 
-        // Se estiver no meio e nativo não retornou, seleciona pelo ponto médio do vizinho mais próximo
+        // 4. Fallback de segurança para o vizinho mais próximo absoluto
         let closestIdx = 0;
         let minDistance = Infinity;
         for (let i = 0; i < totalBars; i++) {
@@ -4226,7 +4222,6 @@ function renderChart() {
                 closestIdx = i;
             }
         }
-
         return closestIdx;
     }
 
@@ -4254,7 +4249,8 @@ function renderChart() {
             if (!chartArea) return;
 
             const meta0 = chart.getDatasetMeta(0);
-            const barElem = meta0 && meta0.data ? meta0.data[activeIdx] : null;
+            const meta1 = chart.getDatasetMeta(1);
+            const barElem = (meta0 && meta0.data && meta0.data[activeIdx]) || (meta1 && meta1.data && meta1.data[activeIdx]);
             if (!barElem) return;
             const barWidth = barElem.width;
             const barLeft = barElem.x - (barWidth / 2);
@@ -4365,7 +4361,7 @@ function renderChart() {
         const meta1 = chart.getDatasetMeta(1);
         const bar0 = meta0?.data?.[idx];
         const bar1 = meta1?.data?.[idx];
-        const barX = bar0 ? bar0.x : (chartCanvas.width / 2);
+        const barX = bar0 ? bar0.x : (bar1 ? bar1.x : (chartCanvas.width / 2));
 
         // O topo real da coluna é o ponto mais alto (menor coordenada Y)
         const y0 = bar0 ? bar0.y : Infinity;
