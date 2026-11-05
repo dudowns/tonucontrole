@@ -4148,48 +4148,120 @@ function renderChart() {
 
     // Função utilitária para mapear com precisão cirúrgica a coluna inteira do mês sob o cursor
     function getBarIndexFromEvent(chart, event) {
-        if (!chart || !chart.canvas || !chart.scales || !chart.scales.x) return null;
+        if (!chart || !chart.canvas) return null;
 
-        const rect = chart.canvas.getBoundingClientRect();
-        const rawClientX = (event.clientX !== undefined) ? event.clientX : (event.touches?.[0]?.clientX ?? event.native?.clientX ?? null);
-        const rawClientY = (event.clientY !== undefined) ? event.clientY : (event.touches?.[0]?.clientY ?? event.native?.clientY ?? null);
+        const canvas = chart.canvas;
+        const rect = canvas.getBoundingClientRect();
+        if (!rect || rect.width <= 0 || rect.height <= 0) return null;
 
-        if (rawClientX === null || rawClientY === null) return null;
+        // Coordenadas CSS precisas relativas ao canvas (sem distorções de DPI acumuladas)
+        let mouseX, mouseY;
+        if (event.offsetX !== undefined && event.offsetY !== undefined) {
+            mouseX = event.offsetX;
+            mouseY = event.offsetY;
+        } else {
+            const clientX = (event.clientX !== undefined)
+                ? event.clientX
+                : (event.touches && event.touches[0] ? event.touches[0].clientX : (event.native?.clientX ?? null));
+            const clientY = (event.clientY !== undefined)
+                ? event.clientY
+                : (event.touches && event.touches[0] ? event.touches[0].clientY : (event.native?.clientY ?? null));
+            if (clientX === null || clientY === null) return null;
+            mouseX = clientX - rect.left;
+            mouseY = clientY - rect.top;
+        }
 
-        // Ajuste para Zoom/DPI
-        const scaleX = rect.width > 0 ? chart.width / rect.width : 1;
-        const scaleY = rect.height > 0 ? chart.height / rect.height : 1;
-        const mouseX = (rawClientX - rect.left) * scaleX;
-        const canvasY = (rawClientY - rect.top) * scaleY;
+        // Limites físicos do elemento canvas
+        if (mouseX < 0 || mouseX > rect.width || mouseY < 0 || mouseY > rect.height) {
+            return null;
+        }
 
         const chartArea = chart.chartArea;
         if (!chartArea) return null;
 
-        // Guarda vertical
-        if (canvasY < chartArea.top - 10 || canvasY > chartArea.bottom + 10) return null;
+        // Guarda vertical: ignora apenas se estiver sobre a legenda superior
+        if (mouseY < chartArea.top - 8) {
+            return null;
+        }
 
-        const xScale = chart.scales.x;
-        const labels = chart.data.labels || [];
+        const labels = chart.data?.labels || [];
         const totalBars = labels.length;
         if (totalBars === 0) return null;
+        if (totalBars === 1) return 0;
 
+        // 1. Tenta a API nativa do Chart.js com coordenadas clampadas à área de plotagem
+        try {
+            const clampedX = Math.max(chartArea.left, Math.min(chartArea.right - 1, mouseX));
+            const clampedY = Math.max(chartArea.top, Math.min(chartArea.bottom - 1, mouseY));
+            const elements = chart.getElementsAtEventForMode(
+                { x: clampedX, y: clampedY },
+                'index',
+                { intersect: false, axis: 'x' },
+                false
+            );
+            if (elements && elements.length > 0 && elements[0].index !== undefined && elements[0].index < totalBars) {
+                return elements[0].index;
+            }
+        } catch (e) {
+            // Segue para fallback geométrico
+        }
+
+        // 2. Mapeamento geométrico pelos centros reais das colunas
+        const meta0 = chart.getDatasetMeta(0);
+        const meta1 = chart.getDatasetMeta(1);
+        const xScale = chart.scales?.x;
+
+        const centers = [];
+        for (let i = 0; i < totalBars; i++) {
+            let cx = null;
+            if (meta0?.data?.[i]?.x !== undefined && Number.isFinite(meta0.data[i].x)) {
+                cx = meta0.data[i].x;
+            } else if (meta1?.data?.[i]?.x !== undefined && Number.isFinite(meta1.data[i].x)) {
+                cx = meta1.data[i].x;
+            } else if (xScale && typeof xScale.getPixelForValue === 'function') {
+                cx = xScale.getPixelForValue(i);
+            }
+            centers.push(cx);
+        }
+
+        // Se temos os centros das extremidades, particiona por ponto médio
+        if (centers[0] !== null && centers[totalBars - 1] !== null) {
+            const c0 = centers[0];
+            const c1 = centers[1] ?? (c0 + 40);
+            const midFirst = (c0 + c1) / 2;
+            if (mouseX <= midFirst) return 0;
+
+            const cLast = centers[totalBars - 1];
+            const cPenult = centers[totalBars - 2] ?? (cLast - 40);
+            const midLast = (cPenult + cLast) / 2;
+            if (mouseX >= midLast) return totalBars - 1;
+
+            for (let i = 0; i < totalBars - 1; i++) {
+                const cur = centers[i];
+                const nxt = centers[i + 1];
+                if (cur !== null && nxt !== null) {
+                    const mid = (cur + nxt) / 2;
+                    if (mouseX < mid) {
+                        return i;
+                    }
+                }
+            }
+        }
+
+        // Vizinho mais próximo absoluto
         let closestIdx = 0;
         let minDistance = Infinity;
-
-        // Varre TODOS os labels (mesmo os de valor zero) usando a escala X
         for (let i = 0; i < totalBars; i++) {
-            // getPixelForValue pega a posição exata do centro da categoria no eixo X
-            const barCenterX = xScale.getPixelForValue(i);
-            const dist = Math.abs(mouseX - barCenterX);
+            const cx = centers[i] ?? xScale?.getPixelForValue(i);
+            if (cx === null || cx === undefined) continue;
+            const dist = Math.abs(mouseX - cx);
             if (dist < minDistance) {
                 minDistance = dist;
                 closestIdx = i;
             }
         }
-
         return closestIdx;
     }
-
 
     // Plugin para realce visual da coluna/mês sob o mouse ou fixada por clique
     const patrimonyColumnHoverPlugin = {
@@ -4200,16 +4272,11 @@ function renderChart() {
                 activeIdx = hoveredPatrimonyBarIndex;
             } else if (selectedPatrimonyBarIndex !== null && selectedPatrimonyBarIndex >= 0) {
                 activeIdx = selectedPatrimonyBarIndex;
-            } else {
-                const active = chart.tooltip?._active;
-                if (active && active.length > 0) {
-                    activeIdx = active[0].index;
-                }
             }
             if (activeIdx < 0) return;
 
             const totalBars = chart.data?.labels?.length || 0;
-            if (totalBars === 0) return;
+            if (totalBars === 0 || activeIdx >= totalBars) return;
 
             const { ctx, chartArea } = chart;
             if (!chartArea) return;
@@ -4217,9 +4284,19 @@ function renderChart() {
             const meta0 = chart.getDatasetMeta(0);
             const meta1 = chart.getDatasetMeta(1);
             const barElem = (meta0 && meta0.data && meta0.data[activeIdx]) || (meta1 && meta1.data && meta1.data[activeIdx]);
-            if (!barElem) return;
-            const barWidth = barElem.width;
-            const barLeft = barElem.x - (barWidth / 2);
+            
+            let barLeft, barWidth;
+            if (barElem && Number.isFinite(barElem.x) && Number.isFinite(barElem.width) && barElem.width > 0) {
+                barWidth = barElem.width;
+                barLeft = barElem.x - (barWidth / 2);
+            } else {
+                const xScale = chart.scales?.x;
+                const cx = (xScale && typeof xScale.getPixelForValue === 'function')
+                    ? xScale.getPixelForValue(activeIdx)
+                    : (chartArea.left + (chartArea.width / totalBars) * (activeIdx + 0.5));
+                barWidth = Math.max(16, (chartArea.width / totalBars) * 0.7);
+                barLeft = cx - (barWidth / 2);
+            }
             const padX = 2;
 
             ctx.save();
@@ -4327,13 +4404,20 @@ function renderChart() {
         const meta1 = chart.getDatasetMeta(1);
         const bar0 = meta0?.data?.[idx];
         const bar1 = meta1?.data?.[idx];
-        const barX = bar0 ? bar0.x : (bar1 ? bar1.x : (chartCanvas.width / 2));
+        let barX;
+        if (bar0 && Number.isFinite(bar0.x)) {
+            barX = bar0.x;
+        } else if (bar1 && Number.isFinite(bar1.x)) {
+            barX = bar1.x;
+        } else {
+            barX = chart.scales?.x?.getPixelForValue(idx) ?? (chartCanvas.width / 2);
+        }
 
         // O topo real da coluna é o ponto mais alto (menor coordenada Y)
-        const y0 = bar0 ? bar0.y : Infinity;
-        const y1 = bar1 ? bar1.y : Infinity;
+        const y0 = (bar0 && Number.isFinite(bar0.y)) ? bar0.y : Infinity;
+        const y1 = (bar1 && Number.isFinite(bar1.y)) ? bar1.y : Infinity;
         const rawBarTop = Math.min(y0, y1);
-        const barTop = Number.isFinite(rawBarTop) ? rawBarTop : (chartCanvas.height / 2);
+        const barTop = (Number.isFinite(rawBarTop) && rawBarTop < Infinity) ? rawBarTop : (chart.chartArea?.top ?? (chartCanvas.height / 2));
 
         // A base da barra
         const b0 = bar0 ? bar0.base : chartCanvas.height;
@@ -4478,8 +4562,7 @@ function renderChart() {
                         color: textColor,
                         font: { size: 10 },
                         maxRotation: 45,
-                        minRotation: 45,
-                        maxTicksLimit: 12
+                        minRotation: 45
                     }
                 },
                 y: {
