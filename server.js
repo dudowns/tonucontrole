@@ -39,8 +39,12 @@ const app = express();
 // Habilita confiança no proxy reverso do Google AI Studio / Cloud Run
 app.set('trust proxy', 1);
 
-// A porta 3000 é estritamente exigida pelo proxy reverso do Google AI Studio.
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+// A porta 3000 é estritamente exigida pelo ambiente e proxy do Google AI Studio.
+const PRIMARY_PORT = 3000;
+const ALT_PORT = (process.env.PORT && parseInt(process.env.PORT, 10) !== 3000)
+    ? parseInt(process.env.PORT, 10)
+    : null;
+const PORT = PRIMARY_PORT;
 const ROOT_DIR = __dirname;
 
 // ============================================
@@ -454,24 +458,30 @@ app.use((req, res) => {
     }
 });
 
-// Inicia servidor principal
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🛡️ Servidor TonuControle Seguro rodando em http://0.0.0.0:${PORT}`);
+// Inicia servidor principal na porta 3000 (obrigatória para o ambiente AI Studio)
+const server = app.listen(PRIMARY_PORT, '0.0.0.0', () => {
+    console.log(`🛡️ Servidor TonuControle Seguro rodando em http://0.0.0.0:${PRIMARY_PORT}`);
 });
 
-// Se a porta configurada não for 3000, escuta também na porta 3000 para garantir compatibilidade com proxies locais
-if (PORT !== 3000) {
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.warn(`⚠️ Porta ${PRIMARY_PORT} já em uso. Servidor já está ativo.`);
+    } else {
+        console.error(`❌ Erro no servidor na porta ${PRIMARY_PORT}:`, err.message);
+    }
+});
+
+// Se houver uma porta alternativa (ex: Cloud Run) diferente de 3000, escuta também de forma segura
+if (ALT_PORT) {
     try {
-        const fallbackServer = app.listen(3000, '0.0.0.0', () => {
-            console.log(`🛡️ Servidor TonuControle espelhado na porta 3000`);
+        const altServer = app.listen(ALT_PORT, '0.0.0.0', () => {
+            console.log(`🛡️ Servidor TonuControle espelhado na porta ${ALT_PORT}`);
         });
-        fallbackServer.on('error', (err) => {
+        altServer.on('error', (err) => {
             if (err.code !== 'EADDRINUSE') {
-                console.warn('⚠️ Erro ao iniciar espelho na porta 3000:', err.message);
+                console.warn(`⚠️ Erro na porta alternativa ${ALT_PORT}:`, err.message);
             }
         });
-    } catch (e) {
-        // Ignora se porta 3000 já estiver em uso
-    }
+    } catch (_) {}
 }
 
