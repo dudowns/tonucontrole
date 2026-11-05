@@ -4148,82 +4148,48 @@ function renderChart() {
 
     // Função utilitária para mapear com precisão cirúrgica a coluna inteira do mês sob o cursor
     function getBarIndexFromEvent(chart, event) {
-        if (!chart || !chart.canvas) return null;
+        if (!chart || !chart.canvas || !chart.scales || !chart.scales.x) return null;
 
         const rect = chart.canvas.getBoundingClientRect();
-        if (!rect || rect.width <= 0 || rect.height <= 0) return null;
-
-        const rawClientX = (event.clientX !== undefined)
-            ? event.clientX
-            : (event.touches && event.touches[0] ? event.touches[0].clientX : (event.native?.clientX ?? null));
-        const rawClientY = (event.clientY !== undefined)
-            ? event.clientY
-            : (event.touches && event.touches[0] ? event.touches[0].clientY : (event.native?.clientY ?? null));
+        const rawClientX = (event.clientX !== undefined) ? event.clientX : (event.touches?.[0]?.clientX ?? event.native?.clientX ?? null);
+        const rawClientY = (event.clientY !== undefined) ? event.clientY : (event.touches?.[0]?.clientY ?? event.native?.clientY ?? null);
 
         if (rawClientX === null || rawClientY === null) return null;
 
-        const mouseX = rawClientX - rect.left;
-        const canvasY = rawClientY - rect.top;
-
-        // Limites físicos do canvas
-        if (mouseX < 0 || mouseX > rect.width || canvasY < 0 || canvasY > rect.height) {
-            return null;
-        }
+        // Ajuste para Zoom/DPI
+        const scaleX = rect.width > 0 ? chart.width / rect.width : 1;
+        const scaleY = rect.height > 0 ? chart.height / rect.height : 1;
+        const mouseX = (rawClientX - rect.left) * scaleX;
+        const canvasY = (rawClientY - rect.top) * scaleY;
 
         const chartArea = chart.chartArea;
         if (!chartArea) return null;
 
-        // Guarda vertical: protege apenas contra a área de legenda no topo (para permitir cliques nos rótulos de legenda)
-        // Permite todo o corpo da coluna e toda a área inferior de datas/eixo X até a base do canvas
-        if (canvasY < chartArea.top - 8) {
-            return null;
-        }
+        // Guarda vertical
+        if (canvasY < chartArea.top - 10 || canvasY > chartArea.bottom + 10) return null;
 
-        // Obtém as barras do dataset 0 (ou dataset 1 como fallback)
-        const meta0 = chart.getDatasetMeta(0);
-        const meta1 = chart.getDatasetMeta(1);
-        const bars = (meta0 && meta0.data && meta0.data.length > 0) ? meta0.data : (meta1 && meta1.data ? meta1.data : []);
-        const totalBars = bars.length;
+        const xScale = chart.scales.x;
+        const labels = chart.data.labels || [];
+        const totalBars = labels.length;
         if (totalBars === 0) return null;
-        if (totalBars === 1) return 0;
 
-        // 1. Extremidade Direita (12ª barra / última barra):
-        // Ponto médio entre a penúltima e a última barra. Da metade até o fim do canvas e todo padding direito.
-        const midLast = (bars[totalBars - 2].x + bars[totalBars - 1].x) / 2;
-        if (mouseX >= midLast) {
-            return totalBars - 1;
-        }
-
-        // 2. Extremidade Esquerda (1ª barra):
-        // Ponto médio entre a 1ª e a 2ª barra. Da metade até o início do canvas e todo padding esquerdo.
-        const midFirst = (bars[0].x + bars[1].x) / 2;
-        if (mouseX <= midFirst) {
-            return 0;
-        }
-
-        // 3. Mapeamento contínuo por partições de ponto médio entre vizinhos consecutivos
-        for (let i = 0; i < totalBars - 1; i++) {
-            const midCurrent = (i === 0) ? midFirst : (bars[i - 1].x + bars[i].x) / 2;
-            const midNext = (bars[i].x + bars[i + 1].x) / 2;
-            if (mouseX >= midCurrent && mouseX < midNext) {
-                return i;
-            }
-        }
-
-        // 4. Fallback de segurança para o vizinho mais próximo absoluto
         let closestIdx = 0;
         let minDistance = Infinity;
+
+        // Varre TODOS os labels (mesmo os de valor zero) usando a escala X
         for (let i = 0; i < totalBars; i++) {
-            const bar = bars[i];
-            if (!bar) continue;
-            const dist = Math.abs(mouseX - bar.x);
+            // getPixelForValue pega a posição exata do centro da categoria no eixo X
+            const barCenterX = xScale.getPixelForValue(i);
+            const dist = Math.abs(mouseX - barCenterX);
             if (dist < minDistance) {
                 minDistance = dist;
                 closestIdx = i;
             }
         }
+
         return closestIdx;
     }
+
 
     // Plugin para realce visual da coluna/mês sob o mouse ou fixada por clique
     const patrimonyColumnHoverPlugin = {
