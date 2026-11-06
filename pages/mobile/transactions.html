@@ -109,19 +109,24 @@
         </button>
     </div>
 
-    <!-- SUMMARY FLOW STRIP (ENTRADAS / SAÍDAS / SALDO DO MÊS) -->
-    <div class="ios-flow-strip" id="monthSummaryStrip">
-        <div class="ios-flow-card">
-            <span class="ios-flow-label"><i class="fas fa-arrow-down" style="color:#00B894;"></i> Entradas</span>
-            <span class="ios-flow-val income" id="sumIncome">R$ 0,00</span>
+    <!-- HERO CARD RESUMO DO MÊS (PADRÃO DASHBOARD PREMIUM) -->
+    <div class="mobile-hero-card" id="monthSummaryHero">
+        <div class="hero-top">
+            <span class="hero-label"><i class="fas fa-wallet"></i> Saldo Operacional do Mês</span>
+            <span class="badge-mobile" style="background: rgba(255,255,255,0.2); color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px; letter-spacing:0.4px;">
+                EXTRATO
+            </span>
         </div>
-        <div class="ios-flow-card">
-            <span class="ios-flow-label"><i class="fas fa-arrow-up" style="color:#FF7675;"></i> Saídas</span>
-            <span class="ios-flow-val expense" id="sumExpense">R$ 0,00</span>
-        </div>
-        <div class="ios-flow-card">
-            <span class="ios-flow-label"><i class="fas fa-wallet" style="color:#6C5CE7;"></i> Saldo</span>
-            <span class="ios-flow-val balance" id="sumBalance">R$ 0,00</span>
+        <div class="hero-value" id="sumBalance">R$ 0,00</div>
+        <div class="hero-footer">
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-arrow-down" style="color: #6ee7b7;"></i> Entradas</span>
+                <span class="hero-stat-val income" id="sumIncome">R$ 0,00</span>
+            </div>
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-arrow-up" style="color: #fca5a5;"></i> Saídas</span>
+                <span class="hero-stat-val expense" id="sumExpense">R$ 0,00</span>
+            </div>
         </div>
     </div>
 
@@ -583,6 +588,23 @@ function getDateGroupHeader(dateStr) {
     return `${String(d).padStart(2, '0')} de ${monthNames[m - 1]}`;
 }
 
+function colorTo15PercentAlpha(colorStr) {
+    if (!colorStr) return 'rgba(108, 92, 231, 0.15)';
+    if (colorStr.startsWith('#')) {
+        let hex = colorStr.replace('#', '');
+        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+        const num = parseInt(hex, 16);
+        const r = (num >> 16) & 255;
+        const g = (num >> 8) & 255;
+        const b = num & 255;
+        return `rgba(${r}, ${g}, ${b}, 0.15)`;
+    }
+    if (colorStr.startsWith('rgb')) {
+        return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.15)');
+    }
+    return 'rgba(108, 92, 231, 0.15)';
+}
+
 function renderTransactions() {
     const container = document.getElementById("transactionList");
     updateSummaryStrip(filteredTransactions);
@@ -598,7 +620,7 @@ function renderTransactions() {
         return;
     }
 
-    // Agrupa transações por data (iOS Inset Grouped)
+    // Agrupa transações por data (cada transação é um card individual)
     const groups = [];
     let currentGroup = null;
 
@@ -631,7 +653,6 @@ function renderTransactions() {
                 <span>${g.dateHeader}</span>
                 <span style="font-feature-settings:'tnum'; color: ${isDayPositive ? '#00B894' : '#64748b'};">${dayTotalFormatted}</span>
             </div>
-            <div class="ios-grouped-card">
         `;
 
         g.items.forEach(t => {
@@ -668,37 +689,36 @@ function renderTransactions() {
             const safeDesc = typeof sanitizeString === 'function' ? sanitizeString(rawDesc) : rawDesc;
             const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
             const dueNote = (t.due_date && t.due_date !== effectiveDate) ? ` • Venc: ${formatDate(t.due_date)}` : '';
+            const squircleBg = colorTo15PercentAlpha(color);
 
             html += `
-                <div class="ios-row-item">
-                    <div class="ios-row-left">
-                        <div class="ios-squircle-icon" style="background: ${color};">
+                <div class="mobile-list-card">
+                    <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
                             <i class="fas ${icon}"></i>
                         </div>
-                        <div class="ios-row-info">
-                            <div class="ios-row-title">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:14px; font-weight:700; color:var(--color-text,#0f172a); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px;">
                                 <span>${safeDesc}</span>
                                 ${badge}
                             </div>
                             ${instInfo && instInfo.badgeHtml ? `<div style="margin-top:2px;">${instInfo.badgeHtml}</div>` : ''}
-                            <div class="ios-row-subtitle">
-                                <span>${cat?.name || 'Geral'}${dueNote}</span>
+                            <div style="font-size:11.5px; color:var(--color-text-muted,#64748b); margin-top:2px; display:flex; align-items:center; gap:5px;">
+                                <span>${formatDate(effectiveDate)}</span> • <span>${cat?.name || 'Geral'}${dueNote}</span>
                             </div>
                         </div>
                     </div>
-                    <div class="ios-row-right">
-                        <span class="ios-row-amount ${isIncome ? 'income' : 'expense'}">
+                    <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                        <span style="font-size:14px; font-weight:800; font-feature-settings:'tnum'; color:${isIncome ? '#00B894' : '#FF7675'};">
                             ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
                         </span>
-                        <button type="button" class="ios-row-action-btn" onclick="event.stopPropagation(); deleteTransaction('${t.id}')" title="Excluir" aria-label="Excluir transação">
+                        <button type="button" class="btn-act" onclick="event.stopPropagation(); deleteTransaction('${t.id}')" title="Excluir" aria-label="Excluir transação" style="width:34px; height:34px; border-radius:10px; border:none; background:transparent; color:#cbd5e1; cursor:pointer;">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
                 </div>
             `;
         });
-
-        html += `</div>`;
     });
 
     container.innerHTML = html;

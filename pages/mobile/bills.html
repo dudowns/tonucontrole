@@ -457,23 +457,28 @@
         </button>
     </div>
 
-    <!-- CARDS DE RESUMO -->
-    <div class="stats-carousel">
-        <div class="stat-card-mini">
-            <span class="label">Total a Pagar</span>
-            <span class="val" id="statTotal">R$ 0,00</span>
+    <!-- HERO CARD CONTAS A PAGAR (DNA DASHBOARD) -->
+    <div class="mobile-hero-card" id="billsHeroCard" style="margin: 0 14px 14px 14px;">
+        <div class="hero-top">
+            <span class="hero-label"><i class="fas fa-file-invoice-dollar"></i> Total a Pagar no Mês</span>
+            <span class="badge-mobile" style="background: rgba(255,255,255,0.2); color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px;">
+                CONTAS
+            </span>
         </div>
-        <div class="stat-card-mini">
-            <span class="label">Pagas no Mês</span>
-            <span class="val text-success" id="statPaid">R$ 0,00</span>
-        </div>
-        <div class="stat-card-mini">
-            <span class="label">A Vencer</span>
-            <span class="val text-warning" id="statPending">R$ 0,00</span>
-        </div>
-        <div class="stat-card-mini">
-            <span class="label">Atrasadas</span>
-            <span class="val text-danger" id="statOverdue">R$ 0,00</span>
+        <div class="hero-value" id="statTotal">R$ 0,00</div>
+        <div class="hero-footer">
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-clock" style="color: #fde68a;"></i> A Vencer</span>
+                <span class="hero-stat-val" id="statPending" style="color: #fef08a;">R$ 0,00</span>
+            </div>
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-check-circle" style="color: #6ee7b7;"></i> Pagas</span>
+                <span class="hero-stat-val income" id="statPaid">R$ 0,00</span>
+            </div>
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-exclamation-triangle" style="color: #fca5a5;"></i> Atrasadas</span>
+                <span class="hero-stat-val expense" id="statOverdue">R$ 0,00</span>
+            </div>
         </div>
     </div>
 
@@ -1006,6 +1011,23 @@ function getMobileBillInstallmentInfo(b) {
     return null;
 }
 
+function colorTo15PercentAlpha(colorStr) {
+    if (!colorStr) return 'rgba(108, 92, 231, 0.15)';
+    if (colorStr.startsWith('#')) {
+        let hex = colorStr.replace('#', '');
+        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+        const num = parseInt(hex, 16);
+        const r = (num >> 16) & 255;
+        const g = (num >> 8) & 255;
+        const b = num & 255;
+        return `rgba(${r}, ${g}, ${b}, 0.15)`;
+    }
+    if (colorStr.startsWith('rgb')) {
+        return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.15)');
+    }
+    return 'rgba(108, 92, 231, 0.15)';
+}
+
 function renderBills() {
     const container = document.getElementById("billsContainer");
     const today = getTodayString();
@@ -1090,6 +1112,8 @@ function renderBills() {
             `;
         }
 
+        const squircleBg = colorTo15PercentAlpha(color);
+
         return `
             <div class="bill-card-mobile ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_card_mobile_${b.id}">
                 <div class="bill-top" style="align-items:center;">
@@ -1098,7 +1122,7 @@ function renderBills() {
                             <input type="checkbox" class="bill-check-mobile" ${isSelected ? 'checked' : ''} onchange="toggleSelectBillMobile('${b.id}', this.checked)" style="width:20px; height:20px; accent-color:#6C5CE7; cursor:pointer;">
                         </div>
                     ` : ''}
-                    <div class="bill-icon" style="background:${color};">
+                    <div class="mobile-icon-squircle bill-icon" style="background:${squircleBg}; color:${color};">
                         <i class="fas ${icon}"></i>
                     </div>
                     <div class="bill-details">

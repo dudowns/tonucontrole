@@ -125,6 +125,14 @@
             background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%) !important;
             color: #ffffff !important;
         }
+        body.dark-theme .goal-card,
+        body.dark-theme .cdi-yield-card-mobile {
+            background: #171f2e !important;
+            border-color: rgba(51, 65, 85, 0.7) !important;
+        }
+        body.dark-theme .goal-title-group h3 {
+            color: #f8fafc !important;
+        }
 
         /* CARD DA META */
         .goal-card {
@@ -795,19 +803,24 @@
         </div>
     </div>
 
-    <!-- RESUMO HERO -->
-    <div class="goals-hero-grid">
-        <div class="goals-hero-card full-width">
-            <div class="hero-label"><i class="fas fa-piggy-bank"></i> Total Acumulado em Metas</div>
-            <div class="hero-value" id="heroTotalAcumulado">R$ 0,00</div>
+    <!-- HERO CARD METAS (DNA DASHBOARD) -->
+    <div class="mobile-hero-card" id="goalsHeroCard" style="margin-bottom: 14px;">
+        <div class="hero-top">
+            <span class="hero-label"><i class="fas fa-bullseye"></i> Total Acumulado em Metas</span>
+            <span class="badge-mobile" style="background: rgba(255,255,255,0.2); color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px;">
+                METAS
+            </span>
         </div>
-        <div class="goals-hero-card">
-            <div class="hero-label"><i class="fas fa-bullseye"></i> Alvo Total</div>
-            <div class="hero-value" id="heroTotalAlvo">R$ 0,00</div>
-        </div>
-        <div class="goals-hero-card">
-            <div class="hero-label"><i class="fas fa-trophy"></i> Metas Concluídas</div>
-            <div class="hero-value" id="heroMetasConcluidas" style="color:#00B894;">0 de 0</div>
+        <div class="hero-value" id="heroTotalAcumulado">R$ 0,00</div>
+        <div class="hero-footer">
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-flag-checkered" style="color: #c7d2fe;"></i> Alvo Total</span>
+                <span class="hero-stat-val" id="heroTotalAlvo" style="color: #e0e7ff;">R$ 0,00</span>
+            </div>
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-trophy" style="color: #6ee7b7;"></i> Concluídas</span>
+                <span class="hero-stat-val income" id="heroMetasConcluidas">0 de 0</span>
+            </div>
         </div>
     </div>
 
@@ -1186,6 +1199,24 @@ let currentCycleYear = 2026;
 let currentCycleYearMobile = 2026;
 let currentTemporalMode = 'year'; // 'year' | 'continuous'
 let selectedMobileType = 'project';
+
+function colorTo15PercentAlpha(colorStr) {
+    if (!colorStr) return 'rgba(108, 92, 231, 0.15)';
+    if (colorStr.startsWith('#')) {
+        let hex = colorStr.slice(1);
+        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+        if (hex.length === 6) {
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            return `rgba(${r}, ${g}, ${b}, 0.15)`;
+        }
+    }
+    if (colorStr.startsWith('rgb(')) {
+        return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.15)');
+    }
+    return colorStr;
+}
 
 const CATEGORY_ICONS = {
     emergency: { icon: 'fa-shield-alt', color: '#00B894', label: 'Reserva de Emergência' },
@@ -2029,7 +2060,7 @@ function renderGoals() {
                 <div class="goal-card ${isCompleted || isMonthlyTargetMet ? 'completed' : ''}" style="border-left-color:#10B981;">
                     <div class="goal-card-top">
                         <div class="goal-title-group">
-                            <div class="goal-category-icon" style="background:#10B981;">
+                            <div class="mobile-icon-squircle" style="background:rgba(16,185,129,0.15); color:#10B981; width:38px; height:38px;">
                                 <i class="fas fa-hand-holding-usd"></i>
                             </div>
                             <div>
@@ -2107,7 +2138,7 @@ function renderGoals() {
                 <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:#8B5CF6;">
                     <div class="goal-card-top">
                         <div class="goal-title-group">
-                            <div class="goal-category-icon" style="background:#8B5CF6;">
+                            <div class="mobile-icon-squircle" style="background:rgba(139,92,246,0.15); color:#8B5CF6; width:38px; height:38px;">
                                 <i class="fas fa-chart-pie"></i>
                             </div>
                             <div>
@@ -2166,12 +2197,13 @@ function renderGoals() {
         const tgt = Number(g.target_amount) || 0;
         const percent = tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : 0;
         const remaining = Math.max(0, tgt - cur);
+        const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(color) : 'rgba(108, 92, 231, 0.15)';
 
         return `
             <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${color};">
                 <div class="goal-card-top">
                     <div class="goal-title-group">
-                        <div class="goal-category-icon" style="background:${color};">
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color}; width:38px; height:38px;">
                             <i class="fas ${catInfo.icon}"></i>
                         </div>
                         <div>
