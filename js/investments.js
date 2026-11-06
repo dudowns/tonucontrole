@@ -4116,7 +4116,7 @@ function renderChart() {
     const padding = range * 0.1;
 
     const suggestedMax = Math.ceil((maxPositive + padding) / 50) * 50;
-    const suggestedMin = Math.floor((minNegative - padding) / 50) * 50;
+    const suggestedMin = minNegative < 0 ? Math.floor((minNegative - padding) / 50) * 50 : 0;
 
     // Verde mais claro consistente para Ganho de Capital (sem vermelho, mesmo se negativo)
     const gainBgColors = '#96e9c1';
@@ -4501,7 +4501,8 @@ function renderChart() {
                     borderSkipped: false,
                     stack: 'patrimonio',
                     barPercentage: 0.8,
-                    categoryPercentage: 0.85
+                    categoryPercentage: 0.85,
+                    maxBarThickness: 38
                 },
                 {
                     label: 'Ganho de Capital',
@@ -4514,7 +4515,8 @@ function renderChart() {
                     borderSkipped: false,
                     stack: 'patrimonio',
                     barPercentage: 0.8,
-                    categoryPercentage: 0.85
+                    categoryPercentage: 0.85,
+                    maxBarThickness: 38
                 }
             ]
         },
