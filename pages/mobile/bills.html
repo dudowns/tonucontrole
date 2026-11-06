@@ -152,69 +152,82 @@
         .bill-card-mobile {
             background: var(--color-surface, #ffffff);
             border: 1px solid var(--color-border, #e2e8f0);
-            border-radius: 12px;
-            padding: 12px 14px;
-            margin: 0 14px 10px 14px;
+            border-radius: 18px;
+            padding: 14px 16px;
+            margin: 0 14px 12px 14px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            transition: all 0.2s ease;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            box-sizing: border-box;
+        }
+        .bill-card-mobile:active {
+            transform: scale(0.985);
         }
         .bill-card-mobile.overdue {
-            border-left: 4px solid #dc2626;
+            border-left: 4px solid #ef4444;
         }
         .bill-top {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
         .bill-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
+            width: 42px;
+            height: 42px;
+            border-radius: 13px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #ffffff;
-            font-size: 13px;
+            font-size: 15px;
             flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
         .bill-details {
             flex: 1;
             min-width: 0;
         }
         .bill-name {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--color-text, #2d3436);
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--color-text, #0f172a);
+            letter-spacing: -0.2px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
         .bill-meta {
-            font-size: 11px;
-            color: var(--color-text-muted, #94a3b8);
-            margin-top: 2px;
+            font-size: 11.5px;
+            color: var(--color-text-muted, #64748b);
+            margin-top: 3px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         .bill-price {
             text-align: right;
             flex-shrink: 0;
         }
         .bill-val {
-            font-size: 14px;
-            font-weight: 700;
+            font-size: 15px;
+            font-weight: 800;
+            font-feature-settings: 'tnum';
+            color: var(--color-text, #0f172a);
         }
         .bill-badge {
-            font-size: 9px;
+            font-size: 9.5px;
             font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 999px;
+            padding: 2px 8px;
+            border-radius: 6px;
             display: inline-block;
-            margin-top: 2px;
+            margin-top: 3px;
+            letter-spacing: 0.03em;
         }
-        .badge-paid { background: #dcfce7; color: #16a34a; }
-        .badge-pending { background: #fef3c7; color: #d97706; }
-        .badge-overdue { background: #fee2e2; color: #dc2626; }
+        .badge-paid { background: #dcfce7; color: #15803d; }
+        .badge-pending { background: #fef3c7; color: #b45309; }
+        .badge-overdue { background: #fee2e2; color: #b91c1c; }
 
         /* BADGES DE PARCELAS E RECORRÊNCIA (MOBILE) */
         .installment-badge-wrap {
@@ -302,45 +315,71 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-top: 1px solid var(--color-border, #f1f5f9);
-            padding-top: 8px;
+            border-top: 1px solid var(--color-border-light, #f1f5f9);
+            padding-top: 10px;
+            gap: 10px;
         }
         .btn-toggle-paid {
-            display: flex;
+            flex: 1;
+            height: 38px;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid var(--color-border, #cbd5e1);
-            background: var(--color-surface, #ffffff);
-            padding: 5px 10px;
-            border-radius: 8px;
+            justify-content: center;
+            gap: 7px;
+            font-size: 12px;
+            font-weight: 700;
+            border: none;
+            background: linear-gradient(135deg, #00B894 0%, #059669 100%);
+            color: #ffffff;
+            padding: 0 14px;
+            border-radius: 12px;
             cursor: pointer;
-            color: var(--color-text, #2d3436);
-            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 184, 148, 0.25);
+            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            touch-action: manipulation;
+        }
+        .btn-toggle-paid:active {
+            transform: scale(0.96);
         }
         .btn-toggle-paid.is-paid {
-            background: #dcfce7;
-            border-color: #86efac;
-            color: #15803d;
+            background: rgba(100, 116, 139, 0.12);
+            color: #475569;
+            box-shadow: none;
+            border: 1px solid rgba(226, 232, 240, 0.8);
         }
         .bill-actions-mobile {
             display: flex;
-            gap: 8px;
+            gap: 6px;
         }
         .btn-act {
-            border: none;
-            background: none;
-            color: var(--color-text-muted, #94a3b8);
+            border: 1px solid var(--color-border, #e2e8f0);
+            background: var(--color-surface, #ffffff);
+            color: var(--color-text-muted, #64748b);
             font-size: 13px;
-            width: 28px;
-            height: 28px;
+            width: 38px;
+            height: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 6px;
+            border-radius: 11px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            touch-action: manipulation;
         }
-        .btn-act:active { background: var(--color-bg, #edf2f7); }
+        .btn-act:active {
+            transform: scale(0.92);
+            background: var(--color-bg, #f1f5f9);
+        }
+        body.dark-theme .btn-toggle-paid.is-paid {
+            background: rgba(148, 163, 184, 0.15);
+            color: #cbd5e1;
+            border-color: rgba(51, 65, 85, 0.7);
+        }
+        body.dark-theme .btn-act {
+            background: #1e293b;
+            border-color: rgba(51, 65, 85, 0.7);
+            color: #cbd5e1;
+        }
 
         /* MODAL BOTTOM SHEET */
         .bottom-sheet {

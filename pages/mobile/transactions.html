@@ -109,30 +109,81 @@
         </button>
     </div>
 
-    <div class="filter-bar">
-        <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" id="searchInput" placeholder="Buscar..." oninput="filterTransactions()">
+    <!-- SUMMARY FLOW STRIP (ENTRADAS / SAÍDAS / SALDO DO MÊS) -->
+    <div class="ios-flow-strip" id="monthSummaryStrip">
+        <div class="ios-flow-card">
+            <span class="ios-flow-label"><i class="fas fa-arrow-down" style="color:#00B894;"></i> Entradas</span>
+            <span class="ios-flow-val income" id="sumIncome">R$ 0,00</span>
         </div>
-        <select id="filterStatus" onchange="filterTransactions()" style="font-weight:600;">
-            <option value="paid" selected>Pagas</option>
-            <option value="all">Todas</option>
-            <option value="pending">Pendentes</option>
-        </select>
-        <select id="filterType" onchange="filterTransactions()">
-            <option value="all">Todos</option>
-            <option value="income">Receitas</option>
-            <option value="expense">Despesas</option>
-            <option value="anticipation">⚡ Antecipações</option>
-        </select>
-        <select id="filterCategory" onchange="filterTransactions()" style="font-weight:600; min-width:110px;" title="Filtrar por categoria">
-            <option value="all">Todas as categorias</option>
+        <div class="ios-flow-card">
+            <span class="ios-flow-label"><i class="fas fa-arrow-up" style="color:#FF7675;"></i> Saídas</span>
+            <span class="ios-flow-val expense" id="sumExpense">R$ 0,00</span>
+        </div>
+        <div class="ios-flow-card">
+            <span class="ios-flow-label"><i class="fas fa-wallet" style="color:#6C5CE7;"></i> Saldo</span>
+            <span class="ios-flow-val balance" id="sumBalance">R$ 0,00</span>
+        </div>
+    </div>
+
+    <!-- IOS SEGMENTED CONTROL (STATUS) -->
+    <div class="ios-segmented-control" role="tablist" aria-label="Filtro de Status">
+        <button type="button" class="ios-segment-button active" id="segBtnPaid" onclick="setStatusFilter('paid', this)">
+            <i class="fas fa-check-circle" style="color:#00B894; font-size:11px;"></i> Pagas
+        </button>
+        <button type="button" class="ios-segment-button" id="segBtnAll" onclick="setStatusFilter('all', this)">
+            Todas
+        </button>
+        <button type="button" class="ios-segment-button" id="segBtnPending" onclick="setStatusFilter('pending', this)">
+            <i class="fas fa-clock" style="color:#f59e0b; font-size:11px;"></i> Pendentes
+        </button>
+    </div>
+
+    <!-- IOS SEARCH BAR -->
+    <div class="ios-search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Buscar transações..." oninput="handleSearchInput(this.value)">
+        <button type="button" class="ios-search-clear" id="searchClearBtn" onclick="clearSearch()" style="display:none;" aria-label="Limpar busca">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <!-- FILTROS DE TIPO E CATEGORIAS (HORIZONTAL CHIPS) -->
+    <div class="ios-filter-scroll" id="typeFilterChips">
+        <button type="button" class="ios-chip active" data-type="all" onclick="setTypeFilter('all', this)">
+            Todos os Tipos
+        </button>
+        <button type="button" class="ios-chip" data-type="expense" onclick="setTypeFilter('expense', this)">
+            <i class="fas fa-arrow-down" style="color:#FF7675;"></i> Despesas
+        </button>
+        <button type="button" class="ios-chip" data-type="income" onclick="setTypeFilter('income', this)">
+            <i class="fas fa-arrow-up" style="color:#00B894;"></i> Receitas
+        </button>
+        <button type="button" class="ios-chip" data-type="anticipation" onclick="setTypeFilter('anticipation', this)">
+            <i class="fas fa-bolt" style="color:#0284c7;"></i> Antecipações
+        </button>
+        <div style="width:1px; height:24px; background:var(--color-border, #e2e8f0); margin:4px 2px; flex-shrink:0;"></div>
+        <select id="filterCategory" onchange="filterTransactions()" class="ios-chip" style="font-weight:600; cursor:pointer; outline:none; -webkit-appearance:menulist;" title="Filtrar por categoria">
+            <option value="all">🏷️ Todas as categorias</option>
         </select>
     </div>
-    <div id="transactionList" class="transaction-list">
-        <div style="text-align:center;padding:20px;">
+
+    <!-- SELECTS OCULTOS PARA COMPATIBILIDADE DE TESTES E SCRIPTS -->
+    <select id="filterStatus" onchange="filterTransactions()" style="display:none;" aria-hidden="true">
+        <option value="paid" selected>Pagas</option>
+        <option value="all">Todas</option>
+        <option value="pending">Pendentes</option>
+    </select>
+    <select id="filterType" onchange="filterTransactions()" style="display:none;" aria-hidden="true">
+        <option value="all" selected>Todos</option>
+        <option value="income">Receitas</option>
+        <option value="expense">Despesas</option>
+        <option value="anticipation">⚡ Antecipações</option>
+    </select>
+
+    <div id="transactionList" class="transaction-list" style="margin-top: 4px;">
+        <div style="text-align:center;padding:24px;">
             <span class="spinner"></span>
-            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando...</p>
+            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando transações...</p>
         </div>
     </div>
 </main>
@@ -443,84 +494,214 @@ async function loadTransactions() {
     }
 }
 
+function updateSummaryStrip(txs) {
+    let inc = 0;
+    let exp = 0;
+    (txs || []).forEach(t => {
+        const val = Math.abs(Number(t.amount) || 0);
+        if (t.type === 'income') inc += val;
+        else if (t.type === 'expense') exp += val;
+    });
+    const bal = inc - exp;
+    const elInc = document.getElementById('sumIncome');
+    const elExp = document.getElementById('sumExpense');
+    const elBal = document.getElementById('sumBalance');
+    if (elInc) elInc.textContent = formatCurrency(inc);
+    if (elExp) elExp.textContent = formatCurrency(exp);
+    if (elBal) {
+        elBal.textContent = formatCurrency(bal);
+        elBal.className = `ios-flow-val ${bal >= 0 ? 'income' : 'expense'}`;
+    }
+}
+
+function handleSearchInput(val) {
+    const clearBtn = document.getElementById("searchClearBtn");
+    if (clearBtn) {
+        clearBtn.style.display = val && val.trim().length > 0 ? "flex" : "none";
+    }
+    filterTransactions();
+}
+
+function clearSearch() {
+    const input = document.getElementById("searchInput");
+    if (input) {
+        input.value = "";
+    }
+    const clearBtn = document.getElementById("searchClearBtn");
+    if (clearBtn) clearBtn.style.display = "none";
+    filterTransactions();
+}
+
+function setStatusFilter(status, btnEl) {
+    const sel = document.getElementById("filterStatus");
+    if (sel) sel.value = status;
+    document.querySelectorAll(".ios-segment-button").forEach(b => b.classList.remove("active"));
+    if (btnEl) btnEl.classList.add("active");
+    filterTransactions();
+}
+
+function setTypeFilter(type, btnEl) {
+    const sel = document.getElementById("filterType");
+    if (sel) sel.value = type;
+    document.querySelectorAll("#typeFilterChips .ios-chip").forEach(c => {
+        if (c.tagName === 'BUTTON') c.classList.remove("active");
+    });
+    if (btnEl) btnEl.classList.add("active");
+    filterTransactions();
+}
+
+function isTransactionPaid(t) {
+    if (!t) return false;
+    if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+    if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+    return true;
+}
+
+function getDateGroupHeader(dateStr) {
+    if (!dateStr) return "Sem data";
+    const parts = String(dateStr).split("T")[0].split("-");
+    if (parts.length < 3) return dateStr;
+    const y = Number(parts[0]);
+    const m = Number(parts[1]);
+    const d = Number(parts[2]);
+
+    const today = new Date();
+    if (today.getFullYear() === y && (today.getMonth() + 1) === m && today.getDate() === d) {
+        return "Hoje";
+    }
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (yesterday.getFullYear() === y && (yesterday.getMonth() + 1) === m && yesterday.getDate() === d) {
+        return "Ontem";
+    }
+
+    const monthNames = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    return `${String(d).padStart(2, '0')} de ${monthNames[m - 1]}`;
+}
+
 function renderTransactions() {
     const container = document.getElementById("transactionList");
+    updateSummaryStrip(filteredTransactions);
 
     if (filteredTransactions.length === 0) {
         container.innerHTML = `
-            <div class="mobile-empty">
-                <span class="empty-icon">📭</span>
-                <h3>Nenhuma transação</h3>
-                <p>Toque no botão + para adicionar</p>
+            <div class="mobile-empty" style="padding: 40px 16px;">
+                <span class="empty-icon" style="font-size: 42px;">📭</span>
+                <h3 style="font-size: 15px; font-weight: 700; color: var(--color-text, #0f172a); margin-bottom: 6px;">Nenhuma transação encontrada</h3>
+                <p style="font-size: 12.5px; color: var(--color-text-muted, #64748b);">Tente ajustar os filtros ou toque no botão + para adicionar</p>
             </div>
         `;
         return;
     }
 
-    function isTransactionPaid(t) {
-        if (!t) return false;
-        if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
-        if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
-        return true;
-    }
+    // Agrupa transações por data (iOS Inset Grouped)
+    const groups = [];
+    let currentGroup = null;
 
-    container.innerHTML = filteredTransactions.map(t => {
-        const isIncome = t.type === "income";
-        let cat = null;
-        if (t.category_id && categories && categories.length > 0) {
-            cat = categories.find(c => c.id === t.category_id);
-        }
-        if (!cat && t.categories && typeof t.categories === 'object') {
-            cat = t.categories;
-        }
-        const style = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
-            ? window.getBackendCategoryStyle(t.category || t.description, cat)
-            : { color: cat?.color || (isIncome ? "#00B894" : "#FF6B6B"), icon: cat?.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag") };
-
-        const color = cat?.color || style.color || (isIncome ? "#00B894" : "#FF6B6B");
-        const icon = cat?.icon || style.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
-        const isPaid = isTransactionPaid(t);
-        const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
-
-        let badge = "";
-        const isAnticipation = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
-        if (isAnticipation) {
-            badge += `<span style="font-size:9px; background:#e0f2fe; color:#0284c7; border:1px solid #bae6fd; padding:2px 6px; border-radius:4px; margin-left:4px; font-weight:700;"><i class="fas fa-bolt"></i> Antecipação</span>`;
-        }
-        if (t.is_bill) badge += `<span style="font-size:9px; background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; margin-left:4px;">Conta</span>`;
-        if (isPaid) {
-            badge += `<span style="font-size:9px; background:#d4edda; color:#155724; padding:2px 6px; border-radius:4px; margin-left:4px;">${isIncome ? 'Recebido' : 'Pago'}</span>`;
-        } else {
-            badge += `<span style="font-size:9px; background:#fff3cd; color:#856404; padding:2px 6px; border-radius:4px; margin-left:4px;">Pendente</span>`;
-        }
-
-        const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
+    filteredTransactions.forEach(t => {
         const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
-        const dueNote = (t.due_date && t.due_date !== effectiveDate) ? ` • Venc: ${formatDate(t.due_date)}` : '';
+        const dateKey = effectiveDate ? effectiveDate.split('T')[0] : 'sem_data';
 
-        return `
-            <div class="mobile-transaction" style="display:flex; justify-content:space-between; align-items:center;">
-                <div class="tx-left" style="display:flex; align-items:center; gap:10px; flex:1;">
-                    <div class="tx-icon" style="background:${color}; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:white; font-size:13px;">
-                        <i class="fas ${icon}"></i>
-                    </div>
-                    <div class="tx-info">
-                        <strong>${displayDesc} ${badge}</strong>
-                        ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
-                        <small style="display:block; color:#94a3b8; font-size:11px;">${formatDate(effectiveDate)} • ${cat?.name || 'Geral'}${dueNote}</small>
-                    </div>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="tx-amount ${isIncome ? 'income' : 'expense'}" style="font-weight:700; font-size:13px; color:${isIncome ? '#00B894' : '#FF7675'}">
-                        ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
-                    </span>
-                    <button onclick="deleteTransaction('${t.id}')" style="border:none; background:transparent; color:#cbd5e1; padding:4px; font-size:13px; cursor:pointer;" title="Excluir">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
+        if (!currentGroup || currentGroup.dateKey !== dateKey) {
+            currentGroup = {
+                dateKey: dateKey,
+                dateHeader: getDateGroupHeader(dateKey),
+                items: [],
+                dayTotal: 0
+            };
+            groups.push(currentGroup);
+        }
+        currentGroup.items.push(t);
+        const amt = Number(t.amount) || 0;
+        currentGroup.dayTotal += (t.type === 'income' ? amt : -amt);
+    });
+
+    let html = '';
+
+    groups.forEach(g => {
+        const isDayPositive = g.dayTotal >= 0;
+        const dayTotalFormatted = (isDayPositive ? '+ ' : '- ') + formatCurrency(Math.abs(g.dayTotal));
+
+        html += `
+            <div class="ios-section-header">
+                <span>${g.dateHeader}</span>
+                <span style="font-feature-settings:'tnum'; color: ${isDayPositive ? '#00B894' : '#64748b'};">${dayTotalFormatted}</span>
             </div>
+            <div class="ios-grouped-card">
         `;
-    }).join("");
+
+        g.items.forEach(t => {
+            const isIncome = t.type === "income";
+            let cat = null;
+            if (t.category_id && categories && categories.length > 0) {
+                cat = categories.find(c => c.id === t.category_id);
+            }
+            if (!cat && t.categories && typeof t.categories === 'object') {
+                cat = t.categories;
+            }
+            const style = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
+                ? window.getBackendCategoryStyle(t.category || t.description, cat)
+                : { color: cat?.color || (isIncome ? "#00B894" : "#FF6B6B"), icon: cat?.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag") };
+
+            const color = cat?.color || style.color || (isIncome ? "#00B894" : "#FF6B6B");
+            const icon = cat?.icon || style.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
+            const isPaid = isTransactionPaid(t);
+            const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
+
+            let badge = "";
+            const isAnticipation = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+            if (isAnticipation) {
+                badge += `<span class="badge-mobile" style="background:#e0f2fe; color:#0284c7; border:1px solid #bae6fd;"><i class="fas fa-bolt"></i> Antecipação</span>`;
+            }
+            if (t.is_bill) {
+                badge += `<span class="badge-mobile bill">Conta</span>`;
+            }
+            if (!isPaid) {
+                badge += `<span class="badge-mobile pending">Pendente</span>`;
+            }
+
+            const rawDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
+            const safeDesc = typeof sanitizeString === 'function' ? sanitizeString(rawDesc) : rawDesc;
+            const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
+            const dueNote = (t.due_date && t.due_date !== effectiveDate) ? ` • Venc: ${formatDate(t.due_date)}` : '';
+
+            html += `
+                <div class="ios-row-item">
+                    <div class="ios-row-left">
+                        <div class="ios-squircle-icon" style="background: ${color};">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <div class="ios-row-info">
+                            <div class="ios-row-title">
+                                <span>${safeDesc}</span>
+                                ${badge}
+                            </div>
+                            ${instInfo && instInfo.badgeHtml ? `<div style="margin-top:2px;">${instInfo.badgeHtml}</div>` : ''}
+                            <div class="ios-row-subtitle">
+                                <span>${cat?.name || 'Geral'}${dueNote}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ios-row-right">
+                        <span class="ios-row-amount ${isIncome ? 'income' : 'expense'}">
+                            ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
+                        </span>
+                        <button type="button" class="ios-row-action-btn" onclick="event.stopPropagation(); deleteTransaction('${t.id}')" title="Excluir" aria-label="Excluir transação">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+    });
+
+    container.innerHTML = html;
 }
 
 function filterTransactions() {

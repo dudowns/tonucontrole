@@ -100,37 +100,44 @@
         .mobile-group-title {
             font-size: 11px;
             font-weight: 700;
-            color: var(--color-text-muted, #94a3b8);
+            color: var(--color-text-muted, #64748b);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin: 18px 18px 6px 18px;
+            letter-spacing: 0.06em;
+            margin: 20px 18px 8px 18px;
         }
 
         .settings-card-group {
             background: var(--color-surface, #ffffff);
-            border-radius: 14px;
-            border: 1px solid var(--color-border, #e8ecf1);
-            margin: 0 14px;
+            border-radius: 18px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin: 0 14px 14px 14px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
         }
 
         .settings-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--color-border-light, #f1f2f6);
+            padding: 13px 16px;
+            position: relative;
             transition: background 0.15s ease;
             cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .settings-item:last-child {
-            border-bottom: none;
+        .settings-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 60px;
+            right: 0;
+            height: 1px;
+            background: rgba(226, 232, 240, 0.7);
         }
 
         .settings-item:active {
-            background: var(--color-bg, #f6f7fb);
+            background: rgba(15, 23, 42, 0.035);
         }
 
         .settings-item .left {
@@ -140,14 +147,29 @@
         }
 
         .item-icon-box {
-            width: 34px;
-            height: 34px;
-            border-radius: 9px;
+            width: 36px;
+            height: 36px;
+            border-radius: 11px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 15px;
             flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+        }
+
+        body.dark-theme .settings-card-group {
+            background: #171f2e !important;
+            border-color: rgba(51, 65, 85, 0.7) !important;
+        }
+        body.dark-theme .settings-item:not(:last-child)::after {
+            background: rgba(51, 65, 85, 0.55);
+        }
+        body.dark-theme .settings-item:active {
+            background: rgba(255, 255, 255, 0.04);
+        }
+        body.dark-theme .item-text-title {
+            color: #f8fafc !important;
         }
 
         .item-icon-box.purple { background: rgba(108, 92, 231, 0.12); color: #6C5CE7; }
