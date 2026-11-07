@@ -258,6 +258,7 @@
         }
 
         clearAppBadgeNative();
+        checkNotifications();
         updateNotificationBadge();
         renderNotificationList();
 
@@ -374,22 +375,24 @@
         }
     }
 
-    // Helper: verifica se notificação é elegível para o badge numérico (últimas 24h e não lida)
+    // Helper: verifica se notificação é elegível para o badge numérico (foco em HOJE e urgentes)
     function isNotificationValidForBadge(n, readIds) {
         if (!n) return false;
         if (readIds[n.id] || n.isRead) return false;
+
+        // Apenas notificações para o dia de HOJE ou pendências urgentes contam no badge
+        if (n.isToday || n.type === 'danger' || n.type === 'warning' || n.type === 'success') {
+            return true;
+        }
 
         if (n.createdAt) {
             const createdTime = new Date(n.createdAt).getTime();
             if (!isNaN(createdTime)) {
                 const ageMs = Date.now() - createdTime;
-                // Apenas notificações geradas nas últimas 24h contam
-                if (ageMs > 24 * 60 * 60 * 1000) {
-                    return false;
-                }
+                return ageMs <= 24 * 60 * 60 * 1000;
             }
         }
-        return true;
+        return false;
     }
 
     // Update Topbar Badge & Dropdown Counters
@@ -556,10 +559,10 @@
 
         if (!itemsToShow || itemsToShow.length === 0) {
             container.innerHTML = `
-                <div class="notif-empty">
-                    <i class="fas fa-bell-slash notif-empty-icon"></i>
-                    <p>${activeFilter === 'unread' ? 'Nenhuma notificação não lida.' : 'Nenhuma notificação no momento.'}</p>
-                    <small>Você está em dia com seus pagamentos e metas!</small>
+                <div class="notif-empty" style="text-align:center; padding:36px 16px;">
+                    <i class="fas fa-check-circle notif-empty-icon" style="color:#00B894; font-size:40px; margin-bottom:12px; display:inline-block;"></i>
+                    <p style="font-size:14px; font-weight:700; color:var(--color-text, #2d3436); margin:0 0 6px;">${activeFilter === 'unread' ? 'Nenhuma pendência por hoje!' : 'Tudo em dia por hoje!'}</p>
+                    <small style="color:var(--color-text-muted, #64748b); font-size:12px; display:block; line-height:1.4;">Nenhuma conta vencendo ou provento pendente.</small>
                 </div>
             `;
             return;
@@ -762,43 +765,71 @@
                 const billTitle = bill.description || bill.name || 'Conta a Pagar';
                 if (billDate) {
                     const billId = bill.id || String(billDate) + '_' + String(bill.amount);
+                    const billAmount = Math.abs(Number(bill.amount) || 0);
+                    const dueObj = (typeof window.parseLocalDate === 'function') ? window.parseLocalDate(billDate) : new Date(billDate + 'T12:00:00');
+                    const dueTime = dueObj.getTime();
+
                     if (billDate < todayStr) {
-                        overdueCount++;
-                        const notifId = 'bill_overdue_' + billId;
+                        const overdueDays = Math.max(1, Math.round((today.getTime() - dueTime) / (1000 * 60 * 60 * 24)));
+                        // Ignorar contas muito antigas (>30 dias) para manter o feed focado no dia a dia
+                        if (overdueDays <= 30) {
+                            overdueCount++;
+                            const notifId = 'bill_overdue_' + billId;
+                            if (!dismissed[notifId]) {
+                                const item = {
+                                    id: notifId,
+                                    type: 'danger',
+                                    tag: 'Atrasada',
+                                    icon: 'fa-exclamation-circle',
+                                    title: `⚠️ Conta em atraso: ${billTitle}`,
+                                    message: `⚠️ Conta ${billTitle} atrasada há ${overdueDays} dia${overdueDays > 1 ? 's' : ''} (${formatCurrency(billAmount)})`,
+                                    link: 'bills.html',
+                                    actionBtnText: 'Pagar Conta',
+                                    priority: 1,
+                                    isToday: overdueDays <= 3
+                                };
+                                notifications.push(item);
+                                if (!firstUrgentNotif) firstUrgentNotif = item;
+                            }
+                        }
+                    } else if (billDate === todayStr) {
+                        dueSoonCount++;
+                        const notifId = 'bill_due_today_' + billId;
                         if (!dismissed[notifId]) {
                             const item = {
                                 id: notifId,
-                                type: 'danger',
-                                tag: 'Atrasada',
-                                icon: 'fa-exclamation-circle',
-                                title: `Conta em atraso: ${billTitle}`,
-                                message: `Venceu em ${formatDate(billDate)} no valor de ${formatCurrency(Math.abs(bill.amount))}`,
+                                type: 'warning',
+                                tag: 'Vence Hoje',
+                                icon: 'fa-clock',
+                                title: `⏰ Vence Hoje: ${billTitle}`,
+                                message: `⏰ Conta ${billTitle} vence hoje (${formatCurrency(billAmount)})`,
                                 link: 'bills.html',
-                                actionBtnText: 'Efetuar Pagamento'
+                                actionBtnText: 'Pagar Conta',
+                                priority: 2,
+                                isToday: true
                             };
                             notifications.push(item);
                             if (!firstUrgentNotif) firstUrgentNotif = item;
                         }
                     } else {
-                        const dueObj = (typeof window.parseLocalDate === 'function') ? window.parseLocalDate(billDate) : new Date(billDate + 'T12:00:00');
-                        const dueTime = dueObj.getTime();
                         const diffDays = Math.round((dueTime - today.getTime()) / (1000 * 60 * 60 * 24));
-                        if (diffDays <= 3 && diffDays >= 0) {
+                        if (diffDays >= 1 && diffDays <= 3) {
                             dueSoonCount++;
-                            const notifId = 'bill_due_' + billId;
+                            const notifId = 'bill_due_soon_' + billId;
                             if (!dismissed[notifId]) {
                                 const item = {
                                     id: notifId,
-                                    type: 'warning',
-                                    tag: diffDays === 0 ? 'Vence Hoje' : `Vence em ${diffDays}d`,
-                                    icon: 'fa-clock',
-                                    title: `Vence em breve: ${billTitle}`,
-                                    message: `Vence ${diffDays === 0 ? 'hoje' : 'em ' + diffDays + ' dia(s)'} (${formatDate(billDate)}) - ${formatCurrency(Math.abs(bill.amount))}`,
+                                    type: 'info',
+                                    tag: diffDays === 1 ? 'Vence Amanhã' : `Vence em ${diffDays}d`,
+                                    icon: 'fa-calendar-alt',
+                                    title: `📅 Vence em breve: ${billTitle}`,
+                                    message: `📅 ${billTitle} vence em ${diffDays === 1 ? 'amanhã' : diffDays + ' dias'} (${formatCurrency(billAmount)})`,
                                     link: 'bills.html',
-                                    actionBtnText: 'Ver Detalhes'
+                                    actionBtnText: 'Ver Detalhes',
+                                    priority: 4,
+                                    isToday: false
                                 };
                                 notifications.push(item);
-                                if (!firstUrgentNotif && diffDays === 0) firstUrgentNotif = item;
                             }
                         }
                     }
@@ -990,10 +1021,12 @@
                                 type: 'success',
                                 tag: 'Creditado Hoje',
                                 icon: 'fa-money-bill-wave',
-                                title: `Provento creditado: ${ticker}`,
-                                message: `Você recebeu ${formatCurrency(totalVal)} referente a ${div.quantity ? div.quantity + ' cotas/ações de ' : ''}${ticker} (${typeLabel}) hoje!`,
+                                title: `💰 Provento Creditado: ${ticker}`,
+                                message: `💰 Provento de ${ticker} creditado hoje (${formatCurrency(totalVal)})`,
                                 link: 'investments.html#proventos',
-                                actionBtnText: 'Ver Proventos'
+                                actionBtnText: 'Ver Proventos',
+                                priority: 3,
+                                isToday: true
                             };
                             notifications.unshift(item);
 
@@ -1020,25 +1053,27 @@
                             }
                         }
                     } else {
-                        // B) Provento a Receber nos próximos dias (1 a 5 dias)
+                        // B) Provento a Receber nos próximos 3 dias (1 a 3 dias)
                         const dueObj = (typeof window.parseLocalDate === 'function') ? window.parseLocalDate(payIso) : new Date(payIso + 'T12:00:00');
                         const nowObj = (typeof window.parseLocalDate === 'function') ? window.parseLocalDate(todayStr) : new Date(todayStr + 'T12:00:00');
                         const dueTime = dueObj.getTime();
                         const nowTime = nowObj.getTime();
                         const diffDays = Math.round((dueTime - nowTime) / (1000 * 60 * 60 * 24));
 
-                        if (diffDays >= 1 && diffDays <= 5) {
+                        if (diffDays >= 1 && diffDays <= 3) {
                             const notifId = 'dividend_upcoming_' + divKey;
                             if (!dismissed[notifId]) {
                                 const item = {
                                     id: notifId,
                                     type: 'info',
                                     tag: diffDays === 1 ? 'Cai Amanhã' : `Cai em ${diffDays}d`,
-                                    icon: 'fa-calendar-check',
-                                    title: `Provento a receber: ${ticker}`,
-                                    message: `Previsão de crédito de ${formatCurrency(totalVal)} (${typeLabel}) em ${formatDate(payIso)} (${diffDays === 1 ? 'amanhã' : 'em ' + diffDays + ' dias'}).`,
+                                    icon: 'fa-chart-line',
+                                    title: `📈 Provento a receber: ${ticker}`,
+                                    message: `📈 ${ticker} cai em ${diffDays === 1 ? 'amanhã' : diffDays + ' dias'} (${formatCurrency(totalVal)})`,
                                     link: 'investments.html#proventos',
-                                    actionBtnText: 'Ver Proventos'
+                                    actionBtnText: 'Ver Proventos',
+                                    priority: 4,
+                                    isToday: false
                                 };
                                 notifications.push(item);
                             }
@@ -1047,16 +1082,78 @@
                 });
             }
 
-            // 5. Integração com histórico do Supabase (notification_log)
+            // 5. Metas: Quase lá! (>= 90% e < 100%)
+            try {
+                let goalsList = [];
+                if (user && window.supabaseClient) {
+                    try {
+                        const { data: dbGoals } = await window.supabaseClient
+                            .from('goals')
+                            .select('*')
+                            .eq('user_id', user.id);
+                        if (dbGoals && dbGoals.length > 0) goalsList = dbGoals;
+                    } catch (e) {
+                        console.warn('Fallback para metas locais:', e);
+                    }
+                }
+                if (goalsList.length === 0) {
+                    const localGoals = localStorage.getItem('tonu_goals_' + userId) ||
+                                       localStorage.getItem('tonu_goals_offline_user') ||
+                                       localStorage.getItem('tonu_goals');
+                    if (localGoals) {
+                        try {
+                            const parsed = JSON.parse(localGoals);
+                            if (Array.isArray(parsed)) goalsList = parsed;
+                        } catch {}
+                    }
+                }
+                if (goalsList.length === 0 && Array.isArray(window.allGoals) && window.allGoals.length > 0) {
+                    goalsList = window.allGoals;
+                }
+
+                goalsList.forEach(g => {
+                    if (!g || g.completed) return;
+                    const tgt = Number(g.target_amount) || 0;
+                    const cur = Number(g.current_amount) || 0;
+                    if (tgt > 0 && cur < tgt) {
+                        const pct = cur / tgt;
+                        if (pct >= 0.90 && pct < 1.0) {
+                            const remaining = tgt - cur;
+                            const goalTitle = g.title || g.name || 'Meta';
+                            const notifId = 'goal_near_' + (g.id || goalTitle);
+                            if (!dismissed[notifId]) {
+                                notifications.push({
+                                    id: notifId,
+                                    type: 'info',
+                                    tag: 'Quase lá!',
+                                    icon: 'fa-bullseye',
+                                    title: `🎯 Quase lá! Meta: ${goalTitle}`,
+                                    message: `🎯 Quase lá! Faltam ${formatCurrency(remaining)} para atingir a meta ${goalTitle}.`,
+                                    link: 'goals.html',
+                                    actionBtnText: 'Ver Metas',
+                                    priority: 4,
+                                    isToday: true
+                                });
+                            }
+                        }
+                    }
+                });
+            } catch (goalErr) {
+                console.warn('Erro ao checar metas:', goalErr);
+            }
+
+            // 6. Integração com histórico do Supabase (notification_log) - Estritamente últimos 3 dias
             if (user && window.supabaseClient && isNotificationLogAvailable) {
                 try {
+                    const threeDaysAgoIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
                     const { data: logData, error: logErr } = await window.supabaseClient
                         .from('notification_log')
                         .select('*')
                         .eq('user_id', user.id)
+                        .gte('created_at', threeDaysAgoIso)
                         .is('dismissed_at', null)
                         .order('created_at', { ascending: false })
-                        .limit(50);
+                        .limit(30);
 
                     if (logErr) {
                         if (logErr.status === 403 || logErr.code === '42501' || logErr.code === '42P01' || logErr.status === 404) {
@@ -1066,27 +1163,35 @@
                     }
 
                     if (logData && logData.length > 0) {
+                        const threeDaysAgoMs = Date.now() - 3 * 24 * 60 * 60 * 1000;
                         logData.forEach(item => {
                             const notifId = 'log_' + item.id;
-                            if (!dismissed[notifId]) {
-                                if (item.read_at) {
-                                    markAsReadSilently(notifId);
-                                }
-                                notifications.push({
-                                    id: notifId,
-                                    logId: item.id,
-                                    type: item.type === 'danger' ? 'danger' : (item.type === 'bills' ? 'warning' : 'info'),
-                                    tag: item.type === 'bills' ? 'Conta' : (item.type === 'dividends_credited' ? 'Provento' : (item.type === 'goals' ? 'Meta' : 'Alerta')),
-                                    icon: item.icon || (item.type === 'danger' ? 'fa-exclamation-circle' : (item.type === 'bills' ? 'fa-file-invoice-dollar' : 'fa-bell')),
-                                    title: item.title,
-                                    message: item.body,
-                                    link: item.url || '#',
-                                    actionBtnText: 'Visualizar',
-                                    isFromLog: true,
-                                    createdAt: item.created_at,
-                                    isRead: !!item.read_at
-                                });
+                            if (dismissed[notifId]) return;
+
+                            // Ignorar estritamente se mais antigo que 3 dias
+                            if (item.created_at) {
+                                const t = new Date(item.created_at).getTime();
+                                if (!isNaN(t) && t < threeDaysAgoMs) return;
                             }
+
+                            if (item.read_at) {
+                                markAsReadSilently(notifId);
+                            }
+                            notifications.push({
+                                id: notifId,
+                                logId: item.id,
+                                type: item.type === 'danger' ? 'danger' : (item.type === 'bills' ? 'warning' : 'info'),
+                                tag: item.type === 'bills' ? 'Conta' : (item.type === 'dividends_credited' ? 'Provento' : (item.type === 'goals' ? 'Meta' : 'Alerta')),
+                                icon: item.icon || (item.type === 'danger' ? 'fa-exclamation-circle' : (item.type === 'bills' ? 'fa-file-invoice-dollar' : 'fa-bell')),
+                                title: item.title,
+                                message: item.body,
+                                link: item.url || '#',
+                                actionBtnText: 'Visualizar',
+                                isFromLog: true,
+                                createdAt: item.created_at,
+                                isRead: !!item.read_at,
+                                priority: item.type === 'danger' ? 1 : (item.type === 'bills' ? 2 : 4)
+                            });
                         });
                     }
                 } catch (logErr) {
@@ -1096,6 +1201,16 @@
                     console.warn('[Notifications] notification_log não disponível ou restrito (403/404):', logErr?.message || logErr);
                 }
             }
+
+            // Ordenação: Urgentes (Atrasadas/Limite) -> Hoje (Vence Hoje) -> Proventos Hoje -> Próximos dias/Metas
+            notifications.sort((a, b) => {
+                const pA = a.priority || (a.type === 'danger' ? 1 : (a.type === 'warning' ? 2 : (a.type === 'success' ? 3 : 4)));
+                const pB = b.priority || (b.type === 'danger' ? 1 : (b.type === 'warning' ? 2 : (b.type === 'success' ? 3 : 4)));
+                if (pA !== pB) return pA - pB;
+                const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return tB - tA;
+            });
 
         } catch (err) {
             console.warn('⚠️ Erro ao checar notificações:', err);

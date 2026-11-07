@@ -616,6 +616,10 @@ async function loadMobileData() {
         renderMobileGoals();
         renderCategoryBars();
         renderTransactions();
+
+        if (typeof window.checkNotifications === 'function') {
+            window.checkNotifications();
+        }
     } catch (error) {
         console.error("❌ Erro ao carregar dados mobile:", error);
     }

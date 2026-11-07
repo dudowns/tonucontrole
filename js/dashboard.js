@@ -1336,6 +1336,10 @@ async function loadDashboard() {
 
         updateBalanceVisibilityUI();
 
+        if (typeof window.checkNotifications === 'function') {
+            window.checkNotifications();
+        }
+
         console.log('✅ Dashboard atualizado!');
 
     } catch (error) {
