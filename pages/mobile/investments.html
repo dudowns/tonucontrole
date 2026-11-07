@@ -347,7 +347,7 @@
         }
         .mobile-chart-container {
             position: relative;
-            height: 340px;
+            height: 220px;
             width: 100%;
             transition: opacity 0.2s ease;
         }
@@ -2307,8 +2307,9 @@ function renderMobileEvolutionChart() {
                     borderRadius: 0,
                     borderSkipped: false,
                     stack: 'patrimonio',
-                    barPercentage: 0.8,
-                    categoryPercentage: 0.85
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.75,
+                    maxBarThickness: 18
                 },
                 {
                     label: 'Ganho de Capital',
@@ -2318,8 +2319,9 @@ function renderMobileEvolutionChart() {
                     borderRadius: 4,
                     borderSkipped: false,
                     stack: 'patrimonio',
-                    barPercentage: 0.8,
-                    categoryPercentage: 0.85
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.75,
+                    maxBarThickness: 18
                 }
             ]
         },
@@ -2337,18 +2339,19 @@ function renderMobileEvolutionChart() {
                 padding: {
                     left: 5,
                     right: 15,
-                    top: 10,
-                    bottom: 5
+                    top: 6,
+                    bottom: 4
                 }
             },
             plugins: {
                 legend: {
                     display: true,
-                    position: 'bottom',
+                    position: 'top',
+                    align: 'center',
                     labels: {
                         boxWidth: 9,
                         boxHeight: 9,
-                        padding: 10,
+                        padding: 12,
                         font: { size: 10, weight: '600' },
                         color: textColor,
                         usePointStyle: true,

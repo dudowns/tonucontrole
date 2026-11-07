@@ -1377,30 +1377,34 @@ body.dark-theme .sheet-drag-handle {
     background: rgba(255, 255, 255, 0.14);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    padding: 8px 12px;
+    padding: 6px 8px;
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.18);
+    box-sizing: border-box;
 }
 
 .mobile-hero-stat .stat-label {
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 600;
     opacity: 0.9;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     white-space: nowrap;
     color: #e0e7ff;
 }
 
 .mobile-hero-stat .stat-value {
-    font-size: 14px;
+    font-size: 12.5px;
     font-weight: 700;
-    margin-top: 3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    margin-top: 2px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+    line-height: 1.25;
     font-feature-settings: 'tnum';
+    color: #ffffff;
 }
 
 .mobile-hero-stat .stat-value.income {
@@ -1826,8 +1830,8 @@ body.dark-theme .mobile-insight-badge.badge-neutral {
     display: flex;
     overflow-x: auto;
     overflow-y: hidden;
-    gap: 8px;
-    padding: 8px 14px 12px 14px;
+    gap: 6px;
+    padding: 4px 14px 8px 14px;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
@@ -1844,13 +1848,14 @@ body.dark-theme .mobile-insight-badge.badge-neutral {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 8px 16px;
-    min-height: 44px;
+    padding: 5px 12px;
+    min-height: 32px;
+    height: 32px;
     border-radius: 999px;
     background: var(--color-surface, #ffffff);
     border: 1px solid var(--color-border, #e2e8f0);
     color: var(--color-text-muted, #64748b);
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
@@ -2344,6 +2349,27 @@ body.dark-theme .bill-item {
     color: var(--color-text-muted, #94a3b8);
     text-transform: none;
     letter-spacing: normal;
+}
+
+.ios-section-header .subtotal-pill {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-text, #1e293b);
+    background: #e2e8f0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    text-transform: none;
+    letter-spacing: normal;
+    font-feature-settings: 'tnum';
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.25;
+}
+
+body.dark-theme .ios-section-header .subtotal-pill {
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+    border: 1px solid rgba(51, 65, 85, 0.7);
 }
 
 .ios-grouped-card {
@@ -2923,7 +2949,7 @@ body.dark-theme .ios-bill-actions {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 6px;
     position: relative;
     z-index: 1;
 }
@@ -2936,29 +2962,32 @@ body.dark-theme .ios-bill-actions {
     background: rgba(255, 255, 255, 0.14);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    padding: 8px 12px;
+    padding: 6px 8px;
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.18);
+    box-sizing: border-box;
 }
 
 .mobile-hero-card .hero-stat-label {
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 600;
     opacity: 0.9;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     white-space: nowrap;
     color: #e0e7ff;
 }
 
 .mobile-hero-card .hero-stat-val {
-    font-size: 14px;
+    font-size: 12.5px;
     font-weight: 700;
-    margin-top: 3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    margin-top: 2px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+    line-height: 1.25;
     font-feature-settings: 'tnum';
     color: #ffffff;
 }

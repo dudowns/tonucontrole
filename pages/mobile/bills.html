@@ -152,13 +152,13 @@
         .bill-card-mobile {
             background: var(--color-surface, #ffffff);
             border: 1px solid var(--color-border, #e2e8f0);
-            border-radius: 18px;
-            padding: 14px 16px;
-            margin: 0 14px 12px 14px;
+            border-radius: 14px;
+            padding: 11px 14px 10px 14px;
+            margin: 0 14px 8px 14px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+            gap: 8px;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.03);
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             box-sizing: border-box;
         }
@@ -171,17 +171,17 @@
         .bill-top {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
         .bill-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 13px;
+            width: 38px;
+            height: 38px;
+            border-radius: 11px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #ffffff;
-            font-size: 15px;
+            font-size: 14px;
             flex-shrink: 0;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
@@ -316,25 +316,28 @@
             align-items: center;
             justify-content: space-between;
             border-top: 1px solid var(--color-border-light, #f1f5f9);
-            padding-top: 10px;
-            gap: 10px;
+            padding-top: 8px;
+            margin-top: 0;
+            gap: 8px;
         }
         .btn-toggle-paid {
-            flex: 1;
-            height: 38px;
+            flex: 0 0 auto;
+            width: auto;
+            max-width: fit-content;
+            height: 32px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 7px;
-            font-size: 12px;
+            gap: 6px;
+            font-size: 11.5px;
             font-weight: 700;
             border: none;
             background: linear-gradient(135deg, #00B894 0%, #059669 100%);
             color: #ffffff;
-            padding: 0 14px;
-            border-radius: 12px;
+            padding: 0 12px;
+            border-radius: 10px;
             cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0, 184, 148, 0.25);
+            box-shadow: 0 2px 6px rgba(0, 184, 148, 0.2);
             transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
             touch-action: manipulation;
         }
@@ -349,19 +352,21 @@
         }
         .bill-actions-mobile {
             display: flex;
-            gap: 6px;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
         }
         .btn-act {
             border: 1px solid var(--color-border, #e2e8f0);
             background: var(--color-surface, #ffffff);
             color: var(--color-text-muted, #64748b);
-            font-size: 13px;
-            width: 38px;
-            height: 38px;
+            font-size: 12px;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 11px;
+            border-radius: 9px;
             cursor: pointer;
             transition: all 0.15s ease;
             touch-action: manipulation;

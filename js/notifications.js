@@ -257,6 +257,7 @@
             dropdown.style.left = 'auto';
         }
 
+        clearAppBadgeNative();
         updateNotificationBadge();
         renderNotificationList();
 
@@ -354,7 +355,7 @@
     }
 
     function setAppBadgeNative(count) {
-        const num = Number(count) || 0;
+        const num = Math.min(Math.max(0, Number(count) || 0), 99);
         if (num <= 0) {
             clearAppBadgeNative();
             return;
@@ -373,23 +374,48 @@
         }
     }
 
+    // Helper: verifica se notificação é elegível para o badge numérico (últimas 24h e não lida)
+    function isNotificationValidForBadge(n, readIds) {
+        if (!n) return false;
+        if (readIds[n.id] || n.isRead) return false;
+
+        if (n.createdAt) {
+            const createdTime = new Date(n.createdAt).getTime();
+            if (!isNaN(createdTime)) {
+                const ageMs = Date.now() - createdTime;
+                // Apenas notificações geradas nas últimas 24h contam
+                if (ageMs > 24 * 60 * 60 * 1000) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     // Update Topbar Badge & Dropdown Counters
     function updateNotificationBadge() {
         const readIds = getReadIds();
         const totalCount = Array.isArray(notifications) ? notifications.length : 0;
-        const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !readIds[n.id] && !n.isRead).length : 0;
+        
+        // Apenas notificações geradas nas últimas 24h ou não lidas na sessão atual contam no badge
+        const validBadgeNotifs = Array.isArray(notifications)
+            ? notifications.filter(n => isNotificationValidForBadge(n, readIds))
+            : [];
+        const rawBadgeCount = validBadgeNotifs.length;
+        const displayBadgeText = rawBadgeCount > 99 ? '99+' : String(rawBadgeCount);
+        const cappedBadgeNum = Math.min(rawBadgeCount, 99);
 
         // 1. Atualizar contadores das abas no menu dropdown ("Todas (X)" e "Não lidas (Y)")
         const cntAllEl = document.getElementById('notifCountAll');
         const cntUnreadEl = document.getElementById('notifCountUnread');
-        if (cntAllEl) cntAllEl.textContent = String(totalCount);
-        if (cntUnreadEl) cntUnreadEl.textContent = String(unreadCount);
+        if (cntAllEl) cntAllEl.textContent = totalCount > 99 ? '99+' : String(totalCount);
+        if (cntUnreadEl) cntUnreadEl.textContent = displayBadgeText;
 
         // 2. Atualizar badges de notificação na barra superior / páginas
         const badges = document.querySelectorAll('#notifBadgeCount, .notif-badge');
         badges.forEach(badge => {
-            if (unreadCount > 0) {
-                badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+            if (rawBadgeCount > 0) {
+                badge.textContent = displayBadgeText;
                 badge.classList.remove('hidden');
                 badge.style.display = 'flex';
                 badge.classList.add('has-unread');
@@ -404,8 +430,8 @@
         // 3. Atualizar marcadores nas abas de Configurações (Desktop e Mobile)
         const settingsBadges = document.querySelectorAll('#settingsNotifTabBadge, #mobileSettingsNotifBadge');
         settingsBadges.forEach(b => {
-            if (unreadCount > 0) {
-                b.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+            if (rawBadgeCount > 0) {
+                b.textContent = displayBadgeText;
                 b.classList.remove('hidden');
                 b.style.display = 'inline-flex';
             } else {
@@ -418,14 +444,14 @@
         // 4. Atualizar badge contador no card de Histórico de Notificações
         const historyCountBadge = document.getElementById('notifHistoryCountBadge');
         if (historyCountBadge) {
-            historyCountBadge.textContent = unreadCount > 0 ? `${unreadCount} não lida(s)` : `${totalCount} total`;
+            historyCountBadge.textContent = rawBadgeCount > 0 ? `${displayBadgeText} recente(s)` : `${totalCount} total`;
         }
 
         // 5. Atualizar botões de sino (destaque/animação quando há não lidas ou urgentes)
         const bellButtons = document.querySelectorAll('#notifBellBtn, .notif-bell-btn');
-        const hasUrgent = Array.isArray(notifications) && notifications.some(n => n.type === 'danger' && !readIds[n.id] && !n.isRead);
+        const hasUrgent = validBadgeNotifs.some(n => n.type === 'danger');
         bellButtons.forEach(btn => {
-            if (unreadCount > 0) {
+            if (rawBadgeCount > 0) {
                 btn.classList.add('has-unread');
             } else {
                 btn.classList.remove('has-unread');
@@ -444,8 +470,8 @@
         // Se o app estiver aberto e visível pelo usuário, o badge do ícone do SO permanece limpo.
         if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
             clearAppBadgeNative();
-        } else if (unreadCount > 0) {
-            setAppBadgeNative(unreadCount);
+        } else if (cappedBadgeNum > 0) {
+            setAppBadgeNative(cappedBadgeNum);
         } else {
             clearAppBadgeNative();
         }

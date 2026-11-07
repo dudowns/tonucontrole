@@ -3,7 +3,7 @@
 // ============================================
 
 // NOTA: Sincronizar CACHE_NAME com a versão em package.json a cada release
-const CACHE_NAME = 'tonucontrole-v2.9.6';
+const CACHE_NAME = 'tonucontrole-v2.9.7';
 
 const RELATIVE_ASSETS = [
   './',
@@ -87,7 +87,7 @@ self.addEventListener('activate', (event) => {
 
 // Helper universal para Badging API no Service Worker (WebKit / Safari iOS 16.4+ usa self.navigator, Chromium usa self.navigator / self.registration)
 async function setSWAppBadge(count) {
-  const num = Number(count) || 0;
+  const num = Math.min(Math.max(0, Number(count) || 0), 99);
   try {
     if (num > 0) {
       if (typeof self.navigator !== 'undefined' && 'setAppBadge' in self.navigator) {
@@ -107,7 +107,8 @@ async function clearSWAppBadge() {
   try {
     if (typeof self.navigator !== 'undefined' && 'clearAppBadge' in self.navigator) {
       await self.navigator.clearAppBadge();
-    } else if (self.registration && 'clearAppBadge' in self.registration) {
+    }
+    if (self.registration && 'clearAppBadge' in self.registration) {
       await self.registration.clearAppBadge();
     }
   } catch (err) {
@@ -118,7 +119,7 @@ async function clearSWAppBadge() {
 self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
-  } else if (event.data && event.data.type === 'CLEAR_APP_BADGE') {
+  } else if (event.data === 'CLEAR_APP_BADGE' || (event.data && event.data.type === 'CLEAR_APP_BADGE')) {
     clearSWAppBadge();
   } else if (event.data && event.data.type === 'SET_APP_BADGE') {
     setSWAppBadge(event.data.count);
