@@ -692,29 +692,36 @@ function renderTransactions() {
             const squircleBg = colorTo15PercentAlpha(color);
 
             html += `
-                <div class="mobile-list-card">
-                    <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
-                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
-                            <i class="fas ${icon}"></i>
-                        </div>
-                        <div style="flex:1; min-width:0;">
-                            <div style="font-size:14px; font-weight:700; color:var(--color-text,#0f172a); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px;">
-                                <span>${safeDesc}</span>
-                                ${badge}
-                            </div>
-                            ${instInfo && instInfo.badgeHtml ? `<div style="margin-top:2px;">${instInfo.badgeHtml}</div>` : ''}
-                            <div style="font-size:11.5px; color:var(--color-text-muted,#64748b); margin-top:2px; display:flex; align-items:center; gap:5px;">
-                                <span>${formatDate(effectiveDate)}</span> • <span>${cat?.name || 'Geral'}${dueNote}</span>
-                            </div>
-                        </div>
+                <div class="mobile-list-card clean-list-card">
+                    <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
+                        <i class="fas ${icon}"></i>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-                        <span style="font-size:14px; font-weight:800; font-feature-settings:'tnum'; color:${isIncome ? '#00B894' : '#FF7675'};">
-                            ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
-                        </span>
-                        <button type="button" class="btn-act" onclick="event.stopPropagation(); deleteTransaction('${t.id}')" title="Excluir" aria-label="Excluir transação" style="width:34px; height:34px; border-radius:10px; border:none; background:transparent; color:#cbd5e1; cursor:pointer;">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                    <div class="clean-card-body">
+                        <!-- Topo: Descrição à esquerda e Valor à direita -->
+                        <div class="clean-card-top">
+                            <span class="clean-card-title">${safeDesc}</span>
+                            <div class="clean-card-amount-wrap">
+                                <span class="clean-card-amount ${isIncome ? 'income' : 'expense'}">
+                                    ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
+                                </span>
+                                <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${t.id}')" title="Excluir" aria-label="Excluir transação">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Meio: Tags e pílulas em linha própria com flex-wrap -->
+                        <div class="clean-card-middle">
+                            <span class="clean-tag category">${cat?.name || 'Geral'}</span>
+                            ${badge}
+                            ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
+                        </div>
+
+                        <!-- Rodapé: Data da transação e Vencimento juntas -->
+                        <div class="clean-card-bottom">
+                            <span><i class="far fa-calendar-alt" style="margin-right:4px;"></i>${formatDate(effectiveDate)}</span>
+                            ${(t.due_date && t.due_date !== effectiveDate) ? `<span><i class="far fa-clock" style="margin-right:4px;"></i>Venc: ${formatDate(t.due_date)}</span>` : ''}
+                        </div>
                     </div>
                 </div>
             `;

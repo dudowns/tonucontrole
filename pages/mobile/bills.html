@@ -152,13 +152,14 @@
         .bill-card-mobile {
             background: var(--color-surface, #ffffff);
             border: 1px solid var(--color-border, #e2e8f0);
-            border-radius: 14px;
-            padding: 11px 14px 10px 14px;
-            margin: 0 14px 8px 14px;
+            border-radius: 16px;
+            padding: 12px 14px;
+            margin: 0 0 8px 0;
+            width: 100%;
             display: flex;
             flex-direction: column;
             gap: 8px;
-            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.03);
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             box-sizing: border-box;
         }
@@ -1121,25 +1122,37 @@ function renderBills() {
 
         return `
             <div class="bill-card-mobile ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_card_mobile_${b.id}">
-                <div class="bill-top" style="align-items:center;">
+                <div class="bill-top" style="align-items:flex-start; gap:12px;">
                     ${isSelectionModeMobile ? `
-                        <div style="margin-right:10px; display:flex; align-items:center;">
+                        <div style="margin-right:2px; margin-top:4px; display:flex; align-items:center;">
                             <input type="checkbox" class="bill-check-mobile" ${isSelected ? 'checked' : ''} onchange="toggleSelectBillMobile('${b.id}', this.checked)" style="width:20px; height:20px; accent-color:#6C5CE7; cursor:pointer;">
                         </div>
                     ` : ''}
                     <div class="mobile-icon-squircle bill-icon" style="background:${squircleBg}; color:${color};">
                         <i class="fas ${icon}"></i>
                     </div>
-                    <div class="bill-details">
-                        <div class="bill-name">${b.description}</div>
-                        ${installmentBadgeHtml}
-                        <div class="bill-meta">${formatDate(b.due_date || b.date)} • ${cat.name || 'Geral'}</div>
-                    </div>
-                    <div class="bill-price">
-                        <div class="bill-val ${isPaid ? 'text-success' : (isOverdue ? 'text-danger' : 'text-warning')}">
-                            ${formatCurrency(b.amount)}
+                    <div class="clean-card-body">
+                        <!-- Topo: Descrição e Valor -->
+                        <div class="clean-card-top">
+                            <span class="clean-card-title">${b.description}</span>
+                            <div class="clean-card-amount-wrap">
+                                <span class="clean-card-amount ${isPaid ? 'income' : (isOverdue ? 'expense' : 'warning')}">
+                                    ${formatCurrency(b.amount)}
+                                </span>
+                            </div>
                         </div>
-                        <div>${badge}</div>
+
+                        <!-- Meio: Tags e pílulas -->
+                        <div class="clean-card-middle">
+                            <span class="clean-tag category">${cat.name || 'Geral'}</span>
+                            ${badge}
+                            ${installmentBadgeHtml || ''}
+                        </div>
+
+                        <!-- Rodapé: Vencimento -->
+                        <div class="clean-card-bottom">
+                            <span><i class="far fa-calendar-alt" style="margin-right:4px;"></i>Venc: ${formatDate(b.due_date || b.date)}</span>
+                        </div>
                     </div>
                 </div>
                 <div class="bill-bottom">

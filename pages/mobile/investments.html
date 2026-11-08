@@ -211,6 +211,8 @@
             border: 1px solid var(--color-border, #e2e8f0);
             margin-bottom: 10px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            width: 100%;
+            box-sizing: border-box;
         }
         .op-card-top {
             display: flex;
@@ -2952,17 +2954,20 @@ function renderOperations() {
 
         return `
             <div class="op-card">
-                <div class="op-card-top">
-                    <div>
-                        <strong style="font-size:14px; color:var(--color-text,#0f172a);">${op.ticker}</strong>
-                        <span class="op-badge ${badgeClass}" style="margin-left:6px;">${badgeText}</span>
+                <div class="clean-card-top" style="margin-bottom:4px;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="clean-card-title" style="font-weight:700;">${op.ticker}</span>
+                        <span class="op-badge ${badgeClass}">${badgeText}</span>
                     </div>
-                    <strong style="font-size:13px; color:${isBuy ? '#10b981' : '#ef4444'};">
+                    <span class="clean-card-amount" style="color:${isBuy ? '#10b981' : '#ef4444'};">
                         ${isBuy ? '+' : '-'} ${formatCurrency(total)}
-                    </strong>
+                    </span>
                 </div>
-                <div class="op-card-bottom">
-                    <span>${op.quantity} un. @ ${formatCurrency(op.unit_price)} • ${formatDate(op.date)}</span>
+                <div class="clean-card-middle">
+                    <span class="clean-tag category">${op.quantity} un. @ ${formatCurrency(op.unit_price)}</span>
+                </div>
+                <div class="clean-card-bottom" style="margin-top:4px;">
+                    <span><i class="far fa-calendar-alt" style="margin-right:4px;"></i>${formatDate(op.date)}</span>
                     <div class="op-actions">
                         <button class="op-btn" onclick="editOperation('${op.id}')" title="Editar"><i class="fas fa-pen"></i></button>
                         <button class="op-btn del" onclick="deleteOperation('${op.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
@@ -3054,20 +3059,21 @@ function renderDividends() {
 
         return `
             <div class="op-card" style="${borderAccent}">
-                <div class="op-card-top">
-                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
-                        <strong style="font-size:14px; color:var(--color-text,#0f172a);">${d.ticker}</strong>
+                <div class="clean-card-top" style="margin-bottom:4px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span class="clean-card-title" style="font-weight:700;">${d.ticker}</span>
                         <span class="op-badge div">${d.type || 'Dividendo'}</span>
-                        ${statusBadge}
                     </div>
-                    <strong style="font-size:13px; color:${valueColor};">
+                    <span class="clean-card-amount" style="color:${valueColor};">
                         + ${formatCurrency(val)}
-                    </strong>
+                    </span>
                 </div>
-                <div class="op-card-bottom">
-                    <div style="display:flex; flex-direction:column; gap:2px;">
-                        <span style="font-size:11.5px;">${d.quantity ? d.quantity + ' un. • ' : ''}${dateLine}</span>
-                    </div>
+                <div class="clean-card-middle">
+                    ${statusBadge}
+                    ${d.quantity ? `<span class="clean-tag category">${d.quantity} un.</span>` : ''}
+                </div>
+                <div class="clean-card-bottom" style="margin-top:4px;">
+                    <span style="font-size:11.5px;">${dateLine}</span>
                     <div class="op-actions">
                         <button class="op-btn" onclick="editDividend('${d.id}')" title="Editar"><i class="fas fa-pen"></i></button>
                         <button class="op-btn del" onclick="deleteDividend('${d.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
