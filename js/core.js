@@ -149,6 +149,16 @@ function triggerHaptic(type) {
 }
 window.triggerHaptic = triggerHaptic;
 
+function safeHaptic(duration) {
+    try {
+        duration = typeof duration === 'number' ? duration : 20;
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+            navigator.vibrate(duration);
+        }
+    } catch (_) {}
+}
+window.safeHaptic = safeHaptic;
+
 // ============================================
 // 2. TOAST PREMIUM (COM PROGRESSO, PAUSE NO HOVER & SWIPE TO DISMISS)
 // ============================================

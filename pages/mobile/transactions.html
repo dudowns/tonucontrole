@@ -611,10 +611,13 @@ function renderTransactions() {
 
     if (filteredTransactions.length === 0) {
         container.innerHTML = `
-            <div class="mobile-empty" style="padding: 40px 16px;">
-                <span class="empty-icon" style="font-size: 42px;">📭</span>
-                <h3 style="font-size: 15px; font-weight: 700; color: var(--color-text, #0f172a); margin-bottom: 6px;">Nenhuma transação encontrada</h3>
-                <p style="font-size: 12.5px; color: var(--color-text-muted, #64748b);">Tente ajustar os filtros ou toque no botão + para adicionar</p>
+            <div class="mobile-empty-friendly">
+                <div class="empty-icon-box"><i class="fas fa-receipt"></i></div>
+                <h3>Tudo limpo por aqui!</h3>
+                <p>Nenhuma transação encontrada. Toque no botão abaixo para adicionar sua primeira receita ou despesa.</p>
+                <button type="button" class="btn-empty-action" onclick="openAddTransaction()">
+                    <i class="fas fa-plus"></i> Adicionar Transação
+                </button>
             </div>
         `;
         return;
@@ -643,6 +646,7 @@ function renderTransactions() {
     });
 
     let html = '';
+    let cardIndex = 0;
 
     groups.forEach(g => {
         const isDayPositive = g.dayTotal >= 0;
@@ -689,10 +693,9 @@ function renderTransactions() {
             const safeDesc = typeof sanitizeString === 'function' ? sanitizeString(rawDesc) : rawDesc;
             const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
             const dueNote = (t.due_date && t.due_date !== effectiveDate) ? ` • Venc: ${formatDate(t.due_date)}` : '';
-            const squircleBg = colorTo15PercentAlpha(color);
-
+            const delay = (Math.min(cardIndex++, 10) * 0.04).toFixed(2);
             html += `
-                <div class="mobile-list-card clean-list-card">
+                <div class="mobile-list-card clean-list-card stagger-card" style="animation-delay: ${delay}s;">
                     <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
                         <i class="fas ${icon}"></i>
                     </div>
@@ -825,6 +828,8 @@ async function handleQuickAddSubmit(event) {
         showToast("Preencha todos os campos corretamente!", "error");
         return;
     }
+
+    if (window.safeHaptic) window.safeHaptic(25);
 
     btn.disabled = true;
     btn.textContent = "Salvando...";

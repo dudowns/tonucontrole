@@ -2842,11 +2842,11 @@ function renderPositions() {
 
     if (filtered.length === 0) {
         container.innerHTML = `
-            <div style="text-align:center; padding:30px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
-                <i class="fas fa-chart-pie" style="font-size:32px; color:#a29bfe; margin-bottom:10px; display:block;"></i>
-                <h3 style="font-size:14px; font-weight:700; color:var(--color-text,#0f172a); margin-bottom:4px;">Nenhum ativo em custódia</h3>
-                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">Registre sua primeira compra para acompanhar seus investimentos.</p>
-                <button class="btn-add-primary" style="margin:0 auto;" onclick="openAddOperationModal()">
+            <div class="mobile-empty-friendly">
+                <div class="empty-icon-box"><i class="fas fa-chart-pie"></i></div>
+                <h3>Nenhum ativo em custódia</h3>
+                <p>Registre sua primeira compra para acompanhar seus investimentos, cotações e rendimentos.</p>
+                <button type="button" class="btn-empty-action" onclick="openAddOperationModal()">
                     <i class="fas fa-plus"></i> Adicionar Operação
                 </button>
             </div>
@@ -2854,7 +2854,7 @@ function renderPositions() {
         return;
     }
 
-    container.innerHTML = filtered.map(pos => {
+    container.innerHTML = filtered.map((pos, idx) => {
         const formattedQty = pos.quantity % 1 === 0 ? pos.quantity.toFixed(0) : pos.quantity.toFixed(4);
         const currentPrice = pos.currentPrice || pos.quote?.price || pos.averageCost || 0;
         const isRealQuote = pos.quote && !pos.quote.simulated;
@@ -2884,9 +2884,10 @@ function renderPositions() {
         };
         const meta = classMeta[pos.asset_class] || { color: '#6C5CE7', icon: 'fa-wallet' };
         const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(meta.color) : 'rgba(108, 92, 231, 0.15)';
+        const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
 
         return `
-            <div class="asset-card">
+            <div class="asset-card stagger-card" style="animation-delay: ${delay}s;">
                 <div class="asset-card-top">
                     <div style="display:flex; align-items:center; gap:10px;">
                         <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${meta.color}; width:38px; height:38px;">
@@ -2938,22 +2939,27 @@ function renderOperations() {
 
     if (list.length === 0) {
         container.innerHTML = `
-            <div style="text-align:center; padding:30px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
-                <i class="fas fa-list-ul" style="font-size:32px; color:#a29bfe; margin-bottom:10px; display:block;"></i>
-                <p style="font-size:12px; color:#94a3b8;">Nenhuma operação encontrada.</p>
+            <div class="mobile-empty-friendly">
+                <div class="empty-icon-box"><i class="fas fa-layer-group"></i></div>
+                <h3>Nenhuma operação encontrada</h3>
+                <p>Adicione suas compras e vendas de ativos para alimentar seu histórico.</p>
+                <button type="button" class="btn-empty-action" onclick="openAddOperationModal()">
+                    <i class="fas fa-plus"></i> Nova Operação
+                </button>
             </div>
         `;
         return;
     }
 
-    container.innerHTML = list.map(op => {
+    container.innerHTML = list.map((op, idx) => {
         const isBuy = (op.type || '').toLowerCase().includes('compra') || (op.type || '').toLowerCase().includes('buy');
         const badgeClass = isBuy ? 'buy' : 'sell';
         const badgeText = isBuy ? 'Compra' : 'Venda';
         const total = parseFloat(op.total_value || op.amount || (op.quantity * op.price)) || 0;
+        const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
 
         return `
-            <div class="op-card">
+            <div class="op-card stagger-card" style="animation-delay: ${delay}s;">
                 <div class="clean-card-top" style="margin-bottom:4px;">
                     <div style="display:flex; align-items:center; gap:6px;">
                         <span class="clean-card-title" style="font-weight:700;">${op.ticker}</span>
@@ -3028,10 +3034,11 @@ function renderDividends() {
         }
 
         container.innerHTML = `
-            <div style="text-align:center; padding:30px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
-                <i class="fas ${currentDividendStatusFilter === 'a_receber' ? 'fa-clock' : 'fa-hand-holding-usd'}" style="font-size:32px; color:${currentDividendStatusFilter === 'a_receber' ? '#0284c7' : '#a29bfe'}; margin-bottom:10px; display:block;"></i>
-                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">${msg}</p>
-                <button class="btn-add-primary" style="margin:0 auto;" onclick="openAddDividendModal()">
+            <div class="mobile-empty-friendly">
+                <div class="empty-icon-box"><i class="fas ${currentDividendStatusFilter === 'a_receber' ? 'fa-clock' : 'fa-hand-holding-usd'}"></i></div>
+                <h3>${currentDividendStatusFilter === 'a_receber' ? 'Nenhum provento a receber' : 'Nenhum provento registrado'}</h3>
+                <p>${msg}</p>
+                <button type="button" class="btn-empty-action" onclick="openAddDividendModal()">
                     <i class="fas fa-plus"></i> Novo Provento
                 </button>
             </div>
@@ -3039,7 +3046,7 @@ function renderDividends() {
         return;
     }
 
-    container.innerHTML = list.map(d => {
+    container.innerHTML = list.map((d, idx) => {
         const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
         const rawDate = (d.payment_date || d.date || '').substring(0, 10);
         const isPaid = rawDate && rawDate <= todayISO;
@@ -3056,9 +3063,10 @@ function renderDividends() {
 
         const borderAccent = !isPaid ? 'border-left: 3px solid #0284c7;' : '';
         const valueColor = isPaid ? '#8b5cf6' : '#0284c7';
+        const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
 
         return `
-            <div class="op-card" style="${borderAccent}">
+            <div class="op-card stagger-card" style="${borderAccent} animation-delay: ${delay}s;">
                 <div class="clean-card-top" style="margin-bottom:4px;">
                     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                         <span class="clean-card-title" style="font-weight:700;">${d.ticker}</span>
@@ -3190,6 +3198,7 @@ function calcDivTotal() {
 
 async function handleOpSubmit(e) {
     e.preventDefault();
+    if (window.safeHaptic) window.safeHaptic(20);
     const btn = document.getElementById("opSubmitBtn");
     btn.disabled = true;
     btn.textContent = "Salvando...";
@@ -3423,6 +3432,7 @@ function editDividend(id) {
 
 async function handleDivSubmit(e) {
     e.preventDefault();
+    if (window.safeHaptic) window.safeHaptic(20);
     const btn = document.getElementById("divSubmitBtn");
     btn.disabled = true;
     btn.textContent = "Salvando...";
