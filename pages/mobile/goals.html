@@ -2857,11 +2857,11 @@ function showToast(msg, type = 'info') {
     }
     const t = document.getElementById("toast");
     if (!t) return;
-    t.textContent = msg;
-    t.className = `toast show ${type}`;
-    setTimeout(() => { t.className = "toast hidden"; }, 3000);
+    t.innerHTML = `<div class="toast-body"><i class="fas ${type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle')} toast-icon"></i><span class="toast-text">${msg}</span></div>`;
+    t.className = `toast show ${type} toast-${type}`;
+    setTimeout(() => { t.className = "toast hidden"; }, 2500);
 }
-window.showToast = showToast;
+if (!window.showToast) window.showToast = showToast;
 
 function formatCurrency(val) {
     if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {

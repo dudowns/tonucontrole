@@ -30,7 +30,7 @@ body.dark-theme {
 .mobile-topbar {
     background: rgba(255, 255, 255, 0.88) !important;
     color: #0f172a !important;
-    padding-top: max(12px, env(safe-area-inset-top, 0px));
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
     padding-bottom: 12px;
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
@@ -183,16 +183,15 @@ body.dark-theme .mobile-topbar .greeting {
    Garante que nenhum card ou botão seja
    sobreposto pelo menu inferior estilo Nubank
    ========================================== */
-.mobile-content {
-    padding: 12px 14px calc(96px + env(safe-area-inset-bottom, 0px)) 14px;
-    max-width: 100%;
-    box-sizing: border-box;
-}
-
+.mobile-content,
 main,
 #main-content,
 .mobile-container,
-.mobile-page-content {
+.mobile-page-content,
+.transaction-list-wrap,
+.bills-page-content {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+    max-width: 100%;
     box-sizing: border-box;
 }
 
@@ -407,7 +406,7 @@ main,
    ========================================== */
 .bottom-nav {
     position: fixed;
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
     left: 12px;
     right: 12px;
     margin: 0 auto;
@@ -422,9 +421,10 @@ main,
     justify-content: space-around;
     align-items: center;
     padding: 3px 4px;
+    padding-bottom: max(3px, env(safe-area-inset-bottom, 0px)) !important;
     z-index: 1000;
     box-shadow: 0 10px 28px -4px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.05) !important;
-    height: 60px;
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
     transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
@@ -917,43 +917,54 @@ body.dark-theme .mobile-tabs {
 /* ==========================================
    MODAL / BOTTOM SHEET MOBILE
    ========================================== */
-.mobile-modal-overlay {
+.mobile-modal-overlay,
+.bottom-sheet {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 10000;
     display: flex;
     align-items: flex-end;
     justify-content: center;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.mobile-modal-overlay.active {
+.mobile-modal-overlay.active,
+.bottom-sheet.show {
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
 }
 
-.mobile-modal-sheet {
+.mobile-modal-sheet,
+.bottom-sheet-card {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
     background: var(--color-surface, #ffffff);
     border-radius: 24px 24px 0 0;
-    width: 100%;
-    max-width: 520px;
-    max-height: min(90vh, calc(100dvh - 30px));
+    max-height: 85vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    padding: 16px 20px calc(24px + env(safe-area-inset-bottom, 0px));
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--color-border, rgba(0, 0, 0, 0.05));
+    touch-action: pan-y;
+    padding: 14px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     box-sizing: border-box;
+    margin: 0 auto;
 }
 
-.mobile-modal-overlay.active .mobile-modal-sheet {
+.mobile-modal-overlay.active .mobile-modal-sheet,
+.bottom-sheet.show .bottom-sheet-card {
     transform: translateY(0);
 }
 
@@ -962,7 +973,8 @@ body.dark-theme .mobile-tabs {
     height: 4px;
     background: #cbd5e1;
     border-radius: 999px;
-    margin: 0 auto 16px auto;
+    margin: 4px auto 14px auto;
+    flex-shrink: 0;
 }
 
 .sheet-header {
@@ -1138,7 +1150,8 @@ body.dark-theme .bill-item {
     color: #f8fafc;
 }
 
-body.dark-theme .mobile-modal-sheet {
+body.dark-theme .mobile-modal-sheet,
+body.dark-theme .bottom-sheet-card {
     background: #1e293b;
     color: #f8fafc;
 }
@@ -3385,4 +3398,136 @@ body.dark-theme .mobile-empty-friendly h3 {
 
 body.dark-theme .mobile-empty-friendly p {
     color: #94a3b8 !important;
+}
+
+/* ============================================
+   2. TOAST ESTILO DYNAMIC ISLAND (CÁPSULA NO TOPO)
+   ============================================ */
+.toast,
+#toast {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+    left: 50% !important;
+    transform: translate(-50%, -20px) !important;
+    z-index: 1000000 !important;
+    max-width: min(92vw, 400px) !important;
+    min-width: 220px !important;
+    background: rgba(0, 0, 0, 0.85) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    color: #ffffff !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    padding: 9px 20px !important;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.2px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease !important;
+    box-sizing: border-box !important;
+    bottom: auto !important;
+    right: auto !important;
+}
+
+.toast.show,
+.toast:not(.hidden) {
+    opacity: 1 !important;
+    transform: translate(-50%, 0) !important;
+    pointer-events: auto !important;
+}
+
+.toast.hidden {
+    opacity: 0 !important;
+    transform: translate(-50%, -20px) !important;
+    pointer-events: none !important;
+}
+
+.toast-body {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    width: 100% !important;
+}
+
+.toast-text {
+    flex: 1 1 auto !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: center !important;
+}
+
+.toast-icon {
+    font-size: 15px !important;
+    flex-shrink: 0 !important;
+}
+
+.toast.toast-success .toast-icon,
+.toast.success .toast-icon {
+    color: #10B981 !important;
+}
+
+.toast.toast-error .toast-icon,
+.toast.error .toast-icon {
+    color: #EF4444 !important;
+}
+
+.toast.toast-warning .toast-icon,
+.toast.warning .toast-icon {
+    color: #F59E0B !important;
+}
+
+.toast.toast-info .toast-icon,
+.toast.info .toast-icon {
+    color: #38BDF8 !important;
+}
+
+.toast-progress-track,
+.toast-close-btn {
+    display: none !important;
+}
+
+/* ============================================
+   4. TIPOGRAFIA TABULAR (tnum) - NATIVE FINTECH NUMBERS
+   Alinha os dígitos perfeitamente no eixo vertical
+   ============================================ */
+.hero-value,
+.mobile-hero-card .hero-value,
+.hero-stat-val,
+.mobile-hero-card .hero-stat-val,
+.mobile-card .card-value,
+.clean-card-amount,
+.clean-card-amount-wrap,
+.mobile-list-card .clean-card-amount,
+.bill-card-mobile .clean-card-amount,
+.op-card .clean-card-amount,
+.asset-total,
+.asset-details-grid .val,
+.goal-current-val,
+.goal-target-val,
+.subtotal-pill,
+.stat-value,
+.mobile-stat-value,
+.installment-restam-val,
+.installment-badge-wrap,
+.amount,
+.money,
+.currency-val,
+.tnum,
+.tabular-nums,
+[data-currency] {
+    font-feature-settings: 'tnum' 1, 'cv05' 1 !important;
+    font-variant-numeric: tabular-nums !important;
 }

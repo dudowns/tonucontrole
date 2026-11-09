@@ -182,13 +182,20 @@ function showToast(message, type, actionText, onAction) {
         warning: 'fa-exclamation-triangle'
     };
 
+    var isMobile = (typeof window !== 'undefined' && (
+        (window.location.pathname && window.location.pathname.indexOf('/mobile/') !== -1) ||
+        window.innerWidth <= 768 ||
+        !!document.querySelector('.bottom-nav') ||
+        !!document.querySelector('.mobile-topbar')
+    ));
+
     // Limpar estados anteriores de transform/opacidade
     toast.style.background = '';
     toast.style.color = '';
     toast.style.transform = '';
     toast.style.opacity = '';
     toast.style.transition = '';
-    toast.className = 'toast toast-' + type;
+    toast.className = 'toast toast-' + type + (isMobile ? ' toast-dynamic-island show' : '');
 
     var iconClass = icons[type] || icons.info;
     var actionHtml = '';
@@ -207,6 +214,11 @@ function showToast(message, type, actionText, onAction) {
             '<div class="toast-progress-bar" id="toastProgressBar" style="width: 100%;"></div>' +
         '</div>';
 
+    if (isMobile) {
+        toast.style.transform = 'translate(-50%, 0)';
+        toast.style.opacity = '1';
+    }
+
     if (actionText && typeof onAction === 'function') {
         var actionBtn = document.getElementById('toastActionBtn');
         if (actionBtn) {
@@ -217,8 +229,8 @@ function showToast(message, type, actionText, onAction) {
         }
     }
 
-    // Controle de tempo com pausa (Pause on Hover)
-    var TOTAL_DURATION = 3500;
+    // Controle de tempo com pausa (2.5s no mobile estilo iOS Dynamic Island)
+    var TOTAL_DURATION = isMobile ? 2500 : 3500;
     var remainingTime = TOTAL_DURATION;
     var startTimestamp = Date.now();
     var isPaused = false;
@@ -358,8 +370,14 @@ function hideToast() {
     toast.ontouchmove = null;
     toast.ontouchend = null;
     toast.ontouchcancel = null;
+    var isMobile = (typeof window !== 'undefined' && (
+        (window.location.pathname && window.location.pathname.indexOf('/mobile/') !== -1) ||
+        window.innerWidth <= 768 ||
+        !!document.querySelector('.bottom-nav') ||
+        !!document.querySelector('.mobile-topbar')
+    ));
     toast.style.opacity = '0';
-    toast.style.transform = 'translateY(15px) scale(0.95)';
+    toast.style.transform = isMobile ? 'translate(-50%, -20px)' : 'translateY(15px) scale(0.95)';
     setTimeout(function() {
         toast.className = 'toast hidden';
         toast.style.opacity = '';
