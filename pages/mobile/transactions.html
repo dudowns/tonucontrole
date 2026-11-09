@@ -496,6 +496,19 @@ async function loadTransactions() {
         filterTransactions();
     } catch (error) {
         console.error("Erro ao carregar:", error);
+        const container = document.getElementById("transactionList");
+        if (container) {
+            container.innerHTML = `
+                <div class="mobile-empty-friendly">
+                    <div class="empty-icon-box"><i class="fas fa-exclamation-circle"></i></div>
+                    <h3>Não foi possível carregar</h3>
+                    <p>Houve uma falha ao listar as transações. Toque abaixo para tentar novamente.</p>
+                    <button type="button" class="btn-empty-action" onclick="loadTransactions()">
+                        <i class="fas fa-redo"></i> Tentar Novamente
+                    </button>
+                </div>
+            `;
+        }
     }
 }
 
@@ -674,6 +687,7 @@ function renderTransactions() {
 
             const color = cat?.color || style.color || (isIncome ? "#00B894" : "#FF6B6B");
             const icon = cat?.icon || style.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
+            const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(color) : 'rgba(108, 92, 231, 0.15)';
             const isPaid = isTransactionPaid(t);
             const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
 
