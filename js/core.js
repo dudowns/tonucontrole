@@ -1135,11 +1135,44 @@ async function loadGlobalUserProfile() {
         if (userNameEl) userNameEl.textContent = sanitizeString(fullName.split(' ')[0]);
         if (userAvatarEl) renderAvatarElement(userAvatarEl, avatarUrl, initial);
 
+        var topbarAvatarEl = document.getElementById('topbarAvatar');
+        if (topbarAvatarEl) renderAvatarElement(topbarAvatarEl, avatarUrl, initial);
+
         console.log('✅ Perfil carregado com sucesso!');
 
     } catch (e) {
         console.warn('⚠️ Erro ao carregar perfil global:', e);
     }
+}
+
+// ============================================
+// MOBILE TOPBAR ACTIONS & MORE MENU (...)
+// ============================================
+function toggleMobileMoreMenu(event) {
+    if (event) {
+        event.stopPropagation();
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+    }
+    const menu = document.getElementById('mobileMoreMenuDropdown');
+    if (!menu) return;
+    menu.classList.toggle('hidden');
+}
+
+function closeMobileMoreMenu() {
+    const menu = document.getElementById('mobileMoreMenuDropdown');
+    if (menu && !menu.classList.contains('hidden')) {
+        menu.classList.add('hidden');
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.toggleMobileMoreMenu = toggleMobileMoreMenu;
+    window.closeMobileMoreMenu = closeMobileMoreMenu;
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#mobileMoreMenuDropdown') && !e.target.closest('.topbar-more-btn')) {
+            closeMobileMoreMenu();
+        }
+    });
 }
 
 // ============================================

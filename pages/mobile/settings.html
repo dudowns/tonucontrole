@@ -216,7 +216,15 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
+            <button class="topbar-btn" onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
+            <button class="topbar-more-btn" onclick="toggleMobileMoreMenu(event)" title="Mais opções" aria-label="Mais opções">
+                <i class="fas fa-ellipsis-h"></i>
+            </button>
+            <div class="mobile-more-dropdown hidden" id="mobileMoreMenuDropdown">
+                <button type="button" class="more-menu-item" onclick="toggleTheme(); closeMobileMoreMenu();">
+                    <i class="fas fa-moon" id="themeIcon"></i> <span>Alternar Tema</span>
+                </button>
+            </div>
         </div>
     </div>
     <div class="greeting">⚙️ Configurações</div>

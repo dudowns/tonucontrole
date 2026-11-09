@@ -756,8 +756,21 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button onclick="toggleTheme()" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
-            <button onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
+            <button class="topbar-btn" onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
+            <a href="settings.html" class="topbar-avatar-btn" title="Perfil" aria-label="Perfil">
+                <div class="topbar-avatar-mini" id="topbarAvatar">U</div>
+            </a>
+            <button class="topbar-more-btn" onclick="toggleMobileMoreMenu(event)" title="Mais opções" aria-label="Mais opções">
+                <i class="fas fa-ellipsis-h"></i>
+            </button>
+            <div class="mobile-more-dropdown hidden" id="mobileMoreMenuDropdown">
+                <button type="button" class="more-menu-item" onclick="toggleTheme(); closeMobileMoreMenu();">
+                    <i class="fas fa-moon" id="themeIcon"></i> <span>Alternar Tema</span>
+                </button>
+                <button type="button" class="more-menu-item" onclick="window.tonuSync && window.tonuSync.syncPendingData ? window.tonuSync.syncPendingData() : location.reload(); closeMobileMoreMenu();">
+                    <i class="fas fa-sync-alt"></i> <span>Sincronizar</span>
+                </button>
+            </div>
         </div>
     </div>
     <div class="greeting">🎯 Metas & Sonhos</div>
@@ -840,23 +853,23 @@
             <span style="font-size:10px; color:#00b894; font-weight:700; background:rgba(0,184,148,0.1); padding:2px 8px; border-radius:6px;">100% CDI</span>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+            <div class="cdi-sub-box" style="padding:8px 10px; border-radius:10px;">
                 <span style="font-size:10px; color:var(--color-text-muted, #64748b);">Aportado</span>
                 <strong style="display:block; font-size:13px; color:var(--color-text, #0f172a);" id="mobileCdiAportado">R$ 0,00</strong>
             </div>
-            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+            <div class="cdi-sub-box" style="padding:8px 10px; border-radius:10px;">
                 <span style="font-size:10px; color:#00b894;">Rend. Bruto</span>
                 <strong style="display:block; font-size:13px; color:#00b894;" id="mobileCdiBruto">+ R$ 0,00</strong>
             </div>
-            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+            <div class="cdi-sub-box" style="padding:8px 10px; border-radius:10px;">
                 <span style="font-size:10px; color:#ef4444;">IOF Estimado</span>
                 <strong style="display:block; font-size:13px; color:#ef4444;" id="mobileCdiIOF">- R$ 0,00</strong>
             </div>
-            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
+            <div class="cdi-sub-box" style="padding:8px 10px; border-radius:10px;">
                 <span style="font-size:10px; color:#f59e0b;">IR Estimado</span>
                 <strong style="display:block; font-size:13px; color:#f59e0b;" id="mobileCdiIR">- R$ 0,00</strong>
             </div>
-            <div style="grid-column:1/-1; background:rgba(0,184,148,0.08); padding:8px 10px; border-radius:8px; border:1px solid rgba(0,184,148,0.2); display:flex; justify-content:space-between; align-items:center;">
+            <div style="grid-column:1/-1; background:rgba(0,184,148,0.06); padding:9px 12px; border-radius:10px; border:1px solid rgba(0,184,148,0.18); display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-size:11px; font-weight:700; color:#00b894;">Saldo Líquido</span>
                 <strong style="font-size:14px; font-weight:800; color:#00b894;" id="mobileCdiLiquido">R$ 0,00</strong>
             </div>
