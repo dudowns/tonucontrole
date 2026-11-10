@@ -1168,11 +1168,14 @@ function closeMobileMoreMenu() {
 if (typeof window !== 'undefined') {
     window.toggleMobileMoreMenu = toggleMobileMoreMenu;
     window.closeMobileMoreMenu = closeMobileMoreMenu;
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('#mobileMoreMenuDropdown') && !e.target.closest('.topbar-more-btn')) {
-            closeMobileMoreMenu();
-        }
-    });
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+        document.addEventListener('click', function(e) {
+            if (!e || !e.target || typeof e.target.closest !== 'function') return;
+            if (!e.target.closest('#mobileMoreMenuDropdown') && !e.target.closest('.topbar-more-btn')) {
+                closeMobileMoreMenu();
+            }
+        });
+    }
 }
 
 // ============================================
