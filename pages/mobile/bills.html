@@ -463,20 +463,11 @@
         </div>
         <div class="topbar-actions">
             <button class="topbar-btn" onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
-            <a href="settings.html" class="topbar-avatar-btn" title="Perfil" aria-label="Perfil">
-                <div class="topbar-avatar-mini" id="topbarAvatar">U</div>
+            <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button class="topbar-btn" onclick="window.tonuSync && window.tonuSync.syncPendingData ? window.tonuSync.syncPendingData() : location.reload()" title="Sincronizar" aria-label="Sincronizar"><i class="fas fa-sync-alt"></i></button>
+            <a href="settings.html" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
+                <span id="topbarAvatar">U</span>
             </a>
-            <button class="topbar-more-btn" onclick="toggleMobileMoreMenu(event)" title="Mais opções" aria-label="Mais opções">
-                <i class="fas fa-ellipsis-h"></i>
-            </button>
-            <div class="mobile-more-dropdown hidden" id="mobileMoreMenuDropdown">
-                <button type="button" class="more-menu-item" onclick="toggleTheme(); closeMobileMoreMenu();">
-                    <i class="fas fa-moon"></i> <span>Alternar Tema</span>
-                </button>
-                <button type="button" class="more-menu-item" onclick="window.tonuSync && window.tonuSync.syncPendingData ? window.tonuSync.syncPendingData() : location.reload(); closeMobileMoreMenu();">
-                    <i class="fas fa-sync-alt"></i> <span>Sincronizar</span>
-                </button>
-            </div>
         </div>
     </div>
     <div class="greeting">Gestão de Vencimentos</div>
@@ -1109,8 +1100,12 @@ function renderBills() {
 
     container.innerHTML = filtered.map((b, idx) => {
         const cat = b.categories || categories.find(c => c.id === b.category_id) || {};
-        const color = cat.color || "#6C5CE7";
-        const icon = cat.icon || "fa-file-invoice-dollar";
+        const backendCat = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
+            ? window.getBackendCategoryStyle(b.category || b.description, cat)
+            : null;
+        const color = cat.color || backendCat?.color || "#6C5CE7";
+        let icon = cat.icon || backendCat?.icon || "fa-file-invoice-dollar";
+        if (icon && !icon.startsWith('fa-')) icon = 'fa-' + icon;
         const isPaid = !!b.paid;
         const dueDateVal = b.due_date || b.date;
         const isOverdue = !isPaid && dueDateVal && dueDateVal < today;

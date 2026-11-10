@@ -79,27 +79,16 @@
         </div>
         <div class="topbar-actions">
             <button class="topbar-btn" onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
-            <a href="settings.html" class="topbar-avatar-btn" title="Perfil" aria-label="Perfil">
-                <div class="topbar-avatar-mini" id="topbarAvatar">U</div>
-            </a>
-            <button class="topbar-more-btn" onclick="toggleMobileMoreMenu(event)" title="Mais opções" aria-label="Mais opções">
-                <i class="fas fa-ellipsis-h"></i>
+            <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button class="topbar-btn" id="notifBellBtn" onclick="window.toggleNotificationDropdown(event)" title="Notificações" aria-label="Notificações">
+                <i class="fas fa-bell"></i>
+                <span class="notif-badge hidden" id="notifBadgeCount">0</span>
             </button>
-            <div class="mobile-more-dropdown hidden" id="mobileMoreMenuDropdown">
-                <button type="button" class="more-menu-item" onclick="window.exportTransactionsCSV && window.exportTransactionsCSV(); closeMobileMoreMenu();">
-                    <i class="fas fa-file-export"></i> <span>Exportar CSV</span>
-                </button>
-                <button type="button" class="more-menu-item" id="notifBellBtn" onclick="window.toggleNotificationDropdown(event); closeMobileMoreMenu();">
-                    <i class="fas fa-bell"></i> <span>Notificações</span>
-                    <span class="notif-badge hidden" id="notifBadgeCount">0</span>
-                </button>
-                <button type="button" class="more-menu-item" onclick="toggleTheme(); closeMobileMoreMenu();">
-                    <i class="fas fa-moon" id="themeIcon"></i> <span>Alternar Tema</span>
-                </button>
-                <button type="button" class="more-menu-item" onclick="window.tonuSync && window.tonuSync.syncPendingData ? window.tonuSync.syncPendingData() : location.reload(); closeMobileMoreMenu();">
-                    <i class="fas fa-sync-alt"></i> <span>Sincronizar</span>
-                </button>
-            </div>
+            <button class="topbar-btn" onclick="window.exportTransactionsCSV && window.exportTransactionsCSV()" title="Exportar CSV" aria-label="Exportar CSV"><i class="fas fa-file-export"></i></button>
+            <button class="topbar-btn" onclick="window.tonuSync && window.tonuSync.syncPendingData ? window.tonuSync.syncPendingData() : location.reload()" title="Sincronizar" aria-label="Sincronizar"><i class="fas fa-sync-alt"></i></button>
+            <a href="settings.html" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
+                <span id="topbarAvatar">U</span>
+            </a>
         </div>
     </div>
     <div class="greeting">📋 Transações</div>

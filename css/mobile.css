@@ -153,46 +153,51 @@ body.dark-theme {
     color: #6C5CE7 !important;
 }
 
-/* AVATAR DO USUÁRIO NO HEADER */
+/* AVATAR PRINCIPAL NO HEADER MOBILE (ROXO COM LETRA "U" OU FOTO + SYNC BADGE) */
+.mobile-topbar-avatar,
 .topbar-avatar-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%);
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid rgba(255, 255, 255, 0.95);
-    box-shadow: 0 2px 8px rgba(108, 92, 231, 0.22);
-    text-decoration: none;
-    flex-shrink: 0;
-    transition: transform 0.15s ease;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%) !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 2px solid rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 2px 8px rgba(108, 92, 231, 0.22) !important;
+    text-decoration: none !important;
+    flex-shrink: 0 !important;
+    position: relative !important;
+    transition: transform 0.15s ease !important;
+    user-select: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    overflow: visible !important;
+    cursor: pointer !important;
 }
 
+.mobile-topbar-avatar:active,
 .topbar-avatar-btn:active {
-    transform: scale(0.92);
+    transform: scale(0.92) !important;
 }
 
-.topbar-avatar-mini {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-}
-
+.mobile-topbar-avatar img,
+.mobile-topbar-avatar .avatar-img-element,
 .topbar-avatar-mini img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+}
+
+body.dark-theme .mobile-topbar-avatar,
+body.dark-theme .topbar-avatar-btn {
+    border-color: rgba(51, 65, 85, 0.95) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* MENU TRÊS PONTINHOS (...) - AÇÕES SECUNDÁRIAS */
@@ -3752,9 +3757,37 @@ body.dark-theme .mobile-empty-friendly p {
     font-variant-numeric: tabular-nums !important;
 }
 
+/* ========================================================
+   RESTAURAÇÃO E DESTAQUE DOS ÍCONES DE CATEGORIA
+   (TRANSAÇÕES, CONTAS, INVESTIMENTOS E METAS)
+   ======================================================== */
+.mobile-icon-squircle,
+.clean-list-card .mobile-icon-squircle,
+.bill-card-mobile .mobile-icon-squircle,
+.asset-card .mobile-icon-squircle,
+.goal-card .mobile-icon-squircle {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 12px !important;
+    flex-shrink: 0 !important;
+    border: none !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+.mobile-icon-squircle i,
+.clean-list-card .mobile-icon-squircle i,
+.bill-card-mobile .mobile-icon-squircle i,
+.asset-card .mobile-icon-squircle i,
+.goal-card .mobile-icon-squircle i {
+    color: inherit !important;
+    font-size: 15px !important;
+    display: inline-block !important;
+}
+
 /* ============================================
    REFINAMENTO VISUAL DE METAS (ANTI-QUADRICULADO iOS)
-   Remoção total de fundos cinzas e eliminação de caixas aninhadas
+   Superfícies limpas, bordas suaves e badges/ícones vibrantes preservados
    ============================================ */
 .goal-card {
     background: #ffffff !important;
@@ -3770,12 +3803,9 @@ body.dark-theme .mobile-empty-friendly p {
     border-left: 3px solid #00B894 !important;
 }
 
-/* Remoção total de caixas cinzas (#f8fafc) aninhadas dentro dos cards de metas */
-.goal-card div[style*="background:var(--color-bg"],
-.goal-card div[style*="background: var(--color-bg"],
-.goal-card div[style*="#f8fafc"],
-.goal-card div[style*="background:#f8fafc"],
-.goal-card div[style*="background: #f8fafc"] {
+/* Suavização de caixas cinzas aninhadas dentro das metas, protegendo os ícones e badges */
+.goal-card div[style*="background:var(--color-bg"]:not(.mobile-icon-squircle),
+.goal-card div[style*="background: var(--color-bg"]:not(.mobile-icon-squircle) {
     background: #ffffff !important;
     border: 1px solid rgba(226, 232, 240, 0.7) !important;
     box-shadow: none !important;
@@ -3789,9 +3819,8 @@ body.dark-theme .mobile-empty-friendly p {
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02) !important;
 }
 
-.cdi-yield-card-mobile div[style*="background:var(--color-bg"],
-.cdi-yield-card-mobile div[style*="background: var(--color-bg"],
-.cdi-yield-card-mobile div[style*="#f8fafc"],
+.cdi-yield-card-mobile div[style*="background:var(--color-bg"]:not(.mobile-icon-squircle),
+.cdi-yield-card-mobile div[style*="background: var(--color-bg"]:not(.mobile-icon-squircle),
 .cdi-yield-card-mobile .cdi-sub-box {
     background: #ffffff !important;
     border: 1px solid rgba(226, 232, 240, 0.7) !important;
@@ -3830,12 +3859,10 @@ body.dark-theme .temporal-control-mobile {
     border-color: rgba(51, 65, 85, 0.7) !important;
 }
 
-body.dark-theme .goal-card div[style*="background:var(--color-bg"],
-body.dark-theme .goal-card div[style*="background: var(--color-bg"],
-body.dark-theme .goal-card div[style*="#f8fafc"],
-body.dark-theme .cdi-yield-card-mobile div[style*="background:var(--color-bg"],
-body.dark-theme .cdi-yield-card-mobile div[style*="background: var(--color-bg"],
-body.dark-theme .cdi-yield-card-mobile div[style*="#f8fafc"],
+body.dark-theme .goal-card div[style*="background:var(--color-bg"]:not(.mobile-icon-squircle),
+body.dark-theme .goal-card div[style*="background: var(--color-bg"]:not(.mobile-icon-squircle),
+body.dark-theme .cdi-yield-card-mobile div[style*="background:var(--color-bg"]:not(.mobile-icon-squircle),
+body.dark-theme .cdi-yield-card-mobile div[style*="background: var(--color-bg"]:not(.mobile-icon-squircle),
 body.dark-theme .cdi-yield-card-mobile .cdi-sub-box,
 body.dark-theme .temporal-control-mobile .year-stepper,
 body.dark-theme .temporal-control-mobile .view-mode-toggle {
