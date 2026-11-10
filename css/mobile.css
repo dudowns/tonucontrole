@@ -664,6 +664,31 @@ main,
     background: #6C5CE7;
 }
 
+/* OPÇÃO DO USUÁRIO: MENU INFERIOR APENAS COM ÍCONES (ESTILO NUBANK MINIMALISTA) */
+body.nav-icons-only .bottom-nav a span,
+html.nav-icons-only .bottom-nav a span {
+    display: none !important;
+}
+
+body.nav-icons-only .bottom-nav a,
+html.nav-icons-only .bottom-nav a {
+    justify-content: center !important;
+    gap: 0 !important;
+    padding: 0 !important;
+}
+
+body.nav-icons-only .bottom-nav a i,
+html.nav-icons-only .bottom-nav a i {
+    font-size: 21px !important;
+}
+
+body.nav-icons-only .bottom-nav a.active::after,
+html.nav-icons-only .bottom-nav a.active::after {
+    bottom: 5px !important;
+    width: 4px !important;
+    height: 4px !important;
+}
+
 .bottom-nav a:active {
     transform: scale(0.92);
 }

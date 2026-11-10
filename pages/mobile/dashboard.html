@@ -42,6 +42,11 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
+    <script>
+        if (localStorage.getItem('tonu_bottom_nav_labels') === 'false') {
+            document.documentElement.classList.add('nav-icons-only');
+        }
+    </script>
 </head>
 <body>
 

@@ -408,6 +408,11 @@
             color: #f1f5f9;
         }
     </style>
+    <script>
+        if (localStorage.getItem('tonu_bottom_nav_labels') === 'false') {
+            document.documentElement.classList.add('nav-icons-only');
+        }
+    </script>
 </head>
 <body>
 

@@ -156,6 +156,10 @@ async function loadCategories() {
 
         if (loaded && loaded.length > 0) {
             categories = loaded;
+            // Garantir que a categoria Investimentos esteja sempre presente
+            if (!categories.some(c => (c.name && c.name.toLowerCase().includes('invest')) || c.id === 'cat_investimentos')) {
+                categories.push({ id: 'cat_investimentos', name: '💼 Investimentos', type: 'both', icon: 'fa-chart-line', color: '#00CEC9' });
+            }
         } else {
             categories = [
                 { id: 'cat_contas', name: '⚡ Contas Básicas', type: 'expense', icon: 'fa-bolt', color: '#0984E3' },
@@ -169,7 +173,7 @@ async function loadCategories() {
                 { id: 'cat_alimentacao', name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF6B6B' },
                 { id: 'cat_transporte', name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#FDCB6E' },
                 { id: 'cat_salario', name: '💰 Salário', type: 'income', icon: 'fa-money-bill-wave', color: '#00B894' },
-                { id: 'cat_investimentos', name: '💼 Investimentos', type: 'income', icon: 'fa-chart-line', color: '#00CEC9' },
+                { id: 'cat_investimentos', name: '💼 Investimentos', type: 'both', icon: 'fa-chart-line', color: '#00CEC9' },
                 { id: 'cat_bico', name: '🛵 Bico / Extra', type: 'income', icon: 'fa-gift', color: '#00B894' },
                 { id: 'cat_outros', name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#B2BEC3' }
             ];
@@ -1640,7 +1644,11 @@ function populateCategoryOptions() {
     const select = document.getElementById("quickCategory");
     if (!select) return;
 
-    const filtered = categories.filter(c => !c.type || c.type === currentQuickType);
+    const filtered = categories.filter(c => {
+        if (!c.type || c.type === 'both') return true;
+        if (c.name && c.name.toLowerCase().includes('invest')) return true;
+        return c.type === currentQuickType;
+    });
     select.innerHTML = '<option value="">Selecione a categoria...</option>' +
         (filtered.length > 0 ? filtered : categories).map(c => {
             const safeId = typeof sanitizeString === 'function' ? sanitizeString(c.id || '') : (c.id || '');

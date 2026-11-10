@@ -326,6 +326,21 @@
                 </div>
             </div>
 
+            <!-- OPÇÃO DO USUÁRIO: MENU INFERIOR APENAS COM ÍCONES OU COM NOMES -->
+            <div class="settings-item" onclick="toggleBottomNavLabelsPref()">
+                <div class="left">
+                    <div class="item-icon-box blue"><i class="fas fa-bars"></i></div>
+                    <div>
+                        <div class="item-text-title">Nomes no Menu Inferior</div>
+                        <div class="item-text-sub">Alternar entre apenas ícones (Nubank) ou com nomes</div>
+                    </div>
+                </div>
+                <div class="right">
+                    <span id="bottomNavLabelsStatus">Com Nomes</span>
+                    <i class="fas fa-sliders-h"></i>
+                </div>
+            </div>
+
             <div class="settings-item" onclick="openMobileCategoryManager()" style="cursor:pointer;">
                 <div class="left">
                     <div class="item-icon-box purple"><i class="fas fa-tags"></i></div>
@@ -816,6 +831,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const hideBalance = localStorage.getItem("tonu_hide_balance") === "true";
     document.getElementById("hideBalanceStatus").textContent = hideBalance ? "Ativado" : "Desativado";
 
+    // Menu Inferior (Com nomes ou apenas ícones)
+    initBottomNavLabelsPref();
+
     // Limites de Gastos
     const savedBudget = localStorage.getItem("tonu_budget_limit") || "0";
     if (savedBudget && Number(savedBudget) > 0) {
@@ -1131,6 +1149,41 @@ function toggleHideBalancePref() {
     localStorage.setItem("tonu_hide_balance", next ? "true" : "false");
     document.getElementById("hideBalanceStatus").textContent = next ? "Ativado" : "Desativado";
     showMobileToast(`Ocultar saldos: ${next ? 'Ativado' : 'Desativado'}`, "info");
+}
+
+function initBottomNavLabelsPref() {
+    const isIconsOnly = localStorage.getItem("tonu_bottom_nav_labels") === "false";
+    const statusEl = document.getElementById("bottomNavLabelsStatus");
+    if (statusEl) {
+        statusEl.textContent = isIconsOnly ? "Apenas Ícones" : "Com Nomes";
+    }
+    if (isIconsOnly) {
+        document.body.classList.add("nav-icons-only");
+        document.documentElement.classList.add("nav-icons-only");
+    } else {
+        document.body.classList.remove("nav-icons-only");
+        document.documentElement.classList.remove("nav-icons-only");
+    }
+}
+
+function toggleBottomNavLabelsPref() {
+    const isIconsOnly = localStorage.getItem("tonu_bottom_nav_labels") === "false";
+    const nextIsIconsOnly = !isIconsOnly;
+    localStorage.setItem("tonu_bottom_nav_labels", nextIsIconsOnly ? "false" : "true");
+    const statusEl = document.getElementById("bottomNavLabelsStatus");
+    if (statusEl) {
+        statusEl.textContent = nextIsIconsOnly ? "Apenas Ícones" : "Com Nomes";
+    }
+    if (nextIsIconsOnly) {
+        document.body.classList.add("nav-icons-only");
+        document.documentElement.classList.add("nav-icons-only");
+        showMobileToast("Menu inferior: Apenas Ícones (Estilo Nubank) ✨", "info");
+    } else {
+        document.body.classList.remove("nav-icons-only");
+        document.documentElement.classList.remove("nav-icons-only");
+        showMobileToast("Menu inferior: Nomes e Ícones ativados ✨", "info");
+    }
+    if (window.safeHaptic) window.safeHaptic(20);
 }
 
 function saveMobileBudget() {
