@@ -330,7 +330,12 @@ main,
 #goalsList,
 #mobileGoalsContainer,
 #mobileTransactions,
-.mobile-invest-content {
+.mobile-invest-content,
+#positionsListContainer,
+#operationsListContainer,
+#dividendsListContainer,
+#corporateEventsListContainer,
+#mobileGoalDepositsList {
     padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
     max-width: 100%;
     box-sizing: border-box;
@@ -3749,13 +3754,13 @@ body.dark-theme .mobile-empty-friendly p {
 
 /* ============================================
    REFINAMENTO VISUAL DE METAS (ANTI-QUADRICULADO iOS)
-   Suaviza bordas e elimina o contraste excessivo de caixas cinzas aninhadas
+   Remoção total de fundos cinzas e eliminação de caixas aninhadas
    ============================================ */
 .goal-card {
     background: #ffffff !important;
     border-radius: 16px !important;
     padding: 14px 15px !important;
-    border: 1px solid rgba(226, 232, 240, 0.6) !important;
+    border: 1px solid rgba(226, 232, 240, 0.7) !important;
     margin-bottom: 12px !important;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02) !important;
     border-left: 3px solid #6C5CE7 !important;
@@ -3765,9 +3770,20 @@ body.dark-theme .mobile-empty-friendly p {
     border-left: 3px solid #00B894 !important;
 }
 
+/* Remoção total de caixas cinzas (#f8fafc) aninhadas dentro dos cards de metas */
+.goal-card div[style*="background:var(--color-bg"],
+.goal-card div[style*="background: var(--color-bg"],
+.goal-card div[style*="#f8fafc"],
+.goal-card div[style*="background:#f8fafc"],
+.goal-card div[style*="background: #f8fafc"] {
+    background: #ffffff !important;
+    border: 1px solid rgba(226, 232, 240, 0.7) !important;
+    box-shadow: none !important;
+}
+
 .cdi-yield-card-mobile {
     background: #ffffff !important;
-    border: 1px solid rgba(226, 232, 240, 0.6) !important;
+    border: 1px solid rgba(226, 232, 240, 0.7) !important;
     border-radius: 16px !important;
     padding: 14px !important;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02) !important;
@@ -3775,24 +3791,25 @@ body.dark-theme .mobile-empty-friendly p {
 
 .cdi-yield-card-mobile div[style*="background:var(--color-bg"],
 .cdi-yield-card-mobile div[style*="background: var(--color-bg"],
+.cdi-yield-card-mobile div[style*="#f8fafc"],
 .cdi-yield-card-mobile .cdi-sub-box {
-    background: rgba(248, 250, 252, 0.5) !important;
-    border: 1px solid rgba(226, 232, 240, 0.5) !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(226, 232, 240, 0.7) !important;
     border-radius: 10px !important;
     box-shadow: none !important;
 }
 
 .temporal-control-mobile {
     background: #ffffff !important;
-    border: 1px solid rgba(226, 232, 240, 0.6) !important;
+    border: 1px solid rgba(226, 232, 240, 0.7) !important;
     border-radius: 14px !important;
     box-shadow: 0 1px 4px rgba(15, 23, 42, 0.02) !important;
 }
 
 .temporal-control-mobile .year-stepper,
 .temporal-control-mobile .view-mode-toggle {
-    background: rgba(248, 250, 252, 0.6) !important;
-    border-color: rgba(226, 232, 240, 0.6) !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(226, 232, 240, 0.7) !important;
 }
 
 .cycle-summary-mobile {
@@ -3802,7 +3819,7 @@ body.dark-theme .mobile-empty-friendly p {
 }
 
 .btn-goal-icon {
-    border: 1px solid rgba(226, 232, 240, 0.6) !important;
+    border: 1px solid rgba(226, 232, 240, 0.7) !important;
     background: #ffffff !important;
 }
 
@@ -3810,11 +3827,24 @@ body.dark-theme .goal-card,
 body.dark-theme .cdi-yield-card-mobile,
 body.dark-theme .temporal-control-mobile {
     background: #171f2e !important;
-    border-color: rgba(51, 65, 85, 0.6) !important;
+    border-color: rgba(51, 65, 85, 0.7) !important;
 }
 
+body.dark-theme .goal-card div[style*="background:var(--color-bg"],
+body.dark-theme .goal-card div[style*="background: var(--color-bg"],
+body.dark-theme .goal-card div[style*="#f8fafc"],
 body.dark-theme .cdi-yield-card-mobile div[style*="background:var(--color-bg"],
-body.dark-theme .cdi-yield-card-mobile div[style*="background: var(--color-bg"] {
-    background: rgba(30, 41, 59, 0.5) !important;
-    border-color: rgba(51, 65, 85, 0.5) !important;
+body.dark-theme .cdi-yield-card-mobile div[style*="background: var(--color-bg"],
+body.dark-theme .cdi-yield-card-mobile div[style*="#f8fafc"],
+body.dark-theme .cdi-yield-card-mobile .cdi-sub-box,
+body.dark-theme .temporal-control-mobile .year-stepper,
+body.dark-theme .temporal-control-mobile .view-mode-toggle {
+    background: #1e293b !important;
+    border-color: rgba(51, 65, 85, 0.7) !important;
+}
+
+body.dark-theme .btn-goal-icon {
+    background: #1e293b !important;
+    border-color: rgba(51, 65, 85, 0.7) !important;
+    color: #94a3b8 !important;
 }
