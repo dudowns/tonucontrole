@@ -23,7 +23,14 @@
     <link rel="stylesheet" href="../../css/notifications.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <style>
-        body { background: var(--color-bg, #f8fafc); }
+        html, body {
+            overflow-x: hidden !important;
+            max-width: 100vw;
+        }
+        body { 
+            background: #ffffff !important; 
+            overflow-x: hidden !important;
+        }
 
         /* HERO STATS */
         .goals-hero-grid {
@@ -136,15 +143,15 @@
 
         /* CARD DA META */
         .goal-card {
-            background: var(--color-surface, #ffffff);
+            background: #ffffff !important;
             border-radius: 18px;
             padding: 16px 16px;
             border: 1px solid var(--color-border, #e2e8f0);
-            margin-bottom: 14px;
+            margin: 0 16px 12px 16px !important;
             box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
             border-left: 5px solid #6C5CE7;
             transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-            box-sizing: border-box;
+            box-sizing: border-box !important;
         }
         .goal-card:active {
             transform: scale(0.985);
@@ -1568,6 +1575,176 @@ async function getLatestPortfolioValueMobile(options = {}) {
 
     const uid = currentUser?.id || 'demo';
 
+    // 1. TENTA PRIMEIRO: Leitura de dados ao vivo de investimentos (mesmo motor de Carteira/Custódia)
+    try {
+        let invList = [];
+        let corpList = [];
+
+        // Verifica cache de investimentos do tonuSync ou localStorage
+        if (window.tonuSync && currentUser?.id) {
+            try {
+                invList = await window.tonuSync.getCachedInvestments(currentUser.id);
+                corpList = await window.tonuSync.getCachedCorporateEvents(currentUser.id);
+            } catch (_) {}
+        }
+
+        // Se offline/não sincronizado, busca também no Supabase se online
+        if ((!invList || invList.length === 0) && navigator.onLine && window.supabaseClient && currentUser?.id) {
+            try {
+                const { data: invData } = await window.supabaseClient
+                    .from("investments")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .order("date", { ascending: true });
+                if (invData && invData.length > 0) {
+                    invList = invData;
+                    if (window.tonuSync) {
+                        window.tonuSync.setCachedInvestments(currentUser.id, invList).catch(() => {});
+                    }
+                }
+
+                const { data: corpData } = await window.supabaseClient
+                    .from("corporate_events")
+                    .select("*")
+                    .eq("user_id", currentUser.id);
+                if (corpData && corpData.length > 0) corpList = corpData;
+            } catch (_) {}
+        }
+
+        // Se temos lista de investimentos, calcula a custódia exata usando o motor oficial
+        if (Array.isArray(invList) && invList.length > 0) {
+            // Carrega cotações mais recentes do cache local (BRAPI)
+            let quoteMap = new Map();
+            try {
+                const rawQ = localStorage.getItem('tonu_quotes_cache');
+                if (rawQ) {
+                    const parsedQ = JSON.parse(rawQ);
+                    if (parsedQ && parsedQ.quotes) {
+                        for (const [tk, val] of Object.entries(parsedQ.quotes)) {
+                            quoteMap.set(tk.toUpperCase().trim(), val);
+                        }
+                    }
+                }
+            } catch (_) {}
+
+            // Normaliza transações e eventos corporativos
+            const normalizedTx = invList.map(t => ({
+                ...t,
+                isCorporateEvent: false,
+                sortDate: t.date || '1970-01-01',
+                sortPriority: (t.type || '').toLowerCase().includes('compra') ? 1 : 2
+            }));
+
+            const normalizedEvents = (corpList || []).map(ev => ({
+                ...ev,
+                isCorporateEvent: true,
+                sortDate: ev.event_date || ev.date || '1970-01-01',
+                sortPriority: 0
+            }));
+
+            const timeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
+                const da = new Date(a.sortDate + 'T12:00:00').getTime();
+                const db = new Date(b.sortDate + 'T12:00:00').getTime();
+                if (da !== db) return da - db;
+                if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+                return (a.created_at || '').localeCompare(b.created_at || '');
+            });
+
+            const posMap = new Map();
+            timeline.forEach(item => {
+                const ticker = (item.ticker || '').toUpperCase().trim();
+                if (!ticker) return;
+                const cleanTk = ticker.replace(/\.SA$/, '').replace(/F$/, '');
+                if (!posMap.has(cleanTk)) {
+                    posMap.set(cleanTk, { quantity: 0, costBasis: 0, averageCost: 0 });
+                }
+                const pos = posMap.get(cleanTk);
+
+                if (item.isCorporateEvent) {
+                    const evType = (item.event_type || item.type || '').trim();
+                    if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+                        const rf = parseFloat(item.ratio_from) || 1;
+                        const rt = parseFloat(item.ratio_to) || 1;
+                        if (rf > 0 && rt > 0 && pos.quantity > 0) {
+                            pos.quantity = pos.quantity * (rt / rf);
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+                        const bShares = parseFloat(item.bonus_shares || item.quantity || 0);
+                        const bCost = parseFloat(item.unit_cost || item.unit_price || 0);
+                        if (bShares > 0) {
+                            pos.quantity += bShares;
+                            pos.costBasis += (bShares * bCost);
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    } else if (evType === 'Amortização') {
+                        const amort = parseFloat(item.amortization_per_share || item.unit_value || 0);
+                        if (amort > 0 && pos.quantity > 0) {
+                            pos.costBasis = Math.max(0, pos.costBasis - (amort * pos.quantity));
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    }
+                    return;
+                }
+
+                const qty = parseFloat(item.quantity) || 0;
+                const total = parseFloat(item.total_value || item.amount || (qty * (parseFloat(item.unit_price) || 0))) || 0;
+                const type = (item.type || '').toLowerCase();
+
+                if (type.includes('compra') || type.includes('buy')) {
+                    pos.costBasis += total;
+                    pos.quantity += qty;
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                } else if (type.includes('venda') || type.includes('sell')) {
+                    const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                    const costOfSold = avg * qty;
+                    pos.costBasis = Math.max(0, pos.costBasis - costOfSold);
+                    pos.quantity = Math.max(0, pos.quantity - qty);
+                    if (pos.quantity <= 0.0001) {
+                        pos.quantity = 0;
+                        pos.costBasis = 0;
+                        pos.averageCost = 0;
+                    } else {
+                        pos.averageCost = pos.costBasis / pos.quantity;
+                    }
+                }
+            });
+
+            let computedPatrimonio = 0;
+            let computedInvestido = 0;
+            for (const [tk, p] of posMap.entries()) {
+                if (p.quantity > 0.0001) {
+                    computedInvestido += (p.costBasis || 0);
+                    const qData = quoteMap.get(tk) || quoteMap.get(`${tk}.SA`);
+                    const quotePrice = (qData && Number.isFinite(qData.price) && qData.price > 0) ? qData.price : p.averageCost;
+                    const val = p.quantity * quotePrice;
+                    computedPatrimonio += (val > 0 ? val : (p.costBasis || 0));
+                }
+            }
+
+            if (computedPatrimonio > 0) {
+                cachedTotalEquityMobile = Math.round(computedPatrimonio * 100) / 100;
+                cachedTotalInvestedMobile = Math.round(computedInvestido * 100) / 100;
+                cachedEquityGainMobile = Math.round((cachedTotalEquityMobile - cachedTotalInvestedMobile) * 100) / 100;
+                cachedEquityReturnPctMobile = cachedTotalInvestedMobile > 0 ? (cachedEquityGainMobile / cachedTotalInvestedMobile) * 100 : 0;
+                cachedTotalEquityUpdatedAtMobile = new Date().toISOString();
+                isEquityLoadedMobile = true;
+                try {
+                    localStorage.setItem('tonu_total_equity_' + uid, String(cachedTotalEquityMobile));
+                    localStorage.setItem('tonu_total_invested_' + uid, String(cachedTotalInvestedMobile));
+                    localStorage.setItem('tonu_unrealized_gain_' + uid, String(cachedEquityGainMobile));
+                    localStorage.setItem('tonu_return_pct_' + uid, String(cachedEquityReturnPctMobile));
+                    localStorage.setItem('tonu_total_equity_updated_at_' + uid, cachedTotalEquityUpdatedAtMobile);
+                } catch (_) {}
+                checkMobileWealthGoalsCompletion();
+                return cachedTotalEquityMobile;
+            }
+        }
+    } catch (calcErr) {
+        console.warn('⚠️ Falha ao recalcular custódia direta em metas mobile:', calcErr);
+    }
+
+    // 2. TENTA SNAPSHOTS DO SUPABASE (se houver snapshot mais recente com valor válido)
     try {
         if (window.supabaseClient && currentUser?.id) {
             const { data } = await window.supabaseClient
@@ -1596,6 +1773,7 @@ async function getLatestPortfolioValueMobile(options = {}) {
         }
     } catch (_) {}
 
+    // 3. FALLBACK: user_stats
     try {
         if (window.supabaseClient && currentUser?.id) {
             const { data: uStat } = await window.supabaseClient
@@ -1614,6 +1792,7 @@ async function getLatestPortfolioValueMobile(options = {}) {
         }
     } catch (_) {}
 
+    // 4. FALLBACK: LocalStorage Cache
     try {
         const cached = localStorage.getItem('tonu_total_equity_' + uid) || 
                        localStorage.getItem('tonu_portfolio_equity_' + uid) ||
@@ -1643,6 +1822,8 @@ window.getLatestPortfolioValueMobile = getLatestPortfolioValueMobile;
 
 async function refreshMobilePortfolioValue() {
     showToast('Atualizando patrimônio em custódia...', 'info');
+    isEquityLoadedMobile = false;
+    cachedTotalEquityMobile = 0;
     await getLatestPortfolioValueMobile({ forceRefresh: true });
     updateHeroStats();
     renderGoals();

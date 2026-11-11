@@ -8,9 +8,13 @@
     box-sizing: border-box;
 }
 
+html, body {
+    overflow-x: hidden !important;
+    max-width: 100vw;
+}
+
 body {
     padding-bottom: 0 !important;
-    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background: var(--color-bg, #f4f6fb);
@@ -50,21 +54,21 @@ body.dark-theme {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
 }
 
 .mobile-topbar .topbar-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     min-width: 0;
-    flex: 1;
+    flex-shrink: 0;
 }
 
 .mobile-topbar .topbar-left .app-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 11px;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
     overflow: hidden;
     background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     border: 1px solid rgba(108, 92, 231, 0.22);
@@ -88,16 +92,15 @@ body.dark-theme {
 }
 
 .mobile-topbar .topbar-left h1 {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 800;
     color: #0f172a !important;
     margin: 0;
-    letter-spacing: -0.4px;
+    letter-spacing: -0.3px;
     line-height: 1.2;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     padding: 2px 0;
+    flex-shrink: 0;
 }
 
 .mobile-topbar .topbar-left h1 span {
@@ -109,7 +112,7 @@ body.dark-theme {
 .mobile-topbar .topbar-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
     position: relative;
     flex-shrink: 0;
 }
@@ -119,13 +122,13 @@ body.dark-theme {
     background: rgba(248, 250, 252, 0.95) !important;
     border: 1px solid rgba(226, 232, 240, 0.9) !important;
     color: #334155 !important;
-    width: 38px;
-    height: 38px;
-    min-width: 38px;
-    min-height: 38px;
-    border-radius: 12px;
+    width: 33px;
+    height: 33px;
+    min-width: 33px;
+    min-height: 33px;
+    border-radius: 10px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     display: flex;
@@ -138,7 +141,7 @@ body.dark-theme {
 .mobile-topbar .topbar-actions button i,
 .mobile-topbar .topbar-actions .topbar-btn i {
     color: #334155 !important;
-    font-size: 15px;
+    font-size: 13.5px;
     transition: transform 0.18s ease, color 0.18s ease;
 }
 
@@ -156,14 +159,14 @@ body.dark-theme {
 /* AVATAR PRINCIPAL NO HEADER MOBILE (ROXO COM LETRA "U" OU FOTO + SYNC BADGE) */
 .mobile-topbar-avatar,
 .topbar-avatar-btn {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    min-height: 36px !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
     border-radius: 50% !important;
     background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%) !important;
     color: #ffffff !important;
-    font-size: 13px !important;
+    font-size: 12px !important;
     font-weight: 700 !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -3821,9 +3824,10 @@ body.dark-theme .mobile-empty-friendly p {
     border-radius: 16px !important;
     padding: 14px 15px !important;
     border: 1px solid rgba(226, 232, 240, 0.7) !important;
-    margin-bottom: 12px !important;
+    margin: 0 16px 12px 16px !important;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02) !important;
     border-left: 3px solid #6C5CE7 !important;
+    box-sizing: border-box !important;
 }
 
 .goal-card.completed {
