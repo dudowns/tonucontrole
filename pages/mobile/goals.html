@@ -1858,6 +1858,41 @@ if (document.readyState === 'loading') {
     initMobileGoalsPage();
 }
 
+// Sincronização automática de patrimônio ao retornar à tela (visibilidade, foco ou evento de custódia)
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && currentUser) {
+        getLatestPortfolioValueMobile({ forceRefresh: true }).then(() => {
+            updateHeroStats();
+            renderGoals();
+        }).catch(() => {});
+    }
+});
+
+window.addEventListener("focus", () => {
+    if (currentUser) {
+        getLatestPortfolioValueMobile({ forceRefresh: true }).then(() => {
+            updateHeroStats();
+            renderGoals();
+        }).catch(() => {});
+    }
+});
+
+window.addEventListener("storage", (e) => {
+    if (e.key && (e.key.includes("tonu_total_equity") || e.key.includes("tonu_investments"))) {
+        getLatestPortfolioValueMobile({ forceRefresh: true }).then(() => {
+            updateHeroStats();
+            renderGoals();
+        }).catch(() => {});
+    }
+});
+
+window.addEventListener("tonu_portfolio_updated", () => {
+    getLatestPortfolioValueMobile({ forceRefresh: true }).then(() => {
+        updateHeroStats();
+        renderGoals();
+    }).catch(() => {});
+});
+
 // ============================================
 // CARREGAR METAS DO SUPABASE OU CACHE LOCAL
 // ============================================

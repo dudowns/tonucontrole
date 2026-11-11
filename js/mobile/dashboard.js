@@ -884,13 +884,17 @@ function renderMobileChart() {
             <div class="mobile-chart-categories">
                 ${sorted.map(item => {
                     const pct = totalExpensesAmount > 0 ? Math.round((item.amount / totalExpensesAmount) * 100) : 0;
+                    const rawNameStr = String(item.name || '');
+                    // Remove leading emoji or unicode symbols so only clean text remains beside FontAwesome icon
+                    const cleanedName = rawNameStr.replace(/^[\p{Emoji}\uFE0F\s\u200D\u2600-\u27BF]+/gu, '').trim() || rawNameStr;
+                    const safeName = typeof sanitizeString === 'function' ? sanitizeString(cleanedName) : cleanedName;
                     return `
                         <div class="mobile-cat-row">
                             <div class="cat-row-top">
                                 <span class="cat-row-name">
                                     <span class="cat-dot" style="background:${item.color};"></span>
                                     <i class="fas ${item.icon}" style="color:${item.color}; font-size:11px; margin-right:2px;"></i>
-                                    ${typeof sanitizeString === 'function' ? sanitizeString(item.name || '') : (item.name || '')}
+                                    ${safeName}
                                 </span>
                                 <span class="cat-row-amount">
                                     <strong>${formatCurrency(item.amount)}</strong>

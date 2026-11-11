@@ -724,10 +724,10 @@
         <form id="opForm" onsubmit="handleOpSubmit(event)">
             <input type="hidden" id="opEditId" value="">
             <div class="type-toggle-group">
-                <button type="button" class="type-toggle-btn active expense" id="toggleOpBuy" onclick="setOpType('Compra')">
+                <button type="button" class="type-toggle-btn active buy" id="toggleOpBuy" onclick="setOpType('Compra')">
                     <i class="fas fa-arrow-up"></i> Compra
                 </button>
-                <button type="button" class="type-toggle-btn income" id="toggleOpSell" onclick="setOpType('Venda')">
+                <button type="button" class="type-toggle-btn sell" id="toggleOpSell" onclick="setOpType('Venda')">
                     <i class="fas fa-arrow-down"></i> Venda
                 </button>
             </div>
@@ -1865,6 +1865,16 @@ async function updateMobileAchievementCard(totalCurrentEquity, totalInvested) {
 
         let pastSnapshots = [];
         let proventos90Dias = 0;
+
+        if (totalCurrentEquity > 0) {
+            const uid = currentUser?.id || 'demo';
+            try {
+                localStorage.setItem('tonu_total_equity_' + uid, String(Math.round(totalCurrentEquity * 100) / 100));
+                localStorage.setItem('tonu_total_invested_' + uid, String(Math.round((totalInvested || 0) * 100) / 100));
+                localStorage.setItem('tonu_total_equity_updated_at_' + uid, new Date().toISOString());
+                window.dispatchEvent(new CustomEvent('tonu_portfolio_updated', { detail: { totalCurrentEquity, totalInvested } }));
+            } catch (_) {}
+        }
 
         if (window.supabaseClient && currentUser?.id) {
             try {

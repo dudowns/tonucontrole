@@ -1272,12 +1272,14 @@ body.dark-theme .mobile-tabs {
     touch-action: manipulation;
 }
 
-.type-toggle-btn.active.expense {
+.type-toggle-btn.active.expense,
+.type-toggle-btn.active.sell {
     background: #FF7675;
     color: white;
 }
 
-.type-toggle-btn.active.income {
+.type-toggle-btn.active.income,
+.type-toggle-btn.active.buy {
     background: #00B894;
     color: white;
 }
