@@ -885,15 +885,15 @@ function renderMobileChart() {
                 ${sorted.map(item => {
                     const pct = totalExpensesAmount > 0 ? Math.round((item.amount / totalExpensesAmount) * 100) : 0;
                     const rawNameStr = String(item.name || '');
-                    // Remove leading emoji or unicode symbols so only clean text remains beside FontAwesome icon
-                    const cleanedName = rawNameStr.replace(/^[\p{Emoji}\uFE0F\s\u200D\u2600-\u27BF]+/gu, '').trim() || rawNameStr;
+                    // Remove all emoji characters so only the clean text remains beside FontAwesome icon
+                    const cleanedName = rawNameStr.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim() || rawNameStr;
                     const safeName = typeof sanitizeString === 'function' ? sanitizeString(cleanedName) : cleanedName;
+                    const hasIcon = !!item.icon;
                     return `
                         <div class="mobile-cat-row">
                             <div class="cat-row-top">
                                 <span class="cat-row-name">
-                                    <span class="cat-dot" style="background:${item.color};"></span>
-                                    <i class="fas ${item.icon}" style="color:${item.color}; font-size:11px; margin-right:2px;"></i>
+                                    ${hasIcon ? `<i class="fas ${item.icon}" style="color:${item.color}; font-size:12px; width:14px; text-align:center; margin-right:4px;"></i>` : `<span class="cat-dot" style="background:${item.color};"></span>`}
                                     ${safeName}
                                 </span>
                                 <span class="cat-row-amount">
@@ -926,7 +926,7 @@ function renderMobileChart() {
                     </button>
                 </div>
             </div>
-            <div class="mobile-chart-container" style="position:relative; height: 190px;">
+            <div class="mobile-chart-container" style="position:relative; height: 215px; margin-bottom: 8px;">
                 <canvas id="mobileChartCanvas"></canvas>
                 ${currentChartMode === 'categories' && sorted.length > 0 ? `
                     <div class="chart-center-total">
@@ -961,7 +961,10 @@ function renderMobileChart() {
         mobileChartInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: sorted.map(s => s.name),
+                labels: sorted.map(s => {
+                    const rName = String(s.name || '');
+                    return rName.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim() || rName;
+                }),
                 datasets: [{
                     data: sorted.map(s => s.amount),
                     backgroundColor: sorted.map(s => s.color),

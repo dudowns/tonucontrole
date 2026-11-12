@@ -89,8 +89,21 @@
                 <i class="fas fa-bell"></i>
                 <span class="notif-badge hidden" id="notifBadgeCount">0</span>
             </button>
-            <button class="topbar-btn" onclick="window.exportTransactionsCSV && window.exportTransactionsCSV()" title="Exportar CSV" aria-label="Exportar CSV"><i class="fas fa-file-export"></i></button>
-            <button class="topbar-btn" onclick="window.tonuSync && window.tonuSync.syncPendingData ? window.tonuSync.syncPendingData() : location.reload()" title="Sincronizar" aria-label="Sincronizar"><i class="fas fa-sync-alt"></i></button>
+            <div style="position: relative; display: inline-flex;">
+                <button class="topbar-btn" id="moreActionsBtn" onclick="toggleMoreActionsDropdown(event)" title="Mais opções" aria-label="Mais opções">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div class="mobile-more-dropdown hidden" id="moreActionsDropdown">
+                    <button type="button" class="more-menu-item" onclick="closeMoreActions(); window.exportTransactionsCSV && window.exportTransactionsCSV();">
+                        <i class="fas fa-file-export"></i>
+                        <span>Exportar CSV</span>
+                    </button>
+                    <button type="button" class="more-menu-item" onclick="closeMoreActions(); window.tonuSync && window.tonuSync.syncPendingData ? window.tonuSync.syncPendingData() : location.reload();">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Sincronizar</span>
+                    </button>
+                </div>
+            </div>
             <a href="settings.html" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
                 <span id="topbarAvatar">U</span>
             </a>
@@ -718,6 +731,10 @@ function renderTransactions() {
                 badge += `<span class="badge-mobile pending">Pendente</span>`;
             }
 
+            const rawCatName = cat?.name || t.category || 'Geral';
+            // Remove duplicate emoji from category label since FontAwesome icon is already displayed in the squircle
+            const cleanCatName = rawCatName.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim() || rawCatName;
+
             const rawDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
             const safeDesc = typeof sanitizeString === 'function' ? sanitizeString(rawDesc) : rawDesc;
             const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
@@ -744,7 +761,7 @@ function renderTransactions() {
 
                         <!-- Meio: Tags e pílulas em linha própria com flex-wrap -->
                         <div class="clean-card-middle">
-                            <span class="clean-tag category">${cat?.name || 'Geral'}</span>
+                            <span class="clean-tag category">${cleanCatName}</span>
                             ${badge}
                             ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
                         </div>
@@ -1112,6 +1129,43 @@ function exportTransactionsCSV() {
     showToast('Transações exportadas com sucesso! 📄', 'success');
 }
 window.exportTransactionsCSV = exportTransactionsCSV;
+
+function toggleMoreActionsDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const drop = document.getElementById("moreActionsDropdown");
+    if (!drop) return;
+    const isHidden = drop.classList.contains("hidden");
+    const notifDrop = document.getElementById("notifDropdown");
+    if (notifDrop && !notifDrop.classList.contains("hidden")) {
+        notifDrop.classList.add("hidden");
+    }
+    if (isHidden) {
+        drop.classList.remove("hidden");
+    } else {
+        drop.classList.add("hidden");
+    }
+}
+
+function closeMoreActions() {
+    const drop = document.getElementById("moreActionsDropdown");
+    if (drop) drop.classList.add("hidden");
+}
+
+window.toggleMoreActionsDropdown = toggleMoreActionsDropdown;
+window.closeMoreActions = closeMoreActions;
+
+document.addEventListener("click", (e) => {
+    const drop = document.getElementById("moreActionsDropdown");
+    const btn = document.getElementById("moreActionsBtn");
+    if (drop && !drop.classList.contains("hidden")) {
+        if (!drop.contains(e.target) && !btn?.contains(e.target)) {
+            drop.classList.add("hidden");
+        }
+    }
+});
 
 function toggleTheme() {
     if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {

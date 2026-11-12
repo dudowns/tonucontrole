@@ -24,7 +24,7 @@
     <style>
         body { background: var(--color-bg, #f8fafc); }
         .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.2s ease; }
+        .tab-content.active { display: block; animation: fadeIn 0.2s ease; padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
         /* HERO RESUMO DE CARTEIRA */

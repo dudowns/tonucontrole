@@ -144,14 +144,16 @@
         /* CARD DA META */
         .goal-card {
             background: #ffffff !important;
-            border-radius: 18px;
-            padding: 16px 16px;
+            border-radius: 16px;
+            padding: 16px 16px !important;
             border: 1px solid var(--color-border, #e2e8f0);
             margin: 0 16px 12px 16px !important;
             box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
-            border-left: 5px solid #6C5CE7;
+            border-left: 4px solid #6C5CE7;
             transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
             box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: column !important;
         }
         .goal-card:active {
             transform: scale(0.985);
@@ -161,15 +163,18 @@
             opacity: 0.98;
         }
         .goal-card-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 10px;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            margin-bottom: 12px !important;
+            width: 100% !important;
         }
         .goal-title-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            min-width: 0 !important;
+            flex: 1 !important;
         }
         .goal-category-icon {
             width: 38px;
@@ -188,7 +193,11 @@
             font-weight: 700;
             color: var(--color-text, #0f172a);
             margin: 0;
+            line-height: 1.25;
             letter-spacing: -0.2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .goal-title-group small {
             font-size: 11px;
@@ -214,7 +223,7 @@
             color: #00B894;
         }
 
-        /* VALORES E PROGRESSO */
+        /* VALORES E PROGRESSO - LINHA CONTÍNUA SEM SLIDER */
         .goal-values-row {
             display: flex;
             justify-content: space-between;
@@ -232,16 +241,27 @@
             color: var(--color-text-muted, #64748b);
         }
         .goal-progress-bar {
-            height: 8px;
-            background: var(--color-border, #e2e8f0);
-            border-radius: 999px;
-            overflow: hidden;
-            position: relative;
+            height: 6px !important;
+            background: var(--color-bg, #f1f5f9) !important;
+            border-radius: 3px !important;
+            overflow: hidden !important;
+            position: relative !important;
+            border: none !important;
+            box-shadow: none !important;
+            margin: 8px 0 !important;
         }
         .goal-progress-fill {
-            height: 100%;
-            border-radius: 999px;
+            height: 100% !important;
+            border-radius: 3px !important;
+            box-shadow: none !important;
             transition: width 0.4s ease;
+        }
+        .goal-progress-bar::before,
+        .goal-progress-bar::after,
+        .goal-progress-fill::before,
+        .goal-progress-fill::after {
+            display: none !important;
+            content: none !important;
         }
         .goal-footer-info {
             display: flex;
@@ -462,16 +482,34 @@
         }
 
         .auto-sync-tag-mobile {
-            font-size: 10px;
-            color: #00B894;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            background: rgba(0, 184, 148, 0.1);
-            padding: 3px 8px;
-            border-radius: 999px;
-            font-weight: 700;
-            margin-top: 6px;
+            font-size: 11px !important;
+            color: #6C5CE7 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 6px !important;
+            background: rgba(108, 92, 231, 0.05) !important;
+            border: 1px solid rgba(108, 92, 231, 0.12) !important;
+            padding: 5px 10px !important;
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            margin-top: 8px !important;
+        }
+        .auto-sync-tag-mobile button {
+            background: none !important;
+            border: none !important;
+            color: #6C5CE7 !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            cursor: pointer !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            padding: 2px 4px !important;
+            transition: opacity 0.15s ease;
+        }
+        .auto-sync-tag-mobile button:active {
+            opacity: 0.7;
         }
 
         .btn-postpone-mobile {
@@ -2323,10 +2361,10 @@ function renderGoals() {
                         ${consistencyText}
                     </div>
 
-                    <div class="auto-sync-tag-mobile" style="color:#047857; background:rgba(16,185,129,0.1); display:flex; justify-content:space-between; align-items:center;">
-                        <span><i class="fas fa-wallet"></i> Proventos da Carteira</span>
-                        <button type="button" onclick="refreshMobileDividends()" style="background:none; border:none; color:#047857; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; padding:2px 4px;">
-                            <i class="fas fa-redo-alt"></i> Atualizar
+                    <div class="auto-sync-tag-mobile" style="color:#6C5CE7; background:rgba(108,92,231,0.05); border:1px solid rgba(108,92,231,0.12); border-radius:8px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                        <span><i class="fas fa-wallet" style="color:#6C5CE7;"></i> Proventos da Carteira</span>
+                        <button type="button" onclick="refreshMobileDividends()" style="background:none; border:none; color:#6C5CE7; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; padding:2px 4px;">
+                            <i class="fas fa-redo-alt" style="color:#6C5CE7;"></i> Atualizar
                         </button>
                     </div>
 
@@ -2398,10 +2436,10 @@ function renderGoals() {
                         <div class="goal-progress-fill" style="width: ${isEquityLoadedMobile ? percent : 0}%; background: #8B5CF6;"></div>
                     </div>
 
-                    <div class="auto-sync-tag-mobile" style="color:#8B5CF6; background:rgba(139,92,246,0.1); display:flex; justify-content:space-between; align-items:center;">
-                        <span><i class="fas fa-sync-alt"></i> Custódia • ${formattedTime}</span>
-                        <button type="button" onclick="refreshMobilePortfolioValue()" style="background:none; border:none; color:#8B5CF6; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; padding:2px 4px;">
-                            <i class="fas fa-redo-alt"></i> Atualizar
+                    <div class="auto-sync-tag-mobile" style="color:#6C5CE7; background:rgba(108,92,231,0.05); border:1px solid rgba(108,92,231,0.12); border-radius:8px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                        <span><i class="fas fa-sync-alt" style="color:#6C5CE7;"></i> Custódia • ${formattedTime}</span>
+                        <button type="button" onclick="refreshMobilePortfolioValue()" style="background:none; border:none; color:#6C5CE7; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; padding:2px 4px;">
+                            <i class="fas fa-redo-alt" style="color:#6C5CE7;"></i> Atualizar
                         </button>
                     </div>
 

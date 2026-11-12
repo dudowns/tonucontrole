@@ -124,6 +124,7 @@
             transition: background 0.15s ease;
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
+            gap: 12px;
         }
 
         .settings-item:not(:last-child)::after {
@@ -144,6 +145,13 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .settings-item .left > div:last-child {
+            min-width: 0;
+            flex: 1;
         }
 
         .item-icon-box {
@@ -196,6 +204,16 @@
             gap: 8px;
             color: var(--color-text-muted, #94a3b8);
             font-size: 12px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .settings-item .right span,
+        #bottomNavLabelsStatus {
+            white-space: nowrap;
+            display: inline-block;
         }
 
         .version-info {
