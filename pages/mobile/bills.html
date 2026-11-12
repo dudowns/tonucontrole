@@ -494,9 +494,9 @@
     <!-- HERO CARD CONTAS A PAGAR (DNA DASHBOARD) -->
     <div class="mobile-hero-card" id="billsHeroCard" style="margin: 0 14px 14px 14px;">
         <div class="hero-top">
-            <span class="hero-label"><i class="fas fa-file-invoice-dollar"></i> Total a Pagar (Pendentes)</span>
-            <span class="badge-mobile" id="statTotalMonthBadge" style="background: rgba(255,255,255,0.2); color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px;">
-                Total Mês: R$ 0,00
+            <span class="hero-label"><i class="fas fa-file-invoice-dollar"></i> Total a Pagar</span>
+            <span class="badge-mobile" id="statMonthRefBadge" style="background: rgba(255,255,255,0.2); color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px;">
+                Carregando...
             </span>
         </div>
         <div class="hero-value" id="statTotal">R$ 0,00</div>
@@ -510,12 +510,9 @@
                 <span class="hero-stat-val income" id="statPaid">R$ 0,00</span>
             </div>
             <div class="hero-stat">
-                <span class="hero-stat-label"><i class="fas fa-receipt" style="color: #e0e7ff;"></i> Total Geral</span>
-                <span class="hero-stat-val" id="statTotalMonth" style="color: #ffffff;">R$ 0,00</span>
+                <span class="hero-stat-label"><i class="fas fa-exclamation-triangle" style="color: #fca5a5;"></i> Atrasadas</span>
+                <span class="hero-stat-val expense" id="statOverdue">R$ 0,00</span>
             </div>
-        </div>
-        <div id="statOverdueBanner" style="display:none; margin-top:8px; padding:4px 8px; background:rgba(239,68,68,0.25); border-radius:8px; font-size:10.5px; color:#fecaca; text-align:center; font-weight:600;">
-            <i class="fas fa-exclamation-triangle"></i> Atenção: <span id="statOverdue">R$ 0,00</span> em atraso
         </div>
     </div>
 
@@ -791,7 +788,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function updateMonthLabel() {
-    document.getElementById("monthTitle").textContent = `${MONTHS[currentMonth]} ${currentYear}`;
+    const monthName = MONTHS[currentMonth];
+    document.getElementById("monthTitle").textContent = `${monthName} ${currentYear}`;
+    const badge = document.getElementById("statMonthRefBadge");
+    if (badge) badge.textContent = `${monthName}/${currentYear}`;
 }
 
 function changeMonth(delta) {
@@ -919,9 +919,8 @@ function updateStats() {
     });
 
     const normalPending = Math.max(0, pending - overdue);
-    const totalMonth = paid + pending;
 
-    // Total a pagar é estritamente a soma das contas pendentes/não pagas do mês
+    // Total a pagar é estritamente a soma das contas pendentes/a vencer do mês
     const statTotalEl = document.getElementById("statTotal");
     if (statTotalEl) statTotalEl.textContent = formatCurrency(pending);
 
@@ -934,15 +933,9 @@ function updateStats() {
     const statOverdueEl = document.getElementById("statOverdue");
     if (statOverdueEl) statOverdueEl.textContent = formatCurrency(overdue);
 
-    const statTotalMonthEl = document.getElementById("statTotalMonth");
-    if (statTotalMonthEl) statTotalMonthEl.textContent = formatCurrency(totalMonth);
-
-    const statTotalMonthBadge = document.getElementById("statTotalMonthBadge");
-    if (statTotalMonthBadge) statTotalMonthBadge.textContent = `Total Mês: ${formatCurrency(totalMonth)}`;
-
-    const statOverdueBanner = document.getElementById("statOverdueBanner");
-    if (statOverdueBanner) {
-        statOverdueBanner.style.display = overdue > 0 ? "block" : "none";
+    const statMonthRefBadge = document.getElementById("statMonthRefBadge");
+    if (statMonthRefBadge && typeof MONTHS !== 'undefined') {
+        statMonthRefBadge.textContent = `${MONTHS[currentMonth]}/${currentYear}`;
     }
 
     updateInstallmentsBannerMobile();
