@@ -396,7 +396,7 @@
         }
 
         const backendStyle = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
-            ? window.getBackendCategoryStyle(t.category || cat?.name, cat)
+            ? window.getBackendCategoryStyle(t.category || cat?.name || t.description, cat)
             : null;
 
         let icon = cat?.icon || backendStyle?.icon;
@@ -554,9 +554,9 @@
 
             html += `
                 <section class="tx-day-group" aria-label="${sanitize(g.dateHeader)}">
-                    <div class="tx-day-header">
-                        <span class="tx-day-label">${sanitize(g.dateHeader)}</span>
-                        <span class="tx-day-subtotal ${isDayPositive ? 'positive' : 'negative'}">${dayTotalFormatted}</span>
+                    <div class="ios-section-header">
+                        <span>${sanitize(g.dateHeader)}</span>
+                        <span class="subtotal-pill">${dayTotalFormatted}</span>
                     </div>
                     <div class="tx-day-items">
             `;
@@ -573,53 +573,46 @@
                 const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(rawDesc) : rawDesc;
                 const isAnticipation = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
 
-                let extraBadges = '';
+                let badge = '';
                 if (isAnticipation) {
-                    extraBadges += `<span class="tx-meta-badge anticipation"><i class="fas fa-bolt"></i> Antecipação</span>`;
+                    badge += `<span class="badge-mobile anticipation"><i class="fas fa-bolt"></i> Antecipação</span>`;
                 }
                 if (t.is_bill) {
-                    extraBadges += `<span class="tx-meta-badge bill">Conta</span>`;
+                    badge += `<span class="badge-mobile bill">Conta</span>`;
                 }
                 if (!isPaid) {
-                    extraBadges += `<span class="tx-meta-badge pending"><i class="fas fa-clock"></i> Pendente</span>`;
+                    badge += `<span class="badge-mobile pending">Pendente</span>`;
                 }
 
                 const cleanCatName = cleanCategoryLabel(catInfo.name);
                 const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
-                const dueNote = (t.due_date && t.due_date !== effectiveDate)
-                    ? `<span class="tx-meta-sep" aria-hidden="true">·</span><span>Venc: ${formatDateDisplay(t.due_date)}</span>`
-                    : '';
-                const statusText = isPaid ? (isIncome ? 'Recebido' : 'Pago') : 'Pendente';
                 const safeId = sanitize(String(t.id));
 
                 html += `
-                    <div class="transaction-card tx-statement-card" onclick="openModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('${safeId}');}">
-                        <div class="tx-squircle" style="background:${squircleBg}; color:${catInfo.color};" title="${sanitize(cleanCatName)}">
+                    <div class="transaction-card clean-list-card" onclick="openModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('${safeId}');}">
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catInfo.color};" title="${sanitize(cleanCatName)}">
                             <i class="fas ${catInfo.icon}" aria-hidden="true"></i>
                         </div>
-                        <div class="tx-card-body">
-                            <div class="tx-card-top">
-                                <div class="tx-card-title-row">
-                                    <span class="tx-card-title">${sanitize(displayDesc)}</span>
-                                    ${extraBadges}
-                                    ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
-                                </div>
-                                <div class="tx-card-right">
-                                    <span class="tx-card-amount ${isIncome ? 'income' : 'expense'}">
+                        <div class="clean-card-body">
+                            <div class="clean-card-top">
+                                <span class="clean-card-title">${sanitize(displayDesc)}</span>
+                                <div class="clean-card-amount-wrap">
+                                    <span class="clean-card-amount ${isIncome ? 'income' : 'expense'}">
                                         ${amountPrefix}${formatBRL(t.amount)}
                                     </span>
-                                    <button type="button" class="tx-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${safeId}')" title="Excluir transação" aria-label="Excluir transação">
+                                    <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${safeId}')" title="Excluir" aria-label="Excluir transação">
                                         <i class="fas fa-trash-alt" aria-hidden="true"></i>
                                     </button>
                                 </div>
                             </div>
-                            <div class="tx-card-meta">
-                                <span class="tx-meta-cat">${sanitize(cleanCatName)}</span>
-                                <span class="tx-meta-sep" aria-hidden="true">·</span>
-                                <span><i class="far fa-calendar-alt" aria-hidden="true"></i> ${formatDateDisplay(effectiveDate)}</span>
-                                ${dueNote}
-                                <span class="tx-meta-sep" aria-hidden="true">·</span>
-                                <span class="tx-meta-status ${isPaid ? 'paid' : 'pending'}">${statusText}</span>
+                            <div class="clean-card-middle">
+                                <span class="clean-tag category">${sanitize(cleanCatName)}</span>
+                                ${badge}
+                                ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
+                            </div>
+                            <div class="clean-card-bottom">
+                                <span><i class="far fa-calendar-alt" style="margin-right:4px;" aria-hidden="true"></i>${formatDateDisplay(effectiveDate)}</span>
+                                ${(t.due_date && t.due_date !== effectiveDate) ? `<span><i class="far fa-clock" style="margin-right:4px;" aria-hidden="true"></i>Venc: ${formatDateDisplay(t.due_date)}</span>` : ''}
                             </div>
                         </div>
                     </div>
