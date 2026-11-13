@@ -524,6 +524,60 @@
         renderBills(filtered);
     }
 
+    function getBillDateGroupHeader(dateStr) {
+        if (!dateStr || dateStr === 'sem_data') return 'Sem data';
+        const parts = String(dateStr).split('T')[0].split('-');
+        if (parts.length < 3) return dateStr;
+        const y = Number(parts[0]);
+        const m = Number(parts[1]);
+        const d = Number(parts[2]);
+        if (!y || !m || !d) return dateStr;
+
+        const today = new Date();
+        if (today.getFullYear() === y && (today.getMonth() + 1) === m && today.getDate() === d) {
+            return 'Hoje';
+        }
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (yesterday.getFullYear() === y && (yesterday.getMonth() + 1) === m && yesterday.getDate() === d) {
+            return 'Ontem';
+        }
+
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        if (tomorrow.getFullYear() === y && (tomorrow.getMonth() + 1) === m && tomorrow.getDate() === d) {
+            return 'Amanhã';
+        }
+
+        return `${String(d).padStart(2, '0')} de ${MONTH_NAMES[m - 1] || m}`;
+    }
+
+    function colorToSoftBg(colorStr) {
+        if (!colorStr) return 'rgba(108, 92, 231, 0.14)';
+        if (colorStr.startsWith('#')) {
+            let hex = colorStr.replace('#', '');
+            if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+            const num = parseInt(hex, 16);
+            if (!isNaN(num)) {
+                const r = (num >> 16) & 255;
+                const g = (num >> 8) & 255;
+                const b = num & 255;
+                return `rgba(${r}, ${g}, ${b}, 0.14)`;
+            }
+        }
+        if (colorStr.startsWith('rgb(')) {
+            return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.14)');
+        }
+        return 'rgba(108, 92, 231, 0.14)';
+    }
+
+    function cleanCategoryLabel(rawName) {
+        const str = String(rawName || 'Geral');
+        const cleaned = str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim();
+        return cleaned || str;
+    }
+
     function renderBills(bills) {
         currentFilteredBillsList = bills || [];
         const container = document.getElementById('billsContainer');
@@ -536,7 +590,7 @@
 
         if (bills.length === 0) {
             container.innerHTML = `
-                <div style="text-align:center;padding:48px 20px;">
+                <div class="card" style="text-align:center;padding:48px 20px;background:var(--color-surface,#fff);border-radius:16px;border:1px solid var(--color-border,#e2e8f0);">
                     <div style="font-size:42px;margin-bottom:12px;opacity:0.8;">📋</div>
                     <h4 style="font-size:16px;font-weight:700;margin:0 0 6px 0;color:var(--color-text,#2d3436);">Nenhuma conta encontrada</h4>
                     <p style="color:var(--color-text-muted,#94a3b8);font-size:13px;margin:0 auto 16px auto;max-width:360px;">
@@ -559,108 +613,162 @@
         };
         const todayDate = safeParseLocalDate(todayStr);
 
-        let html = '<div class="bills-list-group">';
+        // Ordena cronologicamente por data de vencimento para agrupar perfeitamente por dia
+        const sortedBills = [...bills].sort((a, b) => {
+            const dA = (a.due_date || a.date || '9999-12-31').split('T')[0];
+            const dB = (b.due_date || b.date || '9999-12-31').split('T')[0];
+            if (dA !== dB) return dA.localeCompare(dB);
+            return String(a.description || '').localeCompare(String(b.description || ''));
+        });
 
-        bills.forEach(b => {
-            const isPaid = !!b.paid;
-            const isOverdue = !isPaid && b.date && b.date < todayStr;
+        // Agrupa contas por data de vencimento com subtotal diário
+        const groups = [];
+        let currentGroup = null;
 
-            // Categoria
-            const cat = b.categories || categories.find(c => c.id === b.category_id) || {};
-            const catColor = cat.color || '#6C5CE7';
-            const catIcon = cat.icon || 'fa-file-invoice-dollar';
-            const catName = cat.name || 'Geral';
+        sortedBills.forEach(b => {
+            const dueDateVal = b.due_date || b.date || '';
+            const dateKey = dueDateVal ? String(dueDateVal).split('T')[0] : 'sem_data';
 
-            // Cálculo de urgência / dias restantes
-            let daysBadge = '';
-            if (isPaid) {
-                daysBadge = `<span class="days-left" style="color:#00B894;"><i class="fas fa-check"></i> Pago</span>`;
-            } else if (b.due_date || b.date) {
-                const dueDate = safeParseLocalDate(b.due_date || b.date);
-                const diffDays = Math.round((dueDate - todayDate) / 86400000);
-
-                if (diffDays < 0) {
-                    daysBadge = `<span class="days-left overdue"><i class="fas fa-exclamation-circle"></i> Vencida há ${Math.abs(diffDays)} dia(s)</span>`;
-                } else if (diffDays === 0) {
-                    daysBadge = `<span class="days-left urgent"><i class="fas fa-bell"></i> Vence HOJE!</span>`;
-                } else if (diffDays === 1) {
-                    daysBadge = `<span class="days-left urgent"><i class="fas fa-clock"></i> Vence amanhã</span>`;
-                } else if (diffDays <= 3) {
-                    daysBadge = `<span class="days-left" style="color:#d97706;"><i class="fas fa-clock"></i> Vence em ${diffDays} dias</span>`;
-                } else {
-                    daysBadge = `<span class="days-left" style="color:var(--color-text-muted,#94a3b8);">Vence em ${diffDays} dias</span>`;
-                }
+            if (!currentGroup || currentGroup.dateKey !== dateKey) {
+                currentGroup = {
+                    dateKey,
+                    dateHeader: getBillDateGroupHeader(dateKey),
+                    items: [],
+                    dayTotal: 0
+                };
+                groups.push(currentGroup);
             }
 
-            // Status Badge
-            let statusBadge = '';
-            if (isPaid) {
-                statusBadge = `<span class="badge badge-success">PAGA</span>`;
-            } else if (isOverdue) {
-                statusBadge = `<span class="badge badge-overdue">ATRASADA</span>`;
-            } else {
-                statusBadge = `<span class="badge badge-pending">PENDENTE</span>`;
-            }
+            currentGroup.items.push(b);
+            currentGroup.dayTotal += parseFloat(b.amount) || 0;
+        });
 
-            // Metadados de Parcelamento / Recorrência
-            const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(b) : null;
+        let html = '<div class="bills-statement-groups">';
 
-            const isSelected = selectedBillIds.has(String(b.id));
-
+        groups.forEach(g => {
             html += `
-                <div class="bill-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_item_${b.id}">
-                    <div class="bill-left" style="align-items:center;">
+                <section class="bills-day-group" aria-label="${sanitize(g.dateHeader)}">
+                    <div class="ios-section-header">
+                        <span>${sanitize(g.dateHeader)}</span>
+                        <span class="subtotal-pill">${formatCurrency(g.dayTotal)}</span>
+                    </div>
+                    <div class="bills-day-items">
+            `;
+
+            g.items.forEach(b => {
+                const isPaid = !!b.paid;
+                const dueDateVal = b.due_date || b.date;
+                const isOverdue = !isPaid && dueDateVal && dueDateVal < todayStr;
+
+                // Categoria + estilo com squircle
+                const cat = b.categories || categories.find(c => c.id === b.category_id) || {};
+                const backendCat = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
+                    ? window.getBackendCategoryStyle(b.category || cat.name || b.description, cat)
+                    : null;
+                const catColor = cat.color || backendCat?.color || '#6C5CE7';
+                let catIcon = cat.icon || backendCat?.icon || 'fa-file-invoice-dollar';
+                if (catIcon && !catIcon.startsWith('fa-')) catIcon = 'fa-' + catIcon;
+                const cleanCatName = cleanCategoryLabel(cat.name || b.category || 'Geral');
+                const squircleBg = colorToSoftBg(catColor);
+
+                // Cálculo de urgência / dias restantes
+                let daysBadge = '';
+                if (isPaid) {
+                    daysBadge = `<span class="days-left" style="color:#00B894;"><i class="fas fa-check"></i> Pago</span>`;
+                } else if (dueDateVal) {
+                    const dueDate = safeParseLocalDate(dueDateVal);
+                    const diffDays = Math.round((dueDate - todayDate) / 86400000);
+
+                    if (diffDays < 0) {
+                        daysBadge = `<span class="days-left overdue"><i class="fas fa-exclamation-circle"></i> Vencida há ${Math.abs(diffDays)} dia(s)</span>`;
+                    } else if (diffDays === 0) {
+                        daysBadge = `<span class="days-left urgent"><i class="fas fa-bell"></i> Vence HOJE!</span>`;
+                    } else if (diffDays === 1) {
+                        daysBadge = `<span class="days-left urgent"><i class="fas fa-clock"></i> Vence amanhã</span>`;
+                    } else if (diffDays <= 3) {
+                        daysBadge = `<span class="days-left" style="color:#d97706;"><i class="fas fa-clock"></i> Vence em ${diffDays} dias</span>`;
+                    } else {
+                        daysBadge = `<span class="days-left" style="color:var(--color-text-muted,#94a3b8);">Vence em ${diffDays} dias</span>`;
+                    }
+                }
+
+                // Status Pill
+                let statusBadge = '<span class="badge badge-pending">PENDENTE</span>';
+                if (isPaid) {
+                    statusBadge = '<span class="badge badge-success">PAGA</span>';
+                } else if (isOverdue) {
+                    statusBadge = '<span class="badge badge-overdue">ATRASADA</span>';
+                }
+
+                // Metadados de Parcelamento / Recorrência
+                const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(b) : null;
+                const isSelected = selectedBillIds.has(String(b.id));
+
+                html += `
+                    <div class="bill-card clean-list-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_item_${b.id}">
                         ${isSelectionMode ? `
-                            <div class="bill-select-box" style="margin-right:12px; display:flex; align-items:center;">
+                            <div class="bill-select-box" style="margin-top:6px; display:flex; align-items:center;">
                                 <input type="checkbox" class="bill-checkbox" data-id="${b.id}" ${isSelected ? 'checked' : ''} onchange="toggleSelectBill('${b.id}', this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary,#6c5ce7);">
                             </div>
                         ` : ''}
-                        <div class="bill-icon" style="background:${catColor};">
-                            <i class="fas ${catIcon}"></i>
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catColor};" title="${sanitize(cleanCatName)}">
+                            <i class="fas ${catIcon}" aria-hidden="true"></i>
                         </div>
-                        <div class="bill-info">
-                            <strong>${sanitize(b.description)}</strong>
-                            ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
-                            <small>
-                                <i class="fas fa-calendar-alt" style="margin-right:3px;"></i>${formatDate(b.due_date || b.date)} • ${sanitize(catName)}
-                                ${b.notes ? ` • <span style="font-style:italic;" title="${sanitize(b.notes)}"><i class="fas fa-info-circle"></i> ${sanitize(b.notes)}</span>` : ''}
-                            </small>
-                            <div style="margin-top:2px;">${daysBadge}</div>
+                        <div class="clean-card-body">
+                            <div class="clean-card-top">
+                                <span class="clean-card-title">${sanitize(b.description)}</span>
+                                <div class="clean-card-amount-wrap">
+                                    <span class="clean-card-amount ${isPaid ? 'income' : (isOverdue ? 'expense' : 'warning')}">
+                                        ${formatCurrency(b.amount)}
+                                    </span>
+                                    ${isPaid ? `
+                                        <button class="btn-paid" onclick="toggleBillPaid('${b.id}')" title="Conta Paga! Clique para marcar como pendente">
+                                            <i class="fas fa-check-double"></i> Paga
+                                        </button>
+                                    ` : (isOverdue ? `
+                                        <button class="btn-pay btn-pay-overdue" onclick="toggleBillPaid('${b.id}')" title="Conta Atrasada! Clique para pagar">
+                                            <i class="fas fa-check"></i> Pagar
+                                        </button>
+                                    ` : `
+                                        <button class="btn-pay btn-pay-pending" onclick="toggleBillPaid('${b.id}')" title="Clique para pagar esta conta">
+                                            <i class="fas fa-check"></i> Pagar
+                                        </button>
+                                    `)}
+                                    <div class="bill-actions">
+                                        ${(parseInt(b.installments, 10) > 1 || (b.description && /\(\d+\/\d+\)/.test(b.description))) ? `
+                                            <button class="btn-icon-sm" onclick="openAnticipationModal('${b.id}')" title="Antecipar / Quitar Parcelas Futuras">
+                                                <i class="fas fa-forward-step" style="color:#0284c7;"></i>
+                                            </button>
+                                        ` : ''}
+                                        <button class="btn-icon-sm" onclick="openBillModal('${b.id}')" title="Editar conta">
+                                            <i class="fas fa-pencil-alt" style="color:var(--color-primary,#6c5ce7);"></i>
+                                        </button>
+                                        <button class="btn-icon-sm text-danger" onclick="deleteBill('${b.id}')" title="Excluir conta">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="clean-card-middle">
+                                <span class="clean-tag category">${sanitize(cleanCatName)}</span>
+                                ${statusBadge}
+                                ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
+                            </div>
+                            <div class="clean-card-bottom">
+                                <span>
+                                    <i class="far fa-calendar-alt" style="margin-right:4px;" aria-hidden="true"></i>Venc: ${formatDate(dueDateVal)}
+                                    ${b.notes ? ` • <span style="font-style:italic;" title="${sanitize(b.notes)}"><i class="fas fa-info-circle" style="margin-right:3px;"></i>${sanitize(b.notes)}</span>` : ''}
+                                </span>
+                                ${daysBadge}
+                            </div>
                         </div>
                     </div>
+                `;
+            });
 
-                    <div class="bill-right">
-                        <div class="bill-amount ${isPaid ? 'text-success' : (isOverdue ? 'text-danger' : 'text-warning')}">
-                            ${formatCurrency(b.amount)}
-                        </div>
-                        ${isPaid ? `
-                            <button class="btn-paid" onclick="toggleBillPaid('${b.id}')" title="Conta Paga! Clique para marcar como pendente">
-                                <i class="fas fa-check-double"></i> Paga
-                            </button>
-                        ` : (isOverdue ? `
-                            <button class="btn-pay btn-pay-overdue" onclick="toggleBillPaid('${b.id}')" title="Conta Atrasada! Clique para pagar">
-                                <i class="fas fa-check"></i> Pagar
-                            </button>
-                        ` : `
-                            <button class="btn-pay btn-pay-pending" onclick="toggleBillPaid('${b.id}')" title="Clique para pagar esta conta">
-                                <i class="fas fa-check"></i> Pagar
-                            </button>
-                        `)}
-                        <div class="bill-actions">
-                            ${(parseInt(b.installments, 10) > 1 || (b.description && /\(\d+\/\d+\)/.test(b.description))) ? `
-                                <button class="btn-icon-sm" onclick="openAnticipationModal('${b.id}')" title="Antecipar / Quitar Parcelas Futuras">
-                                    <i class="fas fa-forward-step" style="color:#0284c7;"></i>
-                                </button>
-                            ` : ''}
-                            <button class="btn-icon-sm" onclick="openBillModal('${b.id}')" title="Editar conta">
-                                <i class="fas fa-pencil-alt" style="color:var(--color-primary,#6c5ce7);"></i>
-                            </button>
-                            <button class="btn-icon-sm text-danger" onclick="deleteBill('${b.id}')" title="Excluir conta">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
+            html += `
                     </div>
-                </div>
+                </section>
             `;
         });
 

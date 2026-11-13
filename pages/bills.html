@@ -26,7 +26,7 @@
 
     <link rel="stylesheet" href="../css/theme.css">
     <link rel="stylesheet" href="../css/sidebar-patch.css">
-    <link rel="stylesheet" href="../css/bills.css">
+    <link rel="stylesheet" href="../css/bills.css?v=3.0.6">
     <link rel="stylesheet" href="../css/notifications.css">
     <link rel="stylesheet" href="../css/sync.css">
     <link rel="stylesheet" href="../css/sync-status.css">
@@ -224,23 +224,21 @@
                 </div>
 
                 <!-- LISTA DE CONTAS -->
-                <div class="card" style="background:var(--color-surface,#fff); border-radius:12px; border:1px solid var(--color-border,#e2e8f0); overflow:hidden; box-shadow:var(--shadow-sm);">
-                    <div style="padding:14px 18px; border-bottom:1px solid var(--color-border,#e2e8f0); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                            <h3 style="font-size:15px; font-weight:700; margin:0; display:flex; align-items:center; gap:8px;">
-                                <i class="fas fa-list" style="color:var(--color-primary);"></i> Contas do Período
-                            </h3>
-                            <div class="status-tab-group" style="display:inline-flex; gap:4px; background:var(--color-bg,#f1f5f9); padding:3px; border-radius:8px; border:1px solid var(--color-border,#e2e8f0);">
-                                <button type="button" class="tab-status-btn active" id="tabStatusPending" data-status="pending" onclick="setStatusTab('pending')" style="border:none; background:var(--color-surface,#fff); color:var(--color-primary,#6c5ce7); font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.08); transition:all 0.2s;">Pendentes</button>
-                                <button type="button" class="tab-status-btn" id="tabStatusPaid" data-status="paid" onclick="setStatusTab('paid')" style="border:none; background:transparent; font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px; cursor:pointer; color:var(--color-text-muted,#64748b); transition:all 0.2s;">Pagas ✅</button>
-                                <button type="button" class="tab-status-btn" id="tabStatusAll" data-status="all" onclick="setStatusTab('all')" style="border:none; background:transparent; font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px; cursor:pointer; color:var(--color-text-muted,#64748b); transition:all 0.2s;">Todas</button>
-                            </div>
+                <div class="bills-list-toolbar">
+                    <div class="bills-list-toolbar-left">
+                        <h3>
+                            <i class="fas fa-list" style="color:var(--color-primary);"></i> Contas do Período
+                        </h3>
+                        <div class="status-tab-group">
+                            <button type="button" class="tab-status-btn active" id="tabStatusPending" data-status="pending" onclick="setStatusTab('pending')">Pendentes</button>
+                            <button type="button" class="tab-status-btn" id="tabStatusPaid" data-status="paid" onclick="setStatusTab('paid')">Pagas ✅</button>
+                            <button type="button" class="tab-status-btn" id="tabStatusAll" data-status="all" onclick="setStatusTab('all')">Todas</button>
                         </div>
-                        <span id="billsCountBadge" style="font-size:12px; color:var(--color-text-muted,#94a3b8);">0 registros</span>
                     </div>
-                    <div id="billsContainer" style="min-height:220px;">
-                        <div style="text-align:center;padding:40px;"><span class="spinner"></span></div>
-                    </div>
+                    <span id="billsCountBadge" style="font-size:12px; color:var(--color-text-muted,#94a3b8);">0 registros</span>
+                </div>
+                <div class="bills-statement-container" id="billsContainer" style="min-height:220px;">
+                    <div class="card" style="padding:40px; text-align:center;"><span class="spinner"></span></div>
                 </div>
             </div>
 
@@ -381,7 +379,7 @@
     <script src="../js/financial-tools.js"></script>
     <script src="../js/sync.js"></script>
     <script src="../js/notifications.js"></script>
-    <script src="../js/bills.js"></script>
+    <script src="../js/bills.js?v=3.0.6"></script>
     <script src="../js/sw-register.js"></script>
 
     <script>
