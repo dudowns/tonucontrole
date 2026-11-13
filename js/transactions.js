@@ -448,7 +448,55 @@
         return true;
     }
 
-    // Render transactions list
+    function getDateGroupHeader(dateStr) {
+        if (!dateStr || dateStr === 'sem_data') return 'Sem data';
+        const parts = String(dateStr).split('T')[0].split('-');
+        if (parts.length < 3) return dateStr;
+        const y = Number(parts[0]);
+        const m = Number(parts[1]);
+        const d = Number(parts[2]);
+        if (!y || !m || !d) return dateStr;
+
+        const today = new Date();
+        if (today.getFullYear() === y && (today.getMonth() + 1) === m && today.getDate() === d) {
+            return 'Hoje';
+        }
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (yesterday.getFullYear() === y && (yesterday.getMonth() + 1) === m && yesterday.getDate() === d) {
+            return 'Ontem';
+        }
+
+        return `${String(d).padStart(2, '0')} de ${MONTH_NAMES[m - 1] || m}`;
+    }
+
+    function colorToSoftBg(colorStr) {
+        if (!colorStr) return 'rgba(108, 92, 231, 0.14)';
+        if (colorStr.startsWith('#')) {
+            let hex = colorStr.replace('#', '');
+            if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+            const num = parseInt(hex, 16);
+            if (!isNaN(num)) {
+                const r = (num >> 16) & 255;
+                const g = (num >> 8) & 255;
+                const b = num & 255;
+                return `rgba(${r}, ${g}, ${b}, 0.14)`;
+            }
+        }
+        if (colorStr.startsWith('rgb(')) {
+            return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.14)');
+        }
+        return 'rgba(108, 92, 231, 0.14)';
+    }
+
+    function cleanCategoryLabel(rawName) {
+        const str = String(rawName || 'Geral');
+        const cleaned = str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim();
+        return cleaned || str;
+    }
+
+    // Render transactions list (grouped by day like mobile statement)
     function renderTransactions(transactions) {
         const container = document.getElementById('transactionsList') || document.getElementById('transactionsContainer');
         if (!container) return;
@@ -460,67 +508,127 @@
             const statusVal = document.getElementById('filterStatus')?.value || 'paid';
             const statusLabel = statusVal === 'paid' ? 'pagas' : (statusVal === 'pending' ? 'pendentes' : '');
             container.innerHTML = `
-                <div class="empty-state" style="text-align:center;padding:48px 16px;">
-                    <div style="font-size:48px;margin-bottom:12px;">📅</div>
-                    <h3 style="font-size:18px;font-weight:600;margin-bottom:6px;">Nenhuma transação ${statusLabel} em ${monthName} de ${yearNum}</h3>
-                    <p style="color:var(--color-text-muted,#94a3b8);font-size:14px;margin-bottom:16px;">
-                        Não foram encontradas transações ${statusLabel} para este mês ou com os filtros aplicados.
-                    </p>
-                    <button class="btn btn-primary" onclick="openModal()">
-                        <i class="fas fa-plus"></i> Nova Transação
-                    </button>
+                <div class="card">
+                    <div class="empty-state" style="text-align:center;padding:48px 16px;">
+                        <div style="font-size:48px;margin-bottom:12px;">📅</div>
+                        <h3 style="font-size:18px;font-weight:600;margin-bottom:6px;">Nenhuma transação ${statusLabel} em ${monthName} de ${yearNum}</h3>
+                        <p style="color:var(--color-text-muted,#94a3b8);font-size:14px;margin-bottom:16px;">
+                            Não foram encontradas transações ${statusLabel} para este mês ou com os filtros aplicados.
+                        </p>
+                        <button class="btn btn-primary" onclick="openModal()">
+                            <i class="fas fa-plus"></i> Nova Transação
+                        </button>
+                    </div>
                 </div>
             `;
             return;
         }
 
-        let html = '<div class="transactions-list-grid">';
+        // Agrupa transações por data (extrato diário com subtotal do dia)
+        const groups = [];
+        let currentGroup = null;
+
         transactions.forEach(t => {
-            const isIncome = t.type === 'income';
-            const catInfo = getCategoryInfo(t);
-            const typeColor = isIncome ? '#00b894' : '#ff7675';
-            const amountPrefix = isIncome ? '+ ' : '- ';
-            const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
-            const isPaid = isTransactionPaid(t);
-            const statusBadge = isPaid
-                ? `<span class="badge-paid" style="font-size:10px; padding:1px 6px; background:#e6fcf5; color:#0ca678; border-radius:4px; font-weight:600;"><i class="fas fa-check" style="font-size:9px;"></i> ${isIncome ? 'Recebido' : 'Pago'}</span>`
-                : `<span class="badge-pending" style="font-size:10px; padding:1px 6px; background:#fff3cd; color:#856404; border-radius:4px; font-weight:600;"><i class="fas fa-clock" style="font-size:9px;"></i> Pendente</span>`;
-
-            const rawDesc = t.description || 'Sem descrição';
-            const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(rawDesc) : rawDesc;
-            const isAnticipation = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
-            const antBadge = isAnticipation
-                ? `<span class="badge-anticipation" style="font-size:10px; padding:1px 6px; background:#e0f2fe; color:#0284c7; border:1px solid #bae6fd; border-radius:4px; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><i class="fas fa-bolt" style="font-size:9px;"></i> Antecipação</span>`
-                : '';
-
             const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
-            const dueNote = (t.due_date && t.due_date !== effectiveDate)
-                ? `<span style="font-size:11px; opacity:0.85;">(Venc: ${formatDateDisplay(t.due_date)})</span>`
-                : '';
+            const dateKey = effectiveDate ? String(effectiveDate).split('T')[0] : 'sem_data';
+
+            if (!currentGroup || currentGroup.dateKey !== dateKey) {
+                currentGroup = {
+                    dateKey,
+                    dateHeader: getDateGroupHeader(dateKey),
+                    items: [],
+                    dayTotal: 0
+                };
+                groups.push(currentGroup);
+            }
+
+            currentGroup.items.push(t);
+            const amt = parseFloat(t.amount) || 0;
+            currentGroup.dayTotal += (t.type === 'income' ? amt : -amt);
+        });
+
+        let html = '<div class="transactions-statement-groups">';
+        groups.forEach(g => {
+            const isDayPositive = g.dayTotal >= 0;
+            const dayTotalFormatted = (isDayPositive ? '+ ' : '- ') + formatBRL(Math.abs(g.dayTotal));
 
             html += `
-                <div class="transaction-card" onclick="openModal('${sanitize(t.id)}')">
-                    <div class="t-icon" style="background:${catInfo.color}20; color:${catInfo.color}; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:16px;" title="${sanitize(catInfo.name)}">
-                        <i class="fas ${catInfo.icon}"></i>
+                <section class="tx-day-group" aria-label="${sanitize(g.dateHeader)}">
+                    <div class="tx-day-header">
+                        <span class="tx-day-label">${sanitize(g.dateHeader)}</span>
+                        <span class="tx-day-subtotal ${isDayPositive ? 'positive' : 'negative'}">${dayTotalFormatted}</span>
                     </div>
-                    <div class="t-info" style="flex:1; min-width:0; margin-left:12px;">
-                        <div style="font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px;">
-                            <span>${sanitize(displayDesc)}</span>
-                            ${antBadge}
+                    <div class="tx-day-items">
+            `;
+
+            g.items.forEach(t => {
+                const isIncome = t.type === 'income';
+                const catInfo = getCategoryInfo(t);
+                const squircleBg = colorToSoftBg(catInfo.color);
+                const amountPrefix = isIncome ? '+ ' : '- ';
+                const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
+                const isPaid = isTransactionPaid(t);
+
+                const rawDesc = t.description || 'Sem descrição';
+                const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(rawDesc) : rawDesc;
+                const isAnticipation = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+
+                let extraBadges = '';
+                if (isAnticipation) {
+                    extraBadges += `<span class="tx-meta-badge anticipation"><i class="fas fa-bolt"></i> Antecipação</span>`;
+                }
+                if (t.is_bill) {
+                    extraBadges += `<span class="tx-meta-badge bill">Conta</span>`;
+                }
+                if (!isPaid) {
+                    extraBadges += `<span class="tx-meta-badge pending"><i class="fas fa-clock"></i> Pendente</span>`;
+                }
+
+                const cleanCatName = cleanCategoryLabel(catInfo.name);
+                const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
+                const dueNote = (t.due_date && t.due_date !== effectiveDate)
+                    ? `<span class="tx-meta-sep" aria-hidden="true">·</span><span>Venc: ${formatDateDisplay(t.due_date)}</span>`
+                    : '';
+                const statusText = isPaid ? (isIncome ? 'Recebido' : 'Pago') : 'Pendente';
+                const safeId = sanitize(String(t.id));
+
+                html += `
+                    <div class="transaction-card tx-statement-card" onclick="openModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('${safeId}');}">
+                        <div class="tx-squircle" style="background:${squircleBg}; color:${catInfo.color};" title="${sanitize(cleanCatName)}">
+                            <i class="fas ${catInfo.icon}" aria-hidden="true"></i>
                         </div>
-                        ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
-                        <div style="font-size:12px; color:var(--color-text-muted,#94a3b8); display:flex; gap:8px; align-items:center; margin-top:2px; flex-wrap:wrap;">
-                            <span>${formatDateDisplay(effectiveDate)}</span>
-                            ${dueNote}
-                            <span>•</span>
-                            <span>${sanitize(catInfo.name)}</span>
-                            ${statusBadge}
+                        <div class="tx-card-body">
+                            <div class="tx-card-top">
+                                <div class="tx-card-title-row">
+                                    <span class="tx-card-title">${sanitize(displayDesc)}</span>
+                                    ${extraBadges}
+                                    ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
+                                </div>
+                                <div class="tx-card-right">
+                                    <span class="tx-card-amount ${isIncome ? 'income' : 'expense'}">
+                                        ${amountPrefix}${formatBRL(t.amount)}
+                                    </span>
+                                    <button type="button" class="tx-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${safeId}')" title="Excluir transação" aria-label="Excluir transação">
+                                        <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="tx-card-meta">
+                                <span class="tx-meta-cat">${sanitize(cleanCatName)}</span>
+                                <span class="tx-meta-sep" aria-hidden="true">·</span>
+                                <span><i class="far fa-calendar-alt" aria-hidden="true"></i> ${formatDateDisplay(effectiveDate)}</span>
+                                ${dueNote}
+                                <span class="tx-meta-sep" aria-hidden="true">·</span>
+                                <span class="tx-meta-status ${isPaid ? 'paid' : 'pending'}">${statusText}</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="t-amount" style="font-weight:700; font-size:15px; color:${typeColor}; text-align:right; flex-shrink:0;">
-                        ${amountPrefix}${formatBRL(t.amount)}
+                `;
+            });
+
+            html += `
                     </div>
-                </div>
+                </section>
             `;
         });
         html += '</div>';
@@ -1022,8 +1130,8 @@
     }
 
     // Delete transaction com paridade inteligente de parcelas e recorrência
-    async function deleteTransaction() {
-        const id = document.getElementById('editId')?.value || currentEditId;
+    async function deleteTransaction(optionalId = null) {
+        const id = optionalId || document.getElementById('editId')?.value || currentEditId;
         if (!id) return;
 
         const target = allTransactions.find(t => String(t.id) === String(id));

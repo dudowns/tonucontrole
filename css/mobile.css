@@ -3828,19 +3828,19 @@ body.dark-theme .mobile-empty-friendly p {
    ============================================ */
 .goal-card {
     background: #ffffff !important;
-    border-radius: 16px !important;
+    border-radius: 20px !important;
     padding: 16px 16px !important;
     border: 1px solid rgba(226, 232, 240, 0.7) !important;
     margin: 0 16px 12px 16px !important;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02) !important;
-    border-left: 4px solid #6C5CE7 !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+    border-left: 3px solid #6C5CE7 !important;
     box-sizing: border-box !important;
     display: flex !important;
     flex-direction: column !important;
 }
 
 .goal-card.completed {
-    border-left: 4px solid #00B894 !important;
+    border-left: 3px solid #00B894 !important;
 }
 
 .goal-card-top {
@@ -3899,19 +3899,29 @@ body.dark-theme .mobile-empty-friendly p {
     content: none !important;
 }
 
-/* Tag e Botão Atualizar sutil */
+/* Tag e Botão Atualizar sutil (sem fundo lilás, em linha única) */
 .auto-sync-tag-mobile {
     font-size: 11px !important;
     color: #6C5CE7 !important;
-    background: rgba(108, 92, 231, 0.05) !important;
-    border: 1px solid rgba(108, 92, 231, 0.12) !important;
-    border-radius: 8px !important;
-    padding: 6px 10px !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(226, 232, 240, 0.9) !important;
+    border-radius: 10px !important;
+    padding: 4px 8px !important;
     font-weight: 600 !important;
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
+    gap: 6px !important;
     margin-top: 8px !important;
+    white-space: nowrap !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02) !important;
+}
+
+.auto-sync-tag-mobile span {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
 }
 
 .auto-sync-tag-mobile button {
@@ -3925,16 +3935,31 @@ body.dark-theme .mobile-empty-friendly p {
     align-items: center !important;
     gap: 4px !important;
     padding: 2px 4px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
 }
 
 body.dark-theme .auto-sync-tag-mobile {
-    background: rgba(108, 92, 231, 0.12) !important;
-    border-color: rgba(108, 92, 231, 0.25) !important;
+    background: #1e293b !important;
+    border-color: rgba(51, 65, 85, 0.8) !important;
     color: #a5b4fc !important;
 }
 
 body.dark-theme .auto-sync-tag-mobile button {
     color: #a5b4fc !important;
+}
+
+.btn-goal-act.btn-proventos-outline {
+    background: transparent !important;
+    border: 1px solid rgba(16, 185, 129, 0.35) !important;
+    color: #059669 !important;
+    font-weight: 700 !important;
+}
+
+body.dark-theme .btn-goal-act.btn-proventos-outline {
+    background: transparent !important;
+    border-color: rgba(52, 211, 153, 0.4) !important;
+    color: #34d399 !important;
 }
 
 /* Suavização de caixas cinzas aninhadas dentro das metas, protegendo os ícones e badges */

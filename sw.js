@@ -214,19 +214,31 @@ self.addEventListener('fetch', (event) => {
                       url.includes('.html');
 
   if (isCodeOrDoc) {
+    const isScriptOrStyle = event.request.destination === 'script' ||
+                            event.request.destination === 'style' ||
+                            /\.(js|mjs|css)(\?|$)/i.test(url);
+
     event.respondWith(
       fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+          const contentType = (networkResponse.headers.get('content-type') || '').toLowerCase();
+          if (!(isScriptOrStyle && contentType.includes('text/html'))) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
         }
         return networkResponse;
       }).catch(() => {
         return caches.match(event.request).then((cached) => {
-          if (cached) return cached;
-          if (event.request.headers.get('accept')?.includes('text/html')) {
+          if (cached) {
+            const cachedType = (cached.headers.get('content-type') || '').toLowerCase();
+            if (!(isScriptOrStyle && cachedType.includes('text/html'))) {
+              return cached;
+            }
+          }
+          if (!isScriptOrStyle && event.request.headers.get('accept')?.includes('text/html')) {
             const fallbackIndex = new URL('./index.html', self.registration.scope).href;
             const fallbackRoot = new URL('./', self.registration.scope).href;
             return caches.match(fallbackIndex).then(res => res || caches.match(fallbackRoot));

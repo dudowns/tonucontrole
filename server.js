@@ -412,6 +412,11 @@ app.get(['/index-mobile.html', '/tonucontrole/index-mobile.html'], (req, res) =>
 });
 
 function serveSecurePage(req, res, next, isMobile = false) {
+    if (req.path.length > 1 && req.path.endsWith('/')) {
+        const cleanUrl = req.path.replace(/\/+$/, '') + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '');
+        return res.redirect(301, cleanUrl);
+    }
+
     const rawPage = req.params.page;
     if (!rawPage) return next();
 
@@ -450,6 +455,20 @@ app.get('/tonucontrole/pages/:page', (req, res, next) => serveSecurePage(req, re
 // 7. FALLBACK E PÁGINA 404
 // ============================================
 app.use((req, res) => {
+    const reqPath = (req.path || '').toLowerCase();
+
+    if (reqPath.startsWith('/api/') || reqPath.startsWith('/tonucontrole/api/') || reqPath.endsWith('.json')) {
+        return res.status(404).json({ error: 'Recurso não encontrado.' });
+    }
+
+    if (/\.(js|mjs|cjs|map)$/.test(reqPath) || reqPath.startsWith('/js/') || reqPath.startsWith('/tonucontrole/js/')) {
+        return res.status(404).type('application/javascript; charset=utf-8').send('/* 404 Not Found */');
+    }
+
+    if (/\.css$/.test(reqPath) || reqPath.startsWith('/css/') || reqPath.startsWith('/tonucontrole/css/')) {
+        return res.status(404).type('text/css; charset=utf-8').send('/* 404 Not Found */');
+    }
+
     const notFoundPath = path.join(ROOT_DIR, 'pages', '404.html');
     if (fs.existsSync(notFoundPath)) {
         res.status(404).sendFile(notFoundPath);

@@ -502,6 +502,7 @@
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
+            min-width: 0 !important;
         }
         .auto-sync-tag-mobile button {
             background: none !important;
@@ -520,6 +521,25 @@
         }
         .auto-sync-tag-mobile button:active {
             opacity: 0.7;
+        }
+        body.dark-theme .auto-sync-tag-mobile {
+            background: #1e293b !important;
+            border-color: rgba(51, 65, 85, 0.8) !important;
+            color: #a5b4fc !important;
+        }
+        body.dark-theme .auto-sync-tag-mobile button {
+            color: #a5b4fc !important;
+        }
+        .btn-goal-act.btn-proventos-outline {
+            background: transparent;
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #059669;
+            font-weight: 700;
+        }
+        body.dark-theme .btn-goal-act.btn-proventos-outline {
+            background: transparent;
+            border-color: rgba(52, 211, 153, 0.4);
+            color: #34d399;
         }
 
         .btn-postpone-mobile {
@@ -2371,15 +2391,15 @@ function renderGoals() {
                         ${consistencyText}
                     </div>
 
-                    <div class="auto-sync-tag-mobile" style="color:#6C5CE7; background:rgba(108,92,231,0.05); border:1px solid rgba(108,92,231,0.12); border-radius:8px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                        <span><i class="fas fa-wallet" style="color:#6C5CE7;"></i> Proventos da Carteira</span>
-                        <button type="button" onclick="refreshMobileDividends()" style="background:none; border:none; color:#6C5CE7; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; padding:2px 4px;">
-                            <i class="fas fa-redo-alt" style="color:#6C5CE7;"></i> Atualizar
+                    <div class="auto-sync-tag-mobile">
+                        <span><i class="fas fa-wallet"></i> Proventos da Carteira</span>
+                        <button type="button" onclick="refreshMobileDividends()">
+                            <i class="fas fa-redo-alt"></i> Atualizar
                         </button>
                     </div>
 
                     <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
-                        <button type="button" class="btn-goal-act" style="background:rgba(16,185,129,0.12); color:#047857; font-weight:700;" onclick="window.location.href='investments.html#proventos'">
+                        <button type="button" class="btn-goal-act btn-proventos-outline" onclick="window.location.href='investments.html#proventos'">
                             <i class="fas fa-chart-line"></i> Ver Proventos
                         </button>
                         <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
@@ -2446,10 +2466,10 @@ function renderGoals() {
                         <div class="goal-progress-fill" style="width: ${isEquityLoadedMobile ? percent : 0}%; background: #8B5CF6;"></div>
                     </div>
 
-                    <div class="auto-sync-tag-mobile" style="color:#6C5CE7; background:rgba(108,92,231,0.05); border:1px solid rgba(108,92,231,0.12); border-radius:8px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                        <span><i class="fas fa-sync-alt" style="color:#6C5CE7;"></i> Custódia • ${formattedTime}</span>
-                        <button type="button" onclick="refreshMobilePortfolioValue()" style="background:none; border:none; color:#6C5CE7; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; padding:2px 4px;">
-                            <i class="fas fa-redo-alt" style="color:#6C5CE7;"></i> Atualizar
+                    <div class="auto-sync-tag-mobile">
+                        <span><i class="fas fa-sync-alt"></i> Custódia • ${formattedTime}</span>
+                        <button type="button" onclick="refreshMobilePortfolioValue()">
+                            <i class="fas fa-redo-alt"></i> Atualizar
                         </button>
                     </div>
 
