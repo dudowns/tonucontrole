@@ -417,6 +417,7 @@
                 if (typeof window.loadGoals === 'function') window.loadGoals();
                 if (typeof window.refreshDashboard === 'function') window.refreshDashboard();
                 if (typeof window.loadAllInvestmentData === 'function') window.loadAllInvestmentData();
+                if (typeof window.loadMobileData === 'function') window.loadMobileData({ forceRefresh: true });
             }
         }
 
@@ -772,7 +773,7 @@
         // 4. CANONICAL INDEXEDDB ENTITY CACHE (PARTE 4, 7, 8)
         // ==================================================================
         async setEntityCache(key, data) {
-            if (!this.db) await this.openDatabase();
+            if (!this.db) this.db = await this.openDatabase();
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction([CACHE_STORE], 'readwrite');
                 const store = tx.objectStore(CACHE_STORE);
@@ -783,7 +784,7 @@
         }
 
         async getEntityCache(key) {
-            if (!this.db) await this.openDatabase();
+            if (!this.db) this.db = await this.openDatabase();
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction([CACHE_STORE], 'readonly');
                 const store = tx.objectStore(CACHE_STORE);

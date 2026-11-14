@@ -258,7 +258,7 @@
         }
 
         clearAppBadgeNative();
-        checkNotifications();
+        checkNotificationsThrottled();
         updateNotificationBadge();
         renderNotificationList();
 
@@ -1703,7 +1703,7 @@
         },
 
         async checkDueBills(force) {
-            await checkNotifications();
+            await checkNotificationsThrottled(!!force);
             if (this.settings.sound && notifications.length > 0) {
                 this.playChime();
             }
@@ -1806,11 +1806,28 @@
         }
     }
 
+    let _lastNotifCheck = 0;
+    let _checkingNotifs = false;
+    const NOTIF_CHECK_MIN_INTERVAL = 30 * 1000;
+
+    async function checkNotificationsThrottled(force = false) {
+        const now = Date.now();
+        if (_checkingNotifs) return;
+        if (!force && (now - _lastNotifCheck) < NOTIF_CHECK_MIN_INTERVAL) return;
+        _checkingNotifs = true;
+        _lastNotifCheck = now;
+        try {
+            return await checkNotifications();
+        } finally {
+            _checkingNotifs = false;
+        }
+    }
+
     // Exports to Global Scope
     window.toggleNotificationDropdown = toggleNotificationDropdown;
     window.openNotificationDropdown = openNotificationDropdown;
     window.closeNotificationDropdown = closeNotificationDropdown;
-    window.checkNotifications = checkNotifications;
+    window.checkNotifications = checkNotificationsThrottled;
     window.updateNotificationBadge = updateNotificationBadge;
     window.clearAllNotifications = clearAllNotifications;
     window.dismissNotification = dismissNotification;
@@ -1837,7 +1854,7 @@
         getNotificationDropdown();
         getNotificationBackdrop();
         attachBellListeners();
-        setTimeout(checkNotifications, 300);
+        setTimeout(() => checkNotificationsThrottled(true), 300);
         setTimeout(loadNotificationHistory, 500);
         if (typeof window.renderNotificationSettingsUI === 'function') {
             window.renderNotificationSettingsUI();

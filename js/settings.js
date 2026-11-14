@@ -1704,7 +1704,7 @@ function handleBudgetInputChange(inputEl) {
     inputEl.value = val;
 }
 
-function filterBudgetCategories(term) {
+function _applyFilterBudgetCategories(term) {
     const cleanTerm = (term || '').trim().toLowerCase();
     const rows = document.querySelectorAll('.settings-budget-item');
     rows.forEach(row => {
@@ -1716,6 +1716,10 @@ function filterBudgetCategories(term) {
         }
     });
 }
+
+const filterBudgetCategories = (typeof window !== 'undefined' && typeof window.TonuDebounce === 'function')
+    ? window.TonuDebounce(_applyFilterBudgetCategories, 180)
+    : _applyFilterBudgetCategories;
 
 function updateBudgetWarningThreshold(val) {
     const num = parseFloat(val) || 80;

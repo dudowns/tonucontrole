@@ -23,6 +23,8 @@ let isBalanceHidden = localStorage.getItem('tonu_hide_balance') === 'true';
 let currentMonthOffset = 0;
 let cachedDashboardEquity = 0;
 let isDashboardEquityLoaded = false;
+const _cache = { key: null, ts: 0, payload: null };
+const CACHE_TTL_MS = 45 * 1000;
 
 // ============================================
 // NAVEGAÇÃO DE MÊS NO MOBILE
@@ -48,13 +50,13 @@ function updateMobileMonthDisplay() {
 function changeMonth(delta) {
     currentMonthOffset += Number(delta) || 0;
     updateMobileMonthDisplay();
-    loadMobileData();
+    loadMobileData({ forceRefresh: true });
 }
 
 function goToCurrentMonth() {
     currentMonthOffset = 0;
     updateMobileMonthDisplay();
-    loadMobileData();
+    loadMobileData({ forceRefresh: true });
 }
 
 window.changeMonth = changeMonth;
@@ -377,9 +379,32 @@ window.calculateCurrentCustodyCost = calculateCurrentCustodyCost;
 // ============================================
 // CARREGAR DADOS MOBILE UNIFICADOS
 // ============================================
-async function loadMobileData() {
+async function loadMobileData(options = {}) {
     try {
         updateMobileMonthDisplay();
+        const forceRefresh = !!(options && options.forceRefresh);
+        const cacheKey = `${currentUser?.id || 'anon'}:${currentMonthOffset}`;
+        const now = Date.now();
+        if (!forceRefresh && _cache.payload && _cache.key === cacheKey && (now - _cache.ts) < CACHE_TTL_MS) {
+            const p = _cache.payload;
+            allTransactions = p.allTransactions;
+            allBills = p.allBills;
+            allDividends = p.allDividends;
+            allGoals = p.allGoals;
+            allInvestments = p.allInvestments;
+            window.allDividends = allDividends;
+            window.allInvestments = allInvestments;
+
+            await loadSyncedPortfolioEquity();
+            renderSummary();
+            renderMobileChart();
+            renderMobileInsights();
+            renderMobileGoals();
+            renderCategoryBars();
+            renderTransactions();
+            return;
+        }
+
         const targetDate = getSelectedMonthDate();
         const year = targetDate.getFullYear();
         const month = String(targetDate.getMonth() + 1).padStart(2, "0");
@@ -621,6 +646,16 @@ async function loadMobileData() {
         // Sincroniza patrimônio em custódia antes de renderizar o carrossel de metas
         await loadSyncedPortfolioEquity();
 
+        _cache.key = cacheKey;
+        _cache.ts = Date.now();
+        _cache.payload = {
+            allTransactions,
+            allBills,
+            allDividends,
+            allGoals,
+            allInvestments
+        };
+
         console.log("📊 Mobile: Dados unificados prontos:", {
             transacoes: allTransactions.length,
             contas: allBills.length,
@@ -643,6 +678,22 @@ async function loadMobileData() {
         console.error("❌ Erro ao carregar dados mobile:", error);
     }
 }
+
+async function syncMobileDashboardNow() {
+    try {
+        if (window.tonuSync && typeof window.tonuSync.flushQueue === 'function') {
+            await window.tonuSync.flushQueue();
+        }
+        await loadMobileData({ forceRefresh: true });
+        showMobileToast("Dados sincronizados! ☁️", "success");
+    } catch (e) {
+        console.warn("Erro ao sincronizar dashboard mobile:", e);
+        await loadMobileData({ forceRefresh: true });
+    }
+}
+
+window.loadMobileData = loadMobileData;
+window.syncMobileDashboardNow = syncMobileDashboardNow;
 
 function setMobileCacheBanner(show) {
     let banner = document.getElementById("mobileCacheSyncBanner");
@@ -2074,7 +2125,7 @@ async function handleQuickAddSubmit(event) {
         closeQuickAddModal();
         document.getElementById("quickAddForm").reset();
 
-        await loadMobileData();
+        await loadMobileData({ forceRefresh: true });
     } catch (err) {
         console.error("Erro ao salvar transação rápida:", err);
         showMobileToast("Erro ao salvar: " + (err.message || "Tente novamente"), "error");
@@ -2099,61 +2150,8 @@ function showMobileToast(message, type) {
 }
 
 // ============================================
-// FUNÇÕES AUXILIARES
+// FUNÇÕES AUXILIARES (formatCurrency, formatDate, toggleTheme via js/core.js)
 // ============================================
-function formatCurrency(value) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(value);
-    }
-    if (value === null || value === undefined || value === '') value = 0;
-    if (typeof value === 'string') {
-        const cleaned = value.replace(/[R$\s]/g, '');
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-            value = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (cleaned.includes(',')) {
-            value = cleaned.replace(',', '.');
-        }
-        value = parseFloat(value);
-    }
-    const num = Number(value) || 0;
-    try {
-        const formatted = new Intl.NumberFormat("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(num);
-        return formatted.replace(/\u00A0/g, ' ');
-    } catch {
-        const isNegative = num < 0;
-        const parts = Math.abs(num).toFixed(2).split('.');
-        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const res = 'R$ ' + intPart + ',' + parts[1];
-        return isNegative ? '-' + res : res;
-    }
-}
-
-function formatDate(date) {
-    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
-        return window.formatDate(date);
-    }
-    if (!date) return "--/--/----";
-    const d = new Date(typeof date === 'string' && date.length === 10 ? date + 'T12:00:00' : date);
-    return d.toLocaleDateString("pt-BR");
-}
-
-function toggleTheme() {
-    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
-        return window.toggleTheme();
-    }
-    const isDark = document.body.classList.toggle("dark-theme");
-    const theme = isDark ? "dark" : "light";
-    localStorage.setItem("tonu_theme", theme);
-    const icon = document.querySelector("#themeIcon");
-    if (icon) {
-        icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
-    }
-}
 
 window.renderMobileInsights = renderMobileInsights;
 window.renderMobileGoals = renderMobileGoals;
@@ -2165,15 +2163,23 @@ async function refreshDashboardGoalsSync() {
     renderMobileGoals();
 }
 
+let _refreshTimer = null;
+function debouncedRefreshDashboard() {
+    clearTimeout(_refreshTimer);
+    _refreshTimer = setTimeout(() => {
+        refreshDashboardGoalsSync().catch(() => {});
+    }, 800);
+}
+
 document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && currentUser) {
-        refreshDashboardGoalsSync().catch(() => {});
+        debouncedRefreshDashboard();
     }
 });
 
 window.addEventListener("focus", () => {
     if (currentUser) {
-        refreshDashboardGoalsSync().catch(() => {});
+        debouncedRefreshDashboard();
     }
 });
 

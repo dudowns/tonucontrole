@@ -326,26 +326,14 @@ body.dark-theme .mobile-topbar .greeting {
    Garante que nenhum card ou botão seja
    sobreposto pelo menu inferior estilo Nubank
    ========================================== */
-.mobile-content,
-main,
-#main-content,
-.mobile-container,
-.mobile-page-content,
-.transaction-list-wrap,
-.bills-page-content,
-#billListMobile,
-#transactionList,
-#goalsList,
-#mobileTransactions,
-.mobile-invest-content,
-#positionsListContainer,
-#operationsListContainer,
-#dividendsListContainer,
-#corporateEventsListContainer,
-#mobileGoalDepositsList {
-    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
+.mobile-content {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
     max-width: 100%;
     box-sizing: border-box;
+}
+
+body:has(.bottom-nav) .mobile-content {
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
 }
 
 .mobile-content::after {
@@ -3492,7 +3480,6 @@ body.dark-theme .mobile-stat-card .stat-label {
 .stagger-card {
     opacity: 1;
     animation: slideUpFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-    will-change: transform, opacity;
 }
 
 /* 2. Micro-interação tátil de clique estilo iOS (:active scale 0.97) */

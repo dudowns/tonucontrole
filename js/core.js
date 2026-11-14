@@ -670,6 +670,19 @@ function debounce(fn, delay) {
     };
 }
 
+function TonuDebounce(fn, delay) {
+    delay = typeof delay === 'number' ? delay : 200;
+    var t = null;
+    return function () {
+        var args = arguments;
+        var ctx = this;
+        clearTimeout(t);
+        t = setTimeout(function () {
+            fn.apply(ctx, args);
+        }, delay);
+    };
+}
+
 function throttle(fn, limit) {
     limit = limit || 300;
     var inThrottle = false;
@@ -2731,12 +2744,98 @@ async function revertAnticipatedBills(targetTx, options = {}) {
     };
 }
 
+function colorTo15PercentAlpha(colorStr) {
+    if (!colorStr) return 'rgba(108, 92, 231, 0.15)';
+    if (colorStr.startsWith('#')) {
+        var hex = colorStr.replace('#', '');
+        if (hex.length === 3) hex = hex.split('').map(function (c) { return c + c; }).join('');
+        var num = parseInt(hex, 16);
+        var r = (num >> 16) & 255;
+        var g = (num >> 8) & 255;
+        var b = num & 255;
+        return 'rgba(' + r + ', ' + g + ', ' + b + ', 0.15)';
+    }
+    if (colorStr.startsWith('rgba')) {
+        return colorStr;
+    }
+    if (colorStr.startsWith('rgb(')) {
+        return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.15)');
+    }
+    return 'rgba(108, 92, 231, 0.15)';
+}
+
+function TonuConfirm(opts) {
+    if (typeof opts === 'string') {
+        opts = { message: opts };
+    }
+    opts = opts || {};
+    var title = opts.title || 'Confirmar ação';
+    var message = opts.message || '';
+    var confirmText = opts.confirmText || 'Confirmar';
+    var cancelText = opts.cancelText || 'Cancelar';
+    var danger = !!opts.danger;
+
+    return new Promise(function (resolve) {
+        if (typeof document === 'undefined' || !document.body) {
+            resolve(false);
+            return;
+        }
+        var safe = function (s) {
+            return typeof sanitizeString === 'function'
+                ? sanitizeString(String(s || ''))
+                : String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        };
+        var safeMessageHtml = safe(message).replace(/\n/g, '<br>');
+
+        var backdrop = document.createElement('div');
+        backdrop.className = 'tonu-confirm-backdrop';
+        backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;';
+        backdrop.innerHTML =
+            '<div class="tonu-confirm-dialog" role="alertdialog" aria-modal="true" style="background:var(--color-surface,#ffffff);color:var(--color-text,#0f172a);border-radius:18px;max-width:360px;width:100%;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,0.28);border:1px solid var(--color-border,#e2e8f0);font-family:Inter,sans-serif;">' +
+                '<h3 style="margin:0 0 8px 0;font-size:16px;font-weight:700;">' + safe(title) + '</h3>' +
+                '<p style="margin:0 0 18px 0;font-size:13.5px;color:var(--color-text-secondary,#475569);line-height:1.45;">' + safeMessageHtml + '</p>' +
+                '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+                    '<button type="button" data-action="cancel" style="padding:10px 16px;border-radius:12px;border:1px solid var(--color-border,#e2e8f0);background:transparent;color:var(--color-text,#0f172a);font-weight:600;font-size:13.5px;cursor:pointer;">' + safe(cancelText) + '</button>' +
+                    '<button type="button" data-action="confirm" style="padding:10px 16px;border-radius:12px;border:none;background:' + (danger ? '#ef4444' : '#6c5ce7') + ';color:#fff;font-weight:600;font-size:13.5px;cursor:pointer;">' + safe(confirmText) + '</button>' +
+                '</div>' +
+            '</div>';
+
+        var settled = false;
+        var onKeyDown = function (e) {
+            if (e.key === 'Escape') {
+                cleanup(false);
+            }
+        };
+        var cleanup = function (result) {
+            if (settled) return;
+            settled = true;
+            document.removeEventListener('keydown', onKeyDown);
+            backdrop.remove();
+            resolve(result);
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+        backdrop.querySelector('[data-action="cancel"]').addEventListener('click', function () { cleanup(false); });
+        backdrop.querySelector('[data-action="confirm"]').addEventListener('click', function () { cleanup(true); });
+        backdrop.addEventListener('click', function (e) { if (e.target === backdrop) cleanup(false); });
+        document.body.appendChild(backdrop);
+
+        var confirmBtn = backdrop.querySelector('[data-action="confirm"]');
+        if (confirmBtn && typeof confirmBtn.focus === 'function') {
+            setTimeout(function () { confirmBtn.focus(); }, 10);
+        }
+    });
+}
+
 // ============================================
 // 20. EXPORTAR PARA O ESCOPO GLOBAL
 // ============================================
 window.showToast = showToast;
 window.formatCurrency = formatCurrency;
 window.formatDate = formatDate;
+window.colorTo15PercentAlpha = colorTo15PercentAlpha;
+window.TonuConfirm = TonuConfirm;
+window.TonuDebounce = TonuDebounce;
 window.getToday = getToday;
 window.getDaysBetween = getDaysBetween;
 window.sanitizeString = sanitizeString;

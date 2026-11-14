@@ -1084,22 +1084,7 @@ function getMobileBillInstallmentInfo(b) {
     return null;
 }
 
-function colorTo15PercentAlpha(colorStr) {
-    if (!colorStr) return 'rgba(108, 92, 231, 0.15)';
-    if (colorStr.startsWith('#')) {
-        let hex = colorStr.replace('#', '');
-        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-        const num = parseInt(hex, 16);
-        const r = (num >> 16) & 255;
-        const g = (num >> 8) & 255;
-        const b = num & 255;
-        return `rgba(${r}, ${g}, ${b}, 0.15)`;
-    }
-    if (colorStr.startsWith('rgb')) {
-        return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.15)');
-    }
-    return 'rgba(108, 92, 231, 0.15)';
-}
+// colorTo15PercentAlpha provido globalmente por js/core.js
 
 function escapeBillHtml(str) {
     if (!str) return '';
@@ -1809,7 +1794,13 @@ async function deleteBillDirect(id) {
         });
         if (deleteMode === 'cancel') return;
     } else {
-        if (!confirm("Deseja realmente excluir esta conta?")) return;
+        const ok = await window.TonuConfirm({
+            title: "Excluir conta",
+            message: "Deseja realmente excluir esta conta?",
+            confirmText: "Excluir",
+            danger: true
+        });
+        if (!ok) return;
     }
 
     try {
@@ -2044,51 +2035,7 @@ async function processAnticipationMobile(target, selectedBills, typedAmount, pay
     updateStats();
 }
 
-function formatCurrency(val) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(val);
-    }
-    if (val === null || val === undefined || val === '') val = 0;
-    if (typeof val === 'string') {
-        const cleaned = val.replace(/[R$\s]/g, '');
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-            val = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (cleaned.includes(',')) {
-            val = cleaned.replace(',', '.');
-        }
-        val = parseFloat(val);
-    }
-    const n = Number(val) || 0;
-    try {
-        return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n).replace(/\u00A0/g, ' ');
-    } catch {
-        const isNegative = n < 0;
-        const parts = Math.abs(n).toFixed(2).split('.');
-        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const res = 'R$ ' + intPart + ',' + parts[1];
-        return isNegative ? '-' + res : res;
-    }
-}
-
-function formatDate(d) {
-    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
-        return window.formatDate(d);
-    }
-    if (!d) return "--/--/----";
-    const parts = d.split("T")[0].split("-");
-    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    return d;
-}
-
-function toggleTheme() {
-    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
-        return window.toggleTheme();
-    }
-    const isDark = document.body.classList.toggle("dark-theme");
-    localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
-    const icon = document.querySelector("#themeIcon");
-    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
-}
+// formatCurrency, formatDate e toggleTheme providos globalmente por js/core.js
 </script>
 
 </body>

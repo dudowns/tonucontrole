@@ -14,7 +14,7 @@ let currentFilter = 'all';
 let currentSearch = '';
 
 // Variáveis de Ciclo Temporal e Conquistas
-let currentCycleYear = 2026;
+let currentCycleYear = new Date().getFullYear();
 let currentTemporalMode = 'year'; // 'year' | 'continuous'
 let selectedModalType = 'financial';
 let cachedTotalEquity = 0;
@@ -259,7 +259,7 @@ function resolveGoalYear(g) {
         const y = parseInt(String(g.created_at).substring(0, 4));
         if (!isNaN(y) && y > 1900 && y < 2200) return y;
     }
-    return 2026;
+    return currentCycleYear;
 }
 window.resolveGoalYear = resolveGoalYear;
 
@@ -391,7 +391,7 @@ function checkWealthGoalsCompletion() {
 }
 window.checkWealthGoalsCompletion = checkWealthGoalsCompletion;
 
-// Altera o ano selecionado no stepper ‹ 2026 ›
+// Altera o ano selecionado no stepper
 function changeYear(delta) {
     currentCycleYear += delta;
     updateTemporalHeader();
@@ -442,10 +442,11 @@ function updateTemporalHeader() {
         if (labelYear) labelYear.textContent = currentCycleYear;
 
         if (badgeStatus) {
-            if (currentCycleYear === 2026) {
+            const realCurrentYear = new Date().getFullYear();
+            if (currentCycleYear === realCurrentYear) {
                 badgeStatus.textContent = 'Ciclo Atual';
                 badgeStatus.className = 'year-badge-status status-badge-current';
-            } else if (currentCycleYear < 2026) {
+            } else if (currentCycleYear < realCurrentYear) {
                 badgeStatus.textContent = 'Histórico';
                 badgeStatus.className = 'year-badge-status status-badge-past';
             } else {
@@ -647,6 +648,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    updateTemporalHeader();
+    populateCycleSelectOptions();
     await loadGoals();
     console.log('✅ Metas inicializado!');
 });
@@ -800,13 +803,17 @@ function setGoalsFilter(filter) {
 }
 window.setGoalsFilter = setGoalsFilter;
 
+const _debouncedRenderFilteredGoals = (typeof window !== 'undefined' && typeof window.TonuDebounce === 'function')
+    ? window.TonuDebounce(() => renderFilteredGoals(), 180)
+    : () => renderFilteredGoals();
+
 function handleGoalsSearch(event) {
     currentSearch = (event.target.value || '').trim().toLowerCase();
     const clearBtn = document.getElementById('goalsSearchClearBtn');
     if (clearBtn) {
         clearBtn.classList.toggle('hidden', currentSearch.length === 0);
     }
-    renderFilteredGoals();
+    _debouncedRenderFilteredGoals();
 }
 window.handleGoalsSearch = handleGoalsSearch;
 
@@ -967,7 +974,7 @@ async function renderGoals(goals) {
                         <button type="button" class="btn-card-action" onclick="toggleHabitStatus('${g.id}')" style="background:${isComplete ? '#d1fae5' : '#e0f2fe'}; color:${isComplete ? '#047857' : '#0369a1'}; font-weight:700; flex:1;">
                             <i class="fas ${isComplete ? 'fa-undo' : 'fa-check'}"></i> ${isComplete ? 'Reabrir Meta' : 'Concluir Agora'}
                         </button>
-                        ${!isComplete && currentCycleYear <= 2026 ? `
+                        ${!isComplete && currentCycleYear <= new Date().getFullYear() ? `
                             <button type="button" class="btn-postpone-action" onclick="postponeGoal('${g.id}', ${currentCycleYear + 1})" title="Mover meta para o próximo ciclo">
                                 <i class="fas fa-arrow-right"></i> Mover p/ ${currentCycleYear + 1}
                             </button>
@@ -1346,6 +1353,7 @@ function openModal(id = null) {
     deleteBtn.classList.add('hidden');
     title.textContent = 'Nova Meta';
 
+    populateCycleSelectOptions();
     const cycleSelect = document.getElementById('gCycleSelect');
     if (cycleSelect) {
         cycleSelect.value = currentTemporalMode === 'continuous' ? 'continuous' : String(currentCycleYear);
@@ -1383,6 +1391,7 @@ function openModal(id = null) {
             document.getElementById('gCompleted').checked = goal.completed || false;
 
             const goalYear = resolveGoalYear(goal);
+            populateCycleSelectOptions(goalYear);
             if (cycleSelect) {
                 cycleSelect.value = goalYear === 'continuous' ? 'continuous' : String(goalYear);
             }
@@ -1401,6 +1410,23 @@ function openModal(id = null) {
     }, 100);
 }
 window.openModal = openModal;
+
+function populateCycleSelectOptions(extraYear) {
+    const select = document.getElementById('gCycleSelect');
+    if (!select) return;
+    const baseYear = new Date().getFullYear();
+    const years = [baseYear, baseYear + 1, baseYear - 1];
+    if (typeof extraYear === 'number' && !isNaN(extraYear) && !years.includes(extraYear)) {
+        years.push(extraYear);
+    }
+    const prevVal = select.value;
+    select.innerHTML = years.map(yr => {
+        const tag = yr === baseYear ? 'Atual' : (yr > baseYear ? 'Planejamento' : 'Histórico');
+        return `<option value="${yr}">📅 Ciclo ${yr} (${tag})</option>`;
+    }).join('') + '<option value="continuous">♾️ Meta Contínua (Longo Prazo)</option>';
+    if (prevVal) select.value = prevVal;
+}
+window.populateCycleSelectOptions = populateCycleSelectOptions;
 
 function toggleGoalTypeFields() {
     selectModalGoalType(document.getElementById('gType')?.value || 'financial');
@@ -1502,7 +1528,7 @@ async function saveGoal(event) {
     let target = parseNumberInput(document.getElementById('gTarget')?.value);
     let current = parseNumberInput(document.getElementById('gCurrent')?.value);
     let deadline = document.getElementById('gDeadline')?.value || null;
-    const cycle = document.getElementById('gCycleSelect')?.value || '2026';
+    const cycle = document.getElementById('gCycleSelect')?.value || String(currentCycleYear);
     const category = document.getElementById('gCategory') ? document.getElementById('gCategory').value : 'other';
     const color = document.getElementById('gColor').value;
 

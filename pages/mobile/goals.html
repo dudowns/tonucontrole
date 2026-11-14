@@ -857,7 +857,7 @@
                     <i class="fas fa-chevron-left"></i>
                 </button>
                 <div class="current-year-label">
-                    <span id="mobileLabelCurrentYear">2026</span>
+                    <span id="mobileLabelCurrentYear">----</span>
                 </div>
                 <button type="button" class="step-btn" onclick="changeMobileYear(1)" title="Próximo ano">
                     <i class="fas fa-chevron-right"></i>
@@ -878,7 +878,7 @@
     <!-- BANNER DE RESUMO DO CICLO -->
     <div class="cycle-summary-mobile" id="mobileCycleSummaryBanner">
         <div class="cycle-info">
-            <h3 id="mobileCycleTitle"><i class="fas fa-trophy" style="color:#F59E0B;"></i> Checklist 2026</h3>
+            <h3 id="mobileCycleTitle"><i class="fas fa-trophy" style="color:#F59E0B;"></i> Checklist Anual</h3>
             <p id="mobileCycleSubtitle">Objetivos prioritários para este ano</p>
         </div>
         <div class="cycle-score">
@@ -1022,8 +1022,6 @@
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-clock"></i>
                     <select id="goalCycleSelect" class="sheet-input">
-                        <option value="2026" selected>Ciclo 2026 (Atual)</option>
-                        <option value="2027">Ciclo 2027 (Planejamento)</option>
                         <option value="continuous">♾️ Meta Contínua (Longo Prazo)</option>
                     </select>
                 </div>
@@ -1279,28 +1277,12 @@
 let currentUser = null;
 let goals = [];
 let currentFilter = 'all';
-let currentCycleYear = 2026;
-let currentCycleYearMobile = 2026;
+let currentCycleYear = new Date().getFullYear();
+let currentCycleYearMobile = currentCycleYear;
 let currentTemporalMode = 'year'; // 'year' | 'continuous'
 let selectedMobileType = 'project';
 
-function colorTo15PercentAlpha(colorStr) {
-    if (!colorStr) return 'rgba(108, 92, 231, 0.15)';
-    if (colorStr.startsWith('#')) {
-        let hex = colorStr.slice(1);
-        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-        if (hex.length === 6) {
-            const r = parseInt(hex.substring(0, 2), 16);
-            const g = parseInt(hex.substring(2, 4), 16);
-            const b = parseInt(hex.substring(4, 6), 16);
-            return `rgba(${r}, ${g}, ${b}, 0.15)`;
-        }
-    }
-    if (colorStr.startsWith('rgb(')) {
-        return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.15)');
-    }
-    return colorStr;
-}
+// colorTo15PercentAlpha provido globalmente por js/core.js
 
 const CATEGORY_ICONS = {
     emergency: { icon: 'fa-shield-alt', color: '#00B894', label: 'Reserva de Emergência' },
@@ -1382,10 +1364,11 @@ function updateMobileTemporalHeader() {
         }
         if (labelYear) labelYear.textContent = currentCycleYear;
         if (badge) {
-            if (currentCycleYear === 2026) {
+            const realCurrentYear = new Date().getFullYear();
+            if (currentCycleYear === realCurrentYear) {
                 badge.textContent = 'Ciclo Atual';
                 badge.className = 'year-badge-status status-current';
-            } else if (currentCycleYear < 2026) {
+            } else if (currentCycleYear < realCurrentYear) {
                 badge.textContent = 'Histórico';
                 badge.className = 'year-badge-status status-past';
             } else {
@@ -1542,7 +1525,7 @@ async function refreshMobileDividends() {
 window.refreshMobileDividends = refreshMobileDividends;
 
 function getDividendGoalAnalysisMobile(targetMonthlyAmount, targetYear) {
-    const yr = Number(targetYear) || currentCycleYear || 2026;
+    const yr = Number(targetYear) || currentCycleYear || new Date().getFullYear();
     const now = new Date();
     const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const divs = (cachedDividendsListMobile && cachedDividendsListMobile.length > 0)
@@ -2088,6 +2071,9 @@ async function initMobileGoalsPage() {
         currentUser = user;
         if (typeof window !== 'undefined') window.currentUser = user;
 
+        updateMobileTemporalHeader();
+        populateMobileCycleSelectOptions();
+
         try {
             await loadGoals();
         } catch (loadErr) {
@@ -2108,21 +2094,28 @@ if (document.readyState === 'loading') {
 }
 
 // Sincronização automática de patrimônio ao retornar à tela (visibilidade, foco ou evento de custódia)
-document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && currentUser) {
+let _goalsRefreshTimer = null;
+function debouncedRefreshGoalsPortfolio() {
+    if (!currentUser) return;
+    clearTimeout(_goalsRefreshTimer);
+    _goalsRefreshTimer = setTimeout(() => {
+        if (!currentUser) return;
         getLatestPortfolioValueMobile({ forceRefresh: true }).then(() => {
             updateHeroStats();
             renderGoals();
         }).catch(() => {});
+    }, 800);
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && currentUser) {
+        debouncedRefreshGoalsPortfolio();
     }
 });
 
 window.addEventListener("focus", () => {
     if (currentUser) {
-        getLatestPortfolioValueMobile({ forceRefresh: true }).then(() => {
-            updateHeroStats();
-            renderGoals();
-        }).catch(() => {});
+        debouncedRefreshGoalsPortfolio();
     }
 });
 
@@ -2229,11 +2222,7 @@ function updateHeroStats() {
 // ============================================
 // RENDERIZAR LISTA DE METAS COM CARDS & AÇÕES
 // ============================================
-function renderGoals() {
-    const container = document.getElementById("goalsContainer");
-    if (!container) return;
-
-    // 1. Filtragem por Ciclo Temporal
+function _filterVisibleGoals() {
     let visible = goals.filter(g => {
         const y = resolveGoalYear(g);
         if (currentTemporalMode === 'continuous') {
@@ -2242,7 +2231,6 @@ function renderGoals() {
         return y === currentCycleYear;
     });
 
-    // 2. Filtragem por Chips
     if (currentFilter === 'project') {
         visible = visible.filter(g => g.type === 'habit' || g.type === 'project');
     } else if (currentFilter === 'money') {
@@ -2255,316 +2243,338 @@ function renderGoals() {
         visible = visible.filter(g => !isGoalCompleteMobile(g));
     }
 
-    if (visible.length === 0) {
-        container.innerHTML = `
-            <div class="mobile-empty-friendly">
-                <div class="empty-icon-box"><i class="fas fa-bullseye"></i></div>
-                <h3>Nenhuma meta encontrada</h3>
-                <p>${currentTemporalMode === 'continuous' ? 'Você ainda não cadastrou metas contínuas.' : `Nenhuma meta ativa para o Ciclo ${currentCycleYear}. Comece seu planejamento!`}</p>
-                <button type="button" class="btn-empty-action" onclick="openGoalModal()">
-                    <i class="fas fa-plus"></i> Criar Nova Meta
+    return visible;
+}
+
+function _emptyStateHtml() {
+    return `
+        <div class="mobile-empty-friendly">
+            <div class="empty-icon-box"><i class="fas fa-bullseye"></i></div>
+            <h3>Nenhuma meta encontrada</h3>
+            <p>${currentTemporalMode === 'continuous' ? 'Você ainda não cadastrou metas contínuas.' : `Nenhuma meta ativa para o Ciclo ${currentCycleYear}. Comece seu planejamento!`}</p>
+            <button type="button" class="btn-empty-action" onclick="openGoalModal()">
+                <i class="fas fa-plus"></i> Criar Nova Meta
+            </button>
+        </div>
+    `;
+}
+
+function _renderProjectCard(g, idx) {
+    const isCompleted = isGoalCompleteMobile(g);
+    const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+    const completedDateText = g.completed_at ? formatDate(g.completed_at) : (g.deadline ? formatDate(g.deadline) : null);
+    const goalYear = resolveGoalYear(g);
+    const isPostponed = !isCompleted && (g.postponed_to || (g.target_year && g.target_year > currentCycleYear) || (typeof goalYear === 'number' && goalYear < currentCycleYear));
+    const postponedYear = g.postponed_to || g.target_year || (currentCycleYear + 1);
+
+    return `
+        <div class="goal-card stagger-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${isCompleted ? '#00B894' : '#38BDF8'}; animation-delay: ${delay}s;">
+            <div class="goal-card-top">
+                <div class="goal-title-group">
+                    <button type="button" class="project-toggle-mobile ${isCompleted ? 'checked' : ''}" onclick="toggleMobileHabitStatus('${g.id}')" title="Marcar como Concluído">
+                        <i class="fas fa-check" style="font-size:12px;"></i>
+                    </button>
+                    <div>
+                        <h3 style="${isCompleted ? 'text-decoration: line-through; opacity:0.85;' : ''}">${g.title}</h3>
+                        <small style="color:#38BDF8; font-weight:600;"><i class="fas fa-tasks"></i> Projeto / Checklist</small>
+                    </div>
+                </div>
+                <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}" style="${isPostponed ? 'background:rgba(100,116,139,0.15); color:#64748B;' : ''}">
+                    <i class="fas ${isCompleted ? 'fa-check' : (isPostponed ? 'fa-redo' : 'fa-hourglass-half')}"></i>
+                    ${isCompleted ? 'Concluído' : (isPostponed ? `Para ${postponedYear}` : 'Em andamento')}
+                </span>
+            </div>
+
+            <div style="background:var(--color-bg,#f8fafc); border-radius:10px; padding:9px 12px; margin:8px 0; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">Status</span>
+                    <span style="font-size:12.5px; font-weight:700; color:${isCompleted ? '#00B894' : (isPostponed ? '#64748B' : '#F59E0B')};">
+                        ${isCompleted ? `🏆 Concluído ${completedDateText ? '('+completedDateText+')' : ''}` : (isPostponed ? `🔄 Reprogramada para ${postponedYear}` : '⏳ Em Andamento')}
+                    </span>
+                </div>
+                <div style="text-align:right;">
+                    <span style="font-size:10px; color:#94a3b8; display:block;">Alocação</span>
+                    <span style="font-size:11.5px; font-weight:600;">${g.target_year ? `Ciclo ${g.target_year}` : (g.deadline ? formatDate(g.deadline) : 'Ciclo Atual')}</span>
+                </div>
+            </div>
+
+            <!-- AÇÕES DO PROJETO / HÁBITO -->
+            <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto auto;">
+                <button type="button" class="btn-goal-act" style="background:${isCompleted ? '#d1fae5' : 'rgba(56,189,248,0.12)'}; color:${isCompleted ? '#047857' : '#0284C7'}; font-weight:700;" onclick="toggleMobileHabitStatus('${g.id}')">
+                    <i class="fas ${isCompleted ? 'fa-undo' : 'fa-check'}"></i> ${isCompleted ? 'Reabrir' : 'Concluir'}
+                </button>
+                ${!isCompleted ? `
+                    <button type="button" class="btn-postpone-mobile" onclick="postponeMobileGoal('${g.id}', ${currentCycleYear + 1})" title="Mover para o próximo ano">
+                        <i class="fas fa-arrow-right"></i> Mover p/ ${currentCycleYear + 1}
+                    </button>
+                ` : ''}
+                <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                    <i class="fas fa-trash-alt"></i>
                 </button>
             </div>
-        `;
+        </div>
+    `;
+}
+
+function _renderDividendsCard(g, idx) {
+    const isCompleted = isGoalCompleteMobile(g);
+    const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+    const tgt = Number(g.target_amount) || 1;
+    const analysis = getDividendGoalAnalysisMobile(tgt, g.target_year || currentCycleYear || new Date().getFullYear());
+    const monthlyDivs = analysis.currentMonthVal;
+    const percent = analysis.percentMonth;
+    const isMonthlyTargetMet = tgt > 0 && monthlyDivs >= tgt;
+
+    let consistencyText = '';
+    if (analysis.monthsOnTarget > 0) {
+        consistencyText = `🎯 <strong>${analysis.monthsOnTarget} ${analysis.monthsOnTarget === 1 ? 'mês bateu' : 'meses bateram'}</strong> o alvo de ${formatCurrency(tgt)}`;
+    } else if (analysis.totalYear > 0) {
+        consistencyText = `📊 Acumulado no ano: <strong>${formatCurrency(analysis.totalYear)}</strong>`;
+    } else {
+        consistencyText = `Aguardando primeiros proventos registrados`;
+    }
+
+    return `
+        <div class="goal-card stagger-card ${isCompleted || isMonthlyTargetMet ? 'completed' : ''}" style="border-left-color:#10B981; animation-delay: ${delay}s;">
+            <div class="goal-card-top">
+                <div class="goal-title-group">
+                    <div class="mobile-icon-squircle" style="background:rgba(16,185,129,0.15); color:#10B981; width:38px; height:38px;">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <div>
+                        <h3>${g.title}</h3>
+                        <small style="color:#10B981; font-weight:600;">📈 Proventos da Carteira</small>
+                    </div>
+                </div>
+                <span class="goal-badge ${isCompleted || isMonthlyTargetMet ? 'done' : 'ongoing'}">
+                    <i class="fas ${isCompleted || isMonthlyTargetMet ? 'fa-trophy' : 'fa-chart-line'}"></i>
+                    ${isCompleted ? 'Atingido!' : (isMonthlyTargetMet ? 'Meta do Mês! 🏆' : `${percent}%`)}
+                </span>
+            </div>
+
+            <div class="goal-values-row">
+                <div>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">Recebido este Mês</span>
+                    <span class="goal-current-val" style="color:#10B981;">${formatCurrency(monthlyDivs)}</span>
+                </div>
+                <div style="text-align:right;">
+                    <span class="goal-target-val">Alvo Mensal: <strong>${formatCurrency(tgt)}</strong></span>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">
+                        ${isMonthlyTargetMet ? 'Meta batida! 🎉' : `Falta: ${formatCurrency(Math.max(0, tgt - monthlyDivs))}`}
+                    </span>
+                </div>
+            </div>
+
+            <div class="goal-progress-bar">
+                <div class="goal-progress-fill" style="width: ${percent}%; background: #10B981;"></div>
+            </div>
+
+            <div style="font-size:10.5px; color:#64748b; margin-top:5px;">
+                ${consistencyText}
+            </div>
+
+            <div class="auto-sync-tag-mobile">
+                <span><i class="fas fa-wallet"></i> Proventos da Carteira</span>
+                <button type="button" onclick="refreshMobileDividends()">
+                    <i class="fas fa-redo-alt"></i> Atualizar
+                </button>
+            </div>
+
+            <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
+                <button type="button" class="btn-goal-act btn-proventos-outline" onclick="window.location.href='investments.html#proventos'">
+                    <i class="fas fa-chart-line"></i> Ver Proventos
+                </button>
+                <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function _renderWealthCard(g, idx) {
+    const isCompleted = isGoalCompleteMobile(g);
+    const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+    const cur = cachedTotalEquityMobile > 0 ? cachedTotalEquityMobile : (Number(g.current_amount) || 0);
+    const inv = cachedTotalInvestedMobile > 0 ? cachedTotalInvestedMobile : cur;
+    const tgt = Number(g.target_amount) || 1;
+    const percent = Math.min(100, Math.round((cur / tgt) * 100));
+    const formattedTime = formatEquityTimestampMobile(cachedTotalEquityUpdatedAtMobile);
+    const diffReturn = cur - inv;
+    const returnPct = inv > 0 ? (diffReturn / inv) * 100 : 0;
+    const sign = diffReturn >= 0 ? '+' : '';
+
+    let detailsReturn = '';
+    if (inv > 0 && Math.abs(diffReturn) > 0.01) {
+        const colorRet = diffReturn >= 0 ? '#10B981' : '#F59E0B';
+        detailsReturn = `<span style="font-size:10px; color:${colorRet}; font-weight:600;">Aplicado: ${formatCurrency(inv)} (${sign}${returnPct.toFixed(2)}%)</span>`;
+    }
+
+    return `
+        <div class="goal-card stagger-card ${isCompleted ? 'completed' : ''}" style="border-left-color:#8B5CF6; animation-delay: ${delay}s;">
+            <div class="goal-card-top">
+                <div class="goal-title-group">
+                    <div class="mobile-icon-squircle" style="background:rgba(139,92,246,0.15); color:#8B5CF6; width:38px; height:38px;">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <div>
+                        <h3>${g.title}</h3>
+                        <small style="color:#8B5CF6; font-weight:600;">🏦 Patrimônio Total</small>
+                    </div>
+                </div>
+                <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
+                    <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-gem'}"></i>
+                    ${isCompleted ? 'Conquistado!' : (isEquityLoadedMobile ? `${percent}%` : '—')}
+                </span>
+            </div>
+
+            <div class="goal-values-row">
+                <div>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">Patrimônio Atual em Ativos</span>
+                    <span class="goal-current-val" style="color:#8B5CF6;">${isEquityLoadedMobile ? formatCurrency(cur) : '—'}</span>
+                    ${detailsReturn ? `<div style="margin-top:2px;">${detailsReturn}</div>` : ''}
+                </div>
+                <div style="text-align:right;">
+                    <span class="goal-target-val">Alvo: <strong>${formatCurrency(tgt)}</strong></span>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">
+                        ${isCompleted ? 'Meta atingida! 🏆' : (isEquityLoadedMobile ? `Faltam: ${formatCurrency(Math.max(0, tgt - cur))}` : 'Carregando custódia...')}
+                    </span>
+                </div>
+            </div>
+
+            <div class="goal-progress-bar">
+                <div class="goal-progress-fill" style="width: ${isEquityLoadedMobile ? percent : 0}%; background: #8B5CF6;"></div>
+            </div>
+
+            <div class="auto-sync-tag-mobile">
+                <span><i class="fas fa-sync-alt"></i> Custódia • ${formattedTime}</span>
+                <button type="button" onclick="refreshMobilePortfolioValue()">
+                    <i class="fas fa-redo-alt"></i> Atualizar
+                </button>
+            </div>
+
+            <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
+                <button type="button" class="btn-goal-act" style="background:rgba(139,92,246,0.12); color:#6D28D9; font-weight:700;" onclick="window.location.href='investments.html'">
+                    <i class="fas fa-chart-pie"></i> Carteira
+                </button>
+                <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function _renderFinancialCard(g, idx) {
+    const isCompleted = isGoalCompleteMobile(g);
+    const catInfo = CATEGORY_ICONS[g.category] || CATEGORY_ICONS.other;
+    const color = g.color || catInfo.color;
+    const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+    const cur = Number(g.current_amount) || 0;
+    const tgt = Number(g.target_amount) || 0;
+    const percent = tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : 0;
+    const remaining = Math.max(0, tgt - cur);
+    const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(color) : 'rgba(108, 92, 231, 0.15)';
+
+    return `
+        <div class="goal-card stagger-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${color}; animation-delay: ${delay}s;">
+            <div class="goal-card-top">
+                <div class="goal-title-group">
+                    <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color}; width:38px; height:38px;">
+                        <i class="fas ${catInfo.icon}"></i>
+                    </div>
+                    <div>
+                        <h3>${g.title}</h3>
+                        <small>${catInfo.label}</small>
+                    </div>
+                </div>
+                <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
+                    <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-piggy-bank'}"></i>
+                    ${isCompleted ? 'Concluída' : `${percent}%`}
+                </span>
+            </div>
+
+            <div class="goal-values-row">
+                <div>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">Acumulado</span>
+                    <span class="goal-current-val">${formatCurrency(cur)}</span>
+                </div>
+                <div style="text-align:right;">
+                    <span class="goal-target-val">Alvo: <strong>${formatCurrency(tgt)}</strong></span>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">
+                        ${isCompleted ? 'Meta atingida! 🎉' : `Falta: ${formatCurrency(remaining)}`}
+                    </span>
+                </div>
+            </div>
+
+            <div class="goal-progress-bar">
+                <div class="goal-progress-fill" style="width: ${percent}%; background: ${color};"></div>
+            </div>
+
+            <div class="goal-footer-info">
+                <span>${percent}% concluído</span>
+                <span>${g.target_year ? 'Ciclo ' + g.target_year : (g.deadline ? '📅 ' + formatDate(g.deadline) : 'Sem prazo')}</span>
+            </div>
+
+            <!-- AÇÕES ORGANIZADAS EM DUAS LINHAS CONFORTÁVEIS -->
+            <div class="goal-actions-wrap" style="display:flex; flex-direction:column; gap:8px; margin-top:12px; padding-top:10px; border-top:1px solid var(--color-border,#f1f5f9);">
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <button type="button" class="btn-goal-act deposit" style="flex:1;" onclick="openDepositModal('${g.id}')">
+                        <i class="fas fa-plus"></i> Aportar
+                    </button>
+                    <button type="button" class="btn-goal-act withdraw" style="flex:1;" onclick="openWithdrawModal('${g.id}')">
+                        <i class="fas fa-minus"></i> Resgatar
+                    </button>
+                    <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    ${!isCompleted ? `
+                        <button type="button" class="btn-goal-act" style="flex:1; background:rgba(245,158,11,0.15); color:#D97706; font-weight:700;" onclick="quickAddMobileAmount('${g.id}', 500)">
+                            <i class="fas fa-bolt"></i> + R$ 500
+                        </button>
+                    ` : ''}
+                    <button type="button" class="btn-goal-act" style="flex:1; background:rgba(108,92,231,0.12); color:#6C5CE7; font-weight:700;" onclick="openMobileYieldModal('${g.id}')">
+                        <i class="fas fa-chart-line"></i> Simular CDI
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function _renderGoalCard(g, idx) {
+    const goalType = g.type || 'financial';
+    if (goalType === 'habit' || goalType === 'project') return _renderProjectCard(g, idx);
+    if (goalType === 'dividends') return _renderDividendsCard(g, idx);
+    if (goalType === 'wealth' || goalType === 'net_worth') return _renderWealthCard(g, idx);
+    return _renderFinancialCard(g, idx);
+}
+
+function renderGoals() {
+    const container = document.getElementById("goalsContainer");
+    if (!container) return;
+
+    const visible = _filterVisibleGoals();
+    if (visible.length === 0) {
+        container.innerHTML = _emptyStateHtml();
         return;
     }
 
-    container.innerHTML = visible.map((g, idx) => {
-        const goalType = g.type || 'financial';
-        const isCompleted = isGoalCompleteMobile(g);
-        const catInfo = CATEGORY_ICONS[g.category] || CATEGORY_ICONS.other;
-        const color = g.color || catInfo.color;
-        const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
-
-        // TIPO 1: PROJETO / HÁBITO MOBILE (📌 - Portão, Reforma, etc.)
-        if (goalType === 'habit' || goalType === 'project') {
-            const completedDateText = g.completed_at ? formatDate(g.completed_at) : (g.deadline ? formatDate(g.deadline) : null);
-            const goalYear = resolveGoalYear(g);
-            const isPostponed = !isCompleted && (g.postponed_to || (g.target_year && g.target_year > currentCycleYear) || (typeof goalYear === 'number' && goalYear < currentCycleYear));
-            const postponedYear = g.postponed_to || g.target_year || (currentCycleYear + 1);
-
-            return `
-                <div class="goal-card stagger-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${isCompleted ? '#00B894' : '#38BDF8'}; animation-delay: ${delay}s;">
-                    <div class="goal-card-top">
-                        <div class="goal-title-group">
-                            <button type="button" class="project-toggle-mobile ${isCompleted ? 'checked' : ''}" onclick="toggleMobileHabitStatus('${g.id}')" title="Marcar como Concluído">
-                                <i class="fas fa-check" style="font-size:12px;"></i>
-                            </button>
-                            <div>
-                                <h3 style="${isCompleted ? 'text-decoration: line-through; opacity:0.85;' : ''}">${g.title}</h3>
-                                <small style="color:#38BDF8; font-weight:600;"><i class="fas fa-tasks"></i> Projeto / Checklist</small>
-                            </div>
-                        </div>
-                        <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}" style="${isPostponed ? 'background:rgba(100,116,139,0.15); color:#64748B;' : ''}">
-                            <i class="fas ${isCompleted ? 'fa-check' : (isPostponed ? 'fa-redo' : 'fa-hourglass-half')}"></i>
-                            ${isCompleted ? 'Concluído' : (isPostponed ? `Para ${postponedYear}` : 'Em andamento')}
-                        </span>
-                    </div>
-
-                    <div style="background:var(--color-bg,#f8fafc); border-radius:10px; padding:9px 12px; margin:8px 0; display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <span style="font-size:10px; color:#94a3b8; display:block;">Status</span>
-                            <span style="font-size:12.5px; font-weight:700; color:${isCompleted ? '#00B894' : (isPostponed ? '#64748B' : '#F59E0B')};">
-                                ${isCompleted ? `🏆 Concluído ${completedDateText ? '('+completedDateText+')' : ''}` : (isPostponed ? `🔄 Reprogramada para ${postponedYear}` : '⏳ Em Andamento')}
-                            </span>
-                        </div>
-                        <div style="text-align:right;">
-                            <span style="font-size:10px; color:#94a3b8; display:block;">Alocação</span>
-                            <span style="font-size:11.5px; font-weight:600;">${g.target_year ? `Ciclo ${g.target_year}` : (g.deadline ? formatDate(g.deadline) : 'Ciclo Atual')}</span>
-                        </div>
-                    </div>
-
-                    <!-- AÇÕES DO PROJETO / HÁBITO -->
-                    <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto auto;">
-                        <button type="button" class="btn-goal-act" style="background:${isCompleted ? '#d1fae5' : 'rgba(56,189,248,0.12)'}; color:${isCompleted ? '#047857' : '#0284C7'}; font-weight:700;" onclick="toggleMobileHabitStatus('${g.id}')">
-                            <i class="fas ${isCompleted ? 'fa-undo' : 'fa-check'}"></i> ${isCompleted ? 'Reabrir' : 'Concluir'}
-                        </button>
-                        ${!isCompleted ? `
-                            <button type="button" class="btn-postpone-mobile" onclick="postponeMobileGoal('${g.id}', ${currentCycleYear + 1})" title="Mover para o próximo ano">
-                                <i class="fas fa-arrow-right"></i> Mover p/ ${currentCycleYear + 1}
-                            </button>
-                        ` : ''}
-                        <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
-                            <i class="fas fa-pen"></i>
-                        </button>
-                        <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        // TIPO 2: DIVIDENDOS MENSAIS AUTOMÁTICOS (📈)
-        if (goalType === 'dividends') {
-            const tgt = Number(g.target_amount) || 1;
-            const analysis = getDividendGoalAnalysisMobile(tgt, g.target_year || currentCycleYear || 2026);
-            const monthlyDivs = analysis.currentMonthVal;
-            const percent = analysis.percentMonth;
-            const isMonthlyTargetMet = tgt > 0 && monthlyDivs >= tgt;
-
-            let consistencyText = '';
-            if (analysis.monthsOnTarget > 0) {
-                consistencyText = `🎯 <strong>${analysis.monthsOnTarget} ${analysis.monthsOnTarget === 1 ? 'mês bateu' : 'meses bateram'}</strong> o alvo de ${formatCurrency(tgt)}`;
-            } else if (analysis.totalYear > 0) {
-                consistencyText = `📊 Acumulado no ano: <strong>${formatCurrency(analysis.totalYear)}</strong>`;
-            } else {
-                consistencyText = `Aguardando primeiros proventos registrados`;
-            }
-
-            return `
-                <div class="goal-card stagger-card ${isCompleted || isMonthlyTargetMet ? 'completed' : ''}" style="border-left-color:#10B981; animation-delay: ${delay}s;">
-                    <div class="goal-card-top">
-                        <div class="goal-title-group">
-                            <div class="mobile-icon-squircle" style="background:rgba(16,185,129,0.15); color:#10B981; width:38px; height:38px;">
-                                <i class="fas fa-hand-holding-usd"></i>
-                            </div>
-                            <div>
-                                <h3>${g.title}</h3>
-                                <small style="color:#10B981; font-weight:600;">📈 Proventos da Carteira</small>
-                            </div>
-                        </div>
-                        <span class="goal-badge ${isCompleted || isMonthlyTargetMet ? 'done' : 'ongoing'}">
-                            <i class="fas ${isCompleted || isMonthlyTargetMet ? 'fa-trophy' : 'fa-chart-line'}"></i>
-                            ${isCompleted ? 'Atingido!' : (isMonthlyTargetMet ? 'Meta do Mês! 🏆' : `${percent}%`)}
-                        </span>
-                    </div>
-
-                    <div class="goal-values-row">
-                        <div>
-                            <span style="font-size:10px; color:#94a3b8; display:block;">Recebido este Mês</span>
-                            <span class="goal-current-val" style="color:#10B981;">${formatCurrency(monthlyDivs)}</span>
-                        </div>
-                        <div style="text-align:right;">
-                            <span class="goal-target-val">Alvo Mensal: <strong>${formatCurrency(tgt)}</strong></span>
-                            <span style="font-size:10px; color:#94a3b8; display:block;">
-                                ${isMonthlyTargetMet ? 'Meta batida! 🎉' : `Falta: ${formatCurrency(Math.max(0, tgt - monthlyDivs))}`}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="goal-progress-bar">
-                        <div class="goal-progress-fill" style="width: ${percent}%; background: #10B981;"></div>
-                    </div>
-
-                    <div style="font-size:10.5px; color:#64748b; margin-top:5px;">
-                        ${consistencyText}
-                    </div>
-
-                    <div class="auto-sync-tag-mobile">
-                        <span><i class="fas fa-wallet"></i> Proventos da Carteira</span>
-                        <button type="button" onclick="refreshMobileDividends()">
-                            <i class="fas fa-redo-alt"></i> Atualizar
-                        </button>
-                    </div>
-
-                    <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
-                        <button type="button" class="btn-goal-act btn-proventos-outline" onclick="window.location.href='investments.html#proventos'">
-                            <i class="fas fa-chart-line"></i> Ver Proventos
-                        </button>
-                        <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
-                            <i class="fas fa-pen"></i>
-                        </button>
-                        <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        // TIPO 3: PATRIMÔNIO TOTAL AUTOMÁTICO (🏦)
-        if (goalType === 'wealth' || goalType === 'net_worth') {
-            const cur = cachedTotalEquityMobile > 0 ? cachedTotalEquityMobile : (Number(g.current_amount) || 0);
-            const inv = cachedTotalInvestedMobile > 0 ? cachedTotalInvestedMobile : cur;
-            const tgt = Number(g.target_amount) || 1;
-            const percent = Math.min(100, Math.round((cur / tgt) * 100));
-            const formattedTime = formatEquityTimestampMobile(cachedTotalEquityUpdatedAtMobile);
-            const diffReturn = cur - inv;
-            const returnPct = inv > 0 ? (diffReturn / inv) * 100 : 0;
-            const sign = diffReturn >= 0 ? '+' : '';
-
-            let detailsReturn = '';
-            if (inv > 0 && Math.abs(diffReturn) > 0.01) {
-                const colorRet = diffReturn >= 0 ? '#10B981' : '#F59E0B';
-                detailsReturn = `<span style="font-size:10px; color:${colorRet}; font-weight:600;">Aplicado: ${formatCurrency(inv)} (${sign}${returnPct.toFixed(2)}%)</span>`;
-            }
-
-            return `
-                <div class="goal-card stagger-card ${isCompleted ? 'completed' : ''}" style="border-left-color:#8B5CF6; animation-delay: ${delay}s;">
-                    <div class="goal-card-top">
-                        <div class="goal-title-group">
-                            <div class="mobile-icon-squircle" style="background:rgba(139,92,246,0.15); color:#8B5CF6; width:38px; height:38px;">
-                                <i class="fas fa-chart-pie"></i>
-                            </div>
-                            <div>
-                                <h3>${g.title}</h3>
-                                <small style="color:#8B5CF6; font-weight:600;">🏦 Patrimônio Total</small>
-                            </div>
-                        </div>
-                        <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
-                            <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-gem'}"></i>
-                            ${isCompleted ? 'Conquistado!' : (isEquityLoadedMobile ? `${percent}%` : '—')}
-                        </span>
-                    </div>
-
-                    <div class="goal-values-row">
-                        <div>
-                            <span style="font-size:10px; color:#94a3b8; display:block;">Patrimônio Atual em Ativos</span>
-                            <span class="goal-current-val" style="color:#8B5CF6;">${isEquityLoadedMobile ? formatCurrency(cur) : '—'}</span>
-                            ${detailsReturn ? `<div style="margin-top:2px;">${detailsReturn}</div>` : ''}
-                        </div>
-                        <div style="text-align:right;">
-                            <span class="goal-target-val">Alvo: <strong>${formatCurrency(tgt)}</strong></span>
-                            <span style="font-size:10px; color:#94a3b8; display:block;">
-                                ${isCompleted ? 'Meta atingida! 🏆' : (isEquityLoadedMobile ? `Faltam: ${formatCurrency(Math.max(0, tgt - cur))}` : 'Carregando custódia...')}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="goal-progress-bar">
-                        <div class="goal-progress-fill" style="width: ${isEquityLoadedMobile ? percent : 0}%; background: #8B5CF6;"></div>
-                    </div>
-
-                    <div class="auto-sync-tag-mobile">
-                        <span><i class="fas fa-sync-alt"></i> Custódia • ${formattedTime}</span>
-                        <button type="button" onclick="refreshMobilePortfolioValue()">
-                            <i class="fas fa-redo-alt"></i> Atualizar
-                        </button>
-                    </div>
-
-                    <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
-                        <button type="button" class="btn-goal-act" style="background:rgba(139,92,246,0.12); color:#6D28D9; font-weight:700;" onclick="window.location.href='investments.html'">
-                            <i class="fas fa-chart-pie"></i> Carteira
-                        </button>
-                        <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
-                            <i class="fas fa-pen"></i>
-                        </button>
-                        <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        // TIPO 4: FINANCEIRA MANUAL (💰 - Poupança com Aportes)
-        const cur = Number(g.current_amount) || 0;
-        const tgt = Number(g.target_amount) || 0;
-        const percent = tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : 0;
-        const remaining = Math.max(0, tgt - cur);
-        const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(color) : 'rgba(108, 92, 231, 0.15)';
-
-        return `
-            <div class="goal-card stagger-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${color}; animation-delay: ${delay}s;">
-                <div class="goal-card-top">
-                    <div class="goal-title-group">
-                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color}; width:38px; height:38px;">
-                            <i class="fas ${catInfo.icon}"></i>
-                        </div>
-                        <div>
-                            <h3>${g.title}</h3>
-                            <small>${catInfo.label}</small>
-                        </div>
-                    </div>
-                    <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
-                        <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-piggy-bank'}"></i>
-                        ${isCompleted ? 'Concluída' : `${percent}%`}
-                    </span>
-                </div>
-
-                <div class="goal-values-row">
-                    <div>
-                        <span style="font-size:10px; color:#94a3b8; display:block;">Acumulado</span>
-                        <span class="goal-current-val">${formatCurrency(cur)}</span>
-                    </div>
-                    <div style="text-align:right;">
-                        <span class="goal-target-val">Alvo: <strong>${formatCurrency(tgt)}</strong></span>
-                        <span style="font-size:10px; color:#94a3b8; display:block;">
-                            ${isCompleted ? 'Meta atingida! 🎉' : `Falta: ${formatCurrency(remaining)}`}
-                        </span>
-                    </div>
-                </div>
-
-                <div class="goal-progress-bar">
-                    <div class="goal-progress-fill" style="width: ${percent}%; background: ${color};"></div>
-                </div>
-
-                <div class="goal-footer-info">
-                    <span>${percent}% concluído</span>
-                    <span>${g.target_year ? 'Ciclo ' + g.target_year : (g.deadline ? '📅 ' + formatDate(g.deadline) : 'Sem prazo')}</span>
-                </div>
-
-                <!-- AÇÕES ORGANIZADAS EM DUAS LINHAS CONFORTÁVEIS -->
-                <div class="goal-actions-wrap" style="display:flex; flex-direction:column; gap:8px; margin-top:12px; padding-top:10px; border-top:1px solid var(--color-border,#f1f5f9);">
-                    <div style="display:flex; gap:6px; align-items:center;">
-                        <button type="button" class="btn-goal-act deposit" style="flex:1;" onclick="openDepositModal('${g.id}')">
-                            <i class="fas fa-plus"></i> Aportar
-                        </button>
-                        <button type="button" class="btn-goal-act withdraw" style="flex:1;" onclick="openWithdrawModal('${g.id}')">
-                            <i class="fas fa-minus"></i> Resgatar
-                        </button>
-                        <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
-                            <i class="fas fa-pen"></i>
-                        </button>
-                        <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                    <div style="display:flex; gap:6px; align-items:center;">
-                        ${!isCompleted ? `
-                            <button type="button" class="btn-goal-act" style="flex:1; background:rgba(245,158,11,0.15); color:#D97706; font-weight:700;" onclick="quickAddMobileAmount('${g.id}', 500)">
-                                <i class="fas fa-bolt"></i> + R$ 500
-                            </button>
-                        ` : ''}
-                        <button type="button" class="btn-goal-act" style="flex:1; background:rgba(108,92,231,0.12); color:#6C5CE7; font-weight:700;" onclick="openMobileYieldModal('${g.id}')">
-                            <i class="fas fa-chart-line"></i> Simular CDI
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join("");
+    container.innerHTML = visible.map((g, idx) => _renderGoalCard(g, idx)).join("");
 }
 
 // ============================================
@@ -2704,6 +2714,23 @@ async function toggleMobileHabitStatus(id) {
 }
 window.toggleMobileHabitStatus = toggleMobileHabitStatus;
 
+function populateMobileCycleSelectOptions(extraYear) {
+    const select = document.getElementById("goalCycleSelect");
+    if (!select) return;
+    const baseYear = new Date().getFullYear();
+    const years = [baseYear, baseYear + 1, baseYear - 1];
+    if (typeof extraYear === 'number' && !isNaN(extraYear) && !years.includes(extraYear)) {
+        years.push(extraYear);
+    }
+    const prevVal = select.value;
+    select.innerHTML = years.map(yr => {
+        const tag = yr === baseYear ? 'Atual' : (yr > baseYear ? 'Planejamento' : 'Histórico');
+        return `<option value="${yr}">Ciclo ${yr} (${tag})</option>`;
+    }).join('') + '<option value="continuous">♾️ Meta Contínua (Longo Prazo)</option>';
+    if (prevVal) select.value = prevVal;
+}
+window.populateMobileCycleSelectOptions = populateMobileCycleSelectOptions;
+
 function openGoalModal() {
     document.getElementById("goalModalTitle").textContent = "Nova Meta";
     document.getElementById("goalEditId").value = "";
@@ -2722,6 +2749,7 @@ function openGoalModal() {
     document.getElementById("goalCurrent").value = "";
     document.getElementById("goalDeadline").value = "";
     
+    populateMobileCycleSelectOptions();
     const cycleSelect = document.getElementById("goalCycleSelect");
     if (cycleSelect) cycleSelect.value = currentTemporalMode === 'continuous' ? 'continuous' : String(currentCycleYear);
 
@@ -2757,6 +2785,8 @@ function openEditGoalModal(id) {
     document.getElementById("goalCurrent").value = goal.current_amount || 0;
     document.getElementById("goalDeadline").value = goal.deadline || "";
 
+    const goalYear = resolveGoalYear(goal);
+    populateMobileCycleSelectOptions(goalYear);
     const cycleSelect = document.getElementById("goalCycleSelect");
     if (cycleSelect) {
         if (goal.target_year === 'continuous' || goal.temporal_mode === 'continuous') {
@@ -3105,7 +3135,13 @@ async function deleteGoal(id) {
     const goal = goals.find(g => String(g.id) === String(id));
     if (!goal) return;
 
-    if (!confirm(`Deseja realmente excluir a meta "${goal.title}"?`)) return;
+    const ok = await window.TonuConfirm({
+        title: "Excluir meta",
+        message: `Deseja realmente excluir a meta "${goal.title}"?`,
+        confirmText: "Excluir",
+        danger: true
+    });
+    if (!ok) return;
 
     try {
         let isOnline = navigator.onLine && window.supabaseClient;
@@ -3156,33 +3192,7 @@ function showToast(msg, type = 'info') {
 }
 if (!window.showToast) window.showToast = showToast;
 
-function formatCurrency(val) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(val);
-    }
-    const num = parseFloat(val) || 0;
-    return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatDate(dStr) {
-    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
-        return window.formatDate(dStr);
-    }
-    if (!dStr) return "--/--/----";
-    const parts = dStr.split("T")[0].split("-");
-    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    return new Date(dStr).toLocaleDateString("pt-BR");
-}
-
-function toggleTheme() {
-    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
-        return window.toggleTheme();
-    }
-    const isDark = document.body.classList.toggle("dark-theme");
-    localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
-    const icon = document.querySelector("#themeIcon");
-    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
-}
+// formatCurrency, formatDate e toggleTheme providos globalmente por js/core.js
 
 let celebrationAutoDismissTimer = null;
 
@@ -3637,7 +3647,13 @@ async function handleMobileQuickDeposit(e) {
 
 async function deleteMobileGoalDeposit(depId, amt) {
     if (!currentMobileYieldGoalId) return;
-    if (!confirm(`Remover este aporte de ${formatCurrency(amt)}? O saldo da meta será recalculado.`)) return;
+    const ok = await window.TonuConfirm({
+        title: "Remover aporte",
+        message: `Remover este aporte de ${formatCurrency(amt)}? O saldo da meta será recalculado.`,
+        confirmText: "Remover",
+        danger: true
+    });
+    if (!ok) return;
 
     const goal = goals.find(g => String(g.id) === String(currentMobileYieldGoalId));
     if (!goal) return;

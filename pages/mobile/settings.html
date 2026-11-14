@@ -924,7 +924,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             document.getElementById("userEmail").textContent = user.email;
             
             // Carrega foto de perfil salva
-            loadMobileAvatar(user, name);
+            await loadMobileAvatar(user, name);
         }
     } catch (e) { console.error("Erro ao carregar usuário em configurações mobile:", e); }
 
@@ -936,11 +936,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     switchMobileSettingsTab('general', defaultTabBtn);
 });
 
-function loadMobileAvatar(user, name) {
+async function loadMobileAvatar(user, name) {
     const avatarEl = document.getElementById("userAvatar");
     if (!avatarEl) return;
     const initial = (name || "U").charAt(0).toUpperCase();
-    const storedAvatar = localStorage.getItem("tonu_avatar_" + user.id) || user.user_metadata?.avatar_url;
+    const uid = user?.id || "user";
+    let storedAvatar = null;
+
+    if (window.tonuSync && typeof window.tonuSync.getEntityCache === "function") {
+        try {
+            storedAvatar = await window.tonuSync.getEntityCache("avatar_" + uid);
+        } catch (_) {}
+    }
+
+    if (!storedAvatar) {
+        try {
+            const legacy = localStorage.getItem("tonu_avatar_" + uid);
+            if (legacy) {
+                storedAvatar = legacy;
+                if (window.tonuSync && typeof window.tonuSync.setEntityCache === "function") {
+                    try {
+                        await window.tonuSync.setEntityCache("avatar_" + uid, legacy);
+                    } catch (_) {}
+                }
+                localStorage.removeItem("tonu_avatar_" + uid);
+            }
+        } catch (_) {}
+    }
+
+    if (!storedAvatar) {
+        storedAvatar = user?.user_metadata?.avatar_url || null;
+    }
+
     if (storedAvatar) {
         avatarEl.innerHTML = `<img src="${storedAvatar}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" />`;
         avatarEl.style.background = "transparent";
@@ -973,7 +1000,12 @@ async function handleMobileAvatarSelect(event) {
     try {
         const compressedDataUrl = await resizeImageToSquare(file, 240, 240);
         const userId = currentUser ? currentUser.id : "user";
-        localStorage.setItem("tonu_avatar_" + userId, compressedDataUrl);
+        if (window.tonuSync && typeof window.tonuSync.setEntityCache === "function") {
+            await window.tonuSync.setEntityCache("avatar_" + userId, compressedDataUrl);
+            try { localStorage.removeItem("tonu_avatar_" + userId); } catch (_) {}
+        } else {
+            localStorage.setItem("tonu_avatar_" + userId, compressedDataUrl);
+        }
 
         const avatarEl = document.getElementById("userAvatar");
         if (avatarEl) {
@@ -1375,10 +1407,16 @@ function testNotificationAlert() {
     }
 }
 
-function configurePinModal() {
+async function configurePinModal() {
     const currentPin = localStorage.getItem("tonu_security_pin");
     if (currentPin) {
-        if (confirm("Você já possui um PIN cadastrado. Deseja removê-lo?")) {
+        const ok = await window.TonuConfirm({
+            title: "Remover PIN",
+            message: "Você já possui um PIN cadastrado. Deseja removê-lo?",
+            confirmText: "Remover",
+            danger: true
+        });
+        if (ok) {
             localStorage.removeItem("tonu_security_pin");
             document.getElementById("pinStatusText").textContent = "Desativado";
             showMobileToast("PIN de segurança removido.", "info");
@@ -1395,8 +1433,13 @@ function configurePinModal() {
     }
 }
 
-function clearSecuritySession() {
-    if (confirm("Deseja desconectar as sessões em outros navegadores e manter apenas este celular?")) {
+async function clearSecuritySession() {
+    const ok = await window.TonuConfirm({
+        title: "Encerrar outras sessões",
+        message: "Deseja desconectar as sessões em outros navegadores e manter apenas este celular?",
+        confirmText: "Desconectar"
+    });
+    if (ok) {
         showMobileToast("Outras sessões encerradas com sucesso! 🛡️", "success");
     }
 }
@@ -1515,8 +1558,14 @@ async function activateMobileBiometrics() {
     }
 }
 
-function disableMobileBiometrics() {
-    if (confirm("Deseja desativar o login biométrico neste aparelho?")) {
+async function disableMobileBiometrics() {
+    const ok = await window.TonuConfirm({
+        title: "Desativar biometria",
+        message: "Deseja desativar o login biométrico neste aparelho?",
+        confirmText: "Desativar",
+        danger: true
+    });
+    if (ok) {
         if (window.TonuBiometrics) {
             window.TonuBiometrics.disableBiometrics();
         }
@@ -1525,13 +1574,19 @@ function disableMobileBiometrics() {
     }
 }
 
-function toggleMobile2FA(enable) {
+async function toggleMobile2FA(enable) {
     if (!window.TonuSecurity) return;
     if (enable) {
         window.TonuSecurity.set2FAEnabled(true);
         showMobileToast("Autenticação em Duas Etapas (2FA) ativada! 🛡️", "success");
     } else {
-        if (confirm("Deseja desativar o 2FA para sua conta?")) {
+        const ok = await window.TonuConfirm({
+            title: "Desativar 2FA",
+            message: "Deseja desativar o 2FA para sua conta?",
+            confirmText: "Desativar",
+            danger: true
+        });
+        if (ok) {
             window.TonuSecurity.set2FAEnabled(false);
             showMobileToast("2FA desativado.", "info");
         }
@@ -1678,7 +1733,12 @@ function triggerRestoreBackup() {
             const countBills = (data.bills || []).length;
             const countGoals = (data.goals || []).length;
 
-            if (!confirm(`Deseja restaurar este backup?\n\n• ${countTx} Transações\n• ${countBills} Contas\n• ${countGoals} Metas`)) return;
+            const ok = await window.TonuConfirm({
+                title: "Restaurar backup",
+                message: `Deseja restaurar este backup?\n\n• ${countTx} Transações\n• ${countBills} Contas\n• ${countGoals} Metas`,
+                confirmText: "Restaurar"
+            });
+            if (!ok) return;
 
             showMobileToast("Restaurando dados...", "info");
 
@@ -1722,8 +1782,14 @@ function triggerRestoreBackup() {
     setTimeout(() => input.remove(), 1000);
 }
 
-function clearLocalCache() {
-    if (confirm("Limpar o cache local? Seus dados na nuvem permanecem seguros e serão recarregados.")) {
+async function clearLocalCache() {
+    const ok = await window.TonuConfirm({
+        title: "Limpar cache local",
+        message: "Limpar o cache local? Seus dados na nuvem permanecem seguros e serão recarregados.",
+        confirmText: "Limpar cache",
+        danger: true
+    });
+    if (ok) {
         localStorage.removeItem("tonu_cached_transactions");
         localStorage.removeItem("tonu_cached_bills");
         showMobileToast("Cache limpo! Recarregando página...", "info");
@@ -1738,7 +1804,13 @@ function switchToDesktop() {
 }
 
 async function handleMobileLogout() {
-    if (confirm("Deseja realmente sair da sua conta?")) {
+    const ok = await window.TonuConfirm({
+        title: "Sair da conta",
+        message: "Deseja realmente sair da sua conta?",
+        confirmText: "Sair",
+        danger: true
+    });
+    if (ok) {
         if (typeof window.logout === 'function') {
             await window.logout();
         } else {
@@ -1755,13 +1827,7 @@ async function handleMobileLogout() {
 }
 window.handleMobileLogout = handleMobileLogout;
 
-function formatCurrency(val) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(val);
-    }
-    const num = Number(val) || 0;
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(num);
-}
+// formatCurrency provido globalmente por js/core.js
 
 function showMobileToast(msg, type) {
     const toast = document.getElementById("toast");

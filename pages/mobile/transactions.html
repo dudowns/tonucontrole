@@ -560,12 +560,16 @@ function updateSummaryStrip(txs) {
     }
 }
 
+const _debouncedFilterTransactions = (typeof window.TonuDebounce === 'function')
+    ? window.TonuDebounce(() => filterTransactions(), 180)
+    : filterTransactions;
+
 function handleSearchInput(val) {
     const clearBtn = document.getElementById("searchClearBtn");
     if (clearBtn) {
         clearBtn.style.display = val && val.trim().length > 0 ? "flex" : "none";
     }
-    filterTransactions();
+    _debouncedFilterTransactions();
 }
 
 function clearSearch() {
@@ -629,22 +633,7 @@ function getDateGroupHeader(dateStr) {
     return `${String(d).padStart(2, '0')} de ${monthNames[m - 1]}`;
 }
 
-function colorTo15PercentAlpha(colorStr) {
-    if (!colorStr) return 'rgba(108, 92, 231, 0.15)';
-    if (colorStr.startsWith('#')) {
-        let hex = colorStr.replace('#', '');
-        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-        const num = parseInt(hex, 16);
-        const r = (num >> 16) & 255;
-        const g = (num >> 8) & 255;
-        const b = num & 255;
-        return `rgba(${r}, ${g}, ${b}, 0.15)`;
-    }
-    if (colorStr.startsWith('rgb')) {
-        return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.15)');
-    }
-    return 'rgba(108, 92, 231, 0.15)';
-}
+// colorTo15PercentAlpha provido globalmente por js/core.js
 
 function renderTransactions() {
     const container = document.getElementById("transactionList");
@@ -965,13 +954,19 @@ async function deleteTransaction(id) {
     if (isAnticipation) {
         const match = String(target.description || '').match(/\(([\d,\s]+)\)$/);
         const numsStr = match ? match[1] : '';
-        if (!confirm("Deseja realmente excluir esta transação de antecipação?")) return;
-        shouldRevertBills = confirm(
-            `Esta transação refere-se a uma antecipação de parcelas${numsStr ? ` (${numsStr})` : ''}.\n\n` +
-            `Deseja também REVERTER essas parcelas para o estado NÃO PAGO em Contas a Pagar?\n\n` +
-            `• OK: Exclui a transação e reverte as parcelas para pendentes.\n` +
-            `• Cancelar: Exclui apenas a transação do extrato mantendo as parcelas quitadas.`
-        );
+        const ok = await window.TonuConfirm({
+            title: "Excluir antecipação",
+            message: "Deseja realmente excluir esta transação de antecipação?",
+            confirmText: "Excluir",
+            danger: true
+        });
+        if (!ok) return;
+        shouldRevertBills = await window.TonuConfirm({
+            title: "Reverter parcelas?",
+            message: `Esta transação refere-se a uma antecipação de parcelas${numsStr ? ` (${numsStr})` : ''}.\n\nDeseja também REVERTER essas parcelas para o estado NÃO PAGO em Contas a Pagar?`,
+            confirmText: "Reverter parcelas",
+            cancelText: "Manter quitadas"
+        });
     } else if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
         deleteMode = await window.confirmRecurringDelete({
             countFromNow: seriesInfo.fromNow.length,
@@ -981,7 +976,13 @@ async function deleteTransaction(id) {
         });
         if (deleteMode === 'cancel') return;
     } else {
-        if (!confirm("Deseja realmente excluir esta transação?")) return;
+        const ok = await window.TonuConfirm({
+            title: "Excluir transação",
+            message: "Deseja realmente excluir esta transação?",
+            confirmText: "Excluir",
+            danger: true
+        });
+        if (!ok) return;
     }
 
     try {
@@ -1041,48 +1042,7 @@ async function deleteTransaction(id) {
     }
 }
 
-function formatCurrency(value) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(value);
-    }
-    if (value === null || value === undefined || value === '') value = 0;
-    if (typeof value === 'string') {
-        const cleaned = value.replace(/[R$\s]/g, '');
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-            value = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (cleaned.includes(',')) {
-            value = cleaned.replace(',', '.');
-        }
-        value = parseFloat(value);
-    }
-    const num = Number(value) || 0;
-    try {
-        const formatted = new Intl.NumberFormat("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(num);
-        return formatted.replace(/\u00A0/g, ' ');
-    } catch {
-        const isNegative = num < 0;
-        const parts = Math.abs(num).toFixed(2).split('.');
-        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const res = 'R$ ' + intPart + ',' + parts[1];
-        return isNegative ? '-' + res : res;
-    }
-}
-
-function formatDate(date) {
-    if (!date) return "--/--/----";
-    const str = String(date).trim();
-    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (match) {
-        return `${match[3]}/${match[2]}/${match[1]}`;
-    }
-    const d = new Date(str);
-    return isNaN(d.getTime()) ? date : d.toLocaleDateString("pt-BR");
-}
+// formatCurrency e formatDate providos globalmente por js/core.js
 
 function exportTransactionsCSV() {
     const txsToExport = (filteredTransactions && filteredTransactions.length > 0)
@@ -1167,15 +1127,7 @@ document.addEventListener("click", (e) => {
     }
 });
 
-function toggleTheme() {
-    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
-        return window.toggleTheme();
-    }
-    const isDark = document.body.classList.toggle("dark-theme");
-    localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
-    const icon = document.querySelector("#themeIcon");
-    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
-}
+// toggleTheme provido globalmente por js/core.js
 
 // Atalhos Rápidos (App Shortcuts PWA)
 document.addEventListener("DOMContentLoaded", () => {
