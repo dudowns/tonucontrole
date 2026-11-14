@@ -21,6 +21,8 @@ let mobileChartInstance = null;
 let currentChartMode = 'categories';
 let isBalanceHidden = localStorage.getItem('tonu_hide_balance') === 'true';
 let currentMonthOffset = 0;
+let cachedDashboardEquity = 0;
+let isDashboardEquityLoaded = false;
 
 // ============================================
 // NAVEGAÇÃO DE MÊS NO MOBILE
@@ -605,6 +607,19 @@ async function loadMobileData() {
                 } catch (_) {}
             }
         }
+
+        // Se metas vieram vazias mas há cache IndexedDB (ex: offline parcial), recupera metas cacheadas
+        if ((!allGoals || allGoals.length === 0) && currentUser?.id && window.tonuSync) {
+            try {
+                const cachedGoals = await window.tonuSync.getCachedGoals(currentUser.id);
+                if (Array.isArray(cachedGoals) && cachedGoals.length > 0) {
+                    allGoals = cachedGoals;
+                }
+            } catch (_) {}
+        }
+
+        // Sincroniza patrimônio em custódia antes de renderizar o carrossel de metas
+        await loadSyncedPortfolioEquity();
 
         console.log("📊 Mobile: Dados unificados prontos:", {
             transacoes: allTransactions.length,
@@ -1456,8 +1471,352 @@ function renderMobileInsights() {
 }
 
 // ============================================
-// RENDER METAS NO MOBILE
+// SINCRONIZAÇÃO DE PATRIMÔNIO PARA METAS NO DASHBOARD
 // ============================================
+async function loadSyncedPortfolioEquity(options = {}) {
+    const force = !!(options && options.forceRefresh);
+    if (!force && isDashboardEquityLoaded && cachedDashboardEquity > 0) {
+        return cachedDashboardEquity;
+    }
+
+    const uid = currentUser?.id || 'demo';
+
+    // 1. Cálculo ao vivo da custódia (investimentos + eventos corporativos + cotações)
+    try {
+        let invList = Array.isArray(allInvestments) && allInvestments.length > 0 ? allInvestments : [];
+        let corpList = [];
+
+        if (window.tonuSync && currentUser?.id) {
+            try {
+                if (invList.length === 0) invList = await window.tonuSync.getCachedInvestments(currentUser.id);
+                corpList = await window.tonuSync.getCachedCorporateEvents(currentUser.id);
+            } catch (_) {}
+        }
+
+        if ((!corpList || corpList.length === 0) && navigator.onLine && window.supabaseClient && currentUser?.id) {
+            try {
+                const { data: corpData } = await window.supabaseClient
+                    .from("corporate_events")
+                    .select("*")
+                    .eq("user_id", currentUser.id);
+                if (Array.isArray(corpData) && corpData.length > 0) corpList = corpData;
+            } catch (_) {}
+        }
+
+        if (Array.isArray(invList) && invList.length > 0) {
+            const quoteMap = new Map();
+            try {
+                const rawQ = localStorage.getItem('tonu_quotes_cache');
+                if (rawQ) {
+                    const parsedQ = JSON.parse(rawQ);
+                    if (parsedQ && parsedQ.quotes) {
+                        for (const [tk, val] of Object.entries(parsedQ.quotes)) {
+                            quoteMap.set(tk.toUpperCase().trim(), val);
+                        }
+                    }
+                }
+            } catch (_) {}
+
+            const normalizedTx = invList.map(t => ({
+                ...t,
+                isCorporateEvent: false,
+                sortDate: t.date || '1970-01-01',
+                sortPriority: (t.type || '').toLowerCase().includes('compra') ? 1 : 2
+            }));
+
+            const normalizedEvents = (corpList || []).map(ev => ({
+                ...ev,
+                isCorporateEvent: true,
+                sortDate: ev.event_date || ev.date || '1970-01-01',
+                sortPriority: 0
+            }));
+
+            const timeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
+                const da = new Date(a.sortDate + 'T12:00:00').getTime();
+                const db = new Date(b.sortDate + 'T12:00:00').getTime();
+                if (da !== db) return da - db;
+                if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+                return (a.created_at || '').localeCompare(b.created_at || '');
+            });
+
+            const posMap = new Map();
+            timeline.forEach(item => {
+                const ticker = (item.ticker || '').toUpperCase().trim();
+                if (!ticker) return;
+                const cleanTk = ticker.replace(/\.SA$/, '').replace(/F$/, '');
+                if (!posMap.has(cleanTk)) {
+                    posMap.set(cleanTk, { quantity: 0, costBasis: 0, averageCost: 0 });
+                }
+                const pos = posMap.get(cleanTk);
+
+                if (item.isCorporateEvent) {
+                    const evType = (item.event_type || item.type || '').trim();
+                    if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+                        const rf = parseFloat(item.ratio_from) || 1;
+                        const rt = parseFloat(item.ratio_to) || 1;
+                        if (rf > 0 && rt > 0 && pos.quantity > 0) {
+                            pos.quantity = pos.quantity * (rt / rf);
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+                        const bShares = parseFloat(item.bonus_shares || item.quantity || 0);
+                        const bCost = parseFloat(item.unit_cost || item.unit_price || 0);
+                        if (bShares > 0) {
+                            pos.quantity += bShares;
+                            pos.costBasis += (bShares * bCost);
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    } else if (evType === 'Amortização') {
+                        const amort = parseFloat(item.amortization_per_share || item.unit_value || 0);
+                        if (amort > 0 && pos.quantity > 0) {
+                            pos.costBasis = Math.max(0, pos.costBasis - (amort * pos.quantity));
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    }
+                    return;
+                }
+
+                const qty = parseFloat(item.quantity) || 0;
+                const total = parseFloat(item.total_value || item.amount || (qty * (parseFloat(item.unit_price) || 0))) || 0;
+                const type = (item.type || '').toLowerCase();
+
+                if (type.includes('compra') || type.includes('buy')) {
+                    pos.costBasis += total;
+                    pos.quantity += qty;
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                } else if (type.includes('venda') || type.includes('sell')) {
+                    const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                    pos.costBasis = Math.max(0, pos.costBasis - (avg * qty));
+                    pos.quantity = Math.max(0, pos.quantity - qty);
+                    if (pos.quantity <= 0.0001) {
+                        pos.quantity = 0;
+                        pos.costBasis = 0;
+                        pos.averageCost = 0;
+                    } else {
+                        pos.averageCost = pos.costBasis / pos.quantity;
+                    }
+                }
+            });
+
+            let computedPatrimonio = 0;
+            for (const [tk, p] of posMap.entries()) {
+                if (p.quantity > 0.0001) {
+                    const qData = quoteMap.get(tk) || quoteMap.get(`${tk}.SA`);
+                    const quotePrice = (qData && Number.isFinite(qData.price) && qData.price > 0) ? qData.price : p.averageCost;
+                    const val = p.quantity * quotePrice;
+                    computedPatrimonio += (val > 0 ? val : (p.costBasis || 0));
+                }
+            }
+
+            if (computedPatrimonio > 0) {
+                cachedDashboardEquity = Math.round(computedPatrimonio * 100) / 100;
+                isDashboardEquityLoaded = true;
+                try { localStorage.setItem('tonu_total_equity_' + uid, String(cachedDashboardEquity)); } catch (_) {}
+                return cachedDashboardEquity;
+            }
+        }
+    } catch (_) {}
+
+    // 2. Fallback: portfolio_snapshots no Supabase
+    try {
+        if (navigator.onLine && window.supabaseClient && currentUser?.id) {
+            const { data } = await window.supabaseClient
+                .from('portfolio_snapshots')
+                .select('total_equity')
+                .eq('user_id', currentUser.id)
+                .order('date', { ascending: false })
+                .limit(1);
+            if (data && data[0]?.total_equity && Number(data[0].total_equity) > 0) {
+                cachedDashboardEquity = Number(data[0].total_equity);
+                isDashboardEquityLoaded = true;
+                try { localStorage.setItem('tonu_total_equity_' + uid, String(cachedDashboardEquity)); } catch (_) {}
+                return cachedDashboardEquity;
+            }
+        }
+    } catch (_) {}
+
+    // 3. Fallback: user_stats no Supabase
+    try {
+        if (navigator.onLine && window.supabaseClient && currentUser?.id) {
+            const { data: uStat } = await window.supabaseClient
+                .from('user_stats')
+                .select('patrimony')
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+            if (uStat && Number(uStat.patrimony) > 0) {
+                cachedDashboardEquity = Number(uStat.patrimony);
+                isDashboardEquityLoaded = true;
+                return cachedDashboardEquity;
+            }
+        }
+    } catch (_) {}
+
+    // 4. Fallback: localStorage sincronizado com metas/investimentos
+    try {
+        const cached =
+            localStorage.getItem('tonu_total_equity_' + uid) ||
+            localStorage.getItem('tonu_portfolio_equity_' + uid) ||
+            localStorage.getItem('tonu_total_equity') ||
+            localStorage.getItem('tonu_investments_equity') ||
+            localStorage.getItem('tonu_cached_equity_val');
+        if (cached) {
+            const val = Number(cached);
+            if (!isNaN(val) && val > 0) {
+                cachedDashboardEquity = val;
+                isDashboardEquityLoaded = true;
+                return cachedDashboardEquity;
+            }
+        }
+    } catch (_) {}
+
+    isDashboardEquityLoaded = true;
+    return cachedDashboardEquity;
+}
+
+// ============================================
+// RENDER METAS AGRUPADAS POR TIPO (CARROSSEL)
+// ============================================
+function normalizeDashboardGoalType(goal) {
+    const raw = String(goal?.type || goal?.goal_type || goal?.category || '').toLowerCase().trim();
+    if (raw === 'wealth' || raw === 'net_worth' || raw === 'patrimonio') return 'wealth';
+    if (raw === 'dividends' || raw === 'proventos') return 'dividends';
+    if (raw === 'project' || raw === 'habit' || raw === 'projeto') return 'project';
+    if (raw === 'financial' || raw === 'money' || raw === 'dinheiro' || !raw) return 'financial';
+    return raw;
+}
+
+function getMonthlyDividendsTotalForDashboard() {
+    const targetDate = getSelectedMonthDate();
+    const curY = targetDate.getFullYear();
+    const curM = targetDate.getMonth();
+    return (allDividends || []).filter(d => {
+        const dt = (d.payment_date || d.date || '').substring(0, 10);
+        if (!dt) return false;
+        const parts = dt.split('-');
+        return parseInt(parts[0], 10) === curY && (parseInt(parts[1], 10) - 1) === curM;
+    }).reduce((acc, d) => {
+        const val = parseFloat(d.total_value || d.net_value || d.amount || d.total_amount);
+        if (!isNaN(val) && val > 0) return acc + val;
+        const q = parseFloat(d.quantity) || 0;
+        const u = parseFloat(d.unit_value) || 0;
+        return acc + (q * u);
+    }, 0);
+}
+
+function buildGoalTypeSummaryCard(typeKey, items) {
+    const esc = (str) => (typeof sanitizeString === 'function' ? sanitizeString(str || '') : String(str || ''));
+    const count = items.length;
+    const countLabel = `${count} ${count === 1 ? 'meta' : 'metas'}`;
+
+    if (typeKey === 'wealth') {
+        const maxStored = items.reduce((mx, g) => Math.max(mx, Number(g.current_amount || g.current || 0)), 0);
+        const current = cachedDashboardEquity > 0 ? cachedDashboardEquity : maxStored;
+        const pending = items
+            .filter(g => !g.completed && Number(g.target_amount || g.target || 0) > current)
+            .sort((a, b) => Number(a.target_amount || a.target || 0) - Number(b.target_amount || b.target || 0));
+        const rep = pending[0] || items.slice().sort((a, b) => Number(b.target_amount || b.target || 0) - Number(a.target_amount || a.target || 0))[0];
+        const target = Number(rep?.target_amount || rep?.target || 0);
+        const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+        const repName = esc(rep?.title || rep?.name || 'Reserva Patrimonial');
+        return {
+            typeKey,
+            title: 'Patrimônio',
+            subtitle: `${countLabel} · ${repName}`,
+            icon: 'fa-chart-pie',
+            color: '#8B5CF6',
+            iconBg: 'rgba(139, 92, 246, 0.14)',
+            percent,
+            currentLabel: 'Em custódia',
+            currentValue: formatCurrency(current),
+            targetLabel: pending.length > 0 ? 'Próximo alvo' : 'Alvo',
+            targetValue: formatCurrency(target)
+        };
+    }
+
+    if (typeKey === 'financial') {
+        const current = items.reduce((acc, g) => acc + (Number(g.current_amount || g.current || 0)), 0);
+        const target = items.reduce((acc, g) => acc + (Number(g.target_amount || g.target || 0)), 0);
+        const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+        const activeFirst = items.find(g => !g.completed) || items[0];
+        const repName = esc(activeFirst?.title || activeFirst?.name || 'Reserva Financeira');
+        return {
+            typeKey,
+            title: 'Dinheiro',
+            subtitle: count > 1 ? `${countLabel} · ${repName}` : repName,
+            icon: 'fa-dollar-sign',
+            color: '#F59E0B',
+            iconBg: 'rgba(245, 158, 11, 0.14)',
+            percent,
+            currentLabel: 'Acumulado',
+            currentValue: formatCurrency(current),
+            targetLabel: 'Alvo total',
+            targetValue: formatCurrency(target)
+        };
+    }
+
+    if (typeKey === 'dividends') {
+        const current = getMonthlyDividendsTotalForDashboard();
+        const pending = items
+            .filter(g => !g.completed && Number(g.target_amount || g.target || 0) > current)
+            .sort((a, b) => Number(a.target_amount || a.target || 0) - Number(b.target_amount || b.target || 0));
+        const rep = pending[0] || items.slice().sort((a, b) => Number(b.target_amount || b.target || 0) - Number(a.target_amount || a.target || 0))[0];
+        const target = Number(rep?.target_amount || rep?.target || 0);
+        const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+        const repName = esc(rep?.title || rep?.name || 'Renda Passiva');
+        return {
+            typeKey,
+            title: 'Proventos',
+            subtitle: `${countLabel} · ${repName}`,
+            icon: 'fa-hand-holding-usd',
+            color: '#10B981',
+            iconBg: 'rgba(16, 185, 129, 0.14)',
+            percent,
+            currentLabel: 'Recebido no mês',
+            currentValue: formatCurrency(current),
+            targetLabel: 'Alvo mensal',
+            targetValue: formatCurrency(target)
+        };
+    }
+
+    if (typeKey === 'project') {
+        const doneCount = items.filter(g => !!g.completed).length;
+        const percent = count > 0 ? Math.min(100, Math.round((doneCount / count) * 100)) : 0;
+        const nextPending = items.find(g => !g.completed) || items[0];
+        const nextTitle = esc(nextPending?.title || nextPending?.name || 'Checklist');
+        return {
+            typeKey,
+            title: 'Projetos',
+            subtitle: doneCount === count ? `${countLabel} concluídos` : `Próximo: ${nextTitle}`,
+            icon: 'fa-tasks',
+            color: '#0EA5E9',
+            iconBg: 'rgba(14, 165, 233, 0.14)',
+            percent,
+            currentLabel: 'Concluídos',
+            currentValue: `${doneCount} de ${count}`,
+            targetLabel: 'Restantes',
+            targetValue: `${Math.max(0, count - doneCount)}`
+        };
+    }
+
+    const current = items.reduce((acc, g) => acc + (Number(g.current_amount || g.current || 0)), 0);
+    const target = items.reduce((acc, g) => acc + (Number(g.target_amount || g.target || 0)), 0);
+    const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+    const repName = esc(items[0]?.title || items[0]?.name || 'Metas');
+    return {
+        typeKey,
+        title: esc(typeKey.charAt(0).toUpperCase() + typeKey.slice(1)),
+        subtitle: `${countLabel} · ${repName}`,
+        icon: 'fa-bullseye',
+        color: '#6C5CE7',
+        iconBg: 'rgba(108, 92, 231, 0.14)',
+        percent,
+        currentLabel: 'Atual',
+        currentValue: formatCurrency(current),
+        targetLabel: 'Alvo',
+        targetValue: formatCurrency(target)
+    };
+}
+
 function renderMobileGoals() {
     const container = document.getElementById("mobileGoalsContainer");
     if (!container) return;
@@ -1467,60 +1826,61 @@ function renderMobileGoals() {
         return;
     }
 
-    const goal = allGoals[0]; // Primeira meta
-    const target = Number(goal.target_amount || goal.target || 0);
-    const goalType = goal.goal_type || goal.category || 'project';
-    let current = Number(goal.current_amount || goal.current || 0);
+    const grouped = new Map();
+    allGoals.forEach(g => {
+        const typeKey = normalizeDashboardGoalType(g);
+        if (!grouped.has(typeKey)) grouped.set(typeKey, []);
+        grouped.get(typeKey).push(g);
+    });
 
-    let currentLabel = `Atual: ${formatCurrency(current)}`;
-    let targetLabel = `Alvo: ${formatCurrency(target)}`;
-    let tagBadge = '';
+    const preferredOrder = ['wealth', 'financial', 'dividends', 'project'];
+    const orderedKeys = [
+        ...preferredOrder.filter(k => grouped.has(k)),
+        ...[...grouped.keys()].filter(k => !preferredOrder.includes(k))
+    ];
 
-    if (goalType === 'dividends') {
-        const curY = (currentDate && currentDate.getFullYear()) || new Date().getFullYear();
-        const curM = (currentDate && currentDate.getMonth()) || new Date().getMonth();
-        const monthlyDivs = (allDividends || []).filter(d => {
-            const dt = (d.payment_date || d.date || '').substring(0, 10);
-            if (!dt) return false;
-            const parts = dt.split('-');
-            return parseInt(parts[0], 10) === curY && (parseInt(parts[1], 10) - 1) === curM;
-        }).reduce((acc, d) => acc + (parseFloat(d.total_value || d.amount || d.net_value) || 0), 0);
-        current = monthlyDivs;
-        currentLabel = `Recebido este mês: ${formatCurrency(current)}`;
-        targetLabel = `Alvo mensal: ${formatCurrency(target)}`;
-        tagBadge = `<span style="font-size:9.5px; color:#10B981; font-weight:700; margin-left:6px;"><i class="fas fa-hand-holding-usd"></i> Proventos</span>`;
-    } else if (goalType === 'wealth' || goalType === 'net_worth') {
-        const storedEquity = parseFloat(localStorage.getItem('tonu_cached_equity_val') || '0');
-        if (storedEquity > 0) current = storedEquity;
-        currentLabel = `Patrimônio atual: ${formatCurrency(current)}`;
-        targetLabel = `Alvo: ${formatCurrency(target)}`;
-        tagBadge = `<span style="font-size:9.5px; color:#8B5CF6; font-weight:700; margin-left:6px;"><i class="fas fa-chart-pie"></i> Carteira</span>`;
+    const summaryCards = orderedKeys.map(k => buildGoalTypeSummaryCard(k, grouped.get(k)));
+    if (summaryCards.length === 0) {
+        container.innerHTML = "";
+        return;
     }
 
-    const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
-    const remaining = Math.max(0, target - current);
-    const goalTitle = goal.title || goal.name || 'Minha Meta';
-    const safeGoalTitle = typeof sanitizeString === 'function' ? sanitizeString(goalTitle) : goalTitle;
+    const isSingle = summaryCards.length === 1;
+    const cardsHtml = summaryCards.map(card => `
+        <a href="goals.html" class="goal-type-card" aria-label="${card.title}: ${card.percent}% concluído">
+            <div class="goal-type-card-top">
+                <div class="goal-type-icon" style="background:${card.iconBg}; color:${card.color};">
+                    <i class="fas ${card.icon}"></i>
+                </div>
+                <div class="goal-type-meta">
+                    <div class="goal-type-name">${card.title}</div>
+                    <div class="goal-type-sub">${card.subtitle}</div>
+                </div>
+                <span class="goal-type-pct" style="color:${card.color};">${card.percent}%</span>
+            </div>
+            <div class="goal-type-progress-track">
+                <div class="goal-type-progress-fill" style="width:${card.percent}%; background:${card.color};"></div>
+            </div>
+            <div class="goal-type-values">
+                <div class="goal-type-val-block">
+                    <span class="goal-type-val-label">${card.currentLabel}</span>
+                    <span class="goal-type-val-num">${card.currentValue}</span>
+                </div>
+                <div class="goal-type-val-block right">
+                    <span class="goal-type-val-label">${card.targetLabel}</span>
+                    <span class="goal-type-val-num">${card.targetValue}</span>
+                </div>
+            </div>
+        </a>
+    `).join('');
 
     container.innerHTML = `
-        <div class="category-bars-card" style="margin-bottom:14px;">
-            <div class="category-bars-header">
-                <h3><i class="fas fa-bullseye" style="color:#0984E3; margin-right:6px;"></i> Meta Prioritária ${tagBadge}</h3>
-                <a href="goals.html" style="font-size:11px; color:#6C5CE7; font-weight:600; text-decoration:none;">Ver todas →</a>
-            </div>
-            <div class="category-bar-item" style="margin-top:6px;">
-                <div class="category-bar-info">
-                    <span class="cat-name"><strong>${safeGoalTitle}</strong></span>
-                    <span class="cat-amount">${percent}%</span>
-                </div>
-                <div class="category-bar-track" style="height:8px; border-radius:4px; margin:6px 0;">
-                    <div class="category-bar-fill" style="width: ${percent}%; background: linear-gradient(90deg, #0984E3, #6C5CE7); border-radius:4px;"></div>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--color-text-muted, #94a3b8);">
-                    <span>${currentLabel}</span>
-                    <span>${targetLabel}</span>
-                </div>
-            </div>
+        <div class="goals-carousel-header">
+            <h2 class="goals-carousel-title"><i class="fas fa-bullseye"></i> Metas por Categoria</h2>
+            <a href="goals.html" class="goals-carousel-all-link">Ver todas →</a>
+        </div>
+        <div class="goals-carousel-track ${isSingle ? 'single-card' : ''}">
+            ${cardsHtml}
         </div>
     `;
 }
@@ -1796,5 +2156,35 @@ function toggleTheme() {
 }
 
 window.renderMobileInsights = renderMobileInsights;
+window.renderMobileGoals = renderMobileGoals;
+
+// Atualiza patrimônio e metas ao retornar ao Dashboard ou alterar carteira em outra aba
+async function refreshDashboardGoalsSync() {
+    if (!currentUser) return;
+    await loadSyncedPortfolioEquity({ forceRefresh: true });
+    renderMobileGoals();
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && currentUser) {
+        refreshDashboardGoalsSync().catch(() => {});
+    }
+});
+
+window.addEventListener("focus", () => {
+    if (currentUser) {
+        refreshDashboardGoalsSync().catch(() => {});
+    }
+});
+
+window.addEventListener("storage", (e) => {
+    if (e.key && (e.key.includes("tonu_total_equity") || e.key.includes("tonu_investments") || e.key.includes("tonu_goals"))) {
+        refreshDashboardGoalsSync().catch(() => {});
+    }
+});
+
+window.addEventListener("tonu_portfolio_updated", () => {
+    refreshDashboardGoalsSync().catch(() => {});
+});
 
 console.log("✅ Mobile Dashboard pronto!");

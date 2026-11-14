@@ -336,7 +336,6 @@ main,
 #billListMobile,
 #transactionList,
 #goalsList,
-#mobileGoalsContainer,
 #mobileTransactions,
 .mobile-invest-content,
 #positionsListContainer,
@@ -1701,7 +1700,7 @@ body.dark-theme .sheet-drag-handle {
     padding: 14px 16px;
     border: 1px solid var(--color-border, #e2e8f0);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-    margin-bottom: 24px;
+    margin-bottom: 14px;
     box-sizing: border-box;
 }
 
@@ -4056,5 +4055,223 @@ body.dark-theme .btn-goal-icon {
 }
 
 #mobileChartContainer {
-    margin-bottom: 24px !important;
+    margin-bottom: 14px !important;
+}
+
+/* ========================================================
+   CARROSSEL HORIZONTAL DE METAS AGRUPADAS POR TIPO (DASHBOARD)
+   ======================================================== */
+#mobileGoalsContainer,
+.mobile-goals-section {
+    margin: 0 0 14px 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+.goals-carousel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 2px 0 8px 0;
+}
+
+.goals-carousel-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text, #1e293b);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+}
+
+.goals-carousel-title i {
+    color: #6C5CE7;
+    font-size: 13.5px;
+}
+
+.goals-carousel-all-link {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #6C5CE7;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 36px;
+    padding: 0 2px;
+    touch-action: manipulation;
+}
+
+.goals-carousel-track {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 2px 2px 6px 2px;
+    margin: 0;
+}
+
+.goals-carousel-track::-webkit-scrollbar {
+    display: none;
+}
+
+.goal-type-card {
+    flex: 0 0 84%;
+    max-width: 310px;
+    scroll-snap-align: start;
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 16px;
+    padding: 14px 15px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-decoration: none;
+    color: inherit;
+    box-sizing: border-box;
+    transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.goal-type-card:active {
+    transform: scale(0.98);
+}
+
+.goals-carousel-track.single-card .goal-type-card {
+    flex: 1 0 100%;
+    max-width: 100%;
+}
+
+.goal-type-card-top {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-width: 0;
+}
+
+.goal-type-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.goal-type-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.goal-type-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--color-text, #0f172a);
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.goal-type-sub {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-muted, #64748b);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.goal-type-pct {
+    font-size: 14px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.goal-type-progress-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--color-bg, #f1f5f9);
+    overflow: hidden;
+}
+
+.goal-type-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.goal-type-values {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+.goal-type-val-block {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.goal-type-val-block.right {
+    text-align: right;
+    align-items: flex-end;
+}
+
+.goal-type-val-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-muted, #94a3b8);
+    line-height: 1.2;
+}
+
+.goal-type-val-num {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--color-text, #1e293b);
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
+body.dark-theme .goals-carousel-title {
+    color: #f8fafc;
+}
+
+body.dark-theme .goals-carousel-all-link {
+    color: #a5b4fc;
+}
+
+body.dark-theme .goal-type-card {
+    background: #171f2e;
+    border-color: rgba(51, 65, 85, 0.75);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+body.dark-theme .goal-type-name,
+body.dark-theme .goal-type-val-num {
+    color: #f8fafc;
+}
+
+body.dark-theme .goal-type-sub,
+body.dark-theme .goal-type-val-label {
+    color: #94a3b8;
+}
+
+body.dark-theme .goal-type-progress-track {
+    background: rgba(15, 23, 42, 0.85);
 }
