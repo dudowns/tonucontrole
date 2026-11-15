@@ -149,7 +149,8 @@ app.get(['/api/config', '/tonucontrole/api/config'], (req, res) => {
     return res.json({
         supabaseUrl,
         supabaseAnonKey,
-        brapiToken: brapiToken || ''
+        brapiToken: brapiToken || '',
+        demoMode: process.env.BASE44_PREVIEW_MODE === '1'
     });
 });
 
@@ -903,7 +904,10 @@ function getClientConfigScript(nonce) {
     const config = {
         supabaseUrl: process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL,
         supabaseAnonKey: process.env.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY,
-        brapiToken: process.env.BRAPI_TOKEN || ''
+        brapiToken: process.env.BRAPI_TOKEN || '',
+        // Modo demonstração (dados de exemplo locais): habilitado apenas no ambiente
+        // de preview da Base44. Em produção a flag não existe e o valor é false.
+        demoMode: process.env.BASE44_PREVIEW_MODE === '1'
     };
     const sanitizedJson = JSON.stringify(config).replace(/</g, '\\u003c');
     const nonceAttr = nonce ? ` nonce="${nonce}"` : '';
