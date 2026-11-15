@@ -413,13 +413,19 @@ async function testBiometrics() {
     }
 }
 
-function disableBiometrics() {
+async function disableBiometrics() {
     if (isProcessing) {
         showToast('Aguarde a operação atual terminar...', 'warning');
         return;
     }
 
-    if (confirm('Deseja realmente desativar o login por biometria neste dispositivo?')) {
+    const confirmedBiometrics = await window.TonuConfirm({
+        title: 'Desativar biometria?',
+        message: 'Deseja realmente desativar o login por biometria neste dispositivo?',
+        confirmText: 'Desativar',
+        danger: true
+    });
+    if (confirmedBiometrics) {
         window.TonuBiometrics.disableBiometrics();
         showToast('Biometria desativada.', 'info');
         renderBiometricsSettingsUI();
@@ -820,7 +826,13 @@ async function removeAvatar() {
         return;
     }
 
-    if (!confirm('Deseja remover sua foto de perfil?')) return;
+    const confirmedAvatar = await window.TonuConfirm({
+        title: 'Remover foto de perfil?',
+        message: 'Deseja remover sua foto de perfil?',
+        confirmText: 'Remover',
+        danger: true
+    });
+    if (!confirmedAvatar) return;
 
     try {
         isProcessing = true;

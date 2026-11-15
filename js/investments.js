@@ -5,6 +5,14 @@
 
 console.log('📈 Investments.js carregado');
 
+// Aliases de helpers globais (definidos em js/core.js)
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+var getToday = window.getToday;
+var sanitizeString = window.sanitizeString;
+
 // ============================================
 // ANIMAÇÃO DE CARREGAMENTO
 // ============================================
@@ -29,38 +37,6 @@ var BRAPI_TOKEN = (typeof window !== 'undefined' && window.BRAPI_TOKEN)
     || (window.APP_CONFIG && window.APP_CONFIG.BRAPI_TOKEN)
     || '';
 if (typeof window !== 'undefined') window.BRAPI_TOKEN = BRAPI_TOKEN;
-
-function formatCurrency(value) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(value);
-    }
-    if (value === null || value === undefined || value === '') value = 0;
-    if (typeof value === 'string') {
-        const cleaned = value.replace(/[R$\s]/g, '');
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-            value = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (cleaned.includes(',')) {
-            value = cleaned.replace(',', '.');
-        }
-        value = parseFloat(value);
-    }
-    const num = Number(value) || 0;
-    try {
-        const formatted = new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(num);
-        return formatted.replace(/\u00A0/g, ' ');
-    } catch {
-        const isNegative = num < 0;
-        const parts = Math.abs(num).toFixed(2).split('.');
-        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const res = 'R$ ' + intPart + ',' + parts[1];
-        return isNegative ? '-' + res : res;
-    }
-}
 
 // ============================================
 // ESTADO
@@ -105,11 +81,6 @@ var KNOWN_ETFS = (typeof window !== 'undefined' && window.KNOWN_ETFS) || (typeof
     'BBOV11', 'USTK11', 'HTEK11', 'BDEF11', 'BDIV11', 'NSDV11', 'QETH11', 'QBTC11',
     'CRPT11', 'DEFI11', 'WEB311', 'META11', 'NFTS11', 'BLOK11', 'ETHE11', 'BITH11'
 ]);
-
-function getToday() {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-}
 
 function inferClass(ticker) {
     if (!ticker) return 'Ações';
@@ -1162,7 +1133,13 @@ async function saveDividend(e) {
 // EXCLUIR TRANSAÇÃO
 // ============================================
 async function deleteTransaction(id) {
-    if (!confirm('Tem certeza que deseja excluir esta transação?')) return;
+    const confirmedTx = await window.TonuConfirm({
+        title: 'Excluir transação?',
+        message: 'Tem certeza que deseja excluir esta transação?',
+        confirmText: 'Excluir',
+        danger: true
+    });
+    if (!confirmedTx) return;
 
     try {
         let isOnline = navigator.onLine && window.supabaseClient && currentUser?.id;
@@ -1203,7 +1180,13 @@ async function deleteTransaction(id) {
 // EXCLUIR PROVENTO
 // ============================================
 async function deleteDividend(id) {
-    if (!confirm('Tem certeza que deseja excluir este provento?')) return;
+    const confirmedDiv = await window.TonuConfirm({
+        title: 'Excluir provento?',
+        message: 'Tem certeza que deseja excluir este provento?',
+        confirmText: 'Excluir',
+        danger: true
+    });
+    if (!confirmedDiv) return;
 
     try {
         let isOnline = navigator.onLine && window.supabaseClient && currentUser && currentUser.id && !String(id).startsWith('demo-') && !String(id).startsWith('div-');
@@ -5462,7 +5445,13 @@ async function saveCorporateEvent(e) {
 }
 
 async function deleteCorporateEvent(id) {
-    if (!confirm('Deseja realmente remover este evento corporativo? O cálculo de preço médio e cotas será recalculado.')) return;
+    const confirmedEvent = await window.TonuConfirm({
+        title: 'Remover evento corporativo?',
+        message: 'Deseja realmente remover este evento corporativo? O cálculo de preço médio e cotas será recalculado.',
+        confirmText: 'Remover',
+        danger: true
+    });
+    if (!confirmedEvent) return;
 
     try {
         let deletedFromDb = false;

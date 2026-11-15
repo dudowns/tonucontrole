@@ -332,6 +332,8 @@ body.dark-theme .mobile-topbar .greeting {
     box-sizing: border-box;
 }
 
+/* Fallback universal + :has() moderno */
+body.has-bottom-nav .mobile-content,
 body:has(.bottom-nav) .mobile-content {
     padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
 }
@@ -4261,4 +4263,87 @@ body.dark-theme .goal-type-val-label {
 
 body.dark-theme .goal-type-progress-track {
     background: rgba(15, 23, 42, 0.85);
+}
+
+/* AI INSIGHTS MOBILE */
+.mobile-ai-refresh-btn {
+    background: transparent;
+    border: none;
+    color: #6C5CE7;
+    padding: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-ai-insights-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mobile-ai-insight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left-width: 3px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--color-text, #1e293b);
+}
+
+.mobile-ai-insight-item.success {
+    border-left-color: #10B981;
+    background: rgba(16, 185, 129, 0.06);
+}
+
+.mobile-ai-insight-item.warning {
+    border-left-color: #F59E0B;
+    background: rgba(245, 158, 11, 0.06);
+}
+
+.mobile-ai-insight-item.info {
+    border-left-color: #6C5CE7;
+    background: rgba(108, 92, 231, 0.06);
+}
+
+.mobile-ai-empty,
+.mobile-ai-loading {
+    font-size: 12.5px;
+    color: #64748b;
+    margin: 0;
+    padding: 6px 2px;
+}
+
+body.dark-theme .mobile-ai-insight-item {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f8fafc;
+}
+
+body.dark-theme .mobile-ai-insight-item.success {
+    border-left-color: #34D399;
+    background: rgba(16, 185, 129, 0.12);
+}
+
+body.dark-theme .mobile-ai-insight-item.warning {
+    border-left-color: #FBBF24;
+    background: rgba(245, 158, 11, 0.12);
+}
+
+body.dark-theme .mobile-ai-insight-item.info {
+    border-left-color: #A29BFE;
+    background: rgba(108, 92, 231, 0.12);
+}
+
+body.dark-theme .mobile-ai-empty,
+body.dark-theme .mobile-ai-loading {
+    color: #94a3b8;
 }

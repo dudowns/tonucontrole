@@ -480,7 +480,7 @@
         }
     </script>
 </head>
-<body>
+<body class="has-bottom-nav">
 
 <header class="mobile-topbar">
     <div class="topbar-header">
@@ -727,6 +727,11 @@
 <script src="../../js/sw-register.js"></script>
 
 <script>
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+
 let currentUser = null;
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();

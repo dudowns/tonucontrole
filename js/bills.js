@@ -1262,7 +1262,13 @@
             });
             if (deleteMode === 'cancel') return;
         } else {
-            if (!confirm('Deseja realmente excluir esta conta?')) return;
+            const confirmedDelete = await window.TonuConfirm({
+                title: 'Excluir conta?',
+                message: 'Deseja realmente excluir esta conta?',
+                confirmText: 'Excluir',
+                danger: true
+            });
+            if (!confirmedDelete) return;
         }
 
         try {

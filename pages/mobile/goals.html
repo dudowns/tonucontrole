@@ -826,7 +826,7 @@
         }
     </script>
 </head>
-<body>
+<body class="has-bottom-nav">
 
 <!-- TOPBAR -->
 <header class="mobile-topbar">
@@ -1274,6 +1274,11 @@
 <script src="../../js/sync.js"></script>
 <script src="../../js/sw-register.js"></script>
 <script>
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+
 let currentUser = null;
 let goals = [];
 let currentFilter = 'all';

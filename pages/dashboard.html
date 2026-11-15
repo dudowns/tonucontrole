@@ -158,7 +158,7 @@
                     <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
                         <i class="fas fa-chevron-left"></i>
                     </button>
-                    <span class="month-label" id="selectedMonth">Agosto 2026</span>
+                    <span class="month-label" id="selectedMonth">Carregando...</span>
                     <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês">
                         <i class="fas fa-chevron-right"></i>
                     </button>
@@ -349,7 +349,29 @@
                             </div>
                         </div>
 
-                        <!-- CARD 2: SAÚDE FINANCEIRA (DIAGNÓSTICO 360º) -->
+                        <!-- CARD 2: INSIGHTS IA (GEMINI) -->
+                        <div class="card insights-card ai-insights-card" id="aiInsightsCard">
+                            <div class="card-header">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <h3>✨ Insights IA</h3>
+                                    <span class="badge badge-primary" id="aiInsightsSourceBadge" style="font-size:10px; font-weight:700; background:rgba(108,92,231,0.12); color:#6C5CE7; padding:2px 8px; border-radius:9999px;">
+                                        90 dias
+                                    </span>
+                                </div>
+                                <button type="button" class="btn-ghost-sm" id="aiInsightsRefreshBtn" onclick="window.loadAIInsights && window.loadAIInsights(true)" title="Atualizar Insights IA" aria-label="Atualizar Insights IA">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                            <div class="card-body" id="aiInsightsBody">
+                                <div style="display: flex; flex-direction: column; gap: 8px; padding: 6px 0;">
+                                    <div class="skeleton-shimmer" style="width: 90%; height: 14px;"></div>
+                                    <div class="skeleton-shimmer" style="width: 80%; height: 13px;"></div>
+                                    <div class="skeleton-shimmer" style="width: 70%; height: 13px;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CARD 3: SAÚDE FINANCEIRA (DIAGNÓSTICO 360º) -->
                         <div class="card insights-card" id="dashboardInsightsCard">
                             <div class="card-header">
                                 <div style="display:flex; align-items:center; gap:8px;">

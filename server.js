@@ -17,8 +17,10 @@ const compression = require('compression');
 const cors = require('cors');
 const morgan = require('morgan');
 const archiverModule = require('archiver');
+const crypto = require('crypto');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { GoogleGenAI, ThinkingLevel } = require('@google/genai');
 const { generateNonceMiddleware, createHelmetMiddleware, injectNonceIntoHtml } = require('./security-headers');
 
 function createZipArchive(options = {}) {
@@ -159,6 +161,541 @@ app.get(['/api/health', '/tonucontrole/api/health'], (req, res) => {
         version: '2.1.0',
         timestamp: new Date().toISOString()
     });
+});
+
+// ============================================
+// CATEGORIZAÇÃO AUTOMÁTICA POR IA (MVP - HORIZONTE 2)
+// ============================================
+const AI_ALLOWED_CATEGORIES = [
+    'Alimentação',
+    'Transporte',
+    'Moradia',
+    'Saúde',
+    'Educação',
+    'Lazer',
+    'Assinaturas',
+    'Compras',
+    'Salário',
+    'Investimentos',
+    'Outros'
+];
+const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
+const AI_CACHE_MAX_ENTRIES = 5000;
+const AI_DAILY_USER_LIMIT = 50;
+const AI_REQUEST_TIMEOUT_MS = 10000;
+
+const aiClassifyCache = new Map();
+const aiDailyRateLimit = new Map();
+
+let geminiClientInstance = null;
+let geminiClientApiKey = '';
+
+function getGeminiClient() {
+    const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
+    if (!apiKey) return null;
+    if (!geminiClientInstance || geminiClientApiKey !== apiKey) {
+        geminiClientInstance = new GoogleGenAI({
+            apiKey,
+            httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+        });
+        geminiClientApiKey = apiKey;
+    }
+    return geminiClientInstance;
+}
+
+function stripDiacriticsLower(str) {
+    return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function normalizeAiCategory(rawText) {
+    if (!rawText) return null;
+    const cleaned = String(rawText)
+        .replace(/[\r\n`*_"'.:;-]+/g, ' ')
+        .trim();
+    if (!cleaned) return null;
+
+    const normalizedRaw = stripDiacriticsLower(cleaned);
+
+    for (const cat of AI_ALLOWED_CATEGORIES) {
+        if (stripDiacriticsLower(cat) === normalizedRaw) {
+            return cat;
+        }
+    }
+    for (const cat of AI_ALLOWED_CATEGORIES) {
+        const normCat = stripDiacriticsLower(cat);
+        if (normalizedRaw.includes(normCat) || normCat.includes(normalizedRaw)) {
+            return cat;
+        }
+    }
+    return null;
+}
+
+function extractBearerUser(authHeader) {
+    if (!authHeader || typeof authHeader !== 'string') return null;
+    const match = authHeader.match(/^Bearer\s+([^\s]+)$/i);
+    if (!match) return null;
+
+    const token = match[1].trim();
+    const parts = token.split('.');
+    if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) return null;
+
+    try {
+        const headerJson = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+        const payloadJson = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+        if (!headerJson || typeof headerJson !== 'object' || !payloadJson || typeof payloadJson !== 'object') {
+            return null;
+        }
+        const userId = payloadJson.sub || payloadJson.user_id || payloadJson.id;
+        if (!userId || typeof userId !== 'string' || !userId.trim()) {
+            return null;
+        }
+        if (typeof payloadJson.exp === 'number' && payloadJson.exp * 1000 <= Date.now()) {
+            return null;
+        }
+        return { userId: userId.trim(), token };
+    } catch {
+        return null;
+    }
+}
+
+function hashUserForLog(userId) {
+    return crypto.createHash('sha256').update(String(userId)).digest('hex').slice(0, 8);
+}
+
+function getUtcDateKey() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function consumeDailyAiQuota(userId) {
+    const today = getUtcDateKey();
+    let entry = aiDailyRateLimit.get(userId);
+    if (!entry || entry.date !== today) {
+        entry = { date: today, count: 0 };
+        aiDailyRateLimit.set(userId, entry);
+    }
+    if (entry.count >= AI_DAILY_USER_LIMIT) {
+        return { allowed: false, remaining: 0 };
+    }
+    entry.count += 1;
+    return { allowed: true, remaining: AI_DAILY_USER_LIMIT - entry.count };
+}
+
+function setAiCache(key, category) {
+    if (aiClassifyCache.size >= AI_CACHE_MAX_ENTRIES) {
+        const oldestKey = aiClassifyCache.keys().next().value;
+        if (oldestKey !== undefined) {
+            aiClassifyCache.delete(oldestKey);
+        }
+    }
+    aiClassifyCache.set(key, { category, ts: Date.now() });
+}
+
+app.get(['/api/ai-health', '/tonucontrole/api/ai-health'], (req, res) => {
+    const now = Date.now();
+    for (const [k, v] of aiClassifyCache.entries()) {
+        if (now - v.ts >= AI_CACHE_TTL_MS) {
+            aiClassifyCache.delete(k);
+        }
+    }
+    return res.json({
+        status: 'ok',
+        cache_size: aiClassifyCache.size,
+        gemini_configured: Boolean(String(process.env.GEMINI_API_KEY || '').trim())
+    });
+});
+
+app.post(['/api/classify', '/tonucontrole/api/classify'], async (req, res) => {
+    const startMs = Date.now();
+    const authUser = extractBearerUser(req.headers.authorization);
+    if (!authUser) {
+        return res.status(401).json({ error: 'Token de autenticação inválido ou ausente.', category: null });
+    }
+
+    const userHash = hashUserForLog(authUser.userId);
+    const rawDescription = String(req.body?.description || '').trim();
+    if (!rawDescription || rawDescription.length < 2) {
+        return res.status(400).json({ error: 'Descrição deve ter pelo menos 2 caracteres.', category: null });
+    }
+
+    const normalizedKey = rawDescription.toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 120);
+    const cached = aiClassifyCache.get(normalizedKey);
+    if (cached && (Date.now() - cached.ts < AI_CACHE_TTL_MS)) {
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`[ai-classify] user=${userHash} source=cache ms=${Date.now() - startMs}`);
+        }
+        return res.json({ category: cached.category, source: 'cache' });
+    }
+
+    const quota = consumeDailyAiQuota(authUser.userId);
+    if (!quota.allowed) {
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`[ai-classify] user=${userHash} source=rate_limit ms=${Date.now() - startMs}`);
+        }
+        return res.json({ category: null, reason: 'rate_limit' });
+    }
+
+    const ai = getGeminiClient();
+    if (!ai) {
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`[ai-classify] user=${userHash} source=degraded ms=${Date.now() - startMs}`);
+        }
+        return res.json({ category: null, gemini_configured: false });
+    }
+
+    let timeoutHandle = null;
+    try {
+        const promptText =
+            `Classifique esta transação financeira brasileira em exatamente UMA das categorias permitidas: ` +
+            `${AI_ALLOWED_CATEGORIES.join(', ')}.\n` +
+            `Descrição: "${rawDescription.slice(0, 120)}"\n` +
+            `Responda apenas com o nome exato da categoria.`;
+
+        const geminiPromise = ai.models.generateContent({
+            model: 'gemini-4-hydrogen',
+            contents: promptText,
+            config: {
+                systemInstruction: 'Você é um classificador financeiro brasileiro. Responda exclusivamente com uma única categoria exata da lista fornecida, sem explicações.',
+                thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+                abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS)
+            }
+        });
+
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutHandle = setTimeout(() => reject(new Error('AI_TIMEOUT')), AI_REQUEST_TIMEOUT_MS);
+        });
+
+        const response = await Promise.race([geminiPromise, timeoutPromise]);
+        const category = normalizeAiCategory(response?.text);
+
+        if (category) {
+            setAiCache(normalizedKey, category);
+            if (process.env.NODE_ENV !== 'test') {
+                console.log(`[ai-classify] user=${userHash} source=ai ms=${Date.now() - startMs}`);
+            }
+            return res.json({ category, source: 'ai' });
+        }
+
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`[ai-classify] user=${userHash} source=empty ms=${Date.now() - startMs}`);
+        }
+        return res.json({ category: null });
+    } catch (err) {
+        const reason = err?.message === 'AI_TIMEOUT' ? 'timeout' : 'error';
+        if (process.env.NODE_ENV !== 'test') {
+            console.warn(`[ai-classify] user=${userHash} source=${reason} ms=${Date.now() - startMs}`);
+        }
+        return res.json({ category: null });
+    } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+    }
+});
+
+// ============================================
+// INSIGHTS FINANCEIROS POR IA (HORIZONTE 2 - ITEM 2)
+// ============================================
+const AI_INSIGHTS_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
+const AI_INSIGHTS_CACHE_MAX_ENTRIES = 2000;
+const AI_INSIGHTS_DAILY_LIMIT = 30;
+const AI_INSIGHTS_ALLOWED_TYPES = new Set(['warning', 'success', 'info']);
+const AI_INSIGHTS_FALLBACK = [
+    { type: 'info', text: 'Continue registrando transações para insights personalizados.' }
+];
+
+const aiInsightsCache = new Map();
+const aiInsightsDailyRateLimit = new Map();
+
+function consumeDailyInsightsQuota(userId) {
+    const today = getUtcDateKey();
+    let entry = aiInsightsDailyRateLimit.get(userId);
+    if (!entry || entry.date !== today) {
+        entry = { date: today, count: 0 };
+        aiInsightsDailyRateLimit.set(userId, entry);
+    }
+    if (entry.count >= AI_INSIGHTS_DAILY_LIMIT) {
+        return { allowed: false, remaining: 0 };
+    }
+    entry.count += 1;
+    return { allowed: true, remaining: AI_INSIGHTS_DAILY_LIMIT - entry.count };
+}
+
+function setAiInsightsCache(userId, insights, generatedAt) {
+    if (aiInsightsCache.size >= AI_INSIGHTS_CACHE_MAX_ENTRIES) {
+        const oldestKey = aiInsightsCache.keys().next().value;
+        if (oldestKey !== undefined) {
+            aiInsightsCache.delete(oldestKey);
+        }
+    }
+    aiInsightsCache.set(userId, {
+        insights,
+        generated_at: generatedAt,
+        ts: Date.now()
+    });
+}
+
+async function fetchSupabaseRestTable(url, headers) {
+    try {
+        const res = await fetch(url, {
+            method: 'GET',
+            headers,
+            signal: AbortSignal.timeout(6000)
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+    } catch {
+        return [];
+    }
+}
+
+async function fetchUserFinancialSummary(userId, userJwt) {
+    const supabaseUrl = (process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL).replace(/\/+$/, '');
+    const serviceRoleKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    const anonKey = process.env.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
+    const apiKey = serviceRoleKey || anonKey;
+    const authToken = serviceRoleKey || userJwt || anonKey;
+
+    const headers = {
+        apikey: apiKey,
+        Authorization: `Bearer ${authToken}`,
+        Accept: 'application/json'
+    };
+
+    const start90d = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const encodedUid = encodeURIComponent(userId);
+
+    const txUrl = `${supabaseUrl}/rest/v1/transactions?select=amount,type,category,category_id,date,paid&user_id=eq.${encodedUid}&date=gte.${start90d}&order=date.desc&limit=500`;
+    const goalsUrl = `${supabaseUrl}/rest/v1/goals?select=title,current_amount,target_amount,completed&user_id=eq.${encodedUid}&limit=100`;
+    const catsUrl = `${supabaseUrl}/rest/v1/categories?select=id,name&user_id=eq.${encodedUid}&limit=100`;
+
+    const [transactions, goals, categories] = await Promise.all([
+        fetchSupabaseRestTable(txUrl, headers),
+        fetchSupabaseRestTable(goalsUrl, headers),
+        fetchSupabaseRestTable(catsUrl, headers)
+    ]);
+
+    const categoryMapById = new Map();
+    categories.forEach(c => {
+        if (c && c.id && c.name) {
+            categoryMapById.set(String(c.id), String(c.name).trim());
+        }
+    });
+
+    let totalIncome = 0;
+    let totalExpense = 0;
+    const categoryTotals = new Map();
+
+    transactions.forEach(t => {
+        if (!t) return;
+        const amt = Math.abs(Number(t.amount || 0));
+        if (!Number.isFinite(amt) || amt <= 0) return;
+
+        if (t.type === 'income') {
+            totalIncome += amt;
+        } else if (t.type === 'expense') {
+            totalExpense += amt;
+            const catName =
+                (t.category && String(t.category).trim()) ||
+                (t.category_id && categoryMapById.get(String(t.category_id))) ||
+                'Outros';
+            categoryTotals.set(catName, (categoryTotals.get(catName) || 0) + amt);
+        }
+    });
+
+    const topCategories = Array.from(categoryTotals.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([category, total]) => ({
+            category: category.slice(0, 40),
+            total: Math.round(total * 100) / 100,
+            pct: totalExpense > 0 ? Math.round((total / totalExpense) * 100) : 0
+        }));
+
+    const goalsProgress = goals.slice(0, 5).map(g => {
+        const cur = Math.max(0, Number(g.current_amount || 0));
+        const tgt = Math.max(0, Number(g.target_amount || 0));
+        const pct = tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : (g.completed ? 100 : 0);
+        return {
+            title: String(g.title || 'Meta').slice(0, 40),
+            current_amount: Math.round(cur * 100) / 100,
+            target_amount: Math.round(tgt * 100) / 100,
+            progress_pct: pct
+        };
+    });
+
+    const netBalance = totalIncome - totalExpense;
+    const savingsRatePct = totalIncome > 0 ? Math.round((netBalance / totalIncome) * 100) : 0;
+
+    return {
+        period_days: 90,
+        total_income: Math.round(totalIncome * 100) / 100,
+        total_expense: Math.round(totalExpense * 100) / 100,
+        net_balance: Math.round(netBalance * 100) / 100,
+        savings_rate_pct: savingsRatePct,
+        transactions_count: transactions.length,
+        top_categories: topCategories,
+        goals_count: goals.length,
+        goals_progress: goalsProgress
+    };
+}
+
+function parseAiInsightsResponse(rawText) {
+    if (!rawText || typeof rawText !== 'string') return null;
+
+    let cleaned = rawText.trim();
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+    let parsed = null;
+    try {
+        parsed = JSON.parse(cleaned);
+    } catch {
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            try {
+                parsed = JSON.parse(jsonMatch[0]);
+            } catch {
+                parsed = null;
+            }
+        }
+    }
+
+    if (!parsed || !Array.isArray(parsed.insights)) return null;
+
+    const validInsights = parsed.insights
+        .filter(item => item && typeof item.text === 'string' && item.text.trim().length > 0)
+        .slice(0, 3)
+        .map(item => {
+            const rawType = String(item.type || 'info').toLowerCase().trim();
+            const safeType = AI_INSIGHTS_ALLOWED_TYPES.has(rawType) ? rawType : 'info';
+            const cleanText = item.text.replace(/\s+/g, ' ').trim().slice(0, 220);
+            return { type: safeType, text: cleanText };
+        });
+
+    return validInsights.length > 0 ? validInsights : null;
+}
+
+app.get(['/api/insights-health', '/tonucontrole/api/insights-health'], (req, res) => {
+    const now = Date.now();
+    for (const [k, v] of aiInsightsCache.entries()) {
+        if (now - v.ts >= AI_INSIGHTS_CACHE_TTL_MS) {
+            aiInsightsCache.delete(k);
+        }
+    }
+    return res.json({
+        status: 'ok',
+        cache_size: aiInsightsCache.size,
+        gemini_configured: Boolean(String(process.env.GEMINI_API_KEY || '').trim())
+    });
+});
+
+app.post(['/api/insights', '/tonucontrole/api/insights'], async (req, res) => {
+    const startMs = Date.now();
+    const authUser = extractBearerUser(req.headers.authorization);
+    if (!authUser) {
+        return res.status(401).json({ error: 'Token de autenticação inválido ou ausente.', insights: [] });
+    }
+
+    const userHash = hashUserForLog(authUser.userId);
+    const forceRefresh = req.body?.forceRefresh === true;
+
+    if (!forceRefresh) {
+        const cached = aiInsightsCache.get(authUser.userId);
+        if (cached && (Date.now() - cached.ts < AI_INSIGHTS_CACHE_TTL_MS)) {
+            if (process.env.NODE_ENV !== 'test') {
+                console.log(`[ai-insights] user=${userHash} source=cache latency_ms=${Date.now() - startMs}`);
+            }
+            return res.json({
+                insights: cached.insights,
+                source: 'cache',
+                generated_at: cached.generated_at
+            });
+        }
+    }
+
+    const ai = getGeminiClient();
+    if (!ai) {
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`[ai-insights] user=${userHash} source=degraded latency_ms=${Date.now() - startMs}`);
+        }
+        return res.json({ insights: [], gemini_configured: false });
+    }
+
+    const quota = consumeDailyInsightsQuota(authUser.userId);
+    if (!quota.allowed) {
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`[ai-insights] user=${userHash} source=rate_limit latency_ms=${Date.now() - startMs}`);
+        }
+        return res.json({ insights: [], reason: 'rate_limit' });
+    }
+
+    let timeoutHandle = null;
+    try {
+        const summary = await fetchUserFinancialSummary(authUser.userId, authUser.token);
+        const promptText =
+            `Analise este resumo financeiro pessoal dos últimos 90 dias: ${JSON.stringify(summary)}. ` +
+            `Gere EXATAMENTE 3 insights acionáveis em português brasileiro, específicos aos números, máx 20 palavras cada. ` +
+            `Retorne APENAS JSON válido: {"insights": [{"type": "warning|success|info", "text": "..."}, ...]}. ` +
+            `Sem markdown, sem backticks.`;
+
+        const geminiPromise = ai.models.generateContent({
+            model: 'gemini-4-hydrogen',
+            contents: promptText,
+            config: {
+                systemInstruction: 'Você é um consultor financeiro pessoal brasileiro objetivo. Responda exclusivamente em JSON válido conforme solicitado, sem markdown ou backticks.',
+                thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+                abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS)
+            }
+        });
+
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutHandle = setTimeout(() => reject(new Error('AI_TIMEOUT')), AI_REQUEST_TIMEOUT_MS);
+        });
+
+        const response = await Promise.race([geminiPromise, timeoutPromise]);
+        const parsedInsights = parseAiInsightsResponse(response?.text);
+        const generatedAt = new Date().toISOString();
+
+        if (parsedInsights) {
+            setAiInsightsCache(authUser.userId, parsedInsights, generatedAt);
+            if (process.env.NODE_ENV !== 'test') {
+                console.log(`[ai-insights] user=${userHash} source=ai latency_ms=${Date.now() - startMs}`);
+            }
+            return res.json({
+                insights: parsedInsights,
+                source: 'ai',
+                generated_at: generatedAt
+            });
+        }
+
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`[ai-insights] user=${userHash} source=fallback latency_ms=${Date.now() - startMs}`);
+        }
+        return res.json({
+            insights: AI_INSIGHTS_FALLBACK,
+            source: 'fallback',
+            generated_at: generatedAt
+        });
+    } catch (err) {
+        const reason = err?.message === 'AI_TIMEOUT' ? 'timeout' : 'error';
+        if (process.env.NODE_ENV !== 'test') {
+            console.error('[insights] Gemini falhou:', {
+                error: err?.message,
+                errorName: err?.name,
+                errorStatus: err?.status || err?.code,
+                model: 'gemini-4-hydrogen',
+                user: userHash,
+                latency_ms: Date.now() - startMs,
+                stack: err?.stack?.split('\n').slice(0, 3).join(' | ')
+            });
+            console.warn(`[ai-insights] user=${userHash} source=${reason} latency_ms=${Date.now() - startMs}`);
+        }
+        return res.json({ insights: [], reason });
+    } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+    }
 });
 
 // ============================================

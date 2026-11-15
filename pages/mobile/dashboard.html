@@ -48,7 +48,7 @@
         }
     </script>
 </head>
-<body>
+<body class="has-bottom-nav">
 
 <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
 
@@ -126,6 +126,22 @@
 
     <!-- DIAGNÓSTICO 360º & INSIGHTS MOBILE -->
     <div id="mobileInsightsContainer"></div>
+
+    <!-- INSIGHTS IA MOBILE -->
+    <section class="mobile-insights-card" id="mobileAIInsightsCard" aria-label="Insights IA">
+        <div class="mobile-insights-header">
+            <div class="mobile-insights-title">
+                <span>✨ Insights IA</span>
+                <span class="mobile-insights-pill" id="aiInsightsSourceBadge">90 dias</span>
+            </div>
+            <button type="button" class="mobile-ai-refresh-btn" id="mobileAiInsightsRefreshBtn" onclick="window.loadAIInsights && window.loadAIInsights(true)" title="Atualizar Insights IA" aria-label="Atualizar Insights IA">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+        <div id="aiInsightsBody">
+            <p class="mobile-ai-loading">Analisando seus últimos 90 dias...</p>
+        </div>
+    </section>
 
     <!-- METAS AGRUPADAS POR CATEGORIA (CARROSSEL) -->
     <section id="mobileGoalsContainer" class="mobile-goals-section" aria-label="Metas por categoria"></section>

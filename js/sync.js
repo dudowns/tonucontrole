@@ -411,7 +411,7 @@
                         window.billNotificationManager.playChime();
                     }
                 }
-                if (typeof window.loadDashboard === 'function') window.loadDashboard();
+                if (typeof window.loadDashboard === 'function') window.loadDashboard({ forceRefresh: true });
                 if (typeof window.loadTransactions === 'function') window.loadTransactions();
                 if (typeof window.loadBills === 'function') window.loadBills();
                 if (typeof window.loadGoals === 'function') window.loadGoals();

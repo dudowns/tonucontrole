@@ -13,6 +13,8 @@
     let categories = [];
     let currentEditId = null;
     let currentMonthOffset = 0;
+    let _userSelectedCategory = false;
+    let _settingCategoryProgrammatically = false;
 
     const MONTH_NAMES = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -667,7 +669,12 @@
 
         const apply = () => filterTransactions();
 
-        if (searchInput) searchInput.addEventListener('input', apply);
+        const debouncedApply = (typeof window.TonuDebounce === 'function')
+            ? window.TonuDebounce(filterTransactions, 180)
+            : apply;
+        window._debouncedFilterTransactions = debouncedApply;
+
+        if (searchInput) searchInput.addEventListener('input', debouncedApply);
         if (typeSelect) typeSelect.addEventListener('change', apply);
         if (recSelect) recSelect.addEventListener('change', apply);
         if (catSelect) catSelect.addEventListener('change', apply);
@@ -678,7 +685,113 @@
         if (typeFormSelect) {
             typeFormSelect.addEventListener('change', populateCategorySelects);
         }
+
+        const descFormInput = document.getElementById('tDescription');
+        if (descFormInput) {
+            descFormInput.addEventListener('input', (e) => {
+                if (!currentEditId && !_userSelectedCategory) {
+                    _debouncedAutoClassify(e.target.value);
+                }
+            });
+        }
+
+        const catFormSelect = document.getElementById('tCategory');
+        if (catFormSelect) {
+            catFormSelect.addEventListener('change', (e) => {
+                if (e.isTrusted && !_settingCategoryProgrammatically) {
+                    _userSelectedCategory = Boolean(catFormSelect.value);
+                }
+            });
+        }
     }
+
+    function _normalizeCategoryText(str) {
+        return String(str || '')
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
+    function _matchCategoryOption(selectEl, suggestedCategory) {
+        if (!selectEl || !suggestedCategory) return null;
+        const targetNorm = _normalizeCategoryText(suggestedCategory);
+        if (!targetNorm) return null;
+
+        const opts = Array.from(selectEl.options || []).filter(o => o.value);
+        for (const opt of opts) {
+            if (_normalizeCategoryText(opt.value) === targetNorm || _normalizeCategoryText(opt.textContent) === targetNorm) {
+                return opt;
+            }
+        }
+        for (const opt of opts) {
+            const vNorm = _normalizeCategoryText(opt.value);
+            const tNorm = _normalizeCategoryText(opt.textContent);
+            if ((vNorm && (vNorm.includes(targetNorm) || targetNorm.includes(vNorm))) ||
+                (tNorm && (tNorm.includes(targetNorm) || targetNorm.includes(tNorm)))) {
+                return opt;
+            }
+        }
+        for (const opt of opts) {
+            if (_normalizeCategoryText(opt.value) === 'outros' || _normalizeCategoryText(opt.textContent) === 'outros') {
+                return opt;
+            }
+        }
+        return null;
+    }
+
+    async function TonuAutoClassify(description, targetSelectId) {
+        try {
+            const desc = String(description || '').trim();
+            if (!desc || desc.length < 3) return null;
+            if (_userSelectedCategory) return null;
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
+
+            let token = null;
+            try {
+                if (window.supabaseClient?.auth) {
+                    const { data } = await window.supabaseClient.auth.getSession();
+                    token = data?.session?.access_token || null;
+                }
+            } catch (_) {}
+            if (!token) return null;
+
+            const isSubpath = (typeof window !== 'undefined' && window.location && String(window.location.pathname || '').startsWith('/tonucontrole'));
+            const endpoint = isSubpath ? '/tonucontrole/api/classify' : '/api/classify';
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ description: desc })
+            });
+            if (!res || !res.ok) return null;
+
+            const payload = await res.json();
+            const suggested = payload?.category || null;
+            if (!suggested || _userSelectedCategory) return null;
+
+            const selectEl = document.getElementById(targetSelectId || 'tCategory');
+            if (selectEl) {
+                const matched = _matchCategoryOption(selectEl, suggested);
+                if (matched) {
+                    _settingCategoryProgrammatically = true;
+                    selectEl.value = matched.value;
+                    _settingCategoryProgrammatically = false;
+                }
+            }
+            return suggested;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    const _debouncedAutoClassify = (typeof window.TonuDebounce === 'function')
+        ? window.TonuDebounce((val) => { TonuAutoClassify(val); }, 800)
+        : (val) => { TonuAutoClassify(val); };
 
     function filterTransactions() {
         const query = (document.getElementById('searchInput')?.value || document.getElementById('filterSearch')?.value || '').toLowerCase().trim();
@@ -787,6 +900,7 @@
     // Modal functions
     function openModal(id = null) {
         currentEditId = id;
+        _userSelectedCategory = Boolean(id);
         const modal = document.getElementById('transactionModal');
         const overlay = document.getElementById('modalOverlay');
         const modalTitle = document.getElementById('modalTitle');
@@ -1147,13 +1261,24 @@
         if (isAnticipation) {
             const match = String(target.description || '').match(/\(([\d,\s]+)\)$/);
             const numsStr = match ? match[1] : '';
-            if (!confirm(`Deseja realmente excluir esta transação de antecipação?`)) return;
-            shouldRevertBills = confirm(
-                `Esta transação refere-se a uma antecipação de parcelas${numsStr ? ` (${numsStr})` : ''}.\n\n` +
-                `Deseja também REVERTER essas parcelas para o estado NÃO PAGO em Contas a Pagar?\n\n` +
-                `• OK: Exclui a transação e reverte as parcelas para pendentes.\n` +
-                `• Cancelar: Exclui apenas a transação do extrato mantendo as parcelas quitadas.`
-            );
+            const confirmedAnticipation = await window.TonuConfirm({
+                title: 'Excluir antecipação?',
+                message: 'Deseja realmente excluir esta transação de antecipação?',
+                confirmText: 'Excluir',
+                danger: true
+            });
+            if (!confirmedAnticipation) return;
+            shouldRevertBills = await window.TonuConfirm({
+                title: `Reverter parcelas${numsStr ? ` (${numsStr})` : ''}?`,
+                message:
+                    `Esta transação refere-se a uma antecipação de parcelas${numsStr ? ` (${numsStr})` : ''}.\n\n` +
+                    `Deseja também REVERTER essas parcelas para o estado NÃO PAGO em Contas a Pagar?\n\n` +
+                    `• Reverter: Exclui a transação e reverte as parcelas para pendentes.\n` +
+                    `• Manter: Exclui apenas a transação do extrato mantendo as parcelas quitadas.`,
+                confirmText: 'Reverter parcelas',
+                cancelText: 'Manter quitadas',
+                danger: false
+            });
         } else if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
             deleteMode = await window.confirmRecurringDelete({
                 countFromNow: seriesInfo.fromNow.length,
@@ -1163,7 +1288,13 @@
             });
             if (deleteMode === 'cancel') return;
         } else {
-            if (!confirm('Deseja realmente excluir esta transação?')) return;
+            const confirmedDelete = await window.TonuConfirm({
+                title: 'Excluir transação?',
+                message: 'Deseja realmente excluir esta transação?',
+                confirmText: 'Excluir',
+                danger: true
+            });
+            if (!confirmedDelete) return;
         }
 
         try {
@@ -1281,8 +1412,12 @@
     window.saveTransaction = saveTransaction;
     window.deleteTransaction = deleteTransaction;
     window.filterTransactions = filterTransactions;
+    window._debouncedFilterTransactions = (typeof window.TonuDebounce === 'function')
+        ? window.TonuDebounce(filterTransactions, 180)
+        : filterTransactions;
     window.exportTransactionsCSV = exportTransactionsCSV;
     window.loadTransactions = loadTransactions;
+    window.TonuAutoClassify = TonuAutoClassify;
 
     // Atalhos Rápidos (App Shortcuts PWA)
     if (typeof window !== 'undefined') {

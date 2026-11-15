@@ -4,6 +4,17 @@
 
 console.log('📊 Dashboard.js carregado');
 
+// Aliases de helpers globais (definidos em js/core.js)
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+var getToday = window.getToday;
+var sanitizeString = window.sanitizeString;
+
+const _dashCache = { key: null, ts: 0, payload: null };
+const DASH_CACHE_TTL_MS = 90 * 1000;
+
 // BRAPI_TOKEN
 var BRAPI_TOKEN = (typeof window !== 'undefined' && window.BRAPI_TOKEN)
     || (window.__TONU_CONFIG__ && window.__TONU_CONFIG__.brapiToken)
@@ -83,40 +94,6 @@ function getMonthName(month) {
     return months[month];
 }
 
-function formatCurrency(value) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(value);
-    }
-    if (value === null || value === undefined || value === '') {
-        value = 0;
-    }
-    if (typeof value === 'string') {
-        const cleaned = value.replace(/[R$\s]/g, '');
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-            value = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (cleaned.includes(',')) {
-            value = cleaned.replace(',', '.');
-        }
-        value = parseFloat(value);
-    }
-    const num = Number(value) || 0;
-    try {
-        const formatted = new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(num);
-        return formatted.replace(/\u00A0/g, ' ');
-    } catch {
-        const isNegative = num < 0;
-        const parts = Math.abs(num).toFixed(2).split('.');
-        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const res = 'R$ ' + intPart + ',' + parts[1];
-        return isNegative ? '-' + res : res;
-    }
-}
-
 function parseBrazilianNumber(value) {
     if (value === null || value === undefined || value === '') return 0;
     if (typeof value === 'number') return isNaN(value) ? 0 : value;
@@ -139,26 +116,6 @@ function parseBrazilianNumber(value) {
 
     const parsed = parseFloat(str);
     return isNaN(parsed) ? 0 : parsed;
-}
-
-function formatDate(date, format = 'short') {
-    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
-        return window.formatDate(date, format);
-    }
-    if (!date) return '--/--/----';
-    const str = String(date).trim();
-    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-        const parts = str.substring(0, 10).split('-');
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return str || '--/--/----';
-    return d.toLocaleDateString('pt-BR');
-}
-
-function getToday() {
-    const now = new Date();
-    return (typeof now.toLocaleDateString === 'function') ? now.toLocaleDateString('sv') : now.toISOString().split('T')[0];
 }
 
 function stripHTML(str) {
@@ -961,7 +918,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function changeMonth(dir) {
     currentMonthOffset += Number(dir) || 0;
     updateMonthDisplay('selectedMonth', currentMonthOffset);
-    loadDashboard();
+    loadDashboard({ forceRefresh: true });
     if (typeof loadCategoryChart === 'function') loadCategoryChart();
     if (typeof loadMonthlyChart === 'function') loadMonthlyChart();
     loadInsights();
@@ -970,7 +927,7 @@ function changeMonth(dir) {
 function goToCurrentMonth() {
     currentMonthOffset = 0;
     updateMonthDisplay('selectedMonth', currentMonthOffset);
-    loadDashboard();
+    loadDashboard({ forceRefresh: true });
     if (typeof loadCategoryChart === 'function') loadCategoryChart();
     if (typeof loadMonthlyChart === 'function') loadMonthlyChart();
     loadInsights();
@@ -1126,8 +1083,180 @@ async function syncLocalTransactionsToSupabase() {
 // ============================================
 // CARREGAR DASHBOARD
 // ============================================
-async function loadDashboard() {
+function _applyDashboardSummaryCards(currentTxs, prevTxs) {
+    let currentIncome = 0;
+    let currentExpense = 0;
+    let prevIncome = 0;
+    let prevExpense = 0;
+    const bills = [];
+
+    (currentTxs || []).forEach(t => {
+        if (!t) return;
+        const amt = Math.abs(Number(t.amount || 0));
+        if (isNaN(amt) || amt <= 0) return;
+        const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+
+        if (t.type === 'income') {
+            if (isPaid) {
+                currentIncome += amt;
+            }
+        } else if (t.type === 'expense') {
+            if (isPaid) {
+                currentExpense += amt;
+            } else {
+                bills.push(t);
+            }
+        }
+    });
+
+    (prevTxs || []).forEach(t => {
+        if (!t) return;
+        const amt = Math.abs(Number(t.amount || 0));
+        if (isNaN(amt) || amt <= 0) return;
+        const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+
+        if (t.type === 'income') {
+            if (isPaid) prevIncome += amt;
+        } else if (t.type === 'expense' && isPaid) {
+            prevExpense += amt;
+        }
+    });
+
+    const balance = currentIncome - currentExpense;
+
+    // CALCULAR CONTAS A PAGAR DO MÊS
+    const billsCount = bills.length;
+    const billsTotal = bills.reduce((s, t) => s + (t ? Math.abs(Number(t.amount || 0)) : 0), 0);
+    const todayStr = getToday();
+    const overdueBills = bills.filter(b => b && b.date && normalizeDateOnly(b.date) < todayStr);
+    const overdueCount = overdueBills.length;
+
+    console.log(`📋 Resumo do mês: Receitas: R$ ${currentIncome} | Despesas: R$ ${currentExpense} | Saldo: R$ ${balance} | Contas a pagar: ${billsCount} (R$ ${billsTotal})`);
+
+    // ATUALIZAR CARDS
+    const incomeEl = document.getElementById('totalIncome');
+    const expenseEl = document.getElementById('totalExpense');
+    const balanceEl = document.getElementById('totalBalance') || document.getElementById('monthBalance');
+    const billsCountEl = document.getElementById('billsCount');
+    const billsAmountEl = document.getElementById('billsAmount');
+
+    if (incomeEl) {
+        incomeEl.textContent = formatCurrency(currentIncome);
+        incomeEl.dataset.realValue = formatCurrency(currentIncome);
+    }
+    if (expenseEl) {
+        expenseEl.textContent = formatCurrency(currentExpense);
+        expenseEl.dataset.realValue = formatCurrency(currentExpense);
+    }
+    if (balanceEl) {
+        balanceEl.textContent = formatCurrency(balance);
+        balanceEl.dataset.realValue = formatCurrency(balance);
+        balanceEl.style.color = balance >= 0 ? '#00B894' : '#FF7675';
+    }
+
+    // CARD CONTAS A PAGAR E INVESTIMENTOS
+    if (billsAmountEl) {
+        billsAmountEl.textContent = formatCurrency(billsTotal);
+        billsAmountEl.dataset.realValue = formatCurrency(billsTotal);
+        billsAmountEl.style.color = billsTotal > 0 ? (overdueCount > 0 ? '#FF7675' : '#F59E0B') : '#00B894';
+    }
+
+    if (billsCountEl) {
+        if (billsCount > 0) {
+            if (overdueCount > 0) {
+                billsCountEl.innerHTML = `<span style="color:#FF7675; font-weight:700;"><i class="fas fa-exclamation-circle"></i> ${overdueCount} atraso</span>`;
+            } else {
+                billsCountEl.innerHTML = `<span style="color:#F59E0B; font-weight:600;"><i class="fas fa-clock"></i> ${billsCount} pend.</span>`;
+            }
+        } else {
+            billsCountEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-check-circle"></i> Tudo pago</span>`;
+        }
+    }
+
+    // TENDÊNCIAS
+    const incomeTrend = prevIncome > 0 ? ((currentIncome - prevIncome) / prevIncome * 100) : 0;
+    const expenseTrend = prevExpense > 0 ? ((currentExpense - prevExpense) / prevExpense * 100) : 0;
+
+    const incomeTrendEl = document.getElementById('incomeTrend');
+    const expenseTrendEl = document.getElementById('expenseTrend');
+    const balanceStatusEl = document.getElementById('balanceStatus');
+
+    if (incomeTrendEl) {
+        if (prevIncome > 0) {
+            const sign = incomeTrend >= 0 ? '+' : '';
+            incomeTrendEl.textContent = sign + incomeTrend.toFixed(0) + '% vs anterior';
+            incomeTrendEl.className = 'stat-sub ' + (incomeTrend >= 0 ? 'text-success' : 'text-danger');
+        } else {
+            incomeTrendEl.textContent = 'Mês de referência';
+            incomeTrendEl.className = 'stat-sub';
+        }
+    }
+
+    const expensePendingSubEl = document.getElementById('expensePendingSub');
+    if (expenseTrendEl) {
+        const trendText = prevExpense > 0 
+            ? (expenseTrend >= 0 ? '+' : '') + expenseTrend.toFixed(0) + '% vs anterior'
+            : 'Mês de referência';
+        const trendClass = prevExpense > 0 
+            ? (expenseTrend <= 0 ? 'text-success' : 'text-danger')
+            : '';
+
+        if (expensePendingSubEl) {
+            const trendSpan = expenseTrendEl.querySelector('span');
+            if (trendSpan) {
+                trendSpan.textContent = trendText;
+                trendSpan.className = trendClass;
+            }
+            if (billsTotal > 0) {
+                expensePendingSubEl.innerHTML = `<i class="fas fa-clock" style="margin-right:2px;"></i> Falta pagar: <strong>${formatCurrency(billsTotal)}</strong>`;
+                expensePendingSubEl.style.color = '#F59E0B';
+            } else {
+                expensePendingSubEl.innerHTML = `<i class="fas fa-check-circle" style="margin-right:2px;"></i> Nenhuma pendência`;
+                expensePendingSubEl.style.color = '#00B894';
+            }
+        } else {
+            expenseTrendEl.textContent = trendText;
+            expenseTrendEl.className = 'stat-sub ' + trendClass;
+        }
+    }
+
+    if (balanceStatusEl) {
+        const projected = balance - billsTotal;
+        if (billsTotal > 0) {
+            balanceStatusEl.innerHTML = `<span>Previsto pós-contas: <strong style="color:${projected >= 0 ? '#00B894' : '#FF7675'}">${formatCurrency(projected)}</strong></span>`;
+        } else {
+            if (balance > 0) {
+                balanceStatusEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-arrow-trend-up"></i> Positivo</span>`;
+            } else if (balance < 0) {
+                balanceStatusEl.innerHTML = `<span style="color:#FF7675; font-weight:600;"><i class="fas fa-arrow-trend-down"></i> Negativo</span>`;
+            } else {
+                balanceStatusEl.textContent = 'Zerado';
+            }
+        }
+    }
+}
+
+async function loadDashboard(options = {}) {
     console.log('📊 Carregando dashboard...');
+
+    const force = options && options.forceRefresh === true;
+    const key = `${currentUser?.id || 'anon'}__${currentMonthOffset}`;
+    const isFresh = !force && _dashCache.key === key &&
+        (Date.now() - _dashCache.ts) < DASH_CACHE_TTL_MS &&
+        _dashCache.payload;
+
+    if (isFresh) {
+        const p = _dashCache.payload;
+        window.allInvestments = Array.isArray(p.investments) ? p.investments.slice() : [];
+        window.allDividends = Array.isArray(p.dividends) ? p.dividends.slice() : [];
+        _applyDashboardSummaryCards(p.currentTxs || [], p.prevTxs || []);
+        try {
+            await generateDashboardInsights();
+        } catch (_) {}
+        updateBalanceVisibilityUI();
+        loadAIInsights().catch(() => {});
+        return;
+    }
 
     const d = new Date();
     d.setDate(1);
@@ -1154,162 +1283,13 @@ async function loadDashboard() {
         const currentTxs = (await getUnifiedTransactions(firstDay, lastDayStr)) || [];
         const prevTxs = (await getUnifiedTransactions(firstDayPrev, lastDayPrevStr)) || [];
 
-        let currentIncome = 0;
-        let currentExpense = 0;
-        let prevIncome = 0;
-        let prevExpense = 0;
-        const bills = [];
-
-        currentTxs.forEach(t => {
-            if (!t) return;
-            const amt = Math.abs(Number(t.amount || 0));
-            if (isNaN(amt) || amt <= 0) return;
-            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
-
-            if (t.type === 'income') {
-                if (isPaid) {
-                    currentIncome += amt;
-                }
-            } else if (t.type === 'expense') {
-                if (isPaid) {
-                    currentExpense += amt;
-                } else {
-                    bills.push(t);
-                }
-            }
-        });
-
-        prevTxs.forEach(t => {
-            if (!t) return;
-            const amt = Math.abs(Number(t.amount || 0));
-            if (isNaN(amt) || amt <= 0) return;
-            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
-
-            if (t.type === 'income') {
-                if (isPaid) prevIncome += amt;
-            } else if (t.type === 'expense' && isPaid) {
-                prevExpense += amt;
-            }
-        });
-
-        const balance = currentIncome - currentExpense;
-
-        // CALCULAR CONTAS A PAGAR DO MÊS
-        const billsCount = bills.length;
-        const billsTotal = bills.reduce((s, t) => s + (t ? Math.abs(Number(t.amount || 0)) : 0), 0);
-        const todayStr = getToday();
-        const overdueBills = bills.filter(b => b && b.date && normalizeDateOnly(b.date) < todayStr);
-        const overdueCount = overdueBills.length;
-
-        console.log(`📋 Resumo do mês: Receitas: R$ ${currentIncome} | Despesas: R$ ${currentExpense} | Saldo: R$ ${balance} | Contas a pagar: ${billsCount} (R$ ${billsTotal})`);
-
-        // ATUALIZAR CARDS
-        const incomeEl = document.getElementById('totalIncome');
-        const expenseEl = document.getElementById('totalExpense');
-        const balanceEl = document.getElementById('totalBalance') || document.getElementById('monthBalance');
-        const billsCountEl = document.getElementById('billsCount');
-        const billsAmountEl = document.getElementById('billsAmount');
-
-        if (incomeEl) {
-            incomeEl.textContent = formatCurrency(currentIncome);
-            incomeEl.dataset.realValue = formatCurrency(currentIncome);
-        }
-        if (expenseEl) {
-            expenseEl.textContent = formatCurrency(currentExpense);
-            expenseEl.dataset.realValue = formatCurrency(currentExpense);
-        }
-        if (balanceEl) {
-            balanceEl.textContent = formatCurrency(balance);
-            balanceEl.dataset.realValue = formatCurrency(balance);
-            balanceEl.style.color = balance >= 0 ? '#00B894' : '#FF7675';
-        }
-
-        // CARD CONTAS A PAGAR E INVESTIMENTOS
-        if (billsAmountEl) {
-            billsAmountEl.textContent = formatCurrency(billsTotal);
-            billsAmountEl.dataset.realValue = formatCurrency(billsTotal);
-            billsAmountEl.style.color = billsTotal > 0 ? (overdueCount > 0 ? '#FF7675' : '#F59E0B') : '#00B894';
-        }
-
-        if (billsCountEl) {
-            if (billsCount > 0) {
-                if (overdueCount > 0) {
-                    billsCountEl.innerHTML = `<span style="color:#FF7675; font-weight:700;"><i class="fas fa-exclamation-circle"></i> ${overdueCount} atraso</span>`;
-                } else {
-                    billsCountEl.innerHTML = `<span style="color:#F59E0B; font-weight:600;"><i class="fas fa-clock"></i> ${billsCount} pend.</span>`;
-                }
-            } else {
-                billsCountEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-check-circle"></i> Tudo pago</span>`;
-            }
-        }
+        _applyDashboardSummaryCards(currentTxs, prevTxs);
 
         // CARREGA INVESTIMENTOS NO CARD 4
         try {
             await loadInvestedSummary();
         } catch (invErr) {
             console.warn('Erro ao carregar resumo de investimentos:', invErr);
-        }
-
-        // TENDÊNCIAS
-        const incomeTrend = prevIncome > 0 ? ((currentIncome - prevIncome) / prevIncome * 100) : 0;
-        const expenseTrend = prevExpense > 0 ? ((currentExpense - prevExpense) / prevExpense * 100) : 0;
-
-        const incomeTrendEl = document.getElementById('incomeTrend');
-        const expenseTrendEl = document.getElementById('expenseTrend');
-        const balanceStatusEl = document.getElementById('balanceStatus');
-
-        if (incomeTrendEl) {
-            if (prevIncome > 0) {
-                const sign = incomeTrend >= 0 ? '+' : '';
-                incomeTrendEl.textContent = sign + incomeTrend.toFixed(0) + '% vs anterior';
-                incomeTrendEl.className = 'stat-sub ' + (incomeTrend >= 0 ? 'text-success' : 'text-danger');
-            } else {
-                incomeTrendEl.textContent = 'Mês de referência';
-                incomeTrendEl.className = 'stat-sub';
-            }
-        }
-
-        const expensePendingSubEl = document.getElementById('expensePendingSub');
-        if (expenseTrendEl) {
-            const trendText = prevExpense > 0 
-                ? (expenseTrend >= 0 ? '+' : '') + expenseTrend.toFixed(0) + '% vs anterior'
-                : 'Mês de referência';
-            const trendClass = prevExpense > 0 
-                ? (expenseTrend <= 0 ? 'text-success' : 'text-danger')
-                : '';
-
-            if (expensePendingSubEl) {
-                const trendSpan = expenseTrendEl.querySelector('span');
-                if (trendSpan) {
-                    trendSpan.textContent = trendText;
-                    trendSpan.className = trendClass;
-                }
-                if (billsTotal > 0) {
-                    expensePendingSubEl.innerHTML = `<i class="fas fa-clock" style="margin-right:2px;"></i> Falta pagar: <strong>${formatCurrency(billsTotal)}</strong>`;
-                    expensePendingSubEl.style.color = '#F59E0B';
-                } else {
-                    expensePendingSubEl.innerHTML = `<i class="fas fa-check-circle" style="margin-right:2px;"></i> Nenhuma pendência`;
-                    expensePendingSubEl.style.color = '#00B894';
-                }
-            } else {
-                expenseTrendEl.textContent = trendText;
-                expenseTrendEl.className = 'stat-sub ' + trendClass;
-            }
-        }
-
-        if (balanceStatusEl) {
-            const projected = balance - billsTotal;
-            if (billsTotal > 0) {
-                balanceStatusEl.innerHTML = `<span>Previsto pós-contas: <strong style="color:${projected >= 0 ? '#00B894' : '#FF7675'}">${formatCurrency(projected)}</strong></span>`;
-            } else {
-                if (balance > 0) {
-                    balanceStatusEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-arrow-trend-up"></i> Positivo</span>`;
-                } else if (balance < 0) {
-                    balanceStatusEl.innerHTML = `<span style="color:#FF7675; font-weight:600;"><i class="fas fa-arrow-trend-down"></i> Negativo</span>`;
-                } else {
-                    balanceStatusEl.textContent = 'Zerado';
-                }
-            }
         }
 
         try {
@@ -1336,9 +1316,20 @@ async function loadDashboard() {
 
         updateBalanceVisibilityUI();
 
+        loadAIInsights().catch(() => {});
+
         if (typeof window.checkNotifications === 'function') {
             window.checkNotifications();
         }
+
+        _dashCache.key = key;
+        _dashCache.ts = Date.now();
+        _dashCache.payload = {
+            currentTxs: Array.isArray(currentTxs) ? currentTxs.slice() : [],
+            prevTxs: Array.isArray(prevTxs) ? prevTxs.slice() : [],
+            investments: Array.isArray(window.allInvestments) ? window.allInvestments.slice() : [],
+            dividends: Array.isArray(window.allDividends) ? window.allDividends.slice() : []
+        };
 
         console.log('✅ Dashboard atualizado!');
 
@@ -3789,6 +3780,176 @@ window.checkOverdueBills = checkOverdueBills;
 window.calculatePatrimony = calculatePatrimony;
 window.startPatrimonyAutoUpdate = startPatrimonyAutoUpdate;
 window.stopPatrimonyAutoUpdate = stopPatrimonyAutoUpdate;
+
+// ============================================
+// ✨ INSIGHTS IA (GEMINI - HORIZONTE 2 ITEM 2)
+// ============================================
+var AI_INSIGHTS_CLIENT_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas em sessionStorage
+var _aiInsightsFetchInFlight = false;
+var _aiInsightsVisibilityTimer = null;
+
+function _escapeAiInsightHtml(str) {
+    if (typeof sanitizeString === 'function') {
+        return sanitizeString(String(str || ''));
+    }
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderAIInsights(insights, meta) {
+    const body = document.getElementById('aiInsightsBody');
+    if (!body) return;
+
+    const list = Array.isArray(insights) ? insights.slice(0, 3) : [];
+    const badgeEl = document.getElementById('aiInsightsSourceBadge');
+    if (badgeEl && meta && meta.source) {
+        badgeEl.textContent = meta.source === 'cache' || meta.source === 'session' ? '90d • Cache' : '90d • IA';
+    }
+
+    if (list.length === 0) {
+        body.innerHTML = '<p class="ai-insights-empty">Insights IA indisponíveis no momento. O Diagnóstico 360º abaixo segue ativo.</p>';
+        return;
+    }
+
+    const badgeMap = { warning: '⚠️', success: '✅', info: '💡' };
+    body.innerHTML = `<div class="ai-insights-list">${list.map(item => {
+        const rawType = String(item?.type || 'info').toLowerCase().trim();
+        const safeType = (rawType === 'warning' || rawType === 'success' || rawType === 'info') ? rawType : 'info';
+        const icon = badgeMap[safeType] || '💡';
+        const safeText = _escapeAiInsightHtml(item?.text || '');
+        return `<div class="insight-item ai-insight-item ${safeType}"><span class="ai-insight-icon" aria-hidden="true">${icon}</span><span class="ai-insight-text">${safeText}</span></div>`;
+    }).join('')}</div>`;
+}
+
+function _getAiInsightsSessionKey(userId) {
+    return `tonu_ai_insights_${userId || 'anon'}`;
+}
+
+function _isAiInsightsClientCacheExpired(userId) {
+    try {
+        const raw = sessionStorage.getItem(_getAiInsightsSessionKey(userId));
+        if (!raw) return true;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.insights) || parsed.insights.length === 0 || !parsed.ts) return true;
+        return (Date.now() - Number(parsed.ts)) >= AI_INSIGHTS_CLIENT_TTL_MS;
+    } catch {
+        return true;
+    }
+}
+
+async function loadAIInsights(forceRefresh) {
+    const body = document.getElementById('aiInsightsBody');
+    if (!body) return;
+
+    const force = forceRefresh === true;
+    const uid = currentUser?.id;
+    if (!uid) {
+        renderAIInsights([]);
+        return;
+    }
+
+    const sessionKey = _getAiInsightsSessionKey(uid);
+    if (!force) {
+        try {
+            const rawCached = sessionStorage.getItem(sessionKey);
+            if (rawCached) {
+                const cached = JSON.parse(rawCached);
+                if (cached && Array.isArray(cached.insights) && cached.insights.length > 0 && (Date.now() - Number(cached.ts || 0)) < AI_INSIGHTS_CLIENT_TTL_MS) {
+                    renderAIInsights(cached.insights, { source: 'session' });
+                    return;
+                }
+            }
+        } catch (_) {}
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        renderAIInsights([]);
+        return;
+    }
+
+    if (_aiInsightsFetchInFlight && !force) return;
+    _aiInsightsFetchInFlight = true;
+
+    const refreshBtn = document.getElementById('aiInsightsRefreshBtn');
+    const refreshIcon = refreshBtn ? refreshBtn.querySelector('i') : null;
+    if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
+    if (force) {
+        body.innerHTML = '<p class="ai-insights-empty">Atualizando insights com IA...</p>';
+    }
+
+    try {
+        let token = '';
+        if (supabaseClient?.auth?.getSession) {
+            const { data } = await supabaseClient.auth.getSession();
+            token = data?.session?.access_token || '';
+        }
+        if (!token) {
+            renderAIInsights([]);
+            return;
+        }
+
+        const base = (typeof window.getBaseUrl === 'function')
+            ? String(window.getBaseUrl() || '').replace(/\/+$/, '')
+            : '';
+        const res = await fetch(`${base}/api/insights`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ forceRefresh: force })
+        });
+
+        if (!res.ok) {
+            renderAIInsights([]);
+            return;
+        }
+
+        const data = await res.json();
+        const insights = Array.isArray(data?.insights) ? data.insights : [];
+        if (insights.length > 0) {
+            try {
+                sessionStorage.setItem(sessionKey, JSON.stringify({
+                    insights,
+                    generated_at: data.generated_at || new Date().toISOString(),
+                    ts: Date.now()
+                }));
+            } catch (_) {}
+        }
+        renderAIInsights(insights, { source: data?.source || 'ai' });
+    } catch (_) {
+        renderAIInsights([]);
+    } finally {
+        _aiInsightsFetchInFlight = false;
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+    }
+}
+
+function _debouncedRefreshAiInsightsOnResume() {
+    if (!currentUser?.id || !_isAiInsightsClientCacheExpired(currentUser.id)) return;
+    clearTimeout(_aiInsightsVisibilityTimer);
+    _aiInsightsVisibilityTimer = setTimeout(() => {
+        loadAIInsights(false).catch(() => {});
+    }, 800);
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        _debouncedRefreshAiInsightsOnResume();
+    }
+});
+
+window.addEventListener('focus', () => {
+    _debouncedRefreshAiInsightsOnResume();
+});
+
+window.loadAIInsights = loadAIInsights;
+window.renderAIInsights = renderAIInsights;
 
 console.log('✅ Dashboard.js carregado com sucesso!');
 

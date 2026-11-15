@@ -4,6 +4,11 @@
 
 console.log("📱 Mobile Dashboard carregado");
 
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+
 let currentUser = null;
 let allTransactions = [];
 let categories = [];
@@ -402,6 +407,7 @@ async function loadMobileData(options = {}) {
             renderMobileGoals();
             renderCategoryBars();
             renderTransactions();
+            loadAIInsights().catch(() => {});
             return;
         }
 
@@ -670,6 +676,7 @@ async function loadMobileData(options = {}) {
         renderMobileGoals();
         renderCategoryBars();
         renderTransactions();
+        loadAIInsights().catch(() => {});
 
         if (typeof window.checkNotifications === 'function') {
             window.checkNotifications();
@@ -2153,14 +2160,170 @@ function showMobileToast(message, type) {
 // FUNÇÕES AUXILIARES (formatCurrency, formatDate, toggleTheme via js/core.js)
 // ============================================
 
+// ============================================
+// ✨ INSIGHTS IA MOBILE (GEMINI - HORIZONTE 2 ITEM 2)
+// ============================================
+var AI_INSIGHTS_CLIENT_TTL_MS = 6 * 60 * 60 * 1000;
+var _mobileAiInsightsFetchInFlight = false;
+
+function _escapeMobileAiInsightHtml(str) {
+    if (typeof sanitizeString === 'function') {
+        return sanitizeString(String(str || ''));
+    }
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderAIInsights(insights, meta) {
+    const body = document.getElementById('aiInsightsBody');
+    if (!body) return;
+
+    const list = Array.isArray(insights) ? insights.slice(0, 3) : [];
+    const badgeEl = document.getElementById('aiInsightsSourceBadge');
+    if (badgeEl && meta && meta.source) {
+        badgeEl.textContent = meta.source === 'cache' || meta.source === 'session' ? '90d • Cache' : '90d • IA';
+    }
+
+    if (list.length === 0) {
+        body.innerHTML = '<p class="mobile-ai-empty">Insights IA indisponíveis no momento. O Diagnóstico 360º acima segue ativo.</p>';
+        return;
+    }
+
+    const badgeMap = { warning: '⚠️', success: '✅', info: '💡' };
+    body.innerHTML = `<div class="mobile-ai-insights-list">${list.map(item => {
+        const rawType = String(item?.type || 'info').toLowerCase().trim();
+        const safeType = (rawType === 'warning' || rawType === 'success' || rawType === 'info') ? rawType : 'info';
+        const icon = badgeMap[safeType] || '💡';
+        const safeText = _escapeMobileAiInsightHtml(item?.text || '');
+        return `<div class="insight-item mobile-ai-insight-item ${safeType}"><span aria-hidden="true">${icon}</span><span>${safeText}</span></div>`;
+    }).join('')}</div>`;
+}
+
+function _getMobileAiSessionKey(userId) {
+    return `tonu_ai_insights_${userId || 'anon'}`;
+}
+
+function _isMobileAiCacheExpired(userId) {
+    try {
+        const raw = sessionStorage.getItem(_getMobileAiSessionKey(userId));
+        if (!raw) return true;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.insights) || parsed.insights.length === 0 || !parsed.ts) return true;
+        return (Date.now() - Number(parsed.ts)) >= AI_INSIGHTS_CLIENT_TTL_MS;
+    } catch {
+        return true;
+    }
+}
+
+async function loadAIInsights(forceRefresh) {
+    const body = document.getElementById('aiInsightsBody');
+    if (!body) return;
+
+    const force = forceRefresh === true;
+    const uid = currentUser?.id;
+    if (!uid) {
+        renderAIInsights([]);
+        return;
+    }
+
+    const sessionKey = _getMobileAiSessionKey(uid);
+    if (!force) {
+        try {
+            const rawCached = sessionStorage.getItem(sessionKey);
+            if (rawCached) {
+                const cached = JSON.parse(rawCached);
+                if (cached && Array.isArray(cached.insights) && cached.insights.length > 0 && (Date.now() - Number(cached.ts || 0)) < AI_INSIGHTS_CLIENT_TTL_MS) {
+                    renderAIInsights(cached.insights, { source: 'session' });
+                    return;
+                }
+            }
+        } catch (_) {}
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        renderAIInsights([]);
+        return;
+    }
+
+    if (_mobileAiInsightsFetchInFlight && !force) return;
+    _mobileAiInsightsFetchInFlight = true;
+
+    const refreshBtn = document.getElementById('mobileAiInsightsRefreshBtn');
+    const refreshIcon = refreshBtn ? refreshBtn.querySelector('i') : null;
+    if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
+    if (force) {
+        body.innerHTML = '<p class="mobile-ai-loading">Atualizando insights com IA...</p>';
+    }
+
+    try {
+        let token = '';
+        if (window.supabaseClient?.auth?.getSession) {
+            const { data } = await window.supabaseClient.auth.getSession();
+            token = data?.session?.access_token || '';
+        } else if (typeof supabaseClient !== 'undefined' && supabaseClient?.auth?.getSession) {
+            const { data } = await supabaseClient.auth.getSession();
+            token = data?.session?.access_token || '';
+        }
+        if (!token) {
+            renderAIInsights([]);
+            return;
+        }
+
+        const base = (typeof window.getBaseUrl === 'function')
+            ? String(window.getBaseUrl() || '').replace(/\/+$/, '')
+            : '';
+        const res = await fetch(`${base}/api/insights`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ forceRefresh: force })
+        });
+
+        if (!res.ok) {
+            renderAIInsights([]);
+            return;
+        }
+
+        const data = await res.json();
+        const insights = Array.isArray(data?.insights) ? data.insights : [];
+        if (insights.length > 0) {
+            try {
+                sessionStorage.setItem(sessionKey, JSON.stringify({
+                    insights,
+                    generated_at: data.generated_at || new Date().toISOString(),
+                    ts: Date.now()
+                }));
+            } catch (_) {}
+        }
+        renderAIInsights(insights, { source: data?.source || 'ai' });
+    } catch (_) {
+        renderAIInsights([]);
+    } finally {
+        _mobileAiInsightsFetchInFlight = false;
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+    }
+}
+
 window.renderMobileInsights = renderMobileInsights;
 window.renderMobileGoals = renderMobileGoals;
+window.loadAIInsights = loadAIInsights;
+window.renderAIInsights = renderAIInsights;
 
 // Atualiza patrimônio e metas ao retornar ao Dashboard ou alterar carteira em outra aba
 async function refreshDashboardGoalsSync() {
     if (!currentUser) return;
     await loadSyncedPortfolioEquity({ forceRefresh: true });
     renderMobileGoals();
+    if (_isMobileAiCacheExpired(currentUser.id)) {
+        loadAIInsights(false).catch(() => {});
+    }
 }
 
 let _refreshTimer = null;

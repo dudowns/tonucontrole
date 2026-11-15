@@ -74,7 +74,7 @@
         }
     </script>
 </head>
-<body>
+<body class="has-bottom-nav">
 
 <header class="mobile-topbar">
     <div class="topbar-header">
@@ -299,6 +299,11 @@
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
 <script>
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+
 // ============================================
 // MOBILE TRANSACTIONS
 // ============================================
@@ -308,6 +313,8 @@ let categories = [];
 let filteredTransactions = [];
 let currentQuickType = "expense";
 let currentMonthOffset = 0;
+let _userSelectedQuickCategory = false;
+let _settingQuickCategoryProgrammatically = false;
 
 const MONTH_NAMES = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -379,6 +386,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         await loadCategories();
         await loadTransactions();
+        setupQuickAutoClassify();
 
         const params = new URLSearchParams(window.location.search);
         if (params.get('action') === 'new') {
@@ -802,7 +810,118 @@ function filterTransactions() {
     renderTransactions();
 }
 
+function _normalizeMobileCategoryText(str) {
+    return String(str || '')
+        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function _matchMobileCategoryOption(selectEl, suggestedCategory) {
+    if (!selectEl || !suggestedCategory) return null;
+    const targetNorm = _normalizeMobileCategoryText(suggestedCategory);
+    if (!targetNorm) return null;
+
+    const opts = Array.from(selectEl.options || []).filter(o => o.value);
+    for (const opt of opts) {
+        if (_normalizeMobileCategoryText(opt.value) === targetNorm || _normalizeMobileCategoryText(opt.textContent) === targetNorm) {
+            return opt;
+        }
+    }
+    for (const opt of opts) {
+        const vNorm = _normalizeMobileCategoryText(opt.value);
+        const tNorm = _normalizeMobileCategoryText(opt.textContent);
+        if ((vNorm && (vNorm.includes(targetNorm) || targetNorm.includes(vNorm))) ||
+            (tNorm && (tNorm.includes(targetNorm) || targetNorm.includes(tNorm)))) {
+            return opt;
+        }
+    }
+    for (const opt of opts) {
+        if (_normalizeMobileCategoryText(opt.textContent) === 'outros' || _normalizeMobileCategoryText(opt.value) === 'cat_outros') {
+            return opt;
+        }
+    }
+    return null;
+}
+
+async function TonuAutoClassify(description, targetSelectId) {
+    try {
+        const desc = String(description || '').trim();
+        if (!desc || desc.length < 3) return null;
+        if (_userSelectedQuickCategory) return null;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
+
+        let token = null;
+        try {
+            if (window.supabaseClient?.auth) {
+                const { data } = await window.supabaseClient.auth.getSession();
+                token = data?.session?.access_token || null;
+            }
+        } catch (_) {}
+        if (!token) return null;
+
+        const isSubpath = (typeof window !== 'undefined' && window.location && String(window.location.pathname || '').startsWith('/tonucontrole'));
+        const endpoint = isSubpath ? '/tonucontrole/api/classify' : '/api/classify';
+
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ description: desc })
+        });
+        if (!res || !res.ok) return null;
+
+        const payload = await res.json();
+        const suggested = payload?.category || null;
+        if (!suggested || _userSelectedQuickCategory) return null;
+
+        const selectEl = document.getElementById(targetSelectId || 'quickCategory');
+        if (selectEl) {
+            const matched = _matchMobileCategoryOption(selectEl, suggested);
+            if (matched) {
+                _settingQuickCategoryProgrammatically = true;
+                selectEl.value = matched.value;
+                _settingQuickCategoryProgrammatically = false;
+            }
+        }
+        return suggested;
+    } catch (_) {
+        return null;
+    }
+}
+window.TonuAutoClassify = TonuAutoClassify;
+
+const _debouncedQuickAutoClassify = (typeof window.TonuDebounce === 'function')
+    ? window.TonuDebounce((val) => { TonuAutoClassify(val, 'quickCategory'); }, 800)
+    : (val) => { TonuAutoClassify(val, 'quickCategory'); };
+
+function setupQuickAutoClassify() {
+    const descEl = document.getElementById('quickDesc');
+    if (descEl && !descEl.dataset.aiClassifyBound) {
+        descEl.dataset.aiClassifyBound = '1';
+        descEl.addEventListener('input', (e) => {
+            if (!_userSelectedQuickCategory) {
+                _debouncedQuickAutoClassify(e.target.value);
+            }
+        });
+    }
+    const catEl = document.getElementById('quickCategory');
+    if (catEl && !catEl.dataset.aiClassifyBound) {
+        catEl.dataset.aiClassifyBound = '1';
+        catEl.addEventListener('change', (e) => {
+            if (e.isTrusted && !_settingQuickCategoryProgrammatically) {
+                _userSelectedQuickCategory = Boolean(catEl.value);
+            }
+        });
+    }
+}
+
 function openAddTransaction() {
+    _userSelectedQuickCategory = false;
     setQuickType("expense");
     const dateInput = document.getElementById("quickDate");
     if (dateInput) {
@@ -910,6 +1029,7 @@ async function handleQuickAddSubmit(event) {
 
         closeQuickAddModal();
         document.getElementById("quickAddForm").reset();
+        _userSelectedQuickCategory = false;
         await loadTransactions();
 
         if (currentQuickType === 'expense' && window.TonuBudget && currentUser) {

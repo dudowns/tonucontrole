@@ -41,3 +41,6 @@ bun.lock
 coverage/
 tmp/
 temp/
+
+# Relatórios Lighthouse
+lighthouse-reports/
