@@ -48,15 +48,12 @@ function updateMobileMonthDisplay() {
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
     ];
-    const label = `${months[d.getMonth()]}/${d.getFullYear()}`;
-    if (window.TonuDashboardComponents && typeof window.TonuDashboardComponents.updateHeader === 'function') {
-        window.TonuDashboardComponents.updateHeader({
-            monthLabel: label,
-            isCurrentMonth: currentMonthOffset === 0
-        });
-    } else {
-        const el = document.getElementById("selectedMonthLabel") || document.getElementById("selectedMonth");
-        if (el) el.textContent = label;
+    const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
+    const el = document.getElementById("selectedMonth") || document.getElementById("selectedMonthLabel");
+    if (el) el.textContent = label;
+    const todayBtn = document.getElementById("btnTodayMonth");
+    if (todayBtn) {
+        todayBtn.classList.toggle("hidden", currentMonthOffset === 0);
     }
 }
 
@@ -120,6 +117,32 @@ function bindMobileDashboardEvents() {
                 if (typeof window.loadAIInsights === "function") {
                     window.loadAIInsights(true);
                 }
+                return;
+            }
+            if (action === "command-palette") {
+                if (window.TonuMobileUI && typeof window.TonuMobileUI.openCommandPalette === "function") {
+                    window.TonuMobileUI.openCommandPalette();
+                }
+                return;
+            }
+            if (action === "toggle-theme") {
+                if (typeof window.toggleTheme === "function") {
+                    window.toggleTheme();
+                }
+                if (window.TonuMobileUI && typeof window.TonuMobileUI.syncThemeMeta === "function") {
+                    window.TonuMobileUI.syncThemeMeta();
+                }
+                if (typeof renderMobileChart === "function") {
+                    renderMobileChart();
+                }
+                return;
+            }
+            if (action === "sync-now") {
+                syncMobileDashboardNow();
+                return;
+            }
+            if (action === "chart-mode") {
+                setMobileChartMode(actionEl.getAttribute("data-mode") || "categories");
                 return;
             }
         }
@@ -205,18 +228,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("✅ Mobile: Usuário autenticado:", currentUser.email);
 
         const name = user.user_metadata?.full_name || user.name || user.email?.split("@")[0] || "Usuário";
-        // Injeta nome e inicial do usuário autenticado no Header
-        if (window.TonuDashboardComponents && typeof window.TonuDashboardComponents.updateHeader === 'function') {
-            window.TonuDashboardComponents.updateHeader({
-                userName: name,
-                avatarInitial: name
-            });
-        } else {
-            const greetingEl = document.getElementById("greetingText");
-            if (greetingEl) greetingEl.textContent = `Olá, ${String(name).split(/\s+/)[0]}!`;
-            const avEl = document.getElementById("topbarAvatar");
-            if (avEl) avEl.textContent = String(name).charAt(0).toUpperCase();
-        }
+        const firstName = String(name).trim().split(/\s+/)[0] || "Usuário";
+        const greetingEl = document.getElementById("greetingText");
+        if (greetingEl) greetingEl.textContent = `Olá, ${firstName}! Bem-vindo de volta`;
+        const avEl = document.getElementById("topbarAvatar");
+        if (avEl) avEl.textContent = firstName.charAt(0).toUpperCase();
 
         await loadCategories();
         await loadMobileData();
@@ -878,7 +894,7 @@ window.addEventListener('tonu:privacyChanged', (e) => {
 });
 
 // ============================================
-// RENDER RESUMO HERO + CARDS DE RESUMO
+// RENDER RESUMO HERO + GRID KPI 2x2 (AURORA)
 // ============================================
 function renderSummary() {
     let income = 0, expense = 0;
@@ -891,7 +907,6 @@ function renderSummary() {
     });
     const balance = income - expense;
 
-    // Contas pendentes do mês selecionado (API: allBills)
     const selDate = getSelectedMonthDate();
     const currentMonthPrefix = `${selDate.getFullYear()}-${String(selDate.getMonth() + 1).padStart(2, "0")}`;
     const pendingBills = allBills.filter(b => {
@@ -901,59 +916,76 @@ function renderSummary() {
     });
     const pendingBillsAmount = pendingBills.reduce((acc, b) => acc + (Number(b.amount) || 0), 0);
 
-    // Proventos do mês selecionado (API: allDividends)
     const todayISO = new Date().toLocaleDateString('sv');
     let monthPaidDivs = 0;
     let monthPendingDivs = 0;
-
     allDividends.forEach(d => {
         const val = Number(d.total_value || d.net_value || d.amount || d.total_amount) || 0;
         const dt = (d.payment_date || d.date || '').substring(0, 10);
         const isCurMonth = dt && dt.substring(0, 7) === currentMonthPrefix;
-
         if (dt > todayISO && isCurMonth) {
             monthPendingDivs += val;
         } else if (isCurMonth) {
             monthPaidDivs += val;
         }
     });
-
     const displayMonthDivs = monthPaidDivs > 0 ? monthPaidDivs : (monthPendingDivs > 0 ? monthPendingDivs : 0);
 
-    const heroContainer = document.getElementById("heroCardContainer");
+    const mask = (v) => (isBalanceHidden ? '••••••' : v);
     const summaryContainer = document.getElementById("summaryContainer");
-    const comp = window.TonuDashboardComponents;
+    if (summaryContainer) {
+        summaryContainer.innerHTML = `
+            <div class="mobile-hero-balance">
+                <div class="mobile-hero-top">
+                    <span class="label"><i class="fas fa-wallet"></i> Saldo do Mês</span>
+                    <button type="button" class="eye-toggle-btn" data-privacy-toggle data-action="toggle-balance" aria-label="Ocultar ou mostrar saldo">
+                        <i class="fas ${isBalanceHidden ? 'fa-eye' : 'fa-eye-slash'}" data-privacy-icon></i>
+                    </button>
+                </div>
+                <div class="mobile-hero-value tabular-nums" id="heroBalanceVal" data-sensitive>${mask(formatCurrency(balance))}</div>
+                <div class="mobile-hero-footer">
+                    <div class="mobile-hero-stat">
+                        <span class="stat-label"><i class="fas fa-arrow-up"></i> Entradas</span>
+                        <span class="stat-value income tabular-nums" id="heroIncomeVal" data-sensitive>${mask(formatCurrency(income))}</span>
+                    </div>
+                    <div class="mobile-hero-stat">
+                        <span class="stat-label"><i class="fas fa-arrow-down"></i> Saídas</span>
+                        <span class="stat-value expense tabular-nums" id="heroExpenseVal" data-sensitive>${mask(formatCurrency(expense))}</span>
+                    </div>
+                </div>
+            </div>
 
-    let momDeltaPct = null;
-    if (typeof prevMonthBalance === 'number' && Math.abs(prevMonthBalance) > 0.01) {
-        momDeltaPct = ((balance - prevMonthBalance) / Math.abs(prevMonthBalance)) * 100;
-    }
-
-    if (comp) {
-        // Injeta saldo do mês, comparativo MoM, entradas e saídas no HeroCard
-        if (heroContainer) {
-            heroContainer.innerHTML = comp.renderHeroCard({
-                balance,
-                income,
-                expense,
-                pendingBillsAmount,
-                pendingBillsCount: pendingBills.length,
-                momDeltaPct,
-                isHidden: isBalanceHidden,
-                formatCurrency
-            });
-        }
-        // Injeta contas pendentes e proventos do mês nos SummaryCards
-        if (summaryContainer) {
-            summaryContainer.innerHTML = comp.renderSummaryCards({
-                pendingBillsAmount,
-                pendingBillsCount: pendingBills.length,
-                displayMonthDivs,
-                monthPendingDivs,
-                isHidden: isBalanceHidden,
-                formatCurrency
-            });
-        }
+            <div class="mobile-grid">
+                <a href="transactions.html" class="mobile-card">
+                    <div class="card-icon income"><i class="fas fa-arrow-up"></i></div>
+                    <div class="card-info">
+                        <div class="card-label">Receitas</div>
+                        <div class="card-value tabular-nums" data-sensitive>${mask(formatCurrency(income))}</div>
+                    </div>
+                </a>
+                <a href="transactions.html" class="mobile-card">
+                    <div class="card-icon expense"><i class="fas fa-arrow-down"></i></div>
+                    <div class="card-info">
+                        <div class="card-label">Despesas</div>
+                        <div class="card-value tabular-nums" data-sensitive>${mask(formatCurrency(expense))}</div>
+                    </div>
+                </a>
+                <a href="bills.html" class="mobile-card">
+                    <div class="card-icon bills"><i class="fas fa-file-invoice-dollar"></i></div>
+                    <div class="card-info">
+                        <div class="card-label">Contas (${pendingBills.length})</div>
+                        <div class="card-value tabular-nums" data-sensitive>${mask(formatCurrency(pendingBillsAmount))}</div>
+                    </div>
+                </a>
+                <a href="investments.html" class="mobile-card">
+                    <div class="card-icon balance"><i class="fas fa-coins"></i></div>
+                    <div class="card-info">
+                        <div class="card-label">Proventos</div>
+                        <div class="card-value tabular-nums" data-sensitive>${mask(formatCurrency(displayMonthDivs))}</div>
+                    </div>
+                </a>
+            </div>
+        `;
     }
 
     if (!isBalanceHidden && window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
@@ -967,23 +999,14 @@ function renderSummary() {
 }
 
 // ============================================
-// RENDER GRÁFICO DE ROSCA + LEGENDA LATERAL (CHART.JS)
+// RENDER GRÁFICOS (CATEGORIAS DONUT / EVOLUÇÃO MENSAL)
 // ============================================
-function setMobileChartMode(mode) {
-    currentChartMode = mode;
-    renderMobileChart();
-}
+const AURORA_CHART_COLORS = [
+    '#4338CA', '#7C3AED', '#10B981', '#F59E0B',
+    '#EF4444', '#0284C7', '#EC4899', '#8B5CF6'
+];
 
-function renderMobileChart() {
-    const container = document.getElementById("mobileChartContainer");
-    if (!container) return;
-
-    if (typeof Chart === 'undefined') {
-        container.innerHTML = '';
-        return;
-    }
-
-    // Calcula despesas pagas do mês agrupadas por categoria (API: allTransactions + categories)
+function getSortedExpenseCategories() {
     const expenses = allTransactions.filter(t => t.type === "expense" && isTxPaid(t));
     const catMap = {};
     expenses.forEach(t => {
@@ -1019,7 +1042,6 @@ function renderMobileChart() {
         const rawName = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : "Outros");
         const normKey = normalizeCatKey(rawName);
         const displayName = normKey === 'outros' ? 'Outros' : rawName;
-
         const amt = Math.abs(Number(t.amount || 0));
         if (isNaN(amt) || amt <= 0) return;
 
@@ -1027,39 +1049,37 @@ function renderMobileChart() {
             catMap[normKey] = {
                 id: normKey,
                 name: displayName,
-                amount: 0
+                amount: 0,
+                color: cat?.color || null
             };
         }
         catMap[normKey].amount += amt;
     });
 
-    const allCategories = Object.values(catMap).sort((a, b) => b.amount - a.amount);
-    const totalExpensesAmount = allCategories.reduce((sum, item) => sum + item.amount, 0);
+    const list = Object.values(catMap).sort((a, b) => b.amount - a.amount);
+    return list.map((item, idx) => ({
+        ...item,
+        color: item.color || AURORA_CHART_COLORS[idx % AURORA_CHART_COLORS.length]
+    }));
+}
 
-    const comp = window.TonuDashboardComponents;
-    const donutItems = comp
-        ? comp.buildDonutCategoriesWithPalette(allCategories)
-        : allCategories.slice(0, 6);
+function setMobileChartMode(mode) {
+    currentChartMode = mode === 'monthly' ? 'monthly' : 'categories';
+    const catBtn = document.getElementById('chartBtnCategories');
+    const monBtn = document.getElementById('chartBtnMonthly');
+    if (catBtn) catBtn.classList.toggle('active', currentChartMode === 'categories');
+    if (monBtn) monBtn.classList.toggle('active', currentChartMode === 'monthly');
+    renderMobileChart();
+    renderCategoryBars();
+}
 
-    if (comp) {
-        container.innerHTML = comp.renderExpensesDonutCard({
-            sortedCategories: allCategories,
-            totalExpensesAmount,
-            isHidden: isBalanceHidden,
-            formatCurrency,
-            sanitizeString: typeof sanitizeString === 'function' ? sanitizeString : null
-        });
-        comp.hydrateDynamicStyles(container);
-    }
-
+function renderMobileChart() {
     const canvas = document.getElementById("mobileChartCanvas");
-    if (!canvas || donutItems.length === 0 || totalExpensesAmount <= 0) {
-        if (mobileChartInstance) {
-            mobileChartInstance.destroy();
-            mobileChartInstance = null;
-        }
-        return;
-    }
+    const wrapper = document.getElementById("mobileChartContainer");
+    const centerEl = document.getElementById("mobileChartCenterTotal");
+    const centerValEl = document.getElementById("mobileChartTotalVal");
+    const emptyEl = document.getElementById("mobileChartEmptyNotice");
+    if (!canvas || typeof Chart === 'undefined') return;
 
     if (mobileChartInstance) {
         mobileChartInstance.destroy();
@@ -1069,28 +1089,105 @@ function renderMobileChart() {
     const isDark = document.body.classList.contains('dark-theme');
     const ctx = canvas.getContext("2d");
 
+    if (currentChartMode === 'monthly') {
+        if (centerEl) centerEl.style.display = 'none';
+        let income = 0, expense = 0;
+        allTransactions.forEach(t => {
+            if (!isTxPaid(t)) return;
+            const amt = Math.abs(Number(t.amount || 0));
+            if (isNaN(amt) || amt <= 0) return;
+            if (t.type === "income") income += amt;
+            else if (t.type === "expense") expense += amt;
+        });
+
+        const hasData = income > 0 || expense > 0;
+        if (wrapper) wrapper.style.display = hasData ? 'block' : 'none';
+        if (emptyEl) emptyEl.style.display = hasData ? 'none' : 'block';
+        if (!hasData) return;
+
+        const d = getSelectedMonthDate();
+        const shortMonths = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const mLabel = `${shortMonths[d.getMonth()]}/${String(d.getFullYear()).slice(-2)}`;
+
+        mobileChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Entradas', 'Saídas', 'Saldo'],
+                datasets: [{
+                    label: mLabel,
+                    data: [income, expense, Math.max(0, income - expense)],
+                    backgroundColor: ['#10B981', '#EF4444', '#4338CA'],
+                    borderRadius: 10,
+                    barThickness: 38
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (c) => ` ${formatCurrency(c.parsed.y)}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: isDark ? '#94A3B8' : '#475569', font: { size: 12, weight: '600' } }
+                    },
+                    y: {
+                        grid: { color: isDark ? 'rgba(148,163,184,0.12)' : 'rgba(15,23,42,0.06)' },
+                        ticks: {
+                            color: isDark ? '#94A3B8' : '#64748B',
+                            font: { size: 10 },
+                            callback: (v) => isBalanceHidden ? '••' : `R$ ${Math.round(v)}`
+                        }
+                    }
+                }
+            }
+        });
+        return;
+    }
+
+    const sortedCategories = getSortedExpenseCategories();
+    const totalExpenses = sortedCategories.reduce((s, c) => s + c.amount, 0);
+
+    if (sortedCategories.length === 0 || totalExpenses <= 0) {
+        if (wrapper) wrapper.style.display = 'none';
+        if (centerEl) centerEl.style.display = 'none';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+    }
+
+    if (wrapper) wrapper.style.display = 'block';
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (centerEl) centerEl.style.display = 'flex';
+    if (centerValEl) centerValEl.textContent = isBalanceHidden ? '••••••' : formatCurrency(totalExpenses);
+
     mobileChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: donutItems.map(s => s.name),
+            labels: sortedCategories.map(c => c.name),
             datasets: [{
-                data: donutItems.map(s => s.amount),
-                backgroundColor: donutItems.map(s => s.paletteColor || '#6C3DD1'),
-                borderWidth: 1.5,
+                data: sortedCategories.map(c => c.amount),
+                backgroundColor: sortedCategories.map(c => c.color),
+                borderWidth: 2,
                 borderColor: isDark ? '#1E293B' : '#FFFFFF',
-                hoverOffset: 2
+                hoverOffset: 4
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '66%',
+            cutout: '68%',
             plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        label: function (context) {
-                            const pct = totalExpensesAmount > 0 ? Math.round((context.parsed / totalExpensesAmount) * 100) : 0;
+                        label: (context) => {
+                            const pct = totalExpenses > 0 ? Math.round((context.parsed / totalExpenses) * 100) : 0;
                             return ` ${context.label}: ${formatCurrency(context.parsed)} (${pct}%)`;
                         }
                     }
@@ -1871,57 +1968,224 @@ function renderMobileGoals() {
     const container = document.getElementById("mobileGoalsContainer");
     if (!container) return;
 
-    const comp = window.TonuDashboardComponents;
-    if (!comp) return;
-
-    const selDate = getSelectedMonthDate();
-    // Injeta lista de metas + patrimônio em custódia + proventos do mês no GoalProgressCard
-    container.innerHTML = comp.renderGoalProgressCard({
-        goals: allGoals,
-        cachedEquity: cachedDashboardEquity,
-        monthlyDividends: getMonthlyDividendsTotalForDashboard(),
-        selectedYear: selDate.getFullYear(),
-        isHidden: isBalanceHidden,
-        formatCurrency,
-        sanitizeString: typeof sanitizeString === 'function' ? sanitizeString : null
+    const order = ['wealth', 'financial', 'dividends', 'project'];
+    const grouped = {};
+    (allGoals || []).forEach(g => {
+        const key = normalizeDashboardGoalType(g);
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(g);
     });
-    comp.hydrateDynamicStyles(container);
-    if (typeof window.renderMobileGoals === 'function') {
-        // Also ensure privacy state refreshes cleanly on goal card
-        if (window.TonuMobileUI && typeof window.TonuMobileUI.applyPrivacyState === 'function') {
-            window.TonuMobileUI.applyPrivacyState(isBalanceHidden);
+
+    const keys = Object.keys(grouped).sort((a, b) => {
+        const ia = order.indexOf(a);
+        const ib = order.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+
+    const cards = keys.map(k => buildGoalTypeSummaryCard(k, grouped[k]));
+    const headerHtml = `
+        <div class="goals-carousel-header">
+            <h2 class="goals-carousel-title"><i class="fas fa-bullseye"></i> Metas</h2>
+            <a href="goals.html" class="goals-carousel-all-link">Ver todas <i class="fas fa-arrow-right"></i></a>
+        </div>
+    `;
+
+    if (cards.length === 0) {
+        container.innerHTML = headerHtml + `
+            <a href="goals.html" class="goal-type-card">
+                <div class="goal-type-card-top">
+                    <div class="goal-type-icon mob-goal-default-icon"><i class="fas fa-bullseye"></i></div>
+                    <div class="goal-type-meta">
+                        <div class="goal-type-name">Defina suas metas</div>
+                        <div class="goal-type-sub">Patrimônio, reservas ou proventos</div>
+                    </div>
+                    <span class="goal-type-pct">0%</span>
+                </div>
+                <div class="goal-type-progress-track"><div class="goal-type-progress-fill" data-goal-pct="0"></div></div>
+                <div class="goal-type-values">
+                    <div class="goal-type-val-block">
+                        <span class="goal-type-val-label">Comece agora</span>
+                        <span class="goal-type-val-num">Toque para criar</span>
+                    </div>
+                </div>
+            </a>
+        `;
+        return;
+    }
+
+    const mask = (v) => (isBalanceHidden ? '••••••' : v);
+    container.innerHTML = headerHtml + `
+        <div class="goals-carousel-track ${cards.length === 1 ? 'single-card' : ''}">
+            ${cards.map(c => `
+                <a href="goals.html" class="goal-type-card" data-goal-color="${c.color}" data-goal-bg="${c.iconBg}">
+                    <div class="goal-type-card-top">
+                        <div class="goal-type-icon"><i class="fas ${c.icon}"></i></div>
+                        <div class="goal-type-meta">
+                            <div class="goal-type-name">${c.title}</div>
+                            <div class="goal-type-sub">${c.subtitle}</div>
+                        </div>
+                        <span class="goal-type-pct">${c.percent}%</span>
+                    </div>
+                    <div class="goal-type-progress-track">
+                        <div class="goal-type-progress-fill" data-goal-pct="${c.percent}"></div>
+                    </div>
+                    <div class="goal-type-values">
+                        <div class="goal-type-val-block">
+                            <span class="goal-type-val-label">${c.currentLabel}</span>
+                            <span class="goal-type-val-num tabular-nums" data-sensitive>${c.typeKey === 'project' ? c.currentValue : mask(c.currentValue)}</span>
+                        </div>
+                        <div class="goal-type-val-block right">
+                            <span class="goal-type-val-label">${c.targetLabel}</span>
+                            <span class="goal-type-val-num tabular-nums" data-sensitive>${c.typeKey === 'project' ? c.targetValue : mask(c.targetValue)}</span>
+                        </div>
+                    </div>
+                </a>
+            `).join('')}
+        </div>
+    `;
+
+    container.querySelectorAll('.goal-type-card').forEach(card => {
+        const col = card.getAttribute('data-goal-color');
+        const bg = card.getAttribute('data-goal-bg');
+        const iconEl = card.querySelector('.goal-type-icon');
+        const pctEl = card.querySelector('.goal-type-pct');
+        const fillEl = card.querySelector('.goal-type-progress-fill');
+        if (iconEl) {
+            if (col) iconEl.style.color = col;
+            if (bg) iconEl.style.backgroundColor = bg;
         }
+        if (pctEl && col) pctEl.style.color = col;
+        if (fillEl) {
+            const pct = Math.max(0, Math.min(100, Number(fillEl.getAttribute('data-goal-pct')) || 0));
+            fillEl.style.width = `${pct}%`;
+            if (col) fillEl.style.backgroundColor = col;
+        }
+    });
+
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.applyPrivacyState === 'function') {
+        window.TonuMobileUI.applyPrivacyState(isBalanceHidden);
     }
 }
 
 // ============================================
-// RENDER CATEGORIAS EM BARRA (INTEGRADO AO GRÁFICO)
+// RENDER CATEGORIAS EM BARRA
 // ============================================
 function renderCategoryBars() {
     const container = document.getElementById("categoryBarsContainer");
-    if (container) container.innerHTML = "";
+    if (!container) return;
+
+    if (currentChartMode === 'monthly') {
+        container.innerHTML = "";
+        container.style.display = "none";
+        return;
+    }
+
+    const sortedCategories = getSortedExpenseCategories();
+    const totalExpenses = sortedCategories.reduce((s, c) => s + c.amount, 0);
+
+    if (sortedCategories.length === 0 || totalExpenses <= 0) {
+        container.innerHTML = "";
+        container.style.display = "none";
+        return;
+    }
+
+    container.style.display = "flex";
+    const mask = (v) => (isBalanceHidden ? '••••' : v);
+    const esc = (str) => (typeof sanitizeString === 'function' ? sanitizeString(str || '') : String(str || ''));
+
+    container.innerHTML = sortedCategories.slice(0, 5).map(c => {
+        const pct = Math.round((c.amount / totalExpenses) * 100);
+        return `
+            <div class="mobile-cat-row">
+                <div class="cat-row-top">
+                    <span class="cat-row-name">
+                        <span class="cat-dot" data-cat-color="${c.color}"></span>
+                        ${esc(c.name)}
+                    </span>
+                    <span class="cat-row-amount tabular-nums" data-sensitive>
+                        ${mask(formatCurrency(c.amount))} <small>(${pct}%)</small>
+                    </span>
+                </div>
+                <div class="cat-progress-track">
+                    <div class="cat-progress-fill" data-cat-color="${c.color}" data-cat-pct="${pct}"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.querySelectorAll('[data-cat-color]').forEach(el => {
+        const col = el.getAttribute('data-cat-color');
+        if (col) el.style.backgroundColor = col;
+        if (el.hasAttribute('data-cat-pct')) {
+            const pct = Math.max(0, Math.min(100, Number(el.getAttribute('data-cat-pct')) || 0));
+            el.style.width = `${pct}%`;
+        }
+    });
 }
 
 // ============================================
-// RENDER TRANSAÇÕES (3 ÚLTIMAS TRANSAÇÕES PAGAS)
+// RENDER TRANSAÇÕES RECENTES
 // ============================================
 function renderTransactions() {
     const container = document.getElementById("mobileTransactions");
     if (!container) return;
 
-    const recent = allTransactions.filter(t => isTxPaid(t)).slice(0, 3);
-    const comp = window.TonuDashboardComponents;
-    if (!comp) return;
+    const recent = allTransactions.filter(t => isTxPaid(t)).slice(0, 6);
+    if (recent.length === 0) {
+        container.innerHTML = `
+            <div class="mobile-empty">
+                <span class="empty-icon">💸</span>
+                <h3>Nenhuma transação paga</h3>
+                <p>Toque no botão + para registrar sua primeira movimentação deste mês.</p>
+            </div>
+        `;
+        return;
+    }
 
-    // Injeta as 3 últimas transações pagas e categorias no componente TransactionList
-    container.innerHTML = comp.renderTransactionList({
-        transactions: recent,
-        categories,
-        isHidden: isBalanceHidden,
-        formatCurrency,
-        formatDate,
-        sanitizeString: typeof sanitizeString === 'function' ? sanitizeString : null,
-        cleanDescription: window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription : null
+    const mask = (v) => (isBalanceHidden ? '••••••' : v);
+    const esc = (str) => (typeof sanitizeString === 'function' ? sanitizeString(str || '') : String(str || ''));
+    const cleanDesc = window.TonuDeduplicate && typeof window.TonuDeduplicate.cleanDisplayDescription === 'function'
+        ? window.TonuDeduplicate.cleanDisplayDescription
+        : (s) => (s || 'Transação');
+
+    container.innerHTML = recent.map(t => {
+        const isIncome = t.type === 'income';
+        let cat = null;
+        if (t.category_id && categories.length > 0) {
+            cat = categories.find(c => c.id === t.category_id);
+        }
+        if (!cat && t.categories && typeof t.categories === 'object') {
+            cat = t.categories;
+        }
+        const style = (typeof window.getBackendCategoryStyle === 'function')
+            ? window.getBackendCategoryStyle(t.category || t.description, cat)
+            : { icon: cat?.icon || (isIncome ? 'fa-arrow-up' : 'fa-shopping-bag'), color: cat?.color || (isIncome ? '#10B981' : '#4338CA') };
+        const icon = cat?.icon || style.icon || (isIncome ? 'fa-arrow-up' : 'fa-tag');
+        const bgColor = cat?.color || style.color || (isIncome ? '#10B981' : '#4338CA');
+        const catName = cat?.name || t.category || (isIncome ? 'Receita' : 'Despesa');
+        const dateStr = typeof formatDate === 'function' ? formatDate(t.date) : (t.date || '');
+
+        return `
+            <div class="mobile-transaction" data-nav="transactions.html">
+                <div class="tx-left">
+                    <div class="tx-icon" data-tx-bg="${bgColor}">
+                        <i class="fas ${icon}"></i>
+                    </div>
+                    <div class="tx-info">
+                        <strong>${esc(cleanDesc(t.description))}</strong>
+                        <small>${esc(catName)} · ${esc(dateStr)}</small>
+                    </div>
+                </div>
+                <span class="tx-amount tabular-nums ${isIncome ? 'income' : 'expense'}" data-sensitive>
+                    ${isIncome ? '+' : '-'} ${mask(formatCurrency(Math.abs(Number(t.amount) || 0)))}
+                </span>
+            </div>
+        `;
+    }).join('');
+
+    container.querySelectorAll('[data-tx-bg]').forEach(el => {
+        const col = el.getAttribute('data-tx-bg');
+        if (col) el.style.backgroundColor = col;
     });
 }
 

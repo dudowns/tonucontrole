@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#F8F9FA">
+    <meta name="theme-color" content="#F8FAFC">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -14,14 +14,14 @@
     <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png">
     <link rel="shortcut icon" href="../../icons/icon-128x128.png">
     <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png">
-    <title>TonuControle - Dashboard</title>
+    <title>TonuControle - Dashboard Mobile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css?v=5.2.0">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.0.0">
     <link rel="stylesheet" href="../../css/notifications.css">
     <link rel="stylesheet" href="../../css/sync-status.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -31,145 +31,145 @@
         }
     </script>
 </head>
-<body class="has-bottom-nav clean-mobile-dash">
+<body class="has-bottom-nav">
 
 <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
 
-<!-- COMPONENTE 1: HEADER (Logo oficial TonuControle + Saudação | Avatar Perfil) -->
-<header class="clean-topbar" aria-label="Cabeçalho">
-    <div class="clean-topbar-inner">
-        <div class="clean-brand-greeting">
-            <img src="../../icons/logo.png" alt="TonuControle" class="clean-brand-logo" width="38" height="38">
-            <div class="clean-greeting-wrap">
-                <h1 class="clean-greeting" id="greetingText">Olá, Usuário!</h1>
-                <p class="clean-greeting-sub">Vamos cuidar do seu patrimônio?</p>
-            </div>
+<!-- HEADER AURORA -->
+<header class="mobile-topbar">
+    <div class="topbar-header">
+        <div class="topbar-left">
+            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <h1>Tonu<span>Controle</span></h1>
         </div>
-
-        <a href="settings.html" id="mobileTopAvatar" class="clean-profile-btn" title="Perfil e Configurações" aria-label="Perfil e Configurações">
-            <span id="topbarAvatar">U</span>
-        </a>
+        <div class="topbar-actions">
+            <button type="button" class="topbar-btn" id="mobSearchBtn" data-action="command-palette" title="Busca rápida" aria-label="Busca rápida"><i class="fas fa-search"></i></button>
+            <button type="button" class="topbar-btn" data-privacy-toggle data-action="toggle-balance" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade"><i class="fas fa-eye" data-privacy-icon></i></button>
+            <button type="button" class="topbar-btn theme-toggle-btn" id="mobThemeBtn" data-action="toggle-theme" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button type="button" class="topbar-btn" id="notifBellBtn" title="Notificações" aria-label="Notificações">
+                <i class="fas fa-bell"></i>
+                <span class="notif-badge hidden" id="notifBadgeCount">0</span>
+            </button>
+            <button type="button" class="topbar-btn" id="mobSyncBtn" data-action="sync-now" title="Sincronizar" aria-label="Sincronizar"><i class="fas fa-sync-alt"></i></button>
+            <a href="settings.html" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
+                <span id="topbarAvatar">U</span>
+            </a>
+        </div>
     </div>
+    <div class="greeting" id="greetingText">Olá! Bem-vindo de volta</div>
 </header>
 
 <!-- CONTEÚDO PRINCIPAL -->
-<main class="mobile-content clean-dash-content" id="main-content">
+<main class="mobile-content" id="main-content">
 
-    <!-- SELETOR DE MÊS CENTRALIZADO -->
-    <div class="clean-month-row">
-        <div class="clean-month-pill" role="group" aria-label="Selecionar mês">
-            <button type="button" class="clean-month-arrow" data-action="change-month" data-delta="-1" aria-label="Mês anterior">
-                <i class="fas fa-chevron-left" aria-hidden="true"></i>
+    <!-- SELETOR DE MÊS -->
+    <div class="mobile-month-selector-bar">
+        <div class="month-selector">
+            <button type="button" class="month-nav" data-action="change-month" data-delta="-1" aria-label="Mês anterior">
+                <i class="fas fa-chevron-left"></i>
             </button>
-            <button type="button" class="clean-month-current" id="selectedMonth" data-action="go-current-month" title="Ir para o mês atual">
-                <i class="far fa-calendar-alt" aria-hidden="true"></i>
-                <span id="selectedMonthLabel">Carregando...</span>
-            </button>
-            <button type="button" class="clean-month-arrow" data-action="change-month" data-delta="1" aria-label="Próximo mês">
-                <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            <span class="month-label" id="selectedMonth">Carregando...</span>
+            <button type="button" class="btn-today hidden" id="btnTodayMonth" data-action="go-current-month">Hoje</button>
+            <button type="button" class="month-nav" data-action="change-month" data-delta="1" aria-label="Próximo mês">
+                <i class="fas fa-chevron-right"></i>
             </button>
         </div>
     </div>
 
-    <!-- COMPONENTE 2: HERO CARD (Saldo do Mês + Comparativo + Entradas/Saídas + Contas a vencer) -->
-    <div id="heroCardContainer">
-        <div class="clean-skeleton-hero mob-skeleton"></div>
+    <!-- HERO SALDO + GRID KPI 2x2 -->
+    <div id="summaryContainer">
+        <div class="mob-skeleton-card mob-skel-hero">
+            <div class="mob-skeleton mob-skel-title"></div>
+            <div class="mob-skeleton mob-skel-val"></div>
+        </div>
     </div>
 
-    <!-- COMPONENTE 3: AÇÕES RÁPIDAS (Cabeçalho + 4 cards com ícones tintados) -->
-    <section class="clean-quick-section" aria-label="Ações Rápidas">
-        <div class="clean-quick-header">
-            <h2 class="clean-block-title"><i class="fas fa-bolt" aria-hidden="true"></i> Ações Rápidas</h2>
-            <a href="transactions.html" class="clean-block-link">Ver todas <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+    <!-- AÇÕES RÁPIDAS -->
+    <div class="mobile-quick-actions" aria-label="Ações Rápidas">
+        <button type="button" class="quick-action-btn qa-expense" data-action="quick-add" data-type="expense">
+            <i class="fas fa-minus-circle"></i>
+            <span>Nova Despesa</span>
+        </button>
+        <button type="button" class="quick-action-btn qa-income" data-action="quick-add" data-type="income">
+            <i class="fas fa-plus-circle"></i>
+            <span>Nova Receita</span>
+        </button>
+        <a href="bills.html" class="quick-action-btn qa-bills">
+            <i class="fas fa-file-invoice-dollar"></i>
+            <span>Contas</span>
+        </a>
+        <a href="investments.html" class="quick-action-btn qa-invest">
+            <i class="fas fa-chart-line"></i>
+            <span>Investir</span>
+        </a>
+        <a href="goals.html" class="quick-action-btn qa-goals">
+            <i class="fas fa-bullseye"></i>
+            <span>Metas</span>
+        </a>
+    </div>
+
+    <!-- CARROSSEL DE METAS AGRUPADAS POR TIPO -->
+    <section id="mobileGoalsContainer" class="goals-carousel-section" aria-label="Metas"></section>
+
+    <!-- GRÁFICO FINANCEIRO (CATEGORIAS / EVOLUÇÃO MENSAL) -->
+    <section class="mobile-chart-card" id="mobileChartCard" aria-label="Gráficos Financeiros">
+        <div class="mobile-chart-header">
+            <h3 class="mobile-chart-title"><i class="fas fa-chart-pie"></i> Visão Geral</h3>
+            <div class="mobile-chart-toggle" role="tablist">
+                <button type="button" class="mobile-chart-btn active" id="chartBtnCategories" data-action="chart-mode" data-mode="categories">Categorias</button>
+                <button type="button" class="mobile-chart-btn" id="chartBtnMonthly" data-action="chart-mode" data-mode="monthly">Evolução</button>
+            </div>
         </div>
-        <nav class="clean-quick-actions" aria-label="Atalhos de ações rápidas">
-            <button type="button" class="clean-quick-btn expense" data-action="quick-add" data-type="expense">
-                <span class="clean-quick-icon expense"><i class="fas fa-wallet" aria-hidden="true"></i></span>
-                <span class="clean-quick-label">Nova<br>Despesa</span>
-            </button>
-            <button type="button" class="clean-quick-btn income" data-action="quick-add" data-type="income">
-                <span class="clean-quick-icon income"><i class="fas fa-hand-holding-usd" aria-hidden="true"></i></span>
-                <span class="clean-quick-label">Nova<br>Receita</span>
-            </button>
-            <a href="bills.html" class="clean-quick-btn bills">
-                <span class="clean-quick-icon bills"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i></span>
-                <span class="clean-quick-label">Contas</span>
-            </a>
-            <a href="investments.html" class="clean-quick-btn invest">
-                <span class="clean-quick-icon invest"><i class="fas fa-chart-line" aria-hidden="true"></i></span>
-                <span class="clean-quick-label">Investir</span>
-            </a>
-        </nav>
+        <div class="mobile-chart-wrapper mobile-chart-container" id="mobileChartContainer">
+            <canvas id="mobileChartCanvas" aria-label="Gráfico financeiro"></canvas>
+            <div class="chart-center-total" id="mobileChartCenterTotal" aria-hidden="true">
+                <span class="center-label">Total</span>
+                <span class="center-value tabular-nums" id="mobileChartTotalVal" data-sensitive>R$ 0,00</span>
+            </div>
+        </div>
+        <p class="mobile-ai-empty" id="mobileChartEmptyNotice">Sem despesas pagas registradas neste mês.</p>
+        <div class="mobile-chart-categories" id="categoryBarsContainer"></div>
     </section>
 
-    <!-- COMPONENTE 4: CARDS DE RESUMO (Contas Pendentes & Proventos do Mês) -->
-    <div id="summaryContainer"></div>
+    <!-- DIAGNÓSTICO 360º E O QUE FAZER HOJE -->
+    <div id="mobileInsightsContainer"></div>
 
-    <!-- COMPONENTE 5: MINHA META PRINCIPAL -->
-    <section id="mobileGoalsContainer" class="clean-goal-section" aria-label="Minha Meta Principal"></section>
-
-    <!-- COMPONENTES 6 & 7: GASTOS POR CATEGORIA + ÚLTIMAS TRANSAÇÕES (EMPILHADOS) -->
-    <div class="clean-bento-row">
-        <div id="mobileChartContainer" class="clean-bento-col"></div>
-
-        <section class="clean-tx-section clean-tx-bento-card clean-bento-col" aria-label="Últimas Transações">
-            <div class="clean-bento-head">
-                <h2 class="clean-bento-title"><i class="fas fa-receipt" aria-hidden="true"></i> Últimas Transações</h2>
-                <a href="transactions.html" class="clean-block-link">Ver todas <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+    <!-- INSIGHTS IA (90 DIAS) -->
+    <section class="mobile-insights-card" id="mobileAIInsightsCard" aria-label="Insights IA">
+        <div class="mobile-insights-header">
+            <div class="mobile-insights-title">
+                <i class="fas fa-wand-magic-sparkles mob-title-icon brand"></i>
+                <span>Insights IA</span>
+                <span class="mobile-insights-pill" id="aiInsightsSourceBadge">90 dias</span>
             </div>
-            <div id="mobileTransactions">
-                <div class="mob-skeleton-card">
-                    <div class="mob-skeleton clean-skel-line-lg"></div>
-                    <div class="mob-skeleton clean-skel-line-sm"></div>
-                </div>
-                <div class="mob-skeleton-card">
-                    <div class="mob-skeleton clean-skel-line-md"></div>
-                    <div class="mob-skeleton clean-skel-line-sm"></div>
-                </div>
-            </div>
-        </section>
+            <button type="button" class="mobile-ai-refresh-btn" id="mobileAiInsightsRefreshBtn" data-action="refresh-ai-insights" title="Atualizar Insights IA" aria-label="Atualizar Insights IA">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+        <div id="aiInsightsBody">
+            <p class="mobile-ai-loading">Analisando seus últimos 90 dias...</p>
+        </div>
+    </section>
+
+    <!-- ÚLTIMAS TRANSAÇÕES -->
+    <div class="mobile-section-title">
+        <span>Últimas Transações</span>
+        <a href="transactions.html">Ver todas <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div id="mobileTransactions">
+        <div class="mob-skeleton-card">
+            <div class="mob-skeleton mob-skel-line-lg"></div>
+            <div class="mob-skeleton mob-skel-line-sm"></div>
+        </div>
+        <div class="mob-skeleton-card">
+            <div class="mob-skeleton mob-skel-line-md"></div>
+            <div class="mob-skeleton mob-skel-line-sm"></div>
+        </div>
     </div>
 
-    <!-- COMPONENTE 8: DIAGNÓSTICO 360º & INSIGHTS IA (Gaveta expansível no rodapé) -->
-    <details class="clean-insights-drawer" id="cleanInsightsDrawer">
-        <summary class="clean-insights-summary">
-            <span class="clean-insights-summary-left">
-                <span class="clean-insights-summary-icon" aria-hidden="true"><i class="fas fa-lightbulb"></i></span>
-                <span class="clean-insights-summary-text">
-                    <strong>Diagnóstico 360º &amp; Insights IA</strong>
-                    <small>Sua saúde financeira em um só lugar</small>
-                </span>
-            </span>
-            <span class="clean-insights-summary-right">
-                <span class="clean-insights-status is-ok" id="insightsStatusBadge">
-                    <i class="fas fa-check-circle" aria-hidden="true"></i> Em dia
-                </span>
-                <span class="clean-drawer-chevron-circle" aria-hidden="true">
-                    <i class="fas fa-chevron-down clean-drawer-chevron"></i>
-                </span>
-            </span>
-        </summary>
-        <div class="clean-insights-drawer-body">
-            <div id="mobileInsightsContainer"></div>
-            <section class="mobile-insights-card" id="mobileAIInsightsCard" aria-label="Insights IA">
-                <div class="mobile-insights-header">
-                    <div class="mobile-insights-title">
-                        <span>Insights IA</span>
-                        <span class="mobile-insights-pill" id="aiInsightsSourceBadge">90 dias</span>
-                    </div>
-                    <button type="button" class="mobile-ai-refresh-btn" id="mobileAiInsightsRefreshBtn" data-action="refresh-ai-insights" title="Atualizar Insights IA" aria-label="Atualizar Insights IA">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                </div>
-                <div id="aiInsightsBody">
-                    <p class="mobile-ai-loading">Analisando seus últimos 90 dias...</p>
-                </div>
-            </section>
-        </div>
-    </details>
 </main>
 
-<!-- BOTTOM SHEET MODAL (ADICIONAR TRANSAÇÃO RÁPIDA) -->
+<!-- BOTTOM SHEET MODAL (ADICIONAR TRANSAÇÃO) -->
 <div class="mobile-modal-overlay" id="quickAddModal">
     <div class="mobile-modal-sheet" id="quickAddSheet">
         <div class="sheet-drag-handle"></div>
@@ -227,17 +227,19 @@
     </div>
 </div>
 
-<!-- COMPONENTE 9: BOTTOM TAB BAR (5 itens: Início | Transações | + | Investir | Config) -->
-<nav class="bottom-nav clean-bottom-nav" aria-label="Navegação Principal">
-    <a href="dashboard.html" class="active"><i class="fas fa-home"></i><span>Início</span></a>
+<!-- BOTTOM NAV FLUTUANTE AURORA (IGUAL ÀS OUTRAS TELAS MOBILE) -->
+<nav class="bottom-nav" aria-label="Navegação Principal">
+    <a href="dashboard.html" class="active"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
     <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
+    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
     <div class="nav-center">
         <button type="button" class="nav-add-btn" id="navAddBtn" data-action="quick-add" data-type="expense" aria-label="Nova Transação" title="Nova Transação">
             <i class="fas fa-plus"></i>
         </button>
     </div>
-    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investir</span></a>
-    <a href="settings.html"><i class="fas fa-cog"></i><span>Config</span></a>
+    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investimentos</span></a>
+    <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Configurações</span></a>
 </nav>
 
 <!-- TOAST -->
@@ -253,8 +255,7 @@
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
 <script src="../../js/mobile/ui.js?v=1.0.0"></script>
-<script src="../../js/mobile/dashboard-components.js?v=1.2.0"></script>
-<script src="../../js/mobile/dashboard.js?v=5.1.0"></script>
+<script src="../../js/mobile/dashboard.js?v=6.0.0"></script>
 
 </body>
 </html>
