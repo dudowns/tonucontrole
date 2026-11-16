@@ -732,8 +732,19 @@ function isTxPaid(t) {
 function toggleBalanceVisibility() {
     isBalanceHidden = !isBalanceHidden;
     localStorage.setItem('tonu_hide_balance', isBalanceHidden ? 'true' : 'false');
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.applyPrivacyState === 'function') {
+        window.TonuMobileUI.applyPrivacyState(isBalanceHidden);
+        window.TonuMobileUI.haptic('light');
+    }
     renderSummary();
 }
+window.addEventListener('tonu:privacyChanged', (e) => {
+    const nextHidden = Boolean(e?.detail?.hidden);
+    if (isBalanceHidden !== nextHidden) {
+        isBalanceHidden = nextHidden;
+        renderSummary();
+    }
+});
 
 // ============================================
 // RENDER RESUMO HERO + GRID
@@ -783,7 +794,7 @@ function renderSummary() {
     });
 
     const displayMonthDivs = monthPaidDivs > 0 ? monthPaidDivs : (monthPendingDivs > 0 ? monthPendingDivs : 0);
-    const divValueColor = monthPaidDivs > 0 ? '#8b5cf6' : (monthPendingDivs > 0 ? '#0284c7' : '#8b5cf6');
+    const divValueColor = monthPaidDivs > 0 ? '#7C3AED' : (monthPendingDivs > 0 ? '#0284c7' : '#7C3AED');
 
     const mask = (val) => isBalanceHidden ? '••••••' : val;
 
@@ -791,7 +802,7 @@ function renderSummary() {
     if (!container) return;
 
     container.innerHTML = `
-        <!-- HERO CARD FINTECH -->
+        <!-- HERO CARD FINTECH AURORA -->
         <div class="mobile-hero-balance">
             <div class="mobile-hero-top">
                 <span class="label"><i class="fas fa-wallet"></i> Saldo Operacional</span>
@@ -799,18 +810,18 @@ function renderSummary() {
                     <i class="fas ${isBalanceHidden ? 'fa-eye-slash' : 'fa-eye'}"></i>
                 </button>
             </div>
-            <div class="mobile-hero-value">
+            <div class="mobile-hero-value" id="heroBalanceVal" data-sensitive>
                 ${mask(formatCurrency(balance))}
             </div>
             <div class="mobile-hero-footer">
                 <div class="mobile-hero-stat">
                     <span class="stat-label"><i class="fas fa-arrow-up" style="color:#4ade80;"></i> Entradas</span>
-                    <span class="stat-value income">${mask(formatCurrency(income))}</span>
+                    <span class="stat-value income" id="heroIncomeVal" data-sensitive>${mask(formatCurrency(income))}</span>
                 </div>
                 <div class="mobile-hero-stat">
                     <span class="stat-label"><i class="fas fa-arrow-down" style="color:#fca5a5;"></i> Saídas Pagas</span>
-                    <span class="stat-value expense">${mask(formatCurrency(expense))}</span>
-                    ${pendingBillsAmount > 0 ? `<span style="font-size:9px; color:#fbbf24; margin-top:2px; display:block;">Falta pagar: ${mask(formatCurrency(pendingBillsAmount))}</span>` : ''}
+                    <span class="stat-value expense" id="heroExpenseVal" data-sensitive>${mask(formatCurrency(expense))}</span>
+                    ${pendingBillsAmount > 0 ? `<span style="font-size:10px; color:#fbbf24; margin-top:2px; display:block;">Falta pagar: ${mask(formatCurrency(pendingBillsAmount))}</span>` : ''}
                 </div>
             </div>
         </div>
@@ -821,24 +832,24 @@ function renderSummary() {
                 <div class="card-icon bills"><i class="fas fa-file-invoice-dollar"></i></div>
                 <div class="card-info">
                     <div class="card-label">Contas Pendentes</div>
-                    <div class="card-value" style="color: ${pendingBills.length > 0 ? '#d97706' : '#10b981'}">
+                    <div class="card-value" data-sensitive style="color: ${pendingBills.length > 0 ? '#d97706' : '#10b981'}">
                         ${mask(formatCurrency(pendingBillsAmount))}
                     </div>
                 </div>
             </div>
             <div class="mobile-card">
-                <div class="card-icon balance" style="background:#8b5cf6;"><i class="fas fa-coins"></i></div>
+                <div class="card-icon balance"><i class="fas fa-coins"></i></div>
                 <div class="card-info">
                     <div class="card-label">Proventos Mês</div>
-                    <div class="card-value" style="color: ${divValueColor};">
+                    <div class="card-value" data-sensitive style="color: ${divValueColor};">
                         ${mask(formatCurrency(displayMonthDivs))}
                     </div>
                     ${monthPendingDivs > 0 ? `
-                        <div style="font-size:9.5px; color:#0284c7; font-weight:600; margin-top:2px;">
+                        <div style="font-size:10px; color:#0284c7; font-weight:600; margin-top:2px;">
                             <i class="far fa-clock"></i> A receber: ${mask(formatCurrency(monthPendingDivs))}
                         </div>
                     ` : (totalFutureDivs > 0 ? `
-                        <div style="font-size:9.5px; color:#0284c7; font-weight:600; margin-top:2px;">
+                        <div style="font-size:10px; color:#0284c7; font-weight:600; margin-top:2px;">
                             <i class="far fa-clock"></i> Previsto: ${mask(formatCurrency(totalFutureDivs))}
                         </div>
                     ` : '')}
@@ -846,6 +857,15 @@ function renderSummary() {
             </div>
         </div>
     `;
+
+    if (!isBalanceHidden && window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(document.getElementById('heroBalanceVal'), balance, formatCurrency);
+        window.TonuMobileUI.animateValue(document.getElementById('heroIncomeVal'), income, formatCurrency);
+        window.TonuMobileUI.animateValue(document.getElementById('heroExpenseVal'), expense, formatCurrency);
+    }
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.applyPrivacyState === 'function') {
+        window.TonuMobileUI.applyPrivacyState(isBalanceHidden);
+    }
 }
 
 // ============================================
@@ -988,7 +1008,7 @@ function renderMobileChart() {
         <div class="mobile-chart-card">
             <div class="mobile-chart-header">
                 <div class="mobile-chart-title">
-                    <i class="fas fa-chart-pie" style="color:#6C5CE7;"></i> Visão Gráfica de Gastos
+                    <i class="fas fa-chart-pie" style="color:#4338CA;"></i> Visão Gráfica de Gastos
                 </div>
                 <div class="mobile-chart-toggle">
                     <button class="mobile-chart-btn ${currentChartMode === 'categories' ? 'active' : ''}" onclick="setMobileChartMode('categories')">
@@ -1080,7 +1100,7 @@ function renderMobileChart() {
                 labels: ['Entradas', 'Saídas', 'Líquido'],
                 datasets: [{
                     data: [inc, exp, Math.max(0, inc - exp)],
-                    backgroundColor: ['#10b981', '#ef4444', '#6c5ce7'],
+                    backgroundColor: ['#10B981', '#EF4444', '#4338CA'],
                     borderRadius: 6
                 }]
             },
@@ -1408,7 +1428,7 @@ function renderMobileInsights() {
         <div class="mobile-insights-card mob-health-score-card">
             <div class="mobile-insights-header">
                 <div class="mobile-insights-title">
-                    <i class="fas fa-heart-pulse" style="color:#6C5CE7;"></i> Saúde Financeira
+                    <i class="fas fa-heart-pulse" style="color:#4338CA;"></i> Saúde Financeira
                 </div>
                 <span class="mobile-insights-pill">Diagnóstico 360º</span>
             </div>
@@ -1865,8 +1885,8 @@ function buildGoalTypeSummaryCard(typeKey, items) {
         title: esc(typeKey.charAt(0).toUpperCase() + typeKey.slice(1)),
         subtitle: `${countLabel} · ${repName}`,
         icon: 'fa-bullseye',
-        color: '#6C5CE7',
-        iconBg: 'rgba(108, 92, 231, 0.14)',
+        color: '#4338CA',
+        iconBg: 'rgba(67, 56, 202, 0.14)',
         percent,
         currentLabel: 'Atual',
         currentValue: formatCurrency(current),

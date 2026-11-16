@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#F8FAFC">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="../../manifest.json">
@@ -19,17 +19,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.0.0">
     <link rel="stylesheet" href="../../css/notifications.css">
     <style>
-        body { background: var(--color-bg, #f6f7fb); }
+        body { background: var(--mob-bg, #F8FAFC); }
         
         .mobile-settings-profile {
-            background: var(--color-surface, #ffffff);
-            border-radius: 20px;
+            background: var(--mob-surface, #ffffff);
+            border-radius: 16px;
             padding: 20px 18px;
             margin: 14px 14px 16px 14px;
-            border: 1px solid var(--color-border, #e2e8f0);
+            border: 1px solid var(--mob-border, #e2e8f0);
             box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
             display: flex;
             align-items: center;
@@ -41,7 +41,7 @@
             width: 60px;
             height: 60px;
             border-radius: 18px;
-            background: linear-gradient(135deg, #6C5CE7, #8B5CF6);
+            background: linear-gradient(135deg, #4338CA, #7C3AED);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -49,7 +49,7 @@
             color: white;
             font-weight: 800;
             flex-shrink: 0;
-            box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35);
+            box-shadow: 0 4px 14px rgba(67, 56, 202, 0.35);
         }
 
         .mobile-profile-details {
@@ -90,11 +90,11 @@
         }
 
         body.dark-theme .mobile-settings-profile {
-            background: #171f2e !important;
-            border-color: rgba(51, 65, 85, 0.7) !important;
+            background: var(--mob-surface, #1E293B) !important;
+            border-color: var(--mob-border, rgba(148, 163, 184, 0.16)) !important;
         }
         body.dark-theme .mobile-user-name {
-            color: #f8fafc !important;
+            color: var(--mob-text, #F1F5F9) !important;
         }
 
         .mobile-group-title {
@@ -167,20 +167,20 @@
         }
 
         body.dark-theme .settings-card-group {
-            background: #171f2e !important;
-            border-color: rgba(51, 65, 85, 0.7) !important;
+            background: var(--mob-surface, #1E293B) !important;
+            border-color: var(--mob-border, rgba(148, 163, 184, 0.16)) !important;
         }
         body.dark-theme .settings-item:not(:last-child)::after {
-            background: rgba(51, 65, 85, 0.55);
+            background: var(--mob-border, rgba(148, 163, 184, 0.16));
         }
         body.dark-theme .settings-item:active {
             background: rgba(255, 255, 255, 0.04);
         }
         body.dark-theme .item-text-title {
-            color: #f8fafc !important;
+            color: var(--mob-text, #F1F5F9) !important;
         }
 
-        .item-icon-box.purple { background: rgba(108, 92, 231, 0.12); color: #6C5CE7; }
+        .item-icon-box.purple { background: rgba(67, 56, 202, 0.12); color: #4338CA; }
         .item-icon-box.green { background: rgba(0, 184, 148, 0.12); color: #00B894; }
         .item-icon-box.blue { background: rgba(9, 132, 227, 0.12); color: #0984E3; }
         .item-icon-box.amber { background: rgba(253, 203, 110, 0.22); color: #d68910; }
@@ -234,11 +234,13 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button class="topbar-btn" onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
+            <button type="button" class="topbar-btn" onclick="window.TonuMobileUI && window.TonuMobileUI.openCommandPalette()" title="Busca rápida" aria-label="Busca rápida"><i class="fas fa-search"></i></button>
+            <button type="button" class="topbar-btn" data-privacy-toggle onclick="window.TonuMobileUI && window.TonuMobileUI.togglePrivacyMode()" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade"><i class="fas fa-eye" data-privacy-icon></i></button>
             <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button class="topbar-btn" onclick="forceSyncNow()" title="Sincronizar" aria-label="Sincronizar"><i class="fas fa-sync-alt"></i></button>
         </div>
     </div>
-    <div class="greeting">⚙️ Configurações</div>
+    <div class="greeting">Configurações & Conta</div>
 </header>
 
 <main class="mobile-content">
@@ -246,7 +248,7 @@
     <div class="mobile-settings-profile" id="profileSection">
         <div class="mobile-avatar-wrapper" onclick="triggerMobileAvatarUpload()" style="position:relative; cursor:pointer;" title="Alterar foto de perfil">
             <div class="mobile-avatar" id="userAvatar" style="overflow:hidden; display:flex; align-items:center; justify-content:center; background-size:cover; background-position:center;">U</div>
-            <div class="avatar-edit-badge" style="position:absolute; bottom:-2px; right:-2px; width:22px; height:22px; background:#6C5CE7; color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; border:2px solid var(--color-surface, #fff); box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-camera"></i></div>
+            <div class="avatar-edit-badge" style="position:absolute; bottom:-2px; right:-2px; width:22px; height:22px; background:linear-gradient(135deg, #4338CA, #7C3AED); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; border:2px solid var(--mob-surface, #fff); box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-camera"></i></div>
         </div>
         <input type="file" id="mobileAvatarInput" accept="image/png,image/jpeg,image/webp,image/jpg" style="display:none;" onchange="handleMobileAvatarSelect(event)">
         <div class="mobile-profile-details">
@@ -283,7 +285,7 @@
 
     <!-- 1. GERAL & VISUAL -->
     <div class="mobile-settings-section-wrapper" data-section="general">
-        <div class="mobile-group-title"><i class="fas fa-sliders-h" style="color:#6C5CE7; margin-right:4px;"></i> Geral & Visual</div>
+        <div class="mobile-group-title"><i class="fas fa-sliders-h" style="color:#4338CA; margin-right:4px;"></i> Geral & Visual</div>
         <div class="settings-card-group">
             <div class="settings-item" onclick="toggleTheme()">
                 <div class="left">
@@ -326,7 +328,7 @@
                     </div>
                 </div>
                 <div class="right">
-                    <input type="checkbox" id="mobileToggleCorpEvents" onchange="toggleCorporateEventsPref(this.checked)" style="width:18px; height:18px; accent-color:#6C5CE7; cursor:pointer;">
+                    <input type="checkbox" id="mobileToggleCorpEvents" onchange="toggleCorporateEventsPref(this.checked)" style="width:18px; height:18px; accent-color:#4338CA; cursor:pointer;">
                 </div>
             </div>
 
@@ -409,8 +411,8 @@
                     <span id="budgetDisplayVal" style="font-weight:700; color:#0984E3; font-size:13px;">R$ 0,00</span>
                 </div>
                 <div style="display:flex; gap:8px; width:100%; margin-top:4px;">
-                    <input type="number" id="mobileBudgetInput" placeholder="Ex: 3500.00" step="10" min="0" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid var(--color-border, #e2e8f0); background:var(--color-bg, #f8fafc); font-size:13px; color:inherit;">
-                    <button class="btn btn-primary" onclick="saveMobileBudget()" style="padding:8px 14px; border-radius:8px; background:#6C5CE7; color:white; border:none; font-weight:600; font-size:12px; cursor:pointer;">
+                    <input type="number" id="mobileBudgetInput" placeholder="Ex: 3500.00" step="10" min="0" style="flex:1; padding:8px 12px; border-radius:10px; border:1px solid var(--mob-border, #e2e8f0); background:var(--mob-surface-2, #f8fafc); font-size:16px; color:inherit;">
+                    <button class="btn btn-primary" onclick="saveMobileBudget()" style="padding:8px 14px; border-radius:10px; background:linear-gradient(135deg, #4338CA 0%, #7C3AED 100%); color:white; border:none; font-weight:700; font-size:12px; cursor:pointer;">
                         Salvar
                     </button>
                 </div>
@@ -650,7 +652,7 @@
 
     <!-- 5. PWA & OFFLINE -->
     <div class="mobile-settings-section-wrapper" data-section="pwa">
-        <div class="mobile-group-title"><i class="fas fa-mobile-alt" style="color:#6C5CE7; margin-right:4px;"></i> Aplicativo PWA</div>
+        <div class="mobile-group-title"><i class="fas fa-mobile-alt" style="color:#4338CA; margin-right:4px;"></i> Aplicativo PWA</div>
         <div class="settings-card-group">
             <div class="settings-item" onclick="triggerPwaInstall()">
                 <div class="left">
@@ -661,7 +663,7 @@
                     </div>
                 </div>
                 <div class="right">
-                    <span id="pwaStatusText" style="font-size:11px; color:#6C5CE7; font-weight:600;">Instalável</span>
+                    <span id="pwaStatusText" style="font-size:11px; color:#4338CA; font-weight:600;">Instalável</span>
                     <i class="fas fa-plus-circle"></i>
                 </div>
             </div>
@@ -831,6 +833,7 @@
 <script src="../../js/sync.js"></script>
 <script src="../../js/financial-tools.js"></script>
 <script src="../../js/sw-register.js"></script>
+<script src="../../js/mobile/ui.js?v=1.0.0"></script>
 <script>
 var formatCurrency = window.formatCurrency;
 var formatDate = window.formatDate;
@@ -1192,6 +1195,7 @@ function syncMobileThemeSettingsUI(theme) {
 window.addEventListener('themeChanged', function (e) {
     const theme = e.detail && e.detail.theme;
     syncMobileThemeSettingsUI(theme);
+    if (window.TonuMobileUI && window.TonuMobileUI.syncThemeMeta) window.TonuMobileUI.syncThemeMeta();
     const isDark = theme === 'dark' || document.body.classList.contains("dark-theme");
     if (typeof showMobileToast === 'function') {
         showMobileToast(`Tema ${isDark ? 'escuro' : 'claro'} ativado!`, "info");
@@ -1203,8 +1207,16 @@ function toggleHideBalancePref() {
     const next = !current;
     localStorage.setItem("tonu_hide_balance", next ? "true" : "false");
     document.getElementById("hideBalanceStatus").textContent = next ? "Ativado" : "Desativado";
+    if (window.TonuMobileUI && window.TonuMobileUI.applyPrivacyState) {
+        window.TonuMobileUI.applyPrivacyState();
+    }
     showMobileToast(`Ocultar saldos: ${next ? 'Ativado' : 'Desativado'}`, "info");
 }
+window.addEventListener('tonu:privacyChanged', function (e) {
+    const hidden = e && e.detail ? !!e.detail.hidden : (localStorage.getItem("tonu_hide_balance") === "true");
+    const statusEl = document.getElementById("hideBalanceStatus");
+    if (statusEl) statusEl.textContent = hidden ? "Ativado" : "Desativado";
+});
 
 function initBottomNavLabelsPref() {
     const isIconsOnly = localStorage.getItem("tonu_bottom_nav_labels") === "false";
@@ -1302,7 +1314,7 @@ async function loadMobileCategoriesAndBudgets() {
             cats = [
                 { id: 'cat_alimentacao', name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF7675' },
                 { id: 'cat_transporte', name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#0984E3' },
-                { id: 'cat_moradia', name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#6C5CE7' },
+                { id: 'cat_moradia', name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#4338CA' },
                 { id: 'cat_lazer', name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#FDCB6E' },
                 { id: 'cat_saude', name: '💊 Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#00B894' },
                 { id: 'cat_outros', name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#636E72' }
@@ -1322,7 +1334,7 @@ async function loadMobileCategoriesAndBudgets() {
                     return `
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; background:var(--color-bg, #f8fafc); border-radius:8px; border:1px solid var(--color-border, #e2e8f0);">
                         <div style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; min-width:110px;">
-                            <span style="width:10px; height:10px; border-radius:50%; background:${c.color || '#6c5ce7'}; display:inline-block;"></span>
+                            <span style="width:10px; height:10px; border-radius:50%; background:${c.color || '#4338CA'}; display:inline-block;"></span>
                             <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:110px;">${c.name}</span>
                         </div>
                         <div style="display:flex; align-items:center; gap:4px;">
@@ -1332,7 +1344,7 @@ async function loadMobileCategoriesAndBudgets() {
                     </div>
                     `;
                 }).join('')}
-                <button type="button" class="btn btn-primary" onclick="saveMobileCategoryBudgets()" style="margin-top:6px; padding:8px 12px; border-radius:8px; background:#6C5CE7; color:white; border:none; font-weight:600; font-size:12px; cursor:pointer; width:100%;">
+                <button type="button" class="btn btn-primary" onclick="saveMobileCategoryBudgets()" style="margin-top:6px; padding:10px 12px; border-radius:10px; background:linear-gradient(135deg, #4338CA 0%, #7C3AED 100%); color:white; border:none; font-weight:700; font-size:12px; cursor:pointer; width:100%;">
                     <i class="fas fa-save"></i> Salvar Tetos de Categorias
                 </button>
             </div>
@@ -1489,7 +1501,7 @@ async function renderMobileSecurityUI() {
                 bioStatusText.style.color = "#64748b";
                 if (bioSubText) bioSubText.textContent = "Entre com um toque sem digitar sua senha.";
                 bioActionContainer.innerHTML = `
-                    <button type="button" class="btn btn-primary" onclick="activateMobileBiometrics()" style="padding:6px 14px; font-size:11.5px; border-radius:8px; border:none; background:#6C5CE7; color:white; font-weight:600; cursor:pointer;">
+                    <button type="button" class="btn btn-primary" onclick="activateMobileBiometrics()" style="padding:6px 14px; font-size:11.5px; border-radius:10px; border:none; background:linear-gradient(135deg, #4338CA 0%, #7C3AED 100%); color:white; font-weight:700; cursor:pointer;">
                         <i class="fas fa-fingerprint"></i> Ativar Biometria
                     </button>
                 `;
@@ -1606,19 +1618,19 @@ function showMobileIframeBioNotice() {
     const currentUrl = window.location.href;
     const modalHtml = `
     <div id="mobileBioIframeModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.7); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(5px); font-family:'Inter',sans-serif;">
-        <div style="background:#ffffff; border-radius:18px; max-width:380px; width:100%; padding:20px; box-shadow:0 20px 40px rgba(0,0,0,0.25); border:1px solid #e2e8f0; text-align:center;">
-            <div style="width:52px; height:52px; border-radius:50%; background:rgba(108,92,231,0.1); color:#6c5ce7; display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 12px auto;">
+        <div style="background:var(--mob-surface,#ffffff); border-radius:18px; max-width:380px; width:100%; padding:20px; box-shadow:0 20px 40px rgba(0,0,0,0.25); border:1px solid var(--mob-border,#e2e8f0); text-align:center;">
+            <div style="width:52px; height:52px; border-radius:50%; background:rgba(67,56,202,0.12); color:#4338CA; display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 12px auto;">
                 <i class="fas fa-fingerprint"></i>
             </div>
-            <h3 style="font-size:16px; font-weight:800; color:#0f172a; margin:0 0 8px 0;">Abrir em Nova Aba</h3>
-            <p style="font-size:12px; color:#64748b; line-height:1.5; margin:0 0 16px 0;">
+            <h3 style="font-size:16px; font-weight:800; color:var(--mob-text,#0f172a); margin:0 0 8px 0;">Abrir em Nova Aba</h3>
+            <p style="font-size:12px; color:var(--mob-text-muted,#64748b); line-height:1.5; margin:0 0 16px 0;">
                 Por políticas de segurança WebAuthn do navegador, a leitura biométrica (Face ID / Digital) não pode ser iniciada em frames embutidos de preview.
                 <br><br>
                 Abra em uma <strong>nova aba</strong> ou instale o app PWA para ativar sua biometria!
             </p>
             <div style="display:flex; gap:8px; justify-content:center;">
-                <button type="button" class="btn" onclick="document.getElementById('mobileBioIframeModal').remove()" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; background:transparent; font-size:12px; cursor:pointer;">Fechar</button>
-                <a href="${currentUrl}" target="_blank" rel="noopener noreferrer" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 12px; border-radius:8px; background:#6c5ce7; color:white; font-size:12px; font-weight:600; text-decoration:none;">
+                <button type="button" class="btn" onclick="document.getElementById('mobileBioIframeModal').remove()" style="flex:1; padding:10px 12px; border-radius:10px; border:1px solid var(--mob-border,#cbd5e1); background:transparent; color:var(--mob-text,#0f172a); font-size:12px; cursor:pointer;">Fechar</button>
+                <a href="${currentUrl}" target="_blank" rel="noopener noreferrer" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 12px; border-radius:10px; background:linear-gradient(135deg, #4338CA 0%, #7C3AED 100%); color:white; font-size:12px; font-weight:700; text-decoration:none;">
                     <i class="fas fa-external-link-alt"></i> Nova Aba
                 </a>
             </div>

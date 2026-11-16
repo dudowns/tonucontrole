@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#F8FAFC">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="../../manifest.json">
@@ -19,10 +19,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.0.0">
     <link rel="stylesheet" href="../../css/notifications.css">
     <style>
-        body { background: var(--color-bg, #f0f2f5); }
+        body { background: var(--mob-bg, #F8FAFC); }
         .filter-bar {
             display: flex;
             gap: 8px;
@@ -83,7 +83,8 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button class="topbar-btn" onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
+            <button type="button" class="topbar-btn" onclick="window.TonuMobileUI && window.TonuMobileUI.openCommandPalette()" title="Busca rápida" aria-label="Busca rápida"><i class="fas fa-search"></i></button>
+            <button type="button" class="topbar-btn" data-privacy-toggle onclick="window.TonuMobileUI && window.TonuMobileUI.togglePrivacyMode()" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade"><i class="fas fa-eye" data-privacy-icon></i></button>
             <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
             <button class="topbar-btn" id="notifBellBtn" onclick="window.toggleNotificationDropdown(event)" title="Notificações" aria-label="Notificações">
                 <i class="fas fa-bell"></i>
@@ -109,13 +110,13 @@
             </a>
         </div>
     </div>
-    <div class="greeting">📋 Transações</div>
+    <div class="greeting">Extrato & Movimentações</div>
 </header>
 
 <main class="mobile-content">
     <!-- SELETOR DE MÊS COM BOTÃO DE NOVA TRANSAÇÃO -->
-    <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
-        <div class="mobile-month-selector-bar" style="margin-bottom:0; flex:1;">
+    <div class="mob-month-action-row">
+        <div class="mobile-month-selector-bar">
             <div class="month-selector">
                 <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
                     <i class="fas fa-chevron-left"></i>
@@ -126,7 +127,7 @@
                 </button>
             </div>
         </div>
-        <button type="button" class="btn-primary" onclick="openAddTransaction()" style="height:48px; padding:0 16px; border-radius:16px; font-weight:700; font-size:13px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; border:none; background:linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%); color:#fff; cursor:pointer; box-shadow:0 3px 10px rgba(108,92,231,0.3); transition:all 0.18s; touch-action:manipulation;">
+        <button type="button" class="btn-primary mob-btn-primary-pill" onclick="openAddTransaction()">
             <i class="fas fa-plus"></i> Nova
         </button>
     </div>
@@ -139,15 +140,15 @@
                 EXTRATO
             </span>
         </div>
-        <div class="hero-value" id="sumBalance">R$ 0,00</div>
+        <div class="hero-value" id="sumBalance" data-sensitive>R$ 0,00</div>
         <div class="hero-footer">
             <div class="hero-stat">
                 <span class="hero-stat-label"><i class="fas fa-arrow-down" style="color: #6ee7b7;"></i> Entradas</span>
-                <span class="hero-stat-val income" id="sumIncome">R$ 0,00</span>
+                <span class="hero-stat-val income" id="sumIncome" data-sensitive>R$ 0,00</span>
             </div>
             <div class="hero-stat">
                 <span class="hero-stat-label"><i class="fas fa-arrow-up" style="color: #fca5a5;"></i> Saídas</span>
-                <span class="hero-stat-val expense" id="sumExpense">R$ 0,00</span>
+                <span class="hero-stat-val expense" id="sumExpense" data-sensitive>R$ 0,00</span>
             </div>
         </div>
     </div>
@@ -208,10 +209,9 @@
     </select>
 
     <div id="transactionList" class="transaction-list" style="margin-top: 4px;">
-        <div style="text-align:center;padding:24px;">
-            <span class="spinner"></span>
-            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando transações...</p>
-        </div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:36%;"></div></div></div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:68%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:44%;"></div></div></div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:50%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:30%;"></div></div></div>
     </div>
 </main>
 
@@ -298,6 +298,7 @@
 <script src="../../js/financial-tools.js"></script>
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
+<script src="../../js/mobile/ui.js?v=1.0.0"></script>
 <script>
 var formatCurrency = window.formatCurrency;
 var formatDate = window.formatDate;
@@ -564,8 +565,9 @@ function updateSummaryStrip(txs) {
     if (elExp) elExp.textContent = formatCurrency(exp);
     if (elBal) {
         elBal.textContent = formatCurrency(bal);
-        elBal.className = `ios-flow-val ${bal >= 0 ? 'income' : 'expense'}`;
+        elBal.className = `hero-value ${bal >= 0 ? '' : 'expense'}`.trim();
     }
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 }
 
 const _debouncedFilterTransactions = (typeof window.TonuDebounce === 'function')
@@ -712,7 +714,7 @@ function renderTransactions() {
 
             const color = cat?.color || style.color || (isIncome ? "#00B894" : "#FF6B6B");
             const icon = cat?.icon || style.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
-            const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(color) : 'rgba(108, 92, 231, 0.15)';
+            const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(color) : 'rgba(67, 56, 202, 0.14)';
             const isPaid = isTransactionPaid(t);
             const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
 
@@ -729,44 +731,42 @@ function renderTransactions() {
             }
 
             const rawCatName = cat?.name || t.category || 'Geral';
-            // Remove duplicate emoji from category label since FontAwesome icon is already displayed in the squircle
             const cleanCatName = rawCatName.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim() || rawCatName;
 
             const rawDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
             const safeDesc = typeof sanitizeString === 'function' ? sanitizeString(rawDesc) : rawDesc;
             const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
-            const dueNote = (t.due_date && t.due_date !== effectiveDate) ? ` • Venc: ${formatDate(t.due_date)}` : '';
             const delay = (Math.min(cardIndex++, 10) * 0.04).toFixed(2);
             html += `
-                <div class="mobile-list-card clean-list-card stagger-card" style="animation-delay: ${delay}s;">
-                    <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
-                        <i class="fas ${icon}"></i>
-                    </div>
-                    <div class="clean-card-body">
-                        <!-- Topo: Descrição à esquerda e Valor à direita -->
-                        <div class="clean-card-top">
-                            <span class="clean-card-title">${safeDesc}</span>
-                            <div class="clean-card-amount-wrap">
-                                <span class="clean-card-amount ${isIncome ? 'income' : 'expense'}">
-                                    ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
-                                </span>
-                                <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${t.id}')" title="Excluir" aria-label="Excluir transação">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
+                <div data-swipe-row>
+                    <button type="button" class="swipe-action-delete" onclick="event.stopPropagation(); deleteTransaction('${t.id}')" aria-label="Excluir transação">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                    <div class="mobile-list-card clean-list-card stagger-card" data-swipe-content style="animation-delay: ${delay}s;">
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <div class="clean-card-body">
+                            <div class="clean-card-top">
+                                <span class="clean-card-title">${safeDesc}</span>
+                                <div class="clean-card-amount-wrap">
+                                    <span class="clean-card-amount ${isIncome ? 'income' : 'expense'}" data-sensitive>
+                                        ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
+                                    </span>
+                                    <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${t.id}')" title="Excluir" aria-label="Excluir transação">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-
-                        <!-- Meio: Tags e pílulas em linha própria com flex-wrap -->
-                        <div class="clean-card-middle">
-                            <span class="clean-tag category">${cleanCatName}</span>
-                            ${badge}
-                            ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
-                        </div>
-
-                        <!-- Rodapé: Data da transação e Vencimento juntas -->
-                        <div class="clean-card-bottom">
-                            <span><i class="far fa-calendar-alt" style="margin-right:4px;"></i>${formatDate(effectiveDate)}</span>
-                            ${(t.due_date && t.due_date !== effectiveDate) ? `<span><i class="far fa-clock" style="margin-right:4px;"></i>Venc: ${formatDate(t.due_date)}</span>` : ''}
+                            <div class="clean-card-middle">
+                                <span class="clean-tag category">${cleanCatName}</span>
+                                ${badge}
+                                ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
+                            </div>
+                            <div class="clean-card-bottom">
+                                <span><i class="far fa-calendar-alt" style="margin-right:4px;"></i>${formatDate(effectiveDate)}</span>
+                                ${(t.due_date && t.due_date !== effectiveDate) ? `<span><i class="far fa-clock" style="margin-right:4px;"></i>Venc: ${formatDate(t.due_date)}</span>` : ''}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -775,6 +775,7 @@ function renderTransactions() {
     });
 
     container.innerHTML = html;
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 }
 
 function filterTransactions() {

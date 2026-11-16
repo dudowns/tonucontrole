@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#F8FAFC">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="../../manifest.json">
@@ -19,10 +19,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.0.0">
     <link rel="stylesheet" href="../../css/notifications.css">
     <style>
-        body { background: var(--color-bg, #f8fafc); }
+        body { background: var(--mob-bg, #F8FAFC); }
         
         .month-bar {
             display: flex;
@@ -115,26 +115,30 @@
         }
         .chip:active { transform: scale(0.95); }
         .chip.active {
-            background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%);
+            background: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%);
             color: #ffffff;
-            border-color: #6C5CE7;
-            box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+            border-color: #4338CA;
+            box-shadow: 0 4px 12px rgba(67, 56, 202, 0.28);
         }
-        body.dark-theme .stat-card-mini {
-            background: #171f2e !important;
-            border-color: rgba(51, 65, 85, 0.7) !important;
-            color: #f8fafc !important;
+        body.dark-theme .stat-card-mini,
+        body.dark-theme .month-bar {
+            background: var(--mob-surface, #1E293B) !important;
+            border-color: var(--mob-border, rgba(148, 163, 184, 0.16)) !important;
+            color: var(--mob-text, #F1F5F9) !important;
         }
-        body.dark-theme .stat-card-mini .val {
-            color: #f8fafc !important;
+        body.dark-theme .stat-card-mini .val,
+        body.dark-theme .month-title,
+        body.dark-theme .month-btn {
+            color: var(--mob-text, #F1F5F9) !important;
         }
-        body.dark-theme .chip {
-            background: #171f2e !important;
-            border-color: rgba(51, 65, 85, 0.7) !important;
-            color: #94a3b8 !important;
+        body.dark-theme .chip,
+        body.dark-theme .chip-select {
+            background: var(--mob-surface, #1E293B) !important;
+            border-color: var(--mob-border, rgba(148, 163, 184, 0.16)) !important;
+            color: var(--mob-text-muted, #94A3B8) !important;
         }
         body.dark-theme .chip.active {
-            background: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%) !important;
+            background: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%) !important;
             color: #ffffff !important;
         }
         .chip-select {
@@ -190,8 +194,8 @@
             border-left: 3px solid #ef4444;
         }
         .bill-card-mobile.selected {
-            border-color: #6C5CE7 !important;
-            box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.18);
+            border-color: #4338CA !important;
+            box-shadow: 0 0 0 2px rgba(67, 56, 202, 0.22);
         }
         .bill-top {
             display: flex;
@@ -489,7 +493,8 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button class="topbar-btn" onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
+            <button type="button" class="topbar-btn" onclick="window.TonuMobileUI && window.TonuMobileUI.openCommandPalette()" title="Busca rápida" aria-label="Busca rápida"><i class="fas fa-search"></i></button>
+            <button type="button" class="topbar-btn" data-privacy-toggle onclick="window.TonuMobileUI && window.TonuMobileUI.togglePrivacyMode()" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade"><i class="fas fa-eye" data-privacy-icon></i></button>
             <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
             <button class="topbar-btn" onclick="window.tonuSync && window.tonuSync.syncPendingData ? window.tonuSync.syncPendingData() : location.reload()" title="Sincronizar" aria-label="Sincronizar"><i class="fas fa-sync-alt"></i></button>
             <a href="settings.html" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
@@ -502,45 +507,45 @@
 
 <main class="mobile-content">
     <!-- NAVEGADOR DE MÊS -->
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
-        <div class="month-bar" style="flex:1;">
-            <button class="month-btn" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+    <div class="mob-month-action-row">
+        <div class="month-bar">
+            <button class="month-btn" onclick="changeMonth(-1)" aria-label="Mês anterior"><i class="fas fa-chevron-left"></i></button>
             <span class="month-title" id="monthTitle">Carregando...</span>
-            <button class="month-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+            <button class="month-btn" onclick="changeMonth(1)" aria-label="Próximo mês"><i class="fas fa-chevron-right"></i></button>
         </div>
-        <button type="button" class="btn-primary" onclick="openModal()" style="height:42px; padding:0 14px; border-radius:12px; font-weight:600; font-size:13px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; border:none; background:linear-gradient(135deg, #6C5CE7, #8B5CF6); color:#fff; cursor:pointer; box-shadow:0 3px 10px rgba(108,92,231,0.25);">
+        <button type="button" class="btn-primary mob-btn-primary-pill" onclick="openModal()">
             <i class="fas fa-plus"></i> Conta
         </button>
     </div>
 
     <!-- HERO CARD CONTAS A PAGAR (DNA DASHBOARD) -->
-    <div class="mobile-hero-card" id="billsHeroCard" style="margin: 0 14px 14px 14px;">
+    <div class="mobile-hero-card" id="billsHeroCard" style="margin: 0 0 14px 0;">
         <div class="hero-top">
             <span class="hero-label"><i class="fas fa-file-invoice-dollar"></i> Total a Pagar</span>
             <span class="badge-mobile" id="statMonthRefBadge" style="background: rgba(255,255,255,0.2); color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px;">
                 Carregando...
             </span>
         </div>
-        <div class="hero-value" id="statTotal">R$ 0,00</div>
+        <div class="hero-value" id="statTotal" data-sensitive>R$ 0,00</div>
         <div class="hero-footer">
             <div class="hero-stat">
                 <span class="hero-stat-label"><i class="fas fa-clock" style="color: #fde68a;"></i> A Vencer</span>
-                <span class="hero-stat-val" id="statPending" style="color: #fef08a;">R$ 0,00</span>
+                <span class="hero-stat-val" id="statPending" data-sensitive style="color: #fef08a;">R$ 0,00</span>
             </div>
             <div class="hero-stat">
                 <span class="hero-stat-label"><i class="fas fa-check-circle" style="color: #6ee7b7;"></i> Pagas</span>
-                <span class="hero-stat-val income" id="statPaid">R$ 0,00</span>
+                <span class="hero-stat-val income" id="statPaid" data-sensitive>R$ 0,00</span>
             </div>
             <div class="hero-stat">
                 <span class="hero-stat-label"><i class="fas fa-exclamation-triangle" style="color: #fca5a5;"></i> Atrasadas</span>
-                <span class="hero-stat-val expense" id="statOverdue">R$ 0,00</span>
+                <span class="hero-stat-val expense" id="statOverdue" data-sensitive>R$ 0,00</span>
             </div>
         </div>
     </div>
 
     <!-- FILTRO RÁPIDO -->
-    <div class="filter-chips">
-        <button class="chip" id="btnToggleSelectMobile" onclick="toggleBillSelectionModeMobile()" style="border-color:#6C5CE7; color:#6C5CE7; font-weight:700;">
+    <div class="filter-chips" style="padding: 4px 0 12px 0;">
+        <button class="chip" id="btnToggleSelectMobile" onclick="toggleBillSelectionModeMobile()" style="border-color:var(--mob-primary, #4338CA); color:var(--mob-primary, #4338CA); font-weight:700;">
             <i class="fas fa-check-square"></i> <span id="labelSelectMobile">Selecionar</span>
         </button>
         <button class="chip active" onclick="setFilter('pending', this)">Pendentes</button>
@@ -553,40 +558,39 @@
     </div>
 
     <!-- BANNER DE CONTAS PARCELADAS (MOBILE) -->
-    <div id="billsInstallmentBannerMobile" style="display:none; margin: 0 14px 12px 14px; padding: 10px 12px; background: linear-gradient(135deg, rgba(108,92,231,0.12) 0%, rgba(168,85,247,0.1) 100%); border: 1px solid rgba(108,92,231,0.25); border-radius: 12px; align-items: center; justify-content: space-between; gap: 8px;">
+    <div id="billsInstallmentBannerMobile" style="display:none; margin: 0 0 12px 0; padding: 10px 12px; background: linear-gradient(135deg, rgba(67,56,202,0.1) 0%, rgba(124,58,237,0.12) 100%); border: 1px solid rgba(67,56,202,0.24); border-radius: 14px; align-items: center; justify-content: space-between; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 32px; height: 32px; border-radius: 8px; background: #6C5CE7; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+            <div style="width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
                 <i class="fas fa-layer-group"></i>
             </div>
             <div>
-                <div style="font-size: 12px; font-weight: 700; color: var(--color-text, #2d3436);">
+                <div style="font-size: 12px; font-weight: 700; color: var(--mob-text, #0F172A);">
                     <span id="bannerInstallmentActiveCountMobile">0</span> Parceladas em Aberto
                 </div>
-                <div style="font-size: 10px; color: var(--color-text-muted, #636e72);" id="bannerInstallmentDetailsMobile">
+                <div style="font-size: 10.5px; color: var(--mob-text-muted, #475569);" id="bannerInstallmentDetailsMobile">
                     Parcelas a vencer: 0 • Saldo: R$ 0,00
                 </div>
             </div>
         </div>
-        <button type="button" onclick="toggleOnlyInstallmentsMobile(this)" class="chip" style="font-size: 10px; padding: 4px 8px; flex-shrink: 0;" title="Filtrar contas parceladas">
+        <button type="button" onclick="toggleOnlyInstallmentsMobile(this)" class="chip" style="font-size: 10.5px; padding: 4px 10px; flex-shrink: 0; min-height: 34px;" title="Filtrar contas parceladas">
             <i class="fas fa-filter"></i> Ver
         </button>
     </div>
 
     <!-- LISTA DE CONTAS -->
-    <div id="billsContainer">
-        <div style="text-align:center;padding:30px;">
-            <span class="spinner"></span>
-            <p style="margin-top:8px;font-size:12px;color:#94a3b8;">Carregando contas...</p>
-        </div>
+    <div id="billsContainer" style="padding:0;">
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:36%;"></div></div></div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:68%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:44%;"></div></div></div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:50%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:30%;"></div></div></div>
     </div>
 
     <!-- RODAPÉ FIXO DE SOMA VISUAL (ITEM 9 - MOBILE) -->
-    <div id="billsSelectionFooterMobile" style="display:none; position:fixed; bottom:72px; left:14px; right:14px; z-index:1050; background:var(--color-surface,#ffffff); border:1px solid var(--color-border,#e2e8f0); box-shadow:0 8px 24px rgba(0,0,0,0.18); border-radius:14px; padding:10px 16px; align-items:center; justify-content:space-between; gap:12px;">
+    <div id="billsSelectionFooterMobile" style="display:none; position:fixed; bottom:84px; left:14px; right:14px; z-index:1050; background:var(--mob-surface,#ffffff); border:1px solid var(--mob-border,#e2e8f0); box-shadow:0 12px 28px rgba(15,23,42,0.18); border-radius:16px; padding:12px 16px; align-items:center; justify-content:space-between; gap:12px;">
         <div style="display:flex; flex-direction:column; gap:2px;">
-            <span id="selectedBillsCountTextMobile" style="font-size:12px; font-weight:600; color:#6C5CE7;">0 selecionada(s)</span>
-            <span style="font-size:13px; color:var(--color-text,#2d3436);">Total: <strong id="selectedBillsTotalTextMobile" style="color:#6C5CE7; font-size:15px;">R$ 0,00</strong></span>
+            <span id="selectedBillsCountTextMobile" style="font-size:12px; font-weight:700; color:var(--mob-primary, #4338CA);">0 selecionada(s)</span>
+            <span style="font-size:13px; color:var(--mob-text,#0F172A);">Total: <strong id="selectedBillsTotalTextMobile" data-sensitive style="color:var(--mob-primary, #4338CA); font-size:15px;">R$ 0,00</strong></span>
         </div>
-        <button type="button" class="chip" onclick="cancelBillSelectionMobile()" style="border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; background:var(--color-bg,#f1f5f9); border:none; cursor:pointer;">
+        <button type="button" class="chip" onclick="cancelBillSelectionMobile()" style="border-radius:10px; padding:6px 12px; font-size:12px; font-weight:600; min-height:36px;">
             <i class="fas fa-times"></i> Cancelar
         </button>
     </div>
@@ -632,7 +636,7 @@
 
                 <!-- DETALHES DE PARCELAMENTO (Condicional) -->
                 <div id="billInstallmentFields" style="display:none; padding:10px 12px; background:var(--color-bg, #f8fafc); border:1px solid var(--color-border, #e2e8f0); border-radius:8px;">
-                    <div style="font-size:11.5px; font-weight:700; color:var(--color-primary, #6c5ce7); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                    <div style="font-size:11.5px; font-weight:700; color:var(--mob-primary, #4338CA); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
                         <i class="fas fa-layer-group"></i> Detalhes do Pagamento Parcelado
                     </div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
@@ -663,7 +667,7 @@
                         <div style="font-size:10px; opacity:0.9;" id="billInstallmentTotalRemainingText">Restam R$ 0,00 a pagar</div>
                     </div>
                     <div id="billGenerateFutureGroup" style="display:flex; align-items:center; gap:6px;">
-                        <input type="checkbox" id="billGenerateFuture" checked style="cursor:pointer; width:16px; height:16px; accent-color:#6C5CE7;">
+                        <input type="checkbox" id="billGenerateFuture" checked style="cursor:pointer; width:16px; height:16px; accent-color:#4338CA;">
                         <label for="billGenerateFuture" style="margin:0; font-size:11px; cursor:pointer; font-weight:500;">
                             Gerar automaticamente as parcelas futuras
                         </label>
@@ -682,8 +686,8 @@
                     <input type="text" id="inputNotes" class="form-control" placeholder="Código de barras, anotação..." style="width:100%;">
                 </div>
 
-                <div style="background:var(--color-bg,#f8fafc); padding:10px 12px; border-radius:8px; display:flex; align-items:center; gap:8px;">
-                    <input type="checkbox" id="inputPaid" style="width:18px; height:18px; accent-color:#6C5CE7;">
+                <div style="background:var(--mob-surface-2,#f1f5f9); padding:10px 12px; border-radius:10px; display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="inputPaid" style="width:18px; height:18px; accent-color:#4338CA;">
                     <label for="inputPaid" style="font-size:12px; font-weight:600; margin:0; cursor:pointer;">Conta já está paga</label>
                 </div>
 
@@ -725,6 +729,7 @@
 <script src="../../js/sync.js"></script>
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
+<script src="../../js/mobile/ui.js?v=1.0.0"></script>
 
 <script>
 var formatCurrency = window.formatCurrency;
@@ -842,12 +847,12 @@ async function loadCategories() {
         if (!categories || categories.length === 0) {
             categories = [
                 { id: "default-1", name: "Alimentação", color: "#FF7675", icon: "fa-utensils" },
-                { id: "default-2", name: "Moradia", color: "#6C5CE7", icon: "fa-home" },
+                { id: "default-2", name: "Moradia", color: "#4338CA", icon: "fa-home" },
                 { id: "default-3", name: "Transporte", color: "#0984E3", icon: "fa-car" },
                 { id: "default-4", name: "Saúde", color: "#00B894", icon: "fa-heartbeat" },
                 { id: "default-5", name: "Educação", color: "#FDCB6E", icon: "fa-graduation-cap" },
                 { id: "default-6", name: "Lazer", color: "#E17055", icon: "fa-gamepad" },
-                { id: "default-7", name: "Contas Básicas", color: "#A29BFE", icon: "fa-file-invoice" },
+                { id: "default-7", name: "Contas Básicas", color: "#7C3AED", icon: "fa-file-invoice" },
                 { id: "default-8", name: "Outros", color: "#B2BEC3", icon: "fa-ellipsis-h" }
             ];
         }
@@ -870,7 +875,7 @@ async function loadCategories() {
 
 async function loadBills() {
     const container = document.getElementById("billsContainer");
-    container.innerHTML = '<div style="text-align:center;padding:24px;"><span class="spinner"></span></div>';
+    container.innerHTML = '<div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:36%;"></div></div></div><div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:68%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:44%;"></div></div></div>';
 
     const mStr = String(currentMonth + 1).padStart(2, "0");
     const firstDay = `${currentYear}-${mStr}-01`;
@@ -966,6 +971,7 @@ function updateStats() {
     }
 
     updateInstallmentsBannerMobile();
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 }
 
 let onlyInstallmentsFilterMobile = false;
@@ -1219,7 +1225,7 @@ function renderBills() {
             const backendCat = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
                 ? window.getBackendCategoryStyle(b.category || cat.name || b.description, cat)
                 : null;
-            const color = cat.color || backendCat?.color || "#6C5CE7";
+            const color = cat.color || backendCat?.color || "#4338CA";
             let icon = cat.icon || backendCat?.icon || "fa-file-invoice-dollar";
             if (icon && !icon.startsWith('fa-')) icon = 'fa-' + icon;
             const isPaid = !!b.paid;
@@ -1289,51 +1295,56 @@ function renderBills() {
             const delay = (Math.min(cardIdx++, 10) * 0.04).toFixed(2);
 
             return `
-                <div class="bill-card-mobile clean-list-card stagger-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_card_mobile_${b.id}" style="animation-delay: ${delay}s;">
-                    <div class="bill-top" style="align-items:flex-start; gap:12px;">
-                        ${isSelectionModeMobile ? `
-                            <div style="margin-right:2px; margin-top:6px; display:flex; align-items:center;">
-                                <input type="checkbox" class="bill-check-mobile" ${isSelected ? 'checked' : ''} onchange="toggleSelectBillMobile('${b.id}', this.checked)" style="width:20px; height:20px; accent-color:#6C5CE7; cursor:pointer;">
+                <div data-swipe-row>
+                    <button type="button" class="swipe-action-delete" onclick="event.stopPropagation(); deleteBillDirect('${b.id}')" aria-label="Excluir conta">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                    <div class="bill-card-mobile clean-list-card stagger-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" data-swipe-content id="bill_card_mobile_${b.id}" style="animation-delay: ${delay}s;">
+                        <div class="bill-top" style="align-items:flex-start; gap:12px;">
+                            ${isSelectionModeMobile ? `
+                                <div style="margin-right:2px; margin-top:6px; display:flex; align-items:center;">
+                                    <input type="checkbox" class="bill-check-mobile" ${isSelected ? 'checked' : ''} onchange="toggleSelectBillMobile('${b.id}', this.checked)" style="width:20px; height:20px; accent-color:#4338CA; cursor:pointer;">
+                                </div>
+                            ` : ''}
+                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
+                                <i class="fas ${icon}"></i>
                             </div>
-                        ` : ''}
-                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
-                            <i class="fas ${icon}"></i>
-                        </div>
-                        <div class="clean-card-body">
-                            <div class="clean-card-top">
-                                <span class="clean-card-title">${safeDesc}</span>
-                                <div class="clean-card-amount-wrap">
-                                    <span class="clean-card-amount ${isPaid ? 'income' : (isOverdue ? 'expense' : 'warning')}">
-                                        ${formatCurrency(b.amount)}
-                                    </span>
+                            <div class="clean-card-body">
+                                <div class="clean-card-top">
+                                    <span class="clean-card-title">${safeDesc}</span>
+                                    <div class="clean-card-amount-wrap">
+                                        <span class="clean-card-amount ${isPaid ? 'income' : (isOverdue ? 'expense' : 'warning')}" data-sensitive>
+                                            ${formatCurrency(b.amount)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="clean-card-middle">
+                                    <span class="clean-tag category">${cleanCatName}</span>
+                                    ${badge}
+                                    ${installmentBadgeHtml || ''}
+                                </div>
+
+                                <div class="clean-card-bottom">
+                                    <span><i class="far fa-calendar-alt" style="margin-right:4px;"></i>Venc: ${formatDate(dueDateVal)}</span>
+                                    ${urgencyHtml}
                                 </div>
                             </div>
-
-                            <div class="clean-card-middle">
-                                <span class="clean-tag category">${cleanCatName}</span>
-                                ${badge}
-                                ${installmentBadgeHtml || ''}
-                            </div>
-
-                            <div class="clean-card-bottom">
-                                <span><i class="far fa-calendar-alt" style="margin-right:4px;"></i>Venc: ${formatDate(dueDateVal)}</span>
-                                ${urgencyHtml}
-                            </div>
                         </div>
-                    </div>
-                    <div class="bill-bottom">
-                        <button class="btn-toggle-paid ${isPaid ? 'is-paid' : ''}" onclick="togglePaid('${b.id}')">
-                            <i class="fas ${isPaid ? 'fa-check-circle' : 'fa-check'}"></i>
-                            ${isPaid ? 'Marcar Pendente' : 'Pagar'}
-                        </button>
-                        <div class="bill-actions-mobile">
-                            ${(instInfo && instInfo.isInstallment) ? `
-                                <button class="btn-act" onclick="openAnticipationModal('${b.id}')" title="Antecipar / Quitar" style="color:#0284c7;">
-                                    <i class="fas fa-forward-step"></i>
-                                </button>
-                            ` : ''}
-                            <button class="btn-act" onclick="openModal('${b.id}')" title="Editar"><i class="fas fa-pencil-alt"></i></button>
-                            <button class="btn-act" onclick="deleteBillDirect('${b.id}')" style="color:#ef4444;" title="Excluir"><i class="fas fa-trash"></i></button>
+                        <div class="bill-bottom">
+                            <button class="btn-toggle-paid ${isPaid ? 'is-paid' : ''}" onclick="togglePaid('${b.id}')">
+                                <i class="fas ${isPaid ? 'fa-check-circle' : 'fa-check'}"></i>
+                                ${isPaid ? 'Marcar Pendente' : 'Pagar'}
+                            </button>
+                            <div class="bill-actions-mobile">
+                                ${(instInfo && instInfo.isInstallment) ? `
+                                    <button class="btn-act" onclick="openAnticipationModal('${b.id}')" title="Antecipar / Quitar" style="color:#0284c7;">
+                                        <i class="fas fa-forward-step"></i>
+                                    </button>
+                                ` : ''}
+                                <button class="btn-act" onclick="openModal('${b.id}')" title="Editar"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="btn-act" onclick="deleteBillDirect('${b.id}')" style="color:#ef4444;" title="Excluir"><i class="fas fa-trash"></i></button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1344,7 +1355,7 @@ function renderBills() {
             <section class="bills-day-group" aria-label="${escapeBillHtml(g.dateHeader)}">
                 <div class="ios-section-header">
                     <span>${escapeBillHtml(g.dateHeader)}</span>
-                    <span class="subtotal-pill">${formatCurrency(g.dayTotal)}</span>
+                    <span class="subtotal-pill" data-sensitive>${formatCurrency(g.dayTotal)}</span>
                 </div>
                 <div class="bills-day-items">
                     ${cardsHtml}
@@ -1352,6 +1363,7 @@ function renderBills() {
             </section>
         `;
     }).join('');
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 }
 
 // ============================================
