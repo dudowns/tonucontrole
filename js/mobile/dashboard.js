@@ -42,14 +42,21 @@ function getSelectedMonthDate() {
 }
 
 function updateMobileMonthDisplay() {
-    const el = document.getElementById("selectedMonth");
-    if (!el) return;
     const d = getSelectedMonthDate();
     const months = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
     ];
-    el.textContent = `${months[d.getMonth()]} ${d.getFullYear()}`;
+    const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
+    if (window.TonuDashboardComponents && typeof window.TonuDashboardComponents.updateHeader === 'function') {
+        window.TonuDashboardComponents.updateHeader({
+            monthLabel: label,
+            isCurrentMonth: currentMonthOffset === 0
+        });
+    } else {
+        const el = document.getElementById("selectedMonth");
+        if (el) el.textContent = label;
+    }
 }
 
 function changeMonth(delta) {
@@ -70,9 +77,74 @@ window.changeMonthHandler = changeMonth;
 window.goToCurrentMonthHandler = goToCurrentMonth;
 
 // ============================================
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO & EVENTOS CSP-SAFE
 // ============================================
+let _mobileDashboardEventsBound = false;
+function bindMobileDashboardEvents() {
+    if (_mobileDashboardEventsBound) return;
+    _mobileDashboardEventsBound = true;
+
+    document.addEventListener("click", (e) => {
+        const target = e.target && e.target.closest ? e.target : null;
+        if (!target) return;
+
+        const actionEl = target.closest("[data-action]");
+        if (actionEl) {
+            const action = actionEl.getAttribute("data-action");
+            if (action === "change-month") {
+                changeMonth(Number(actionEl.getAttribute("data-delta") || 0));
+                return;
+            }
+            if (action === "go-current-month") {
+                goToCurrentMonth();
+                return;
+            }
+            if (action === "toggle-balance") {
+                toggleBalanceVisibility();
+                return;
+            }
+            if (action === "quick-add") {
+                openQuickAddModal(actionEl.getAttribute("data-type") || "expense");
+                return;
+            }
+            if (action === "close-quick-modal") {
+                closeQuickAddModal();
+                return;
+            }
+            if (action === "set-quick-type") {
+                setQuickType(actionEl.getAttribute("data-type") || "expense");
+                return;
+            }
+            if (action === "refresh-ai-insights") {
+                if (typeof window.loadAIInsights === "function") {
+                    window.loadAIInsights(true);
+                }
+                return;
+            }
+        }
+
+        const navEl = target.closest("[data-nav]");
+        if (navEl) {
+            const href = navEl.getAttribute("data-nav");
+            if (href) window.location.href = href;
+        }
+    });
+
+    const overlay = document.getElementById("quickAddModal");
+    if (overlay) {
+        overlay.addEventListener("click", (e) => {
+            if (e.target === overlay) closeQuickAddModal();
+        });
+    }
+
+    const form = document.getElementById("quickAddForm");
+    if (form) {
+        form.addEventListener("submit", handleQuickAddSubmit);
+    }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
+    bindMobileDashboardEvents();
     // Tema
     const savedTheme = localStorage.getItem("tonu_theme") || "light";
     if (savedTheme === "dark") {
@@ -132,7 +204,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("✅ Mobile: Usuário autenticado:", currentUser.email);
 
         const name = user.user_metadata?.full_name || user.name || user.email?.split("@")[0] || "Usuário";
-        document.getElementById("greetingText").textContent = `Olá, ${name} 👋`;
+        // Injeta nome e inicial do usuário autenticado no Header
+        if (window.TonuDashboardComponents && typeof window.TonuDashboardComponents.updateHeader === 'function') {
+            window.TonuDashboardComponents.updateHeader({
+                userName: name,
+                avatarInitial: name
+            });
+        } else {
+            const greetingEl = document.getElementById("greetingText");
+            if (greetingEl) greetingEl.textContent = `Olá, ${String(name).split(/\s+/)[0]}`;
+            const avEl = document.getElementById("topbarAvatar");
+            if (avEl) avEl.textContent = String(name).charAt(0).toUpperCase();
+        }
 
         await loadCategories();
         await loadMobileData();
@@ -707,15 +790,15 @@ function setMobileCacheBanner(show) {
     if (!banner) {
         banner = document.createElement("div");
         banner.id = "mobileCacheSyncBanner";
-        banner.style.cssText = "display:none; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:10px; padding:8px 12px; margin:0 16px 12px 16px; font-size:12px; font-weight:600; text-align:center;";
-        const container = document.getElementById("summaryContainer") || document.getElementById("main-content");
+        banner.className = "clean-cache-banner";
+        const container = document.getElementById("heroCardContainer") || document.getElementById("summaryContainer") || document.getElementById("main-content");
         if (container && container.parentNode) {
             container.parentNode.insertBefore(banner, container);
         }
     }
     if (show) {
-        banner.innerHTML = '<i class="fas fa-wifi" style="margin-right:6px;"></i> 📶 Exibindo dados em cache — sincronizando...';
-        banner.style.display = "block";
+        banner.innerHTML = '<i class="fas fa-wifi" aria-hidden="true"></i> <span>Exibindo dados em cache — sincronizando...</span>';
+        banner.style.display = "flex";
     } else {
         banner.style.display = "none";
     }
@@ -737,24 +820,26 @@ function toggleBalanceVisibility() {
         window.TonuMobileUI.haptic('light');
     }
     renderSummary();
+    renderMobileChart();
+    renderTransactions();
 }
 window.addEventListener('tonu:privacyChanged', (e) => {
     const nextHidden = Boolean(e?.detail?.hidden);
     if (isBalanceHidden !== nextHidden) {
         isBalanceHidden = nextHidden;
         renderSummary();
+        renderMobileChart();
+        renderTransactions();
     }
 });
 
 // ============================================
-// RENDER RESUMO HERO + GRID
+// RENDER RESUMO HERO + CARDS DE RESUMO
 // ============================================
 function renderSummary() {
     let income = 0, expense = 0;
-    let paidCount = 0;
     allTransactions.forEach(t => {
         if (!isTxPaid(t)) return;
-        paidCount++;
         const amt = Math.abs(Number(t.amount || 0));
         if (isNaN(amt) || amt <= 0) return;
         if (t.type === "income") income += amt;
@@ -762,101 +847,63 @@ function renderSummary() {
     });
     const balance = income - expense;
 
-    // Contas pendentes do mês selecionado
+    // Contas pendentes do mês selecionado (API: allBills)
     const selDate = getSelectedMonthDate();
     const currentMonthPrefix = `${selDate.getFullYear()}-${String(selDate.getMonth() + 1).padStart(2, "0")}`;
     const pendingBills = allBills.filter(b => {
         const isPaid = (b.paid === true || b.paid === 'true' || b.paid === 1);
-        const billMonth = (b.due_date || '').substring(0, 7);
+        const billMonth = (b.due_date || b.date || '').substring(0, 7);
         return !isPaid && (!billMonth || billMonth === currentMonthPrefix);
     });
     const pendingBillsAmount = pendingBills.reduce((acc, b) => acc + (Number(b.amount) || 0), 0);
 
-    // Proventos do mês selecionado (Recebidos vs A Receber)
+    // Proventos do mês selecionado (API: allDividends)
     const todayISO = new Date().toLocaleDateString('sv');
     let monthPaidDivs = 0;
     let monthPendingDivs = 0;
-    let totalFutureDivs = 0;
 
     allDividends.forEach(d => {
         const val = Number(d.total_value || d.net_value || d.amount || d.total_amount) || 0;
         const dt = (d.payment_date || d.date || '').substring(0, 10);
         const isCurMonth = dt && dt.substring(0, 7) === currentMonthPrefix;
 
-        if (dt > todayISO) {
-            totalFutureDivs += val;
-            if (isCurMonth) {
-                monthPendingDivs += val;
-            }
+        if (dt > todayISO && isCurMonth) {
+            monthPendingDivs += val;
         } else if (isCurMonth) {
             monthPaidDivs += val;
         }
     });
 
     const displayMonthDivs = monthPaidDivs > 0 ? monthPaidDivs : (monthPendingDivs > 0 ? monthPendingDivs : 0);
-    const divValueColor = monthPaidDivs > 0 ? '#7C3AED' : (monthPendingDivs > 0 ? '#0284c7' : '#7C3AED');
 
-    const mask = (val) => isBalanceHidden ? '••••••' : val;
+    const heroContainer = document.getElementById("heroCardContainer");
+    const summaryContainer = document.getElementById("summaryContainer");
+    const comp = window.TonuDashboardComponents;
 
-    const container = document.getElementById("summaryContainer");
-    if (!container) return;
-
-    container.innerHTML = `
-        <!-- HERO CARD FINTECH AURORA -->
-        <div class="mobile-hero-balance">
-            <div class="mobile-hero-top">
-                <span class="label"><i class="fas fa-wallet"></i> Saldo Operacional</span>
-                <button class="eye-toggle-btn" onclick="toggleBalanceVisibility()" title="${isBalanceHidden ? 'Mostrar Saldo' : 'Ocultar Saldo'}" aria-label="Alternar visibilidade do saldo">
-                    <i class="fas ${isBalanceHidden ? 'fa-eye-slash' : 'fa-eye'}"></i>
-                </button>
-            </div>
-            <div class="mobile-hero-value" id="heroBalanceVal" data-sensitive>
-                ${mask(formatCurrency(balance))}
-            </div>
-            <div class="mobile-hero-footer">
-                <div class="mobile-hero-stat">
-                    <span class="stat-label"><i class="fas fa-arrow-up" style="color:#4ade80;"></i> Entradas</span>
-                    <span class="stat-value income" id="heroIncomeVal" data-sensitive>${mask(formatCurrency(income))}</span>
-                </div>
-                <div class="mobile-hero-stat">
-                    <span class="stat-label"><i class="fas fa-arrow-down" style="color:#fca5a5;"></i> Saídas Pagas</span>
-                    <span class="stat-value expense" id="heroExpenseVal" data-sensitive>${mask(formatCurrency(expense))}</span>
-                    ${pendingBillsAmount > 0 ? `<span style="font-size:10px; color:#fbbf24; margin-top:2px; display:block;">Falta pagar: ${mask(formatCurrency(pendingBillsAmount))}</span>` : ''}
-                </div>
-            </div>
-        </div>
-
-        <!-- GRID DE INDICADORES RÁPIDOS -->
-        <div class="mobile-grid">
-            <div class="mobile-card">
-                <div class="card-icon bills"><i class="fas fa-file-invoice-dollar"></i></div>
-                <div class="card-info">
-                    <div class="card-label">Contas Pendentes</div>
-                    <div class="card-value" data-sensitive style="color: ${pendingBills.length > 0 ? '#d97706' : '#10b981'}">
-                        ${mask(formatCurrency(pendingBillsAmount))}
-                    </div>
-                </div>
-            </div>
-            <div class="mobile-card">
-                <div class="card-icon balance"><i class="fas fa-coins"></i></div>
-                <div class="card-info">
-                    <div class="card-label">Proventos Mês</div>
-                    <div class="card-value" data-sensitive style="color: ${divValueColor};">
-                        ${mask(formatCurrency(displayMonthDivs))}
-                    </div>
-                    ${monthPendingDivs > 0 ? `
-                        <div style="font-size:10px; color:#0284c7; font-weight:600; margin-top:2px;">
-                            <i class="far fa-clock"></i> A receber: ${mask(formatCurrency(monthPendingDivs))}
-                        </div>
-                    ` : (totalFutureDivs > 0 ? `
-                        <div style="font-size:10px; color:#0284c7; font-weight:600; margin-top:2px;">
-                            <i class="far fa-clock"></i> Previsto: ${mask(formatCurrency(totalFutureDivs))}
-                        </div>
-                    ` : '')}
-                </div>
-            </div>
-        </div>
-    `;
+    if (comp) {
+        // Injeta saldo operacional, entradas e saídas no HeroCard (#6C3DD1)
+        if (heroContainer) {
+            heroContainer.innerHTML = comp.renderHeroCard({
+                balance,
+                income,
+                expense,
+                pendingBillsAmount,
+                isHidden: isBalanceHidden,
+                formatCurrency
+            });
+        }
+        // Injeta contas pendentes e proventos do mês nos SummaryCards (#FFFFFF)
+        if (summaryContainer) {
+            summaryContainer.innerHTML = comp.renderSummaryCards({
+                pendingBillsAmount,
+                pendingBillsCount: pendingBills.length,
+                displayMonthDivs,
+                monthPendingDivs,
+                isHidden: isBalanceHidden,
+                formatCurrency
+            });
+        }
+    }
 
     if (!isBalanceHidden && window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
         window.TonuMobileUI.animateValue(document.getElementById('heroBalanceVal'), balance, formatCurrency);
@@ -869,7 +916,7 @@ function renderSummary() {
 }
 
 // ============================================
-// RENDER GRÁFICO INTERATIVO MOBILE (CHART.JS)
+// RENDER GRÁFICO DE ROSCA + LEGENDA LATERAL (CHART.JS)
 // ============================================
 function setMobileChartMode(mode) {
     currentChartMode = mode;
@@ -885,7 +932,7 @@ function renderMobileChart() {
         return;
     }
 
-    // Calcula dados de despesas por categoria
+    // Calcula despesas pagas do mês agrupadas por categoria (API: allTransactions + categories)
     const expenses = allTransactions.filter(t => t.type === "expense" && isTxPaid(t));
     const catMap = {};
     expenses.forEach(t => {
@@ -922,10 +969,6 @@ function renderMobileChart() {
         const normKey = normalizeCatKey(rawName);
         const displayName = normKey === 'outros' ? 'Outros' : rawName;
 
-        const style = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
-            ? window.getBackendCategoryStyle(displayName, cat)
-            : { color: normKey === 'outros' ? '#94a3b8' : (cat?.color || '#0984E3'), icon: normKey === 'outros' ? 'fa-ellipsis-h' : (cat?.icon || 'fa-tag'), name: displayName };
-
         const amt = Math.abs(Number(t.amount || 0));
         if (isNaN(amt) || amt <= 0) return;
 
@@ -933,212 +976,77 @@ function renderMobileChart() {
             catMap[normKey] = {
                 id: normKey,
                 name: displayName,
-                icon: normKey === 'outros' ? 'fa-ellipsis-h' : style.icon,
-                color: normKey === 'outros' ? '#94a3b8' : style.color,
                 amount: 0
             };
         }
         catMap[normKey].amount += amt;
     });
 
-    // Todas as categorias unificadas por nome normalizado
     const allCategories = Object.values(catMap).sort((a, b) => b.amount - a.amount);
     const totalExpensesAmount = allCategories.reduce((sum, item) => sum + item.amount, 0);
 
-    // OPÇÃO A: Se até 8 categorias, mostra TODAS no gráfico sem esconder cauda em Outros
-    let sorted = [];
-    if (allCategories.length <= 8) {
-        sorted = [...allCategories];
-    } else {
-        // Se houver mais de 8 categorias, top 8 + cauda em Outros
-        const regularCategories = allCategories.filter(item => item.id !== 'outros');
-        const existingOutros = allCategories.find(item => item.id === 'outros');
-        const top8 = regularCategories.slice(0, 8);
-        const tail = regularCategories.slice(8);
-        const tailAmount = tail.reduce((sum, item) => sum + item.amount, 0);
-        const combinedOutrosTotal = (existingOutros ? existingOutros.amount : 0) + tailAmount;
+    const comp = window.TonuDashboardComponents;
+    const donutItems = comp
+        ? comp.buildDonutCategoriesWithPalette(allCategories)
+        : allCategories.slice(0, 6);
 
-        sorted = [...top8];
-        if (combinedOutrosTotal > 0) {
-            sorted.push({
-                id: 'outros',
-                name: 'Outros',
-                icon: 'fa-ellipsis-h',
-                color: '#94a3b8',
-                amount: combinedOutrosTotal
-            });
-        }
+    if (comp) {
+        container.innerHTML = comp.renderExpensesDonutCard({
+            sortedCategories: allCategories,
+            totalExpensesAmount,
+            isHidden: isBalanceHidden,
+            formatCurrency,
+            sanitizeString: typeof sanitizeString === 'function' ? sanitizeString : null
+        });
+        comp.hydrateDynamicStyles(container);
     }
-
-    // Gera lista de categorias integrada abaixo do gráfico
-    let categoriesHtml = "";
-    if (currentChartMode === 'categories' && sorted.length > 0) {
-        categoriesHtml = `
-            <div class="mobile-chart-categories">
-                ${sorted.map(item => {
-                    const pct = totalExpensesAmount > 0 ? Math.round((item.amount / totalExpensesAmount) * 100) : 0;
-                    const rawNameStr = String(item.name || '');
-                    // Remove all emoji characters so only the clean text remains beside FontAwesome icon
-                    const cleanedName = rawNameStr.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim() || rawNameStr;
-                    const safeName = typeof sanitizeString === 'function' ? sanitizeString(cleanedName) : cleanedName;
-                    const hasIcon = !!item.icon;
-                    return `
-                        <div class="mobile-cat-row">
-                            <div class="cat-row-top">
-                                <span class="cat-row-name">
-                                    ${hasIcon ? `<i class="fas ${item.icon}" style="color:${item.color}; font-size:12px; width:14px; text-align:center; margin-right:4px;"></i>` : `<span class="cat-dot" style="background:${item.color};"></span>`}
-                                    ${safeName}
-                                </span>
-                                <span class="cat-row-amount">
-                                    <strong>${formatCurrency(item.amount)}</strong>
-                                    <small>(${pct}%)</small>
-                                </span>
-                            </div>
-                            <div class="cat-progress-track">
-                                <div class="cat-progress-fill" style="width: ${pct}%; background: ${item.color};"></div>
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        `;
-    }
-
-    container.innerHTML = `
-        <div class="mobile-chart-card">
-            <div class="mobile-chart-header">
-                <div class="mobile-chart-title">
-                    <i class="fas fa-chart-pie" style="color:#4338CA;"></i> Visão Gráfica de Gastos
-                </div>
-                <div class="mobile-chart-toggle">
-                    <button class="mobile-chart-btn ${currentChartMode === 'categories' ? 'active' : ''}" onclick="setMobileChartMode('categories')">
-                        Categorias
-                    </button>
-                    <button class="mobile-chart-btn ${currentChartMode === 'flow' ? 'active' : ''}" onclick="setMobileChartMode('flow')">
-                        Fluxo
-                    </button>
-                </div>
-            </div>
-            <div class="mobile-chart-container" style="position:relative; height: 215px; margin-bottom: 8px;">
-                <canvas id="mobileChartCanvas"></canvas>
-                ${currentChartMode === 'categories' && sorted.length > 0 ? `
-                    <div class="chart-center-total">
-                        <span class="center-label">Total Gasto</span>
-                        <span class="center-value">${formatCurrency(totalExpensesAmount)}</span>
-                    </div>
-                ` : ''}
-            </div>
-            ${categoriesHtml}
-        </div>
-    `;
 
     const canvas = document.getElementById("mobileChartCanvas");
-    if (!canvas) return;
+    if (!canvas || donutItems.length === 0 || totalExpensesAmount <= 0) {
+        if (mobileChartInstance) {
+            mobileChartInstance.destroy();
+            mobileChartInstance = null;
+        }
+        return;
+    }
 
     if (mobileChartInstance) {
         mobileChartInstance.destroy();
         mobileChartInstance = null;
     }
 
+    const isDark = document.body.classList.contains('dark-theme');
     const ctx = canvas.getContext("2d");
 
-    if (currentChartMode === 'categories') {
-        if (sorted.length === 0) {
-            ctx.font = "12px Inter, sans-serif";
-            ctx.fillStyle = "#94a3b8";
-            ctx.textAlign = "center";
-            ctx.fillText("Nenhuma despesa para exibir", canvas.width / 2, 80);
-            return;
-        }
-
-        mobileChartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: sorted.map(s => {
-                    const rName = String(s.name || '');
-                    return rName.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim() || rName;
-                }),
-                datasets: [{
-                    data: sorted.map(s => s.amount),
-                    backgroundColor: sorted.map(s => s.color),
-                    borderWidth: 2,
-                    borderColor: document.body.classList.contains('dark-theme') ? '#1e293b' : '#ffffff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return ` ${context.label}: ${formatCurrency(context.parsed)}`;
-                            }
+    mobileChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: donutItems.map(s => s.name),
+            datasets: [{
+                data: donutItems.map(s => s.amount),
+                backgroundColor: donutItems.map(s => s.paletteColor || '#6C3DD1'),
+                borderWidth: 2,
+                borderColor: isDark ? '#1E293B' : '#FFFFFF',
+                hoverOffset: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '68%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            const pct = totalExpensesAmount > 0 ? Math.round((context.parsed / totalExpensesAmount) * 100) : 0;
+                            return ` ${context.label}: ${formatCurrency(context.parsed)} (${pct}%)`;
                         }
-                    }
-                },
-                cutout: '72%'
-            }
-        });
-    } else {
-        // Fluxo: Entradas vs Saídas
-        let inc = 0, exp = 0;
-        allTransactions.forEach(t => {
-            if (!isTxPaid(t)) return;
-            const amt = Math.abs(Number(t.amount || 0));
-            if (isNaN(amt) || amt <= 0) return;
-            if (t.type === 'income') inc += amt;
-            else if (t.type === 'expense') exp += amt;
-        });
-
-        mobileChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['Entradas', 'Saídas', 'Líquido'],
-                datasets: [{
-                    data: [inc, exp, Math.max(0, inc - exp)],
-                    backgroundColor: ['#10B981', '#EF4444', '#4338CA'],
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                    axis: 'x'
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return ` ${formatCurrency(context.parsed.y)}`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            font: { size: 9 },
-                            callback: function(v) {
-                                return 'R$ ' + v;
-                            }
-                        }
-                    },
-                    x: {
-                        ticks: { font: { size: 10 } }
                     }
                 }
             }
-        });
-    }
+        }
+    });
 }
 
 // ============================================
@@ -1366,59 +1274,61 @@ function renderMobileInsights() {
     if (urgentMobBill) {
         const isOverdue = overdueBillsMob.includes(urgentMobBill);
         mobActionCards.push(`
-            <div class="mob-action-card" onclick="window.location.href='bills.html'" style="border-left:3px solid #ef4444;">
-                <i class="fas ${isOverdue ? 'fa-exclamation-triangle' : 'fa-clock'}" style="color:#ef4444; font-size:14px;"></i>
+            <div class="mob-action-card tone-danger" data-nav="bills.html">
+                <i class="fas ${isOverdue ? 'fa-exclamation-triangle' : 'fa-clock'} mob-action-icon danger"></i>
                 <div class="mob-action-desc">
                     <strong>Pagar: ${urgentMobBill.description || 'Conta'}</strong>
                     <small>${isOverdue ? 'Conta atrasada' : 'Vence em até 48h'} • ${formatCurrency(urgentMobBill.amount)}</small>
                 </div>
-                <span class="mob-action-tag" style="background:#fee2e2; color:#b91c1c;">Pagar</span>
+                <span class="mob-action-tag tone-danger">Pagar</span>
             </div>
         `);
     }
     if (budgetAlertMob && budgetAlertMob.type === 'danger') {
         mobActionCards.push(`
-            <div class="mob-action-card" onclick="window.location.href='transactions.html'" style="border-left:3px solid #f59e0b;">
-                <i class="fas fa-chart-pie" style="color:#f59e0b; font-size:14px;"></i>
+            <div class="mob-action-card tone-warning" data-nav="transactions.html">
+                <i class="fas fa-chart-pie mob-action-icon warning"></i>
                 <div class="mob-action-desc">
                     <strong>Ver Gastos: Limite Estourado</strong>
                     <small>${budgetAlertMob.text}</small>
                 </div>
-                <span class="mob-action-tag" style="background:#fef3c7; color:#b45309;">Revisar</span>
+                <span class="mob-action-tag tone-warning">Revisar</span>
             </div>
         `);
     } else if (topCatPercent > 35 && topCatName && topCatName !== 'Nenhum gasto') {
         mobActionCards.push(`
-            <div class="mob-action-card" onclick="window.location.href='transactions.html'" style="border-left:3px solid #f59e0b;">
-                <i class="fas fa-fire" style="color:#f59e0b; font-size:14px;"></i>
+            <div class="mob-action-card tone-warning" data-nav="transactions.html">
+                <i class="fas fa-fire mob-action-icon warning"></i>
                 <div class="mob-action-desc">
                     <strong>${typeof sanitizeString === 'function' ? sanitizeString(topCatName) : topCatName}: ${topCatPercent}% da renda</strong>
                     <small>Maior centro de custo</small>
                 </div>
-                <span class="mob-action-tag" style="background:#fef3c7; color:#b45309;">Ver</span>
+                <span class="mob-action-tag tone-warning">Ver</span>
             </div>
         `);
     }
 
     // Checklist de ações rápidas no mobile restrito a "Pagar Agora" e "Ver Gastos"
     const displayedMobActionCards = mobActionCards.slice(0, 2);
+    const mobScoreTone = finalScoreMob >= 80 ? 'excellent' : (finalScoreMob < 40 ? 'danger' : (finalScoreMob < 60 ? 'warning' : 'good'));
+    const rateTone = rateClass === 'success' ? 'success' : (rateClass === 'danger' ? 'danger' : 'warning');
 
     container.innerHTML = `
         <!-- CARD 1: O QUE FAZER HOJE? -->
         <div class="mobile-insights-card mob-quick-actions-card">
             <div class="mobile-insights-header">
                 <div class="mobile-insights-title">
-                    <i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?
+                    <i class="fas fa-bolt mob-title-icon warning"></i> O que fazer hoje?
                 </div>
-                <span class="mobile-insights-pill" style="${displayedMobActionCards.length > 0 ? 'background:rgba(239, 68, 68, 0.12); color:#dc2626;' : 'background:rgba(16, 185, 129, 0.12); color:#10b981;'}">
-                    ${displayedMobActionCards.length > 0 ? `${displayedMobActionCards.length} ${displayedMobActionCards.length === 1 ? 'pendência' : 'pendências'}` : 'Em dia ✨'}
+                <span class="mobile-insights-pill ${displayedMobActionCards.length > 0 ? 'tone-danger' : 'tone-success'}">
+                    ${displayedMobActionCards.length > 0 ? `${displayedMobActionCards.length} ${displayedMobActionCards.length === 1 ? 'pendência' : 'pendências'}` : 'Em dia'}
                 </span>
             </div>
-            <div class="mob-checklist-wrap" style="margin-bottom:0;">
+            <div class="mob-checklist-wrap">
                 ${displayedMobActionCards.length > 0 ? displayedMobActionCards.join('') : `
-                    <div style="padding:10px 12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; font-size:11.5px; color:#15803d; display:flex; align-items:center; gap:8px; font-weight:600;">
-                        <i class="fas fa-check-circle" style="font-size:15px; color:#10b981; flex-shrink:0;"></i>
-                        <span>Tudo em dia! Sem pendências críticas hoje. ✨</span>
+                    <div class="mob-all-clear-box">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Tudo em dia! Sem pendências críticas hoje.</span>
                     </div>
                 `}
             </div>
@@ -1428,7 +1338,7 @@ function renderMobileInsights() {
         <div class="mobile-insights-card mob-health-score-card">
             <div class="mobile-insights-header">
                 <div class="mobile-insights-title">
-                    <i class="fas fa-heart-pulse" style="color:#4338CA;"></i> Saúde Financeira
+                    <i class="fas fa-heart-pulse mob-title-icon brand"></i> Saúde Financeira
                 </div>
                 <span class="mobile-insights-pill">Diagnóstico 360º</span>
             </div>
@@ -1445,10 +1355,10 @@ function renderMobileInsights() {
                         <span class="mob-score-sub">/100</span>
                     </div>
                 </div>
-                <div>
-                    <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:9999px; background:${mobBadge.bg}; color:${mobBadge.color};">${mobBadge.label}</span>
-                    <h4 style="margin:4px 0 2px 0; font-size:14px; font-weight:700; color:var(--color-text,#1e293b);">Diagnóstico Geral</h4>
-                    <p style="margin:0; font-size:11px; color:#64748b;">Equilíbrio • Contas • Dívidas • Futuro</p>
+                <div class="mob-score-meta">
+                    <span class="mob-score-level-pill ${mobScoreTone}">${mobBadge.label}</span>
+                    <h4 class="mob-score-heading">Diagnóstico Geral</h4>
+                    <p class="mob-score-subtext">Equilíbrio • Contas • Dívidas • Futuro</p>
                 </div>
             </div>
 
@@ -1463,7 +1373,7 @@ function renderMobileInsights() {
                         <span class="detail">${formatCurrency(Math.max(0, savings))} poupados</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:${rateClass === 'success' ? '#dcfce7' : (rateClass === 'danger' ? '#fee2e2' : '#fef3c7')}; color:${rateClass === 'success' ? '#15803d' : (rateClass === 'danger' ? '#b91c1c' : '#b45309')}">
+                <span class="mobile-insight-badge tone-${rateTone}">
                     ${rateLabel}
                 </span>
             </div>
@@ -1479,7 +1389,7 @@ function renderMobileInsights() {
                         <span class="detail">${typeof sanitizeString === 'function' ? sanitizeString(topCatName || '') : (topCatName || '')} (${formatCurrency(topCatAmount)})</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#fef3c7; color:#b45309;">
+                <span class="mobile-insight-badge tone-warning">
                     ${topCatPercent}% do total
                 </span>
             </div>
@@ -1495,8 +1405,8 @@ function renderMobileInsights() {
                         <span class="detail">${paidBills.length} de ${monthBills.length || 0} pagas</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#ede9fe; color:#6d28d9;">
-                    ${pendingBillsAmount > 0 ? `${formatCurrency(pendingBillsAmount)} pendente` : 'Tudo em dia! ✨'}
+                <span class="mobile-insight-badge tone-brand">
+                    ${pendingBillsAmount > 0 ? `${formatCurrency(pendingBillsAmount)} pendente` : 'Tudo em dia'}
                 </span>
             </div>
 
@@ -1511,7 +1421,7 @@ function renderMobileInsights() {
                         <span class="detail">${formatCurrency(totalDividends)} proventos • ${formatCurrency(totalAportes)} aportes</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#f3e8ff; color:#7e22ce;">
+                <span class="mobile-insight-badge tone-brand">
                     ${formatCurrency(totalAportes + totalDividends)}
                 </span>
             </div>
@@ -1527,7 +1437,7 @@ function renderMobileInsights() {
                         <span class="detail">${extraIncomeCount} lançamento${extraIncomeCount === 1 ? '' : 's'} (${extraIncomePercent}% da renda)</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:${extraIncome > 0 ? '#ffedd5' : '#f1f5f9'}; color:${extraIncome > 0 ? '#c2410c' : '#64748b'};">
+                <span class="mobile-insight-badge ${extraIncome > 0 ? 'tone-orange' : 'tone-muted'}">
                     ${formatCurrency(extraIncome)}
                 </span>
             </div>
@@ -1899,68 +1809,19 @@ function renderMobileGoals() {
     const container = document.getElementById("mobileGoalsContainer");
     if (!container) return;
 
-    if (!allGoals || allGoals.length === 0) {
-        container.innerHTML = "";
-        return;
-    }
+    const comp = window.TonuDashboardComponents;
+    if (!comp) return;
 
-    const grouped = new Map();
-    allGoals.forEach(g => {
-        const typeKey = normalizeDashboardGoalType(g);
-        if (!grouped.has(typeKey)) grouped.set(typeKey, []);
-        grouped.get(typeKey).push(g);
+    const selDate = getSelectedMonthDate();
+    // Injeta lista de metas + patrimônio em custódia + proventos do mês no GoalProgressCard
+    container.innerHTML = comp.renderGoalProgressCard({
+        goals: allGoals,
+        cachedEquity: cachedDashboardEquity,
+        monthlyDividends: getMonthlyDividendsTotalForDashboard(),
+        selectedYear: selDate.getFullYear(),
+        sanitizeString: typeof sanitizeString === 'function' ? sanitizeString : null
     });
-
-    const preferredOrder = ['wealth', 'financial', 'dividends', 'project'];
-    const orderedKeys = [
-        ...preferredOrder.filter(k => grouped.has(k)),
-        ...[...grouped.keys()].filter(k => !preferredOrder.includes(k))
-    ];
-
-    const summaryCards = orderedKeys.map(k => buildGoalTypeSummaryCard(k, grouped.get(k)));
-    if (summaryCards.length === 0) {
-        container.innerHTML = "";
-        return;
-    }
-
-    const isSingle = summaryCards.length === 1;
-    const cardsHtml = summaryCards.map(card => `
-        <a href="goals.html" class="goal-type-card" aria-label="${card.title}: ${card.percent}% concluído">
-            <div class="goal-type-card-top">
-                <div class="goal-type-icon" style="background:${card.iconBg}; color:${card.color};">
-                    <i class="fas ${card.icon}"></i>
-                </div>
-                <div class="goal-type-meta">
-                    <div class="goal-type-name">${card.title}</div>
-                    <div class="goal-type-sub">${card.subtitle}</div>
-                </div>
-                <span class="goal-type-pct" style="color:${card.color};">${card.percent}%</span>
-            </div>
-            <div class="goal-type-progress-track">
-                <div class="goal-type-progress-fill" style="width:${card.percent}%; background:${card.color};"></div>
-            </div>
-            <div class="goal-type-values">
-                <div class="goal-type-val-block">
-                    <span class="goal-type-val-label">${card.currentLabel}</span>
-                    <span class="goal-type-val-num">${card.currentValue}</span>
-                </div>
-                <div class="goal-type-val-block right">
-                    <span class="goal-type-val-label">${card.targetLabel}</span>
-                    <span class="goal-type-val-num">${card.targetValue}</span>
-                </div>
-            </div>
-        </a>
-    `).join('');
-
-    container.innerHTML = `
-        <div class="goals-carousel-header">
-            <h2 class="goals-carousel-title"><i class="fas fa-bullseye"></i> Metas por Categoria</h2>
-            <a href="goals.html" class="goals-carousel-all-link">Ver todas →</a>
-        </div>
-        <div class="goals-carousel-track ${isSingle ? 'single-card' : ''}">
-            ${cardsHtml}
-        </div>
-    `;
+    comp.hydrateDynamicStyles(container);
 }
 
 // ============================================
@@ -1972,59 +1833,26 @@ function renderCategoryBars() {
 }
 
 // ============================================
-// RENDER TRANSAÇÕES
+// RENDER TRANSAÇÕES (3 ÚLTIMAS TRANSAÇÕES PAGAS)
 // ============================================
 function renderTransactions() {
     const container = document.getElementById("mobileTransactions");
+    if (!container) return;
 
-    const recent = allTransactions.filter(t => isTxPaid(t)).slice(0, 10);
+    const recent = allTransactions.filter(t => isTxPaid(t)).slice(0, 3);
+    const comp = window.TonuDashboardComponents;
+    if (!comp) return;
 
-    if (recent.length === 0) {
-        container.innerHTML = `
-            <div class="mobile-empty">
-                <span class="empty-icon">📭</span>
-                <h3>Nenhuma transação</h3>
-                <p>Adicione sua primeira transação</p>
-            </div>
-        `;
-        return;
-    }
-
-    container.innerHTML = recent.map(t => {
-        const isIncome = t.type === "income";
-        let cat = null;
-        if (t.category_id && categories && categories.length > 0) {
-            cat = categories.find(c => c.id === t.category_id);
-        }
-        if (!cat && t.categories && typeof t.categories === 'object') {
-            cat = t.categories;
-        }
-        const style = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
-            ? window.getBackendCategoryStyle(t.category || t.description, cat)
-            : { color: cat?.color || (isIncome ? "#00B894" : "#FF6B6B"), icon: cat?.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag") };
-
-        const color = cat?.color || style.color || (isIncome ? "#00B894" : "#FF6B6B");
-        const icon = cat?.icon || style.icon || (isIncome ? "fa-money-bill-wave" : "fa-tag");
-        const rawDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
-        const safeDesc = typeof sanitizeString === 'function' ? sanitizeString(rawDesc) : rawDesc;
-
-        return `
-            <div class="mobile-transaction" onclick="window.location.href='transactions.html'">
-                <div class="tx-left">
-                    <div class="tx-icon" style="background:${color}">
-                        <i class="fas ${icon}"></i>
-                    </div>
-                    <div class="tx-info">
-                        <strong>${safeDesc}</strong>
-                        <small>${formatDate(t.date)}</small>
-                    </div>
-                </div>
-                <span class="tx-amount ${isIncome ? 'income' : 'expense'}">
-                    ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
-                </span>
-            </div>
-        `;
-    }).join("");
+    // Injeta as 3 últimas transações pagas e categorias no componente TransactionList
+    container.innerHTML = comp.renderTransactionList({
+        transactions: recent,
+        categories,
+        isHidden: isBalanceHidden,
+        formatCurrency,
+        formatDate,
+        sanitizeString: typeof sanitizeString === 'function' ? sanitizeString : null,
+        cleanDescription: window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription : null
+    });
 }
 
 // ============================================

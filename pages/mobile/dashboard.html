@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#F8FAFC">
+    <meta name="theme-color" content="#F8F9FA">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -14,177 +14,161 @@
     <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png">
     <link rel="shortcut icon" href="../../icons/icon-128x128.png">
     <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png">
-    <title>TonuControle - Mobile</title>
+    <title>TonuControle - Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css?v=4.0.0">
+    <link rel="stylesheet" href="../../css/mobile.css?v=5.0.0">
     <link rel="stylesheet" href="../../css/notifications.css">
     <link rel="stylesheet" href="../../css/sync-status.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .skip-link {
-            position: absolute; top: -100%; left: 50%; transform: translateX(-50%);
-            padding: 12px 24px; background: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%); color: #fff; border-radius: 12px;
-            z-index: 999999; font-weight: 600; text-decoration: none;
-        }
-        .skip-link:focus { top: 16px; }
-        .spinner {
-            display: inline-block;
-            width: 24px; height: 24px;
-            border: 3px solid #e2e8f0;
-            border-top-color: #4338CA;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
     <script>
         if (localStorage.getItem('tonu_bottom_nav_labels') === 'false') {
             document.documentElement.classList.add('nav-icons-only');
         }
     </script>
 </head>
-<body class="has-bottom-nav">
+<body class="has-bottom-nav clean-mobile-dash">
 
 <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
 
-<!-- TOPBAR -->
-<header class="mobile-topbar">
-    <div class="topbar-header">
-        <div class="topbar-left">
-            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
-            <h1>Tonu<span>Controle</span></h1>
+<!-- COMPONENTE 1: HEADER (Saudação à esquerda | Seletor de mês ao centro | Perfil à direita) -->
+<header class="clean-topbar" aria-label="Cabeçalho">
+    <div class="clean-topbar-inner">
+        <div class="clean-greeting-wrap">
+            <h1 class="clean-greeting" id="greetingText">Olá, Usuário</h1>
         </div>
-        <div class="topbar-actions">
-            <button type="button" class="topbar-btn" onclick="window.TonuMobileUI && window.TonuMobileUI.openCommandPalette()" title="Busca rápida" aria-label="Busca rápida">
-                <i class="fas fa-search"></i>
-            </button>
-            <button type="button" class="topbar-btn" data-privacy-toggle onclick="window.TonuMobileUI ? window.TonuMobileUI.togglePrivacyMode() : (window.toggleBalanceVisibility && window.toggleBalanceVisibility())" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade">
-                <i class="fas fa-eye" data-privacy-icon></i>
-            </button>
-            <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema">
-                <i class="fas fa-moon" id="themeIcon"></i>
-            </button>
-            <button class="topbar-btn" id="notifBellBtn" onclick="window.toggleNotificationDropdown(event)" title="Lembretes e Notificações" aria-label="Notificações">
-                <i class="fas fa-bell"></i>
-                <span class="notif-badge hidden" id="notifBadgeCount">0</span>
-            </button>
-            <button class="topbar-btn" onclick="window.syncMobileDashboardNow ? window.syncMobileDashboardNow() : (window.loadMobileData ? window.loadMobileData({ forceRefresh: true }) : location.reload())" title="Sincronizar" aria-label="Sincronizar">
-                <i class="fas fa-sync-alt"></i>
-            </button>
-            <a href="settings.html" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
-                <span id="topbarAvatar">U</span>
-            </a>
-        </div>
-    </div>
-    <div class="greeting" id="greetingText">Olá, Usuário 👋</div>
-</header>
 
-<!-- CONTEÚDO -->
-<main class="mobile-content" id="main-content">
-    <!-- SELETOR DE MÊS -->
-    <div class="mobile-month-selector-bar">
-        <div class="month-selector">
-            <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
+        <div class="clean-month-pill" role="group" aria-label="Selecionar mês">
+            <button type="button" class="clean-month-arrow" data-action="change-month" data-delta="-1" aria-label="Mês anterior">
                 <i class="fas fa-chevron-left"></i>
             </button>
-            <span class="month-label" id="selectedMonth">Carregando...</span>
-            <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês">
+            <button type="button" class="clean-month-current" id="selectedMonth" data-action="go-current-month" title="Ir para o mês atual">
+                Carregando...
+            </button>
+            <button type="button" class="clean-month-arrow" data-action="change-month" data-delta="1" aria-label="Próximo mês">
                 <i class="fas fa-chevron-right"></i>
             </button>
-            <button class="btn-today" onclick="goToCurrentMonth()">Hoje</button>
         </div>
+
+        <a href="settings.html" id="mobileTopAvatar" class="clean-profile-btn" title="Perfil e Configurações" aria-label="Perfil e Configurações">
+            <span id="topbarAvatar">U</span>
+        </a>
+    </div>
+</header>
+
+<!-- CONTEÚDO PRINCIPAL -->
+<main class="mobile-content clean-dash-content" id="main-content">
+
+    <!-- COMPONENTE 2: HERO CARD (Único card com fundo roxo sólido #6C3DD1) -->
+    <div id="heroCardContainer">
+        <div class="clean-skeleton-hero mob-skeleton"></div>
     </div>
 
-    <!-- BALANÇO HERO & CARDS -->
+    <!-- COMPONENTE 3: AÇÕES RÁPIDAS (Linha limpa sem fundo, ícone + texto) -->
+    <nav class="clean-quick-actions" aria-label="Ações Rápidas">
+        <button type="button" class="clean-quick-btn" data-action="quick-add" data-type="expense">
+            <span class="clean-quick-icon expense"><i class="fas fa-arrow-down"></i></span>
+            <span class="clean-quick-label">Nova Despesa</span>
+        </button>
+        <button type="button" class="clean-quick-btn" data-action="quick-add" data-type="income">
+            <span class="clean-quick-icon income"><i class="fas fa-arrow-up"></i></span>
+            <span class="clean-quick-label">Nova Receita</span>
+        </button>
+        <a href="bills.html" class="clean-quick-btn">
+            <span class="clean-quick-icon bills"><i class="fas fa-file-invoice-dollar"></i></span>
+            <span class="clean-quick-label">Contas</span>
+        </a>
+        <a href="investments.html" class="clean-quick-btn">
+            <span class="clean-quick-icon invest"><i class="fas fa-chart-line"></i></span>
+            <span class="clean-quick-label">Investir</span>
+        </a>
+    </nav>
+
+    <!-- COMPONENTE 4: CARDS DE RESUMO (Contas Pendentes & Proventos do Mês) -->
     <div id="summaryContainer"></div>
 
-    <!-- AÇÕES RÁPIDAS -->
-    <div class="mobile-quick-actions">
-        <button class="quick-action-btn" onclick="openQuickAddModal('expense')">
-            <i class="fas fa-arrow-down" style="color: #FF7675;"></i>
-            <span>Nova Despesa</span>
-        </button>
-        <button class="quick-action-btn" onclick="openQuickAddModal('income')">
-            <i class="fas fa-arrow-up" style="color: #00B894;"></i>
-            <span>Nova Receita</span>
-        </button>
-        <a href="bills.html" class="quick-action-btn">
-            <i class="fas fa-file-invoice-dollar" style="color: #FDCB6E;"></i>
-            <span>Contas</span>
-        </a>
-        <a href="investments.html" class="quick-action-btn">
-            <i class="fas fa-chart-line" style="color: #4338CA;"></i>
-            <span>Investir</span>
-        </a>
-        <a href="goals.html" class="quick-action-btn">
-            <i class="fas fa-bullseye" style="color: #0284C7;"></i>
-            <span>Metas</span>
-        </a>
-    </div>
+    <!-- COMPONENTE 5: GOAL PROGRESS CARD (Card horizontal fino de progresso da meta) -->
+    <section id="mobileGoalsContainer" class="clean-goal-section" aria-label="Progresso da Meta"></section>
 
-    <!-- GRÁFICO INTERATIVO MOBILE (FLUXO & CATEGORIAS) -->
+    <!-- COMPONENTE 6: EXPENSES DONUT CHART (Rosca + Legenda à direita) -->
     <div id="mobileChartContainer"></div>
 
-    <!-- DIAGNÓSTICO 360º & INSIGHTS MOBILE -->
-    <div id="mobileInsightsContainer"></div>
-
-    <!-- INSIGHTS IA MOBILE -->
-    <section class="mobile-insights-card" id="mobileAIInsightsCard" aria-label="Insights IA">
-        <div class="mobile-insights-header">
-            <div class="mobile-insights-title">
-                <span>✨ Insights IA</span>
-                <span class="mobile-insights-pill" id="aiInsightsSourceBadge">90 dias</span>
-            </div>
-            <button type="button" class="mobile-ai-refresh-btn" id="mobileAiInsightsRefreshBtn" onclick="window.loadAIInsights && window.loadAIInsights(true)" title="Atualizar Insights IA" aria-label="Atualizar Insights IA">
-                <i class="fas fa-sync-alt"></i>
-            </button>
+    <!-- COMPONENTE 7: TRANSACTION LIST (3 últimas transações) -->
+    <section class="clean-tx-section" aria-label="Últimas Transações">
+        <div class="clean-section-head">
+            <h2 class="clean-section-title">Últimas Transações</h2>
+            <a href="transactions.html" class="clean-section-link">Ver todas</a>
         </div>
-        <div id="aiInsightsBody">
-            <p class="mobile-ai-loading">Analisando seus últimos 90 dias...</p>
+        <div id="mobileTransactions">
+            <div class="mob-skeleton-card">
+                <div class="mob-skeleton clean-skel-line-lg"></div>
+                <div class="mob-skeleton clean-skel-line-sm"></div>
+            </div>
+            <div class="mob-skeleton-card">
+                <div class="mob-skeleton clean-skel-line-md"></div>
+                <div class="mob-skeleton clean-skel-line-sm"></div>
+            </div>
+            <div class="mob-skeleton-card">
+                <div class="mob-skeleton clean-skel-line-lg"></div>
+                <div class="mob-skeleton clean-skel-line-sm"></div>
+            </div>
         </div>
     </section>
 
-    <!-- METAS AGRUPADAS POR CATEGORIA (CARROSSEL) -->
-    <section id="mobileGoalsContainer" class="mobile-goals-section" aria-label="Metas por categoria"></section>
-
-    <!-- ÚLTIMAS TRANSAÇÕES -->
-    <div class="mobile-section-title">
-        <span>📋 Últimas Transações</span>
-        <a href="transactions.html">Ver todas →</a>
-    </div>
-    <div id="mobileTransactions">
-        <div class="mob-skeleton-card"><div class="mob-skeleton" style="height:16px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:12px;width:36%;"></div></div>
-        <div class="mob-skeleton-card"><div class="mob-skeleton" style="height:16px;width:64%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:12px;width:42%;"></div></div>
-        <div class="mob-skeleton-card"><div class="mob-skeleton" style="height:16px;width:52%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:12px;width:30%;"></div></div>
-    </div>
+    <!-- RECURSOS AVANÇADOS PRESERVADOS: DIAGNÓSTICO 360º & INSIGHTS IA -->
+    <details class="clean-insights-drawer" id="cleanInsightsDrawer">
+        <summary class="clean-insights-summary">
+            <span class="clean-insights-summary-left">
+                <span class="clean-insights-summary-icon" aria-hidden="true"><i class="fas fa-sparkles fa-wand-magic-sparkles"></i></span>
+                <span>Diagnóstico 360º &amp; Insights IA</span>
+            </span>
+            <i class="fas fa-chevron-down clean-drawer-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="clean-insights-drawer-body">
+            <div id="mobileInsightsContainer"></div>
+            <section class="mobile-insights-card" id="mobileAIInsightsCard" aria-label="Insights IA">
+                <div class="mobile-insights-header">
+                    <div class="mobile-insights-title">
+                        <span>Insights IA</span>
+                        <span class="mobile-insights-pill" id="aiInsightsSourceBadge">90 dias</span>
+                    </div>
+                    <button type="button" class="mobile-ai-refresh-btn" id="mobileAiInsightsRefreshBtn" data-action="refresh-ai-insights" title="Atualizar Insights IA" aria-label="Atualizar Insights IA">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div id="aiInsightsBody">
+                    <p class="mobile-ai-loading">Analisando seus últimos 90 dias...</p>
+                </div>
+            </section>
+        </div>
+    </details>
 </main>
 
 <!-- BOTTOM SHEET MODAL (ADICIONAR TRANSAÇÃO RÁPIDA) -->
-<div class="mobile-modal-overlay" id="quickAddModal" onclick="closeQuickAddModal(event)">
-    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+<div class="mobile-modal-overlay" id="quickAddModal">
+    <div class="mobile-modal-sheet" id="quickAddSheet">
         <div class="sheet-drag-handle"></div>
         <div class="sheet-header">
             <h3 id="modalTitle">Nova Transação</h3>
-            <button class="sheet-close-btn" onclick="closeQuickAddModal()"><i class="fas fa-times"></i></button>
+            <button type="button" class="sheet-close-btn" data-action="close-quick-modal" aria-label="Fechar"><i class="fas fa-times"></i></button>
         </div>
 
-        <form id="quickAddForm" onsubmit="handleQuickAddSubmit(event)">
+        <form id="quickAddForm">
             <div class="type-toggle-group">
-                <button type="button" class="type-toggle-btn active expense" id="toggleExpense" onclick="setQuickType('expense')">
+                <button type="button" class="type-toggle-btn active expense" id="toggleExpense" data-action="set-quick-type" data-type="expense">
                     <i class="fas fa-arrow-down"></i> Despesa
                 </button>
-                <button type="button" class="type-toggle-btn income" id="toggleIncome" onclick="setQuickType('income')">
+                <button type="button" class="type-toggle-btn income" id="toggleIncome" data-action="set-quick-type" data-type="income">
                     <i class="fas fa-arrow-up"></i> Receita
                 </button>
             </div>
 
             <div class="sheet-form-group">
-                <label>Descrição</label>
+                <label for="quickDesc">Descrição</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-pencil-alt"></i>
                     <input type="text" id="quickDesc" class="sheet-input" placeholder="Ex: Supermercado, Salário..." required>
@@ -192,7 +176,7 @@
             </div>
 
             <div class="sheet-form-group">
-                <label>Valor (R$)</label>
+                <label for="quickAmount">Valor (R$)</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-dollar-sign"></i>
                     <input type="number" step="0.01" min="0.01" id="quickAmount" class="sheet-input" placeholder="0,00" required>
@@ -200,7 +184,7 @@
             </div>
 
             <div class="sheet-form-group">
-                <label>Categoria</label>
+                <label for="quickCategory">Categoria</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-tags"></i>
                     <select id="quickCategory" class="sheet-input" required>
@@ -210,7 +194,7 @@
             </div>
 
             <div class="sheet-form-group">
-                <label>Data</label>
+                <label for="quickDate">Data</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-calendar"></i>
                     <input type="date" id="quickDate" class="sheet-input" required>
@@ -222,19 +206,17 @@
     </div>
 </div>
 
-<!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
-<nav class="bottom-nav">
-    <a href="dashboard.html" class="active"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
+<!-- COMPONENTE 8: BOTTOM TAB BAR (5 itens: Início | Transações | + | Investir | Config) -->
+<nav class="bottom-nav clean-bottom-nav" aria-label="Navegação Principal">
+    <a href="dashboard.html" class="active"><i class="fas fa-home"></i><span>Início</span></a>
     <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
-    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
     <div class="nav-center">
-        <button type="button" class="nav-add-btn" onclick="openQuickAddModal('expense')" aria-label="Nova Transação" title="Nova Transação">
+        <button type="button" class="nav-add-btn" id="navAddBtn" data-action="quick-add" data-type="expense" aria-label="Nova Transação" title="Nova Transação">
             <i class="fas fa-plus"></i>
         </button>
     </div>
-    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investimentos</span></a>
-    <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
-    <a href="settings.html"><i class="fas fa-cog"></i><span>Configurações</span></a>
+    <a href="investments.html"><i class="fas fa-chart-line"></i><span>Investir</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Config</span></a>
 </nav>
 
 <!-- TOAST -->
@@ -250,7 +232,8 @@
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
 <script src="../../js/mobile/ui.js?v=1.0.0"></script>
-<script src="../../js/mobile/dashboard.js?v=4.0.0"></script>
+<script src="../../js/mobile/dashboard-components.js?v=1.0.0"></script>
+<script src="../../js/mobile/dashboard.js?v=5.0.0"></script>
 
 </body>
 </html>
