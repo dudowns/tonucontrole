@@ -1,6 +1,6 @@
 /* ==========================================================================
    TONUCONTROLE - MODULAR MOBILE DASHBOARD COMPONENTS
-   Clean Fintech UI Architecture (Light-first #F8F9FA / #FFFFFF / #6C3DD1)
+   Modern Fintech UI Architecture (Light + Deep Slate Dark Mode)
    Zero global scope collision: IIFE exposing window.TonuDashboardComponents
    ========================================================================== */
 (function (window, document) {
@@ -25,16 +25,36 @@
             .trim();
     }
 
-    // Paleta limpa focada em roxo, lilás e verde semântico (para Donut Chart)
+    function formatCompactBrl(value) {
+        var num = Math.abs(Number(value) || 0);
+        if (num >= 1000000) {
+            return 'R$ ' + (num / 1000000).toFixed(1).replace('.', ',') + 'M';
+        }
+        if (num >= 1000) {
+            return 'R$ ' + (num / 1000).toFixed(1).replace('.', ',') + 'k';
+        }
+        return 'R$ ' + Math.round(num);
+    }
+
+    function formatShortDayMonth(isoOrDate) {
+        var s = String(isoOrDate || '').substring(0, 10);
+        var parts = s.split('-');
+        if (parts.length === 3 && parts[2] && parts[1]) {
+            return parts[2] + '/' + parts[1];
+        }
+        return '';
+    }
+
+    // Paleta vibrante para o Gráfico de Rosca (alinhada ao mockup)
     var DONUT_PALETTE = [
-        '#6C3DD1',
-        '#9575CD',
-        '#2E7D32',
-        '#B39DDB',
-        '#66BB6A',
-        '#512DA8',
-        '#D1C4E9',
-        '#81C784'
+        '#F97316',
+        '#2563EB',
+        '#7C3AED',
+        '#16A34A',
+        '#06B6D4',
+        '#EC4899',
+        '#EAB308',
+        '#8B5CF6'
     ];
 
     /**
@@ -47,13 +67,20 @@
         var greetingEl = document.getElementById('greetingText');
         if (greetingEl && state.userName) {
             var firstName = String(state.userName).trim().split(/\s+/)[0] || 'Usuário';
-            greetingEl.textContent = 'Olá, ' + firstName;
+            greetingEl.textContent = 'Olá, ' + firstName + '!';
         }
 
-        var monthEl = document.getElementById('selectedMonth');
-        if (monthEl && state.monthLabel) {
-            monthEl.textContent = state.monthLabel;
-            monthEl.classList.toggle('is-offset', state.isCurrentMonth === false);
+        var monthLabelEl = document.getElementById('selectedMonthLabel');
+        var monthBtnEl = document.getElementById('selectedMonth');
+        if (state.monthLabel) {
+            if (monthLabelEl) {
+                monthLabelEl.textContent = state.monthLabel;
+            } else if (monthBtnEl) {
+                monthBtnEl.textContent = state.monthLabel;
+            }
+            if (monthBtnEl) {
+                monthBtnEl.classList.toggle('is-offset', state.isCurrentMonth === false);
+            }
         }
 
         var avatarEl = document.getElementById('topbarAvatar');
@@ -63,120 +90,140 @@
     }
 
     /**
-     * 2. HeroCard Component (Único bloco com fundo sólido #6C3DD1)
+     * 2. HeroCard Component ("Saldo do Mês")
      * Injeta dados dinâmicos calculados a partir das transações pagas do mês:
-     * @param {Object} data - { balance, income, expense, pendingBillsAmount, isHidden, formatCurrency }
+     * @param {Object} data - { balance, income, expense, pendingBillsAmount, pendingBillsCount, momDeltaPct, isHidden, formatCurrency }
      */
     function renderHeroCard(data) {
         var fmt = data.formatCurrency;
         var mask = function (v) { return data.isHidden ? '••••••' : v; };
+        var billsCount = Number(data.pendingBillsCount) || 0;
+        var pendingAmt = Number(data.pendingBillsAmount) || 0;
+
+        var momHtml = '';
+        if (typeof data.momDeltaPct === 'number' && Number.isFinite(data.momDeltaPct)) {
+            var isUp = data.momDeltaPct >= 0;
+            var sign = isUp ? '+' : '';
+            var formattedPct = sign + data.momDeltaPct.toFixed(1).replace('.', ',') + '%';
+            momHtml =
+                '<div class="clean-hero-mom ' + (isUp ? 'is-up' : 'is-down') + '" data-sensitive>' +
+                    '<span class="clean-hero-mom-pct">' +
+                        '<i class="fas ' + (isUp ? 'fa-arrow-trend-up fa-chart-line' : 'fa-arrow-trend-down fa-chart-line') + '" aria-hidden="true"></i> ' +
+                        (data.isHidden ? '••••' : formattedPct) +
+                    '</span>' +
+                    '<span class="clean-hero-mom-label"> vs. mês anterior</span>' +
+                '</div>';
+        } else {
+            momHtml = '<div class="clean-hero-mom is-neutral"><span class="clean-hero-mom-label">Saldo líquido pago no período</span></div>';
+        }
+
+        var footerBillsHtml = pendingAmt > 0
+            ? '<i class="far fa-calendar-check" aria-hidden="true"></i> Contas a vencer: <strong data-sensitive>' + mask(fmt(pendingAmt)) + '</strong>' +
+              (billsCount > 0 ? ' <span>(' + billsCount + ')</span>' : '')
+            : '<i class="far fa-calendar-check" aria-hidden="true"></i> Nenhuma conta pendente neste mês';
 
         return (
-            '<section class="clean-hero-card" aria-label="Saldo Operacional">' +
+            '<section class="clean-hero-card" aria-label="Saldo do Mês">' +
+                '<div class="clean-hero-art" aria-hidden="true">' +
+                    '<svg viewBox="0 0 120 76" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+                        '<rect x="12" y="50" width="12" height="22" rx="3" fill="currentColor" opacity="0.22"/>' +
+                        '<rect x="30" y="42" width="12" height="30" rx="3" fill="currentColor" opacity="0.28"/>' +
+                        '<rect x="48" y="34" width="12" height="38" rx="3" fill="currentColor" opacity="0.34"/>' +
+                        '<rect x="66" y="25" width="12" height="47" rx="3" fill="currentColor" opacity="0.42"/>' +
+                        '<rect x="84" y="16" width="12" height="56" rx="3" fill="currentColor" opacity="0.52"/>' +
+                        '<path d="M10 47 L46 32 L72 22 L106 8" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity="0.72"/>' +
+                        '<path d="M97 6 L108 7 L104 18" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.78"/>' +
+                    '</svg>' +
+                '</div>' +
+
                 '<div class="clean-hero-top">' +
-                    '<span class="clean-hero-label">Saldo Operacional</span>' +
+                    '<span class="clean-hero-label"><i class="fas fa-eye" aria-hidden="true"></i> Saldo do Mês</span>' +
                     '<button type="button" class="clean-hero-eye-btn" data-privacy-toggle data-action="toggle-balance" ' +
                         'title="' + (data.isHidden ? 'Mostrar Saldo' : 'Ocultar Saldo') + '" ' +
                         'aria-label="Alternar visibilidade do saldo">' +
-                        '<i class="fas ' + (data.isHidden ? 'fa-eye-slash' : 'fa-eye') + '" data-privacy-icon></i>' +
+                        '<i class="fas ' + (data.isHidden ? 'fa-eye' : 'fa-eye-slash') + '" data-privacy-icon></i>' +
                     '</button>' +
                 '</div>' +
+
                 '<div class="clean-hero-balance tabular-nums" id="heroBalanceVal" data-sensitive>' +
                     mask(fmt(data.balance)) +
                 '</div>' +
+
+                momHtml +
+
                 '<div class="clean-hero-columns">' +
                     '<div class="clean-hero-col">' +
-                        '<div class="clean-hero-col-head">' +
-                            '<span class="clean-hero-arrow income" aria-hidden="true"><i class="fas fa-arrow-up"></i></span>' +
+                        '<span class="clean-hero-arrow income" aria-hidden="true"><i class="fas fa-arrow-down"></i></span>' +
+                        '<div class="clean-hero-col-text">' +
                             '<span class="clean-hero-col-label">Entradas</span>' +
+                            '<span class="clean-hero-col-val tabular-nums" id="heroIncomeVal" data-sensitive>' +
+                                mask(fmt(data.income)) +
+                            '</span>' +
                         '</div>' +
-                        '<span class="clean-hero-col-val tabular-nums" id="heroIncomeVal" data-sensitive>' +
-                            mask(fmt(data.income)) +
-                        '</span>' +
                     '</div>' +
                     '<div class="clean-hero-col">' +
-                        '<div class="clean-hero-col-head">' +
-                            '<span class="clean-hero-arrow expense" aria-hidden="true"><i class="fas fa-arrow-down"></i></span>' +
+                        '<span class="clean-hero-arrow expense" aria-hidden="true"><i class="fas fa-arrow-up"></i></span>' +
+                        '<div class="clean-hero-col-text">' +
                             '<span class="clean-hero-col-label">Saídas</span>' +
+                            '<span class="clean-hero-col-val tabular-nums" id="heroExpenseVal" data-sensitive>' +
+                                mask(fmt(data.expense)) +
+                            '</span>' +
                         '</div>' +
-                        '<span class="clean-hero-col-val tabular-nums" id="heroExpenseVal" data-sensitive>' +
-                            mask(fmt(data.expense)) +
-                        '</span>' +
-                        (data.pendingBillsAmount > 0
-                            ? '<span class="clean-hero-pending-note">A vencer: ' + mask(fmt(data.pendingBillsAmount)) + '</span>'
-                            : '') +
                     '</div>' +
                 '</div>' +
+
+                '<div class="clean-hero-footer">' + footerBillsHtml + '</div>' +
             '</section>'
         );
     }
 
     /**
-     * 3. QuickActions Component
-     * Linha horizontal de ações rápidas limpas (sem fundo de card, apenas ícone e texto).
-     */
-    function renderQuickActions() {
-        return (
-            '<nav class="clean-quick-actions" aria-label="Ações Rápidas">' +
-                '<button type="button" class="clean-quick-btn" data-action="quick-add" data-type="expense">' +
-                    '<span class="clean-quick-icon expense"><i class="fas fa-arrow-down"></i></span>' +
-                    '<span class="clean-quick-label">Nova Despesa</span>' +
-                '</button>' +
-                '<button type="button" class="clean-quick-btn" data-action="quick-add" data-type="income">' +
-                    '<span class="clean-quick-icon income"><i class="fas fa-arrow-up"></i></span>' +
-                    '<span class="clean-quick-label">Nova Receita</span>' +
-                '</button>' +
-                '<a href="bills.html" class="clean-quick-btn">' +
-                    '<span class="clean-quick-icon bills"><i class="fas fa-file-invoice-dollar"></i></span>' +
-                    '<span class="clean-quick-label">Contas</span>' +
-                '</a>' +
-                '<a href="investments.html" class="clean-quick-btn">' +
-                    '<span class="clean-quick-icon invest"><i class="fas fa-chart-line"></i></span>' +
-                    '<span class="clean-quick-label">Investir</span>' +
-                '</a>' +
-            '</nav>'
-        );
-    }
-
-    /**
-     * 4. SummaryCards Component
-     * Dois cards brancos lado a lado: "Contas Pendentes" e "Proventos do Mês".
-     * Injeta dados dinâmicos da API/estado (`allBills` e `allDividends`):
+     * 3. SummaryCards Component (Contas Pendentes & Proventos do Mês)
      * @param {Object} data - { pendingBillsAmount, pendingBillsCount, displayMonthDivs, monthPendingDivs, isHidden, formatCurrency }
      */
     function renderSummaryCards(data) {
         var fmt = data.formatCurrency;
         var mask = function (v) { return data.isHidden ? '••••••' : v; };
-        var billsStatusClass = data.pendingBillsCount > 0 ? 'has-pending' : 'is-clear';
+        var billsCount = Number(data.pendingBillsCount) || 0;
 
         return (
             '<section class="clean-summary-grid" aria-label="Resumo do Mês">' +
-                '<a href="bills.html" class="clean-summary-card">' +
+                '<a href="bills.html" class="clean-summary-card is-bills">' +
                     '<div class="clean-summary-head">' +
-                        '<span class="clean-summary-icon warning" aria-hidden="true"><i class="fas fa-exclamation-triangle"></i></span>' +
+                        '<span class="clean-summary-icon warning" aria-hidden="true"><i class="fas fa-bell"></i></span>' +
                         '<span class="clean-summary-label">Contas Pendentes</span>' +
                     '</div>' +
-                    '<div class="clean-summary-value tabular-nums ' + billsStatusClass + '" data-sensitive>' +
-                        mask(fmt(data.pendingBillsAmount)) +
-                    '</div>' +
-                    '<div class="clean-summary-sub">' +
-                        (data.pendingBillsCount > 0
-                            ? data.pendingBillsCount + (data.pendingBillsCount === 1 ? ' conta em aberto' : ' contas em aberto')
-                            : 'Nenhuma conta pendente') +
+                    '<div class="clean-summary-body">' +
+                        '<div class="clean-summary-vals">' +
+                            '<div class="clean-summary-value tabular-nums" data-sensitive>' +
+                                mask(fmt(data.pendingBillsAmount)) +
+                            '</div>' +
+                            '<div class="clean-summary-sub">' +
+                                (billsCount > 0
+                                    ? billsCount + (billsCount === 1 ? ' conta em aberto' : ' contas em aberto')
+                                    : 'Sem pendências') +
+                            '</div>' +
+                        '</div>' +
+                        '<span class="clean-summary-arrow warning" aria-hidden="true"><i class="fas fa-arrow-right"></i></span>' +
                     '</div>' +
                 '</a>' +
-                '<a href="investments.html" class="clean-summary-card">' +
+                '<a href="investments.html" class="clean-summary-card is-dividends">' +
                     '<div class="clean-summary-head">' +
-                        '<span class="clean-summary-icon brand" aria-hidden="true"><i class="fas fa-coins"></i></span>' +
+                        '<span class="clean-summary-icon income" aria-hidden="true"><i class="fas fa-coins"></i></span>' +
                         '<span class="clean-summary-label">Proventos do Mês</span>' +
                     '</div>' +
-                    '<div class="clean-summary-value tabular-nums brand" data-sensitive>' +
-                        mask(fmt(data.displayMonthDivs)) +
-                    '</div>' +
-                    '<div class="clean-summary-sub">' +
-                        (data.monthPendingDivs > 0
-                            ? 'A receber: ' + mask(fmt(data.monthPendingDivs))
-                            : 'Dividendos e JCP') +
+                    '<div class="clean-summary-body">' +
+                        '<div class="clean-summary-vals">' +
+                            '<div class="clean-summary-value tabular-nums" data-sensitive>' +
+                                mask(fmt(data.displayMonthDivs)) +
+                            '</div>' +
+                            '<div class="clean-summary-sub">' +
+                                (data.monthPendingDivs > 0
+                                    ? '+ ' + mask(fmt(data.monthPendingDivs)) + ' a receber'
+                                    : 'Dividendos e JCP') +
+                            '</div>' +
+                        '</div>' +
+                        '<span class="clean-summary-arrow income" aria-hidden="true"><i class="fas fa-arrow-right"></i></span>' +
                     '</div>' +
                 '</a>' +
             '</section>'
@@ -184,10 +231,8 @@
     }
 
     /**
-     * 5. GoalProgressCard Component (Nova Funcionalidade)
-     * Card horizontal fino exibindo o progresso da meta principal do usuário.
-     * Injeta dados dinâmicos da tabela `goals` + patrimônio sincronizado:
-     * @param {Object} data - { goals, cachedEquity, monthlyDividends, selectedYear, sanitizeString }
+     * 4. GoalProgressCard Component ("Minha Meta Principal")
+     * @param {Object} data - { goals, cachedEquity, monthlyDividends, selectedYear, isHidden, formatCurrency, sanitizeString }
      */
     function computePrimaryGoalSummary(data) {
         var goals = Array.isArray(data.goals) ? data.goals : [];
@@ -195,17 +240,17 @@
 
         if (goals.length === 0) {
             return {
-                label: 'Meta ' + year + ': 0% concluído',
+                title: 'Construir meu patrimônio',
                 percent: 0,
+                current: 0,
+                target: 0,
                 hasGoals: false
             };
         }
 
-        // Prioriza metas ativas (não concluídas); se todas estiverem concluídas, usa a primeira
         var activeGoals = goals.filter(function (g) { return !g.completed; });
         var candidates = activeGoals.length > 0 ? activeGoals : goals;
 
-        // Tenta encontrar uma meta cujo título ou prazo corresponda ao ano selecionado, ou a primeira relevante
         var primary = candidates.find(function (g) {
             var title = String(g.title || g.name || '');
             var deadline = String(g.deadline || g.target_date || '');
@@ -233,50 +278,81 @@
         var safeTitle = escapeHtml(rawTitle || ('Meta ' + year), data.sanitizeString);
 
         return {
-            label: safeTitle + ': ' + pct + '% concluído',
+            title: safeTitle,
             percent: pct,
+            current: current,
+            target: target,
             hasGoals: true
         };
     }
 
     function renderGoalProgressCard(data) {
         var summary = computePrimaryGoalSummary(data);
+        var fmt = typeof data.formatCurrency === 'function'
+            ? data.formatCurrency
+            : function (v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ','); };
+        var mask = function (v) { return data.isHidden ? '••••••' : v; };
+
+        var footerAmounts = summary.hasGoals
+            ? '<span class="clean-goal-meta-item" data-sensitive><i class="fas fa-bullseye" aria-hidden="true"></i> ' + mask(fmt(summary.target)) + '</span>' +
+              '<span class="clean-goal-meta-sep" aria-hidden="true">|</span>' +
+              '<span class="clean-goal-meta-item is-current" data-sensitive>' + mask(fmt(summary.current)) + '</span>'
+            : '<span class="clean-goal-meta-item">Toque para definir sua primeira meta</span>';
+
         return (
-            '<a href="goals.html" class="clean-goal-card" aria-label="' + summary.label + '">' +
-                '<div class="clean-goal-top">' +
-                    '<span class="clean-goal-title">' +
-                        '<i class="fas fa-bullseye" aria-hidden="true"></i> ' +
-                        '<span>' + summary.label + '</span>' +
-                    '</span>' +
+            '<a href="goals.html" class="clean-goal-card" aria-label="Minha Meta Principal: ' + summary.title + ' (' + summary.percent + '%)">' +
+                '<div class="clean-goal-head">' +
+                    '<div class="clean-goal-head-left">' +
+                        '<span class="clean-goal-trophy" aria-hidden="true"><i class="fas fa-trophy"></i></span>' +
+                        '<div class="clean-goal-headings">' +
+                            '<strong class="clean-goal-heading">Minha Meta Principal</strong>' +
+                            '<span class="clean-goal-subtitle">' + summary.title + '</span>' +
+                        '</div>' +
+                    '</div>' +
                     '<span class="clean-goal-action">' +
                         (summary.hasGoals ? 'Ver metas' : 'Criar meta') +
-                        ' <i class="fas fa-chevron-right" aria-hidden="true"></i>' +
+                        ' <i class="fas fa-arrow-right" aria-hidden="true"></i>' +
                     '</span>' +
                 '</div>' +
-                '<div class="clean-goal-track" role="progressbar" aria-valuenow="' + summary.percent + '" aria-valuemin="0" aria-valuemax="100">' +
-                    '<div class="clean-goal-fill" data-goal-progress="' + summary.percent + '"></div>' +
+
+                '<div class="clean-goal-body">' +
+                    '<div class="clean-goal-progress-col">' +
+                        '<div class="clean-goal-percent-row">' +
+                            '<span class="clean-goal-percent tabular-nums">' + summary.percent + '%</span>' +
+                            '<div class="clean-goal-track" role="progressbar" aria-valuenow="' + summary.percent + '" aria-valuemin="0" aria-valuemax="100">' +
+                                '<div class="clean-goal-fill" data-goal-progress="' + summary.percent + '"></div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="clean-goal-amounts tabular-nums">' + footerAmounts + '</div>' +
+                    '</div>' +
+                    '<div class="clean-goal-target-art" aria-hidden="true">' +
+                        '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+                            '<circle cx="30" cy="34" r="22" fill="#EA580C"/>' +
+                            '<circle cx="30" cy="34" r="16" fill="#FFFFFF"/>' +
+                            '<circle cx="30" cy="34" r="10.5" fill="#EA580C"/>' +
+                            '<circle cx="30" cy="34" r="5" fill="#FACC15"/>' +
+                            '<path d="M30 34 L50 14" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>' +
+                            '<path d="M47 11 L53 11 L53 17 L47 17 Z" fill="#F97316"/>' +
+                        '</svg>' +
+                    '</div>' +
                 '</div>' +
             '</a>'
         );
     }
 
     /**
-     * 6. ExpensesDonutChart Component
-     * Gráfico de rosca (Chart.js) com paleta roxo/lilás/verde e legenda posicionada à DIREITA.
-     * Injeta dados dinâmicos das despesas pagas do mês agrupadas por categoria:
-     * @param {Object} data - { sortedCategories, totalExpensesAmount, isHidden, formatCurrency, sanitizeString }
+     * 5. ExpensesDonutChart Component (Compacto com Total ao Centro + Legenda à Direita)
      */
     function buildDonutCategoriesWithPalette(sortedCategories) {
         var list = Array.isArray(sortedCategories) ? sortedCategories : [];
-        // Agrupa em top 5 categorias + "Outros" para manter legenda lateral limpa e legível
-        var topItems = list.slice(0, 5);
-        var tailItems = list.slice(5);
+        var topItems = list.slice(0, 4);
+        var tailItems = list.slice(4);
         var items = topItems.map(function (item, idx) {
             return {
                 id: item.id,
                 name: stripEmojis(item.name || 'Categoria') || 'Categoria',
                 amount: item.amount,
-                paletteColor: item.id === 'outros' ? '#CBD5E1' : DONUT_PALETTE[idx % DONUT_PALETTE.length]
+                paletteColor: item.id === 'outros' ? '#94A3B8' : DONUT_PALETTE[idx % DONUT_PALETTE.length]
             };
         });
 
@@ -290,7 +366,7 @@
                     id: 'outros',
                     name: 'Outros',
                     amount: tailSum,
-                    paletteColor: '#CBD5E1'
+                    paletteColor: '#94A3B8'
                 });
             }
         }
@@ -305,13 +381,13 @@
 
         if (items.length === 0 || total <= 0) {
             return (
-                '<section class="clean-chart-card" aria-label="Gastos por Categoria">' +
-                    '<div class="clean-card-header">' +
-                        '<h2 class="clean-card-title">Gastos por Categoria</h2>' +
+                '<section class="clean-chart-card clean-bento-card" aria-label="Gastos por Categoria">' +
+                    '<div class="clean-bento-head">' +
+                        '<h2 class="clean-bento-title"><i class="fas fa-chart-pie" aria-hidden="true"></i> Gastos por Categoria</h2>' +
                     '</div>' +
                     '<div class="clean-chart-empty">' +
                         '<i class="fas fa-chart-pie" aria-hidden="true"></i>' +
-                        '<span>Nenhuma despesa paga neste mês</span>' +
+                        '<span>Sem despesas pagas</span>' +
                     '</div>' +
                 '</section>'
             );
@@ -330,14 +406,18 @@
         }).join('');
 
         return (
-            '<section class="clean-chart-card" aria-label="Gastos por Categoria">' +
-                '<div class="clean-card-header">' +
-                    '<h2 class="clean-card-title">Gastos por Categoria</h2>' +
+            '<section class="clean-chart-card clean-bento-card" aria-label="Gastos por Categoria">' +
+                '<div class="clean-bento-head is-stacked">' +
+                    '<h2 class="clean-bento-title"><i class="fas fa-chart-pie" aria-hidden="true"></i> Gastos por Categoria</h2>' +
                     '<span class="clean-chart-total tabular-nums" data-sensitive>' + mask(fmt(total)) + '</span>' +
                 '</div>' +
                 '<div class="clean-donut-layout">' +
                     '<div class="clean-donut-canvas-wrap">' +
                         '<canvas id="mobileChartCanvas" aria-label="Gráfico de gastos por categoria"></canvas>' +
+                        '<div class="clean-donut-center" aria-hidden="true">' +
+                            '<strong class="tabular-nums" data-sensitive>' + mask(formatCompactBrl(total)) + '</strong>' +
+                            '<span>Total</span>' +
+                        '</div>' +
                     '</div>' +
                     '<ul class="clean-donut-legend" aria-label="Legenda de categorias">' +
                         legendHtml +
@@ -348,29 +428,24 @@
     }
 
     /**
-     * 7. TransactionList Component
-     * Exibe as 3 últimas transações pagas, ícone circular cinza claro à esquerda,
-     * nome e data embaixo, valor à direita (+ verde / - laranja).
-     * Injeta dados dinâmicos de `allTransactions`:
-     * @param {Object} data - { transactions, categories, isHidden, formatCurrency, formatDate, sanitizeString, cleanDescription }
+     * 6. TransactionList Component (Últimas 3 transações pagas, formato compacto para card lateral)
      */
     function renderTransactionList(data) {
         var list = Array.isArray(data.transactions) ? data.transactions.slice(0, 3) : [];
         var cats = Array.isArray(data.categories) ? data.categories : [];
         var fmt = data.formatCurrency;
-        var fmtDate = data.formatDate;
         var mask = function (v) { return data.isHidden ? '••••' : v; };
 
         if (list.length === 0) {
             return (
                 '<div class="clean-tx-empty">' +
                     '<span class="clean-tx-empty-icon"><i class="fas fa-receipt"></i></span>' +
-                    '<p>Nenhuma transação registrada neste mês</p>' +
+                    '<p>Nenhuma transação paga</p>' +
                 '</div>'
             );
         }
 
-        return '<div class="clean-tx-card">' + list.map(function (t) {
+        return '<div class="clean-tx-list">' + list.map(function (t) {
             var isIncome = t.type === 'income';
             var cat = null;
             if (t.category_id && cats.length > 0) {
@@ -388,16 +463,17 @@
                 ? data.cleanDescription(t.description)
                 : (t.description || 'Transação');
             var safeDesc = escapeHtml(rawDesc, data.sanitizeString);
+            var shortDate = formatShortDayMonth(t.date) || (typeof data.formatDate === 'function' ? data.formatDate(t.date) : '');
 
             return (
                 '<a href="transactions.html" class="clean-tx-row">' +
                     '<div class="clean-tx-left">' +
-                        '<span class="clean-tx-icon-circle" aria-hidden="true">' +
+                        '<span class="clean-tx-icon-circle ' + (isIncome ? 'is-income' : 'is-expense') + '" aria-hidden="true">' +
                             '<i class="fas ' + icon + '"></i>' +
                         '</span>' +
                         '<div class="clean-tx-meta">' +
                             '<strong class="clean-tx-name">' + safeDesc + '</strong>' +
-                            '<small class="clean-tx-date">' + fmtDate(t.date) + '</small>' +
+                            '<small class="clean-tx-date">' + shortDate + '</small>' +
                         '</div>' +
                     '</div>' +
                     '<span class="clean-tx-amount tabular-nums ' + (isIncome ? 'income' : 'expense') + '" data-sensitive>' +
@@ -408,9 +484,6 @@
         }).join('') + '</div>';
     }
 
-    /**
-     * Aplica propriedades visuais dinâmicas via CSSOM (CSP-safe, sem inline style="").
-     */
     function hydrateDynamicStyles(rootEl) {
         var scope = rootEl || document;
         scope.querySelectorAll('[data-goal-progress]').forEach(function (el) {
@@ -427,7 +500,6 @@
         DONUT_PALETTE: DONUT_PALETTE,
         updateHeader: updateHeader,
         renderHeroCard: renderHeroCard,
-        renderQuickActions: renderQuickActions,
         renderSummaryCards: renderSummaryCards,
         renderGoalProgressCard: renderGoalProgressCard,
         buildDonutCategoriesWithPalette: buildDonutCategoriesWithPalette,

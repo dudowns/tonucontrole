@@ -28,6 +28,7 @@ let isBalanceHidden = localStorage.getItem('tonu_hide_balance') === 'true';
 let currentMonthOffset = 0;
 let cachedDashboardEquity = 0;
 let isDashboardEquityLoaded = false;
+let prevMonthBalance = null;
 const _cache = { key: null, ts: 0, payload: null };
 const CACHE_TTL_MS = 45 * 1000;
 
@@ -47,14 +48,14 @@ function updateMobileMonthDisplay() {
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
     ];
-    const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
+    const label = `${months[d.getMonth()]}/${d.getFullYear()}`;
     if (window.TonuDashboardComponents && typeof window.TonuDashboardComponents.updateHeader === 'function') {
         window.TonuDashboardComponents.updateHeader({
             monthLabel: label,
             isCurrentMonth: currentMonthOffset === 0
         });
     } else {
-        const el = document.getElementById("selectedMonth");
+        const el = document.getElementById("selectedMonthLabel") || document.getElementById("selectedMonth");
         if (el) el.textContent = label;
     }
 }
@@ -212,7 +213,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         } else {
             const greetingEl = document.getElementById("greetingText");
-            if (greetingEl) greetingEl.textContent = `Olá, ${String(name).split(/\s+/)[0]}`;
+            if (greetingEl) greetingEl.textContent = `Olá, ${String(name).split(/\s+/)[0]}!`;
             const avEl = document.getElementById("topbarAvatar");
             if (avEl) avEl.textContent = String(name).charAt(0).toUpperCase();
         }
@@ -480,6 +481,7 @@ async function loadMobileData(options = {}) {
             allDividends = p.allDividends;
             allGoals = p.allGoals;
             allInvestments = p.allInvestments;
+            prevMonthBalance = typeof p.prevMonthBalance === 'number' ? p.prevMonthBalance : null;
             window.allDividends = allDividends;
             window.allInvestments = allInvestments;
 
@@ -501,7 +503,14 @@ async function loadMobileData(options = {}) {
         const firstDay = `${year}-${month}-01`;
         const lastDay = `${year}-${month}-${String(lastDayNum).padStart(2, "0")}`;
 
-        // 1. Transações
+        const prevDate = new Date(year, targetDate.getMonth() - 1, 1);
+        const prevYear = prevDate.getFullYear();
+        const prevMonthStr = String(prevDate.getMonth() + 1).padStart(2, "0");
+        const prevLastDayNum = new Date(prevYear, prevDate.getMonth() + 1, 0).getDate();
+        const prevFirstDay = `${prevYear}-${prevMonthStr}-01`;
+        const prevLastDay = `${prevYear}-${prevMonthStr}-${String(prevLastDayNum).padStart(2, "0")}`;
+
+        // 1. Transações do mês selecionado + mês anterior (para variação MoM)
         const txPromise = supabaseClient
             .from("transactions")
             .select("*")
@@ -509,6 +518,19 @@ async function loadMobileData(options = {}) {
             .gte("date", firstDay)
             .lte("date", lastDay)
             .order("date", { ascending: false });
+
+        const prevTxPromise = (async () => {
+            try {
+                return await supabaseClient
+                    .from("transactions")
+                    .select("type,amount,paid,is_bill")
+                    .eq("user_id", currentUser.id)
+                    .gte("date", prevFirstDay)
+                    .lte("date", prevLastDay);
+            } catch (_) {
+                return { data: [] };
+            }
+        })();
 
         // 2. Contas (busca transações do tipo conta ou tabela bills se existir)
         const billsPromise = (async () => {
@@ -549,12 +571,13 @@ async function loadMobileData(options = {}) {
             return await loadInvestments();
         })();
 
-        const [txRes, billsRes, divData, goalsRes, invData] = await Promise.all([
+        const [txRes, billsRes, divData, goalsRes, invData, prevTxRes] = await Promise.all([
             txPromise,
             billsPromise,
             divPromise,
             goalsPromise,
-            invPromise
+            invPromise,
+            prevTxPromise
         ]);
 
         let loadedData = txRes.data || [];
@@ -565,6 +588,22 @@ async function loadMobileData(options = {}) {
             }).cleanList;
         }
         allTransactions = loadedData;
+
+        const computePaidBalance = (list) => {
+            if (!Array.isArray(list) || list.length === 0) return null;
+            let pInc = 0, pExp = 0, count = 0;
+            list.forEach(t => {
+                if (!isTxPaid(t)) return;
+                const amt = Math.abs(Number(t.amount || 0));
+                if (isNaN(amt) || amt <= 0) return;
+                count++;
+                if (t.type === "income") pInc += amt;
+                else if (t.type === "expense") pExp += amt;
+            });
+            return count > 0 ? (pInc - pExp) : null;
+        };
+
+        prevMonthBalance = computePaidBalance(prevTxRes?.data || []);
 
         allBills = billsRes?.data || [];
         allGoals = goalsRes?.data || [];
@@ -585,6 +624,10 @@ async function loadMobileData(options = {}) {
                     const cachedTx = await window.tonuSync.getCachedTransactions(currentUser.id);
                     if (Array.isArray(cachedTx) && cachedTx.length > 0) {
                         allTransactions = cachedTx.filter(t => t.date >= firstDay && t.date <= lastDay);
+                        if (prevMonthBalance === null) {
+                            const prevCached = cachedTx.filter(t => t.date >= prevFirstDay && t.date <= prevLastDay);
+                            prevMonthBalance = computePaidBalance(prevCached);
+                        }
                         cacheFound = true;
                     }
                 } catch (_) {}
@@ -742,7 +785,8 @@ async function loadMobileData(options = {}) {
             allBills,
             allDividends,
             allGoals,
-            allInvestments
+            allInvestments,
+            prevMonthBalance
         };
 
         console.log("📊 Mobile: Dados unificados prontos:", {
@@ -880,19 +924,26 @@ function renderSummary() {
     const summaryContainer = document.getElementById("summaryContainer");
     const comp = window.TonuDashboardComponents;
 
+    let momDeltaPct = null;
+    if (typeof prevMonthBalance === 'number' && Math.abs(prevMonthBalance) > 0.01) {
+        momDeltaPct = ((balance - prevMonthBalance) / Math.abs(prevMonthBalance)) * 100;
+    }
+
     if (comp) {
-        // Injeta saldo operacional, entradas e saídas no HeroCard (#6C3DD1)
+        // Injeta saldo do mês, comparativo MoM, entradas e saídas no HeroCard
         if (heroContainer) {
             heroContainer.innerHTML = comp.renderHeroCard({
                 balance,
                 income,
                 expense,
                 pendingBillsAmount,
+                pendingBillsCount: pendingBills.length,
+                momDeltaPct,
                 isHidden: isBalanceHidden,
                 formatCurrency
             });
         }
-        // Injeta contas pendentes e proventos do mês nos SummaryCards (#FFFFFF)
+        // Injeta contas pendentes e proventos do mês nos SummaryCards
         if (summaryContainer) {
             summaryContainer.innerHTML = comp.renderSummaryCards({
                 pendingBillsAmount,
@@ -1025,15 +1076,15 @@ function renderMobileChart() {
             datasets: [{
                 data: donutItems.map(s => s.amount),
                 backgroundColor: donutItems.map(s => s.paletteColor || '#6C3DD1'),
-                borderWidth: 2,
+                borderWidth: 1.5,
                 borderColor: isDark ? '#1E293B' : '#FFFFFF',
-                hoverOffset: 3
+                hoverOffset: 2
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '68%',
+            cutout: '66%',
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -1312,6 +1363,17 @@ function renderMobileInsights() {
     const displayedMobActionCards = mobActionCards.slice(0, 2);
     const mobScoreTone = finalScoreMob >= 80 ? 'excellent' : (finalScoreMob < 40 ? 'danger' : (finalScoreMob < 60 ? 'warning' : 'good'));
     const rateTone = rateClass === 'success' ? 'success' : (rateClass === 'danger' ? 'danger' : 'warning');
+
+    const statusBadgeEl = document.getElementById('insightsStatusBadge');
+    if (statusBadgeEl) {
+        if (displayedMobActionCards.length > 0) {
+            statusBadgeEl.className = 'clean-insights-status is-alert';
+            statusBadgeEl.innerHTML = `<i class="fas fa-exclamation-circle" aria-hidden="true"></i> ${displayedMobActionCards.length} ${displayedMobActionCards.length === 1 ? 'alerta' : 'alertas'}`;
+        } else {
+            statusBadgeEl.className = 'clean-insights-status is-ok';
+            statusBadgeEl.innerHTML = '<i class="fas fa-check-circle" aria-hidden="true"></i> Em dia';
+        }
+    }
 
     container.innerHTML = `
         <!-- CARD 1: O QUE FAZER HOJE? -->
@@ -1819,9 +1881,17 @@ function renderMobileGoals() {
         cachedEquity: cachedDashboardEquity,
         monthlyDividends: getMonthlyDividendsTotalForDashboard(),
         selectedYear: selDate.getFullYear(),
+        isHidden: isBalanceHidden,
+        formatCurrency,
         sanitizeString: typeof sanitizeString === 'function' ? sanitizeString : null
     });
     comp.hydrateDynamicStyles(container);
+    if (typeof window.renderMobileGoals === 'function') {
+        // Also ensure privacy state refreshes cleanly on goal card
+        if (window.TonuMobileUI && typeof window.TonuMobileUI.applyPrivacyState === 'function') {
+            window.TonuMobileUI.applyPrivacyState(isBalanceHidden);
+        }
+    }
 }
 
 // ============================================
