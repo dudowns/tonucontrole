@@ -407,7 +407,7 @@
 
         return (
             '<section class="clean-chart-card clean-bento-card" aria-label="Gastos por Categoria">' +
-                '<div class="clean-bento-head is-stacked">' +
+                '<div class="clean-bento-head">' +
                     '<h2 class="clean-bento-title"><i class="fas fa-chart-pie" aria-hidden="true"></i> Gastos por Categoria</h2>' +
                     '<span class="clean-chart-total tabular-nums" data-sensitive>' + mask(fmt(total)) + '</span>' +
                 '</div>' +
@@ -428,7 +428,7 @@
     }
 
     /**
-     * 6. TransactionList Component (Últimas 3 transações pagas, formato compacto para card lateral)
+     * 6. TransactionList Component (Últimas 3 transações pagas em largura total)
      */
     function renderTransactionList(data) {
         var list = Array.isArray(data.transactions) ? data.transactions.slice(0, 3) : [];
@@ -440,7 +440,7 @@
             return (
                 '<div class="clean-tx-empty">' +
                     '<span class="clean-tx-empty-icon"><i class="fas fa-receipt"></i></span>' +
-                    '<p>Nenhuma transação paga</p>' +
+                    '<p>Nenhuma transação paga neste mês</p>' +
                 '</div>'
             );
         }
@@ -463,7 +463,9 @@
                 ? data.cleanDescription(t.description)
                 : (t.description || 'Transação');
             var safeDesc = escapeHtml(rawDesc, data.sanitizeString);
-            var shortDate = formatShortDayMonth(t.date) || (typeof data.formatDate === 'function' ? data.formatDate(t.date) : '');
+            var dateStr = (typeof data.formatDate === 'function' ? data.formatDate(t.date) : '') || formatShortDayMonth(t.date);
+            var catLabel = stripEmojis(cat?.name || t.category || '');
+            var subMeta = catLabel ? (dateStr + ' • ' + escapeHtml(catLabel, data.sanitizeString)) : dateStr;
 
             return (
                 '<a href="transactions.html" class="clean-tx-row">' +
@@ -473,7 +475,7 @@
                         '</span>' +
                         '<div class="clean-tx-meta">' +
                             '<strong class="clean-tx-name">' + safeDesc + '</strong>' +
-                            '<small class="clean-tx-date">' + shortDate + '</small>' +
+                            '<small class="clean-tx-date">' + subMeta + '</small>' +
                         '</div>' +
                     '</div>' +
                     '<span class="clean-tx-amount tabular-nums ' + (isIncome ? 'income' : 'expense') + '" data-sensitive>' +

@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css?v=5.1.0">
+    <link rel="stylesheet" href="../../css/mobile.css?v=5.2.0">
     <link rel="stylesheet" href="../../css/notifications.css">
     <link rel="stylesheet" href="../../css/sync-status.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -108,13 +108,14 @@
     <!-- COMPONENTE 5: MINHA META PRINCIPAL -->
     <section id="mobileGoalsContainer" class="clean-goal-section" aria-label="Minha Meta Principal"></section>
 
-    <!-- COMPONENTES 6 & 7: GRADE LADO A LADO (Gastos por Categoria + Últimas Transações) -->
+    <!-- COMPONENTES 6 & 7: GASTOS POR CATEGORIA + ÚLTIMAS TRANSAÇÕES (EMPILHADOS) -->
     <div class="clean-bento-row">
         <div id="mobileChartContainer" class="clean-bento-col"></div>
 
         <section class="clean-tx-section clean-tx-bento-card clean-bento-col" aria-label="Últimas Transações">
             <div class="clean-bento-head">
-                <h2 class="clean-bento-title"><i class="fas fa-eye" aria-hidden="true"></i> Últimas Transações</h2>
+                <h2 class="clean-bento-title"><i class="fas fa-receipt" aria-hidden="true"></i> Últimas Transações</h2>
+                <a href="transactions.html" class="clean-block-link">Ver todas <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
             </div>
             <div id="mobileTransactions">
                 <div class="mob-skeleton-card">
@@ -126,7 +127,6 @@
                     <div class="mob-skeleton clean-skel-line-sm"></div>
                 </div>
             </div>
-            <a href="transactions.html" class="clean-bento-more">Ver todas <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
         </section>
     </div>
 
@@ -253,7 +253,7 @@
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
 <script src="../../js/mobile/ui.js?v=1.0.0"></script>
-<script src="../../js/mobile/dashboard-components.js?v=1.1.0"></script>
+<script src="../../js/mobile/dashboard-components.js?v=1.2.0"></script>
 <script src="../../js/mobile/dashboard.js?v=5.1.0"></script>
 
 </body>
