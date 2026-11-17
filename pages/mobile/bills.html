@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css?v=4.1.2">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.1.4">
     <link rel="stylesheet" href="../../css/notifications.css">
     <style>
         body { background: var(--mob-bg, #F8FAFC); }
@@ -487,7 +487,7 @@
 <script src="../../js/sync.js"></script>
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
-<script src="../../js/mobile/ui.js?v=1.0.1"></script>
+<script src="../../js/mobile/ui.js?v=1.0.2"></script>
 
 <script>
 var formatCurrency = window.formatCurrency;
@@ -1041,7 +1041,7 @@ function renderBills() {
             const delay = (Math.min(cardIdx++, 10) * 0.03).toFixed(2);
 
             return `
-                <div data-swipe-row data-swipe-width="136">
+                <div class="stagger-card" data-swipe-row data-swipe-width="136" style="animation-delay: ${delay}s;">
                     <div class="swipe-actions-tray" aria-label="Ações da conta">
                         <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); openModal('${b.id}')" aria-label="Editar conta">
                             <i class="fas fa-pen"></i>
@@ -1052,7 +1052,7 @@ function renderBills() {
                             <span>Apagar</span>
                         </button>
                     </div>
-                    <div class="bill-card-mobile clean-list-card stagger-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" data-swipe-content id="bill_card_mobile_${b.id}" style="animation-delay: ${delay}s;">
+                    <div class="bill-card-mobile clean-list-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" data-swipe-content id="bill_card_mobile_${b.id}">
                         <div class="compact-card-main">
                             ${isSelectionModeMobile ? `
                                 <input type="checkbox" class="bill-check-mobile" ${isSelected ? 'checked' : ''} onchange="toggleSelectBillMobile('${b.id}', this.checked)" style="width:18px; height:18px; accent-color:#4338CA; cursor:pointer; flex-shrink:0;">

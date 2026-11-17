@@ -531,9 +531,7 @@ button, input, select, textarea {
 .mobile-hero-card,
 .mobile-hero-balance,
 .ios-hero-summary,
-.bills-hero-card,
-.goals-hero-card,
-.invest-hero-card {
+.bills-hero-card {
     position: relative;
     overflow: hidden;
     background: var(--mob-gradient) !important;
@@ -548,9 +546,7 @@ button, input, select, textarea {
 .mobile-hero-card::before,
 .mobile-hero-balance::before,
 .ios-hero-summary::before,
-.bills-hero-card::before,
-.goals-hero-card::before,
-.invest-hero-card::before {
+.bills-hero-card::before {
     content: "";
     position: absolute;
     top: -48px;
@@ -1153,6 +1149,9 @@ button, input, select, textarea {
     overflow: hidden;
     border-radius: 14px;
     background: var(--mob-surface-2);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
 .swipe-actions-tray {
     position: absolute;
@@ -1162,6 +1161,11 @@ button, input, select, textarea {
     display: flex;
     align-items: stretch;
     z-index: 1;
+    pointer-events: none;
+}
+[data-swipe-row].swiped-open > .swipe-actions-tray,
+[data-swipe-row].is-swiping > .swipe-actions-tray {
+    pointer-events: auto;
 }
 .swipe-action-btn,
 .swipe-action-delete {
@@ -1213,6 +1217,10 @@ button, input, select, textarea {
     touch-action: pan-y;
     transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
+    animation: none !important;
+}
+[data-swipe-row].is-swiping > [data-swipe-content] {
+    transition: none !important;
 }
 
 /* Grouped iOS Day Cards (Transactions) */
@@ -3487,6 +3495,7 @@ body.dark-theme .mob-skeleton::after {
 .clean-card-amount.income { color: var(--mob-accent); }
 .clean-card-amount.expense { color: var(--mob-danger); }
 .clean-card-amount.warning { color: var(--mob-warning); }
+.clean-card-amount.info { color: var(--mob-info); }
 
 .clean-card-meta-line {
     display: flex;
@@ -3534,25 +3543,98 @@ body.dark-theme .mob-skeleton::after {
     background: var(--mob-warning-soft);
     color: var(--mob-warning);
 }
-.clean-card-tag-inline.paid {
+.clean-card-tag-inline.paid,
+.clean-card-tag-inline.buy {
     background: var(--mob-accent-soft);
     color: var(--mob-accent);
 }
-.clean-card-tag-inline.overdue {
+.clean-card-tag-inline.overdue,
+.clean-card-tag-inline.sell {
     background: var(--mob-danger-soft);
     color: var(--mob-danger);
 }
-.clean-card-tag-inline.anticipation {
-    background: rgba(2, 132, 199, 0.12);
-    color: #0284c7;
+.clean-card-tag-inline.anticipation,
+.clean-card-tag-inline.div-pending {
+    background: var(--mob-info-soft);
+    color: var(--mob-info);
 }
-.clean-card-tag-inline.installment {
+.clean-card-tag-inline.installment,
+.clean-card-tag-inline.div-type {
     background: var(--mob-primary-soft);
     color: var(--mob-primary);
 }
 .clean-card-tag-inline.recurring {
     background: var(--mob-warning-soft);
     color: var(--mob-warning);
+}
+
+.invest-list-group-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.proventos-forecast-card {
+    background: var(--mob-surface);
+    border: 1px solid var(--mob-border);
+    border-radius: 16px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    box-shadow: var(--mob-shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.proventos-forecast-left {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-width: 0;
+}
+.proventos-forecast-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: var(--mob-info-soft);
+    color: var(--mob-info);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+.proventos-forecast-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--mob-text-muted);
+}
+.proventos-forecast-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--mob-info);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+.proventos-forecast-sub {
+    font-size: 11px;
+    color: var(--mob-text-muted);
+    margin-top: 1px;
+}
+.proventos-forecast-pill {
+    background: var(--mob-info-soft);
+    color: var(--mob-info);
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .bill-compact-footer {

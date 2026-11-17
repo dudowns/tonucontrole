@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css?v=4.1.1">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.1.4">
     <link rel="stylesheet" href="../../css/notifications.css">
     <style>
         body { background: var(--mob-bg, #F8FAFC); }
@@ -108,19 +108,11 @@
             border-color: #4338CA;
             box-shadow: 0 4px 12px rgba(67, 56, 202, 0.28);
         }
-        body.dark-theme .invest-hero-card,
         body.dark-theme .asset-card,
         body.dark-theme .op-card,
         body.dark-theme .invest-charts-mobile-card {
             background: var(--mob-surface, #1E293B) !important;
             border-color: var(--mob-border, rgba(148, 163, 184, 0.16)) !important;
-        }
-        body.dark-theme .invest-hero-card.full-width {
-            background: linear-gradient(135deg, rgba(67, 56, 202, 0.24), rgba(124, 58, 237, 0.16)) !important;
-            border-color: rgba(129, 140, 248, 0.35) !important;
-        }
-        body.dark-theme .invest-hero-card .hero-value {
-            color: var(--mob-text, #F1F5F9) !important;
         }
         body.dark-theme .chip-btn {
             background: var(--mob-surface, #1E293B) !important;
@@ -132,15 +124,15 @@
             color: #ffffff !important;
         }
 
-        /* CARD DE ATIVO EM CUSTÓDIA */
+        /* CARD DE ATIVO EM CUSTÓDIA (COMPACTO) */
         .asset-card {
-            background: var(--color-surface, #ffffff);
-            border-radius: 18px;
-            padding: 14px 16px;
-            border: 1px solid var(--color-border, #e2e8f0);
-            margin-bottom: 12px;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
-            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            background: var(--mob-surface, #ffffff);
+            border-radius: 14px;
+            padding: 10px 12px;
+            border: 1px solid var(--mob-border, #e2e8f0);
+            margin-bottom: 8px;
+            box-shadow: var(--mob-shadow-sm, 0 2px 8px rgba(15, 23, 42, 0.03));
+            transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
             box-sizing: border-box;
         }
         .asset-card:active {
@@ -150,61 +142,75 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            gap: 8px;
+            margin-bottom: 8px;
         }
         .asset-ticker {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 800;
-            color: var(--color-text, #0f172a);
-            display: flex;
+            color: var(--mob-text, #0f172a);
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             letter-spacing: -0.2px;
         }
         .asset-class-badge {
             font-size: 10px;
             font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 6px;
-            background: var(--color-bg, #f1f5f9);
-            color: var(--color-text-muted, #64748b);
+            padding: 1px 6px;
+            border-radius: 5px;
+            background: var(--mob-surface-2, #f1f5f9);
+            color: var(--mob-text-muted, #64748b);
             letter-spacing: 0.02em;
         }
+        .asset-date-sub {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 2px;
+            font-size: 10.5px;
+            color: var(--mob-text-muted, #64748b);
+        }
         .asset-total {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 800;
-            color: var(--color-text, #0f172a);
-            font-feature-settings: 'tnum';
+            color: var(--mob-text, #0f172a);
+            font-variant-numeric: tabular-nums;
             text-align: right;
+            white-space: nowrap;
         }
         .asset-details-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            padding: 10px 12px;
-            background: var(--color-bg, #f8fafc);
-            border-radius: 12px;
-            border: 1px solid var(--color-border-light, #f1f5f9);
-            font-size: 11.5px;
-        }
-        body.dark-theme .asset-details-grid {
-            background: var(--mob-surface-2, #162032) !important;
-            border-color: var(--mob-border, rgba(148, 163, 184, 0.16)) !important;
+            gap: 6px;
+            padding: 7px 10px;
+            background: var(--mob-surface-2, #f8fafc);
+            border-radius: 10px;
+            border: 1px solid var(--mob-border, #f1f5f9);
+            font-size: 11px;
         }
         @media (max-width: 340px) {
             .asset-details-grid {
                 grid-template-columns: repeat(2, 1fr);
-                gap: 8px;
+                gap: 6px;
             }
         }
         .asset-details-item .lbl {
             font-size: 9.5px;
-            color: var(--color-text-muted, #94a3b8);
+            color: var(--mob-text-muted, #94a3b8);
             display: block;
         }
         .asset-details-item .val {
             font-weight: 700;
-            color: var(--color-text, #334155);
+            color: var(--mob-text-secondary, #334155);
+            font-variant-numeric: tabular-nums;
+        }
+        #operationsListContainer,
+        #dividendsListContainer {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
 
         /* CARD DE OPERAÇÃO / LANÇAMENTO */
@@ -505,10 +511,10 @@
                 </div>
                 <div class="hero-stat">
                     <span class="hero-stat-label"><i class="fas fa-chart-line" style="color: #fde68a;"></i> Rentabilidade</span>
-                    <span class="hero-stat-val" id="cardRentabilidadeTotal" style="color: #6ee7b7;">0,00%</span>
+                    <span class="hero-stat-val" id="cardRentabilidadeTotal" style="color: #FFFFFF;">0,00%</span>
                 </div>
             </div>
-            <div class="hero-sub" id="cardProventosTotalSub" style="font-size:10px; color:#c7d2fe; margin-top:4px; display:none;"></div>
+            <div class="hero-sub" id="cardProventosTotalSub" style="font-size:10.5px; color:rgba(255,255,255,0.86); margin-top:6px; display:none;"></div>
             <span id="cardGanhoTotal" style="display:none;">R$ 0,00</span>
         </div>
 
@@ -593,50 +599,62 @@
          ABA 3: PROVENTOS (DIVIDENDOS & JCP)
          ========================================== -->
     <div id="tabContentProventos" class="tab-content">
-        <div class="invest-hero-grid">
-            <div class="invest-hero-card">
-                <div class="hero-label"><i class="fas fa-receipt"></i> Total Recebido</div>
-                <div class="hero-value" id="cardDivHistorico" data-sensitive style="color: #7C3AED;">R$ 0,00</div>
-                <div class="hero-sub" id="cardDivHistoricoSub" style="font-size:10px; color:#94a3b8; margin-top:2px;">0 pagos</div>
+        <!-- HERO CARD PROVENTOS (MESMO PADRÃO ROXO + BRANCO DO APP) -->
+        <div class="mobile-hero-card" id="proventosHeroCard" style="margin-bottom: 10px;">
+            <div class="hero-top">
+                <span class="hero-label"><i class="fas fa-receipt"></i> Total de Proventos Recebidos</span>
+                <span class="badge-mobile" style="background: rgba(255,255,255,0.2); color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px;">
+                    PROVENTOS
+                </span>
             </div>
-            <div class="invest-hero-card">
-                <div class="hero-label"><i class="fas fa-calendar-alt"></i> Recebido Mês</div>
-                <div class="hero-value" id="cardDivMes" data-sensitive style="color: #10B981;">R$ 0,00</div>
-                <div class="hero-sub" id="cardDivMesSub" style="font-size:10px; color:#94a3b8; margin-top:2px;">este mês</div>
-            </div>
-            <div class="invest-hero-card full-width" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(56, 189, 248, 0.12)); border-color: rgba(14, 165, 233, 0.28);">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div class="hero-label" style="color: #0284c7; margin-bottom:2px;"><i class="far fa-clock"></i> Proventos a Receber</div>
-                        <div class="hero-value" id="cardDivAReceber" data-sensitive style="color: #0284c7;">R$ 0,00</div>
-                        <div class="hero-sub" id="cardDivAReceberSub" style="font-size:10.5px; color:#0369a1; font-weight:500; margin-top:2px;">0 proventos previstos</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <span class="op-badge" style="background:#0284c7; color:#fff; font-size:11px; font-weight:700; padding:4px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:5px;">
-                            <i class="far fa-calendar-check"></i> Previsto
-                        </span>
-                    </div>
+            <div class="hero-value" id="cardDivHistorico" data-sensitive>R$ 0,00</div>
+            <div class="hero-footer">
+                <div class="hero-stat">
+                    <span class="hero-stat-label"><i class="fas fa-calendar-alt" style="color: #a7f3d0;"></i> Recebido no Mês</span>
+                    <span class="hero-stat-val income" id="cardDivMes" data-sensitive>R$ 0,00</span>
+                    <span id="cardDivMesSub" style="font-size:10px; color:rgba(255,255,255,0.78); margin-top:1px;">este mês</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-label"><i class="fas fa-check-double" style="color: #e0e7ff;"></i> Pagamentos</span>
+                    <span class="hero-stat-val" id="cardDivHistoricoSub" style="color:#FFFFFF;">0 pagos</span>
                 </div>
             </div>
         </div>
 
-        <!-- GRÁFICO DE EVOLUÇÃO DE PROVENTOS (MOBILE) -->
-        <div class="invest-charts-mobile-card" id="mobileDivChartCard" style="background:var(--color-surface, #fff); border-radius:14px; padding:12px; margin-bottom:12px; border:1px solid var(--color-border, #e2e8f0); box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <div style="font-size:12px; font-weight:700; color:var(--color-text, #1e293b); display:flex; align-items:center; gap:6px;">
-                    <i class="fas fa-chart-bar" style="color:#10b981;"></i> Evolução Mensal de Proventos
+        <!-- CARD BRANCO DE PREVISÃO (PROVENTOS A RECEBER) -->
+        <div class="proventos-forecast-card">
+            <div class="proventos-forecast-left">
+                <div class="proventos-forecast-icon">
+                    <i class="far fa-clock"></i>
                 </div>
-                <span id="mobileProvChartYearPill" style="font-size:10px; font-weight:600; padding:2px 8px; border-radius:12px; background:rgba(16,185,129,0.1); color:#10b981;">Histórico & Previsão</span>
+                <div>
+                    <div class="proventos-forecast-label">Proventos a Receber</div>
+                    <div class="proventos-forecast-value" id="cardDivAReceber" data-sensitive>R$ 0,00</div>
+                    <div class="proventos-forecast-sub" id="cardDivAReceberSub">0 proventos previstos</div>
+                </div>
+            </div>
+            <span class="proventos-forecast-pill">
+                <i class="far fa-calendar-check"></i> Previsto
+            </span>
+        </div>
+
+        <!-- GRÁFICO DE EVOLUÇÃO DE PROVENTOS (MOBILE) -->
+        <div class="invest-charts-mobile-card" id="mobileDivChartCard" style="background:var(--mob-surface, #fff); border-radius:14px; padding:12px; margin-bottom:12px; border:1px solid var(--mob-border, #e2e8f0); box-shadow:var(--mob-shadow-sm, 0 1px 3px rgba(0,0,0,0.05));">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <div style="font-size:12px; font-weight:700; color:var(--mob-text, #1e293b); display:flex; align-items:center; gap:6px;">
+                    <i class="fas fa-chart-bar" style="color:var(--mob-accent, #10b981);"></i> Evolução Mensal de Proventos
+                </div>
+                <span id="mobileProvChartYearPill" style="font-size:10px; font-weight:600; padding:2px 8px; border-radius:12px; background:var(--mob-accent-soft, rgba(16,185,129,0.1)); color:var(--mob-accent, #10b981);">Histórico & Previsão</span>
             </div>
             <!-- Legenda idêntica ao desktop (Recebidos vs A receber) -->
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px; font-size:10.5px; color:var(--color-text-muted, #64748b);">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px; font-size:10.5px; color:var(--mob-text-muted, #64748b);">
                 <div style="display:flex; align-items:center; gap:5px;">
                     <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#0984E3;"></span>
                     <span style="color:#0984E3; font-weight:600;">Proventos recebidos</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:5px;">
                     <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#74B9FF;"></span>
-                    <span style="color:#0284c7; font-weight:600;">Proventos a receber</span>
+                    <span style="color:var(--mob-info, #0284c7); font-weight:600;">Proventos a receber</span>
                 </div>
             </div>
             <div style="height:150px; position:relative;">
@@ -645,12 +663,12 @@
         </div>
 
         <!-- MATRIZ ANUAL DE PROVENTOS (MOBILE - 12 MESES) -->
-        <div class="invest-charts-mobile-card" id="mobileMatrixChartCard" style="background:var(--color-surface, #fff); border-radius:14px; padding:12px; margin-bottom:12px; border:1px solid var(--color-border, #e2e8f0); box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div class="invest-charts-mobile-card" id="mobileMatrixChartCard" style="background:var(--mob-surface, #fff); border-radius:14px; padding:12px; margin-bottom:12px; border:1px solid var(--mob-border, #e2e8f0); box-shadow:var(--mob-shadow-sm, 0 1px 3px rgba(0,0,0,0.05));">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <div style="font-size:12px; font-weight:700; color:var(--color-text, #1e293b); display:flex; align-items:center; gap:6px;">
-                    <i class="fas fa-table" style="color:#8b5cf6;"></i> Matriz Anual de Proventos
+                <div style="font-size:12px; font-weight:700; color:var(--mob-text, #1e293b); display:flex; align-items:center; gap:6px;">
+                    <i class="fas fa-table" style="color:var(--mob-primary, #4338ca);"></i> Matriz Anual de Proventos
                 </div>
-                <span style="font-size:10px; color:#94a3b8;"><i class="fas fa-arrows-alt-h"></i> Arraste para o lado</span>
+                <span style="font-size:10px; color:var(--mob-text-muted, #94a3b8);"><i class="fas fa-arrows-alt-h"></i> Arraste para o lado</span>
             </div>
             <div style="overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:8px; border:1px solid var(--color-border, #f1f5f9);">
                 <table id="mobileProventosMatrixTable" style="width:100%; min-width:650px; border-collapse:collapse; font-size:11px; text-align:right;">
@@ -1016,7 +1034,7 @@
 <script src="../../js/sw-register.js"></script>
 <script src="../../js/data/cnpj-base.js"></script>
 <script src="../../js/reports/ir-report.js"></script>
-<script src="../../js/mobile/ui.js?v=1.0.0"></script>
+<script src="../../js/mobile/ui.js?v=1.0.2"></script>
 <script>
 var formatCurrency = window.formatCurrency;
 var formatDate = window.formatDate;
@@ -1792,15 +1810,15 @@ function updateSummaryHero() {
 
     const isPositive = ganhoTotal >= 0;
     const sign = ganhoTotal > 0 ? '+' : '';
-    const color = isPositive ? '#00B894' : '#FF7675';
+    const color = isPositive ? '#6EE7B7' : '#FCA5A5';
 
     if (rentEl) {
         rentEl.textContent = `${sign}${rentabilidadeTotal.toFixed(2).replace('.', ',')}%`;
-        rentEl.style.color = Math.abs(rentabilidadeTotal) < 0.001 ? 'var(--color-text, #0f172a)' : color;
+        rentEl.style.color = Math.abs(rentabilidadeTotal) < 0.001 ? '#FFFFFF' : color;
     }
     if (ganhoEl) {
         ganhoEl.textContent = `${sign}${formatCurrency(ganhoTotal)}`;
-        ganhoEl.style.color = Math.abs(ganhoTotal) < 0.001 ? 'var(--color-text, #0f172a)' : color;
+        ganhoEl.style.color = Math.abs(ganhoTotal) < 0.001 ? '#FFFFFF' : color;
     }
     if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 
@@ -2780,11 +2798,11 @@ function renderMobileProventosMatrix() {
 
     let html = `
         <thead>
-            <tr style="background:var(--color-bg, #f8fafc); border-bottom:1px solid var(--color-border, #e2e8f0);">
-                <th style="padding:6px 8px; text-align:left; font-weight:700;">Ano</th>
-                ${monthHeaders.map(m => `<th style="padding:6px 6px; font-weight:600;">${m}</th>`).join('')}
+            <tr style="background:var(--mob-surface-2, #f8fafc); border-bottom:1px solid var(--mob-border, #e2e8f0);">
+                <th style="padding:6px 8px; text-align:left; font-weight:700; color:var(--mob-text, #1e293b);">Ano</th>
+                ${monthHeaders.map(m => `<th style="padding:6px 6px; font-weight:600; color:var(--mob-text-muted, #64748b);">${m}</th>`).join('')}
                 <th style="padding:6px 8px; font-weight:700; color:#0984E3;">Média</th>
-                <th style="padding:6px 8px; font-weight:700; color:#8B5CF6;">Total</th>
+                <th style="padding:6px 8px; font-weight:700; color:var(--mob-primary, #4338ca);">Total</th>
             </tr>
         </thead>
         <tbody>
@@ -2801,16 +2819,16 @@ function renderMobileProventosMatrix() {
         const media = total / divisor;
 
         html += `
-            <tr style="border-bottom:1px solid var(--color-border, #f1f5f9);">
-                <td style="padding:6px 8px; text-align:left; font-weight:700; color:var(--color-text, #1e293b);">${year}</td>
+            <tr style="border-bottom:1px solid var(--mob-border, #f1f5f9);">
+                <td style="padding:6px 8px; text-align:left; font-weight:700; color:var(--mob-text, #1e293b);">${year}</td>
                 ${months.map((v, mIdx) => {
                     if (v <= 0) {
-                        return `<td style="padding:6px 6px; font-size:10px; color:#cbd5e1;">-</td>`;
+                        return `<td style="padding:6px 6px; font-size:10px; color:var(--mob-text-muted, #94a3b8); opacity:0.45;">-</td>`;
                     }
                     const isAReceber = (aReceberMonths[mIdx] && aReceberMonths[mIdx] > 0);
-                    const colorStyle = isAReceber ? 'color:#0284c7; font-weight:700;' : 'color:#10b981; font-weight:600;';
+                    const colorStyle = isAReceber ? 'color:var(--mob-info, #0284c7); font-weight:700;' : 'color:var(--mob-accent, #10b981); font-weight:600;';
                     const titleText = isAReceber ? `Provento a receber: ${formatCurrency(v)}` : `Provento recebido: ${formatCurrency(v)}`;
-                    const tag = isAReceber ? '<span style="font-size:8.5px; vertical-align:top; color:#0284c7;">*</span>' : '';
+                    const tag = isAReceber ? '<span style="font-size:8.5px; vertical-align:top; color:var(--mob-info, #0284c7);">*</span>' : '';
                     return `
                         <td style="padding:6px 6px; font-size:10px; ${colorStyle}" title="${titleText}">
                             ${formatCurrency(v).replace('R$', '').trim()}${tag}
@@ -2818,7 +2836,7 @@ function renderMobileProventosMatrix() {
                     `;
                 }).join('')}
                 <td style="padding:6px 8px; font-weight:600; color:#0984E3; font-size:10px;">${formatCurrency(media)}</td>
-                <td style="padding:6px 8px; font-weight:700; color:#8B5CF6; font-size:10.5px; background:rgba(139,92,246,0.05);">${formatCurrency(total)}</td>
+                <td style="padding:6px 8px; font-weight:700; color:var(--mob-primary, #4338ca); font-size:10.5px; background:var(--mob-primary-soft, rgba(67,56,202,0.08));">${formatCurrency(total)}</td>
             </tr>
         `;
     });
@@ -2872,6 +2890,18 @@ function renderPositions() {
         return;
     }
 
+    const lastPurchaseByTicker = {};
+    (allRawInvestments || []).forEach(op => {
+        const tickerKey = String(op.ticker || '').toUpperCase().trim();
+        const opDt = String(op.date || '').split('T')[0];
+        if (!tickerKey || !opDt) return;
+        const isBuy = (op.type || '').toLowerCase().includes('compra') || (op.type || '').toLowerCase().includes('buy');
+        const prev = lastPurchaseByTicker[tickerKey];
+        if (!prev || (isBuy && !prev.isBuy) || (isBuy === prev.isBuy && opDt > prev.date)) {
+            lastPurchaseByTicker[tickerKey] = { date: opDt, isBuy };
+        }
+    });
+
     container.innerHTML = filtered.map((pos, idx) => {
         const formattedQty = pos.quantity % 1 === 0 ? pos.quantity.toFixed(0) : pos.quantity.toFixed(4);
         const currentPrice = pos.currentPrice || pos.quote?.price || pos.averageCost || 0;
@@ -2881,15 +2911,15 @@ function renderPositions() {
             : (pos.quantity * currentPrice);
 
         const quoteDot = isRealQuote 
-            ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00B894;margin-left:4px;vertical-align:middle;" title="Cotação ao vivo (B3)"></span>`
-            : `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#94a3b8;margin-left:4px;vertical-align:middle;" title="Preço Médio"></span>`;
+            ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--mob-accent, #10B981);margin-left:4px;vertical-align:middle;" title="Cotação ao vivo (B3)"></span>`
+            : `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--mob-text-muted, #94a3b8);margin-left:4px;vertical-align:middle;" title="Preço Médio"></span>`;
 
         const costBasis = pos.costBasis || 0;
         const gain = Math.round((totalVal - costBasis) * 100) / 100;
         const gainPct = costBasis > 0 ? ((gain / costBasis) * 100) : 0;
         const isPositiveGain = gain >= 0;
         const signGain = gain > 0 ? '+' : '';
-        const gainColor = Math.abs(gain) < 0.001 ? 'var(--color-text, #334155)' : (isPositiveGain ? '#00B894' : '#FF7675');
+        const gainColor = Math.abs(gain) < 0.001 ? 'var(--mob-text, #334155)' : (isPositiveGain ? 'var(--mob-accent, #10B981)' : 'var(--mob-danger, #EF4444)');
 
         const classMeta = {
             'Ações': { color: '#10B981', icon: 'fa-chart-line' },
@@ -2902,44 +2932,67 @@ function renderPositions() {
         };
         const meta = classMeta[pos.asset_class] || { color: '#4338CA', icon: 'fa-wallet' };
         const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(meta.color) : 'rgba(67, 56, 202, 0.15)';
-        const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+        const delay = (Math.min(idx, 10) * 0.03).toFixed(2);
+        const tickerInfo = lastPurchaseByTicker[String(pos.ticker || '').toUpperCase().trim()];
+        const dateLabel = tickerInfo ? `${tickerInfo.isBuy ? 'Compra' : 'Últ. op.'}: ${formatDate(tickerInfo.date)}` : '';
 
         return `
             <div class="asset-card stagger-card" style="animation-delay: ${delay}s;">
                 <div class="asset-card-top">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${meta.color}; width:38px; height:38px;">
+                    <div style="display:flex; align-items:center; gap:9px; min-width:0;">
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${meta.color}; width:34px; height:34px; border-radius:10px; font-size:13px;">
                             <i class="fas ${meta.icon}"></i>
                         </div>
-                        <div>
+                        <div style="min-width:0;">
                             <span class="asset-ticker">${pos.ticker}</span>
-                            <span class="asset-class-badge">${pos.asset_class}</span>
+                            <div class="asset-date-sub">
+                                <span class="asset-class-badge">${pos.asset_class}</span>
+                                ${dateLabel ? `<span>·</span><span>${dateLabel}</span>` : ''}
+                            </div>
                         </div>
                     </div>
                     <span class="asset-total" data-sensitive>${formatCurrency(totalVal)}</span>
                 </div>
                 <div class="asset-details-grid">
                     <div class="asset-details-item">
-                        <span class="lbl">Quantidade</span>
-                        <span class="val">${formattedQty} cotas</span>
+                        <span class="lbl">Qtd.</span>
+                        <span class="val">${formattedQty}</span>
                     </div>
                     <div class="asset-details-item">
-                        <span class="lbl">Preço Médio</span>
+                        <span class="lbl">P. Médio</span>
                         <span class="val" data-sensitive>${formatCurrency(pos.averageCost)}</span>
                     </div>
                     <div class="asset-details-item">
-                        <span class="lbl">Preço Atual</span>
-                        <span class="val" style="color:#4338CA; font-weight:700;">${formatCurrency(currentPrice)}${quoteDot}</span>
+                        <span class="lbl">Atual</span>
+                        <span class="val" style="color:var(--mob-primary, #4338CA);">${formatCurrency(currentPrice)}${quoteDot}</span>
                     </div>
                     <div class="asset-details-item">
-                        <span class="lbl">Rentabilidade</span>
-                        <span class="val" style="color:${gainColor}; font-weight:700;">${signGain}${gainPct.toFixed(2).replace('.', ',')}%</span>
+                        <span class="lbl">Rentab.</span>
+                        <span class="val" style="color:${gainColor};">${signGain}${gainPct.toFixed(2).replace('.', ',')}%</span>
                     </div>
                 </div>
             </div>
         `;
     }).join("");
     if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
+}
+
+function getInvestDateGroupHeader(dateStr) {
+    if (!dateStr || dateStr === 'sem_data') return 'Sem data';
+    const dStr = String(dateStr).split('T')[0];
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const yest = new Date(now.getTime() - 86400000);
+    const yestStr = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+
+    if (dStr === todayStr) return 'Hoje';
+    if (dStr === yestStr) return 'Ontem';
+
+    const parts = dStr.split('-');
+    if (parts.length !== 3) return dStr;
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const mName = months[parseInt(parts[1], 10) - 1] || parts[1];
+    return `${parts[2]} ${mName} ${parts[0]}`;
 }
 
 // ============================================
@@ -2970,37 +3023,84 @@ function renderOperations() {
         return;
     }
 
-    container.innerHTML = list.map((op, idx) => {
+    const groups = [];
+    let currentGroup = null;
+    list.forEach(op => {
+        const dateKey = op.date ? String(op.date).split('T')[0] : 'sem_data';
+        if (!currentGroup || currentGroup.dateKey !== dateKey) {
+            currentGroup = {
+                dateKey,
+                dateHeader: getInvestDateGroupHeader(dateKey),
+                items: [],
+                dayTotal: 0
+            };
+            groups.push(currentGroup);
+        }
+        const total = parseFloat(op.total_value || op.amount || (op.quantity * (op.unit_price || op.price))) || 0;
         const isBuy = (op.type || '').toLowerCase().includes('compra') || (op.type || '').toLowerCase().includes('buy');
-        const badgeClass = isBuy ? 'buy' : 'sell';
-        const badgeText = isBuy ? 'Compra' : 'Venda';
-        const total = parseFloat(op.total_value || op.amount || (op.quantity * op.price)) || 0;
-        const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+        currentGroup.items.push({ op, total, isBuy });
+        currentGroup.dayTotal += isBuy ? total : -total;
+    });
+
+    let cardIndex = 0;
+    container.innerHTML = groups.map(g => {
+        const daySign = g.dayTotal >= 0 ? '+ ' : '- ';
+        const dayTotalFmt = daySign + formatCurrency(Math.abs(g.dayTotal));
+        const cardsHtml = g.items.map(({ op, total, isBuy }) => {
+            const badgeClass = isBuy ? 'buy' : 'sell';
+            const badgeText = isBuy ? 'Compra' : 'Venda';
+            const icon = isBuy ? 'fa-arrow-up' : 'fa-arrow-down';
+            const color = isBuy ? '#10B981' : '#EF4444';
+            const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(color) : 'rgba(16, 185, 129, 0.14)';
+            const qtyFmt = (Number(op.quantity) || 0) % 1 === 0 ? Number(op.quantity || 0).toFixed(0) : Number(op.quantity || 0).toFixed(4);
+            const unitPrice = parseFloat(op.unit_price || op.price) || 0;
+            const delay = (Math.min(cardIndex++, 10) * 0.03).toFixed(2);
+
+            return `
+                <div class="stagger-card" data-swipe-row data-swipe-width="136" style="animation-delay: ${delay}s;">
+                    <div class="swipe-actions-tray" aria-label="Ações da operação">
+                        <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); editOperation('${op.id}')" aria-label="Editar operação">
+                            <i class="fas fa-pen"></i>
+                            <span>Editar</span>
+                        </button>
+                        <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); deleteOperation('${op.id}')" aria-label="Apagar operação">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>Apagar</span>
+                        </button>
+                    </div>
+                    <div class="mobile-list-card clean-list-card compact-row-card" data-swipe-content>
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <div class="clean-card-body">
+                            <div class="clean-card-top">
+                                <span class="clean-card-title">${op.ticker}</span>
+                                <span class="clean-card-amount ${isBuy ? 'income' : 'expense'}" data-sensitive>
+                                    ${isBuy ? '+' : '-'} ${formatCurrency(total)}
+                                </span>
+                            </div>
+                            <div class="clean-card-meta-line">
+                                <span class="clean-card-tag-inline ${badgeClass}">${badgeText}</span>
+                                <span class="clean-card-cat-text">${qtyFmt} un. @ ${formatCurrency(unitPrice)}</span>
+                                <span class="clean-card-meta-sep" aria-hidden="true">·</span>
+                                <span class="clean-card-date-text">${formatDate(op.date)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
 
         return `
-            <div class="op-card stagger-card" style="animation-delay: ${delay}s;">
-                <div class="clean-card-top" style="margin-bottom:4px;">
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <span class="clean-card-title" style="font-weight:700;">${op.ticker}</span>
-                        <span class="op-badge ${badgeClass}">${badgeText}</span>
-                    </div>
-                    <span class="clean-card-amount" data-sensitive style="color:${isBuy ? '#10b981' : '#ef4444'};">
-                        ${isBuy ? '+' : '-'} ${formatCurrency(total)}
-                    </span>
-                </div>
-                <div class="clean-card-middle">
-                    <span class="clean-tag category">${op.quantity} un. @ ${formatCurrency(op.unit_price)}</span>
-                </div>
-                <div class="clean-card-bottom" style="margin-top:4px;">
-                    <span><i class="far fa-calendar-alt" style="margin-right:4px;"></i>${formatDate(op.date)}</span>
-                    <div class="op-actions">
-                        <button class="op-btn" onclick="editOperation('${op.id}')" title="Editar"><i class="fas fa-pen"></i></button>
-                        <button class="op-btn del" onclick="deleteOperation('${op.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
-                    </div>
-                </div>
+            <div class="ios-section-header">
+                <span>${g.dateHeader}</span>
+                <span class="subtotal-pill" data-sensitive>${dayTotalFmt}</span>
+            </div>
+            <div class="invest-list-group-items">
+                ${cardsHtml}
             </div>
         `;
-    }).join("");
+    }).join('');
     if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 }
 
@@ -3032,7 +3132,11 @@ function renderDividends() {
 
     const todayISO = new Date().toISOString().substring(0, 10);
 
-    let list = allRawDividends || [];
+    let list = [...(allRawDividends || [])].sort((a, b) => {
+        const da = (a.payment_date || a.date || '');
+        const db = (b.payment_date || b.date || '');
+        return db.localeCompare(da);
+    });
     if (currentDividendStatusFilter === 'recebidos') {
         list = list.filter(d => {
             const dt = (d.payment_date || d.date || '').substring(0, 10);
@@ -3066,50 +3170,92 @@ function renderDividends() {
         return;
     }
 
-    container.innerHTML = list.map((d, idx) => {
-        const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
+    const groups = [];
+    let currentGroup = null;
+    list.forEach(d => {
         const rawDate = (d.payment_date || d.date || '').substring(0, 10);
+        const dateKey = rawDate || 'sem_data';
+        if (!currentGroup || currentGroup.dateKey !== dateKey) {
+            currentGroup = {
+                dateKey,
+                dateHeader: getInvestDateGroupHeader(dateKey),
+                items: [],
+                dayTotal: 0
+            };
+            groups.push(currentGroup);
+        }
+        const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
         const isPaid = rawDate && rawDate <= todayISO;
+        currentGroup.items.push({ d, rawDate, val, isPaid });
+        currentGroup.dayTotal += val;
+    });
 
-        const statusBadge = isPaid
-            ? `<span class="op-badge" style="background:rgba(16, 185, 129, 0.12); color:#10b981; border:1px solid rgba(16, 185, 129, 0.25); font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; margin-left:6px;"><i class="fas fa-check-circle" style="font-size:9px;"></i> Pago</span>`
-            : `<span class="op-badge" style="background:rgba(14, 165, 233, 0.12); color:#0284c7; border:1px solid rgba(14, 165, 233, 0.3); font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; margin-left:6px;"><i class="far fa-clock" style="font-size:9px;"></i> A Receber</span>`;
+    let cardIndex = 0;
+    container.innerHTML = groups.map(g => {
+        const cardsHtml = g.items.map(({ d, rawDate, val, isPaid }) => {
+            const color = isPaid ? '#10B981' : '#0284C7';
+            const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(color) : 'rgba(16, 185, 129, 0.14)';
+            const icon = isPaid ? 'fa-hand-holding-usd' : 'fa-clock';
+            const statusTag = isPaid
+                ? `<span class="clean-card-tag-inline paid">Pago</span>`
+                : `<span class="clean-card-tag-inline div-pending">A Receber</span>`;
+            const dateLabel = rawDate
+                ? (isPaid ? `Pago: ${formatDate(rawDate)}` : `Prev.: ${formatDate(rawDate)}`)
+                : 'Sem data';
+            const dateComPart = d.date_com
+                ? `<span class="clean-card-meta-sep" aria-hidden="true">·</span><span class="clean-card-date-text">Com: ${formatDate(d.date_com.substring(0, 10))}</span>`
+                : '';
+            const qtyPart = d.quantity
+                ? `<span class="clean-card-meta-sep" aria-hidden="true">·</span><span class="clean-card-cat-text">${d.quantity} un.</span>`
+                : '';
+            const delay = (Math.min(cardIndex++, 10) * 0.03).toFixed(2);
 
-        const dateComInfo = d.date_com ? `<span style="font-size:11px; color:#64748b; margin-left:6px;">• Com: ${formatDate(d.date_com.substring(0, 10))}</span>` : '';
-
-        const dateLine = isPaid
-            ? `<span style="color:#64748b;"><i class="fas fa-calendar-check" style="color:#10b981; margin-right:3px;"></i> Pago em: <strong>${formatDate(rawDate)}</strong>${dateComInfo}</span>`
-            : `<span style="color:#0284c7; font-weight:600;"><i class="far fa-clock" style="color:#0284c7; margin-right:3px;"></i> A receber em: <strong>${formatDate(rawDate)}</strong>${dateComInfo}</span>`;
-
-        const borderAccent = !isPaid ? 'border-left: 3px solid #0284c7;' : '';
-        const valueColor = isPaid ? '#8b5cf6' : '#0284c7';
-        const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+            return `
+                <div class="stagger-card" data-swipe-row data-swipe-width="136" style="animation-delay: ${delay}s;">
+                    <div class="swipe-actions-tray" aria-label="Ações do provento">
+                        <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); editDividend('${d.id}')" aria-label="Editar provento">
+                            <i class="fas fa-pen"></i>
+                            <span>Editar</span>
+                        </button>
+                        <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); deleteDividend('${d.id}')" aria-label="Apagar provento">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>Apagar</span>
+                        </button>
+                    </div>
+                    <div class="mobile-list-card clean-list-card compact-row-card" data-swipe-content>
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <div class="clean-card-body">
+                            <div class="clean-card-top">
+                                <span class="clean-card-title">${d.ticker}</span>
+                                <span class="clean-card-amount ${isPaid ? 'income' : 'info'}" data-sensitive>
+                                    + ${formatCurrency(val)}
+                                </span>
+                            </div>
+                            <div class="clean-card-meta-line">
+                                <span class="clean-card-tag-inline div-type">${d.type || 'Dividendo'}</span>
+                                ${statusTag}
+                                <span class="clean-card-date-text">${dateLabel}</span>
+                                ${dateComPart}
+                                ${qtyPart}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
 
         return `
-            <div class="op-card stagger-card" style="${borderAccent} animation-delay: ${delay}s;">
-                <div class="clean-card-top" style="margin-bottom:4px;">
-                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                        <span class="clean-card-title" style="font-weight:700;">${d.ticker}</span>
-                        <span class="op-badge div">${d.type || 'Dividendo'}</span>
-                    </div>
-                    <span class="clean-card-amount" data-sensitive style="color:${valueColor};">
-                        + ${formatCurrency(val)}
-                    </span>
-                </div>
-                <div class="clean-card-middle">
-                    ${statusBadge}
-                    ${d.quantity ? `<span class="clean-tag category">${d.quantity} un.</span>` : ''}
-                </div>
-                <div class="clean-card-bottom" style="margin-top:4px;">
-                    <span style="font-size:11.5px;">${dateLine}</span>
-                    <div class="op-actions">
-                        <button class="op-btn" onclick="editDividend('${d.id}')" title="Editar"><i class="fas fa-pen"></i></button>
-                        <button class="op-btn del" onclick="deleteDividend('${d.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
-                    </div>
-                </div>
+            <div class="ios-section-header">
+                <span>${g.dateHeader}</span>
+                <span class="subtotal-pill" data-sensitive>+ ${formatCurrency(g.dayTotal)}</span>
+            </div>
+            <div class="invest-list-group-items">
+                ${cardsHtml}
             </div>
         `;
-    }).join("");
+    }).join('');
     if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 }
 
