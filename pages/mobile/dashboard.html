@@ -14,7 +14,7 @@
     <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png">
     <link rel="shortcut icon" href="../../icons/icon-128x128.png">
     <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png">
-    <title>TonuControle - Dashboard Mobile</title>
+    <title>TonuControle - Mobile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -25,6 +25,23 @@
     <link rel="stylesheet" href="../../css/notifications.css">
     <link rel="stylesheet" href="../../css/sync-status.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .skip-link {
+            position: absolute; top: -100%; left: 50%; transform: translateX(-50%);
+            padding: 12px 24px; background: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%); color: #fff; border-radius: 12px;
+            z-index: 999999; font-weight: 600; text-decoration: none;
+        }
+        .skip-link:focus { top: 16px; }
+        .spinner {
+            display: inline-block;
+            width: 24px; height: 24px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #4338CA;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
     <script>
         if (localStorage.getItem('tonu_bottom_nav_labels') === 'false') {
             document.documentElement.classList.add('nav-icons-only');
@@ -35,7 +52,7 @@
 
 <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
 
-<!-- HEADER AURORA -->
+<!-- TOPBAR -->
 <header class="mobile-topbar">
     <div class="topbar-header">
         <div class="topbar-left">
@@ -43,106 +60,87 @@
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button type="button" class="topbar-btn" id="mobSearchBtn" data-action="command-palette" title="Busca rápida" aria-label="Busca rápida"><i class="fas fa-search"></i></button>
-            <button type="button" class="topbar-btn" data-privacy-toggle data-action="toggle-balance" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade"><i class="fas fa-eye" data-privacy-icon></i></button>
-            <button type="button" class="topbar-btn theme-toggle-btn" id="mobThemeBtn" data-action="toggle-theme" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
-            <button type="button" class="topbar-btn" id="notifBellBtn" title="Notificações" aria-label="Notificações">
+            <button type="button" class="topbar-btn" onclick="window.TonuMobileUI && window.TonuMobileUI.openCommandPalette()" title="Busca rápida" aria-label="Busca rápida">
+                <i class="fas fa-search"></i>
+            </button>
+            <button type="button" class="topbar-btn" data-privacy-toggle onclick="window.TonuMobileUI ? window.TonuMobileUI.togglePrivacyMode() : (window.toggleBalanceVisibility && window.toggleBalanceVisibility())" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade">
+                <i class="fas fa-eye" data-privacy-icon></i>
+            </button>
+            <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema">
+                <i class="fas fa-moon" id="themeIcon"></i>
+            </button>
+            <button class="topbar-btn" id="notifBellBtn" onclick="window.toggleNotificationDropdown(event)" title="Lembretes e Notificações" aria-label="Notificações">
                 <i class="fas fa-bell"></i>
                 <span class="notif-badge hidden" id="notifBadgeCount">0</span>
             </button>
-            <button type="button" class="topbar-btn" id="mobSyncBtn" data-action="sync-now" title="Sincronizar" aria-label="Sincronizar"><i class="fas fa-sync-alt"></i></button>
+            <button class="topbar-btn" onclick="window.syncMobileDashboardNow ? window.syncMobileDashboardNow() : (window.loadMobileData ? window.loadMobileData({ forceRefresh: true }) : location.reload())" title="Sincronizar" aria-label="Sincronizar">
+                <i class="fas fa-sync-alt"></i>
+            </button>
             <a href="settings.html" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
                 <span id="topbarAvatar">U</span>
             </a>
         </div>
     </div>
-    <div class="greeting" id="greetingText">Olá! Bem-vindo de volta</div>
+    <div class="greeting" id="greetingText">Olá, Usuário 👋</div>
 </header>
 
-<!-- CONTEÚDO PRINCIPAL -->
+<!-- CONTEÚDO -->
 <main class="mobile-content" id="main-content">
-
     <!-- SELETOR DE MÊS -->
     <div class="mobile-month-selector-bar">
         <div class="month-selector">
-            <button type="button" class="month-nav" data-action="change-month" data-delta="-1" aria-label="Mês anterior">
+            <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
                 <i class="fas fa-chevron-left"></i>
             </button>
             <span class="month-label" id="selectedMonth">Carregando...</span>
-            <button type="button" class="btn-today hidden" id="btnTodayMonth" data-action="go-current-month">Hoje</button>
-            <button type="button" class="month-nav" data-action="change-month" data-delta="1" aria-label="Próximo mês">
+            <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês">
                 <i class="fas fa-chevron-right"></i>
             </button>
+            <button class="btn-today" onclick="goToCurrentMonth()">Hoje</button>
         </div>
     </div>
 
-    <!-- HERO SALDO + GRID KPI 2x2 -->
-    <div id="summaryContainer">
-        <div class="mob-skeleton-card mob-skel-hero">
-            <div class="mob-skeleton mob-skel-title"></div>
-            <div class="mob-skeleton mob-skel-val"></div>
-        </div>
-    </div>
+    <!-- BALANÇO HERO & CARDS -->
+    <div id="summaryContainer"></div>
 
     <!-- AÇÕES RÁPIDAS -->
-    <div class="mobile-quick-actions" aria-label="Ações Rápidas">
-        <button type="button" class="quick-action-btn qa-expense" data-action="quick-add" data-type="expense">
-            <i class="fas fa-minus-circle"></i>
+    <div class="mobile-quick-actions">
+        <button class="quick-action-btn" onclick="openQuickAddModal('expense')">
+            <i class="fas fa-arrow-down" style="color: #FF7675;"></i>
             <span>Nova Despesa</span>
         </button>
-        <button type="button" class="quick-action-btn qa-income" data-action="quick-add" data-type="income">
-            <i class="fas fa-plus-circle"></i>
+        <button class="quick-action-btn" onclick="openQuickAddModal('income')">
+            <i class="fas fa-arrow-up" style="color: #00B894;"></i>
             <span>Nova Receita</span>
         </button>
-        <a href="bills.html" class="quick-action-btn qa-bills">
-            <i class="fas fa-file-invoice-dollar"></i>
+        <a href="bills.html" class="quick-action-btn">
+            <i class="fas fa-file-invoice-dollar" style="color: #FDCB6E;"></i>
             <span>Contas</span>
         </a>
-        <a href="investments.html" class="quick-action-btn qa-invest">
-            <i class="fas fa-chart-line"></i>
+        <a href="investments.html" class="quick-action-btn">
+            <i class="fas fa-chart-line" style="color: #4338CA;"></i>
             <span>Investir</span>
         </a>
-        <a href="goals.html" class="quick-action-btn qa-goals">
-            <i class="fas fa-bullseye"></i>
+        <a href="goals.html" class="quick-action-btn">
+            <i class="fas fa-bullseye" style="color: #0284C7;"></i>
             <span>Metas</span>
         </a>
     </div>
 
-    <!-- CARROSSEL DE METAS AGRUPADAS POR TIPO -->
-    <section id="mobileGoalsContainer" class="goals-carousel-section" aria-label="Metas"></section>
+    <!-- GRÁFICO INTERATIVO MOBILE (FLUXO & CATEGORIAS) -->
+    <div id="mobileChartContainer"></div>
 
-    <!-- GRÁFICO FINANCEIRO (CATEGORIAS / EVOLUÇÃO MENSAL) -->
-    <section class="mobile-chart-card" id="mobileChartCard" aria-label="Gráficos Financeiros">
-        <div class="mobile-chart-header">
-            <h3 class="mobile-chart-title"><i class="fas fa-chart-pie"></i> Visão Geral</h3>
-            <div class="mobile-chart-toggle" role="tablist">
-                <button type="button" class="mobile-chart-btn active" id="chartBtnCategories" data-action="chart-mode" data-mode="categories">Categorias</button>
-                <button type="button" class="mobile-chart-btn" id="chartBtnMonthly" data-action="chart-mode" data-mode="monthly">Evolução</button>
-            </div>
-        </div>
-        <div class="mobile-chart-wrapper mobile-chart-container" id="mobileChartContainer">
-            <canvas id="mobileChartCanvas" aria-label="Gráfico financeiro"></canvas>
-            <div class="chart-center-total" id="mobileChartCenterTotal" aria-hidden="true">
-                <span class="center-label">Total</span>
-                <span class="center-value tabular-nums" id="mobileChartTotalVal" data-sensitive>R$ 0,00</span>
-            </div>
-        </div>
-        <p class="mobile-ai-empty" id="mobileChartEmptyNotice">Sem despesas pagas registradas neste mês.</p>
-        <div class="mobile-chart-categories" id="categoryBarsContainer"></div>
-    </section>
-
-    <!-- DIAGNÓSTICO 360º E O QUE FAZER HOJE -->
+    <!-- DIAGNÓSTICO 360º & INSIGHTS MOBILE -->
     <div id="mobileInsightsContainer"></div>
 
-    <!-- INSIGHTS IA (90 DIAS) -->
+    <!-- INSIGHTS IA MOBILE -->
     <section class="mobile-insights-card" id="mobileAIInsightsCard" aria-label="Insights IA">
         <div class="mobile-insights-header">
             <div class="mobile-insights-title">
-                <i class="fas fa-wand-magic-sparkles mob-title-icon brand"></i>
-                <span>Insights IA</span>
+                <span>✨ Insights IA</span>
                 <span class="mobile-insights-pill" id="aiInsightsSourceBadge">90 dias</span>
             </div>
-            <button type="button" class="mobile-ai-refresh-btn" id="mobileAiInsightsRefreshBtn" data-action="refresh-ai-insights" title="Atualizar Insights IA" aria-label="Atualizar Insights IA">
+            <button type="button" class="mobile-ai-refresh-btn" id="mobileAiInsightsRefreshBtn" onclick="window.loadAIInsights && window.loadAIInsights(true)" title="Atualizar Insights IA" aria-label="Atualizar Insights IA">
                 <i class="fas fa-sync-alt"></i>
             </button>
         </div>
@@ -151,45 +149,42 @@
         </div>
     </section>
 
+    <!-- METAS AGRUPADAS POR CATEGORIA (CARROSSEL) -->
+    <section id="mobileGoalsContainer" class="mobile-goals-section" aria-label="Metas por categoria"></section>
+
     <!-- ÚLTIMAS TRANSAÇÕES -->
     <div class="mobile-section-title">
-        <span>Últimas Transações</span>
-        <a href="transactions.html">Ver todas <i class="fas fa-arrow-right"></i></a>
+        <span>📋 Últimas Transações</span>
+        <a href="transactions.html">Ver todas →</a>
     </div>
     <div id="mobileTransactions">
-        <div class="mob-skeleton-card">
-            <div class="mob-skeleton mob-skel-line-lg"></div>
-            <div class="mob-skeleton mob-skel-line-sm"></div>
-        </div>
-        <div class="mob-skeleton-card">
-            <div class="mob-skeleton mob-skel-line-md"></div>
-            <div class="mob-skeleton mob-skel-line-sm"></div>
-        </div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="height:16px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:12px;width:36%;"></div></div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="height:16px;width:64%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:12px;width:42%;"></div></div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="height:16px;width:52%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:12px;width:30%;"></div></div>
     </div>
-
 </main>
 
-<!-- BOTTOM SHEET MODAL (ADICIONAR TRANSAÇÃO) -->
-<div class="mobile-modal-overlay" id="quickAddModal">
-    <div class="mobile-modal-sheet" id="quickAddSheet">
+<!-- BOTTOM SHEET MODAL (ADICIONAR TRANSAÇÃO RÁPIDA) -->
+<div class="mobile-modal-overlay" id="quickAddModal" onclick="closeQuickAddModal(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
         <div class="sheet-drag-handle"></div>
         <div class="sheet-header">
             <h3 id="modalTitle">Nova Transação</h3>
-            <button type="button" class="sheet-close-btn" data-action="close-quick-modal" aria-label="Fechar"><i class="fas fa-times"></i></button>
+            <button class="sheet-close-btn" onclick="closeQuickAddModal()"><i class="fas fa-times"></i></button>
         </div>
 
-        <form id="quickAddForm">
+        <form id="quickAddForm" onsubmit="handleQuickAddSubmit(event)">
             <div class="type-toggle-group">
-                <button type="button" class="type-toggle-btn active expense" id="toggleExpense" data-action="set-quick-type" data-type="expense">
+                <button type="button" class="type-toggle-btn active expense" id="toggleExpense" onclick="setQuickType('expense')">
                     <i class="fas fa-arrow-down"></i> Despesa
                 </button>
-                <button type="button" class="type-toggle-btn income" id="toggleIncome" data-action="set-quick-type" data-type="income">
+                <button type="button" class="type-toggle-btn income" id="toggleIncome" onclick="setQuickType('income')">
                     <i class="fas fa-arrow-up"></i> Receita
                 </button>
             </div>
 
             <div class="sheet-form-group">
-                <label for="quickDesc">Descrição</label>
+                <label>Descrição</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-pencil-alt"></i>
                     <input type="text" id="quickDesc" class="sheet-input" placeholder="Ex: Supermercado, Salário..." required>
@@ -197,7 +192,7 @@
             </div>
 
             <div class="sheet-form-group">
-                <label for="quickAmount">Valor (R$)</label>
+                <label>Valor (R$)</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-dollar-sign"></i>
                     <input type="number" step="0.01" min="0.01" id="quickAmount" class="sheet-input" placeholder="0,00" required>
@@ -205,7 +200,7 @@
             </div>
 
             <div class="sheet-form-group">
-                <label for="quickCategory">Categoria</label>
+                <label>Categoria</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-tags"></i>
                     <select id="quickCategory" class="sheet-input" required>
@@ -215,7 +210,7 @@
             </div>
 
             <div class="sheet-form-group">
-                <label for="quickDate">Data</label>
+                <label>Data</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-calendar"></i>
                     <input type="date" id="quickDate" class="sheet-input" required>
@@ -227,13 +222,13 @@
     </div>
 </div>
 
-<!-- BOTTOM NAV FLUTUANTE AURORA (IGUAL ÀS OUTRAS TELAS MOBILE) -->
-<nav class="bottom-nav" aria-label="Navegação Principal">
+<!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
+<nav class="bottom-nav">
     <a href="dashboard.html" class="active"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
     <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
     <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
     <div class="nav-center">
-        <button type="button" class="nav-add-btn" id="navAddBtn" data-action="quick-add" data-type="expense" aria-label="Nova Transação" title="Nova Transação">
+        <button type="button" class="nav-add-btn" onclick="openQuickAddModal('expense')" aria-label="Nova Transação" title="Nova Transação">
             <i class="fas fa-plus"></i>
         </button>
     </div>
@@ -255,7 +250,7 @@
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
 <script src="../../js/mobile/ui.js?v=1.0.0"></script>
-<script src="../../js/mobile/dashboard.js?v=6.0.0"></script>
+<script src="../../js/mobile/dashboard.js?v=4.0.0"></script>
 
 </body>
 </html>
