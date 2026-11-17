@@ -531,7 +531,8 @@ button, input, select, textarea {
 .mobile-hero-card,
 .mobile-hero-balance,
 .ios-hero-summary,
-.bills-hero-card {
+.bills-hero-card,
+.invest-hero-card {
     position: relative;
     overflow: hidden;
     background: var(--mob-gradient) !important;
@@ -546,7 +547,8 @@ button, input, select, textarea {
 .mobile-hero-card::before,
 .mobile-hero-balance::before,
 .ios-hero-summary::before,
-.bills-hero-card::before {
+.bills-hero-card::before,
+.invest-hero-card::before {
     content: "";
     position: absolute;
     top: -48px;
@@ -601,8 +603,7 @@ button, input, select, textarea {
 
 .mobile-hero-breakdown,
 .bills-hero-grid,
-.goals-hero-grid,
-.invest-hero-grid {
+.goals-hero-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
@@ -612,6 +613,69 @@ button, input, select, textarea {
 
 .goals-hero-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.invest-hero-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.invest-hero-grid .invest-hero-card {
+    border-radius: 18px;
+    padding: 14px 15px;
+    margin-bottom: 0;
+}
+
+.invest-hero-grid .invest-hero-card.full-width {
+    grid-column: span 2;
+    background: linear-gradient(135deg, #3730A3 0%, #5B21B6 52%, #7C3AED 100%) !important;
+}
+
+.invest-hero-card .hero-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.86) !important;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.invest-hero-card .hero-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: #FFFFFF !important;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.18;
+}
+
+.invest-hero-card.full-width .hero-value {
+    font-size: 24px;
+    color: #FFFFFF !important;
+}
+
+.invest-hero-card .hero-sub-note {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.80) !important;
+    margin-top: 3px;
+}
+
+.invest-hero-card .hero-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    color: #FFFFFF;
+    font-size: 10px;
+    font-weight: 700;
 }
 
 .mobile-hero-stat,
