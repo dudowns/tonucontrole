@@ -1013,7 +1013,7 @@ function renderMobileChart() {
         <div class="mobile-chart-card">
             <div class="mobile-chart-header">
                 <div class="mobile-chart-title">
-                    <i class="fas fa-chart-pie" style="color:#4338CA;"></i> Visão Gráfica de Gastos
+                    <i class="fas fa-chart-pie" style="color:#4338CA;"></i> Visão de Gastos
                 </div>
                 <div class="mobile-chart-toggle">
                     <button class="mobile-chart-btn ${currentChartMode === 'categories' ? 'active' : ''}" onclick="setMobileChartMode('categories')">
