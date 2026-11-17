@@ -3811,7 +3811,15 @@ function renderAIInsights(insights, meta) {
     }
 
     if (list.length === 0) {
-        body.innerHTML = '<p class="ai-insights-empty">Insights IA indisponíveis no momento. O Diagnóstico 360º abaixo segue ativo.</p>';
+        const msg = meta?.errorMessage
+            ? _escapeAiInsightHtml(meta.errorMessage)
+            : (meta?.reason === 'offline'
+                ? 'Sem conexão no momento. O Diagnóstico 360º abaixo segue ativo.'
+                : 'Insights IA indisponíveis no momento. O Diagnóstico 360º abaixo segue ativo.');
+        if (badgeEl && meta?.reason) {
+            badgeEl.textContent = meta.reason === 'offline' ? 'Offline' : (meta.reason === 'api_key_invalid' || meta.reason === 'not_configured' ? 'Config. pendente' : 'Indisponível');
+        }
+        body.innerHTML = `<p class="ai-insights-empty">${msg}</p>`;
         return;
     }
 
@@ -3848,7 +3856,7 @@ async function loadAIInsights(forceRefresh) {
     const force = forceRefresh === true;
     const uid = currentUser?.id;
     if (!uid) {
-        renderAIInsights([]);
+        renderAIInsights([], { reason: 'unauthorized' });
         return;
     }
 
@@ -3867,7 +3875,7 @@ async function loadAIInsights(forceRefresh) {
     }
 
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        renderAIInsights([]);
+        renderAIInsights([], { reason: 'offline' });
         return;
     }
 
@@ -3889,7 +3897,7 @@ async function loadAIInsights(forceRefresh) {
             token = data?.session?.access_token || '';
         }
         if (!token) {
-            renderAIInsights([]);
+            renderAIInsights([], { reason: 'no_token', errorMessage: 'Sessão expirada. Faça login novamente para gerar Insights IA.' });
             return;
         }
 
@@ -3905,12 +3913,21 @@ async function loadAIInsights(forceRefresh) {
             body: JSON.stringify({ forceRefresh: force })
         });
 
+        let data = null;
+        try {
+            data = await res.json();
+        } catch (_) {
+            data = null;
+        }
+
         if (!res.ok) {
-            renderAIInsights([]);
+            renderAIInsights([], {
+                reason: data?.reason || (res.status === 401 ? 'unauthorized' : 'error'),
+                errorMessage: data?.error || ''
+            });
             return;
         }
 
-        const data = await res.json();
         const insights = Array.isArray(data?.insights) ? data.insights : [];
         if (insights.length > 0) {
             try {
@@ -3920,10 +3937,16 @@ async function loadAIInsights(forceRefresh) {
                     ts: Date.now()
                 }));
             } catch (_) {}
+            renderAIInsights(insights, { source: data?.source || 'ai' });
+            return;
         }
-        renderAIInsights(insights, { source: data?.source || 'ai' });
+
+        renderAIInsights([], {
+            reason: data?.reason || (data?.gemini_configured === false ? 'not_configured' : 'error'),
+            errorMessage: data?.error || ''
+        });
     } catch (_) {
-        renderAIInsights([]);
+        renderAIInsights([], { reason: (typeof navigator !== 'undefined' && navigator.onLine === false) ? 'offline' : 'error' });
     } finally {
         _aiInsightsFetchInFlight = false;
         if (refreshIcon) refreshIcon.classList.remove('fa-spin');

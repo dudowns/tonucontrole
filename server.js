@@ -20,7 +20,7 @@ const archiverModule = require('archiver');
 const crypto = require('crypto');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { GoogleGenAI, ThinkingLevel } = require('@google/genai');
+const { GoogleGenAI, ThinkingLevel, Type } = require('@google/genai');
 const { generateNonceMiddleware, createHelmetMiddleware, injectNonceIntoHtml } = require('./security-headers');
 
 function createZipArchive(options = {}) {
@@ -183,6 +183,7 @@ const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
 const AI_CACHE_MAX_ENTRIES = 5000;
 const AI_DAILY_USER_LIMIT = 50;
 const AI_REQUEST_TIMEOUT_MS = 10000;
+const AI_INSIGHTS_REQUEST_TIMEOUT_MS = 18000;
 
 const aiClassifyCache = new Map();
 const aiDailyRateLimit = new Map();
@@ -577,6 +578,66 @@ function parseAiInsightsResponse(rawText) {
     return validInsights.length > 0 ? validInsights : null;
 }
 
+let lastAiInsightsError = null;
+
+function sanitizeAiErrorMessage(err) {
+    const raw = String(err?.message || 'Erro desconhecido ao consultar IA.');
+    return raw.replace(/AIza[0-9A-Za-z_-]{10,}/g, '[REDACTED]').slice(0, 300);
+}
+
+function classifyGeminiError(err) {
+    const msg = sanitizeAiErrorMessage(err);
+    const statusNum = Number(err?.status || err?.code) || 0;
+    const upper = msg.toUpperCase();
+
+    if (err?.message === 'AI_TIMEOUT' || err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+        return {
+            reason: 'timeout',
+            httpStatus: 504,
+            userMessage: 'A IA demorou para responder. Tente novamente em instantes.',
+            rawMessage: msg
+        };
+    }
+    if (statusNum === 400 && (upper.includes('API_KEY_INVALID') || upper.includes('API KEY NOT VALID'))) {
+        return {
+            reason: 'api_key_invalid',
+            httpStatus: 400,
+            userMessage: 'Chave da API Gemini inválida no servidor. Verifique as configurações de segredos.',
+            rawMessage: msg
+        };
+    }
+    if (statusNum === 403 || upper.includes('PERMISSION_DENIED') || upper.includes('ACCESS_DENIED')) {
+        return {
+            reason: 'api_key_invalid',
+            httpStatus: 403,
+            userMessage: 'Acesso negado pela API Gemini. Verifique a chave configurada no servidor.',
+            rawMessage: msg
+        };
+    }
+    if (statusNum === 429 || upper.includes('RESOURCE_EXHAUSTED')) {
+        return {
+            reason: 'quota_exceeded',
+            httpStatus: 429,
+            userMessage: 'Cota da API Gemini excedida no momento. Tente novamente mais tarde.',
+            rawMessage: msg
+        };
+    }
+    if (statusNum === 404 || upper.includes('NOT_FOUND')) {
+        return {
+            reason: 'model_not_found',
+            httpStatus: 502,
+            userMessage: 'Modelo de IA indisponível ou não encontrado.',
+            rawMessage: msg
+        };
+    }
+    return {
+        reason: 'error',
+        httpStatus: (statusNum >= 400 && statusNum < 600) ? statusNum : 502,
+        userMessage: 'Falha temporária ao gerar insights com IA.',
+        rawMessage: msg
+    };
+}
+
 app.get(['/api/insights-health', '/tonucontrole/api/insights-health'], (req, res) => {
     const now = Date.now();
     for (const [k, v] of aiInsightsCache.entries()) {
@@ -587,7 +648,12 @@ app.get(['/api/insights-health', '/tonucontrole/api/insights-health'], (req, res
     return res.json({
         status: 'ok',
         cache_size: aiInsightsCache.size,
-        gemini_configured: Boolean(String(process.env.GEMINI_API_KEY || '').trim())
+        gemini_configured: Boolean(String(process.env.GEMINI_API_KEY || '').trim()),
+        last_error: lastAiInsightsError ? {
+            reason: lastAiInsightsError.reason,
+            status: lastAiInsightsError.status,
+            at: lastAiInsightsError.at
+        } : null
     });
 });
 
@@ -595,7 +661,7 @@ app.post(['/api/insights', '/tonucontrole/api/insights'], async (req, res) => {
     const startMs = Date.now();
     const authUser = extractBearerUser(req.headers.authorization);
     if (!authUser) {
-        return res.status(401).json({ error: 'Token de autenticação inválido ou ausente.', insights: [] });
+        return res.status(401).json({ error: 'Token de autenticação inválido ou ausente.', insights: [], reason: 'unauthorized' });
     }
 
     const userHash = hashUserForLog(authUser.userId);
@@ -620,7 +686,12 @@ app.post(['/api/insights', '/tonucontrole/api/insights'], async (req, res) => {
         if (process.env.NODE_ENV !== 'test') {
             console.log(`[ai-insights] user=${userHash} source=degraded latency_ms=${Date.now() - startMs}`);
         }
-        return res.json({ insights: [], gemini_configured: false });
+        return res.status(503).json({
+            insights: [],
+            gemini_configured: false,
+            reason: 'not_configured',
+            error: 'Chave da API Gemini não configurada no servidor.'
+        });
     }
 
     const quota = consumeDailyInsightsQuota(authUser.userId);
@@ -628,7 +699,11 @@ app.post(['/api/insights', '/tonucontrole/api/insights'], async (req, res) => {
         if (process.env.NODE_ENV !== 'test') {
             console.log(`[ai-insights] user=${userHash} source=rate_limit latency_ms=${Date.now() - startMs}`);
         }
-        return res.json({ insights: [], reason: 'rate_limit' });
+        return res.status(429).json({
+            insights: [],
+            reason: 'rate_limit',
+            error: 'Limite diário de consultas IA atingido.'
+        });
     }
 
     let timeoutHandle = null;
@@ -637,21 +712,38 @@ app.post(['/api/insights', '/tonucontrole/api/insights'], async (req, res) => {
         const promptText =
             `Analise este resumo financeiro pessoal dos últimos 90 dias: ${JSON.stringify(summary)}. ` +
             `Gere EXATAMENTE 3 insights acionáveis em português brasileiro, específicos aos números, máx 20 palavras cada. ` +
-            `Retorne APENAS JSON válido: {"insights": [{"type": "warning|success|info", "text": "..."}, ...]}. ` +
-            `Sem markdown, sem backticks.`;
+            `Retorne APENAS JSON válido no formato {"insights": [{"type": "warning|success|info", "text": "..."}]}.`;
 
         const geminiPromise = ai.models.generateContent({
             model: 'gemini-4-hydrogen',
             contents: promptText,
             config: {
-                systemInstruction: 'Você é um consultor financeiro pessoal brasileiro objetivo. Responda exclusivamente em JSON válido conforme solicitado, sem markdown ou backticks.',
+                systemInstruction: 'Você é um consultor financeiro pessoal brasileiro objetivo. Responda exclusivamente em JSON válido conforme o esquema, sem markdown.',
                 thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-                abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS)
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        insights: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    type: { type: Type.STRING },
+                                    text: { type: Type.STRING }
+                                },
+                                required: ['type', 'text']
+                            }
+                        }
+                    },
+                    required: ['insights']
+                },
+                abortSignal: AbortSignal.timeout(AI_INSIGHTS_REQUEST_TIMEOUT_MS)
             }
         });
 
         const timeoutPromise = new Promise((_, reject) => {
-            timeoutHandle = setTimeout(() => reject(new Error('AI_TIMEOUT')), AI_REQUEST_TIMEOUT_MS);
+            timeoutHandle = setTimeout(() => reject(new Error('AI_TIMEOUT')), AI_INSIGHTS_REQUEST_TIMEOUT_MS);
         });
 
         const response = await Promise.race([geminiPromise, timeoutPromise]);
@@ -659,6 +751,7 @@ app.post(['/api/insights', '/tonucontrole/api/insights'], async (req, res) => {
         const generatedAt = new Date().toISOString();
 
         if (parsedInsights) {
+            lastAiInsightsError = null;
             setAiInsightsCache(authUser.userId, parsedInsights, generatedAt);
             if (process.env.NODE_ENV !== 'test') {
                 console.log(`[ai-insights] user=${userHash} source=ai latency_ms=${Date.now() - startMs}`);
@@ -679,20 +772,36 @@ app.post(['/api/insights', '/tonucontrole/api/insights'], async (req, res) => {
             generated_at: generatedAt
         });
     } catch (err) {
-        const reason = err?.message === 'AI_TIMEOUT' ? 'timeout' : 'error';
+        const classified = classifyGeminiError(err);
+        // Não consome cota diária quando falha por erro de configuração/chave
+        if (classified.reason === 'api_key_invalid') {
+            const entry = aiInsightsDailyRateLimit.get(authUser.userId);
+            if (entry && entry.count > 0) entry.count -= 1;
+        }
+        lastAiInsightsError = {
+            reason: classified.reason,
+            status: classified.httpStatus,
+            message: classified.rawMessage,
+            at: new Date().toISOString()
+        };
         if (process.env.NODE_ENV !== 'test') {
             console.error('[insights] Gemini falhou:', {
-                error: err?.message,
+                reason: classified.reason,
+                error: classified.rawMessage,
                 errorName: err?.name,
-                errorStatus: err?.status || err?.code,
+                errorStatus: classified.httpStatus,
                 model: 'gemini-4-hydrogen',
                 user: userHash,
-                latency_ms: Date.now() - startMs,
-                stack: err?.stack?.split('\n').slice(0, 3).join(' | ')
+                latency_ms: Date.now() - startMs
             });
-            console.warn(`[ai-insights] user=${userHash} source=${reason} latency_ms=${Date.now() - startMs}`);
+            console.warn(`[ai-insights] user=${userHash} source=${classified.reason} latency_ms=${Date.now() - startMs}`);
         }
-        return res.json({ insights: [], reason });
+        return res.status(classified.httpStatus).json({
+            insights: [],
+            reason: classified.reason,
+            error_status: classified.httpStatus,
+            error: classified.userMessage
+        });
     } finally {
         if (timeoutHandle) clearTimeout(timeoutHandle);
     }

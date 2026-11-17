@@ -376,84 +376,150 @@
     }
 
     // ======================================================================
-    // 8. SWIPE-TO-DELETE ON LIST ITEMS ([data-swipe-row])
+    // 8. SWIPE ACTIONS ON LIST ITEMS ([data-swipe-row])
     // ======================================================================
+    function closeSwipeRows(exceptRow) {
+        document.querySelectorAll('[data-swipe-row].swiped-open').forEach(function (row) {
+            if (row !== exceptRow) {
+                row.classList.remove('swiped-open');
+                var fg = row.querySelector('[data-swipe-content]');
+                if (fg) fg.style.transform = '';
+            }
+        });
+    }
+
+    function getSwipeActionWidth(row) {
+        if (!row) return 80;
+        var attr = Number(row.getAttribute('data-swipe-width'));
+        if (Number.isFinite(attr) && attr > 0) return attr;
+        var tray = row.querySelector('.swipe-actions-tray, .swipe-action-delete');
+        if (tray && tray.offsetWidth > 0) return tray.offsetWidth;
+        return 80;
+    }
+
     function setupSwipeToDelete() {
         var activeRow = null;
+        var activeWidth = 80;
         var startX = 0;
         var startY = 0;
+        var baseOffset = 0;
         var dragging = false;
-        var actionWidth = 84;
+        var isMouseDown = false;
+        var suppressClickUntil = 0;
 
-        function closeOtherRows(exceptRow) {
-            document.querySelectorAll('[data-swipe-row].swiped-open').forEach(function (row) {
-                if (row !== exceptRow) {
-                    row.classList.remove('swiped-open');
-                    var fg = row.querySelector('[data-swipe-content]');
-                    if (fg) fg.style.transform = '';
-                }
-            });
+        function startDrag(target, clientX, clientY) {
+            var row = target && target.closest ? target.closest('[data-swipe-row]') : null;
+            if (!row) {
+                closeSwipeRows(null);
+                return false;
+            }
+            if (target.closest('button, a, input, select, label')) return false;
+            closeSwipeRows(row);
+            activeRow = row;
+            activeWidth = getSwipeActionWidth(row);
+            startX = clientX;
+            startY = clientY;
+            baseOffset = row.classList.contains('swiped-open') ? -activeWidth : 0;
+            dragging = false;
+            return true;
         }
 
-        document.addEventListener('touchstart', function (e) {
-            var row = e.target && e.target.closest ? e.target.closest('[data-swipe-row]') : null;
-            if (!row || !e.touches || e.touches.length !== 1) {
-                closeOtherRows(null);
-                return;
-            }
-            if (e.target.closest('button, a, input')) return;
-            closeOtherRows(row);
-            activeRow = row;
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
-            dragging = false;
-        }, { passive: true });
-
-        document.addEventListener('touchmove', function (e) {
-            if (!activeRow || !e.touches || e.touches.length !== 1) return;
-            var dx = e.touches[0].clientX - startX;
-            var dy = e.touches[0].clientY - startY;
-            if (!dragging && Math.abs(dy) > Math.abs(dx)) {
+        function moveDrag(clientX, clientY) {
+            if (!activeRow) return;
+            var dx = clientX - startX;
+            var dy = clientY - startY;
+            if (!dragging && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 6) {
                 activeRow = null;
                 return;
             }
-            if (dx < -8) {
-                dragging = true;
-                var fg = activeRow.querySelector('[data-swipe-content]');
-                if (fg) {
-                    var offset = Math.max(-actionWidth, dx);
-                    fg.style.transition = 'none';
-                    fg.style.transform = 'translateX(' + offset + 'px)';
-                }
-            } else if (dx > 8 && activeRow.classList.contains('swiped-open')) {
-                dragging = true;
-                var fgOpen = activeRow.querySelector('[data-swipe-content]');
-                if (fgOpen) {
-                    var offsetOpen = Math.min(0, -actionWidth + dx);
-                    fgOpen.style.transition = 'none';
-                    fgOpen.style.transform = 'translateX(' + offsetOpen + 'px)';
-                }
+            if (!dragging && Math.abs(dx) < 8) return;
+            dragging = true;
+            var fg = activeRow.querySelector('[data-swipe-content]');
+            if (fg) {
+                var nextOffset = Math.max(-activeWidth, Math.min(0, baseOffset + dx));
+                fg.style.transition = 'none';
+                fg.style.transform = 'translateX(' + nextOffset + 'px)';
             }
-        }, { passive: true });
+        }
 
-        document.addEventListener('touchend', function (e) {
+        function endDrag(clientX) {
             if (!activeRow) return;
             var row = activeRow;
             var fg = row.querySelector('[data-swipe-content]');
+            var wasDragging = dragging;
+            var width = activeWidth;
             activeRow = null;
-            if (!dragging || !fg || !e.changedTouches || !e.changedTouches.length) return;
+            dragging = false;
+            if (!wasDragging || !fg) return;
 
-            var dx = e.changedTouches[0].clientX - startX;
+            suppressClickUntil = Date.now() + 260;
+            var dx = clientX - startX;
+            var wasOpen = baseOffset < 0;
+            var shouldOpen = wasOpen ? (dx < 32) : (dx < -38);
             fg.style.transition = '';
-            if (dx < -40) {
+            if (shouldOpen) {
                 row.classList.add('swiped-open');
-                fg.style.transform = 'translateX(-' + actionWidth + 'px)';
+                fg.style.transform = 'translateX(-' + width + 'px)';
                 haptic('light');
             } else {
                 row.classList.remove('swiped-open');
                 fg.style.transform = '';
             }
+        }
+
+        document.addEventListener('touchstart', function (e) {
+            if (!e.touches || e.touches.length !== 1) return;
+            startDrag(e.target, e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: true });
+
+        document.addEventListener('touchmove', function (e) {
+            if (!activeRow || !e.touches || e.touches.length !== 1) return;
+            moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+
+        document.addEventListener('touchend', function (e) {
+            if (!activeRow || !e.changedTouches || !e.changedTouches.length) return;
+            endDrag(e.changedTouches[0].clientX);
+        }, { passive: true });
+
+        document.addEventListener('touchcancel', function () {
+            if (!activeRow) return;
+            var fg = activeRow.querySelector('[data-swipe-content]');
+            if (fg) {
+                fg.style.transition = '';
+                fg.style.transform = activeRow.classList.contains('swiped-open') ? ('translateX(-' + activeWidth + 'px)') : '';
+            }
+            activeRow = null;
+            dragging = false;
+        }, { passive: true });
+
+        // Suporte a arraste com mouse/pointer em navegadores e emuladores
+        document.addEventListener('mousedown', function (e) {
+            if (e.button !== 0) return;
+            isMouseDown = startDrag(e.target, e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!isMouseDown || !activeRow) return;
+            moveDrag(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mouseup', function (e) {
+            if (!isMouseDown) return;
+            isMouseDown = false;
+            if (activeRow) endDrag(e.clientX);
+        });
+
+        document.addEventListener('click', function (e) {
+            if (Date.now() < suppressClickUntil) {
+                e.stopPropagation();
+                e.preventDefault();
+                return;
+            }
+            if (e.target && e.target.closest && !e.target.closest('[data-swipe-row]')) {
+                closeSwipeRows(null);
+            }
+        }, true);
     }
 
     // ======================================================================
@@ -739,6 +805,7 @@
         closeCommandPalette: closeCommandPalette,
         startNavProgress: startNavProgress,
         finishNavProgress: finishNavProgress,
-        syncThemeMeta: syncThemeMeta
+        syncThemeMeta: syncThemeMeta,
+        closeSwipeRows: closeSwipeRows
     };
 })(window, document);

@@ -1147,36 +1147,72 @@ button, input, select, textarea {
     border-color: transparent;
 }
 
-/* Swipe-to-Delete Container */
+/* Swipe Actions Container (Extrato & Contas) */
 [data-swipe-row] {
     position: relative;
     overflow: hidden;
-    border-radius: var(--mob-radius-card);
+    border-radius: 14px;
+    background: var(--mob-surface-2);
 }
-.swipe-action-delete {
+.swipe-actions-tray {
     position: absolute;
     top: 0;
     right: 0;
     bottom: 0;
-    width: 84px;
-    background: var(--mob-danger);
-    color: #FFFFFF;
-    border: none;
     display: flex;
+    align-items: stretch;
+    z-index: 1;
+}
+.swipe-action-btn,
+.swipe-action-delete {
+    width: 68px;
+    min-width: 68px;
+    min-height: 44px;
+    border: none;
+    color: #FFFFFF;
+    display: inline-flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    font-size: 11px;
+    gap: 3px;
+    font-size: 10.5px;
     font-weight: 700;
+    letter-spacing: 0.01em;
     cursor: pointer;
+    padding: 0 6px;
+    touch-action: manipulation;
+    transition: filter 0.15s ease;
+}
+.swipe-action-btn i,
+.swipe-action-delete i {
+    font-size: 13px;
+}
+.swipe-action-btn:active,
+.swipe-action-delete:active {
+    filter: brightness(0.9);
+}
+.swipe-action-edit {
+    background: var(--mob-primary, #4338CA);
+}
+.swipe-action-delete {
+    background: var(--mob-danger, #EF4444);
+}
+[data-swipe-row] > .swipe-action-delete {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 80px;
+    min-width: 80px;
     z-index: 1;
 }
 [data-swipe-content] {
     position: relative;
     z-index: 2;
     background: var(--mob-surface);
-    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    touch-action: pan-y;
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
 }
 
 /* Grouped iOS Day Cards (Transactions) */
@@ -3362,17 +3398,46 @@ body.dark-theme .mob-skeleton::after {
 }
 
 .mobile-list-card.clean-list-card,
-.clean-list-card {
+.clean-list-card,
+.bill-card-mobile.clean-list-card {
     background: var(--mob-surface) !important;
     border: 1px solid var(--mob-border) !important;
-    border-radius: var(--mob-radius-card);
-    padding: 13px 14px;
+    border-radius: 14px !important;
+    padding: 9px 12px !important;
     display: flex;
-    align-items: flex-start;
-    gap: 12px;
+    flex-direction: column;
+    gap: 0;
     box-shadow: var(--mob-shadow-sm);
     width: 100%;
     box-sizing: border-box;
+    margin: 0 !important;
+}
+
+.mobile-list-card.clean-list-card.compact-row-card {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+}
+
+.bill-card-mobile.clean-list-card.overdue {
+    border-color: rgba(239, 68, 68, 0.38) !important;
+}
+
+.compact-card-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+}
+
+.compact-card-main .mobile-icon-squircle,
+.mobile-list-card.clean-list-card.compact-row-card .mobile-icon-squircle {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    font-size: 13px;
+    flex-shrink: 0;
 }
 
 [data-swipe-row] .clean-list-card,
@@ -3385,33 +3450,36 @@ body.dark-theme .mob-skeleton::after {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 3px;
 }
 
 .clean-card-top {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
+    margin-bottom: 0;
 }
 
 .clean-card-title {
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 700;
     color: var(--mob-text);
-    line-height: 1.3;
-    word-break: break-word;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .clean-card-amount-wrap {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
 }
 
 .clean-card-amount {
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -3419,6 +3487,153 @@ body.dark-theme .mob-skeleton::after {
 .clean-card-amount.income { color: var(--mob-accent); }
 .clean-card-amount.expense { color: var(--mob-danger); }
 .clean-card-amount.warning { color: var(--mob-warning); }
+
+.clean-card-meta-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--mob-text-muted);
+    line-height: 1.3;
+    min-width: 0;
+}
+
+.clean-card-meta-sep {
+    opacity: 0.45;
+    font-weight: 700;
+}
+
+.clean-card-cat-text {
+    font-weight: 600;
+    color: var(--mob-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 130px;
+}
+
+.clean-card-date-text {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.clean-card-tag-inline {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 5px;
+    line-height: 1.35;
+    white-space: nowrap;
+}
+.clean-card-tag-inline.bill {
+    background: var(--mob-primary-soft);
+    color: var(--mob-primary);
+}
+.clean-card-tag-inline.pending {
+    background: var(--mob-warning-soft);
+    color: var(--mob-warning);
+}
+.clean-card-tag-inline.paid {
+    background: var(--mob-accent-soft);
+    color: var(--mob-accent);
+}
+.clean-card-tag-inline.overdue {
+    background: var(--mob-danger-soft);
+    color: var(--mob-danger);
+}
+.clean-card-tag-inline.anticipation {
+    background: rgba(2, 132, 199, 0.12);
+    color: #0284c7;
+}
+.clean-card-tag-inline.installment {
+    background: var(--mob-primary-soft);
+    color: var(--mob-primary);
+}
+.clean-card-tag-inline.recurring {
+    background: var(--mob-warning-soft);
+    color: var(--mob-warning);
+}
+
+.bill-compact-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 6px;
+    margin-top: 6px;
+    border-top: 1px solid var(--mob-border);
+}
+
+.bill-compact-status {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mob-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bill-compact-status.is-overdue {
+    color: var(--mob-danger);
+    font-weight: 700;
+}
+.bill-compact-status.is-today,
+.bill-compact-status.is-soon {
+    color: var(--mob-warning);
+    font-weight: 700;
+}
+.bill-compact-status.is-paid {
+    color: var(--mob-accent);
+    font-weight: 600;
+}
+
+.bill-compact-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.btn-bill-compact-pay {
+    height: 28px;
+    min-height: 28px;
+    padding: 0 11px;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(135deg, #00B894 0%, #059669 100%);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    touch-action: manipulation;
+    white-space: nowrap;
+}
+.btn-bill-compact-pay.is-paid {
+    background: var(--mob-surface-2);
+    color: var(--mob-text-secondary);
+    border: 1px solid var(--mob-border);
+}
+.btn-bill-compact-anticipate {
+    height: 28px;
+    min-height: 28px;
+    padding: 0 9px;
+    border-radius: 8px;
+    border: 1px solid rgba(2, 132, 199, 0.3);
+    background: rgba(2, 132, 199, 0.1);
+    color: #0284c7;
+    font-size: 10.5px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    touch-action: manipulation;
+    white-space: nowrap;
+}
 
 .clean-card-delete-btn {
     width: 30px;

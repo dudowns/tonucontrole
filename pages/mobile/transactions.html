@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css?v=4.1.1">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.1.2">
     <link rel="stylesheet" href="../../css/notifications.css">
     <style>
         body { background: var(--mob-bg, #F8FAFC); }
@@ -298,7 +298,7 @@
 <script src="../../js/financial-tools.js"></script>
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
-<script src="../../js/mobile/ui.js?v=1.0.0"></script>
+<script src="../../js/mobile/ui.js?v=1.0.1"></script>
 <script>
 var formatCurrency = window.formatCurrency;
 var formatDate = window.formatDate;
@@ -718,16 +718,19 @@ function renderTransactions() {
             const isPaid = isTransactionPaid(t);
             const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
 
-            let badge = "";
+            let inlineTags = "";
             const isAnticipation = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
             if (isAnticipation) {
-                badge += `<span class="badge-mobile" style="background:#e0f2fe; color:#0284c7; border:1px solid #bae6fd;"><i class="fas fa-bolt"></i> Antecipação</span>`;
+                inlineTags += `<span class="clean-card-tag-inline anticipation"><i class="fas fa-bolt"></i> Antecipação</span>`;
             }
             if (t.is_bill) {
-                badge += `<span class="badge-mobile bill">Conta</span>`;
+                inlineTags += `<span class="clean-card-tag-inline bill">Conta</span>`;
             }
             if (!isPaid) {
-                badge += `<span class="badge-mobile pending">Pendente</span>`;
+                inlineTags += `<span class="clean-card-tag-inline pending">Pendente</span>`;
+            }
+            if (instInfo && instInfo.isInstallment) {
+                inlineTags += `<span class="clean-card-tag-inline installment">${instInfo.current}/${instInfo.total}</span>`;
             }
 
             const rawCatName = cat?.name || t.category || 'Geral';
@@ -736,36 +739,30 @@ function renderTransactions() {
             const rawDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(t.description) : (t.description || 'Sem descrição');
             const safeDesc = typeof sanitizeString === 'function' ? sanitizeString(rawDesc) : rawDesc;
             const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
-            const delay = (Math.min(cardIndex++, 10) * 0.04).toFixed(2);
+            const delay = (Math.min(cardIndex++, 10) * 0.03).toFixed(2);
             html += `
-                <div data-swipe-row>
-                    <button type="button" class="swipe-action-delete" onclick="event.stopPropagation(); deleteTransaction('${t.id}')" aria-label="Excluir transação">
+                <div data-swipe-row data-swipe-width="80">
+                    <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); deleteTransaction('${t.id}')" aria-label="Excluir transação">
                         <i class="fas fa-trash-alt"></i>
+                        <span>Excluir</span>
                     </button>
-                    <div class="mobile-list-card clean-list-card stagger-card" data-swipe-content style="animation-delay: ${delay}s;">
+                    <div class="mobile-list-card clean-list-card compact-row-card stagger-card" data-swipe-content style="animation-delay: ${delay}s;">
                         <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
                             <i class="fas ${icon}"></i>
                         </div>
                         <div class="clean-card-body">
                             <div class="clean-card-top">
                                 <span class="clean-card-title">${safeDesc}</span>
-                                <div class="clean-card-amount-wrap">
-                                    <span class="clean-card-amount ${isIncome ? 'income' : 'expense'}" data-sensitive>
-                                        ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
-                                    </span>
-                                    <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${t.id}')" title="Excluir" aria-label="Excluir transação">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-                                </div>
+                                <span class="clean-card-amount ${isIncome ? 'income' : 'expense'}" data-sensitive>
+                                    ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
+                                </span>
                             </div>
-                            <div class="clean-card-middle">
-                                <span class="clean-tag category">${cleanCatName}</span>
-                                ${badge}
-                                ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
-                            </div>
-                            <div class="clean-card-bottom">
-                                <span><i class="far fa-calendar-alt" style="margin-right:4px;"></i>${formatDate(effectiveDate)}</span>
-                                ${(t.due_date && t.due_date !== effectiveDate) ? `<span><i class="far fa-clock" style="margin-right:4px;"></i>Venc: ${formatDate(t.due_date)}</span>` : ''}
+                            <div class="clean-card-meta-line">
+                                <span class="clean-card-cat-text">${cleanCatName}</span>
+                                <span class="clean-card-meta-sep" aria-hidden="true">·</span>
+                                <span class="clean-card-date-text">${formatDate(effectiveDate)}</span>
+                                ${(t.due_date && t.due_date !== effectiveDate) ? `<span class="clean-card-meta-sep" aria-hidden="true">·</span><span class="clean-card-date-text">Venc: ${formatDate(t.due_date)}</span>` : ''}
+                                ${inlineTags}
                             </div>
                         </div>
                     </div>
