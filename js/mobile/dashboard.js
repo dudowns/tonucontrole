@@ -801,12 +801,20 @@ function renderSummary() {
     const container = document.getElementById("summaryContainer");
     if (!container) return;
 
+    const billsSubText = pendingBills.length > 0
+        ? `${pendingBills.length} ${pendingBills.length === 1 ? 'conta aberta' : 'contas abertas'}`
+        : 'Tudo em dia';
+
+    const divsSubText = monthPendingDivs > 0
+        ? `A receber: ${mask(formatCurrency(monthPendingDivs))}`
+        : (totalFutureDivs > 0 ? `Previsto: ${mask(formatCurrency(totalFutureDivs))}` : 'No mês atual');
+
     container.innerHTML = `
         <!-- HERO CARD FINTECH AURORA -->
         <div class="mobile-hero-balance">
             <div class="mobile-hero-top">
                 <span class="label"><i class="fas fa-wallet"></i> Saldo Operacional</span>
-                <button class="eye-toggle-btn" onclick="toggleBalanceVisibility()" title="${isBalanceHidden ? 'Mostrar Saldo' : 'Ocultar Saldo'}" aria-label="Alternar visibilidade do saldo">
+                <button type="button" class="eye-toggle-btn" onclick="toggleBalanceVisibility()" title="${isBalanceHidden ? 'Mostrar Saldo' : 'Ocultar Saldo'}" aria-label="Alternar visibilidade do saldo">
                     <i class="fas ${isBalanceHidden ? 'fa-eye-slash' : 'fa-eye'}"></i>
                 </button>
             </div>
@@ -821,40 +829,37 @@ function renderSummary() {
                 <div class="mobile-hero-stat">
                     <span class="stat-label"><i class="fas fa-arrow-down" style="color:#fca5a5;"></i> Saídas Pagas</span>
                     <span class="stat-value expense" id="heroExpenseVal" data-sensitive>${mask(formatCurrency(expense))}</span>
-                    ${pendingBillsAmount > 0 ? `<span style="font-size:10px; color:#fbbf24; margin-top:2px; display:block;">Falta pagar: ${mask(formatCurrency(pendingBillsAmount))}</span>` : ''}
+                    ${pendingBillsAmount > 0 ? `<span class="hero-pending-note">Falta pagar: ${mask(formatCurrency(pendingBillsAmount))}</span>` : ''}
                 </div>
             </div>
         </div>
 
-        <!-- GRID DE INDICADORES RÁPIDOS -->
-        <div class="mobile-grid">
-            <div class="mobile-card">
-                <div class="card-icon bills"><i class="fas fa-file-invoice-dollar"></i></div>
+        <!-- GRID DE INDICADORES COMPACTOS -->
+        <div class="mobile-grid mobile-grid--compact">
+            <a href="bills.html" class="mobile-card mobile-card--compact" aria-label="Contas Pendentes: ${formatCurrency(pendingBillsAmount)}">
+                <div class="card-icon bills ${pendingBills.length > 0 ? 'has-pending' : 'all-clear'}">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
                 <div class="card-info">
                     <div class="card-label">Contas Pendentes</div>
-                    <div class="card-value" data-sensitive style="color: ${pendingBills.length > 0 ? '#d97706' : '#10b981'}">
+                    <div class="card-value ${pendingBills.length > 0 ? 'is-warning' : 'is-success'}" data-sensitive>
                         ${mask(formatCurrency(pendingBillsAmount))}
                     </div>
+                    <div class="card-sub-meta">${billsSubText}</div>
                 </div>
-            </div>
-            <div class="mobile-card">
-                <div class="card-icon balance"><i class="fas fa-coins"></i></div>
+            </a>
+            <a href="investments.html" class="mobile-card mobile-card--compact" aria-label="Proventos do Mês: ${formatCurrency(displayMonthDivs)}">
+                <div class="card-icon balance">
+                    <i class="fas fa-coins"></i>
+                </div>
                 <div class="card-info">
                     <div class="card-label">Proventos Mês</div>
                     <div class="card-value" data-sensitive style="color: ${divValueColor};">
                         ${mask(formatCurrency(displayMonthDivs))}
                     </div>
-                    ${monthPendingDivs > 0 ? `
-                        <div style="font-size:10px; color:#0284c7; font-weight:600; margin-top:2px;">
-                            <i class="far fa-clock"></i> A receber: ${mask(formatCurrency(monthPendingDivs))}
-                        </div>
-                    ` : (totalFutureDivs > 0 ? `
-                        <div style="font-size:10px; color:#0284c7; font-weight:600; margin-top:2px;">
-                            <i class="far fa-clock"></i> Previsto: ${mask(formatCurrency(totalFutureDivs))}
-                        </div>
-                    ` : '')}
+                    <div class="card-sub-meta ${monthPendingDivs > 0 || totalFutureDivs > 0 ? 'is-info' : ''}" data-sensitive>${divsSubText}</div>
                 </div>
-            </div>
+            </a>
         </div>
     `;
 
@@ -1347,10 +1352,10 @@ function renderMobileInsights() {
         ? Math.round(mobilePillars.reduce((a, b) => a + (b.score * b.weight), 0) / totalWeightMob)
         : 70;
 
-    let mobBadge = { label: 'Bom', color: '#3B82F6', bg: '#EFF6FF' };
-    if (finalScoreMob >= 80) mobBadge = { label: 'Excelente', color: '#10B981', bg: '#ECFDF5' };
-    else if (finalScoreMob < 40) mobBadge = { label: 'Atenção', color: '#EF4444', bg: '#FEF2F2' };
-    else if (finalScoreMob < 60) mobBadge = { label: 'Regular', color: '#F59E0B', bg: '#FFFBEB' };
+    let mobBadge = { label: 'Bom', color: '#3B82F6', toneClass: 'info' };
+    if (finalScoreMob >= 80) mobBadge = { label: 'Excelente', color: '#10B981', toneClass: 'success' };
+    else if (finalScoreMob < 40) mobBadge = { label: 'Atenção', color: '#EF4444', toneClass: 'danger' };
+    else if (finalScoreMob < 60) mobBadge = { label: 'Regular', color: '#F59E0B', toneClass: 'warning' };
 
     const circMob = 2 * Math.PI * 30;
     const offsetMob = circMob - (finalScoreMob / 100) * circMob;
@@ -1366,78 +1371,75 @@ function renderMobileInsights() {
     if (urgentMobBill) {
         const isOverdue = overdueBillsMob.includes(urgentMobBill);
         mobActionCards.push(`
-            <div class="mob-action-card" onclick="window.location.href='bills.html'" style="border-left:3px solid #ef4444;">
-                <i class="fas ${isOverdue ? 'fa-exclamation-triangle' : 'fa-clock'}" style="color:#ef4444; font-size:14px;"></i>
+            <div class="mob-action-card" onclick="window.location.href='bills.html'">
+                <span class="mob-action-icon tone-danger"><i class="fas ${isOverdue ? 'fa-exclamation-triangle' : 'fa-clock'}"></i></span>
                 <div class="mob-action-desc">
-                    <strong>Pagar: ${urgentMobBill.description || 'Conta'}</strong>
-                    <small>${isOverdue ? 'Conta atrasada' : 'Vence em até 48h'} • ${formatCurrency(urgentMobBill.amount)}</small>
+                    <strong>Pagar: ${typeof sanitizeString === 'function' ? sanitizeString(urgentMobBill.description || 'Conta') : (urgentMobBill.description || 'Conta')}</strong>
+                    <small>${isOverdue ? 'Conta atrasada' : 'Vence em até 48h'} · ${formatCurrency(urgentMobBill.amount)}</small>
                 </div>
-                <span class="mob-action-tag" style="background:#fee2e2; color:#b91c1c;">Pagar</span>
+                <span class="mob-action-tag tone-danger">Pagar</span>
             </div>
         `);
     }
     if (budgetAlertMob && budgetAlertMob.type === 'danger') {
         mobActionCards.push(`
-            <div class="mob-action-card" onclick="window.location.href='transactions.html'" style="border-left:3px solid #f59e0b;">
-                <i class="fas fa-chart-pie" style="color:#f59e0b; font-size:14px;"></i>
+            <div class="mob-action-card" onclick="window.location.href='transactions.html'">
+                <span class="mob-action-icon tone-warning"><i class="fas fa-chart-pie"></i></span>
                 <div class="mob-action-desc">
                     <strong>Ver Gastos: Limite Estourado</strong>
                     <small>${budgetAlertMob.text}</small>
                 </div>
-                <span class="mob-action-tag" style="background:#fef3c7; color:#b45309;">Revisar</span>
+                <span class="mob-action-tag tone-warning">Revisar</span>
             </div>
         `);
     } else if (topCatPercent > 35 && topCatName && topCatName !== 'Nenhum gasto') {
         mobActionCards.push(`
-            <div class="mob-action-card" onclick="window.location.href='transactions.html'" style="border-left:3px solid #f59e0b;">
-                <i class="fas fa-fire" style="color:#f59e0b; font-size:14px;"></i>
+            <div class="mob-action-card" onclick="window.location.href='transactions.html'">
+                <span class="mob-action-icon tone-warning"><i class="fas fa-fire"></i></span>
                 <div class="mob-action-desc">
                     <strong>${typeof sanitizeString === 'function' ? sanitizeString(topCatName) : topCatName}: ${topCatPercent}% da renda</strong>
                     <small>Maior centro de custo</small>
                 </div>
-                <span class="mob-action-tag" style="background:#fef3c7; color:#b45309;">Ver</span>
+                <span class="mob-action-tag tone-warning">Ver</span>
             </div>
         `);
     }
 
-    // Checklist de ações rápidas no mobile restrito a "Pagar Agora" e "Ver Gastos"
     const displayedMobActionCards = mobActionCards.slice(0, 2);
+    const rateTone = rateClass === 'success' ? 'success' : (rateClass === 'danger' ? 'danger' : 'warning');
 
     container.innerHTML = `
         <!-- CARD 1: O QUE FAZER HOJE? -->
-        <div class="mobile-insights-card mob-quick-actions-card">
+        <div class="mobile-insights-card mob-quick-actions-card ${displayedMobActionCards.length === 0 ? 'is-all-clear' : ''}">
             <div class="mobile-insights-header">
                 <div class="mobile-insights-title">
-                    <i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?
+                    <i class="fas fa-bolt mob-title-icon-warn"></i> O que fazer hoje?
                 </div>
-                <span class="mobile-insights-pill" style="${displayedMobActionCards.length > 0 ? 'background:rgba(239, 68, 68, 0.12); color:#dc2626;' : 'background:rgba(16, 185, 129, 0.12); color:#10b981;'}">
-                    ${displayedMobActionCards.length > 0 ? `${displayedMobActionCards.length} ${displayedMobActionCards.length === 1 ? 'pendência' : 'pendências'}` : 'Em dia ✨'}
+                <span class="mob-status-badge ${displayedMobActionCards.length > 0 ? 'tone-danger' : 'tone-success'}">
+                    ${displayedMobActionCards.length > 0 ? `${displayedMobActionCards.length} ${displayedMobActionCards.length === 1 ? 'pendência' : 'pendências'}` : 'Tudo em dia'}
                 </span>
             </div>
-            <div class="mob-checklist-wrap" style="margin-bottom:0;">
-                ${displayedMobActionCards.length > 0 ? displayedMobActionCards.join('') : `
-                    <div style="padding:10px 12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; font-size:11.5px; color:#15803d; display:flex; align-items:center; gap:8px; font-weight:600;">
-                        <i class="fas fa-check-circle" style="font-size:15px; color:#10b981; flex-shrink:0;"></i>
-                        <span>Tudo em dia! Sem pendências críticas hoje. ✨</span>
-                    </div>
-                `}
-            </div>
+            ${displayedMobActionCards.length > 0 ? `
+                <div class="mob-checklist-wrap">${displayedMobActionCards.join('')}</div>
+            ` : `
+                <p class="mob-today-ok-note"><i class="fas fa-check-circle"></i> Sem contas urgentes ou alertas críticos para hoje.</p>
+            `}
         </div>
 
         <!-- CARD 2: SAÚDE FINANCEIRA (DIAGNÓSTICO 360º) -->
         <div class="mobile-insights-card mob-health-score-card">
             <div class="mobile-insights-header">
                 <div class="mobile-insights-title">
-                    <i class="fas fa-heart-pulse" style="color:#4338CA;"></i> Saúde Financeira
+                    <i class="fas fa-heart-pulse mob-title-icon-primary"></i> Saúde Financeira
                 </div>
-                <span class="mobile-insights-pill">Diagnóstico 360º</span>
+                <span class="mob-header-kicker">Diagnóstico 360º</span>
             </div>
 
             <!-- ANEL DO SCORE 360º NO MOBILE -->
             <div class="mob-score-container">
                 <div class="mob-score-ring-wrap">
                     <svg viewBox="0 0 72 72" class="mob-score-svg">
-                        <circle cx="36" cy="36" r="30" fill="none" stroke="#e2e8f0" stroke-width="6" />
+                        <circle cx="36" cy="36" r="30" fill="none" stroke="var(--mob-border-strong)" stroke-width="6" />
                         <circle cx="36" cy="36" r="30" fill="none" stroke="${mobBadge.color}" stroke-width="6" stroke-dasharray="${circMob.toFixed(1)}" stroke-dashoffset="${offsetMob.toFixed(1)}" stroke-linecap="round" />
                     </svg>
                     <div class="mob-score-center">
@@ -1445,10 +1447,10 @@ function renderMobileInsights() {
                         <span class="mob-score-sub">/100</span>
                     </div>
                 </div>
-                <div>
-                    <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:9999px; background:${mobBadge.bg}; color:${mobBadge.color};">${mobBadge.label}</span>
-                    <h4 style="margin:4px 0 2px 0; font-size:14px; font-weight:700; color:var(--color-text,#1e293b);">Diagnóstico Geral</h4>
-                    <p style="margin:0; font-size:11px; color:#64748b;">Equilíbrio • Contas • Dívidas • Futuro</p>
+                <div class="mob-score-meta">
+                    <span class="mob-status-badge tone-${mobBadge.toneClass}">${mobBadge.label}</span>
+                    <h4>Diagnóstico Geral</h4>
+                    <p>Equilíbrio · Contas · Dívidas · Futuro</p>
                 </div>
             </div>
 
@@ -1463,7 +1465,7 @@ function renderMobileInsights() {
                         <span class="detail">${formatCurrency(Math.max(0, savings))} poupados</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:${rateClass === 'success' ? '#dcfce7' : (rateClass === 'danger' ? '#fee2e2' : '#fef3c7')}; color:${rateClass === 'success' ? '#15803d' : (rateClass === 'danger' ? '#b91c1c' : '#b45309')}">
+                <span class="mobile-insight-badge tone-${rateTone}">
                     ${rateLabel}
                 </span>
             </div>
@@ -1479,7 +1481,7 @@ function renderMobileInsights() {
                         <span class="detail">${typeof sanitizeString === 'function' ? sanitizeString(topCatName || '') : (topCatName || '')} (${formatCurrency(topCatAmount)})</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#fef3c7; color:#b45309;">
+                <span class="mobile-insight-badge tone-warning">
                     ${topCatPercent}% do total
                 </span>
             </div>
@@ -1495,8 +1497,8 @@ function renderMobileInsights() {
                         <span class="detail">${paidBills.length} de ${monthBills.length || 0} pagas</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#ede9fe; color:#6d28d9;">
-                    ${pendingBillsAmount > 0 ? `${formatCurrency(pendingBillsAmount)} pendente` : 'Tudo em dia! ✨'}
+                <span class="mobile-insight-badge tone-purple">
+                    ${pendingBillsAmount > 0 ? `${formatCurrency(pendingBillsAmount)} pendente` : 'Em dia'}
                 </span>
             </div>
 
@@ -1508,10 +1510,10 @@ function renderMobileInsights() {
                     </div>
                     <div class="mobile-insight-text">
                         <span class="title">Investimentos & Proventos</span>
-                        <span class="detail">${formatCurrency(totalDividends)} proventos • ${formatCurrency(totalAportes)} aportes</span>
+                        <span class="detail">${formatCurrency(totalDividends)} proventos · ${formatCurrency(totalAportes)} aportes</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#f3e8ff; color:#7e22ce;">
+                <span class="mobile-insight-badge tone-purple">
                     ${formatCurrency(totalAportes + totalDividends)}
                 </span>
             </div>
@@ -1527,7 +1529,7 @@ function renderMobileInsights() {
                         <span class="detail">${extraIncomeCount} lançamento${extraIncomeCount === 1 ? '' : 's'} (${extraIncomePercent}% da renda)</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:${extraIncome > 0 ? '#ffedd5' : '#f1f5f9'}; color:${extraIncome > 0 ? '#c2410c' : '#64748b'};">
+                <span class="mobile-insight-badge ${extraIncome > 0 ? 'tone-orange' : 'tone-neutral'}">
                     ${formatCurrency(extraIncome)}
                 </span>
             </div>
@@ -2200,18 +2202,23 @@ function _escapeMobileAiInsightHtml(str) {
 
 function renderAIInsights(insights, meta) {
     const body = document.getElementById('aiInsightsBody');
+    const card = document.getElementById('mobileAIInsightsCard');
     if (!body) return;
 
     const list = Array.isArray(insights) ? insights.slice(0, 3) : [];
     const badgeEl = document.getElementById('aiInsightsSourceBadge');
     if (badgeEl && meta && meta.source) {
-        badgeEl.textContent = meta.source === 'cache' || meta.source === 'session' ? '90d • Cache' : '90d • IA';
+        badgeEl.textContent = meta.source === 'cache' || meta.source === 'session' ? '90d · Cache' : '90d · IA';
     }
 
     if (list.length === 0) {
-        body.innerHTML = '<p class="mobile-ai-empty">Insights IA indisponíveis no momento. O Diagnóstico 360º acima segue ativo.</p>';
+        if (card) card.classList.add('is-unavailable');
+        if (badgeEl) badgeEl.textContent = 'Offline / Stand-by';
+        body.innerHTML = '<p class="mobile-ai-empty">Diagnóstico 360º ativo. Toque no ícone acima para tentar atualizar.</p>';
         return;
     }
+
+    if (card) card.classList.remove('is-unavailable');
 
     const badgeMap = { warning: '⚠️', success: '✅', info: '💡' };
     body.innerHTML = `<div class="mobile-ai-insights-list">${list.map(item => {

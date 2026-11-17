@@ -48,7 +48,7 @@
         }
     </script>
 </head>
-<body class="has-bottom-nav">
+<body class="has-bottom-nav mobile-dashboard-page">
 
 <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
 
@@ -104,25 +104,25 @@
     <div id="summaryContainer"></div>
 
     <!-- AÇÕES RÁPIDAS -->
-    <div class="mobile-quick-actions">
-        <button class="quick-action-btn" onclick="openQuickAddModal('expense')">
-            <i class="fas fa-arrow-down" style="color: #FF7675;"></i>
-            <span>Nova Despesa</span>
+    <div class="mobile-quick-actions" aria-label="Ações rápidas">
+        <button type="button" class="quick-action-btn qa-expense" onclick="openQuickAddModal('expense')">
+            <span class="qa-icon"><i class="fas fa-arrow-down"></i></span>
+            <span>Despesa</span>
         </button>
-        <button class="quick-action-btn" onclick="openQuickAddModal('income')">
-            <i class="fas fa-arrow-up" style="color: #00B894;"></i>
-            <span>Nova Receita</span>
+        <button type="button" class="quick-action-btn qa-income" onclick="openQuickAddModal('income')">
+            <span class="qa-icon"><i class="fas fa-arrow-up"></i></span>
+            <span>Receita</span>
         </button>
-        <a href="bills.html" class="quick-action-btn">
-            <i class="fas fa-file-invoice-dollar" style="color: #FDCB6E;"></i>
+        <a href="bills.html" class="quick-action-btn qa-bills">
+            <span class="qa-icon"><i class="fas fa-file-invoice-dollar"></i></span>
             <span>Contas</span>
         </a>
-        <a href="investments.html" class="quick-action-btn">
-            <i class="fas fa-chart-line" style="color: #4338CA;"></i>
+        <a href="investments.html" class="quick-action-btn qa-invest">
+            <span class="qa-icon"><i class="fas fa-chart-line"></i></span>
             <span>Investir</span>
         </a>
-        <a href="goals.html" class="quick-action-btn">
-            <i class="fas fa-bullseye" style="color: #0284C7;"></i>
+        <a href="goals.html" class="quick-action-btn qa-goals">
+            <span class="qa-icon"><i class="fas fa-bullseye"></i></span>
             <span>Metas</span>
         </a>
     </div>
