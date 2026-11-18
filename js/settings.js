@@ -89,7 +89,7 @@ function renderSecurityStatusUI() {
         const token = window.TonuCSRF.get();
         csrfStatus.innerHTML = `
             <span style="font-size:11px;color:#64748b;">
-                <i class="fas fa-shield-alt" style="color:#6c5ce7;"></i>
+                <i class="fas fa-shield-alt" style="color:#4338CA;"></i>
                 CSRF Token: <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:10px;">${token.substring(0, 8)}...</code>
             </span>
         `;
@@ -364,7 +364,7 @@ function showIframeBiometricsHelp() {
     const modalHtml = `
     <div id="iframeBioModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.7); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(5px);">
         <div style="background:#ffffff; border-radius:18px; max-width:480px; width:100%; padding:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); border:1px solid #e2e8f0; text-align:center;">
-            <div style="width:60px; height:60px; border-radius:50%; background:rgba(108,92,231,0.1); color:#6c5ce7; display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 16px auto;">
+            <div style="width:60px; height:60px; border-radius:50%; background:rgba(67,56,202,0.1); color:#4338CA; display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 16px auto;">
                 <i class="fas fa-fingerprint"></i>
             </div>
             <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:0 0 8px 0;">Ativação em Nova Aba</h3>
@@ -1256,7 +1256,7 @@ function showReportModal() {
         <div style="background:#ffffff;border-radius:20px;max-width:440px;width:100%;padding:24px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.3);border:1px solid #e2e8f0;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                 <h3 style="font-size:18px;font-weight:800;color:#0f172a;margin:0;">
-                    <i class="fas fa-file-alt" style="color:#6c5ce7;"></i> Relatório
+                    <i class="fas fa-file-alt" style="color:#4338CA;"></i> Relatório
                 </h3>
                 <button onclick="document.getElementById('reportModal').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;">&times;</button>
             </div>
@@ -1360,7 +1360,7 @@ async function generateReportFromModal() {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF('p', 'pt', 'a4');
                 doc.setFontSize(20);
-                doc.setTextColor(108, 92, 231);
+                doc.setTextColor(67, 56, 202);
                 doc.text('📊 TonuControle - Relatório', 40, 60);
                 doc.setFontSize(12);
                 doc.setTextColor(44, 62, 80);
@@ -1423,7 +1423,7 @@ function showEmailSettings() {
         <div style="background:#ffffff;border-radius:20px;max-width:420px;width:100%;padding:24px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.3);border:1px solid #e2e8f0;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                 <h3 style="font-size:18px;font-weight:800;color:#0f172a;margin:0;">
-                    <i class="fas fa-envelope" style="color:#6c5ce7;"></i> E-mail Semanal
+                    <i class="fas fa-envelope" style="color:#4338CA;"></i> E-mail Semanal
                 </h3>
                 <button onclick="document.getElementById('emailSettingsModal').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;">&times;</button>
             </div>
@@ -1606,7 +1606,7 @@ async function renderSettingsBudgets() {
         if (categories.length === 0) {
             categories = [
                 { id: 'cat_alimentacao', name: 'Alimentação', icon: 'fa-utensils', color: '#ff7675', type: 'expense' },
-                { id: 'cat_moradia', name: 'Moradia', icon: 'fa-home', color: '#6c5ce7', type: 'expense' },
+                { id: 'cat_moradia', name: 'Moradia', icon: 'fa-home', color: '#4338CA', type: 'expense' },
                 { id: 'cat_transporte', name: 'Transporte', icon: 'fa-car', color: '#0984e3', type: 'expense' },
                 { id: 'cat_lazer', name: 'Lazer', icon: 'fa-gamepad', color: '#fdcb6e', type: 'expense' },
                 { id: 'cat_saude', name: 'Saúde', icon: 'fa-heartbeat', color: '#00b894', type: 'expense' },
@@ -1629,7 +1629,7 @@ async function renderSettingsBudgets() {
                 categoryId: c.id,
                 name: c.name,
                 icon: c.icon || 'fa-tag',
-                color: c.color || '#6c5ce7',
+                color: c.color || '#4338CA',
                 spent: 0,
                 limit: 0,
                 remaining: 0,
@@ -1671,7 +1671,7 @@ function renderSettingsBudgetListHtml(items) {
         return `
             <div class="settings-budget-item" data-cat-id="${cat.categoryId}" data-cat-name="${(cat.name || '').toLowerCase()}">
                 <div class="budget-cat-info">
-                    <div class="budget-cat-icon" style="background:${cat.color || '#6c5ce7'};">
+                    <div class="budget-cat-icon" style="background:${cat.color || '#4338CA'};">
                         <i class="fas ${cat.icon || 'fa-tag'}"></i>
                     </div>
                     <div class="budget-cat-name-box">

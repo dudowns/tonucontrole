@@ -7,18 +7,19 @@
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
 
-    <meta name="theme-color" content="#6C5CE7">
+    <meta name="theme-color" content="#4338CA">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TonuControle">
 
-    <link rel="manifest" href="../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png">
+    <link rel="manifest" href="../manifest.json?v=3.2.1">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.1">
 
     <title>Investimentos | TonuControle</title>
 
@@ -26,13 +27,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/sidebar-patch.css">
-    <link rel="stylesheet" href="../css/investments.css?v=2.9.1">
-    <link rel="stylesheet" href="../css/notifications.css">
-    <link rel="stylesheet" href="../css/sync.css">
-    <link rel="stylesheet" href="../css/sync-status.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/sidebar-patch.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/investments.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/notifications.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/sync.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/sync-status.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.1">
 
     <!-- Device Router & Anti-flicker Theme Init -->
     <script src="../js/device-router.js"></script>
@@ -605,7 +606,7 @@
         }
 
         *:focus-visible {
-            outline: 3px solid #6C5CE7 !important;
+            outline: 3px solid #4F46E5 !important;
             outline-offset: 2px !important;
         }
 
@@ -615,7 +616,7 @@
             left: 50%;
             transform: translateX(-50%);
             padding: 12px 24px;
-            background: #6C5CE7;
+            background: #4338CA;
             color: #fff;
             border-radius: 8px;
             z-index: 999999;
@@ -647,7 +648,7 @@
         <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
             <div class="sidebar-brand">
                 <div class="brand-icon">
-                    <img src="../icons/logo.png" alt="TonuControle">
+                    <img src="../icons/logo.png?v=3.2.1" alt="TonuControle">
                 </div>
                 <h2>TonuControle</h2>
             </div>
@@ -727,9 +728,9 @@
                 <!-- ==========================================
                 ITEM 10: CARD DE CONQUISTA (INVESTIMENTOS)
                 ========================================== -->
-                <div class="achievement-card-banner" id="achievementCardPC" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.08) 0%, rgba(0, 206, 201, 0.06) 100%); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 16px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.03);">
+                <div class="achievement-card-banner" id="achievementCardPC" style="background: linear-gradient(135deg, rgba(67, 56, 202, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%); border: 1px solid rgba(67, 56, 202, 0.2); border-radius: 16px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.03);">
                     <div style="display:flex; align-items:center; gap:14px;">
-                        <div style="width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg, #6C5CE7, #a29bfe); color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 4px 12px rgba(108,92,231,0.3); flex-shrink:0;">
+                        <div style="width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg, #4338CA, #7C3AED); color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 4px 12px rgba(67,56,202,0.3); flex-shrink:0;">
                             <i class="fas fa-trophy"></i>
                         </div>
                         <div>
@@ -743,7 +744,7 @@
                     </div>
                     <div style="text-align:right; flex-shrink:0;">
                         <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--color-text-muted, #64748b); font-weight:600;" id="achievementDateLabelPC">Valor até --/--/----</div>
-                        <div style="font-size:18px; font-weight:800; color:var(--color-primary, #6C5CE7);" id="achievementTotalValuePC">R$ 0,00</div>
+                        <div style="font-size:18px; font-weight:800; color:var(--color-primary, #4338CA);" id="achievementTotalValuePC">R$ 0,00</div>
                     </div>
                 </div>
 
@@ -1285,7 +1286,7 @@
                         <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
                             <div>
                                 <h3 style="display:flex; align-items:center; gap:8px;">
-                                    <i class="fas fa-bolt" style="color:var(--color-primary,#6C5CE7);"></i> Eventos Corporativos Cadastrados
+                                    <i class="fas fa-bolt" style="color:var(--color-primary,#4338CA);"></i> Eventos Corporativos Cadastrados
                                 </h3>
                                 <p style="font-size:12px; color:var(--color-text-muted); margin:0;">
                                     Desdobramentos, agrupamentos, bonificações e amortizações aplicados automaticamente no cálculo de preço médio e custódia.

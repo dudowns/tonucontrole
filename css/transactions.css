@@ -327,7 +327,7 @@
 
 .transaction-card.clean-list-card:hover {
     background: var(--color-surface-hover, #f8fafc);
-    border-color: rgba(108, 92, 231, 0.28);
+    border-color: rgba(67, 56, 202, 0.28);
 }
 
 .transaction-card.clean-list-card:active {
@@ -335,7 +335,7 @@
 }
 
 .transaction-card.clean-list-card:focus-visible {
-    outline: 2px solid var(--color-primary, #6c5ce7);
+    outline: 2px solid var(--color-primary, #4338CA);
     outline-offset: 2px;
 }
 
@@ -466,7 +466,7 @@
 }
 
 .badge-mobile.bill {
-    background: #6C5CE7;
+    background: #4338CA;
     color: #ffffff;
 }
 

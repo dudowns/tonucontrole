@@ -474,7 +474,7 @@
     }
 
     function colorToSoftBg(colorStr) {
-        if (!colorStr) return 'rgba(108, 92, 231, 0.14)';
+        if (!colorStr) return 'rgba(67, 56, 202, 0.14)';
         if (colorStr.startsWith('#')) {
             let hex = colorStr.replace('#', '');
             if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
@@ -489,7 +489,7 @@
         if (colorStr.startsWith('rgb(')) {
             return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.14)');
         }
-        return 'rgba(108, 92, 231, 0.14)';
+        return 'rgba(67, 56, 202, 0.14)';
     }
 
     function cleanCategoryLabel(rawName) {

@@ -1998,7 +1998,7 @@ async function generateDashboardInsights() {
         } else {
             savingTipHTML = `
                 <div class="insight-strategy-item">
-                    <i class="fas fa-receipt" style="color:#6c5ce7;"></i>
+                    <i class="fas fa-receipt" style="color:#4338CA;"></i>
                     <div>
                         <strong>Controle de despesas:</strong>
                         Cadastre suas despesas diárias para identificar os centros de custo com maior potencial de economia.
@@ -2031,7 +2031,7 @@ async function generateDashboardInsights() {
         } else {
             capacityTipHTML = `
                 <div class="insight-strategy-item">
-                    <i class="fas fa-wallet" style="color:#6c5ce7;"></i>
+                    <i class="fas fa-wallet" style="color:#4338CA;"></i>
                     <div>
                         <strong>Fluxo equilibrado:</strong>
                         Sem contas pendentes para o período. Mantenha os custos sob controle para preservar seu superávit.
@@ -2509,7 +2509,7 @@ function getCategoryStyle(name, index, cat) {
         return { color: '#0984E3', icon: 'fa-bolt', name: '⚡ Contas Básicas' };
     }
     if (n.includes('lazer') || n.includes('jogo') || n.includes('game') || n.includes('cinema') || n.includes('viagem') || n.includes('passeio') || n.includes('hotel') || n.includes('festa')) {
-        return { color: '#A29BFE', icon: 'fa-gamepad', name: '🎮 Lazer' };
+        return { color: '#8B5CF6', icon: 'fa-gamepad', name: '🎮 Lazer' };
     }
     if (n.includes('saude') || n.includes('farmacia') || n.includes('medic') || n.includes('hospital') || n.includes('drogaria') || n.includes('dentista') || n.includes('consulta')) {
         return { color: '#FF6B6B', icon: 'fa-heartbeat', name: '❤️ Saúde' };
@@ -2545,7 +2545,7 @@ function getCategoryStyle(name, index, cat) {
         return { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' };
     }
 
-    const defaultBackendColors = ['#0984E3', '#A29BFE', '#FF6B6B', '#FDCB6E', '#E17055', '#D63031', '#636E72', '#00B894', '#00CEC9', '#B2BEC3'];
+    const defaultBackendColors = ['#0984E3', '#8B5CF6', '#FF6B6B', '#FDCB6E', '#E17055', '#D63031', '#636E72', '#00B894', '#00CEC9', '#B2BEC3'];
     return {
         color: defaultBackendColors[(index || 0) % defaultBackendColors.length],
         icon: 'fa-tag',
@@ -2947,14 +2947,14 @@ window.setMonthlyPeriod = function (period) {
 
     if (btn6 && btn12) {
         if (monthlyChartPeriod === 6) {
-            btn6.style.background = '#6C5CE7';
+            btn6.style.background = '#4338CA';
             btn6.style.color = '#ffffff';
             btn6.style.fontWeight = '700';
             btn12.style.background = 'transparent';
             btn12.style.color = 'var(--color-text-muted, #64748b)';
             btn12.style.fontWeight = '600';
         } else {
-            btn12.style.background = '#6C5CE7';
+            btn12.style.background = '#4338CA';
             btn12.style.color = '#ffffff';
             btn12.style.fontWeight = '700';
             btn6.style.background = 'transparent';
@@ -3460,7 +3460,7 @@ async function exportarPDF() {
         const doc = new jsPDF('p', 'pt', 'a4');
 
         const COLOR_NAVY = [30, 41, 59];
-        const COLOR_PURPLE = [108, 92, 231];
+        const COLOR_PURPLE = [67, 56, 202];
         const COLOR_GREEN = [16, 185, 129];
         const COLOR_RED = [239, 68, 68];
         const COLOR_TEXT = [30, 41, 59];
@@ -4057,7 +4057,7 @@ window.DashboardWidgets = {
                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
                         <div><span style="font-size:11px;color:#94a3b8;">Receitas</span><br><span style="font-size:18px;font-weight:700;color:#00b894;" id="wIncome">R$ 0,00</span></div>
                         <div><span style="font-size:11px;color:#94a3b8;">Despesas</span><br><span style="font-size:18px;font-weight:700;color:#ff7675;" id="wExpense">R$ 0,00</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Saldo</span><br><span style="font-size:18px;font-weight:700;color:#6c5ce7;" id="wBalance">R$ 0,00</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Saldo</span><br><span style="font-size:18px;font-weight:700;color:#4338CA;" id="wBalance">R$ 0,00</span></div>
                     </div>
                 `;
                 setTimeout(() => {
@@ -4106,12 +4106,12 @@ window.DashboardWidgets = {
             case 'balance':
                 container.innerHTML = `
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;border-radius:10px;background:#6c5ce7;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:#4338CA;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
                             <i class="fas fa-wallet"></i>
                         </div>
                         <div>
                             <div style="font-size:11px;color:#94a3b8;">Saldo</div>
-                            <div style="font-size:20px;font-weight:700;color:#6c5ce7;" id="wBalanceOnly">R$ 0,00</div>
+                            <div style="font-size:20px;font-weight:700;color:#4338CA;" id="wBalanceOnly">R$ 0,00</div>
                         </div>
                     </div>
                 `;
@@ -4125,7 +4125,7 @@ window.DashboardWidgets = {
                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
                         <div><span style="font-size:11px;color:#94a3b8;">Pendentes</span><br><span style="font-size:18px;font-weight:700;color:#fdcb6e;" id="wBillsPending">0</span></div>
                         <div><span style="font-size:11px;color:#94a3b8;">Pagas</span><br><span style="font-size:18px;font-weight:700;color:#00b894;" id="wBillsPaid">0</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Total</span><br><span style="font-size:18px;font-weight:700;color:#6c5ce7;" id="wBillsTotal">R$ 0,00</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Total</span><br><span style="font-size:18px;font-weight:700;color:#4338CA;" id="wBillsTotal">R$ 0,00</span></div>
                     </div>
                 `;
                 setTimeout(() => {
@@ -4140,7 +4140,7 @@ window.DashboardWidgets = {
             case 'patrimony':
                 container.innerHTML = `
                     <div style="text-align:center;padding:8px 0;">
-                        <div style="font-size:28px;font-weight:800;color:#6c5ce7;" id="wPatrimony">R$ 0,00</div>
+                        <div style="font-size:28px;font-weight:800;color:#4338CA;" id="wPatrimony">R$ 0,00</div>
                         <div style="font-size:12px;color:#94a3b8;">Patrimônio Total</div>
                     </div>
                 `;

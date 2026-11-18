@@ -7,18 +7,19 @@
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
 
-    <meta name="theme-color" content="#6C5CE7">
+    <meta name="theme-color" content="#4338CA">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TonuControle">
 
-    <link rel="manifest" href="../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png">
+    <link rel="manifest" href="../manifest.json?v=3.2.1">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.1">
 
     <title>Configurações | TonuControle</title>
 
@@ -26,13 +27,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/sidebar-patch.css">
-    <link rel="stylesheet" href="../css/settings.css">
-    <link rel="stylesheet" href="../css/notifications.css">
-    <link rel="stylesheet" href="../css/sync.css">
-    <link rel="stylesheet" href="../css/sync-status.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/sidebar-patch.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/settings.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/notifications.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/sync.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/sync-status.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.1">
 
     <!-- Device Router & Anti-flicker Theme Init -->
     <script src="../js/device-router.js"></script>
@@ -62,7 +63,7 @@
         }
 
         *:focus-visible {
-            outline: 3px solid #6C5CE7 !important;
+            outline: 3px solid #4F46E5 !important;
             outline-offset: 2px !important;
         }
 
@@ -72,7 +73,7 @@
             left: 50%;
             transform: translateX(-50%);
             padding: 12px 24px;
-            background: #6C5CE7;
+            background: #4338CA;
             color: #fff;
             border-radius: 8px;
             z-index: 999999;
@@ -100,7 +101,7 @@
         <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
             <div class="sidebar-brand">
                 <div class="brand-icon">
-                    <img src="../icons/logo.png" alt="TonuControle">
+                    <img src="../icons/logo.png?v=3.2.1" alt="TonuControle">
                 </div>
                 <h2>TonuControle</h2>
             </div>
@@ -335,7 +336,7 @@
                         <!-- CARD: GESTÃO DE EVENTOS CORPORATIVOS (ITEM 7) -->
                         <div class="settings-card" id="corpEventsCard">
                             <div class="settings-card-header">
-                                <div class="settings-card-icon" style="background: rgba(108, 92, 231, 0.15); color: #6C5CE7;">
+                                <div class="settings-card-icon" style="background: rgba(67, 56, 202, 0.14); color: #4338CA;">
                                     <i class="fas fa-bolt" aria-hidden="true"></i>
                                 </div>
                                 <div class="settings-card-header-content">
@@ -349,7 +350,7 @@
                                     <small>Quando ligado, exibe a aba e o botão de eventos na tela de Investimentos. Escondido por padrão sem apagar dados.</small>
                                 </div>
                                 <label style="display:inline-flex; align-items:center; cursor:pointer;">
-                                    <input type="checkbox" id="toggleCorpEventsPref" onchange="toggleCorporateEventsPref(this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary, #6C5CE7);">
+                                    <input type="checkbox" id="toggleCorpEventsPref" onchange="toggleCorporateEventsPref(this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary, #4338CA);">
                                 </label>
                             </div>
                         </div>
@@ -541,7 +542,7 @@
 
                             <div style="padding: 16px 0; border-top: 1px solid var(--color-border-light); border-bottom: 1px solid var(--color-border-light); margin: 8px 0;">
                                 <div class="notif-switch-info" style="padding-right:0; margin-bottom:12px;">
-                                    <strong><i class="fas fa-filter" style="color:var(--color-primary,#6C5CE7); margin-right:6px;"></i> Tipos de Notificações Push Ativas</strong>
+                                    <strong><i class="fas fa-filter" style="color:var(--color-primary,#4338CA); margin-right:6px;"></i> Tipos de Notificações Push Ativas</strong>
                                     <small>Escolha exatamente quais alertas nativos você deseja receber no seu celular e computador:</small>
                                 </div>
 
@@ -580,7 +581,7 @@
 
                                 <div class="notif-switch-row" style="padding: 8px 0;">
                                     <div class="notif-switch-info">
-                                        <span><i class="fas fa-bullseye" style="color:#6C5CE7; margin-right:8px;"></i> <strong>Metas Atingidas (100%)</strong></span>
+                                        <span><i class="fas fa-bullseye" style="color:#4338CA; margin-right:8px;"></i> <strong>Metas Atingidas (100%)</strong></span>
                                         <small>Alerta especial comemorativo ao atingir o valor de uma meta.</small>
                                     </div>
                                     <label class="custom-toggle">
@@ -653,7 +654,7 @@
                                     <div class="settings-card-header-content">
                                         <div style="display:flex; align-items:center; gap:8px;">
                                             <h3>Histórico de Notificações</h3>
-                                            <span class="badge" id="notifHistoryCountBadge" style="background: rgba(108, 92, 231, 0.1); color: var(--color-primary, #6C5CE7); font-size: 11px; padding: 2px 8px; border-radius: 999px;">0</span>
+                                            <span class="badge" id="notifHistoryCountBadge" style="background: rgba(67, 56, 202, 0.12); color: var(--color-primary, #4338CA); font-size: 11px; padding: 2px 8px; border-radius: 999px;">0</span>
                                         </div>
                                         <p>Registro das últimas 50 notificações enviadas para a sua conta.</p>
                                     </div>

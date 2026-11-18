@@ -172,7 +172,7 @@
 
 .tab-status-btn.active {
     background: var(--color-surface, #ffffff);
-    color: var(--color-primary, #6c5ce7);
+    color: var(--color-primary, #4338CA);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
@@ -243,7 +243,7 @@
 
 .bill-card.clean-list-card:hover {
     background: var(--color-surface-hover, #f8fafc);
-    border-color: rgba(108, 92, 231, 0.28);
+    border-color: rgba(67, 56, 202, 0.28);
 }
 
 .bill-card.clean-list-card.overdue {
@@ -251,8 +251,8 @@
 }
 
 .bill-card.clean-list-card.selected {
-    border-color: var(--color-primary, #6c5ce7);
-    box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.16);
+    border-color: var(--color-primary, #4338CA);
+    box-shadow: 0 0 0 2px rgba(67, 56, 202, 0.16);
 }
 
 .mobile-icon-squircle {
@@ -404,8 +404,8 @@
 
 .bill-card .bill-actions .btn-icon-sm:hover {
     background: var(--color-bg, #f1f5f9);
-    border-color: var(--color-primary, #6c5ce7);
-    color: var(--color-primary, #6c5ce7);
+    border-color: var(--color-primary, #4338CA);
+    color: var(--color-primary, #4338CA);
 }
 
 .bill-card .bill-actions .btn-icon-sm.text-danger:hover {

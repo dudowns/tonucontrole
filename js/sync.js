@@ -98,7 +98,7 @@
                 mobAvatar.id = 'mobileTopAvatar';
                 mobAvatar.className = 'mobile-topbar-avatar';
                 mobAvatar.title = 'Perfil e Status de Sincronização';
-                mobAvatar.style.cssText = 'width:30px; height:30px; border-radius:50%; background:var(--color-primary-light, #f1f0fd); color:#6C5CE7; font-weight:700; font-size:12px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; position:relative; margin-left:4px;';
+                mobAvatar.style.cssText = 'width:30px; height:30px; border-radius:50%; background:var(--color-primary-bg, #EEF2FF); color:#4338CA; font-weight:700; font-size:12px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; position:relative; margin-left:4px;';
                 mobAvatar.textContent = 'U';
                 mobAvatar.onclick = (e) => this.showStatusToast(e);
                 mobileActions.appendChild(mobAvatar);

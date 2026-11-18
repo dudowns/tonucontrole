@@ -3,14 +3,16 @@
 // ============================================
 
 // NOTA: Sincronizar CACHE_NAME com a versão em package.json a cada release
-const CACHE_NAME = 'tonucontrole-v3.1.6';
+const CACHE_NAME = 'tonucontrole-v3.2.1';
 
 const RELATIVE_ASSETS = [
   './',
   './index.html',
+  './index-mobile.html',
   './manifest.json',
   './css/theme.css',
   './css/dark-theme.css',
+  './css/sidebar-patch.css',
   './css/dashboard.css',
   './css/transactions.css',
   './css/goals.css',
@@ -21,9 +23,16 @@ const RELATIVE_ASSETS = [
   './css/notifications.css',
   './css/sync.css',
   './css/mobile.css',
+  './icons/favicon.svg',
   './icons/logo.png',
+  './icons/icon-72x72.png',
+  './icons/icon-96x96.png',
+  './icons/icon-128x128.png',
+  './icons/icon-144x144.png',
+  './icons/icon-152x152.png',
   './icons/icon-192x192.png',
   './icons/icon-256x256.png',
+  './icons/icon-384x384.png',
   './icons/icon-512x512.png',
   './icons/icon-maskable-192x192.png',
   './icons/icon-maskable-512x512.png',
@@ -148,7 +157,7 @@ self.addEventListener('sync', (event) => {
 // PUSH & NOTIFICATION CLICK LISTENERS
 // ============================================
 self.addEventListener('push', (event) => {
-  let data = { title: 'TonuControle', body: 'Você tem uma notificação', icon: '/icons/icon-192x192.png' };
+  let data = { title: 'TonuControle', body: 'Você tem uma notificação', icon: '/icons/icon-192x192.png?v=3.2.1' };
   if (event.data) {
     try { data = event.data.json(); } catch (e) { data.body = event.data.text(); }
   }
@@ -158,8 +167,8 @@ self.addEventListener('push', (event) => {
   // Exibição imediata dentro de event.waitUntil para garantir ciclo de vida no iOS WebKit
   const notificationPromise = self.registration.showNotification(data.title || 'TonuControle', {
     body: data.body || '',
-    icon: data.icon || '/icons/icon-192x192.png',
-    badge: '/icons/icon-96x96.png',
+    icon: data.icon || '/icons/icon-192x192.png?v=3.2.1',
+    badge: '/icons/icon-96x96.png?v=3.2.1',
     tag: data.tag || 'tonu-notification',
     data: { url: data.url || './', badgeCount: badgeCount }
   });

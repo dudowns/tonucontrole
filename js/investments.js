@@ -1257,7 +1257,7 @@ async function editTransaction(id) {
 
         const modalHeader = document.querySelector('#operationModal .modal-header');
         if (modalHeader) {
-            modalHeader.style.borderLeftColor = '#6C5CE7';
+            modalHeader.style.borderLeftColor = '#4338CA';
             modalHeader.style.borderLeftWidth = '4px';
         }
 
@@ -3167,7 +3167,7 @@ function openAllTickersDistributionModal() {
         container.innerHTML = '<p style="font-size:12px;color:var(--color-text-muted);text-align:center;padding:16px 0;">Nenhum provento registrado nos últimos 12 meses.</p>';
     } else {
         const totalSum = last12MTickersData.reduce((a, b) => a + b[1], 0);
-        const colors = ['#0984E3', '#00B894', '#6C5CE7', '#FDCB6E', '#E17055', '#D63031', '#00CEC9', '#FD79A8'];
+        const colors = ['#0984E3', '#10B981', '#4338CA', '#FDCB6E', '#E17055', '#D63031', '#00CEC9', '#FD79A8'];
 
         container.innerHTML = last12MTickersData.map((item, idx) => {
             const pct = totalSum > 0 ? ((item[1] / totalSum) * 100).toFixed(2).replace('.', ',') : '0,00';
@@ -4293,7 +4293,7 @@ function renderChart() {
             }
 
             if (selectedPatrimonyBarIndex === activeIdx) {
-                ctx.strokeStyle = isDark ? '#A29BFE' : '#6C5CE7';
+                ctx.strokeStyle = isDark ? '#818CF8' : '#4338CA';
                 ctx.lineWidth = 2;
                 if (typeof ctx.roundRect === 'function') {
                     ctx.beginPath();
@@ -4635,12 +4635,12 @@ function renderPieChart() {
 
     const classColors = {
         'FIIs': '#0984E3',
-        'Ações': '#6C5CE7',
-        'ETFs': '#00B894',
+        'Ações': '#4338CA',
+        'ETFs': '#10B981',
         'Tesouro': '#FDCB6E'
     };
 
-    const palette = ['#0984E3', '#6C5CE7', '#00B894', '#FDCB6E', '#E17055', '#E84393', '#00CEC9', '#A29BFE'];
+    const palette = ['#0984E3', '#4338CA', '#10B981', '#FDCB6E', '#E17055', '#E84393', '#00CEC9', '#7C3AED'];
 
     const data = [];
     const labels = [];
@@ -4664,7 +4664,7 @@ function renderPieChart() {
             if (total > 0) {
                 data.push(total);
                 labels.push(cls);
-                backgroundColors.push(classColors[cls] || '#6C5CE7');
+                backgroundColors.push(classColors[cls] || '#4338CA');
             }
         });
     }
@@ -5060,7 +5060,7 @@ function renderDividendsPieChart() {
     const total12M = sorted.reduce((sum, item) => sum + item[1], 0);
 
     const colors = [
-        '#0984E3', '#00B894', '#6C5CE7', '#FDCB6E',
+        '#0984E3', '#10B981', '#4338CA', '#FDCB6E',
         '#E17055', '#D63031', '#00CEC9', '#FD79A8'
     ];
 
@@ -5491,7 +5491,7 @@ function renderCorporateEvents() {
         tbody.innerHTML = `
             <tr>
                 <td colspan="8" style="text-align:center; padding:35px; color:var(--color-text-muted);">
-                    <i class="fas fa-bolt" style="font-size:28px; color:var(--color-primary,#6C5CE7); margin-bottom:8px; display:block; opacity:0.6;"></i>
+                    <i class="fas fa-bolt" style="font-size:28px; color:var(--color-primary,#4338CA); margin-bottom:8px; display:block; opacity:0.6;"></i>
                     Nenhum evento corporativo registrado.<br>
                     <small>Cadastre desdobramentos, agrupamentos ou bonificações para ajustar automaticamente seu preço médio.</small>
                 </td>
@@ -5538,8 +5538,8 @@ function renderCorporateEvents() {
         return `
             <tr>
                 <td style="font-weight:600;">${dateStr}</td>
-                <td><strong style="color:var(--color-primary,#6C5CE7);">${ev.ticker}</strong></td>
-                <td><span class="badge" style="background:rgba(108,92,231,0.12); color:#6C5CE7; padding:4px 8px; border-radius:6px; font-weight:600; font-size:11px;">${evType}</span></td>
+                <td><strong style="color:var(--color-primary,#4338CA);">${ev.ticker}</strong></td>
+                <td><span class="badge" style="background:rgba(67,56,202,0.12); color:#4338CA; padding:4px 8px; border-radius:6px; font-weight:600; font-size:11px;">${evType}</span></td>
                 <td>${detail}</td>
                 <td style="font-weight:500;">${cotasImpact}</td>
                 <td style="color:#00b894; font-weight:500;">${costImpact}</td>

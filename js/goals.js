@@ -437,7 +437,7 @@ function updateTemporalHeader() {
             badgeStatus.className = 'year-badge-status status-badge-current';
         }
         if (cycleTitle) {
-            cycleTitle.innerHTML = '<i class="fas fa-infinity" style="color: #6C5CE7;"></i> Metas de Longo Prazo';
+            cycleTitle.innerHTML = '<i class="fas fa-infinity" style="color: #4338CA;"></i> Metas de Longo Prazo';
         }
         if (cycleSubtitle) {
             cycleSubtitle.textContent = 'Objetivos perenes e patrimônio que ultrapassam o ciclo de 1 ano';
@@ -582,11 +582,11 @@ const GOAL_CATEGORY_MAP = {
     emergency: { label: 'Reserva de Emergência', icon: 'fa-shield-alt', emoji: '🛡️', color: '#00B894' },
     travel: { label: 'Viagem & Lazer', icon: 'fa-plane-departure', emoji: '✈️', color: '#0984E3' },
     vehicle: { label: 'Veículo', icon: 'fa-car', emoji: '🚗', color: '#E17055' },
-    home: { label: 'Imóvel / Casa', icon: 'fa-home', emoji: '🏠', color: '#6C5CE7' },
-    education: { label: 'Educação', icon: 'fa-graduation-cap', emoji: '🎓', color: '#A29BFE' },
+    home: { label: 'Imóvel / Casa', icon: 'fa-home', emoji: '🏠', color: '#4338CA' },
+    education: { label: 'Educação', icon: 'fa-graduation-cap', emoji: '🎓', color: '#7C3AED' },
     investment: { label: 'Investimentos', icon: 'fa-chart-line', emoji: '📈', color: '#10B981' },
     purchase: { label: 'Compras', icon: 'fa-shopping-bag', emoji: '📱', color: '#FDCB6E' },
-    other: { label: 'Objetivo Geral', icon: 'fa-bullseye', emoji: '🎯', color: '#6C5CE7' }
+    other: { label: 'Objetivo Geral', icon: 'fa-bullseye', emoji: '🎯', color: '#4338CA' }
 };
 
 // Tenta inferir categoria com base no título se não estiver explícito
@@ -1217,7 +1217,7 @@ function _renderFinancialCard(g, isComplete, goalYear, catInfo, color) {
             </div>
 
             <div class="goal-actions-bar" onclick="event.stopPropagation();">
-                <button type="button" class="btn-card-action" onclick="openGoalYieldModal('${g.id}')" title="Extrato e Rendimento CDI" style="background:rgba(108,92,231,0.1); color:#6C5CE7; font-weight:700;">
+                <button type="button" class="btn-card-action" onclick="openGoalYieldModal('${g.id}')" title="Extrato e Rendimento CDI" style="background:rgba(67,56,202,0.1); color:#4338CA; font-weight:700;">
                     <i class="fas fa-chart-line"></i> CDI
                 </button>
                 ${!isComplete ? `
@@ -1249,7 +1249,7 @@ function _renderFinancialCard(g, isComplete, goalYear, catInfo, color) {
 function _renderGoalCard(g) {
     const goalType = g.type || 'financial';
     const catInfo = resolveGoalCategory(g);
-    const color = g.color || catInfo.color || '#6C5CE7';
+    const color = g.color || catInfo.color || '#4338CA';
     const isComplete = isGoalComplete(g);
     const goalYear = resolveGoalYear(g);
 
@@ -1373,7 +1373,7 @@ function openModal(id = null) {
     document.getElementById('gCurrent').value = '';
     document.getElementById('gDeadline').value = '';
     document.getElementById('gCategory').value = 'home';
-    document.getElementById('gColor').value = '#6C5CE7';
+    document.getElementById('gColor').value = '#4338CA';
     if (document.getElementById('gCdiPercent')) document.getElementById('gCdiPercent').value = '100';
     document.getElementById('gCompleted').checked = false;
     deleteBtn.classList.add('hidden');
@@ -1410,7 +1410,7 @@ function openModal(id = null) {
             const catInfo = resolveGoalCategory(goal);
             const catElem = document.getElementById('gCategory');
             if (catElem) catElem.value = goal.category || catInfo.key || 'other';
-            document.getElementById('gColor').value = goal.color || '#6C5CE7';
+            document.getElementById('gColor').value = goal.color || '#4338CA';
             if (document.getElementById('gCdiPercent')) {
                 document.getElementById('gCdiPercent').value = goal.cdi_percent || 100;
             }
@@ -2165,8 +2165,8 @@ function playCelebrationSound() {
 
 function createConfettiParticles(count = 140, origin = 'cannons') {
     const colors = [
-        '#FFD700', '#FFA500', '#6C5CE7', '#00B894', 
-        '#0984E3', '#FF7675', '#FD79A8', '#FDCB6E', '#A29BFE'
+        '#FFD700', '#FFA500', '#4338CA', '#10B981', 
+        '#0984E3', '#FF7675', '#FD79A8', '#FDCB6E', '#7C3AED'
     ];
     const shapes = ['rect', 'circle', 'ribbon', 'star'];
     const particles = [];
@@ -2720,7 +2720,7 @@ async function renderGoalYieldDetails(goal) {
                 <td style="padding: 8px 10px; color:var(--color-text-muted);">${diffDays} dia(s)</td>
                 <td style="padding: 8px 10px; color:#00B894; font-weight: 700;">+${formatCurrency(grossYield)}</td>
                 <td style="padding: 8px 10px; color:#ef4444;">-${formatCurrency(iof + ir)}</td>
-                <td style="padding: 8px 10px; color:#6C5CE7; font-weight: 700;">+${formatCurrency(netYield)}</td>
+                <td style="padding: 8px 10px; color:#4338CA; font-weight: 700;">+${formatCurrency(netYield)}</td>
                 <td style="padding: 8px 10px; text-align:right;">
                     ${!dep.is_initial ? `<button type="button" class="btn btn-sm" onclick="deleteGoalDeposit('${dep.id}', ${amt})" style="color:#ef4444; background:none; border:none; padding:2px 6px; cursor:pointer;" title="Remover Aporte"><i class="fas fa-trash"></i></button>` : '-'}
                 </td>

@@ -407,7 +407,7 @@ body.dark-theme .goal-tab-btn:hover {
 }
 
 body.dark-theme .goal-tab-btn.active {
-    background: #6C5CE7 !important;
+    background: linear-gradient(135deg, #4F46E5, #7C3AED) !important;
     color: #ffffff !important;
 }
 

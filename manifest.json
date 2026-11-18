@@ -6,22 +6,23 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#6C5CE7",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#eef2ff",
+  "theme_color": "#4338CA",
   "orientation": "any",
   "categories": ["finance", "productivity", "utilities"],
   "icons": [
-    { "src": "icons/icon-72x72.png",           "sizes": "72x72",   "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-96x96.png",           "sizes": "96x96",   "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-128x128.png",         "sizes": "128x128", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-144x144.png",         "sizes": "144x144", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-152x152.png",         "sizes": "152x152", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-192x192.png",         "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-256x256.png",         "sizes": "256x256", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-384x384.png",         "sizes": "384x384", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512x512.png",         "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-maskable-192x192.png","sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "icons/icon-maskable-512x512.png","sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "icons/icon-72x72.png?v=3.2.1",           "sizes": "72x72",   "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-96x96.png?v=3.2.1",           "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-128x128.png?v=3.2.1",         "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-144x144.png?v=3.2.1",         "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-152x152.png?v=3.2.1",         "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192x192.png?v=3.2.1",         "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-256x256.png?v=3.2.1",         "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-384x384.png?v=3.2.1",         "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512x512.png?v=3.2.1",         "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-192x192.png?v=3.2.1","sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-maskable-512x512.png?v=3.2.1","sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
     {
@@ -29,28 +30,28 @@
       "short_name": "Nova Despesa",
       "description": "Lançar nova despesa rapidamente",
       "url": "./pages/transactions.html?action=new_expense",
-      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "icons/icon-96x96.png?v=3.2.1", "sizes": "96x96", "type": "image/png" }]
     },
     {
       "name": "Contas a Pagar",
       "short_name": "Contas",
       "description": "Controle de contas e vencimentos",
       "url": "./pages/bills.html?filter=pending",
-      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "icons/icon-96x96.png?v=3.2.1", "sizes": "96x96", "type": "image/png" }]
     },
     {
       "name": "Resumo do Mês",
       "short_name": "Dashboard",
       "description": "Ver resumo financeiro e gráficos",
       "url": "./index.html",
-      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "icons/icon-96x96.png?v=3.2.1", "sizes": "96x96", "type": "image/png" }]
     },
     {
       "name": "Metas Financeiras",
       "short_name": "Metas",
       "description": "Acompanhar objetivos e reservas",
       "url": "./pages/goals.html",
-      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "icons/icon-96x96.png?v=3.2.1", "sizes": "96x96", "type": "image/png" }]
     }
   ]
 }

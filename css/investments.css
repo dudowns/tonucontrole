@@ -60,7 +60,7 @@
 .investments-grid .card-stat:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-    border-color: rgba(108, 92, 231, 0.25);
+    border-color: rgba(67, 56, 202, 0.25);
 }
 
 .investments-grid .card-stat::before {
@@ -105,7 +105,7 @@
 }
 
 .investments-grid .card-stat .stat-icon.primary {
-    background: rgba(108, 92, 231, 0.1) !important;
+    background: rgba(67, 56, 202, 0.1) !important;
     color: var(--color-primary) !important;
 }
 
@@ -235,7 +235,7 @@
 
 .tab-btn:hover {
     color: var(--color-text);
-    background: rgba(108, 92, 231, 0.05);
+    background: rgba(67, 56, 202, 0.06);
 }
 
 .tab-btn.active {
@@ -281,7 +281,7 @@
 }
 
 .chart-panel:hover {
-    border-color: rgba(108, 92, 231, 0.2);
+    border-color: rgba(67, 56, 202, 0.22);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
@@ -420,13 +420,13 @@ body.dark-theme .custom-chart-tooltip {
 }
 
 .custom-chart-tooltip.pinned {
-    border-color: #6C5CE7;
-    box-shadow: 0 4px 20px rgba(108, 92, 231, 0.25);
+    border-color: #4338CA;
+    box-shadow: 0 4px 20px rgba(67, 56, 202, 0.25);
 }
 
 body.dark-theme .custom-chart-tooltip.pinned {
-    border-color: #A29BFE;
-    box-shadow: 0 4px 20px rgba(162, 155, 254, 0.35);
+    border-color: #818CF8;
+    box-shadow: 0 4px 20px rgba(129, 140, 248, 0.35);
 }
 
 .custom-chart-tooltip .pinned-badge {
@@ -435,15 +435,15 @@ body.dark-theme .custom-chart-tooltip.pinned {
     gap: 4px;
     font-size: 9px;
     font-weight: 700;
-    color: #6C5CE7;
-    background: rgba(108, 92, 231, 0.12);
+    color: #4338CA;
+    background: rgba(67, 56, 202, 0.12);
     padding: 2px 6px;
     border-radius: 4px;
 }
 
 body.dark-theme .custom-chart-tooltip .pinned-badge {
-    color: #A29BFE;
-    background: rgba(162, 155, 254, 0.18);
+    color: #818CF8;
+    background: rgba(129, 140, 248, 0.18);
 }
 
 .custom-chart-tooltip .tooltip-arrow {
@@ -531,13 +531,13 @@ body.dark-theme .custom-chart-tooltip .tooltip-value {
 
 .period-filter .btn:hover {
     color: var(--color-text);
-    background: rgba(108, 92, 231, 0.05);
+    background: rgba(67, 56, 202, 0.06);
 }
 
 .period-filter .btn.active {
     background: var(--color-primary);
     color: #ffffff;
-    box-shadow: 0 1px 4px rgba(108, 92, 231, 0.25);
+    box-shadow: 0 1px 4px rgba(67, 56, 202, 0.25);
     font-weight: 700;
 }
 
@@ -555,7 +555,7 @@ body.dark-theme .custom-chart-tooltip .tooltip-value {
 }
 
 .portfolio-container:hover {
-    border-color: rgba(108, 92, 231, 0.2);
+    border-color: rgba(67, 56, 202, 0.22);
 }
 
 .portfolio-header {
@@ -585,10 +585,10 @@ body.dark-theme .custom-chart-tooltip .tooltip-value {
     font-size: 14px;
     font-weight: 700;
     color: var(--color-primary);
-    background: rgba(108, 92, 231, 0.08);
+    background: rgba(67, 56, 202, 0.08);
     padding: 3px 8px;
     border-radius: 6px;
-    border: 1px solid rgba(108, 92, 231, 0.15);
+    border: 1px solid rgba(67, 56, 202, 0.16);
 }
 
 .portfolio-header .total-value small {
@@ -638,7 +638,7 @@ body.dark-theme .custom-chart-tooltip .tooltip-value {
     background: var(--color-primary);
     color: #ffffff;
     border-color: var(--color-primary);
-    box-shadow: 0 1px 6px rgba(108, 92, 231, 0.25);
+    box-shadow: 0 1px 6px rgba(67, 56, 202, 0.25);
     font-weight: 700;
 }
 
@@ -697,7 +697,7 @@ body.dark-theme .custom-chart-tooltip .tooltip-value {
 
 .class-card.active {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.2);
+    box-shadow: 0 0 0 2px rgba(67, 56, 202, 0.2);
 }
 
 .class-card .class-header {
@@ -1044,7 +1044,7 @@ body.dark-theme .custom-chart-tooltip .tooltip-value {
 .form-control:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.12);
+    box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.14);
 }
 
 .form-control::placeholder {
@@ -1072,7 +1072,7 @@ select.form-control {
 
 .input-prefix:focus-within {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.12);
+    box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.14);
 }
 
 .input-prefix span {
@@ -2193,35 +2193,35 @@ body.dark-theme .prov-tax-pill.isento {
     font-weight: 700;
     padding: 6px 12px;
     border-radius: 8px;
-    border: 1px solid rgba(108, 92, 231, 0.3);
-    background: rgba(108, 92, 231, 0.08);
-    color: #6C5CE7;
+    border: 1px solid rgba(67, 56, 202, 0.3);
+    background: rgba(67, 56, 202, 0.08);
+    color: #4338CA;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .btn-demo-toggle:hover {
-    background: #6C5CE7;
+    background: #4338CA;
     color: #ffffff;
-    border-color: #6C5CE7;
+    border-color: #4338CA;
 }
 
 body.dark-theme .btn-demo-toggle {
-    color: #a29bfe;
-    border-color: rgba(162, 155, 254, 0.3);
-    background: rgba(108, 92, 231, 0.18);
+    color: #818CF8;
+    border-color: rgba(129, 140, 248, 0.3);
+    background: rgba(79, 70, 229, 0.18);
 }
 
 body.dark-theme .btn-demo-toggle:hover {
-    background: #6C5CE7;
+    background: #4F46E5;
     color: #ffffff;
 }
 
 .btn-demo-toggle.active {
-    background: #6C5CE7;
+    background: #4338CA;
     color: #ffffff;
-    border-color: #6C5CE7;
-    box-shadow: 0 2px 6px rgba(108, 92, 231, 0.3);
+    border-color: #4338CA;
+    box-shadow: 0 2px 6px rgba(67, 56, 202, 0.3);
 }
 
 .btn-outline-demo {

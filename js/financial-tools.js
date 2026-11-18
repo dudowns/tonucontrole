@@ -156,7 +156,7 @@
                             id: t.category_id || ('cat_' + clean),
                             name: t.category.trim(),
                             icon: 'fa-tag',
-                            color: '#6c5ce7',
+                            color: '#4338CA',
                             type: 'expense'
                         });
                     }
@@ -201,7 +201,7 @@
                     categoryId: cat.id,
                     name: cat.name,
                     icon: cat.icon || 'fa-tag',
-                    color: cat.color || '#6c5ce7',
+                    color: cat.color || '#4338CA',
                     limit: limit,
                     spent: spent,
                     remaining: Math.max(0, limit - spent),
@@ -358,7 +358,7 @@
                     <div style="padding:18px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:flex-start; background:#ffffff;">
                         <div>
                             <div style="display:flex; align-items:center; gap:8px;">
-                                <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg, #6c5ce7, #a29bfe); color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 4px 10px rgba(108,92,231,0.25);">
+                                <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg, #4338CA, #7C3AED); color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 4px 10px rgba(67,56,202,0.25);">
                                     <i class="fas fa-bullseye"></i>
                                 </div>
                                 <div>
@@ -404,7 +404,7 @@
                                 <input type="text" id="budgetSearchInput" placeholder="Buscar categoria..." oninput="TonuBudget.filterList()" style="width:100%; padding:6px 10px 6px 30px; border-radius:8px; border:1px solid #cbd5e1; font-size:12px;">
                             </div>
                             <div style="display:flex; gap:4px;">
-                                <button type="button" class="btn-budget-filter active" id="btnFilterAll" onclick="TonuBudget.setFilter('all')" style="padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:#6c5ce7; color:#fff; border:none;">Todas (${progressList.length})</button>
+                                <button type="button" class="btn-budget-filter active" id="btnFilterAll" onclick="TonuBudget.setFilter('all')" style="padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:#4338CA; color:#fff; border:none;">Todas (${progressList.length})</button>
                                 <button type="button" class="btn-budget-filter" id="btnFilterActive" onclick="TonuBudget.setFilter('active')" style="padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;">Com Limite (${activeBudgets.length})</button>
                                 <button type="button" class="btn-budget-filter" id="btnFilterAlerts" onclick="TonuBudget.setFilter('alerts')" style="padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;">Alertas (${exceededCount + warningCount})</button>
                             </div>
@@ -419,7 +419,7 @@
                                 <option value="90" ${currentThreshold === 90 ? 'selected' : ''}>90% do teto</option>
                             </select>
 
-                            <button type="button" onclick="TonuBudget.openNewCategoryModal('${userId}')" style="background:#ede9fe; color:#6c5ce7; border:1px solid #ddd6fe; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                            <button type="button" onclick="TonuBudget.openNewCategoryModal('${userId}')" style="background:#EEF2FF; color:#4338CA; border:1px solid #C7D2FE; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;">
                                 <i class="fas fa-plus"></i> Nova Categoria
                             </button>
                         </div>
@@ -433,7 +433,7 @@
                     <!-- FOOTER -->
                     <div style="padding:14px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
                         <span style="font-size:12px; color:#64748b;">
-                            <i class="fas fa-info-circle" style="color:#6c5ce7;"></i> Deixe em branco ou 0 para desativar o limite.
+                            <i class="fas fa-info-circle" style="color:#4338CA;"></i> Deixe em branco ou 0 para desativar o limite.
                         </span>
                         <div style="display:flex; gap:10px;">
                             <button class="btn btn-outline btn-sm" onclick="document.getElementById('tonuBudgetModal').remove()">Fechar</button>
@@ -473,7 +473,7 @@
                         
                         <!-- LEFT INFO -->
                         <div style="display:flex; align-items:center; gap:12px; min-width:200px;">
-                            <div style="width:38px; height:38px; border-radius:10px; background:${prog.color || '#6c5ce7'}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+                            <div style="width:38px; height:38px; border-radius:10px; background:${prog.color || '#4338CA'}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
                                 <i class="fas ${prog.icon || 'fa-tag'}"></i>
                             </div>
                             <div>
@@ -559,7 +559,7 @@
 
             const activeBtn = document.getElementById(filterType === 'all' ? 'btnFilterAll' : (filterType === 'active' ? 'btnFilterActive' : 'btnFilterAlerts'));
             if (activeBtn) {
-                activeBtn.style.background = '#6c5ce7';
+                activeBtn.style.background = '#4338CA';
                 activeBtn.style.color = '#ffffff';
                 activeBtn.style.border = 'none';
             }
@@ -893,7 +893,7 @@
                             <span>${fmt(cat.total)} (${cat.percent.toFixed(0)}%)</span>
                         </div>
                         <div style="height:6px; background:#f1f5f9; border-radius:4px; overflow:hidden;">
-                            <div style="height:100%; width:${cat.percent}%; background:#6c5ce7; border-radius:4px;"></div>
+                            <div style="height:100%; width:${cat.percent}%; background:#4338CA; border-radius:4px;"></div>
                         </div>
                     </div>
                 `;
@@ -926,7 +926,7 @@
                 <div style="background:#ffffff; border-radius:18px; max-width:540px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.25); border:1px solid #e2e8f0; animation:slideUp 0.3s ease;">
                     <div style="padding:20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg, #f8fafc, #f1f5f9); border-radius:18px 18px 0 0;">
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <div style="width:40px; height:40px; border-radius:10px; background:#6c5ce7; color:white; display:flex; align-items:center; justify-content:center; font-size:18px;">
+                            <div style="width:40px; height:40px; border-radius:10px; background:#4338CA; color:white; display:flex; align-items:center; justify-content:center; font-size:18px;">
                                 <i class="fas fa-envelope-open-text"></i>
                             </div>
                             <div>
@@ -956,7 +956,7 @@
                         </div>
 
                         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px;">
-                            <h4 style="margin:0 0 10px 0; font-size:13px; font-weight:700; color:#334155;"><i class="fas fa-chart-pie" style="color:#6c5ce7;"></i> Maiores Gastos por Categoria</h4>
+                            <h4 style="margin:0 0 10px 0; font-size:13px; font-weight:700; color:#334155;"><i class="fas fa-chart-pie" style="color:#4338CA;"></i> Maiores Gastos por Categoria</h4>
                             ${topCatsHtml}
                         </div>
 
@@ -1049,7 +1049,7 @@
             ];
 
             this.colorList = [
-                '#FF7675', '#FDCB6E', '#00B894', '#0984E3', '#6C5CE7',
+                '#FF7675', '#FDCB6E', '#10B981', '#0984E3', '#4338CA',
                 '#E17055', '#E84393', '#00CEC9', '#2D3436', '#636E72'
             ];
         }
@@ -1076,7 +1076,7 @@
                     <div style="padding:12px 18px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                         <div>
                             <h3 style="font-size:15px; font-weight:700; color:#0f172a; margin:0 0 2px 0;">
-                                <i class="fas fa-tags" style="color:#6c5ce7; margin-right:6px;"></i> Gerenciar Categorias
+                                <i class="fas fa-tags" style="color:#4338CA; margin-right:6px;"></i> Gerenciar Categorias
                             </h3>
                             <p style="font-size:11px; color:#64748b; margin:0;">Crie ou personalize suas categorias com cores e ícones exclusivos.</p>
                         </div>
@@ -1096,7 +1096,7 @@
                             return `
                             <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px;">
                                 <div style="display:flex; align-items:center; gap:10px;">
-                                    <div style="width:30px; height:30px; border-radius:8px; background:${c.color || '#6c5ce7'}; color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:13px;">
+                                    <div style="width:30px; height:30px; border-radius:8px; background:${c.color || '#4338CA'}; color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:13px;">
                                         <i class="fas ${c.icon || 'fa-tag'}"></i>
                                     </div>
                                     <div>
@@ -1132,7 +1132,7 @@
             this.currentUpdateCallback = onUpdatedCallback;
         }
 
-        static showEditModal(id, userId, name = '', type = 'expense', icon = 'fa-tag', color = '#6c5ce7') {
+        static showEditModal(id, userId, name = '', type = 'expense', icon = 'fa-tag', color = '#4338CA') {
             let editModal = document.getElementById('categoryEditSubModal');
             if (editModal) editModal.remove();
 
@@ -1175,7 +1175,7 @@
                             <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Escolha o Ícone</label>
                             <div style="display:flex; gap:6px; flex-wrap:wrap; max-height:85px; overflow-y:auto; padding:2px;">
                                 ${instance.iconList.map(ic => `
-                                    <button type="button" onclick="document.querySelectorAll('.cat-icon-choice').forEach(e=>e.style.borderColor='#cbd5e1'); this.style.borderColor='#6c5ce7'; this.style.background='#f0edff'; document.getElementById('catEditSelectedIcon').value='${ic}';" class="cat-icon-choice" style="width:30px; height:30px; border-radius:6px; border:1px solid ${ic === icon ? '#6c5ce7' : '#cbd5e1'}; background:${ic === icon ? '#f0edff' : '#ffffff'}; color:#0f172a; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px;">
+                                    <button type="button" onclick="document.querySelectorAll('.cat-icon-choice').forEach(e=>e.style.borderColor='#cbd5e1'); this.style.borderColor='#4338CA'; this.style.background='#EEF2FF'; document.getElementById('catEditSelectedIcon').value='${ic}';" class="cat-icon-choice" style="width:30px; height:30px; border-radius:6px; border:1px solid ${ic === icon ? '#4338CA' : '#cbd5e1'}; background:${ic === icon ? '#EEF2FF' : '#ffffff'}; color:#0f172a; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px;">
                                         <i class="fas ${ic}"></i>
                                     </button>
                                 `).join('')}
@@ -1200,7 +1200,7 @@
         static async saveCategory(id, userId) {
             const name = document.getElementById('catEditName')?.value?.trim();
             const type = document.getElementById('catEditType')?.value || 'expense';
-            const color = document.getElementById('catEditSelectedColor')?.value || '#6c5ce7';
+            const color = document.getElementById('catEditSelectedColor')?.value || '#4338CA';
             const icon = document.getElementById('catEditSelectedIcon')?.value || 'fa-tag';
             const budgetLimitInput = document.getElementById('catEditBudgetLimit');
             const limitVal = budgetLimitInput ? (parseFloat(budgetLimitInput.value) || 0) : 0;
@@ -1437,7 +1437,7 @@
                     <div style="padding:20px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                         <div>
                             <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:0 0 4px 0;">
-                                <i class="fas fa-file-import" style="color:#6c5ce7; margin-right:8px;"></i> Importar Extrato Bancário
+                                <i class="fas fa-file-import" style="color:#4338CA; margin-right:8px;"></i> Importar Extrato Bancário
                             </h3>
                             <p style="font-size:12px; color:#64748b; margin:0;">Arquivo: <strong>${fileName}</strong> (${total} transações identificadas)</p>
                         </div>

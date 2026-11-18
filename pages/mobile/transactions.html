@@ -6,21 +6,22 @@
     <meta name="theme-color" content="#F8FAFC">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="manifest" href="../../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png">
+    <link rel="manifest" href="../../manifest.json?v=3.2.1">
+    <link rel="icon" type="image/svg+xml" href="../../icons/favicon.svg?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png?v=3.2.1">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png?v=3.2.1">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png?v=3.2.1">
     <title>Transações - Mobile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../css/theme.css">
-    <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css?v=4.1.4">
-    <link rel="stylesheet" href="../../css/notifications.css">
+    <link rel="stylesheet" href="../../css/theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../../css/dark-theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.2.0">
+    <link rel="stylesheet" href="../../css/notifications.css?v=3.2.1">
     <style>
         body { background: var(--mob-bg, #F8FAFC); }
         .filter-bar {
@@ -79,7 +80,7 @@
 <header class="mobile-topbar">
     <div class="topbar-header">
         <div class="topbar-left">
-            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <div class="app-icon"><img src="../../icons/logo.png?v=3.2.1" alt="TonuControle"></div>
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
@@ -426,7 +427,7 @@ async function loadCategories() {
         } else {
             categories = [
                 { id: 'cat_contas', name: '⚡ Contas Básicas', type: 'expense', icon: 'fa-bolt', color: '#0984E3' },
-                { id: 'cat_lazer', name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#A29BFE' },
+                { id: 'cat_lazer', name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#8B5CF6' },
                 { id: 'cat_saude', name: '❤️ Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#FF6B6B' },
                 { id: 'cat_educacao', name: '📚 Educação', type: 'expense', icon: 'fa-book', color: '#0984E3' },
                 { id: 'cat_emprestimos', name: '🤝 Empréstimos', type: 'expense', icon: 'fa-hand-holding-usd', color: '#D63031' },

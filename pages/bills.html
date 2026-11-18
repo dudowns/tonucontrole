@@ -4,18 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#6C5CE7">
+    <meta name="theme-color" content="#4338CA">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TonuControle">
 
-    <link rel="manifest" href="../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png">
+    <link rel="manifest" href="../manifest.json?v=3.2.1">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.1">
 
     <title>Contas a Pagar e Vencimentos | TonuControle</title>
 
@@ -24,13 +25,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/sidebar-patch.css">
-    <link rel="stylesheet" href="../css/bills.css?v=3.0.6">
-    <link rel="stylesheet" href="../css/notifications.css">
-    <link rel="stylesheet" href="../css/sync.css">
-    <link rel="stylesheet" href="../css/sync-status.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/sidebar-patch.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/bills.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/notifications.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/sync.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/sync-status.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.1">
 
     <!-- Device Router & Anti-flicker Theme Init -->
     <script src="../js/device-router.js"></script>
@@ -52,7 +53,7 @@
 
         <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
             <div class="sidebar-brand">
-                <div class="brand-icon"><img src="../icons/logo.png" alt="TonuControle"></div>
+                <div class="brand-icon"><img src="../icons/logo.png?v=3.2.1" alt="TonuControle"></div>
                 <h2>TonuControle</h2>
             </div>
             <ul class="sidebar-nav" role="menubar">
@@ -176,7 +177,7 @@
                         <span class="pct" id="billsProgressPct">0%</span>
                     </div>
                     <div class="progress" style="background:var(--color-bg,#e2e8f0); border-radius:999px; overflow:hidden; height:10px;">
-                        <div class="progress-bar" id="billsProgressBar" style="width: 0%; height:100%; background:linear-gradient(90deg, #6C5CE7, #00B894); border-radius:999px; transition: width 0.4s ease;"></div>
+                        <div class="progress-bar" id="billsProgressBar" style="width: 0%; height:100%; background:linear-gradient(90deg, #4338CA, #10B981); border-radius:999px; transition: width 0.4s ease;"></div>
                     </div>
                 </div>
 
@@ -206,7 +207,7 @@
                 <!-- BANNER INFORMATIVO DE COMPRAS/CONTAS PARCELADAS -->
                 <div id="billsInstallmentBanner" style="display:none; margin-bottom:var(--space-md); padding:10px 14px; background:linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(168,85,247,0.08) 100%); border:1px solid rgba(99,102,241,0.25); border-radius:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <div style="width:36px; height:36px; border-radius:8px; background:var(--color-primary, #6c5ce7); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">
+                        <div style="width:36px; height:36px; border-radius:8px; background:var(--color-primary, #4338CA); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">
                             <i class="fas fa-layer-group"></i>
                         </div>
                         <div>
@@ -245,9 +246,9 @@
             <!-- RODAPÉ FIXO DE SOMA VISUAL (ITEM 9) -->
             <div id="billsSelectionFooter" class="bills-selection-footer" style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:1050; background:var(--color-surface,#ffffff); border:1px solid var(--color-border,#e2e8f0); box-shadow:0 10px 30px rgba(0,0,0,0.18); border-radius:999px; padding:10px 22px; align-items:center; gap:18px;">
                 <div style="display:flex; align-items:center; gap:8px; font-size:14px;">
-                    <span id="selectedBillsCountText" style="font-weight:600; color:var(--color-primary,#6c5ce7);">0 selecionada(s)</span>
+                    <span id="selectedBillsCountText" style="font-weight:600; color:var(--color-primary,#4338CA);">0 selecionada(s)</span>
                     <span style="color:var(--color-text-muted,#94a3b8);">·</span>
-                    <span style="color:var(--color-text,#2d3436);">Total: <strong id="selectedBillsTotalText" style="color:var(--color-primary,#6c5ce7); font-size:16px;">R$ 0,00</strong></span>
+                    <span style="color:var(--color-text,#2d3436);">Total: <strong id="selectedBillsTotalText" style="color:var(--color-primary,#4338CA); font-size:16px;">R$ 0,00</strong></span>
                 </div>
                 <button type="button" class="btn btn-outline btn-sm" onclick="cancelBillSelection()" style="border-radius:999px; padding:4px 12px; font-size:12px; font-weight:600;">
                     <i class="fas fa-times"></i> Cancelar
@@ -300,7 +301,7 @@
 
                     <!-- DETALHES DE PARCELAMENTO (Condicional) -->
                     <div id="billInstallmentFields" style="display:none; padding:10px 12px; background:var(--color-bg, #f8fafc); border:1px solid var(--color-border, #e2e8f0); border-radius:8px; margin-bottom:9px;">
-                        <div style="font-size:11.5px; font-weight:700; color:var(--color-primary, #6c5ce7); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                        <div style="font-size:11.5px; font-weight:700; color:var(--color-primary, #4338CA); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
                             <i class="fas fa-layer-group"></i> Detalhes do Pagamento Parcelado
                         </div>
                         <div class="form-row">
@@ -379,7 +380,7 @@
     <script src="../js/financial-tools.js"></script>
     <script src="../js/sync.js"></script>
     <script src="../js/notifications.js"></script>
-    <script src="../js/bills.js?v=3.0.6"></script>
+    <script src="../js/bills.js?v=3.2.1"></script>
     <script src="../js/sw-register.js"></script>
 
     <script>

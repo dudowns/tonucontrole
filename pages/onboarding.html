@@ -4,12 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#6C5CE7">
+    <meta name="theme-color" content="#4338CA">
     <title>Primeiros Passos | TonuControle</title>
 
-    <link rel="manifest" href="../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png">
-    <link rel="shortcut icon" href="../icons/icon-128x128.png">
+    <link rel="manifest" href="../manifest.json?v=3.2.1">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.1">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.1">
 
     <!-- Fontes e Ícones -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,8 +20,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- CSS -->
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.1">
 
     <!-- Theme Init -->
     <script>
@@ -67,7 +69,7 @@
             left: 0;
             right: 0;
             height: 5px;
-            background: linear-gradient(90deg, #6C5CE7, #00B894, #0984E3);
+            background: linear-gradient(90deg, #4338CA, #10B981, #7C3AED);
         }
 
         .onboarding-header {
@@ -76,10 +78,12 @@
         }
 
         .onboarding-logo {
-            width: 54px;
-            height: 54px;
+            width: 58px;
+            height: 58px;
             margin: 0 auto 16px;
             display: block;
+            border-radius: 14px;
+            box-shadow: 0 8px 20px rgba(67, 56, 202, 0.22);
         }
 
         .onboarding-title {
@@ -126,7 +130,7 @@
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #6C5CE7, #00B894);
+            background: linear-gradient(90deg, #4338CA, #10B981);
             border-radius: 999px;
             width: 0%;
             transition: width 0.4s ease;
@@ -154,9 +158,9 @@
         }
 
         .step-item:hover {
-            border-color: #6C5CE7;
+            border-color: #4338CA;
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(108, 92, 231, 0.08);
+            box-shadow: 0 6px 16px rgba(67, 56, 202, 0.1);
         }
 
         .step-item.completed {
@@ -180,8 +184,8 @@
             font-size: 16px;
             font-weight: 700;
             flex-shrink: 0;
-            background: rgba(108, 92, 231, 0.1);
-            color: #6C5CE7;
+            background: rgba(67, 56, 202, 0.1);
+            color: #4338CA;
             transition: all 0.2s ease;
         }
 
@@ -210,7 +214,7 @@
         }
 
         .step-item:hover .step-action-arrow {
-            color: #6C5CE7;
+            color: #4338CA;
             transform: translateX(3px);
         }
 
@@ -242,7 +246,7 @@
         }
 
         .btn-finish {
-            background: #6C5CE7;
+            background: linear-gradient(135deg, #4338CA, #4F46E5);
             color: #ffffff;
             border: none;
             padding: 10px 20px;
@@ -258,9 +262,9 @@
         }
 
         .btn-finish:hover {
-            background: #5848c7;
+            background: #3730A3;
             transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(108, 92, 231, 0.3);
+            box-shadow: 0 4px 14px rgba(67, 56, 202, 0.3);
         }
     </style>
 </head>
@@ -269,7 +273,7 @@
 
     <div class="onboarding-card">
         <div class="onboarding-header">
-            <img src="../icons/logo.png" alt="TonuControle" class="onboarding-logo">
+            <img src="../icons/logo.png?v=3.2.1" alt="TonuControle" class="onboarding-logo">
             <h1 class="onboarding-title">Boas-vindas ao TonuControle! 🚀</h1>
             <p class="onboarding-subtitle">Vamos configurar seu controle financeiro inteligente em apenas 3 passos:</p>
         </div>

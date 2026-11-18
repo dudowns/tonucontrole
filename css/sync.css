@@ -61,14 +61,14 @@
     box-shadow: 0 0 5px rgba(239, 68, 68, 0.8);
 }
 
-/* Status Sincronizando (Sinal Roxo / Girando) */
+/* Status Sincronizando (Sinal Índigo / Pulsando) */
 .sync-signal-bottom.status-syncing {
-    color: #6c5ce7;
-    background: rgba(108, 92, 231, 0.1);
+    color: #4338CA;
+    background: rgba(67, 56, 202, 0.1);
 }
 
 .sync-signal-bottom.status-syncing .sync-signal-dot {
-    background: #6c5ce7;
+    background: #4338CA;
     animation: pulseSignal 1s infinite;
 }
 
@@ -176,7 +176,7 @@ body>.sync-signal-bottom {
 }
 
 .share-target-header h3 i {
-    color: #6c5ce7;
+    color: #4338CA;
 }
 
 .share-target-body {

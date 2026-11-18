@@ -37,7 +37,7 @@
 .dashboard-grid .card-stat:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
     transform: translateY(-1px) !important;
-    border-color: rgba(108, 92, 231, 0.3) !important;
+    border-color: rgba(67, 56, 202, 0.3) !important;
 }
 
 .dashboard-grid .card-stat .stat-icon {
@@ -169,9 +169,9 @@
 
 .expense-nav-arrow:hover,
 .expense-more-btn:hover {
-    background: var(--color-primary, #6C5CE7);
+    background: var(--color-primary, #4338CA);
     color: #ffffff;
-    border-color: var(--color-primary, #6C5CE7);
+    border-color: var(--color-primary, #4338CA);
     transform: scale(1.05);
 }
 
@@ -373,8 +373,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-primary-bg, #F0EDFF);
-    color: var(--color-primary, #6C5CE7);
+    background: var(--color-primary-bg, #EEF2FF);
+    color: var(--color-primary, #4338CA);
     font-size: 10px;
     font-weight: 700;
     padding: 0 8px;
@@ -387,18 +387,18 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: var(--color-primary, #6C5CE7);
+    color: var(--color-primary, #4338CA);
     text-decoration: none;
     font-size: 12px;
     font-weight: 600;
     padding: 4px 12px;
     border-radius: 6px;
     transition: all 0.25s ease;
-    background: rgba(108, 92, 231, 0.08);
+    background: rgba(67, 56, 202, 0.08);
 }
 
 .transactions-card .view-all-link:hover {
-    background: rgba(108, 92, 231, 0.16);
+    background: rgba(67, 56, 202, 0.16);
     transform: translateX(2px);
 }
 
@@ -1102,8 +1102,8 @@
 }
 
 .insight-metric-icon.info {
-    background: #ede9fe;
-    color: #6c5ce7;
+    background: #EEF2FF;
+    color: #4338CA;
 }
 
 .insight-metric-icon.teal {
@@ -1180,8 +1180,8 @@
 
 /* Bloco Comparativo Mês a Mês (MoM) */
 .insight-mom-box {
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.05) 0%, rgba(99, 102, 241, 0.08) 100%);
-    border: 1px solid rgba(108, 92, 231, 0.2);
+    background: linear-gradient(135deg, rgba(67, 56, 202, 0.06) 0%, rgba(124, 58, 237, 0.08) 100%);
+    border: 1px solid rgba(67, 56, 202, 0.2);
     border-radius: 10px;
     padding: 10px 12px;
     display: flex;
@@ -1203,7 +1203,7 @@
     gap: 6px;
     font-size: 11px;
     font-weight: 700;
-    color: var(--color-primary, #6c5ce7);
+    color: var(--color-primary, #4338CA);
 }
 
 .insight-mom-grid {
@@ -1267,7 +1267,7 @@
 /* Caixa de Ações Estratégicas (Como diminuir gastos & investir mais) */
 .insight-strategy-box {
     background: var(--color-bg, #f8fafc);
-    border: 1px solid rgba(108, 92, 231, 0.2);
+    border: 1px solid rgba(67, 56, 202, 0.2);
     border-radius: 10px;
     padding: 10px 12px;
     display: flex;
@@ -1279,7 +1279,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    color: var(--color-primary, #6c5ce7);
+    color: var(--color-primary, #4338CA);
     font-size: 11px;
     font-weight: 700;
 }
@@ -1335,8 +1335,8 @@
 }
 
 .insight-quick-nav a:hover {
-    background: rgba(108, 92, 231, 0.12);
-    color: var(--color-primary, #6c5ce7);
+    background: rgba(67, 56, 202, 0.12);
+    color: var(--color-primary, #4338CA);
 }
 
 /* Dark Theme Support */
@@ -1360,8 +1360,8 @@ body.dark-theme .insight-metric-text .val {
 }
 
 body.dark-theme .insight-mom-box {
-    background: rgba(108, 92, 231, 0.08);
-    border-color: rgba(108, 92, 231, 0.25);
+    background: rgba(67, 56, 202, 0.1);
+    border-color: rgba(129, 140, 248, 0.25);
 }
 
 body.dark-theme .insight-mom-item {
@@ -1374,8 +1374,8 @@ body.dark-theme .insight-mom-item .val {
 }
 
 body.dark-theme .insight-strategy-box {
-    background: rgba(108, 92, 231, 0.06);
-    border-color: rgba(108, 92, 231, 0.3);
+    background: rgba(67, 56, 202, 0.08);
+    border-color: rgba(129, 140, 248, 0.3);
 }
 
 body.dark-theme .insight-strategy-item {
@@ -1392,8 +1392,8 @@ body.dark-theme .insight-quick-nav a {
 }
 
 body.dark-theme .insight-quick-nav a:hover {
-    background: rgba(108, 92, 231, 0.25);
-    color: #a29bfe;
+    background: rgba(79, 70, 229, 0.25);
+    color: #818CF8;
 }
 
 /* DROPDOWN DE FERRAMENTAS NA TOPBAR */
@@ -1446,8 +1446,8 @@ body.dark-theme .insight-quick-nav a:hover {
 }
 
 .tools-menu-item:hover {
-    background: var(--color-primary-bg, #f0edff);
-    color: var(--color-primary, #6c5ce7);
+    background: var(--color-primary-bg, #EEF2FF);
+    color: var(--color-primary, #4338CA);
 }
 
 .btn-ghost-sm {
@@ -1462,8 +1462,8 @@ body.dark-theme .insight-quick-nav a:hover {
 }
 
 .btn-ghost-sm:hover {
-    color: var(--color-primary, #6c5ce7);
-    background: rgba(108, 92, 231, 0.08);
+    color: var(--color-primary, #4338CA);
+    background: rgba(67, 56, 202, 0.08);
 }
 
 @media (max-width: 640px) {
@@ -1487,8 +1487,8 @@ body.dark-theme .insight-quick-nav a:hover {
     align-items: center;
     gap: 20px;
     padding: 16px 20px;
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.05) 0%, rgba(108, 92, 231, 0.01) 100%);
-    border: 1px solid rgba(108, 92, 231, 0.15);
+    background: linear-gradient(135deg, rgba(67, 56, 202, 0.06) 0%, rgba(124, 58, 237, 0.02) 100%);
+    border: 1px solid rgba(67, 56, 202, 0.16);
     border-radius: 16px;
     margin-bottom: 16px;
 }
@@ -1635,8 +1635,8 @@ body.dark-theme .insight-quick-nav a:hover {
     font-weight: 700;
     padding: 4px 10px;
     border-radius: 6px;
-    background: var(--color-primary-bg, #ede9fe);
-    color: var(--color-primary, #6c5ce7);
+    background: var(--color-primary-bg, #EEF2FF);
+    color: var(--color-primary, #4338CA);
     flex-shrink: 0;
 }
 
@@ -1713,8 +1713,8 @@ body.dark-theme .action-card.all-good {
 }
 
 body.dark-theme .score-ring-card {
-    background: rgba(108, 92, 231, 0.08);
-    border-color: rgba(108, 92, 231, 0.25);
+    background: rgba(67, 56, 202, 0.1);
+    border-color: rgba(129, 140, 248, 0.25);
 }
 
 /* AI INSIGHTS CARD ITEMS (DESKTOP) */
@@ -1749,8 +1749,8 @@ body.dark-theme .score-ring-card {
 }
 
 .ai-insight-item.info {
-    border-left-color: #6C5CE7;
-    background: rgba(108, 92, 231, 0.06);
+    border-left-color: #4338CA;
+    background: rgba(67, 56, 202, 0.06);
 }
 
 .ai-insight-icon {
@@ -1788,7 +1788,7 @@ body.dark-theme .ai-insight-item.warning {
 }
 
 body.dark-theme .ai-insight-item.info {
-    border-left-color: #A29BFE;
-    background: rgba(108, 92, 231, 0.12);
+    border-left-color: #818CF8;
+    background: rgba(79, 70, 229, 0.14);
 }
 

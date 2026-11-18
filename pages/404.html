@@ -7,19 +7,20 @@
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
 
-    <meta name="theme-color" content="#6C5CE7">
-    <meta name="msapplication-TileColor" content="#6C5CE7">
+    <meta name="theme-color" content="#4338CA">
+    <meta name="msapplication-TileColor" content="#4338CA">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TonuControle">
 
-    <link rel="manifest" href="../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png">
+    <link rel="manifest" href="../manifest.json?v=3.2.1">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.1">
 
     <title>404 - Página Não Encontrada | TonuControle</title>
 
@@ -27,8 +28,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.1">
 
     <style>
         /* ==========================================
@@ -48,7 +49,7 @@
            FOCO VISÍVEL
            ========================================== */
         *:focus-visible {
-            outline: 3px solid #6C5CE7 !important;
+            outline: 3px solid #4F46E5 !important;
             outline-offset: 2px !important;
         }
 
@@ -61,7 +62,7 @@
             left: 50%;
             transform: translateX(-50%);
             padding: 12px 24px;
-            background: #6C5CE7;
+            background: #4338CA;
             color: #fff;
             border-radius: 8px;
             z-index: 999999;
@@ -102,11 +103,11 @@
             margin: 0 auto 16px auto;
             border-radius: 20px;
             overflow: hidden;
-            background: linear-gradient(135deg, #6C5CE7, #a29bfe);
+            background: linear-gradient(135deg, #3730A3, #4F46E5, #7C3AED);
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 8px 24px rgba(108, 92, 231, 0.25);
+            box-shadow: 0 8px 24px rgba(67, 56, 202, 0.28);
         }
 
         .error-logo img {
@@ -173,14 +174,14 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #6C5CE7, #a29bfe);
+            background: linear-gradient(135deg, #4338CA, #7C3AED);
             color: #ffffff;
-            box-shadow: 0 4px 16px rgba(108, 92, 231, 0.25);
+            box-shadow: 0 4px 16px rgba(67, 56, 202, 0.28);
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(108, 92, 231, 0.35);
+            box-shadow: 0 8px 24px rgba(67, 56, 202, 0.38);
         }
 
         .btn-outline {
@@ -252,7 +253,7 @@
     ========================================== -->
     <main class="error-card" id="main-content" role="main" aria-labelledby="error-title">
         <div class="error-logo" aria-hidden="true">
-            <img src="../icons/logo.png" alt="TonuControle">
+            <img src="../icons/logo.png?v=3.2.1" alt="TonuControle">
         </div>
         <div class="error-badge" aria-hidden="true">🔍</div>
         <h1 class="error-title" id="error-title">Página Não Encontrada</h1>

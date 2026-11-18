@@ -56,10 +56,10 @@ body.dark-theme .sync-dot-badge {
     animation: none !important;
 }
 
-/* STATUS 4: SINCRONIZANDO (ativo) -> Roxo / Azul pulsando */
+/* STATUS 4: SINCRONIZANDO (ativo) -> Índigo pulsando */
 .sync-dot-badge.syncing {
-    background-color: #6c5ce7 !important;
-    box-shadow: 0 0 6px rgba(108, 92, 231, 0.7);
+    background-color: #4F46E5 !important;
+    box-shadow: 0 0 6px rgba(79, 70, 229, 0.7);
     animation: pulseAmberSyncDot 0.8s infinite alternate;
 }
 

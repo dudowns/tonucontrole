@@ -7,17 +7,17 @@
    1. VARIÁVEIS
    ============================================ */
 :root {
-    --color-primary: #6C5CE7;
-    --color-primary-dark: #5848c7;
-    --color-primary-darker: #4436a8;
-    --color-primary-light: #A29BFE;
-    --color-primary-lighter: #D5D0FF;
-    --color-primary-bg: #F0EDFF;
+    --color-primary: #4338CA;
+    --color-primary-dark: #3730A3;
+    --color-primary-darker: #2E2A85;
+    --color-primary-light: #7C3AED;
+    --color-primary-lighter: #DDD6FE;
+    --color-primary-bg: #EEF2FF;
 
-    --color-success: #00B894;
-    --color-success-dark: #009977;
-    --color-success-bg: #D5F5E3;
-    --color-success-light: #55EFC4;
+    --color-success: #10B981;
+    --color-success-dark: #059669;
+    --color-success-bg: #D1FAE5;
+    --color-success-light: #34D399;
 
     --color-danger: #FF7675;
     --color-danger-dark: #E74C3C;
@@ -218,7 +218,7 @@ body {
 .btn-primary:hover:not(:disabled) {
     background: var(--color-primary-dark);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(108, 92, 231, 0.35);
+    box-shadow: 0 6px 20px rgba(67, 56, 202, 0.35);
 }
 
 .btn-secondary {
@@ -531,7 +531,7 @@ body {
 .sidebar-nav a.active {
     background: var(--color-primary);
     color: white;
-    box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+    box-shadow: 0 4px 15px rgba(67, 56, 202, 0.3);
 }
 
 .sidebar-nav a i {
@@ -736,7 +736,7 @@ body {
     font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
-    color: var(--color-primary, #6C5CE7) !important;
+    color: var(--color-primary, #4338CA) !important;
     margin-bottom: 1px !important;
 }
 
@@ -765,7 +765,7 @@ body {
 }
 
 .modal-close:focus-visible {
-    outline: 2px solid var(--color-primary, #6C5CE7) !important;
+    outline: 2px solid var(--color-primary, #4338CA) !important;
     outline-offset: 2px !important;
 }
 
@@ -966,7 +966,7 @@ body.no-scroll {
 .form-control:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.1);
+    box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.12);
 }
 
 .form-control::placeholder {
@@ -1141,7 +1141,7 @@ textarea.form-control {
 }
 
 .toast-action-btn {
-    background: var(--color-primary, #6c5ce7);
+    background: var(--color-primary, #4338CA);
     color: #ffffff;
     border: none;
     border-radius: 6px;
@@ -1189,7 +1189,7 @@ body.dark-theme .toast-progress-track {
 .toast-progress-bar {
     height: 100%;
     width: 100%;
-    background: var(--toast-accent, #6c5ce7);
+    background: var(--toast-accent, #4338CA);
     transition: width 3.2s linear;
 }
 
@@ -1616,7 +1616,7 @@ body.dark-theme .skeleton-shimmer {
 .quick-cmd-item:hover,
 .quick-cmd-item.selected {
     background: var(--color-bg, #f1f5f9);
-    color: var(--color-primary, #6c5ce7);
+    color: var(--color-primary, #4338CA);
 }
 
 .quick-cmd-item-left {
@@ -1629,8 +1629,8 @@ body.dark-theme .skeleton-shimmer {
     width: 26px;
     height: 26px;
     border-radius: 6px;
-    background: rgba(108, 92, 231, 0.1);
-    color: var(--color-primary, #6c5ce7);
+    background: rgba(67, 56, 202, 0.1);
+    color: var(--color-primary, #4338CA);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1681,13 +1681,13 @@ body.dark-theme .skeleton-shimmer {
 
 .theme-toggle-btn:hover, .balance-toggle-btn:hover {
     background: var(--color-surface-hover, #F8F9FA) !important;
-    border-color: #6C5CE7 !important;
+    border-color: #4338CA !important;
     transform: scale(1.05) !important;
 }
 
-/* ÍCONE LUA (tema claro) - ROXA */
+/* ÍCONE LUA (tema claro) - INDIGO */
 .theme-toggle-btn i.fa-moon {
-    color: #6C5CE7 !important;
+    color: #4338CA !important;
     font-size: 16px !important;
     display: inline-block !important;
     visibility: visible !important;

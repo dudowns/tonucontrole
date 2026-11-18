@@ -1278,7 +1278,7 @@ function isDesktop() {
 // ============================================
 var BACKEND_CATEGORY_CONFIG = {
     'contas basicas': { color: '#0984E3', icon: 'fa-bolt', name: '⚡ Contas Básicas' },
-    'lazer': { color: '#A29BFE', icon: 'fa-gamepad', name: '🎮 Lazer' },
+    'lazer': { color: '#8B5CF6', icon: 'fa-gamepad', name: '🎮 Lazer' },
     'saude': { color: '#FF6B6B', icon: 'fa-heartbeat', name: '❤️ Saúde' },
     'educacao': { color: '#0984E3', icon: 'fa-book', name: '📚 Educação' },
     'emprestimos': { color: '#D63031', icon: 'fa-hand-holding-usd', name: '🤝 Empréstimos' },
@@ -1313,7 +1313,7 @@ function getBackendCategoryStyle(name, cat) {
         return { color: '#0984E3', icon: 'fa-bolt', name: '⚡ Contas Básicas' };
     }
     if (n.includes('lazer') || n.includes('jogo') || n.includes('game') || n.includes('cinema') || n.includes('viagem') || n.includes('passeio') || n.includes('hotel') || n.includes('festa')) {
-        return { color: '#A29BFE', icon: 'fa-gamepad', name: '🎮 Lazer' };
+        return { color: '#8B5CF6', icon: 'fa-gamepad', name: '🎮 Lazer' };
     }
     if (n.includes('saude') || n.includes('farmacia') || n.includes('medic') || n.includes('hospital') || n.includes('drogaria') || n.includes('dentista') || n.includes('consulta')) {
         return { color: '#FF6B6B', icon: 'fa-heartbeat', name: '❤️ Saúde' };
@@ -1356,7 +1356,7 @@ window.getBackendCategoryStyle = getBackendCategoryStyle;
 window.BACKEND_CATEGORY_CONFIG = BACKEND_CATEGORY_CONFIG;
 
 var chartColors = [
-    '#0984E3', '#A29BFE', '#FF6B6B', '#FDCB6E', '#E17055',
+    '#0984E3', '#8B5CF6', '#FF6B6B', '#FDCB6E', '#E17055',
     '#D63031', '#636E72', '#00B894', '#00CEC9', '#B2BEC3'
 ];
 
@@ -1396,7 +1396,7 @@ async function createDefaultCategories(userId) {
 
         var defaultCategories = [
             { user_id: userId, name: '⚡ Contas Básicas', type: 'expense', icon: 'fa-bolt', color: '#0984E3' },
-            { user_id: userId, name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#A29BFE' },
+            { user_id: userId, name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#8B5CF6' },
             { user_id: userId, name: '❤️ Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#FF6B6B' },
             { user_id: userId, name: '📚 Educação', type: 'expense', icon: 'fa-book', color: '#0984E3' },
             { user_id: userId, name: '🤝 Empréstimos', type: 'expense', icon: 'fa-hand-holding-usd', color: '#D63031' },
@@ -1784,7 +1784,7 @@ class WebShareTargetHandler {
                      role="dialog" aria-label="Item compartilhado">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                         <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">
-                            <i class="fas fa-share-alt" style="color:#6c5ce7;"></i> Item Compartilhado
+                            <i class="fas fa-share-alt" style="color:#4338CA;"></i> Item Compartilhado
                         </h3>
                         <button type="button" onclick="window.webShareTarget.closeModal()" 
                                 style="background:none; border:none; font-size:20px; color:#94a3b8; cursor:pointer;"
@@ -2745,7 +2745,7 @@ async function revertAnticipatedBills(targetTx, options = {}) {
 }
 
 function colorTo15PercentAlpha(colorStr) {
-    if (!colorStr) return 'rgba(108, 92, 231, 0.15)';
+    if (!colorStr) return 'rgba(67, 56, 202, 0.15)';
     if (colorStr.startsWith('#')) {
         var hex = colorStr.replace('#', '');
         if (hex.length === 3) hex = hex.split('').map(function (c) { return c + c; }).join('');
@@ -2761,7 +2761,7 @@ function colorTo15PercentAlpha(colorStr) {
     if (colorStr.startsWith('rgb(')) {
         return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.15)');
     }
-    return 'rgba(108, 92, 231, 0.15)';
+    return 'rgba(67, 56, 202, 0.15)';
 }
 
 function TonuConfirm(opts) {
@@ -2796,7 +2796,7 @@ function TonuConfirm(opts) {
                 '<p style="margin:0 0 18px 0;font-size:13.5px;color:var(--color-text-secondary,#475569);line-height:1.45;">' + safeMessageHtml + '</p>' +
                 '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
                     '<button type="button" data-action="cancel" style="padding:10px 16px;border-radius:12px;border:1px solid var(--color-border,#e2e8f0);background:transparent;color:var(--color-text,#0f172a);font-weight:600;font-size:13.5px;cursor:pointer;">' + safe(cancelText) + '</button>' +
-                    '<button type="button" data-action="confirm" style="padding:10px 16px;border-radius:12px;border:none;background:' + (danger ? '#ef4444' : '#6c5ce7') + ';color:#fff;font-weight:600;font-size:13.5px;cursor:pointer;">' + safe(confirmText) + '</button>' +
+                    '<button type="button" data-action="confirm" style="padding:10px 16px;border-radius:12px;border:none;background:' + (danger ? '#ef4444' : '#4338CA') + ';color:#fff;font-weight:600;font-size:13.5px;cursor:pointer;">' + safe(confirmText) + '</button>' +
                 '</div>' +
             '</div>';
 

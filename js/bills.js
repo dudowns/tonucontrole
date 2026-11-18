@@ -458,7 +458,7 @@
             const isMatch = btn.dataset.status === currentStatus;
             btn.classList.toggle('active', isMatch);
             btn.style.background = isMatch ? 'var(--color-surface, #fff)' : 'transparent';
-            btn.style.color = isMatch ? 'var(--color-primary, #6c5ce7)' : 'var(--color-text-muted, #64748b)';
+            btn.style.color = isMatch ? 'var(--color-primary, #4338CA)' : 'var(--color-text-muted, #64748b)';
             btn.style.boxShadow = isMatch ? '0 1px 3px rgba(0,0,0,0.08)' : 'none';
         });
     }
@@ -554,7 +554,7 @@
     }
 
     function colorToSoftBg(colorStr) {
-        if (!colorStr) return 'rgba(108, 92, 231, 0.14)';
+        if (!colorStr) return 'rgba(67, 56, 202, 0.14)';
         if (colorStr.startsWith('#')) {
             let hex = colorStr.replace('#', '');
             if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
@@ -569,7 +569,7 @@
         if (colorStr.startsWith('rgb(')) {
             return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.14)');
         }
-        return 'rgba(108, 92, 231, 0.14)';
+        return 'rgba(67, 56, 202, 0.14)';
     }
 
     function cleanCategoryLabel(rawName) {
@@ -665,7 +665,7 @@
                 const backendCat = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
                     ? window.getBackendCategoryStyle(b.category || cat.name || b.description, cat)
                     : null;
-                const catColor = cat.color || backendCat?.color || '#6C5CE7';
+                const catColor = cat.color || backendCat?.color || '#4338CA';
                 let catIcon = cat.icon || backendCat?.icon || 'fa-file-invoice-dollar';
                 if (catIcon && !catIcon.startsWith('fa-')) catIcon = 'fa-' + catIcon;
                 const cleanCatName = cleanCategoryLabel(cat.name || b.category || 'Geral');
@@ -708,7 +708,7 @@
                     <div class="bill-card clean-list-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_item_${b.id}">
                         ${isSelectionMode ? `
                             <div class="bill-select-box" style="margin-top:6px; display:flex; align-items:center;">
-                                <input type="checkbox" class="bill-checkbox" data-id="${b.id}" ${isSelected ? 'checked' : ''} onchange="toggleSelectBill('${b.id}', this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary,#6c5ce7);">
+                                <input type="checkbox" class="bill-checkbox" data-id="${b.id}" ${isSelected ? 'checked' : ''} onchange="toggleSelectBill('${b.id}', this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary,#4338CA);">
                             </div>
                         ` : ''}
                         <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catColor};" title="${sanitize(cleanCatName)}">
@@ -741,7 +741,7 @@
                                             </button>
                                         ` : ''}
                                         <button class="btn-icon-sm" onclick="openBillModal('${b.id}')" title="Editar conta">
-                                            <i class="fas fa-pencil-alt" style="color:var(--color-primary,#6c5ce7);"></i>
+                                            <i class="fas fa-pencil-alt" style="color:var(--color-primary,#4338CA);"></i>
                                         </button>
                                         <button class="btn-icon-sm text-danger" onclick="deleteBill('${b.id}')" title="Excluir conta">
                                             <i class="fas fa-trash"></i>

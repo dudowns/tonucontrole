@@ -571,7 +571,7 @@
         container.innerHTML = itemsToShow.map(n => {
             const isRead = !!readIds[n.id];
             const badgeClass = n.type === 'danger' ? 'overdue' : (n.type === 'warning' ? 'due-today' : (n.type === 'success' ? 'paid-today' : 'due-soon'));
-            const iconBg = n.type === 'danger' ? '#FF7675' : (n.type === 'warning' ? '#FDCB6E' : (n.type === 'success' ? '#00B894' : '#6C5CE7'));
+            const iconBg = n.type === 'danger' ? '#FF7675' : (n.type === 'warning' ? '#FDCB6E' : (n.type === 'success' ? '#00B894' : '#4338CA'));
             const tagLabel = n.tag || (n.type === 'danger' ? 'Atrasada' : (n.type === 'warning' ? 'Atenção' : (n.type === 'success' ? 'Recebido' : 'Aviso')));
             const safeItemTitle = typeof sanitizeString === 'function' ? sanitizeString(n.title || '') : (n.title || '');
             const safeItemMessage = typeof sanitizeString === 'function' ? sanitizeString(n.message || '') : (n.message || '');
@@ -642,7 +642,7 @@
         const isDanger = notif.type === 'danger';
         const isWarning = notif.type === 'warning';
         const isSuccess = notif.type === 'success';
-        const color = isDanger ? '#FF7675' : (isWarning ? '#FDCB6E' : (isSuccess ? '#00B894' : '#6C5CE7'));
+        const color = isDanger ? '#FF7675' : (isWarning ? '#FDCB6E' : (isSuccess ? '#00B894' : '#4338CA'));
 
         const safeTitle = typeof sanitizeString === 'function' ? sanitizeString(notif.title || '') : (notif.title || '');
         const safeMessage = typeof sanitizeString === 'function' ? sanitizeString(notif.message || '') : (notif.message || '');
@@ -1046,7 +1046,7 @@
                                     try {
                                         new Notification(`💰 Provento Creditado: ${ticker}`, {
                                             body: `Você recebeu ${formatCurrency(totalVal)} de ${ticker} (${typeLabel}) hoje!`,
-                                            icon: '/icons/icon-192x192.png'
+                                            icon: '/icons/icon-192x192.png?v=3.2.1'
                                         });
                                     } catch (err) {}
                                 }
@@ -1339,10 +1339,10 @@
                 const safeTitle = typeof sanitizeString === 'function' ? sanitizeString(item.title) : item.title;
                 const safeBody = typeof sanitizeString === 'function' ? sanitizeString(item.body) : item.body;
                 const icon = item.type === 'danger' ? 'fa-exclamation-circle' : (item.type === 'bills' ? 'fa-file-invoice-dollar' : (item.type === 'dividends_credited' ? 'fa-money-bill-wave' : (item.type === 'goals' ? 'fa-bullseye' : 'fa-bell')));
-                const iconColor = item.type === 'danger' ? '#FF7675' : (item.type === 'bills' ? '#E17055' : (item.type === 'dividends_credited' ? '#00B894' : '#6C5CE7'));
+                const iconColor = item.type === 'danger' ? '#FF7675' : (item.type === 'bills' ? '#E17055' : (item.type === 'dividends_credited' ? '#00B894' : '#4338CA'));
 
                 return `
-                    <div class="notif-history-item" onclick="window.markHistoryItemRead('${item.id}', '${item.url || ''}')" style="display:flex; align-items:flex-start; gap:12px; padding:10px 12px; border-bottom:1px solid var(--color-border-light, #f1f2f6); cursor:pointer; background:${isUnread ? 'rgba(108, 92, 231, 0.05)' : 'transparent'}; border-radius:8px; transition:background 0.15s ease; margin-bottom:4px;">
+                    <div class="notif-history-item" onclick="window.markHistoryItemRead('${item.id}', '${item.url || ''}')" style="display:flex; align-items:flex-start; gap:12px; padding:10px 12px; border-bottom:1px solid var(--color-border-light, #f1f2f6); cursor:pointer; background:${isUnread ? 'rgba(67, 56, 202, 0.06)' : 'transparent'}; border-radius:8px; transition:background 0.15s ease; margin-bottom:4px;">
                         <div style="width:32px; height:32px; border-radius:8px; background:${iconColor}22; color:${iconColor}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                             <i class="fas ${icon}" style="font-size:13px;"></i>
                         </div>
@@ -1690,7 +1690,7 @@
                 try {
                     new Notification('TonuControle - Teste de Alerta', {
                         body: 'Seus alertas e lembretes de contas estão ativos e funcionando perfeitamente!',
-                        icon: '/icons/icon-192x192.png'
+                        icon: '/icons/icon-192x192.png?v=3.2.1'
                     });
                 } catch (e) {
                     console.warn('Push notification falhou:', e);

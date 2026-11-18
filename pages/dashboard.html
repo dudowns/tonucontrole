@@ -4,15 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#6C5CE7">
+    <meta name="theme-color" content="#4338CA">
     <title>Dashboard | TonuControle</title>
 
-    <link rel="manifest" href="../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png">
+    <link rel="manifest" href="../manifest.json?v=3.2.1">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.1">
 
     <!-- Fontes e Ícones -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,12 +22,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- CSS -->
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/sidebar-patch.css">
-    <link rel="stylesheet" href="../css/dashboard.css">
-    <link rel="stylesheet" href="../css/notifications.css">
-    <link rel="stylesheet" href="../css/sync.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/sidebar-patch.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/dashboard.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/notifications.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/sync.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.1">
 
     <!-- Device Router & Anti-flicker Theme Init -->
     <script src="../js/device-router.js"></script>
@@ -49,7 +50,7 @@
         <!-- SIDEBAR -->
         <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
             <div class="sidebar-brand">
-                <div class="brand-icon"><img src="../icons/logo.png" alt="TonuControle"></div>
+                <div class="brand-icon"><img src="../icons/logo.png?v=3.2.1" alt="TonuControle"></div>
                 <h2>TonuControle</h2>
             </div>
             <ul class="sidebar-nav" role="menubar">
@@ -114,7 +115,7 @@
                         </button>
                         <div class="tools-menu-dropdown" id="toolsMenuDropdown">
                             <button type="button" class="tools-menu-item" onclick="openCashFlowModal(); closeToolsMenu();">
-                                <i class="fas fa-chart-line" style="color: #6C5CE7;"></i> Projeção de Caixa
+                                <i class="fas fa-chart-line" style="color: #4338CA;"></i> Projeção de Caixa
                             </button>
                             <button type="button" class="tools-menu-item" onclick="TonuWeeklyReport.showWeeklySummaryModal(); closeToolsMenu();">
                                 <i class="fas fa-envelope-open-text" style="color: #00B894;"></i> Resumo Semanal
@@ -211,7 +212,7 @@
                         <div class="stat-info" style="min-width: 0; width: 100%;">
                             <div class="stat-label" style="display: flex; justify-content: space-between; align-items: center;">
                                 <span>Contas a Pagar</span>
-                                <span style="color: #6C5CE7; font-weight: 700;">Investido</span>
+                                <span style="color: #4338CA; font-weight: 700;">Investido</span>
                             </div>
                             <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-top: 1px;">
                                 <div title="Ver Contas a Pagar" onclick="window.location.href='bills.html'" style="cursor: pointer; min-width: 0;">
@@ -220,7 +221,7 @@
                                 </div>
                                 <div style="height: 18px; width: 1px; background: var(--color-border, #e2e8f0); flex-shrink: 0;"></div>
                                 <div title="Ver Investimentos" onclick="window.location.href='investments.html'" style="cursor: pointer; min-width: 0; text-align: right;">
-                                    <div class="stat-value" id="totalInvested" style="font-size: 13px !important; color: #6C5CE7; white-space: nowrap;">R$ 0,00</div>
+                                    <div class="stat-value" id="totalInvested" style="font-size: 13px !important; color: #4338CA; white-space: nowrap;">R$ 0,00</div>
                                     <div class="stat-sub" id="investedCount" style="font-size: 9px !important; justify-content: flex-end;">0 ativos</div>
                                 </div>
                             </div>
@@ -242,14 +243,14 @@
                             <div class="chart-controls-wrap" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 <!-- SELETOR DE PERÍODO -->
                                 <div class="chart-btn-group" style="display: inline-flex; background: var(--color-bg, #f1f5f9); padding: 2px; border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0);">
-                                    <button type="button" class="btn-chart-toggle active" id="btnPeriod6" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(6)" style="padding: 3px 8px; font-size: 11px; font-weight: 700; border: none; background: #6C5CE7; color: #ffffff; border-radius: 6px; cursor: pointer; transition: all 0.2s;">6M</button>
+                                    <button type="button" class="btn-chart-toggle active" id="btnPeriod6" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(6)" style="padding: 3px 8px; font-size: 11px; font-weight: 700; border: none; background: #4338CA; color: #ffffff; border-radius: 6px; cursor: pointer; transition: all 0.2s;">6M</button>
                                     <button type="button" class="btn-chart-toggle" id="btnPeriod12" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(12)" style="padding: 3px 8px; font-size: 11px; font-weight: 600; border: none; background: transparent; color: var(--color-text-muted, #64748b); border-radius: 6px; cursor: pointer; transition: all 0.2s;">12M</button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- RESUMO RÁPIDO DO PERÍODO (APENAS RECEITAS E DESPESAS) -->
-                        <div id="monthlyChartSummary" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 14px; background: rgba(108, 92, 231, 0.03); border-bottom: 1px solid var(--color-border-light, #f1f5f9); font-size: 11px; flex-wrap: wrap;">
+                        <div id="monthlyChartSummary" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 14px; background: rgba(67, 56, 202, 0.04); border-bottom: 1px solid var(--color-border-light, #f1f5f9); font-size: 11px; flex-wrap: wrap;">
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: #10B981;"></span>
                                 <span style="color: var(--color-text-muted, #64748b);">Receitas:</span>
@@ -354,7 +355,7 @@
                             <div class="card-header">
                                 <div style="display:flex; align-items:center; gap:8px;">
                                     <h3>✨ Insights IA</h3>
-                                    <span class="badge badge-primary" id="aiInsightsSourceBadge" style="font-size:10px; font-weight:700; background:rgba(108,92,231,0.12); color:#6C5CE7; padding:2px 8px; border-radius:9999px;">
+                                    <span class="badge badge-primary" id="aiInsightsSourceBadge" style="font-size:10px; font-weight:700; background:rgba(67,56,202,0.12); color:#4338CA; padding:2px 8px; border-radius:9999px;">
                                         90 dias
                                     </span>
                                 </div>
@@ -376,7 +377,7 @@
                             <div class="card-header">
                                 <div style="display:flex; align-items:center; gap:8px;">
                                     <h3>💡 Saúde Financeira</h3>
-                                    <span class="badge badge-primary" id="insightsMonthBadge" style="font-size:10px; font-weight:700; background:rgba(108,92,231,0.12); color:#6C5CE7; padding:2px 8px; border-radius:9999px;">
+                                    <span class="badge badge-primary" id="insightsMonthBadge" style="font-size:10px; font-weight:700; background:rgba(67,56,202,0.12); color:#4338CA; padding:2px 8px; border-radius:9999px;">
                                         Diagnóstico 360º
                                     </span>
                                 </div>
