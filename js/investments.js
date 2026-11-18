@@ -3168,43 +3168,42 @@ function renderProventosListTable() {
             : `<span class="badge-mobile isento-prov" title="Isento de Imposto de Renda">Isento IR</span>`;
 
         return `
-            <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
-                <div class="swipe-actions-tray">
-                    <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); openDividendModal('${safeId}')" aria-label="Editar provento">
-                        <i class="fas fa-pencil-alt" aria-hidden="true"></i>
-                        <span>Editar</span>
-                    </button>
-                    <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteDividend('${safeId}')" aria-label="Apagar provento">
-                        <i class="fas fa-trash-alt" aria-hidden="true"></i>
-                        <span>Apagar</span>
-                    </button>
-                </div>
-                <div class="invest-item-card clean-list-card compact-tx-card" data-swipe-content onclick="openDividendModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDividendModal('${safeId}');}">
-                    <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${iconColor};" title="${cls}">
-                        <i class="${squircleIcon}" aria-hidden="true"></i>
+            <div class="invest-row-slot">
+                <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
+                    <div class="swipe-actions-tray">
+                        <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); openDividendModal('${safeId}')" aria-label="Editar provento">
+                            <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                            <span>Editar</span>
+                        </button>
+                        <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteDividend('${safeId}')" aria-label="Apagar provento">
+                            <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                            <span>Apagar</span>
+                        </button>
                     </div>
-                    <div class="clean-card-body">
-                        <div class="clean-card-top">
-                            <span class="clean-card-title">${ticker} <span class="invest-card-subtitle">· ${provTypeLabel}</span></span>
-                            <div class="clean-card-amount-wrap">
-                                <span class="clean-card-amount ${isPaid ? 'income' : 'info'}">
-                                    + ${formatCurrency(netVal)}
-                                </span>
-                                <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteDividend('${safeId}')" title="Excluir provento" aria-label="Excluir provento">
-                                    <i class="fas fa-trash-alt" aria-hidden="true"></i>
-                                </button>
-                            </div>
+                    <div class="invest-item-card clean-list-card compact-tx-card" data-swipe-content onclick="openDividendModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDividendModal('${safeId}');}">
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${iconColor};" title="${cls}">
+                            <i class="${squircleIcon}" aria-hidden="true"></i>
                         </div>
-                        <div class="clean-card-meta-line">
-                            <span class="clean-tag category"><i class="${iconCls}" aria-hidden="true"></i> ${cls}</span>
-                            ${statusBadge}
-                            ${taxBadge}
-                            <span class="clean-tag qty-tag">${formatNumber(qtyVal, 2)} un. × ${formatCurrency(unitVal)}</span>
-                            ${isJCP && Math.abs(totalVal - netVal) > 0.009 ? `<span class="clean-tag bruto-tag">Bruto: ${formatCurrency(totalVal)}</span>` : ''}
-                            <span class="clean-card-meta-dates">
-                                <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>Pag: ${datePayDisplay}</span>
-                                ${dataComDisplay ? `<span><i class="far fa-bookmark" style="margin-right:3px;" aria-hidden="true"></i>Com: ${dataComDisplay}</span>` : ''}
-                            </span>
+                        <div class="clean-card-body">
+                            <div class="clean-card-top">
+                                <span class="clean-card-title">${ticker} <span class="invest-card-subtitle">· ${provTypeLabel}</span></span>
+                                <div class="clean-card-amount-wrap">
+                                    <span class="clean-card-amount ${isPaid ? 'income' : 'info'}">
+                                        + ${formatCurrency(netVal)}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="clean-card-meta-line">
+                                <span class="clean-tag category"><i class="${iconCls}" aria-hidden="true"></i> ${cls}</span>
+                                ${statusBadge}
+                                ${taxBadge}
+                                <span class="clean-tag qty-tag">${formatNumber(qtyVal, 2)} un. × ${formatCurrency(unitVal)}</span>
+                                ${isJCP && Math.abs(totalVal - netVal) > 0.009 ? `<span class="clean-tag bruto-tag">Bruto: ${formatCurrency(totalVal)}</span>` : ''}
+                                <span class="clean-card-meta-dates">
+                                    <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>Pag: ${datePayDisplay}</span>
+                                    ${dataComDisplay ? `<span><i class="far fa-bookmark" style="margin-right:3px;" aria-hidden="true"></i>Com: ${dataComDisplay}</span>` : ''}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3732,7 +3731,7 @@ function renderTable() {
                     ${formatCurrency(price)}${quoteBadge}
                     ${isRealQuote && Math.abs(changePct) > 0.001 ? `<div style="font-size:11px;font-weight:600;" class="${changeClass}">${signChange}${changePct.toFixed(2)}%</div>` : ''}
                 </td>
-                <td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">${formatCurrency(p.currentValue)}</td>
+                <td style="text-align:right;font-weight:800;font-size:14.5px;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;">${formatCurrency(p.currentValue)}</td>
                 <td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;" class="${gainClass}">
                     ${signGain}${formatCurrency(gain)}
                     <div style="font-size:11px;font-weight:600;">${signGain}${gainPct.toFixed(2)}%</div>
@@ -3834,40 +3833,39 @@ function renderTransactions() {
             const qtyFmt = qtyNum % 1 === 0 ? qtyNum.toFixed(0) : formatNumber(qtyNum, 4);
 
             return `
-                <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
-                    <div class="swipe-actions-tray">
-                        <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); editTransaction('${safeId}')" aria-label="Editar lançamento">
-                            <i class="fas fa-pencil-alt" aria-hidden="true"></i>
-                            <span>Editar</span>
-                        </button>
-                        <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteTransaction('${safeId}')" aria-label="Apagar lançamento">
-                            <i class="fas fa-trash-alt" aria-hidden="true"></i>
-                            <span>Apagar</span>
-                        </button>
-                    </div>
-                    <div class="invest-item-card clean-list-card compact-tx-card" data-swipe-content onclick="editTransaction('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();editTransaction('${safeId}');}">
-                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};" title="${assetClass}">
-                            <i class="fas ${isBuy ? 'fa-arrow-up' : 'fa-arrow-down'}" aria-hidden="true"></i>
+                <div class="invest-row-slot">
+                    <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
+                        <div class="swipe-actions-tray">
+                            <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); editTransaction('${safeId}')" aria-label="Editar lançamento">
+                                <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteTransaction('${safeId}')" aria-label="Apagar lançamento">
+                                <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                <span>Apagar</span>
+                            </button>
                         </div>
-                        <div class="clean-card-body">
-                            <div class="clean-card-top">
-                                <span class="clean-card-title">${cleanTicker} <span class="invest-card-subtitle">· ${badgeText}</span></span>
-                                <div class="clean-card-amount-wrap">
-                                    <span class="clean-card-amount ${isBuy ? 'income' : 'expense'}">
-                                        ${isBuy ? '+ ' : '- '}${formatCurrency(tx.total_value)}
-                                    </span>
-                                    <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${safeId}')" title="Excluir lançamento" aria-label="Excluir lançamento">
-                                        <i class="fas fa-trash-alt" aria-hidden="true"></i>
-                                    </button>
-                                </div>
+                        <div class="invest-item-card clean-list-card compact-tx-card" data-swipe-content onclick="editTransaction('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();editTransaction('${safeId}');}">
+                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};" title="${assetClass}">
+                                <i class="fas ${isBuy ? 'fa-arrow-up' : 'fa-arrow-down'}" aria-hidden="true"></i>
                             </div>
-                            <div class="clean-card-meta-line">
-                                <span class="clean-tag category">${classIcon} ${assetClass}</span>
-                                <span class="badge-mobile ${isBuy ? 'op-buy' : 'op-sell'}">${badgeText}</span>
-                                <span class="clean-tag qty-tag">${qtyFmt} un. @ ${formatCurrency(tx.unit_price)}</span>
-                                <span class="clean-card-meta-dates">
-                                    <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>${formatDate(tx.date)}</span>
-                                </span>
+                            <div class="clean-card-body">
+                                <div class="clean-card-top">
+                                    <span class="clean-card-title">${cleanTicker} <span class="invest-card-subtitle">· ${badgeText}</span></span>
+                                    <div class="clean-card-amount-wrap">
+                                        <span class="clean-card-amount ${isBuy ? 'income' : 'expense'}">
+                                            ${isBuy ? '+ ' : '- '}${formatCurrency(tx.total_value)}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="clean-card-meta-line">
+                                    <span class="clean-tag category">${classIcon} ${assetClass}</span>
+                                    <span class="badge-mobile ${isBuy ? 'op-buy' : 'op-sell'}">${badgeText}</span>
+                                    <span class="clean-tag qty-tag">${qtyFmt} un. @ ${formatCurrency(tx.unit_price)}</span>
+                                    <span class="clean-card-meta-dates">
+                                        <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>${formatDate(tx.date)}</span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>

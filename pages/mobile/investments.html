@@ -6,22 +6,22 @@
     <meta name="theme-color" content="#F8FAFC">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="manifest" href="../../manifest.json?v=3.2.1">
-    <link rel="icon" type="image/svg+xml" href="../../icons/favicon.svg?v=3.2.1">
-    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png?v=3.2.1">
-    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png?v=3.2.1">
-    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png?v=3.2.1">
-    <link rel="shortcut icon" href="../../icons/icon-128x128.png?v=3.2.1">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png?v=3.2.1">
+    <link rel="manifest" href="../../manifest.json?v=3.2.5">
+    <link rel="icon" type="image/svg+xml" href="../../icons/favicon.svg?v=3.2.5">
+    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png?v=3.2.5">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png?v=3.2.5">
+    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png?v=3.2.5">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png?v=3.2.5">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png?v=3.2.5">
     <title>TonuControle - Investimentos Mobile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../css/theme.css?v=3.2.1">
-    <link rel="stylesheet" href="../../css/dark-theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../../css/theme.css?v=3.2.5">
+    <link rel="stylesheet" href="../../css/dark-theme.css?v=3.2.5">
     <link rel="stylesheet" href="../../css/mobile.css?v=4.2.0">
-    <link rel="stylesheet" href="../../css/notifications.css?v=3.2.1">
+    <link rel="stylesheet" href="../../css/notifications.css?v=3.2.5">
     <style>
         body { background: var(--mob-bg, #F8FAFC); }
         .tab-content { display: none; }
@@ -126,30 +126,36 @@
             color: #ffffff !important;
         }
 
-        /* CARD DE ATIVO EM CUSTÓDIA (COMPACTO) */
+        /* CARD DE ATIVO EM CUSTÓDIA (CARTEIRA COM RESPIRO E HIERARQUIA) */
         .asset-card {
             background: var(--mob-surface, #ffffff);
-            border-radius: 14px;
-            padding: 10px 12px;
-            border: 1px solid var(--mob-border, #e2e8f0);
-            margin-bottom: 8px;
-            box-shadow: var(--mob-shadow-sm, 0 2px 8px rgba(15, 23, 42, 0.03));
+            border-radius: 16px;
+            padding: 15px 16px;
+            border: 1px solid #E2E8F0;
+            border-bottom: 1.5px solid #E2E8F0;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
             transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
             box-sizing: border-box;
         }
+        .asset-card:last-child {
+            margin-bottom: 4px;
+        }
         .asset-card:active {
-            transform: scale(0.985);
+            transform: scale(0.988);
         }
         .asset-card-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
+            gap: 10px;
+            padding-bottom: 11px;
+            margin-bottom: 11px;
+            border-bottom: 1px solid #E2E8F0;
         }
         .asset-ticker {
             font-size: 14px;
-            font-weight: 800;
+            font-weight: 700;
             color: var(--mob-text, #0f172a);
             display: inline-flex;
             align-items: center;
@@ -170,49 +176,131 @@
             align-items: center;
             flex-wrap: wrap;
             gap: 5px;
-            margin-top: 2px;
-            font-size: 10.5px;
+            margin-top: 3px;
+            font-size: 11px;
+            font-weight: 500;
             color: var(--mob-text-muted, #64748b);
         }
         .asset-total {
-            font-size: 14px;
+            font-size: 17px;
             font-weight: 800;
             color: var(--mob-text, #0f172a);
             font-variant-numeric: tabular-nums;
+            letter-spacing: -0.025em;
+            line-height: 1.15;
             text-align: right;
             white-space: nowrap;
         }
         .asset-details-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-            padding: 7px 10px;
+            gap: 8px;
+            padding: 10px 12px;
             background: var(--mob-surface-2, #f8fafc);
-            border-radius: 10px;
+            border-radius: 12px;
             border: 1px solid var(--mob-border, #f1f5f9);
             font-size: 11px;
         }
         @media (max-width: 340px) {
             .asset-details-grid {
                 grid-template-columns: repeat(2, 1fr);
-                gap: 6px;
+                gap: 8px;
             }
         }
         .asset-details-item .lbl {
-            font-size: 9.5px;
-            color: var(--mob-text-muted, #94a3b8);
+            font-size: 10px;
+            color: var(--mob-text-muted, #64748b);
             display: block;
+            margin-bottom: 2px;
         }
         .asset-details-item .val {
             font-weight: 700;
+            font-size: 11.5px;
             color: var(--mob-text-secondary, #334155);
             font-variant-numeric: tabular-nums;
         }
         #operationsListContainer,
-        #dividendsListContainer {
+        #dividendsListContainer,
+        #corporateEventsListContainer {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 0;
+        }
+        #operationsListContainer .ios-section-header,
+        #dividendsListContainer .ios-section-header {
+            margin-top: 8px;
+            padding: 10px 4px 10px;
+        }
+        #operationsListContainer .ios-section-header:first-child,
+        #dividendsListContainer .ios-section-header:first-child {
+            margin-top: 0;
+        }
+        .invest-row-slot {
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #E2E8F0;
+        }
+        .invest-row-slot:last-child {
+            margin-bottom: 4px;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .mobile-list-card.clean-list-card.compact-row-card.invest-clean-card {
+            padding: 14px 16px !important;
+            border-radius: 14px !important;
+            border: 1px solid #E2E8F0 !important;
+            gap: 12px !important;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.035) !important;
+            transition: transform 0.16s ease, background-color 0.16s ease !important;
+        }
+        .mobile-list-card.clean-list-card.compact-row-card.invest-clean-card:active {
+            transform: scale(0.988);
+        }
+        .invest-clean-card .mobile-icon-squircle {
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 11px !important;
+            font-size: 14px !important;
+        }
+        .invest-clean-card .clean-card-body {
+            gap: 6px !important;
+        }
+        .invest-clean-card .clean-card-title {
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            color: var(--mob-text, #0f172a);
+        }
+        .invest-clean-card .clean-card-amount {
+            font-size: 16.5px !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.025em;
+            line-height: 1.15;
+        }
+        .invest-clean-card .clean-card-meta-line {
+            font-size: 11.5px !important;
+            gap: 6px !important;
+            color: var(--mob-text-muted, #64748b);
+        }
+        .invest-clean-card .clean-card-date-text {
+            font-size: 11px !important;
+            color: var(--mob-text-muted, #64748b);
+        }
+        body.dark-theme .invest-row-slot {
+            border-bottom-color: rgba(148, 163, 184, 0.16);
+        }
+        body.dark-theme .mobile-list-card.clean-list-card.compact-row-card.invest-clean-card {
+            border-color: rgba(148, 163, 184, 0.18) !important;
+        }
+        body.dark-theme .asset-card {
+            border-bottom-color: rgba(148, 163, 184, 0.22) !important;
+        }
+        body.dark-theme .asset-card-top {
+            border-bottom-color: rgba(148, 163, 184, 0.16);
+        }
+        body.dark-theme .asset-total,
+        body.dark-theme .invest-clean-card .clean-card-title {
+            color: #f8fafc;
         }
 
         /* CARD DE OPERAÇÃO / LANÇAMENTO */
@@ -3130,35 +3218,38 @@ function renderOperations() {
             const unitPrice = parseFloat(op.unit_price || op.price) || 0;
             const opDateDisplay = dateKey !== 'sem_data' ? formatDate(dateKey) : 'Sem data';
             const delay = (Math.min(cardIndex++, 10) * 0.03).toFixed(2);
+            const safeOpId = String(op.id ?? '').replace(/['"\\<>&]/g, '');
 
             html += `
-                <div class="stagger-card" data-swipe-row data-swipe-width="136" style="animation-delay: ${delay}s;">
-                    <div class="swipe-actions-tray" aria-label="Ações da operação">
-                        <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); editOperation('${op.id}')" aria-label="Editar operação">
-                            <i class="fas fa-pen"></i>
-                            <span>Editar</span>
-                        </button>
-                        <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); deleteOperation('${op.id}')" aria-label="Apagar operação">
-                            <i class="fas fa-trash-alt"></i>
-                            <span>Apagar</span>
-                        </button>
-                    </div>
-                    <div class="mobile-list-card clean-list-card compact-row-card" data-swipe-content>
-                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
-                            <i class="fas ${icon}"></i>
+                <div class="invest-row-slot">
+                    <div class="stagger-card" data-swipe-row data-swipe-width="136" style="animation-delay: ${delay}s;">
+                        <div class="swipe-actions-tray" aria-label="Ações da operação">
+                            <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); editOperation('${safeOpId}')" aria-label="Editar operação">
+                                <i class="fas fa-pen"></i>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); deleteOperation('${safeOpId}')" aria-label="Apagar operação">
+                                <i class="fas fa-trash-alt"></i>
+                                <span>Apagar</span>
+                            </button>
                         </div>
-                        <div class="clean-card-body">
-                            <div class="clean-card-top">
-                                <span class="clean-card-title">${op.ticker}</span>
-                                <span class="clean-card-amount ${isBuy ? 'income' : 'expense'}" data-sensitive>
-                                    ${isBuy ? '+' : '-'} ${formatCurrency(total)}
-                                </span>
+                        <div class="mobile-list-card clean-list-card compact-row-card invest-clean-card" data-swipe-content onclick="editOperation('${safeOpId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();editOperation('${safeOpId}');}">
+                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
+                                <i class="fas ${icon}"></i>
                             </div>
-                            <div class="clean-card-meta-line">
-                                <span class="clean-card-tag-inline ${badgeClass}">${badgeText}</span>
-                                <span class="clean-card-cat-text">${qtyFmt} un. @ ${formatCurrency(unitPrice)}</span>
-                                <span class="clean-card-meta-sep" aria-hidden="true">·</span>
-                                <span class="clean-card-date-text">${opDateDisplay}</span>
+                            <div class="clean-card-body">
+                                <div class="clean-card-top">
+                                    <span class="clean-card-title">${op.ticker}</span>
+                                    <span class="clean-card-amount ${isBuy ? 'income' : 'expense'}" data-sensitive>
+                                        ${isBuy ? '+' : '-'} ${formatCurrency(total)}
+                                    </span>
+                                </div>
+                                <div class="clean-card-meta-line">
+                                    <span class="clean-card-tag-inline ${badgeClass}">${badgeText}</span>
+                                    <span class="clean-card-cat-text">${qtyFmt} un. @ ${formatCurrency(unitPrice)}</span>
+                                    <span class="clean-card-meta-sep" aria-hidden="true">·</span>
+                                    <span class="clean-card-date-text">${opDateDisplay}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3287,36 +3378,39 @@ function renderDividends() {
                 ? `<span class="clean-card-meta-sep" aria-hidden="true">·</span><span class="clean-card-cat-text">${d.quantity} un.</span>`
                 : '';
             const delay = (Math.min(cardIndex++, 10) * 0.03).toFixed(2);
+            const safeDivId = String(d.id ?? '').replace(/['"\\<>&]/g, '');
 
             html += `
-                <div class="stagger-card" data-swipe-row data-swipe-width="136" style="animation-delay: ${delay}s;">
-                    <div class="swipe-actions-tray" aria-label="Ações do provento">
-                        <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); editDividend('${d.id}')" aria-label="Editar provento">
-                            <i class="fas fa-pen"></i>
-                            <span>Editar</span>
-                        </button>
-                        <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); deleteDividend('${d.id}')" aria-label="Apagar provento">
-                            <i class="fas fa-trash-alt"></i>
-                            <span>Apagar</span>
-                        </button>
-                    </div>
-                    <div class="mobile-list-card clean-list-card compact-row-card" data-swipe-content>
-                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
-                            <i class="fas ${icon}"></i>
+                <div class="invest-row-slot">
+                    <div class="stagger-card" data-swipe-row data-swipe-width="136" style="animation-delay: ${delay}s;">
+                        <div class="swipe-actions-tray" aria-label="Ações do provento">
+                            <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); editDividend('${safeDivId}')" aria-label="Editar provento">
+                                <i class="fas fa-pen"></i>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); deleteDividend('${safeDivId}')" aria-label="Apagar provento">
+                                <i class="fas fa-trash-alt"></i>
+                                <span>Apagar</span>
+                            </button>
                         </div>
-                        <div class="clean-card-body">
-                            <div class="clean-card-top">
-                                <span class="clean-card-title">${d.ticker}</span>
-                                <span class="clean-card-amount ${isPaid ? 'income' : 'info'}" data-sensitive>
-                                    + ${formatCurrency(val)}
-                                </span>
+                        <div class="mobile-list-card clean-list-card compact-row-card invest-clean-card" data-swipe-content onclick="editDividend('${safeDivId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();editDividend('${safeDivId}');}">
+                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
+                                <i class="fas ${icon}"></i>
                             </div>
-                            <div class="clean-card-meta-line">
-                                <span class="clean-card-tag-inline div-type">${d.type || 'Dividendo'}</span>
-                                ${statusTag}
-                                <span class="clean-card-date-text">${dateLabel}</span>
-                                ${dateComPart}
-                                ${qtyPart}
+                            <div class="clean-card-body">
+                                <div class="clean-card-top">
+                                    <span class="clean-card-title">${d.ticker}</span>
+                                    <span class="clean-card-amount ${isPaid ? 'income' : 'info'}" data-sensitive>
+                                        + ${formatCurrency(val)}
+                                    </span>
+                                </div>
+                                <div class="clean-card-meta-line">
+                                    <span class="clean-card-tag-inline div-type">${d.type || 'Dividendo'}</span>
+                                    ${statusTag}
+                                    <span class="clean-card-date-text">${dateLabel}</span>
+                                    ${dateComPart}
+                                    ${qtyPart}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -4105,22 +4199,36 @@ function renderCorporateEventsList() {
             impact = 'Amortização de Capital';
         }
 
+        const safeEvId = String(ev.id ?? '').replace(/['"\\<>&]/g, '');
         return `
-            <div class="op-card">
-                <div class="op-card-top">
-                    <div>
-                        <strong style="font-size:14px; color:var(--color-text,#0f172a);">${ev.ticker}</strong>
-                        <span class="op-badge" style="margin-left:6px; background:rgba(67,56,202,0.12); color:#4338CA;">${evType}</span>
+            <div class="invest-row-slot">
+                <div class="stagger-card" data-swipe-row data-swipe-width="136">
+                    <div class="swipe-actions-tray" aria-label="Ações do evento">
+                        <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); editCorporateEvent('${safeEvId}')" aria-label="Editar evento">
+                            <i class="fas fa-pen"></i>
+                            <span>Editar</span>
+                        </button>
+                        <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); deleteCorporateEvent('${safeEvId}')" aria-label="Apagar evento">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>Apagar</span>
+                        </button>
                     </div>
-                    <strong style="font-size:12px; color:#4338CA;">
-                        ${detail}
-                    </strong>
-                </div>
-                <div class="op-card-bottom">
-                    <span>${impact} • Ex: ${formatDate(ev.event_date)}</span>
-                    <div class="op-actions">
-                        <button class="op-btn" onclick="editCorporateEvent('${ev.id}')" title="Editar"><i class="fas fa-pen"></i></button>
-                        <button class="op-btn del" onclick="deleteCorporateEvent('${ev.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
+                    <div class="mobile-list-card clean-list-card compact-row-card invest-clean-card" data-swipe-content onclick="editCorporateEvent('${safeEvId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();editCorporateEvent('${safeEvId}');}">
+                        <div class="mobile-icon-squircle" style="background:rgba(67, 56, 202, 0.14); color:#4338CA;">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div class="clean-card-body">
+                            <div class="clean-card-top">
+                                <span class="clean-card-title">${ev.ticker}</span>
+                                <span class="clean-card-amount info">${detail}</span>
+                            </div>
+                            <div class="clean-card-meta-line">
+                                <span class="clean-card-tag-inline div-type">${evType}</span>
+                                <span class="clean-card-cat-text">${impact}</span>
+                                <span class="clean-card-meta-sep" aria-hidden="true">·</span>
+                                <span class="clean-card-date-text">Ex: ${formatDate(ev.event_date)}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
