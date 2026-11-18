@@ -42,7 +42,7 @@
             width: 60px;
             height: 60px;
             border-radius: 18px;
-            background: linear-gradient(135deg, #4338CA, #7C3AED);
+            background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -249,7 +249,7 @@
     <div class="mobile-settings-profile" id="profileSection">
         <div class="mobile-avatar-wrapper" onclick="triggerMobileAvatarUpload()" style="position:relative; cursor:pointer;" title="Alterar foto de perfil">
             <div class="mobile-avatar" id="userAvatar" style="overflow:hidden; display:flex; align-items:center; justify-content:center; background-size:cover; background-position:center;">U</div>
-            <div class="avatar-edit-badge" style="position:absolute; bottom:-2px; right:-2px; width:22px; height:22px; background:linear-gradient(135deg, #4338CA, #7C3AED); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; border:2px solid var(--mob-surface, #fff); box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-camera"></i></div>
+            <div class="avatar-edit-badge" style="position:absolute; bottom:-2px; right:-2px; width:22px; height:22px; background:linear-gradient(135deg, #3730A3, #4F46E5); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; border:2px solid var(--mob-surface, #fff); box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-camera"></i></div>
         </div>
         <input type="file" id="mobileAvatarInput" accept="image/png,image/jpeg,image/webp,image/jpg" style="display:none;" onchange="handleMobileAvatarSelect(event)">
         <div class="mobile-profile-details">
@@ -413,7 +413,7 @@
                 </div>
                 <div style="display:flex; gap:8px; width:100%; margin-top:4px;">
                     <input type="number" id="mobileBudgetInput" placeholder="Ex: 3500.00" step="10" min="0" style="flex:1; padding:8px 12px; border-radius:10px; border:1px solid var(--mob-border, #e2e8f0); background:var(--mob-surface-2, #f8fafc); font-size:16px; color:inherit;">
-                    <button class="btn btn-primary" onclick="saveMobileBudget()" style="padding:8px 14px; border-radius:10px; background:linear-gradient(135deg, #4338CA 0%, #7C3AED 100%); color:white; border:none; font-weight:700; font-size:12px; cursor:pointer;">
+                    <button class="btn btn-primary" onclick="saveMobileBudget()" style="padding:8px 14px; border-radius:10px; background:linear-gradient(135deg, #3730A3 0%, #4F46E5 100%); color:white; border:none; font-weight:700; font-size:12px; cursor:pointer;">
                         Salvar
                     </button>
                 </div>
@@ -1345,7 +1345,7 @@ async function loadMobileCategoriesAndBudgets() {
                     </div>
                     `;
                 }).join('')}
-                <button type="button" class="btn btn-primary" onclick="saveMobileCategoryBudgets()" style="margin-top:6px; padding:10px 12px; border-radius:10px; background:linear-gradient(135deg, #4338CA 0%, #7C3AED 100%); color:white; border:none; font-weight:700; font-size:12px; cursor:pointer; width:100%;">
+                <button type="button" class="btn btn-primary" onclick="saveMobileCategoryBudgets()" style="margin-top:6px; padding:10px 12px; border-radius:10px; background:linear-gradient(135deg, #3730A3 0%, #4F46E5 100%); color:white; border:none; font-weight:700; font-size:12px; cursor:pointer; width:100%;">
                     <i class="fas fa-save"></i> Salvar Tetos de Categorias
                 </button>
             </div>
@@ -1502,7 +1502,7 @@ async function renderMobileSecurityUI() {
                 bioStatusText.style.color = "#64748b";
                 if (bioSubText) bioSubText.textContent = "Entre com um toque sem digitar sua senha.";
                 bioActionContainer.innerHTML = `
-                    <button type="button" class="btn btn-primary" onclick="activateMobileBiometrics()" style="padding:6px 14px; font-size:11.5px; border-radius:10px; border:none; background:linear-gradient(135deg, #4338CA 0%, #7C3AED 100%); color:white; font-weight:700; cursor:pointer;">
+                    <button type="button" class="btn btn-primary" onclick="activateMobileBiometrics()" style="padding:6px 14px; font-size:11.5px; border-radius:10px; border:none; background:linear-gradient(135deg, #3730A3 0%, #4F46E5 100%); color:white; font-weight:700; cursor:pointer;">
                         <i class="fas fa-fingerprint"></i> Ativar Biometria
                     </button>
                 `;
@@ -1631,7 +1631,7 @@ function showMobileIframeBioNotice() {
             </p>
             <div style="display:flex; gap:8px; justify-content:center;">
                 <button type="button" class="btn" onclick="document.getElementById('mobileBioIframeModal').remove()" style="flex:1; padding:10px 12px; border-radius:10px; border:1px solid var(--mob-border,#cbd5e1); background:transparent; color:var(--mob-text,#0f172a); font-size:12px; cursor:pointer;">Fechar</button>
-                <a href="${currentUrl}" target="_blank" rel="noopener noreferrer" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 12px; border-radius:10px; background:linear-gradient(135deg, #4338CA 0%, #7C3AED 100%); color:white; font-size:12px; font-weight:700; text-decoration:none;">
+                <a href="${currentUrl}" target="_blank" rel="noopener noreferrer" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 12px; border-radius:10px; background:linear-gradient(135deg, #3730A3 0%, #4F46E5 100%); color:white; font-size:12px; font-weight:700; text-decoration:none;">
                     <i class="fas fa-external-link-alt"></i> Nova Aba
                 </a>
             </div>

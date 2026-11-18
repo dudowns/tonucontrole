@@ -36,7 +36,7 @@
             margin-bottom: 14px;
         }
         .invest-hero-card {
-            background: var(--mob-gradient, linear-gradient(135deg, #4338CA 0%, #6D28D9 52%, #7C3AED 100%));
+            background: var(--mob-gradient, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%));
             color: #FFFFFF;
             border-radius: 18px;
             padding: 14px 15px;
@@ -47,7 +47,7 @@
         }
         .invest-hero-card.full-width {
             grid-column: span 2;
-            background: linear-gradient(135deg, #3730A3 0%, #5B21B6 52%, #7C3AED 100%);
+            background: var(--mob-gradient, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%));
         }
         .invest-hero-card .hero-label {
             font-size: 10.5px;
@@ -105,7 +105,7 @@
         }
         .chip-btn:active { transform: scale(0.95); }
         .chip-btn.active {
-            background: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%);
+            background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%);
             color: #ffffff;
             border-color: #4338CA;
             box-shadow: 0 4px 12px rgba(67, 56, 202, 0.28);
@@ -122,7 +122,7 @@
             color: var(--mob-text-muted, #94A3B8) !important;
         }
         body.dark-theme .chip-btn.active {
-            background: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%) !important;
+            background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%) !important;
             color: #ffffff !important;
         }
 
@@ -280,7 +280,7 @@
             margin: 0;
         }
         .btn-add-primary {
-            background: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%);
+            background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%);
             color: #ffffff;
             border: none;
             border-radius: 12px;
@@ -4072,7 +4072,7 @@ function renderCorporateEventsList() {
     if (!allRawCorporateEvents || allRawCorporateEvents.length === 0) {
         container.innerHTML = `
             <div style="text-align:center; padding:30px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
-                <i class="fas fa-bolt" style="font-size:32px; color:#7C3AED; margin-bottom:10px; display:block;"></i>
+                <i class="fas fa-bolt" style="font-size:32px; color:#4338CA; margin-bottom:10px; display:block;"></i>
                 <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">Nenhum evento corporativo cadastrado.</p>
                 <button class="btn-add-primary" style="margin:0 auto;" onclick="openAddCorporateEventModal()">
                     <i class="fas fa-plus"></i> Novo Evento

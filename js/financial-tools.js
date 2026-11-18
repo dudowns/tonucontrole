@@ -358,7 +358,7 @@
                     <div style="padding:18px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:flex-start; background:#ffffff;">
                         <div>
                             <div style="display:flex; align-items:center; gap:8px;">
-                                <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg, #4338CA, #7C3AED); color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 4px 10px rgba(67,56,202,0.25);">
+                                <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg, #3730A3, #4F46E5); color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 4px 10px rgba(67,56,202,0.25);">
                                     <i class="fas fa-bullseye"></i>
                                 </div>
                                 <div>

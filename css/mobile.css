@@ -1,17 +1,17 @@
 /* ==========================================================================
    TONUCONTROLE - MOBILE PREMIUM DESIGN SYSTEM ("AURORA")
-   Palette: Royal Blue (#4338CA) -> Violet (#7C3AED), Mint Accent (#10B981)
+   Palette: Royal Indigo (#3730A3 -> #4338CA -> #4F46E5), Mint Accent (#10B981)
    Light: #F8FAFC bg / #FFFFFF surface / #0F172A text
    Dark:  #0B1220 bg / #1E293B surface / #F1F5F9 text
    ========================================================================== */
 
 :root {
     --mob-primary: #4338CA;
-    --mob-primary-end: #7C3AED;
+    --mob-primary-end: #4F46E5;
     --mob-primary-soft: rgba(67, 56, 202, 0.10);
     --mob-primary-glow: rgba(67, 56, 202, 0.28);
-    --mob-gradient: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%);
-    --mob-gradient-soft: linear-gradient(135deg, rgba(67, 56, 202, 0.12) 0%, rgba(124, 58, 237, 0.12) 100%);
+    --mob-gradient: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%);
+    --mob-gradient-soft: linear-gradient(135deg, rgba(55, 48, 163, 0.10) 0%, rgba(79, 70, 229, 0.14) 100%);
 
     --mob-accent: #10B981;
     --mob-accent-soft: rgba(16, 185, 129, 0.12);
@@ -34,7 +34,7 @@
 
     --mob-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04);
     --mob-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.06), 0 12px 28px rgba(15, 23, 42, 0.05);
-    --mob-shadow-hero: 0 16px 34px -8px rgba(67, 56, 202, 0.36), 0 4px 12px rgba(124, 58, 237, 0.20);
+    --mob-shadow-hero: 0 16px 34px -8px rgba(55, 48, 163, 0.36), 0 4px 12px rgba(79, 70, 229, 0.20);
     --mob-shadow-nav: 0 10px 30px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.06);
 
     --mob-radius-card: 16px;
@@ -60,11 +60,11 @@
 html[data-theme="dark"],
 body.dark-theme {
     --mob-primary: #6366F1;
-    --mob-primary-end: #8B5CF6;
+    --mob-primary-end: #818CF8;
     --mob-primary-soft: rgba(99, 102, 241, 0.18);
     --mob-primary-glow: rgba(99, 102, 241, 0.36);
-    --mob-gradient: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%);
-    --mob-gradient-soft: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.18) 100%);
+    --mob-gradient: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%);
+    --mob-gradient-soft: linear-gradient(135deg, rgba(67, 56, 202, 0.18) 0%, rgba(99, 102, 241, 0.22) 100%);
 
     --mob-accent: #34D399;
     --mob-accent-soft: rgba(52, 211, 153, 0.15);
@@ -630,7 +630,7 @@ button, input, select, textarea {
 
 .invest-hero-grid .invest-hero-card.full-width {
     grid-column: span 2;
-    background: linear-gradient(135deg, #3730A3 0%, #5B21B6 52%, #7C3AED 100%) !important;
+    background: var(--mob-gradient) !important;
 }
 
 .invest-hero-card .hero-label {

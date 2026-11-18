@@ -690,7 +690,7 @@
         <div id="tonuIRReportModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:999999; display:flex; align-items:center; justify-content:center; padding:12px; backdrop-filter:blur(6px); font-family:Inter,system-ui,-apple-system,sans-serif;">
             <div style="background:var(--color-surface, #ffffff); color:var(--color-text, #0f172a); border-radius:18px; max-width:880px; width:100%; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 25px 60px -15px rgba(0,0,0,0.4); border:1px solid var(--color-border, #e2e8f0); overflow:hidden;">
                 <!-- Header -->
-                <div style="padding:16px 20px; border-bottom:1px solid var(--color-border, #e2e8f0); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; background:linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(168,85,247,0.06) 100%);">
+                <div style="padding:16px 20px; border-bottom:1px solid var(--color-border, #e2e8f0); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; background:linear-gradient(135deg, rgba(55,48,163,0.06) 0%, rgba(79,70,229,0.08) 100%);">
                     <div style="display:flex; align-items:center; gap:12px;">
                         <div style="width:40px; height:40px; border-radius:10px; background:#4338CA; color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">
                             <i class="fas fa-file-invoice-dollar"></i>

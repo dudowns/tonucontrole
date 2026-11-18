@@ -1082,20 +1082,20 @@ function _renderWealthCard(g, isComplete) {
 
     return `
         <div class="goal-card ${isComplete ? 'completed' : ''}" 
-             style="--goal-accent-color: #8B5CF6;"
+             style="--goal-accent-color: #4338CA;"
              onclick="editGoal('${g.id}')">
             
             <div class="goal-card-top">
-                <div class="goal-badge-icon" style="background: rgba(139, 92, 246, 0.15); color: #8B5CF6;">
+                <div class="goal-badge-icon" style="background: rgba(67, 56, 202, 0.14); color: #4338CA;">
                     <i class="fas fa-university"></i>
                 </div>
                 <div class="goal-title-wrap">
                     <div class="goal-category-tag">
-                        <span style="color:#7C3AED; font-weight:700;"><i class="fas fa-chart-pie"></i> 🏦 Patrimônio Total</span>
+                        <span style="color:#4338CA; font-weight:700;"><i class="fas fa-chart-pie"></i> 🏦 Patrimônio Total</span>
                     </div>
                     <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
                 </div>
-                <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}" style="${isComplete ? '' : 'background:rgba(139, 92, 246, 0.12); color:#7C3AED;'}">
+                <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}" style="${isComplete ? '' : 'background:rgba(67, 56, 202, 0.12); color:#4338CA;'}">
                     ${isComplete ? '🏆 Conquistado' : (isEquityLoaded ? `${percent}%` : '—')}
                 </span>
             </div>
@@ -1103,7 +1103,7 @@ function _renderWealthCard(g, isComplete) {
             <div class="goal-finance-row">
                 <div class="goal-val-box">
                     <span class="goal-val-label">Patrimônio Atual em Ativos</span>
-                    <span class="goal-val-current" style="color:#7C3AED;">${isEquityLoaded ? formatCurrency(currentEquity) : '—'}</span>
+                    <span class="goal-val-current" style="color:#4338CA;">${isEquityLoaded ? formatCurrency(currentEquity) : '—'}</span>
                     ${detailsReturn ? `<div style="margin-top:2px;">${detailsReturn}</div>` : ''}
                 </div>
                 <div class="goal-val-box" style="text-align: right;">
@@ -1118,22 +1118,22 @@ function _renderWealthCard(g, isComplete) {
             <div class="goal-progress-box">
                 <div class="goal-progress-meta">
                     <span>${isComplete ? '🎉 Conquista de Patrimônio Batida!' : (isEquityLoaded ? `Progresso: <strong>${formatCurrency(currentEquity)} de ${formatCurrency(targetAmount)}</strong>` : 'Carregando custódia...')}</span>
-                    <span class="goal-progress-pct" style="color:#7C3AED;">${isEquityLoaded ? percent + '%' : '—'}</span>
+                    <span class="goal-progress-pct" style="color:#4338CA;">${isEquityLoaded ? percent + '%' : '—'}</span>
                 </div>
                 <div class="goal-progress-track">
-                    <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${isEquityLoaded ? percent : 0}%; background:#8B5CF6;"></div>
+                    <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${isEquityLoaded ? percent : 0}%; background:#4338CA;"></div>
                 </div>
             </div>
 
             <div class="auto-sync-tag wealth" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
                 <span><i class="fas fa-sync-alt"></i> Custódia • ${formattedTime}</span>
-                <button type="button" onclick="event.stopPropagation(); refreshPortfolioValueForGoals();" title="Forçar atualização da custódia agora" style="background:transparent; border:none; color:#7C3AED; cursor:pointer; font-size:11.5px; font-weight:700; display:flex; align-items:center; gap:4px; padding:2px 6px; border-radius:4px;">
+                <button type="button" onclick="event.stopPropagation(); refreshPortfolioValueForGoals();" title="Forçar atualização da custódia agora" style="background:transparent; border:none; color:#4338CA; cursor:pointer; font-size:11.5px; font-weight:700; display:flex; align-items:center; gap:4px; padding:2px 6px; border-radius:4px;">
                     <i class="fas fa-redo-alt"></i> Atualizar agora
                 </button>
             </div>
 
             <div class="goal-actions-bar" onclick="event.stopPropagation();">
-                <button type="button" class="btn-card-action" onclick="window.location.href='investments.html'" style="background:rgba(139,92,246,0.12); color:#6D28D9; font-weight:700; flex:1;">
+                <button type="button" class="btn-card-action" onclick="window.location.href='investments.html'" style="background:rgba(67,56,202,0.12); color:#4338CA; font-weight:700; flex:1;">
                     <i class="fas fa-chart-pie"></i> Ver Carteira
                 </button>
                 <button type="button" class="btn-card-icon-only" onclick="editGoal('${g.id}')" title="Editar detalhes">

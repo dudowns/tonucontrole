@@ -37,7 +37,7 @@
     gap: 10px !important;
     padding: 10px 14px !important;
     margin-bottom: 16px !important;
-    background: linear-gradient(135deg, #3730A3 0%, #4F46E5 55%, #7C3AED 100%) !important;
+    background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%) !important;
     border-radius: 10px !important;
     color: white !important;
     flex-shrink: 0 !important;
@@ -218,7 +218,7 @@
 .sidebar-user-profile .avatar-circle {
     width: 40px !important;
     height: 40px !important;
-    background: linear-gradient(135deg, #4338CA, #7C3AED) !important;
+    background: linear-gradient(135deg, #3730A3, #4F46E5) !important;
     color: #ffffff !important;
     border-radius: 50% !important;
     display: flex !important;
@@ -429,7 +429,7 @@
 .auth-container .sidebar-nav a.active,
 .card .sidebar-nav a.active,
 .page-content .sidebar-nav a.active {
-    background: linear-gradient(135deg, #4338CA, #6D28D9) !important;
+    background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%) !important;
     color: #ffffff !important;
     box-shadow: 0 4px 16px rgba(67, 56, 202, 0.32) !important;
 }
@@ -469,7 +469,7 @@
 .content .sidebar-nav a.active:hover,
 .auth-container .sidebar-nav a.active:hover,
 .card .sidebar-nav a.active:hover {
-    background: linear-gradient(135deg, #4338CA, #6D28D9) !important;
+    background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%) !important;
     color: #ffffff !important;
 }
 
@@ -517,7 +517,7 @@ body.dark-theme .card .sidebar-nav a:hover,
 [data-theme="dark"] .auth-container .sidebar-nav a:hover,
 [data-theme="dark"] .card .sidebar-nav a:hover {
     background: rgba(129, 140, 248, 0.16) !important;
-    color: #A78BFA !important;
+    color: #818CF8 !important;
 }
 
 body.dark-theme .sidebar-nav a.active,
@@ -539,7 +539,7 @@ body.dark-theme .card .sidebar-nav a.active,
 [data-theme="dark"] .investments-grid .sidebar-nav a.active,
 [data-theme="dark"] .content .sidebar-nav a.active,
 [data-theme="dark"] .card .sidebar-nav a.active {
-    background: linear-gradient(135deg, #4F46E5, #7C3AED) !important;
+    background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%) !important;
     color: #ffffff !important;
     box-shadow: 0 4px 16px rgba(79, 70, 229, 0.42) !important;
 }
@@ -587,7 +587,7 @@ html[data-theme="dark"] .sidebar-user-icon {
 body.dark-theme .sidebar-user-profile:hover .sidebar-user-icon,
 [data-theme="dark"] .sidebar-user-profile:hover .sidebar-user-icon,
 html[data-theme="dark"] .sidebar-user-profile:hover .sidebar-user-icon {
-    color: #A78BFA !important;
+    color: #818CF8 !important;
 }
 
 body.dark-theme .sidebar-footer .btn-sair,

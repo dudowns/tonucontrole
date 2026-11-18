@@ -81,7 +81,7 @@ body.dark-theme .sidebar {
 }
 
 body.dark-theme .sidebar-brand {
-    background: linear-gradient(135deg, #818CF8, #A78BFA) !important;
+    background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%) !important;
 }
 
 body.dark-theme .sidebar-nav a {
@@ -90,7 +90,7 @@ body.dark-theme .sidebar-nav a {
 
 body.dark-theme .sidebar-nav a:hover {
     background: var(--color-primary-bg) !important;
-    color: #A78BFA !important;
+    color: #818CF8 !important;
 }
 
 body.dark-theme .sidebar-nav a.active {
@@ -238,7 +238,7 @@ body.dark-theme .btn-secondary:hover {
 
 body.dark-theme .btn-outline {
     background: transparent !important;
-    color: #A78BFA !important;
+    color: #818CF8 !important;
     border-color: #818CF8 !important;
 }
 
@@ -407,7 +407,7 @@ body.dark-theme .goal-tab-btn:hover {
 }
 
 body.dark-theme .goal-tab-btn.active {
-    background: linear-gradient(135deg, #4F46E5, #7C3AED) !important;
+    background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%) !important;
     color: #ffffff !important;
 }
 
@@ -512,7 +512,7 @@ body.dark-theme .portfolio-header h2 {
 }
 
 body.dark-theme .portfolio-header .total-value {
-    color: #A78BFA !important;
+    color: #818CF8 !important;
 }
 
 body.dark-theme .class-filters {
@@ -635,13 +635,13 @@ body.dark-theme .notif-sub-tab {
 }
 
 body.dark-theme .notif-sub-tab:hover {
-    color: #A78BFA !important;
-    background: rgba(167, 139, 250, 0.12) !important;
+    color: #818CF8 !important;
+    background: rgba(129, 140, 248, 0.14) !important;
 }
 
 body.dark-theme .notif-sub-tab.active {
     background: var(--color-surface) !important;
-    color: #A78BFA !important;
+    color: #818CF8 !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
 }
 
@@ -758,12 +758,95 @@ body.dark-theme .expense-legend-pct {
 }
 
 body.dark-theme .expense-floating-legend {
-    background: var(--color-surface) !important;
+    background: var(--color-bg, #0F172A) !important;
     border-color: var(--color-border) !important;
 }
 
-body.dark-theme .expense-legend-row {
-    border-bottom-color: var(--color-border-light) !important;
+body.dark-theme .expense-legend-row,
+body.dark-theme .expense-legend-item {
+    border-bottom-color: var(--color-border) !important;
+}
+
+/* Bento Hero Cards & Tabela Desktop (Dark Theme) */
+body.dark-theme .bento-balance-card {
+    background: linear-gradient(135deg, #1E1B4B 0%, #312E81 48%, #3730A3 85%, #4338CA 100%) !important;
+    border-color: rgba(129, 140, 248, 0.28) !important;
+    box-shadow: 0 14px 34px -8px rgba(0, 0, 0, 0.55) !important;
+}
+
+body.dark-theme .bento-side-card {
+    background: var(--color-surface, #1E293B) !important;
+    border-color: var(--color-border, #334155) !important;
+}
+
+body.dark-theme .bento-side-card:hover {
+    border-color: #818CF8 !important;
+}
+
+body.dark-theme .bento-side-label,
+body.dark-theme .bento-side-sub {
+    color: var(--color-text-muted, #94A3B8) !important;
+}
+
+body.dark-theme .bento-side-value {
+    color: var(--color-text, #F8FAFC) !important;
+}
+
+body.dark-theme .bento-side-icon.indigo {
+    background: rgba(129, 140, 248, 0.16) !important;
+    color: #818CF8 !important;
+}
+
+body.dark-theme .monthly-chart-card,
+body.dark-theme .transactions-card {
+    background: var(--color-surface, #1E293B) !important;
+    border-color: var(--color-border, #334155) !important;
+}
+
+body.dark-theme .monthly-chart-card .card-header,
+body.dark-theme .expense-summary-card .card-header,
+body.dark-theme .transactions-card .card-header {
+    background: var(--color-surface-2, #162135) !important;
+    border-bottom-color: var(--color-border, #334155) !important;
+}
+
+body.dark-theme .monthly-chart-summary {
+    background: rgba(129, 140, 248, 0.08) !important;
+    border-bottom-color: var(--color-border, #334155) !important;
+}
+
+body.dark-theme .desktop-tx-table thead th {
+    background: var(--color-bg, #0F172A) !important;
+    color: var(--color-text-muted, #94A3B8) !important;
+    border-bottom-color: var(--color-border, #334155) !important;
+}
+
+body.dark-theme .desktop-tx-table tbody tr {
+    border-bottom-color: var(--color-border-light, #253345) !important;
+}
+
+body.dark-theme .desktop-tx-table tbody tr:hover {
+    background: var(--color-surface-hover, #2D3B55) !important;
+}
+
+body.dark-theme .desktop-tx-table tbody td {
+    color: var(--color-text, #E2E8F0) !important;
+}
+
+body.dark-theme .desktop-tx-table td.col-date {
+    color: var(--color-text-muted, #94A3B8) !important;
+}
+
+body.dark-theme .tx-table-cat {
+    color: var(--color-text-light, #CBD5E1) !important;
+}
+
+body.dark-theme .tx-table-amount.income {
+    color: #34D399 !important;
+}
+
+body.dark-theme .tx-table-amount.expense {
+    color: #F87171 !important;
 }
 
 /* ==========================================
@@ -922,7 +1005,7 @@ body.dark-theme .notif-bell-btn {
 
 body.dark-theme .notif-bell-btn:hover {
     background: var(--color-surface-hover) !important;
-    color: #A78BFA !important;
+    color: #818CF8 !important;
 }
 
 /* ==========================================
@@ -970,7 +1053,7 @@ body.dark-theme .day-chip:hover {
 body.dark-theme .day-chip.active {
     background: var(--color-primary-bg) !important;
     border-color: #818CF8 !important;
-    color: #A78BFA !important;
+    color: #818CF8 !important;
 }
 
 /* ==========================================
@@ -990,7 +1073,7 @@ body.dark-theme .sync-signal-bottom.status-offline {
 }
 
 body.dark-theme .sync-signal-bottom.status-syncing {
-    color: #A78BFA !important;
+    color: #818CF8 !important;
 }
 
 body.dark-theme .sync-signal-bottom.status-pending {
@@ -1060,12 +1143,12 @@ body.dark-theme .tab-btn {
 
 body.dark-theme .tab-btn.active {
     background: var(--color-surface) !important;
-    color: #A78BFA !important;
+    color: #818CF8 !important;
 }
 
 body.dark-theme .tab-btn.active[aria-selected="true"] {
     background: var(--color-surface) !important;
-    color: #A78BFA !important;
+    color: #818CF8 !important;
 }
 
 body.dark-theme .tab-btn:hover {
@@ -1073,7 +1156,7 @@ body.dark-theme .tab-btn:hover {
 }
 
 body.dark-theme .tab-btn.active:hover {
-    color: #A78BFA !important;
+    color: #818CF8 !important;
 }
 
 body.dark-theme .input-wrapper input {
@@ -1091,8 +1174,8 @@ body.dark-theme .password-toggle-btn {
 }
 
 body.dark-theme .password-toggle-btn:hover {
-    color: #A78BFA !important;
-    background: rgba(167, 139, 250, 0.15) !important;
+    color: #818CF8 !important;
+    background: rgba(129, 140, 248, 0.15) !important;
 }
 
 body.dark-theme .password-toggle-btn:focus-visible {
@@ -1120,7 +1203,7 @@ body.dark-theme .btn-social:hover {
 }
 
 body.dark-theme .form-links a {
-    color: #A78BFA !important;
+    color: #818CF8 !important;
 }
 
 body.dark-theme .form-links a:hover {

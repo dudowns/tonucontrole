@@ -579,7 +579,7 @@
                     particleCount: 95,
                     spread: 72,
                     origin: { y: 0.62 },
-                    colors: ['#4338CA', '#7C3AED', '#10B981', '#F59E0B', '#38BDF8']
+                    colors: ['#3730A3', '#4F46E5', '#10B981', '#F59E0B', '#38BDF8']
                 });
             } catch (_) {}
         }
@@ -653,7 +653,7 @@
                 label: 'Ir para Transações',
                 sub: 'Extrato, busca e filtros',
                 icon: 'fa-exchange-alt',
-                color: '#7C3AED',
+                color: '#4F46E5',
                 run: function () { startNavProgress(); window.location.href = 'transactions.html'; }
             },
             {
@@ -701,7 +701,7 @@
                 label: isDark ? 'Ativar Modo Claro' : 'Ativar Modo Escuro',
                 sub: 'Alternar aparência Aurora Light/Dark',
                 icon: isDark ? 'fa-sun' : 'fa-moon',
-                color: '#7C3AED',
+                color: '#4F46E5',
                 run: function () {
                     if (typeof window.toggleTheme === 'function') window.toggleTheme();
                     syncThemeMeta();

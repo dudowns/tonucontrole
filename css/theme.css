@@ -10,8 +10,8 @@
     --color-primary: #4338CA;
     --color-primary-dark: #3730A3;
     --color-primary-darker: #2E2A85;
-    --color-primary-light: #7C3AED;
-    --color-primary-lighter: #DDD6FE;
+    --color-primary-light: #4F46E5;
+    --color-primary-lighter: #C7D2FE;
     --color-primary-bg: #EEF2FF;
 
     --color-success: #10B981;
@@ -1236,12 +1236,15 @@ body.dark-theme .toast-progress-track {
     }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .toast {
-        left: 16px;
-        right: 16px;
+        left: 50%;
+        right: auto;
         bottom: 20px;
-        max-width: calc(100% - 32px);
+        width: calc(100vw - 32px);
+        max-width: 400px;
+        transform: translate(-50%, 0);
+        animation: none;
     }
 }
 

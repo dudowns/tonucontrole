@@ -794,7 +794,7 @@ function renderSummary() {
     });
 
     const displayMonthDivs = monthPaidDivs > 0 ? monthPaidDivs : (monthPendingDivs > 0 ? monthPendingDivs : 0);
-    const divValueColor = monthPaidDivs > 0 ? '#7C3AED' : (monthPendingDivs > 0 ? '#0284c7' : '#7C3AED');
+    const divValueColor = monthPaidDivs > 0 ? '#4338CA' : (monthPendingDivs > 0 ? '#0284c7' : '#4338CA');
 
     const mask = (val) => isBalanceHidden ? '••••••' : val;
 
@@ -1823,8 +1823,8 @@ function buildGoalTypeSummaryCard(typeKey, items) {
             title: 'Patrimônio',
             subtitle: `${countLabel} · ${repName}`,
             icon: 'fa-chart-pie',
-            color: '#8B5CF6',
-            iconBg: 'rgba(139, 92, 246, 0.14)',
+            color: '#4338CA',
+            iconBg: 'rgba(67, 56, 202, 0.14)',
             percent,
             currentLabel: 'Em custódia',
             currentValue: formatCurrency(current),

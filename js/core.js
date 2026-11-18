@@ -318,7 +318,9 @@ function showToast(message, type, actionText, onAction) {
             isSwiping = true;
             if (e.cancelable) e.preventDefault();
             var opacity = Math.max(0.2, 1 - (Math.abs(deltaX) / 240));
-            toast.style.transform = 'translateX(' + deltaX + 'px)';
+            toast.style.transform = isMobile
+                ? 'translateX(calc(-50% + ' + deltaX + 'px))'
+                : 'translateX(' + deltaX + 'px)';
             toast.style.opacity = String(opacity);
         }
     };

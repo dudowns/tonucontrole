@@ -3,7 +3,7 @@
 // ============================================
 
 // NOTA: Sincronizar CACHE_NAME com a versão em package.json a cada release
-const CACHE_NAME = 'tonucontrole-v3.2.1';
+const CACHE_NAME = 'tonucontrole-v3.2.2';
 
 const RELATIVE_ASSETS = [
   './',
@@ -157,7 +157,7 @@ self.addEventListener('sync', (event) => {
 // PUSH & NOTIFICATION CLICK LISTENERS
 // ============================================
 self.addEventListener('push', (event) => {
-  let data = { title: 'TonuControle', body: 'Você tem uma notificação', icon: '/icons/icon-192x192.png?v=3.2.1' };
+  let data = { title: 'TonuControle', body: 'Você tem uma notificação', icon: '/icons/icon-192x192.png?v=3.2.2' };
   if (event.data) {
     try { data = event.data.json(); } catch (e) { data.body = event.data.text(); }
   }
@@ -167,8 +167,8 @@ self.addEventListener('push', (event) => {
   // Exibição imediata dentro de event.waitUntil para garantir ciclo de vida no iOS WebKit
   const notificationPromise = self.registration.showNotification(data.title || 'TonuControle', {
     body: data.body || '',
-    icon: data.icon || '/icons/icon-192x192.png?v=3.2.1',
-    badge: '/icons/icon-96x96.png?v=3.2.1',
+    icon: data.icon || '/icons/icon-192x192.png?v=3.2.2',
+    badge: '/icons/icon-96x96.png?v=3.2.2',
     tag: data.tag || 'tonu-notification',
     data: { url: data.url || './', badgeCount: badgeCount }
   });

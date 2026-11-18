@@ -35,7 +35,7 @@
 #notifBellBtn:hover,
 .notif-bell-btn:hover {
     background: var(--color-surface-hover, #F8F9FA);
-    border-color: var(--color-primary-light, #7C3AED);
+    border-color: var(--color-primary-light, #4F46E5);
     color: var(--color-primary, #4338CA);
     transform: translateY(-1px);
 }

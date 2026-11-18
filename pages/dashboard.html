@@ -7,13 +7,13 @@
     <meta name="theme-color" content="#4338CA">
     <title>Dashboard | TonuControle</title>
 
-    <link rel="manifest" href="../manifest.json?v=3.2.1">
-    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.1">
-    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.1">
-    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png?v=3.2.1">
-    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png?v=3.2.1">
-    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.1">
-    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.1">
+    <link rel="manifest" href="../manifest.json?v=3.2.2">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.2">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.2">
+    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png?v=3.2.2">
+    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png?v=3.2.2">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.2">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.2">
 
     <!-- Fontes e Ícones -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,12 +22,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- CSS -->
-    <link rel="stylesheet" href="../css/theme.css?v=3.2.1">
-    <link rel="stylesheet" href="../css/sidebar-patch.css?v=3.2.1">
-    <link rel="stylesheet" href="../css/dashboard.css?v=3.2.1">
-    <link rel="stylesheet" href="../css/notifications.css?v=3.2.1">
-    <link rel="stylesheet" href="../css/sync.css?v=3.2.1">
-    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.2">
+    <link rel="stylesheet" href="../css/sidebar-patch.css?v=3.2.2">
+    <link rel="stylesheet" href="../css/dashboard.css?v=3.2.2">
+    <link rel="stylesheet" href="../css/notifications.css?v=3.2.2">
+    <link rel="stylesheet" href="../css/sync.css?v=3.2.2">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.2">
 
     <!-- Device Router & Anti-flicker Theme Init -->
     <script src="../js/device-router.js"></script>
@@ -50,7 +50,7 @@
         <!-- SIDEBAR -->
         <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
             <div class="sidebar-brand">
-                <div class="brand-icon"><img src="../icons/logo.png?v=3.2.1" alt="TonuControle"></div>
+                <div class="brand-icon"><img src="../icons/logo.png?v=3.2.2" alt="TonuControle"></div>
                 <h2>TonuControle</h2>
             </div>
             <ul class="sidebar-nav" role="menubar">
@@ -133,7 +133,7 @@
             </header>
 
             <!-- CONTENT -->
-            <div class="content">
+            <div class="content dashboard-command-content">
                 <!-- BANNER DE CONTAS ATRASADAS -->
                 <div id="dueBillsWarningBanner" class="due-bills-banner" style="display:none;">
                     <div class="due-banner-left">
@@ -166,65 +166,82 @@
                     <button class="btn-today" onclick="goToCurrentMonth()">Hoje</button>
                 </div>
 
-                <!-- Cards de Resumo (4 Pilares Financeiros - Compacto) -->
-                <div class="dashboard-grid" id="summaryGrid">
-                    <!-- 1. Saldo Operacional -->
-                    <div class="card-stat primary card-stat-balance" id="cardStatBalance" onclick="window.location.href='transactions.html'" style="cursor: pointer;" title="Saldo das receitas recebidas menos despesas pagas no mês">
-                        <div class="stat-icon primary"><i class="fas fa-wallet"></i></div>
-                        <div class="stat-info">
-                            <div class="stat-label" style="display:flex; justify-content:space-between; align-items:center;">
-                                <span>Saldo Operacional</span>
-                                <button type="button" class="eye-toggle-btn" onclick="event.stopPropagation(); toggleBalanceVisibility();" title="Ocultar ou mostrar saldos" aria-label="Alternar visibilidade do saldo" style="background:none; border:none; color:inherit; cursor:pointer; opacity:0.75; font-size:12px; padding:2px 4px; border-radius:4px;">
-                                    <i class="fas fa-eye" id="cardBalanceIcon"></i>
-                                </button>
+                <!-- BENTO BOX HERO GRID (2/3 Saldo + 1/3 Contas & Proventos) -->
+                <div class="bento-hero-grid" id="summaryGrid">
+                    <!-- 2/3 ESQUERDA: SALDO OPERACIONAL & FLUXO DO MÊS -->
+                    <div class="bento-balance-card" id="cardStatBalance" onclick="window.location.href='transactions.html'" role="button" tabindex="0" title="Saldo das receitas recebidas menos despesas pagas no mês">
+                        <div class="bento-balance-top">
+                            <div class="bento-balance-heading">
+                                <span class="bento-card-kicker"><i class="fas fa-wallet" aria-hidden="true"></i> Saldo Operacional</span>
+                                <span class="bento-card-caption">Disponível no mês de referência</span>
                             </div>
-                            <div class="stat-value" id="totalBalance">R$ 0,00</div>
-                            <div class="stat-sub" id="balanceStatus">Calculando...</div>
+                            <button type="button" class="eye-toggle-btn bento-eye-btn" onclick="event.stopPropagation(); toggleBalanceVisibility();" title="Ocultar ou mostrar saldos" aria-label="Alternar visibilidade do saldo">
+                                <i class="fas fa-eye" id="cardBalanceIcon"></i>
+                            </button>
                         </div>
-                    </div>
 
-                    <!-- 2. Total de Receitas -->
-                    <div class="card-stat success" id="cardStatIncome" onclick="window.location.href='transactions.html?type=income'" style="cursor: pointer;" title="Clique para ver receitas">
-                        <div class="stat-icon success"><i class="fas fa-arrow-up"></i></div>
-                        <div class="stat-info">
-                            <div class="stat-label">Total de Receitas</div>
-                            <div class="stat-value" id="totalIncome">R$ 0,00</div>
-                            <div class="stat-sub" id="incomeTrend">+0% vs anterior</div>
+                        <div class="bento-balance-main">
+                            <div class="bento-balance-value" id="totalBalance">R$ 0,00</div>
+                            <div class="bento-balance-status" id="balanceStatus">Calculando...</div>
                         </div>
-                    </div>
 
-                    <!-- 3. Total de Despesas -->
-                    <div class="card-stat danger" id="cardStatExpense" onclick="window.location.href='transactions.html?type=expense'" style="cursor: pointer;" title="Clique para ver despesas">
-                        <div class="stat-icon danger"><i class="fas fa-arrow-down"></i></div>
-                        <div class="stat-info">
-                            <div class="stat-label">Total de Despesas</div>
-                            <div class="stat-value" id="totalExpense">R$ 0,00</div>
-                            <div class="stat-sub" id="expenseTrend">
-                                <span>+0% vs anterior</span>
-                                <span id="expensePendingSub" class="expense-pending-sub" style="display:block; font-size:10px; margin-top:2px; opacity:0.9;"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 4. Contas a Pagar e Patrimônio Investido -->
-                    <div class="card-stat warning card-stat-bills-invested" id="cardStatBillsInvested">
-                        <div class="stat-icon warning"><i class="fas fa-file-invoice-dollar"></i></div>
-                        <div class="stat-info" style="min-width: 0; width: 100%;">
-                            <div class="stat-label" style="display: flex; justify-content: space-between; align-items: center;">
-                                <span>Contas a Pagar</span>
-                                <span style="color: #4338CA; font-weight: 700;">Investido</span>
-                            </div>
-                            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-top: 1px;">
-                                <div title="Ver Contas a Pagar" onclick="window.location.href='bills.html'" style="cursor: pointer; min-width: 0;">
-                                    <div class="stat-value" id="billsAmount" style="font-size: 13px !important; color: #F59E0B; white-space: nowrap;">R$ 0,00</div>
-                                    <div class="stat-sub" id="billsCount" style="font-size: 9px !important;">0 pendentes</div>
+                        <div class="bento-submetrics-grid">
+                            <div class="bento-submetric" id="cardStatIncome" onclick="event.stopPropagation(); window.location.href='transactions.html?type=income'" title="Clique para ver receitas">
+                                <div class="bento-submetric-label">
+                                    <span class="bento-dot income"></span>
+                                    <span>Receitas</span>
                                 </div>
-                                <div style="height: 18px; width: 1px; background: var(--color-border, #e2e8f0); flex-shrink: 0;"></div>
-                                <div title="Ver Investimentos" onclick="window.location.href='investments.html'" style="cursor: pointer; min-width: 0; text-align: right;">
-                                    <div class="stat-value" id="totalInvested" style="font-size: 13px !important; color: #4338CA; white-space: nowrap;">R$ 0,00</div>
-                                    <div class="stat-sub" id="investedCount" style="font-size: 9px !important; justify-content: flex-end;">0 ativos</div>
+                                <div class="bento-submetric-value" id="totalIncome">R$ 0,00</div>
+                                <div class="bento-submetric-sub" id="incomeTrend">+0% vs anterior</div>
+                            </div>
+
+                            <div class="bento-submetric" id="cardStatExpense" onclick="event.stopPropagation(); window.location.href='transactions.html?type=expense'" title="Clique para ver despesas">
+                                <div class="bento-submetric-label">
+                                    <span class="bento-dot expense"></span>
+                                    <span>Despesas</span>
+                                </div>
+                                <div class="bento-submetric-value" id="totalExpense">R$ 0,00</div>
+                                <div class="bento-submetric-sub" id="expenseTrend">
+                                    <span>+0% vs anterior</span>
+                                    <span id="expensePendingSub" class="expense-pending-sub"></span>
                                 </div>
                             </div>
+
+                            <div class="bento-submetric" id="cardStatInvested" onclick="event.stopPropagation(); window.location.href='investments.html'" title="Ver carteira de investimentos">
+                                <div class="bento-submetric-label">
+                                    <span class="bento-dot invested"></span>
+                                    <span>Patrimônio Investido</span>
+                                </div>
+                                <div class="bento-submetric-value" id="totalInvested">R$ 0,00</div>
+                                <div class="bento-submetric-sub" id="investedCount">0 ativos</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 1/3 DIREITA: CARDS EMPILHADOS (CONTAS PENDENTES + PROVENTOS) -->
+                    <div class="bento-side-stack">
+                        <div class="bento-side-card" id="cardStatBills" onclick="window.location.href='bills.html'" role="button" tabindex="0" title="Ver Contas Pendentes">
+                            <div class="bento-side-left">
+                                <div class="bento-side-icon warning"><i class="fas fa-file-invoice-dollar"></i></div>
+                                <div class="bento-side-info">
+                                    <div class="bento-side-label">Contas Pendentes</div>
+                                    <div class="bento-side-value" id="billsAmount">R$ 0,00</div>
+                                    <div class="bento-side-sub" id="billsCount">0 pendentes</div>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right bento-side-arrow" aria-hidden="true"></i>
+                        </div>
+
+                        <div class="bento-side-card" id="cardStatDividends" onclick="window.location.href='investments.html'" role="button" tabindex="0" title="Ver Proventos e Dividendos">
+                            <div class="bento-side-left">
+                                <div class="bento-side-icon indigo"><i class="fas fa-coins"></i></div>
+                                <div class="bento-side-info">
+                                    <div class="bento-side-label">Proventos do Mês</div>
+                                    <div class="bento-side-value" id="dividendsMonthAmount">R$ 0,00</div>
+                                    <div class="bento-side-sub" id="dividendsMonthCount">0 recebimentos</div>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right bento-side-arrow" aria-hidden="true"></i>
                         </div>
                     </div>
                 </div>
@@ -232,59 +249,60 @@
                 <!-- Alertas -->
                 <div id="alertContainer"></div>
 
-                <!-- GRÁFICOS -->
+                <!-- GRÁFICOS LADO A LADO (50% / 50%) -->
                 <div class="charts-grid">
+                    <div class="card expense-summary-card">
+                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3>🎯 Visão de Gastos</h3>
+                            <span class="badge badge-muted">Mês atual</span>
+                        </div>
+                        <div class="expense-chart-body">
+                            <div class="expense-canvas-box">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                            <div id="expenseLegendCard" class="expense-floating-legend"></div>
+                        </div>
+                    </div>
+
                     <div class="card monthly-chart-card">
                         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <h3>📊 Evolução Mensal</h3>
+                                <h3>📊 Fluxo Financeiro</h3>
                                 <span class="badge badge-muted" id="monthlyPeriodBadge">Últimos 6 meses</span>
                             </div>
                             <div class="chart-controls-wrap" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                <!-- SELETOR DE PERÍODO -->
                                 <div class="chart-btn-group" style="display: inline-flex; background: var(--color-bg, #f1f5f9); padding: 2px; border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0);">
-                                    <button type="button" class="btn-chart-toggle active" id="btnPeriod6" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(6)" style="padding: 3px 8px; font-size: 11px; font-weight: 700; border: none; background: #4338CA; color: #ffffff; border-radius: 6px; cursor: pointer; transition: all 0.2s;">6M</button>
-                                    <button type="button" class="btn-chart-toggle" id="btnPeriod12" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(12)" style="padding: 3px 8px; font-size: 11px; font-weight: 600; border: none; background: transparent; color: var(--color-text-muted, #64748b); border-radius: 6px; cursor: pointer; transition: all 0.2s;">12M</button>
+                                    <button type="button" class="btn-chart-toggle active" id="btnPeriod6" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(6)" style="padding: 4px 10px; font-size: 12px; font-weight: 700; border: none; background: #4338CA; color: #ffffff; border-radius: 6px; cursor: pointer; transition: all 0.2s;">6M</button>
+                                    <button type="button" class="btn-chart-toggle" id="btnPeriod12" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(12)" style="padding: 4px 10px; font-size: 12px; font-weight: 600; border: none; background: transparent; color: var(--color-text-muted, #64748b); border-radius: 6px; cursor: pointer; transition: all 0.2s;">12M</button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- RESUMO RÁPIDO DO PERÍODO (APENAS RECEITAS E DESPESAS) -->
-                        <div id="monthlyChartSummary" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 14px; background: rgba(67, 56, 202, 0.04); border-bottom: 1px solid var(--color-border-light, #f1f5f9); font-size: 11px; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: #10B981;"></span>
-                                <span style="color: var(--color-text-muted, #64748b);">Receitas:</span>
-                                <strong id="totalPeriodIncomeVal" style="color: #10B981; font-weight: 700;">R$ 0,00</strong>
-                                <span style="color: var(--color-text-muted, #94a3b8); font-size: 10px;">(méd. <span id="avgIncomeVal">R$ 0,00</span>)</span>
+                        <!-- RESUMO RÁPIDO DO PERÍODO -->
+                        <div id="monthlyChartSummary" class="monthly-chart-summary">
+                            <div class="monthly-summary-item">
+                                <span class="monthly-summary-dot income"></span>
+                                <span class="monthly-summary-label">Receitas:</span>
+                                <strong id="totalPeriodIncomeVal" class="monthly-summary-val income">R$ 0,00</strong>
+                                <span class="monthly-summary-avg">(méd. <span id="avgIncomeVal">R$ 0,00</span>)</span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: #EF4444;"></span>
-                                <span style="color: var(--color-text-muted, #64748b);">Despesas:</span>
-                                <strong id="totalPeriodExpenseVal" style="color: #EF4444; font-weight: 700;">R$ 0,00</strong>
-                                <span style="color: var(--color-text-muted, #94a3b8); font-size: 10px;">(méd. <span id="avgExpenseVal">R$ 0,00</span>)</span>
+                            <div class="monthly-summary-item">
+                                <span class="monthly-summary-dot expense"></span>
+                                <span class="monthly-summary-label">Despesas:</span>
+                                <strong id="totalPeriodExpenseVal" class="monthly-summary-val expense">R$ 0,00</strong>
+                                <span class="monthly-summary-avg">(méd. <span id="avgExpenseVal">R$ 0,00</span>)</span>
                             </div>
                         </div>
 
-                        <div class="chart-wrap" style="position: relative; height: 260px; padding: 8px 12px;">
+                        <div class="chart-wrap">
                             <canvas id="monthlyChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>🎯 Distribuição de Gastos</h3>
-                            <span class="badge badge-muted">Mês atual</span>
-                        </div>
-                        <div class="category-chart-container" style="display: flex; align-items: center; justify-content: center; padding: 10px 16px 16px 16px; min-height: 260px;">
-                            <div class="chart-wrap" style="width: 100%; height: 250px; position: relative;">
-                                <canvas id="categoryChart"></canvas>
-                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- GRID INFERIOR: ÚLTIMAS TRANSAÇÕES + INSIGHTS -->
+                <!-- GRID INFERIOR: TABELA DE ÚLTIMAS TRANSAÇÕES + AÇÕES & INSIGHTS IA -->
                 <div class="dashboard-bottom-grid">
-                    <!-- ÚLTIMAS TRANSAÇÕES -->
+                    <!-- ÚLTIMAS TRANSAÇÕES (TABELA) -->
                     <div class="card transactions-card">
                         <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -296,44 +314,43 @@
                             </a>
                         </div>
                         <div class="card-body" id="transactionsList">
-                            <div style="display: flex; flex-direction: column; gap: 10px; padding: 6px 0;">
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                                    <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                        <div class="skeleton-shimmer" style="width: 34px; height: 34px; border-radius: 8px;"></div>
-                                        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
-                                            <div class="skeleton-shimmer" style="width: 55%; height: 13px;"></div>
-                                            <div class="skeleton-shimmer" style="width: 35%; height: 11px;"></div>
-                                        </div>
-                                    </div>
-                                    <div class="skeleton-shimmer" style="width: 65px; height: 14px;"></div>
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                                    <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                        <div class="skeleton-shimmer" style="width: 34px; height: 34px; border-radius: 8px;"></div>
-                                        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
-                                            <div class="skeleton-shimmer" style="width: 45%; height: 13px;"></div>
-                                            <div class="skeleton-shimmer" style="width: 30%; height: 11px;"></div>
-                                        </div>
-                                    </div>
-                                    <div class="skeleton-shimmer" style="width: 55px; height: 14px;"></div>
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                                    <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                        <div class="skeleton-shimmer" style="width: 34px; height: 34px; border-radius: 8px;"></div>
-                                        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
-                                            <div class="skeleton-shimmer" style="width: 60%; height: 13px;"></div>
-                                            <div class="skeleton-shimmer" style="width: 40%; height: 11px;"></div>
-                                        </div>
-                                    </div>
-                                    <div class="skeleton-shimmer" style="width: 70px; height: 14px;"></div>
-                                </div>
+                            <div class="desktop-tx-table-wrap">
+                                <table class="desktop-tx-table" aria-label="Carregando últimas transações">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Descrição</th>
+                                            <th>Categoria</th>
+                                            <th class="col-amount">Valor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><div class="skeleton-shimmer" style="width: 68px; height: 13px;"></div></td>
+                                            <td><div class="skeleton-shimmer" style="width: 150px; height: 13px;"></div></td>
+                                            <td><div class="skeleton-shimmer" style="width: 90px; height: 13px;"></div></td>
+                                            <td class="col-amount"><div class="skeleton-shimmer" style="width: 75px; height: 13px; margin-left: auto;"></div></td>
+                                        </tr>
+                                        <tr>
+                                            <td><div class="skeleton-shimmer" style="width: 68px; height: 13px;"></div></td>
+                                            <td><div class="skeleton-shimmer" style="width: 120px; height: 13px;"></div></td>
+                                            <td><div class="skeleton-shimmer" style="width: 82px; height: 13px;"></div></td>
+                                            <td class="col-amount"><div class="skeleton-shimmer" style="width: 68px; height: 13px; margin-left: auto;"></div></td>
+                                        </tr>
+                                        <tr>
+                                            <td><div class="skeleton-shimmer" style="width: 68px; height: 13px;"></div></td>
+                                            <td><div class="skeleton-shimmer" style="width: 165px; height: 13px;"></div></td>
+                                            <td><div class="skeleton-shimmer" style="width: 96px; height: 13px;"></div></td>
+                                            <td class="col-amount"><div class="skeleton-shimmer" style="width: 78px; height: 13px; margin-left: auto;"></div></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
 
-                    <!-- COLUNA LATERAL: O QUE FAZER HOJE? + SAÚDE FINANCEIRA -->
-                    <div class="dashboard-sidebar-column" style="display: flex; flex-direction: column; gap: 20px;">
-                        <!-- CARD 1: O QUE FAZER HOJE? -->
+                    <!-- COLUNA LATERAL: O QUE FAZER HOJE? + INSIGHTS IA -->
+                    <div class="dashboard-sidebar-column">
                         <div class="card quick-actions-panel" id="dashboardQuickActionsCard">
                             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -350,7 +367,6 @@
                             </div>
                         </div>
 
-                        <!-- CARD 2: INSIGHTS IA (GEMINI) -->
                         <div class="card insights-card ai-insights-card" id="aiInsightsCard">
                             <div class="card-header">
                                 <div style="display:flex; align-items:center; gap:8px;">
@@ -371,30 +387,32 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- CARD 3: SAÚDE FINANCEIRA (DIAGNÓSTICO 360º) -->
-                        <div class="card insights-card" id="dashboardInsightsCard">
-                            <div class="card-header">
-                                <div style="display:flex; align-items:center; gap:8px;">
-                                    <h3>💡 Saúde Financeira</h3>
-                                    <span class="badge badge-primary" id="insightsMonthBadge" style="font-size:10px; font-weight:700; background:rgba(67,56,202,0.12); color:#4338CA; padding:2px 8px; border-radius:9999px;">
-                                        Diagnóstico 360º
-                                    </span>
-                                </div>
-                                <button type="button" class="btn-ghost-sm" onclick="window.generateDashboardInsights && window.generateDashboardInsights()" title="Atualizar Diagnóstico">
-                                    <i class="fas fa-sync-alt"></i>
-                                </button>
+                <!-- DIAGNÓSTICO 360º EM LINHA HORIZONTAL -->
+                <section class="diagnostic-full-row" aria-label="Saúde Financeira Diagnóstico 360º">
+                    <div class="card insights-card" id="dashboardInsightsCard">
+                        <div class="card-header">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <h3>💡 Saúde Financeira</h3>
+                                <span class="badge badge-primary" id="insightsMonthBadge" style="font-size:10px; font-weight:700; background:rgba(67,56,202,0.12); color:#4338CA; padding:2px 8px; border-radius:9999px;">
+                                    Diagnóstico 360º
+                                </span>
                             </div>
-                            <div class="card-body" id="dashboardInsightsBody">
-                                <div style="display: flex; flex-direction: column; gap: 8px; padding: 6px 0;">
-                                    <div class="skeleton-shimmer" style="width: 85%; height: 14px;"></div>
-                                    <div class="skeleton-shimmer" style="width: 95%; height: 13px;"></div>
-                                    <div class="skeleton-shimmer" style="width: 60%; height: 13px;"></div>
-                                </div>
+                            <button type="button" class="btn-ghost-sm" onclick="window.generateDashboardInsights && window.generateDashboardInsights()" title="Atualizar Diagnóstico">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div class="card-body" id="dashboardInsightsBody">
+                            <div style="display: flex; flex-direction: column; gap: 8px; padding: 6px 0;">
+                                <div class="skeleton-shimmer" style="width: 85%; height: 14px;"></div>
+                                <div class="skeleton-shimmer" style="width: 95%; height: 13px;"></div>
+                                <div class="skeleton-shimmer" style="width: 60%; height: 13px;"></div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </section>
             </div>
         </main>
     </div>
@@ -406,14 +424,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="../js/supabase.js"></script>
-    <script src="../js/core.js"></script>
-    <script src="../js/security.js"></script>
-    <script src="../js/financial-tools.js"></script>
-    <script src="../js/sync.js"></script>
-    <script src="../js/notifications.js"></script>
-    <script src="../js/dashboard.js"></script>
-    <script src="../js/sw-register.js"></script>
+    <script src="../js/supabase.js?v=3.2.2"></script>
+    <script src="../js/core.js?v=3.2.2"></script>
+    <script src="../js/security.js?v=3.2.2"></script>
+    <script src="../js/financial-tools.js?v=3.2.2"></script>
+    <script src="../js/sync.js?v=3.2.2"></script>
+    <script src="../js/notifications.js?v=3.2.2"></script>
+    <script src="../js/dashboard.js?v=3.2.2"></script>
+    <script src="../js/sw-register.js?v=3.2.2"></script>
 
     <script>
         // ==========================================
