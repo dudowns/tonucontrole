@@ -1,0 +1,3964 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#F8FAFC">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="../../manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png">
+    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png">
+    <title>TonuControle - Investimentos Mobile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/theme.css">
+    <link rel="stylesheet" href="../../css/dark-theme.css">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.0.0">
+    <link rel="stylesheet" href="../../css/notifications.css">
+    <style>
+        body { background: var(--mob-bg, #F8FAFC); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.2s ease; padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* HERO RESUMO DE CARTEIRA */
+        .invest-hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .invest-hero-card {
+            background: var(--mob-surface, #ffffff);
+            border-radius: 16px;
+            padding: 14px 16px;
+            border: 1px solid var(--mob-border, #e2e8f0);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .invest-hero-card.full-width {
+            grid-column: span 2;
+            background: linear-gradient(135deg, rgba(67, 56, 202, 0.12), rgba(124, 58, 237, 0.18));
+            border-color: rgba(67, 56, 202, 0.25);
+            box-shadow: 0 4px 16px rgba(67, 56, 202, 0.1);
+        }
+        .invest-hero-card .hero-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--mob-text-muted, #475569);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .invest-hero-card .hero-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--mob-text, #0f172a);
+            letter-spacing: -0.4px;
+            font-feature-settings: 'tnum';
+        }
+        .invest-hero-card.full-width .hero-value {
+            font-size: 26px;
+            color: #4338CA;
+        }
+
+        /* FILTROS CHIPS */
+        .chip-filters {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            margin-bottom: 14px;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        .chip-filters::-webkit-scrollbar { display: none; }
+        .chip-btn {
+            border: 1px solid var(--mob-border, #e2e8f0);
+            background: var(--mob-surface, #ffffff);
+            color: var(--mob-text-muted, #475569);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 8px 14px;
+            min-height: 38px;
+            border-radius: 999px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+            touch-action: manipulation;
+        }
+        .chip-btn:active { transform: scale(0.95); }
+        .chip-btn.active {
+            background: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%);
+            color: #ffffff;
+            border-color: #4338CA;
+            box-shadow: 0 4px 12px rgba(67, 56, 202, 0.28);
+        }
+        body.dark-theme .invest-hero-card,
+        body.dark-theme .asset-card,
+        body.dark-theme .op-card,
+        body.dark-theme .invest-charts-mobile-card {
+            background: var(--mob-surface, #1E293B) !important;
+            border-color: var(--mob-border, rgba(148, 163, 184, 0.16)) !important;
+        }
+        body.dark-theme .invest-hero-card.full-width {
+            background: linear-gradient(135deg, rgba(67, 56, 202, 0.24), rgba(124, 58, 237, 0.16)) !important;
+            border-color: rgba(129, 140, 248, 0.35) !important;
+        }
+        body.dark-theme .invest-hero-card .hero-value {
+            color: var(--mob-text, #F1F5F9) !important;
+        }
+        body.dark-theme .chip-btn {
+            background: var(--mob-surface, #1E293B) !important;
+            border-color: var(--mob-border, rgba(148, 163, 184, 0.16)) !important;
+            color: var(--mob-text-muted, #94A3B8) !important;
+        }
+        body.dark-theme .chip-btn.active {
+            background: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%) !important;
+            color: #ffffff !important;
+        }
+
+        /* CARD DE ATIVO EM CUSTÓDIA */
+        .asset-card {
+            background: var(--color-surface, #ffffff);
+            border-radius: 18px;
+            padding: 14px 16px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            box-sizing: border-box;
+        }
+        .asset-card:active {
+            transform: scale(0.985);
+        }
+        .asset-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .asset-ticker {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--color-text, #0f172a);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: -0.2px;
+        }
+        .asset-class-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: var(--color-bg, #f1f5f9);
+            color: var(--color-text-muted, #64748b);
+            letter-spacing: 0.02em;
+        }
+        .asset-total {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--color-text, #0f172a);
+            font-feature-settings: 'tnum';
+            text-align: right;
+        }
+        .asset-details-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 10px 12px;
+            background: var(--color-bg, #f8fafc);
+            border-radius: 12px;
+            border: 1px solid var(--color-border-light, #f1f5f9);
+            font-size: 11.5px;
+        }
+        body.dark-theme .asset-details-grid {
+            background: var(--mob-surface-2, #162032) !important;
+            border-color: var(--mob-border, rgba(148, 163, 184, 0.16)) !important;
+        }
+        @media (max-width: 340px) {
+            .asset-details-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+        }
+        .asset-details-item .lbl {
+            font-size: 9.5px;
+            color: var(--color-text-muted, #94a3b8);
+            display: block;
+        }
+        .asset-details-item .val {
+            font-weight: 700;
+            color: var(--color-text, #334155);
+        }
+
+        /* CARD DE OPERAÇÃO / LANÇAMENTO */
+        .op-card {
+            background: var(--color-surface, #ffffff);
+            border-radius: 14px;
+            padding: 12px 14px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .op-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .op-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+        }
+        .op-badge.buy { background: rgba(0, 184, 148, 0.12); color: #00B894; }
+        .op-badge.sell { background: rgba(255, 118, 117, 0.12); color: #FF7675; }
+        .op-badge.div { background: rgba(67, 56, 202, 0.12); color: #4338CA; }
+        .op-card-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--color-text-muted, #64748b);
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid var(--color-border, #f1f5f9);
+        }
+        .op-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .op-btn {
+            border: none;
+            background: transparent;
+            color: var(--color-text-muted, #94a3b8);
+            font-size: 13px;
+            padding: 4px;
+            cursor: pointer;
+        }
+        .op-btn:hover { color: #4338CA; }
+        .op-btn.del:hover { color: #FF7675; }
+
+        /* BARRA SUPERIOR DE AÇÃO */
+        .tab-action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .tab-action-bar h2 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--mob-text, #0f172a);
+            margin: 0;
+        }
+        .btn-add-primary {
+            background: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 8px 14px;
+            min-height: 38px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(67, 56, 202, 0.28);
+        }
+        .btn-add-primary:active { transform: scale(0.96); }
+
+        .spinner-center {
+            text-align: center;
+            padding: 30px;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        /* TOGGLE VISÃO GRÁFICA DE CARTEIRA (IDÊNTICO AO DASHBOARD MOBILE) */
+        .mobile-chart-card {
+            background: var(--color-surface, #ffffff);
+            border-radius: 16px;
+            padding: 14px 16px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            margin-bottom: 14px;
+            min-height: 330px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        .mobile-chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            min-height: 36px;
+        }
+        .mobile-chart-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-text, #1e293b);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .mobile-chart-toggle {
+            display: flex;
+            background: var(--color-bg, #f1f5f9);
+            border-radius: 999px;
+            padding: 3px;
+            gap: 3px;
+        }
+        .mobile-chart-btn {
+            border: none;
+            background: transparent;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--color-text-muted, #64748b);
+            padding: 6px 12px;
+            min-height: 34px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mobile-chart-btn.active {
+            background: var(--mob-surface, #ffffff);
+            color: #4338CA;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            font-weight: 700;
+        }
+        .mobile-chart-container {
+            position: relative;
+            height: 220px;
+            width: 100%;
+            transition: opacity 0.2s ease;
+        }
+        .chart-center-total {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: none;
+        }
+        .chart-center-total .center-label {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--color-text-muted, #94a3b8);
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+        .chart-center-total .center-value {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--color-text, #0f172a);
+            display: block;
+            line-height: 1.2;
+            margin-top: 1px;
+        }
+        .chart-empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--color-text-muted, #94a3b8);
+            font-size: 12px;
+            font-weight: 500;
+            width: 100%;
+            pointer-events: none;
+        }
+        body.dark-theme .mobile-chart-card {
+            background: var(--color-surface, #1e293b);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        body.dark-theme .mobile-chart-toggle {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        body.dark-theme .mobile-chart-btn {
+            color: #94a3b8;
+        }
+        body.dark-theme .mobile-chart-btn.active {
+            background: #273549;
+            color: #a29bfe;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+        body.dark-theme .chart-center-total .center-value {
+            color: #f1f5f9;
+        }
+    </style>
+    <script>
+        if (localStorage.getItem('tonu_bottom_nav_labels') === 'false') {
+            document.documentElement.classList.add('nav-icons-only');
+        }
+    </script>
+</head>
+<body class="has-bottom-nav">
+
+<!-- TOPBAR -->
+<header class="mobile-topbar">
+    <div class="topbar-header">
+        <div class="topbar-left">
+            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <h1>Tonu<span>Controle</span></h1>
+        </div>
+        <div class="topbar-actions">
+            <button type="button" class="topbar-btn" onclick="window.TonuMobileUI && window.TonuMobileUI.openCommandPalette()" title="Busca rápida" aria-label="Busca rápida"><i class="fas fa-search"></i></button>
+            <button type="button" class="topbar-btn" data-privacy-toggle onclick="window.TonuMobileUI && window.TonuMobileUI.togglePrivacyMode()" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade"><i class="fas fa-eye" data-privacy-icon></i></button>
+            <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button class="topbar-btn" onclick="refreshMobileInvestments()" title="Atualizar Cotações" aria-label="Atualizar Cotações"><i class="fas fa-sync-alt" id="refreshInvestIcon"></i></button>
+            <a href="settings.html" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
+                <span id="topbarAvatar">U</span>
+            </a>
+        </div>
+    </div>
+    <div class="greeting">Gestão de Investimentos</div>
+</header>
+
+<main class="mobile-content">
+
+    <!-- TABS PRINCIPAIS: CARTEIRA, LANÇAMENTOS, PROVENTOS, EVENTOS -->
+    <div class="mobile-tabs">
+        <button class="mobile-tab-btn active" id="tabBtnCarteira" onclick="switchInvestTab('carteira')">
+            <i class="fas fa-briefcase"></i> Carteira
+        </button>
+        <button class="mobile-tab-btn" id="tabBtnLancamentos" onclick="switchInvestTab('lancamentos')">
+            <i class="fas fa-list-ul"></i> Operações
+        </button>
+        <button class="mobile-tab-btn" id="tabBtnProventos" onclick="switchInvestTab('proventos')">
+            <i class="fas fa-money-bill-wave"></i> Proventos
+        </button>
+        <button class="mobile-tab-btn" id="tabBtnEventos" onclick="switchInvestTab('eventos')" style="display:none;">
+            <i class="fas fa-bolt"></i> Eventos
+        </button>
+    </div>
+
+    <!-- ==========================================
+         ABA 1: CARTEIRA (VISÃO GERAL & ATIVOS)
+         ========================================== -->
+    <div id="tabContentCarteira" class="tab-content active">
+        <!-- ITEM 10: CARD DE CONQUISTA (MOBILE) -->
+        <div class="achievement-card-banner-mobile" id="achievementCardMobile">
+            <div class="achievement-card-top">
+                <div class="achievement-card-title-wrap">
+                    <div class="achievement-card-icon">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <span class="achievement-card-label">Conquista da Carteira</span>
+                </div>
+                <div class="achievement-card-val-wrap">
+                    <span class="achievement-card-date" id="achievementDateLabelMobile">Até --/--/----</span>
+                    <strong class="achievement-card-val" id="achievementTotalValueMobile" data-sensitive>R$ 0,00</strong>
+                </div>
+            </div>
+            <div class="achievement-card-growth" id="achievementGrowthTextMobile">
+                Calculando evolução dos últimos 30 dias...
+            </div>
+            <div class="achievement-card-divs" id="achievementDividendsTextMobile">
+                Proventos dos últimos 90 dias: calculando...
+            </div>
+        </div>
+
+        <!-- HERO CARD PATRIMÔNIO (PADRÃO DASHBOARD FINTECH) -->
+        <div class="mobile-hero-card" id="investHeroCard">
+            <div class="hero-top">
+                <span class="hero-label"><i class="fas fa-wallet"></i> Patrimônio em Custódia</span>
+                <span class="badge-mobile" style="background: rgba(255,255,255,0.2); color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px;">
+                    CARTEIRA
+                </span>
+            </div>
+            <div class="hero-value" id="cardPatrimonioTotal" data-sensitive>R$ 0,00</div>
+            <div class="hero-footer">
+                <div class="hero-stat">
+                    <span class="hero-stat-label"><i class="fas fa-coins" style="color: #e0e7ff;"></i> Investido</span>
+                    <span class="hero-stat-val" id="cardTotalInvestido" data-sensitive>R$ 0,00</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-label"><i class="fas fa-hand-holding-usd" style="color: #a7f3d0;"></i> Proventos</span>
+                    <span class="hero-stat-val income" id="cardProventosTotal" data-sensitive>R$ 0,00</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-label"><i class="fas fa-chart-line" style="color: #fde68a;"></i> Rentabilidade</span>
+                    <span class="hero-stat-val" id="cardRentabilidadeTotal" style="color: #6ee7b7;">0,00%</span>
+                </div>
+            </div>
+            <div class="hero-sub" id="cardProventosTotalSub" style="font-size:10px; color:#c7d2fe; margin-top:4px; display:none;"></div>
+            <span id="cardGanhoTotal" style="display:none;">R$ 0,00</span>
+        </div>
+
+        <!-- VISÃO GRÁFICA DA CARTEIRA COM TOGGLE (MOBILE) -->
+        <div class="mobile-chart-card" id="mobileAllocationCard">
+            <div class="mobile-chart-header">
+                <div class="mobile-chart-title">
+                    <i class="fas fa-chart-pie" id="mobileInvestChartIcon" style="color:#4338CA;"></i>
+                    <span id="mobileInvestChartTitle">Visão Gráfica</span>
+                </div>
+                <div class="mobile-chart-toggle">
+                    <button type="button" class="mobile-chart-btn active" id="btnChartModeAlloc" onclick="setMobileInvestChartMode('allocation')">
+                        Alocação
+                    </button>
+                    <button type="button" class="mobile-chart-btn" id="btnChartModeEvol" onclick="setMobileInvestChartMode('evolution')">
+                        Evolução
+                    </button>
+                </div>
+            </div>
+            <div class="mobile-chart-container" id="mobileInvestChartWrapper">
+                <canvas id="mobileInvestAllocationChart"></canvas>
+                <div class="chart-center-total" id="mobileChartCenterTotal" style="display:none;">
+                    <span class="center-label">Patrimônio</span>
+                    <span class="center-value" id="mobileChartCenterVal" data-sensitive>R$ 0,00</span>
+                </div>
+                <div class="chart-empty-state" id="mobileChartEmptyNotice" style="display:none;">
+                    Sem ativos na carteira
+                </div>
+            </div>
+        </div>
+
+        <div class="chip-filters">
+            <button class="chip-btn active" onclick="filterAssetClass('all', this)">Todos</button>
+            <button class="chip-btn" onclick="filterAssetClass('Ações', this)">Ações</button>
+            <button class="chip-btn" onclick="filterAssetClass('FIIs', this)">FIIs</button>
+            <button class="chip-btn" onclick="filterAssetClass('Renda Fixa', this)">Renda Fixa</button>
+            <button class="chip-btn" onclick="filterAssetClass('ETFs', this)">ETFs</button>
+            <button class="chip-btn" onclick="filterAssetClass('Cripto', this)">Cripto</button>
+        </div>
+
+        <div class="tab-action-bar">
+            <h2>Meus Ativos em Custódia</h2>
+            <div style="display:flex; gap:6px;">
+                <button class="btn-add-primary" onclick="openMobileIRReportModal()" style="background:rgba(67,56,202,0.12); color:#4338CA; box-shadow:none; padding:6px 10px; font-size:11.5px;" title="Relatório de Imposto de Renda">
+                    <i class="fas fa-file-invoice-dollar"></i> IR
+                </button>
+                <button class="btn-add-primary" onclick="openAddOperationModal()" style="padding:6px 10px; font-size:11.5px;">
+                    <i class="fas fa-plus"></i> Operação
+                </button>
+            </div>
+        </div>
+
+        <div id="positionsListContainer">
+            <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:36%;"></div></div></div>
+            <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:68%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:44%;"></div></div></div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         ABA 2: LANÇAMENTOS (COMPRAS E VENDAS)
+         ========================================== -->
+    <div id="tabContentLancamentos" class="tab-content">
+        <div class="tab-action-bar">
+            <h2>Histórico de Operações</h2>
+            <button class="btn-add-primary" onclick="openAddOperationModal()">
+                <i class="fas fa-plus"></i> Nova Operação
+            </button>
+        </div>
+
+        <div class="chip-filters">
+            <button class="chip-btn active" onclick="filterOpType('all', this)">Todas</button>
+            <button class="chip-btn" onclick="filterOpType('Compra', this)">Compras</button>
+            <button class="chip-btn" onclick="filterOpType('Venda', this)">Vendas</button>
+        </div>
+
+        <div id="operationsListContainer">
+            <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:36%;"></div></div></div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         ABA 3: PROVENTOS (DIVIDENDOS & JCP)
+         ========================================== -->
+    <div id="tabContentProventos" class="tab-content">
+        <div class="invest-hero-grid">
+            <div class="invest-hero-card">
+                <div class="hero-label"><i class="fas fa-receipt"></i> Total Recebido</div>
+                <div class="hero-value" id="cardDivHistorico" data-sensitive style="color: #7C3AED;">R$ 0,00</div>
+                <div class="hero-sub" id="cardDivHistoricoSub" style="font-size:10px; color:#94a3b8; margin-top:2px;">0 pagos</div>
+            </div>
+            <div class="invest-hero-card">
+                <div class="hero-label"><i class="fas fa-calendar-alt"></i> Recebido Mês</div>
+                <div class="hero-value" id="cardDivMes" data-sensitive style="color: #10B981;">R$ 0,00</div>
+                <div class="hero-sub" id="cardDivMesSub" style="font-size:10px; color:#94a3b8; margin-top:2px;">este mês</div>
+            </div>
+            <div class="invest-hero-card full-width" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(56, 189, 248, 0.12)); border-color: rgba(14, 165, 233, 0.28);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div class="hero-label" style="color: #0284c7; margin-bottom:2px;"><i class="far fa-clock"></i> Proventos a Receber</div>
+                        <div class="hero-value" id="cardDivAReceber" data-sensitive style="color: #0284c7;">R$ 0,00</div>
+                        <div class="hero-sub" id="cardDivAReceberSub" style="font-size:10.5px; color:#0369a1; font-weight:500; margin-top:2px;">0 proventos previstos</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span class="op-badge" style="background:#0284c7; color:#fff; font-size:11px; font-weight:700; padding:4px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="far fa-calendar-check"></i> Previsto
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRÁFICO DE EVOLUÇÃO DE PROVENTOS (MOBILE) -->
+        <div class="invest-charts-mobile-card" id="mobileDivChartCard" style="background:var(--color-surface, #fff); border-radius:14px; padding:12px; margin-bottom:12px; border:1px solid var(--color-border, #e2e8f0); box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <div style="font-size:12px; font-weight:700; color:var(--color-text, #1e293b); display:flex; align-items:center; gap:6px;">
+                    <i class="fas fa-chart-bar" style="color:#10b981;"></i> Evolução Mensal de Proventos
+                </div>
+                <span id="mobileProvChartYearPill" style="font-size:10px; font-weight:600; padding:2px 8px; border-radius:12px; background:rgba(16,185,129,0.1); color:#10b981;">Histórico & Previsão</span>
+            </div>
+            <!-- Legenda idêntica ao desktop (Recebidos vs A receber) -->
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px; font-size:10.5px; color:var(--color-text-muted, #64748b);">
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#0984E3;"></span>
+                    <span style="color:#0984E3; font-weight:600;">Proventos recebidos</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#74B9FF;"></span>
+                    <span style="color:#0284c7; font-weight:600;">Proventos a receber</span>
+                </div>
+            </div>
+            <div style="height:150px; position:relative;">
+                <canvas id="mobileDividendsEvolutionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- MATRIZ ANUAL DE PROVENTOS (MOBILE - 12 MESES) -->
+        <div class="invest-charts-mobile-card" id="mobileMatrixChartCard" style="background:var(--color-surface, #fff); border-radius:14px; padding:12px; margin-bottom:12px; border:1px solid var(--color-border, #e2e8f0); box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="font-size:12px; font-weight:700; color:var(--color-text, #1e293b); display:flex; align-items:center; gap:6px;">
+                    <i class="fas fa-table" style="color:#8b5cf6;"></i> Matriz Anual de Proventos
+                </div>
+                <span style="font-size:10px; color:#94a3b8;"><i class="fas fa-arrows-alt-h"></i> Arraste para o lado</span>
+            </div>
+            <div style="overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:8px; border:1px solid var(--color-border, #f1f5f9);">
+                <table id="mobileProventosMatrixTable" style="width:100%; min-width:650px; border-collapse:collapse; font-size:11px; text-align:right;">
+                    <!-- Matriz preenchida dinamicamente -->
+                </table>
+            </div>
+        </div>
+
+        <div class="tab-action-bar">
+            <h2>Proventos da Carteira</h2>
+            <button class="btn-add-primary" onclick="openAddDividendModal()">
+                <i class="fas fa-plus"></i> Novo Provento
+            </button>
+        </div>
+
+        <!-- FILTROS POR STATUS DE PROVENTOS (TODOS, RECEBIDOS, A RECEBER) -->
+        <div class="chip-filters" style="margin-bottom: 12px;">
+            <button class="chip-btn active" id="chipDivAll" onclick="filterDividendStatus('all', this)">
+                Todos (<span id="countDivAll">0</span>)
+            </button>
+            <button class="chip-btn" id="chipDivRecebidos" onclick="filterDividendStatus('recebidos', this)">
+                <i class="fas fa-check-circle" style="color:#10b981; font-size:10px;"></i> Recebidos (<span id="countDivRecebidos">0</span>)
+            </button>
+            <button class="chip-btn" id="chipDivAReceber" onclick="filterDividendStatus('a_receber', this)">
+                <i class="far fa-clock" style="color:#0284c7; font-size:10px;"></i> A Receber (<span id="countDivAReceber">0</span>)
+            </button>
+        </div>
+
+        <div id="dividendsListContainer">
+            <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:36%;"></div></div></div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         ABA 4: EVENTOS CORPORATIVOS
+         ========================================== -->
+    <div id="tabContentEventos" class="tab-content">
+        <div class="tab-action-bar">
+            <h2>Eventos Corporativos</h2>
+            <button class="btn-add-primary" onclick="openAddCorporateEventModal()">
+                <i class="fas fa-plus"></i> Novo Evento
+            </button>
+        </div>
+        <p style="font-size:11px; color:#64748b; margin:-6px 0 12px 0;">
+            Desdobramentos, agrupamentos e bonificações ajustam seu preço médio e cotas automaticamente.
+        </p>
+        <div id="corporateEventsListContainer">
+            <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:36%;"></div></div></div>
+        </div>
+    </div>
+
+</main>
+
+<!-- MODAL: NOVA / EDITAR OPERAÇÃO -->
+<div class="mobile-modal-overlay" id="modalOperation" onclick="closeModalOperation(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <div>
+                <div style="font-size:11px; color:#4338CA; font-weight:600;"><i class="fas fa-chart-line"></i> Carteira de Investimentos</div>
+                <h3 id="opModalTitle" style="margin:0;">Nova Operação</h3>
+            </div>
+            <button class="sheet-close-btn" onclick="closeModalOperation()"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="opForm" onsubmit="handleOpSubmit(event)">
+            <input type="hidden" id="opEditId" value="">
+            <div class="type-toggle-group">
+                <button type="button" class="type-toggle-btn active buy" id="toggleOpBuy" onclick="setOpType('Compra')">
+                    <i class="fas fa-arrow-up"></i> Compra
+                </button>
+                <button type="button" class="type-toggle-btn sell" id="toggleOpSell" onclick="setOpType('Venda')">
+                    <i class="fas fa-arrow-down"></i> Venda
+                </button>
+            </div>
+            <input type="hidden" id="opType" value="Compra">
+
+            <div class="sheet-form-group">
+                <label>Ticker do Ativo *</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-tag"></i>
+                    <input type="text" id="opTicker" class="sheet-input" placeholder="Ex: PETR4, HGLG11, IVVB11" style="text-transform: uppercase;" maxlength="20" required>
+                </div>
+                <small style="font-size:10px; color:#64748b; margin-top:2px; display:block;">Código negociado na B3 ou Tesouro</small>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Classe de Ativo *</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-layer-group"></i>
+                    <select id="opClass" class="sheet-input" required>
+                        <option value="Ações">📈 Ações</option>
+                        <option value="FIIs">🏢 FIIs</option>
+                        <option value="ETFs">📊 ETFs</option>
+                        <option value="Tesouro">🏛️ Tesouro Direto</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="sheet-form-group">
+                    <label>Quantidade *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-hashtag"></i>
+                        <input type="number" step="any" min="0" id="opQty" class="sheet-input" placeholder="100" oninput="calcOpTotal()" required>
+                    </div>
+                </div>
+                <div class="sheet-form-group">
+                    <label>Preço Unitário (R$) *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-dollar-sign"></i>
+                        <input type="number" step="0.01" min="0.01" id="opPrice" class="sheet-input" placeholder="10,50" oninput="calcOpTotal()" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Valor Total da Operação</label>
+                <div class="sheet-input-wrapper" style="background:var(--color-bg,#f8fafc); opacity:0.9;">
+                    <i class="fas fa-calculator"></i>
+                    <input type="text" id="opTotal" class="sheet-input" placeholder="0,00" readonly style="cursor:default; font-weight:600;">
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Data da Negociação *</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-calendar"></i>
+                    <input type="date" id="opDate" class="sheet-input" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Observações (opcional)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-comment-alt"></i>
+                    <input type="text" id="opNote" class="sheet-input" placeholder="Ex: Corretora, taxa de corretagem, motivo">
+                </div>
+            </div>
+
+            <button type="submit" class="sheet-submit-btn" id="opSubmitBtn">Salvar Operação</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: NOVO / EDITAR PROVENTO -->
+<div class="mobile-modal-overlay" id="modalDividend" onclick="closeModalDividend(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <div>
+                <div style="font-size:11px; color:#4338CA; font-weight:600;"><i class="fas fa-hand-holding-dollar"></i> Rendimentos & Proventos</div>
+                <h3 id="divModalTitle" style="margin:0;">Registrar Provento</h3>
+            </div>
+            <button class="sheet-close-btn" onclick="closeModalDividend()"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="divForm" onsubmit="handleDivSubmit(event)">
+            <input type="hidden" id="divEditId" value="">
+            <div class="sheet-form-group">
+                <label>Ativo (Ticker) *</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-tag"></i>
+                    <input type="text" id="divTicker" class="sheet-input" placeholder="Ex: HGLG11, PETR4" style="text-transform: uppercase;" required>
+                </div>
+                <small style="font-size:10px; color:#64748b; margin-top:2px; display:block;">Digite o ticker do ativo ou selecione da sua carteira</small>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Tipo de Provento *</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-coins"></i>
+                    <select id="divType" class="sheet-input" required>
+                        <option value="Dividendo">💵 Dividendo</option>
+                        <option value="JCP">📊 JCP (Juros s/ Capital Próprio)</option>
+                        <option value="Rendimento">🏢 Rendimento (FIIs)</option>
+                        <option value="Bonificação">🎁 Bonificação</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="sheet-form-group">
+                    <label>Quantidade *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-hashtag"></i>
+                        <input type="number" step="any" min="0" id="divQty" class="sheet-input" placeholder="100" oninput="calcDivTotal()" required>
+                    </div>
+                </div>
+                <div class="sheet-form-group">
+                    <label>Valor Unitário (R$) *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-dollar-sign"></i>
+                        <input type="number" step="0.0001" min="0.0001" id="divUnitValue" class="sheet-input" placeholder="0,50" oninput="calcDivTotal()" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Valor Total do Provento</label>
+                <div class="sheet-input-wrapper" style="background:var(--color-bg,#f8fafc); opacity:0.9;">
+                    <i class="fas fa-calculator"></i>
+                    <input type="text" id="divTotalValue" class="sheet-input" placeholder="0,00" readonly style="cursor:default; font-weight:600;">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="sheet-form-group">
+                    <label>Data Com (opcional)</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-calendar-check"></i>
+                        <input type="date" id="divDateCom" class="sheet-input">
+                    </div>
+                </div>
+                <div class="sheet-form-group">
+                    <label>Data Pagamento *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-calendar"></i>
+                        <input type="date" id="divDate" class="sheet-input" onchange="updateDivDateStatusHint()" oninput="updateDivDateStatusHint()" required>
+                    </div>
+                    <div id="divDateStatusHint" style="font-size:10.5px; margin-top:4px; font-weight:600; display:none;"></div>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Observações (opcional)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-comment-alt"></i>
+                    <input type="text" id="divNote" class="sheet-input" placeholder="Anotações adicionais...">
+                </div>
+            </div>
+
+            <button type="submit" class="sheet-submit-btn" id="divSubmitBtn">Salvar Provento</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: NOVO / EDITAR EVENTO CORPORATIVO -->
+<div class="mobile-modal-overlay" id="modalCorporateEvent" onclick="closeModalCorporateEvent(event)">
+    <div class="mobile-modal-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+            <div>
+                <div style="font-size:11px; color:#4338CA; font-weight:600;"><i class="fas fa-bolt"></i> Evento de Mercado</div>
+                <h3 id="corpModalTitle" style="margin:0;">Evento Corporativo</h3>
+            </div>
+            <button class="sheet-close-btn" onclick="closeModalCorporateEvent()"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="corpForm" onsubmit="handleCorpSubmit(event)">
+            <input type="hidden" id="corpEditId" value="">
+            
+            <div class="sheet-form-group">
+                <label>Ativo (Ticker) *</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-tag"></i>
+                    <input type="text" id="corpTicker" class="sheet-input" placeholder="Ex: PETR4, MXRF11" style="text-transform: uppercase;" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Tipo de Evento *</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-bolt"></i>
+                    <select id="corpEventType" class="sheet-input" onchange="onMobileCorpTypeChange(this.value)" required>
+                        <option value="Desdobramento">⚡ Desdobramento (Split)</option>
+                        <option value="Agrupamento">🔄 Agrupamento (Inplit)</option>
+                        <option value="Bonificação">🎁 Bonificação em Ações</option>
+                        <option value="Subscrição">📝 Exercício de Subscrição</option>
+                        <option value="Amortização">📉 Amortização de Capital</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Ratio: De / Para -->
+            <div id="mobileCorpRatioFields" style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="sheet-form-group">
+                    <label>De (Cotas Anteriores) *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-hashtag"></i>
+                        <input type="number" step="any" min="0.0001" id="corpRatioFrom" class="sheet-input" value="1">
+                    </div>
+                </div>
+                <div class="sheet-form-group">
+                    <label>Para (Cotas Finais) *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-arrow-right"></i>
+                        <input type="number" step="any" min="0.0001" id="corpRatioTo" class="sheet-input" placeholder="Ex: 10">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bonificação -->
+            <div id="mobileCorpBonusFields" style="display:none; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="sheet-form-group">
+                    <label>Cotas Recebidas *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-gift"></i>
+                        <input type="number" step="any" min="0" id="corpBonusShares" class="sheet-input" placeholder="Ex: 10">
+                    </div>
+                </div>
+                <div class="sheet-form-group">
+                    <label>Custo Unitário (R$)</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-dollar-sign"></i>
+                        <input type="number" step="0.0001" min="0" id="corpBonusUnitCost" class="sheet-input" placeholder="Ex: 15,20">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Amortização -->
+            <div id="mobileCorpAmortizationFields" style="display:none;">
+                <div class="sheet-form-group">
+                    <label>Amortização por Cota (R$) *</label>
+                    <div class="sheet-input-wrapper">
+                        <i class="fas fa-dollar-sign"></i>
+                        <input type="number" step="0.0001" min="0" id="corpAmortizationPerShare" class="sheet-input" placeholder="Ex: 2,50">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Data Ex do Evento *</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-calendar"></i>
+                    <input type="date" id="corpEventDate" class="sheet-input" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Observações (opcional)</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-comment-alt"></i>
+                    <input type="text" id="corpNote" class="sheet-input" placeholder="Ex: Proporção 1:10, Fato Relevante">
+                </div>
+            </div>
+
+            <button type="submit" class="sheet-submit-btn" id="corpSubmitBtn">Salvar Evento</button>
+        </form>
+    </div>
+</div>
+
+<!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
+<nav class="bottom-nav">
+    <a href="dashboard.html"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
+    <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
+    <a href="bills.html"><i class="fas fa-file-invoice-dollar"></i><span>Contas</span></a>
+    <div class="nav-center">
+        <button type="button" class="nav-add-btn" onclick="openAddOperationModal()" aria-label="Nova Operação" title="Nova Operação">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+    <a href="investments.html" class="active"><i class="fas fa-chart-line"></i><span>Investimentos</span></a>
+    <a href="goals.html"><i class="fas fa-bullseye"></i><span>Metas</span></a>
+    <a href="settings.html"><i class="fas fa-cog"></i><span>Configurações</span></a>
+</nav>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+<script src="../../js/supabase.js"></script>
+<script src="../../js/core.js"></script>
+<script src="../../js/sync.js"></script>
+<script src="../../js/sw-register.js"></script>
+<script src="../../js/data/cnpj-base.js"></script>
+<script src="../../js/reports/ir-report.js"></script>
+<script src="../../js/mobile/ui.js?v=1.0.0"></script>
+<script>
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+
+// Units de Ações brasileiras terminadas em 11 (Ações ordinárias/preferenciais/units, NUNCA FIIs)
+window.KNOWN_STOCK_UNITS = window.KNOWN_STOCK_UNITS || new Set([
+    'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
+    'SULA11', 'TIET11', 'BIDI11', 'RPMG11', 'MODL11', 'IGTI11', 'VVAR11', 'STBP11',
+    'AESB11', 'ELET11', 'PPLA11', 'ALLD11', 'ENEV11', 'BMEB11', 'BMGB11', 'BRAP11',
+    'CAMB11', 'CURY11', 'EMAE11', 'LCAM11', 'MOVI11', 'ODPV11', 'PARD11', 'RANI11',
+    'RAPT11', 'SIMH11', 'TRIS11', 'TUPY11', 'VAMO11', 'VBBR11', 'VULC11', 'WHRL11'
+]);
+
+window.KNOWN_ETFS = window.KNOWN_ETFS || new Set([
+    'BOVA11', 'SMAL11', 'IVVB11', 'HASH11', 'XINA11', 'GOLD11', 'NASD11', 'SPXI11',
+    'WRLD11', 'DIVO11', 'MATB11', 'FIND11', 'BRAX11', 'PIBB11', 'ECOO11', 'ISUS11',
+    'GENB11', 'ACWI11', 'BBSD11', 'TECB11', 'DNAI11', 'MILL11', 'SHOT11', 'REVE11',
+    'BBOV11', 'USTK11', 'HTEK11', 'BDEF11', 'BDIV11', 'NSDV11', 'QETH11', 'QBTC11',
+    'CRPT11', 'DEFI11', 'WEB311', 'META11', 'NFTS11', 'BLOK11', 'ETHE11', 'BITH11'
+]);
+
+function inferAssetClass(ticker) {
+    if (!ticker) return 'Ações';
+    const raw = String(ticker).toUpperCase().trim();
+    const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
+    const stockUnits = window.KNOWN_STOCK_UNITS;
+    const etfs = window.KNOWN_ETFS;
+    if (tk.startsWith('TAEE') || (stockUnits && (stockUnits.has(tk) || stockUnits.has(raw)))) return 'Ações';
+    if ((etfs && (etfs.has(tk) || etfs.has(raw))) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) return 'ETFs';
+    if (/^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC)/.test(tk)) return 'Tesouro';
+    if (tk.endsWith('34') || tk.endsWith('35')) return 'BDRs';
+    if (/^[A-Z]{4}[23456]$/.test(tk)) return 'Ações';
+    if (/^(KN|HGLG|MXRF|GGRC|RZTR|XPLG|VISC|BTLG|CPTS|IRDM|BCFF|MALL|HFOF|XPML|KNSC|RECR|HGRE|TRXF|TGAR|VILG|RECT|RBRF|RBRP|MCCI|PVBI|VRTA|ALZR|LVBI|JSRE|PATL|DEVA|RBVA|HCTR|VINO|URPR|SNFF|BARI|HSAF|KORE|MCHF|VGIP|VGIR|RBRY|KNIP|KNRI|KNCR)/.test(tk) || tk.endsWith('11') || tk.endsWith('11B')) {
+        return 'FIIs';
+    }
+    return 'Ações';
+}
+
+function resolveAssetClass(ticker, explicitClass) {
+    const raw = String(ticker || '').toUpperCase().trim();
+    const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
+    const stockUnits = window.KNOWN_STOCK_UNITS;
+    const etfs = window.KNOWN_ETFS;
+    // Regra absoluta: TAESA ou Units conhecidas NUNCA são FIIs - são AÇÕES
+    if (tk.startsWith('TAEE') || (stockUnits && (stockUnits.has(tk) || stockUnits.has(raw)))) {
+        return 'Ações';
+    }
+    if (etfs && (etfs.has(tk) || etfs.has(raw))) {
+        return 'ETFs';
+    }
+    if (/^[A-Z]{4}[23456]$/.test(tk)) {
+        return 'Ações';
+    }
+    if (explicitClass) {
+        const upper = String(explicitClass).toUpperCase().trim();
+        if (upper === 'FII' || upper === 'FIIS') {
+            if (tk.startsWith('TAEE') || (stockUnits && (stockUnits.has(tk) || stockUnits.has(raw)))) return 'Ações';
+            return 'FIIs';
+        }
+        if (upper === 'ETF' || upper === 'ETFS') return 'ETFs';
+        if (upper === 'TESOURO' || upper === 'TESOURO DIRETO') return 'Tesouro';
+        if (upper === 'BDR' || upper === 'BDRS') return 'BDRs';
+        if (upper === 'AÇÃO' || upper === 'ACOES' || upper === 'AÇÕES' || upper === 'ACAO') return 'Ações';
+        if (['Ações', 'FIIs', 'ETFs', 'Tesouro', 'BDRs'].includes(explicitClass)) return explicitClass;
+    }
+    return inferAssetClass(tk);
+}
+
+window.inferAssetClass = inferAssetClass;
+window.resolveAssetClass = resolveAssetClass;
+
+let currentUser = null;
+let allRawInvestments = [];
+let allRawDividends = [];
+let allRawCorporateEvents = [];
+let activePositions = [];
+let currentAssetFilter = 'all';
+let currentOpFilter = 'all';
+let currentTab = 'carteira';
+let mobileAllocationChart = null;
+let mobileDividendsChart = null;
+let currentMobileInvestChartMode = (typeof localStorage !== 'undefined' ? localStorage.getItem('tonu_mobile_invest_chart_mode') : null) || 'allocation';
+
+async function initMobileInvestmentsPage() {
+    const savedTheme = localStorage.getItem("tonu_theme") || "light";
+    if (savedTheme === "dark") {
+        document.body.classList.add("dark-theme");
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.querySelector("#themeIcon")?.classList.replace("fa-moon", "fa-sun");
+    }
+
+    try {
+        let user = null;
+        if (window.getAuthenticatedUser) user = await window.getAuthenticatedUser();
+        if (!user && window.supabaseOffline) user = await window.supabaseOffline.isAuthenticated();
+        if (!user && window.supabaseClient && window.supabaseClient.auth) {
+            try {
+                const { data: sessData } = await supabaseClient.auth.getSession();
+                user = sessData?.session?.user;
+                if (!user) {
+                    const { data: userData } = await supabaseClient.auth.getUser();
+                    user = userData?.user;
+                }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const s = sessionStorage.getItem("tonu_user");
+                if (s) { const p = JSON.parse(s); user = p.user || p; }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const off = localStorage.getItem("tonu_offline_session");
+                if (off) { const p = JSON.parse(off); user = p.user || p; }
+            } catch (_) {}
+        }
+        if (!user) {
+            console.warn("⚠️ Usuário não autenticado em investimentos mobile, redirecionando para login...");
+            window.location.href = "../../index.html";
+            return;
+        }
+        currentUser = user;
+        
+        // Define data de hoje nos forms
+        const todayStr = new Date().toISOString().split("T")[0];
+        const opDateEl = document.getElementById("opDate");
+        if (opDateEl) opDateEl.value = todayStr;
+        const divDateEl = document.getElementById("divDate");
+        if (divDateEl) divDateEl.value = todayStr;
+        const corpDateInput = document.getElementById("corpEventDate");
+        if (corpDateInput) corpDateInput.value = todayStr;
+
+        const opTickerInput = document.getElementById("opTicker");
+        if (opTickerInput) {
+            opTickerInput.addEventListener("input", (e) => {
+                const val = (e.target.value || '').toUpperCase().trim();
+                if (val.length >= 3) {
+                    const cls = resolveAssetClass(val);
+                    const sel = document.getElementById("opClass");
+                    if (sel && cls) sel.value = cls;
+                }
+            });
+        }
+
+        // Inicializa modo do toggle de gráfico de investimentos
+        setMobileInvestChartMode(currentMobileInvestChartMode);
+
+        // ITEM 7: Ocultar botão/aba Eventos por padrão se desativado nas preferências
+        const corpEventsEnabled = localStorage.getItem("tonu_pref_corporate_events") === "true";
+        const tabBtnEventos = document.getElementById("tabBtnEventos");
+        if (tabBtnEventos) tabBtnEventos.style.display = corpEventsEnabled ? "flex" : "none";
+
+        await loadAllInvestmentData();
+
+        // Suporte a âncora direta de abas (ex: #proventos, #lancamentos, #carteira)
+        if (window.location.hash) {
+            const h = window.location.hash.toLowerCase();
+            if (h.includes('provento')) {
+                switchInvestTab('proventos');
+            } else if (h.includes('lancamento') || h.includes('operac')) {
+                switchInvestTab('lancamentos');
+            }
+        }
+    } catch (e) {
+        console.error("Erro na inicialização de investimentos mobile:", e);
+        if (!currentUser) {
+            window.location.href = "../../index.html";
+        }
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", initMobileInvestmentsPage);
+} else {
+    initMobileInvestmentsPage();
+}
+
+// ============================================
+// COTAÇÕES EM TEMPO REAL & CACHE (BRAPI)
+// ============================================
+let quotes = (typeof window !== 'undefined' && window.quotes) ? window.quotes : new Map();
+
+function isTesouroTicker(ticker) {
+    if (!ticker) return false;
+    const tk = String(ticker).toUpperCase().trim();
+    return /^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC|CDB|LCI|LCA|LC|RDB)/.test(tk);
+}
+
+async function fetchQuotes(customPositions) {
+    // 1. Carrega cache local prévio imediatamente (resiliente e instantâneo)
+    try {
+        const rawCache = localStorage.getItem('tonu_quotes_cache');
+        if (rawCache) {
+            const parsed = JSON.parse(rawCache);
+            if (parsed && parsed.quotes) {
+                for (const [k, v] of Object.entries(parsed.quotes)) {
+                    if (!quotes.has(k)) {
+                        quotes.set(k, v);
+                    }
+                }
+            }
+        }
+    } catch (cacheErr) {
+        console.warn('⚠️ Erro ao carregar cache de cotações mobile:', cacheErr);
+    }
+
+    const posList = customPositions || activePositions || [];
+    const tickers = posList.map(p => p.ticker);
+    if (!tickers.length) return quotes;
+
+    const validTickers = tickers
+        .filter(t => t && t.length >= 3 && /^[A-Z0-9]{3,}$/.test(t) && !isTesouroTicker(t))
+        .map(t => t.toUpperCase().trim());
+
+    if (validTickers.length === 0) return quotes;
+
+    const unique = [...new Set(validTickers)];
+    const brapiToken = window.__TONU_CONFIG__?.brapiToken || window.APP_CONFIG?.BRAPI_TOKEN || '';
+
+    try {
+        // 1. Prioridade: Buscar cotações diretamente na tabela asset_quotes do Supabase
+        const client = window.supabaseClient || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+        if (client) {
+            try {
+                const { data: dbQuotes, error: dbErr } = await client
+                    .from('asset_quotes')
+                    .select('ticker, price, change, change_value, previous_close, updated_at')
+                    .in('ticker', unique);
+
+                if (!dbErr && Array.isArray(dbQuotes) && dbQuotes.length > 0) {
+                    console.log(`✅ ${dbQuotes.length} cotações carregadas do Supabase (asset_quotes) no Mobile`);
+                    for (const q of dbQuotes) {
+                        const rawTk = q.ticker?.toUpperCase().trim();
+                        if (!rawTk || !Number.isFinite(Number(q.price)) || Number(q.price) <= 0) continue;
+
+                        const cleanTk = rawTk.replace(/\.SA$/, '');
+                        const quoteData = {
+                            price: Number(q.price),
+                            changePct: Number(q.change || 0),
+                            previousClose: Number(q.previous_close || q.price || 0),
+                            marketTime: q.updated_at || new Date().toISOString(),
+                            simulated: false,
+                            source: 'Supabase'
+                        };
+
+                        quotes.set(rawTk, quoteData);
+                        quotes.set(cleanTk, quoteData);
+                        quotes.set(`${cleanTk}.SA`, quoteData);
+                    }
+                }
+            } catch (dbEx) {
+                console.warn('⚠️ Consulta a asset_quotes no Supabase Mobile:', dbEx);
+            }
+        }
+
+        const remainingTickers = unique.filter(t => !quotes.has(t) && !quotes.has(t.replace(/\.SA$/, '')));
+        if (remainingTickers.length === 0) {
+            console.log('✅ Todos os ativos carregados do Supabase no Mobile!');
+            try {
+                const cacheObj = {};
+                for (const [k, v] of quotes.entries()) cacheObj[k] = v;
+                localStorage.setItem('tonu_quotes_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    quotes: cacheObj
+                }));
+            } catch (saveErr) {}
+            return quotes;
+        }
+
+        let allResults = [];
+        let hasError = false;
+
+        const batchSize = 10;
+        for (let i = 0; i < remainingTickers.length; i += batchSize) {
+            const batch = remainingTickers.slice(i, i + batchSize);
+            const tickersParam = batch.map(t => encodeURIComponent(t.trim())).join(',');
+            const url = `https://brapi.dev/api/quote/${tickersParam}`;
+            const finalUrl = brapiToken ? `${url}?token=${encodeURIComponent(brapiToken)}` : url;
+
+            const response = await fetch(finalUrl, {
+                headers: { 'Accept': 'application/json', 'User-Agent': 'TonuControle/1.0' },
+                cache: 'no-store'
+            });
+
+            if (!response.ok) {
+                hasError = true;
+                continue;
+            }
+
+            const data = await response.json();
+            if (data.results && Array.isArray(data.results)) {
+                allResults = allResults.concat(data.results);
+            }
+        }
+
+        if (hasError || allResults.length === 0) {
+            for (const ticker of unique) {
+                try {
+                    const url = `https://brapi.dev/api/quote/${ticker}`;
+                    const finalUrl = brapiToken ? `${url}?token=${encodeURIComponent(brapiToken)}` : url;
+                    const response = await fetch(finalUrl, {
+                        headers: { 'Accept': 'application/json' },
+                        cache: 'no-store'
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.results && data.results.length > 0) {
+                            allResults = allResults.concat(data.results);
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`⚠️ Não foi possível buscar ${ticker} no mobile`);
+                }
+            }
+        }
+
+        if (allResults.length > 0) {
+            for (const q of allResults) {
+                const rawTk = q.symbol?.toUpperCase().trim();
+                if (!rawTk || !Number.isFinite(Number(q.regularMarketPrice))) continue;
+
+                const cleanTk = rawTk.replace(/\.SA$/, '');
+                const quoteData = {
+                    price: Number(q.regularMarketPrice),
+                    changePct: Number(q.regularMarketChangePercent || 0),
+                    previousClose: Number(q.regularMarketPreviousClose || 0),
+                    marketTime: q.regularMarketTime || new Date().toISOString(),
+                    simulated: false,
+                    source: 'BRAPI'
+                };
+
+                quotes.set(rawTk, quoteData);
+                quotes.set(cleanTk, quoteData);
+                quotes.set(`${cleanTk}.SA`, quoteData);
+            }
+
+            // Persiste no cache local unificado (chave 'tonu_quotes_cache')
+            try {
+                const cacheObj = {};
+                for (const [k, v] of quotes.entries()) {
+                    cacheObj[k] = v;
+                }
+                localStorage.setItem('tonu_quotes_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    quotes: cacheObj
+                }));
+            } catch (saveErr) {
+                console.warn('⚠️ Erro ao salvar cache de cotações mobile:', saveErr);
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Aviso ao buscar cotações mobile (usando fallback de preço médio):', error.message);
+    }
+
+    return quotes;
+}
+
+function decoratePositions(customPositions) {
+    const isCustom = Array.isArray(customPositions);
+    const targetPositions = isCustom ? customPositions : activePositions;
+
+    const decorated = targetPositions.map(p => {
+        const cleanTicker = (p.ticker || '').toUpperCase().trim().replace(/\.SA$/, '');
+        const quote = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
+        const hasQuote = quote !== undefined && Number.isFinite(quote.price) && quote.price > 0;
+        const price = hasQuote ? quote.price : (p.averageCost || 0);
+        const changePct = hasQuote ? (quote.changePct || 0) : 0;
+        const simulated = !hasQuote;
+        const source = hasQuote ? 'BRAPI' : 'Preço Médio';
+
+        const currentValue = Math.round(((p.quantity || 0) * price) * 100) / 100;
+        const gain = Math.round((currentValue - (p.costBasis || 0)) * 100) / 100;
+        const gainPct = p.costBasis > 0 ? Math.round(((gain / p.costBasis) * 100) * 100) / 100 : 0;
+
+        return {
+            ...p,
+            asset_class: resolveAssetClass(cleanTicker, p.asset_class),
+            quote: {
+                price: price,
+                changePct: changePct,
+                previousClose: hasQuote ? (quote.previousClose || price) : price,
+                simulated: simulated,
+                source: source
+            },
+            currentPrice: price,
+            currentValue: currentValue,
+            gain: gain,
+            gainPct: gainPct
+        };
+    });
+
+    if (!isCustom) {
+        activePositions = decorated;
+    }
+    return decorated;
+}
+
+window.fetchQuotes = window.fetchQuotes || fetchQuotes;
+window.decoratePositions = window.decoratePositions || decoratePositions;
+window.quotes = quotes;
+
+// ============================================
+// COTAÇÕES HISTÓRICAS MENSAIS (INVESTIDOR 10 STYLE)
+// ============================================
+let historicalMonthlyQuotes = new Map();
+try {
+    const rawHist = localStorage.getItem('tonu_historical_quotes');
+    if (rawHist) {
+        const parsed = JSON.parse(rawHist);
+        if (parsed && typeof parsed === 'object') {
+            for (const [k, v] of Object.entries(parsed)) {
+                historicalMonthlyQuotes.set(k, v);
+            }
+        }
+    }
+} catch (histCacheErr) {
+    console.warn('⚠️ Erro ao carregar cache de histórico mobile:', histCacheErr);
+}
+
+async function fetchHistoricalMonthlyQuotes() {
+    const allTickers = [
+        ...activePositions.map(p => p.ticker),
+        ...allRawInvestments.map(t => t.ticker)
+    ]
+    .filter(t => t && t.length >= 3 && /^[A-Z0-9\.\-]{3,}$/i.test(t) && !isTesouroTicker(t))
+    .map(t => t.toUpperCase().trim().replace(/\.SA$/, ''));
+
+    const uniqueTickers = [...new Set(allTickers)];
+    if (uniqueTickers.length === 0) return;
+
+    try {
+        const baseApi = (typeof window.getBaseUrl === 'function' ? window.getBaseUrl() : '').replace(/\/+$/, '');
+        const endpoint = (baseApi ? baseApi : '') + `/api/historical-quotes?tickers=${encodeURIComponent(uniqueTickers.join(','))}`;
+        const res = await fetch(endpoint);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (data && data.quotes) {
+            let loadedCount = 0;
+            for (const [tk, monthMap] of Object.entries(data.quotes)) {
+                const clean = tk.toUpperCase().replace(/\.SA$/, '');
+                historicalMonthlyQuotes.set(clean, monthMap);
+                historicalMonthlyQuotes.set(`${clean}.SA`, monthMap);
+                loadedCount++;
+            }
+            try {
+                const cacheObj = {};
+                for (const [k, v] of historicalMonthlyQuotes.entries()) {
+                    cacheObj[k] = v;
+                }
+                localStorage.setItem('tonu_historical_quotes', JSON.stringify(cacheObj));
+            } catch (e) {
+                console.warn('⚠️ Falha ao salvar histórico no localStorage:', e);
+            }
+            console.log(`✅ [Mobile] ${loadedCount} ativos com histórico mensal carregados`);
+            if (currentMobileInvestChartMode === 'evolution') {
+                renderMobileEvolutionChart();
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ Não foi possível carregar histórico mensal no mobile:', e);
+    }
+}
+
+function findClosestHistoricalPrice(histMap, targetMonthKey) {
+    if (!histMap) return null;
+    if (histMap[targetMonthKey] && Number.isFinite(histMap[targetMonthKey]) && histMap[targetMonthKey] > 0) {
+        return histMap[targetMonthKey];
+    }
+    const months = Object.keys(histMap).sort();
+    if (months.length === 0) return null;
+    const pastMonths = months.filter(m => m <= targetMonthKey);
+    if (pastMonths.length > 0) {
+        const closestPast = pastMonths[pastMonths.length - 1];
+        if (histMap[closestPast]) return histMap[closestPast];
+    }
+    return histMap[months[0]] || null;
+}
+
+// ============================================
+// CARREGAR DADOS DO SUPABASE OU INDEXEDDB CANÔNICO
+// ============================================
+async function loadAllInvestmentData() {
+    try {
+        let isOnline = navigator.onLine && window.supabaseClient && currentUser;
+
+        if (isOnline) {
+            try {
+                // 1. Operações (investments) ordenadas cronologicamente
+                const { data: invData, error: invErr } = await supabaseClient
+                    .from("investments")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .order("date", { ascending: true });
+
+                if (!invErr && invData) {
+                    allRawInvestments = (invData || []).map(inv => {
+                        const tk = (inv.ticker || '').toUpperCase().trim();
+                        const correctCls = resolveAssetClass(tk, inv.asset_class);
+                        if (correctCls !== inv.asset_class) {
+                            inv.asset_class = correctCls;
+                            if (isOnline && inv.id && !String(inv.id).startsWith('offline_')) {
+                                supabaseClient.from("investments").update({ asset_class: correctCls }).eq("id", inv.id).catch(() => {});
+                            }
+                        }
+                        return inv;
+                    });
+                    if (window.tonuSync) await window.tonuSync.setCachedInvestments(currentUser.id, allRawInvestments);
+                }
+
+                // 2. Proventos (dividends)
+                const { data: divData, error: divErr } = await supabaseClient
+                    .from("dividends")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .order("date", { ascending: false });
+
+                if (!divErr && divData) {
+                    allRawDividends = divData;
+                    if (window.tonuSync) await window.tonuSync.setCachedDividends(currentUser.id, divData);
+                }
+
+                // 3. Eventos Corporativos (corporate_events)
+                const { data: corpData, error: corpErr } = await supabaseClient
+                    .from("corporate_events")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .order("event_date", { ascending: true });
+
+                if (!corpErr && corpData) {
+                    allRawCorporateEvents = corpData;
+                    if (window.tonuSync) await window.tonuSync.setCachedCorporateEvents(currentUser.id, corpData);
+                }
+            } catch (netErr) {
+                console.warn("Falha online em investimentos, carregando de IndexedDB:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline && window.tonuSync) {
+            const [cInv, cDiv, cCorp] = await Promise.all([
+                window.tonuSync.getCachedInvestments(currentUser?.id),
+                window.tonuSync.getCachedDividends(currentUser?.id),
+                window.tonuSync.getCachedCorporateEvents(currentUser?.id)
+            ]);
+            if (cInv && cInv.length > 0) {
+                allRawInvestments = cInv.map(inv => {
+                    const tk = (inv.ticker || '').toUpperCase().trim();
+                    inv.asset_class = resolveAssetClass(tk, inv.asset_class);
+                    return inv;
+                });
+            }
+            if (cDiv && cDiv.length > 0) allRawDividends = cDiv;
+            if (cCorp && cCorp.length > 0) allRawCorporateEvents = cCorp;
+        }
+
+        // 4. Calcula custódia real e correta (considerando splits, bonificações, etc.)
+        computeRealPositions();
+
+        // 4.1. Enriquecimento imediato a partir do cache local para renderização ultra-rápida
+        decoratePositions();
+
+        // 5. Primeira renderização com cache / preços médios
+        renderPositions();
+        renderOperations();
+        renderDividends();
+        renderCorporateEventsList();
+        updateSummaryHero();
+        renderMobileInvestChart();
+
+        // 4.2. Busca cotações em tempo real via BRAPI e atualiza a Carteira
+        try {
+            await fetchQuotes();
+            decoratePositions();
+            // Re-renderiza posições, resumo e gráfico com cotações atualizadas
+            renderPositions();
+            updateSummaryHero();
+            renderMobileInvestChart();
+
+            // Busca histórico mensal em background para enriquecer o gráfico de evolução
+            fetchHistoricalMonthlyQuotes().catch(() => {});
+        } catch (quoteErr) {
+            console.warn("⚠️ Fallback cotações:", quoteErr);
+        }
+    } catch (err) {
+        console.error("Erro ao carregar dados de investimento:", err);
+        showToast("Erro ao carregar dados", "error");
+    }
+}
+
+// ============================================
+// CÁLCULO RIGOROSO E EXATO DE CUSTÓDIA
+// ============================================
+function computeRealPositions() {
+    // 1. Normaliza transações de compra/venda
+    const normalizedTx = [...allRawInvestments].map(t => ({
+        ...t,
+        isCorporateEvent: false,
+        sortDate: t.date || '1970-01-01',
+        sortPriority: (t.type || '').toLowerCase().includes('compra') ? 1 : 2
+    }));
+
+    // 2. Normaliza eventos corporativos
+    const normalizedEvents = (allRawCorporateEvents || []).map(ev => ({
+        ...ev,
+        isCorporateEvent: true,
+        sortDate: ev.event_date || ev.date || '1970-01-01',
+        sortPriority: 0 // Precedência no início do pregão na data ex
+    }));
+
+    // 3. Mescla e ordena rigorosamente por cronologia
+    const timeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
+        const da = new Date(a.sortDate + 'T12:00:00').getTime();
+        const db = new Date(b.sortDate + 'T12:00:00').getTime();
+        if (da !== db) return da - db;
+        if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+        return (a.created_at || '').localeCompare(b.created_at || '');
+    });
+
+    const map = new Map();
+
+    timeline.forEach(item => {
+        const ticker = (item.ticker || '').toUpperCase().trim();
+        if (!ticker) return;
+
+        const cleanTk = ticker.replace(/\.SA$/, '').replace(/F$/, '');
+        const resolvedCls = resolveAssetClass(cleanTk, item.asset_class);
+
+        if (!map.has(ticker) && !map.has(cleanTk)) {
+            map.set(ticker, {
+                ticker: ticker,
+                asset_class: resolvedCls,
+                quantity: 0,
+                costBasis: 0,
+                averageCost: 0,
+                totalTransactions: 0
+            });
+        }
+
+        const pos = map.get(ticker) || map.get(cleanTk);
+        pos.asset_class = resolveAssetClass(cleanTk, pos.asset_class);
+
+        // SE FOR EVENTO CORPORATIVO
+        if (item.isCorporateEvent) {
+            const evType = (item.event_type || item.type || '').trim();
+            if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+                const rf = parseFloat(item.ratio_from) || 1;
+                const rt = parseFloat(item.ratio_to) || 1;
+                if (rf > 0 && rt > 0 && pos.quantity > 0) {
+                    pos.quantity = pos.quantity * (rt / rf);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+                const bShares = parseFloat(item.bonus_shares || item.shares_received || 0);
+                const bCost = parseFloat(item.bonus_unit_cost || item.unit_value || 0);
+                if (bShares > 0) {
+                    pos.quantity += bShares;
+                    pos.costBasis += (bShares * bCost);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Amortização') {
+                const amort = parseFloat(item.amortization_per_share || item.unit_value || 0);
+                if (amort > 0 && pos.quantity > 0) {
+                    pos.costBasis = Math.max(0, pos.costBasis - (amort * pos.quantity));
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            }
+            return;
+        }
+
+        // SE FOR OPERAÇÃO NORMAL (COMPRA / VENDA)
+        const qty = parseFloat(item.quantity) || 0;
+        const total = parseFloat(item.total_value || item.amount || (qty * (parseFloat(item.unit_price) || 0))) || 0;
+        const type = (item.type || '').toLowerCase();
+
+        pos.totalTransactions++;
+
+        if (type.includes('compra') || type.includes('buy')) {
+            pos.costBasis += total;
+            pos.quantity += qty;
+            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+        } else if (type.includes('venda') || type.includes('sell')) {
+            const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+            const costOfSold = avg * qty;
+            pos.costBasis = Math.max(0, pos.costBasis - costOfSold);
+            pos.quantity = Math.max(0, pos.quantity - qty);
+            if (pos.quantity <= 0.0001) {
+                pos.quantity = 0;
+                pos.costBasis = 0;
+                pos.averageCost = 0;
+            } else {
+                pos.averageCost = pos.costBasis / pos.quantity;
+            }
+        }
+    });
+
+    // Filtra APENAS quem tem cotas ativas! Se vendeu tudo, NÃO aparece e valor é 0!
+    activePositions = Array.from(map.values()).filter(p => p.quantity > 0.0001);
+    activePositions.forEach(p => {
+        p.asset_class = resolveAssetClass(p.ticker, p.asset_class);
+    });
+}
+
+// ============================================
+// ATUALIZAR RESUMOS HERO
+// ============================================
+function updateSummaryHero() {
+    let totalInvestido = 0;
+    let totalPatrimonio = 0;
+
+    activePositions.forEach(p => {
+        totalInvestido += (p.costBasis || 0);
+        const currentVal = (p.currentValue !== undefined && Number.isFinite(p.currentValue))
+            ? p.currentValue
+            : (p.quantity * (p.currentPrice || p.averageCost || 0));
+        totalPatrimonio += (currentVal > 0 ? currentVal : (p.costBasis || 0));
+    });
+
+    let totalDivsRecebidos = 0;
+    let totalDivsMesRecebidos = 0;
+    let totalDivsAReceber = 0;
+    let totalDivsMesAReceber = 0;
+    let countRecebidos = 0;
+    let countAReceber = 0;
+
+    const now = new Date();
+    const todayISO = now.toISOString().substring(0, 10);
+    const currentMonthPrefix = todayISO.substring(0, 7);
+
+    allRawDividends.forEach(d => {
+        const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
+        const dt = (d.payment_date || d.date || '').substring(0, 10);
+        const isPaid = dt && dt <= todayISO;
+        const isCurMonth = dt && dt.substring(0, 7) === currentMonthPrefix;
+
+        if (isPaid) {
+            totalDivsRecebidos += val;
+            countRecebidos++;
+            if (isCurMonth) {
+                totalDivsMesRecebidos += val;
+            }
+        } else {
+            totalDivsAReceber += val;
+            countAReceber++;
+            if (isCurMonth) {
+                totalDivsMesAReceber += val;
+            }
+        }
+    });
+
+    document.getElementById("cardPatrimonioTotal").textContent = formatCurrency(totalPatrimonio);
+    document.getElementById("cardTotalInvestido").textContent = formatCurrency(totalInvestido);
+    document.getElementById("cardProventosTotal").textContent = formatCurrency(totalDivsRecebidos);
+
+    const provTotalSub = document.getElementById("cardProventosTotalSub");
+    if (provTotalSub) {
+        if (totalDivsAReceber > 0) {
+            provTotalSub.textContent = `+ ${formatCurrency(totalDivsAReceber)} a receber`;
+            provTotalSub.style.display = "block";
+        } else {
+            provTotalSub.style.display = "none";
+        }
+    }
+
+    // Rentabilidade e Ganho Total (Cálculo Oficial)
+    const ganhoTotal = totalPatrimonio - totalInvestido;
+    const rentabilidadeTotal = totalInvestido > 0 ? ((totalPatrimonio - totalInvestido) / totalInvestido) * 100 : 0;
+
+    const rentEl = document.getElementById("cardRentabilidadeTotal");
+    const ganhoEl = document.getElementById("cardGanhoTotal");
+
+    const isPositive = ganhoTotal >= 0;
+    const sign = ganhoTotal > 0 ? '+' : '';
+    const color = isPositive ? '#00B894' : '#FF7675';
+
+    if (rentEl) {
+        rentEl.textContent = `${sign}${rentabilidadeTotal.toFixed(2).replace('.', ',')}%`;
+        rentEl.style.color = Math.abs(rentabilidadeTotal) < 0.001 ? 'var(--color-text, #0f172a)' : color;
+    }
+    if (ganhoEl) {
+        ganhoEl.textContent = `${sign}${formatCurrency(ganhoTotal)}`;
+        ganhoEl.style.color = Math.abs(ganhoTotal) < 0.001 ? 'var(--color-text, #0f172a)' : color;
+    }
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
+
+    // Cards da aba Proventos
+    const divHistEl = document.getElementById("cardDivHistorico");
+    if (divHistEl) divHistEl.textContent = formatCurrency(totalDivsRecebidos);
+    const divHistSub = document.getElementById("cardDivHistoricoSub");
+    if (divHistSub) divHistSub.textContent = `${countRecebidos} pago${countRecebidos !== 1 ? 's' : ''}`;
+
+    const divMesEl = document.getElementById("cardDivMes");
+    if (divMesEl) divMesEl.textContent = formatCurrency(totalDivsMesRecebidos);
+    const divMesSub = document.getElementById("cardDivMesSub");
+    if (divMesSub) divMesSub.textContent = `recebido no mês`;
+
+    const divAReceberEl = document.getElementById("cardDivAReceber");
+    if (divAReceberEl) divAReceberEl.textContent = formatCurrency(totalDivsAReceber);
+    const divAReceberSub = document.getElementById("cardDivAReceberSub");
+    if (divAReceberSub) {
+        if (countAReceber > 0) {
+            const extra = totalDivsMesAReceber > 0 ? ` • ${formatCurrency(totalDivsMesAReceber)} este mês` : '';
+            divAReceberSub.textContent = `${countAReceber} provento${countAReceber !== 1 ? 's' : ''} previsto${countAReceber !== 1 ? 's' : ''}${extra}`;
+        } else {
+            divAReceberSub.textContent = `Nenhum provento futuro pendente`;
+        }
+    }
+
+    // Contadores dos chips de status de proventos
+    const countAllEl = document.getElementById("countDivAll");
+    if (countAllEl) countAllEl.textContent = allRawDividends.length;
+    const countRecEl = document.getElementById("countDivRecebidos");
+    if (countRecEl) countRecEl.textContent = countRecebidos;
+    const countARecEl = document.getElementById("countDivAReceber");
+    if (countARecEl) countARecEl.textContent = countAReceber;
+
+    // ITEM 10: Atualizar Card de Conquista Mobile
+    updateMobileAchievementCard(totalPatrimonio, totalInvestido);
+}
+
+async function updateMobileAchievementCard(totalCurrentEquity, totalInvested) {
+    try {
+        const todayStr = new Date().toLocaleDateString('sv');
+        const todayDate = new Date(todayStr + 'T12:00:00');
+        const d30 = new Date(todayDate);
+        d30.setDate(d30.getDate() - 30);
+        const date30DaysAgoStr = d30.toLocaleDateString('sv');
+
+        const d90 = new Date(todayDate);
+        d90.setDate(d90.getDate() - 90);
+        const date90DaysAgoStr = d90.toLocaleDateString('sv');
+
+        const formattedToday = typeof formatDate === 'function' ? formatDate(todayStr) : todayStr;
+
+        const dateElMob = document.getElementById('achievementDateLabelMobile');
+        const valElMob = document.getElementById('achievementTotalValueMobile');
+        const growthElMob = document.getElementById('achievementGrowthTextMobile');
+        const divsElMob = document.getElementById('achievementDividendsTextMobile');
+
+        const totalFormatted = typeof formatCurrency === 'function' ? formatCurrency(totalCurrentEquity) : `R$ ${Number(totalCurrentEquity || 0).toFixed(2)}`;
+
+        if (dateElMob) dateElMob.textContent = `Até ${formattedToday}`;
+        if (valElMob) valElMob.textContent = totalFormatted;
+
+        let pastSnapshots = [];
+        let proventos90Dias = 0;
+
+        if (totalCurrentEquity > 0) {
+            const uid = currentUser?.id || 'demo';
+            try {
+                localStorage.setItem('tonu_total_equity_' + uid, String(Math.round(totalCurrentEquity * 100) / 100));
+                localStorage.setItem('tonu_total_invested_' + uid, String(Math.round((totalInvested || 0) * 100) / 100));
+                localStorage.setItem('tonu_total_equity_updated_at_' + uid, new Date().toISOString());
+                window.dispatchEvent(new CustomEvent('tonu_portfolio_updated', { detail: { totalCurrentEquity, totalInvested } }));
+            } catch (_) {}
+        }
+
+        if (window.supabaseClient && currentUser?.id) {
+            try {
+                if (totalCurrentEquity > 0) {
+                    await window.supabaseClient.from('portfolio_snapshots').upsert({
+                        user_id: currentUser.id,
+                        date: todayStr,
+                        total_equity: Math.round(totalCurrentEquity * 100) / 100,
+                        total_invested: Math.round((totalInvested || 0) * 100) / 100
+                    }, { onConflict: 'user_id,date' });
+                }
+
+                const { data: snaps } = await window.supabaseClient
+                    .from('portfolio_snapshots')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('date', { ascending: true });
+
+                if (snaps && snaps.length > 0) pastSnapshots = snaps;
+
+                const { data: divs } = await window.supabaseClient
+                    .from('dividends')
+                    .select('total_value, date')
+                    .eq('user_id', currentUser.id)
+                    .gte('date', date90DaysAgoStr)
+                    .lte('date', todayStr);
+
+                if (divs && divs.length > 0) {
+                    proventos90Dias = divs.reduce((acc, d) => acc + (parseFloat(d.total_value) || 0), 0);
+                }
+            } catch (err) {
+                console.warn('⚠️ Erro ao atualizar snapshot mobile:', err);
+            }
+        }
+
+        if (proventos90Dias === 0 && Array.isArray(allRawDividends)) {
+            proventos90Dias = allRawDividends
+                .filter(d => d.date >= date90DaysAgoStr && d.date <= todayStr)
+                .reduce((acc, d) => acc + (parseFloat(d.total_value || d.amount) || 0), 0);
+        }
+
+        let growthHtml = '';
+        if (pastSnapshots.length > 0) {
+            let baseSnapshot = null;
+            for (let i = pastSnapshots.length - 1; i >= 0; i--) {
+                if (pastSnapshots[i].date <= date30DaysAgoStr) {
+                    baseSnapshot = pastSnapshots[i];
+                    break;
+                }
+            }
+
+            if (baseSnapshot && baseSnapshot.total_equity > 0) {
+                const diff = totalCurrentEquity - baseSnapshot.total_equity;
+                const pct = (diff / baseSnapshot.total_equity) * 100;
+                const sign = diff >= 0 ? '+' : '';
+                const diffFmt = typeof formatCurrency === 'function' ? formatCurrency(Math.abs(diff)) : `R$ ${Math.abs(diff).toFixed(2)}`;
+                const word = diff >= 0 ? 'cresceu' : 'variou';
+                const color = diff >= 0 ? '#00b894' : '#ef4444';
+                growthHtml = `Seu patrimônio ${word} <strong style="color:${color};">${sign}${diffFmt} (${sign}${pct.toFixed(2)}%)</strong> nos últimos 30 dias`;
+            } else {
+                const firstDate = pastSnapshots[0]?.date ? (typeof formatDate === 'function' ? formatDate(pastSnapshots[0].date) : pastSnapshots[0].date) : formattedToday;
+                growthHtml = `Histórico iniciado em ${firstDate}`;
+            }
+        } else {
+            growthHtml = `Histórico iniciado em ${formattedToday}`;
+        }
+
+        const provFmt = typeof formatCurrency === 'function' ? formatCurrency(proventos90Dias) : `R$ ${proventos90Dias.toFixed(2)}`;
+        const provHtml = `Você recebeu <strong>${provFmt}</strong> em proventos nos últimos 90 dias`;
+
+        if (growthElMob) growthElMob.innerHTML = growthHtml;
+        if (divsElMob) divsElMob.innerHTML = provHtml;
+    } catch (e) {
+        console.warn('Erro ao atualizar card de conquista mobile:', e);
+    }
+}
+
+// ============================================
+// RELATÓRIO DE IR (MOBILE)
+// ============================================
+function openMobileIRReportModal() {
+    if (window.TonuIRReport && typeof window.TonuIRReport.showIRReportModal === 'function') {
+        window.TonuIRReport.showIRReportModal(allRawInvestments, allRawDividends, allRawCorporateEvents);
+    } else {
+        showToast("Carregando relatório de IR...", "info");
+    }
+}
+
+// ============================================
+// GRÁFICOS DE INVESTIMENTOS NO CELULAR (MOBILE)
+// ============================================
+
+function syncMobileInvestChartModeUI() {
+    const btnAlloc = document.getElementById("btnChartModeAlloc");
+    const btnEvol = document.getElementById("btnChartModeEvol");
+    const titleEl = document.getElementById("mobileInvestChartTitle");
+    const iconEl = document.getElementById("mobileInvestChartIcon");
+
+    if (btnAlloc && btnEvol) {
+        if (currentMobileInvestChartMode === 'evolution') {
+            btnEvol.classList.add("active");
+            btnAlloc.classList.remove("active");
+            if (titleEl) titleEl.textContent = "Evolução do Patrimônio";
+            if (iconEl) iconEl.className = "fas fa-chart-bar";
+        } else {
+            btnAlloc.classList.add("active");
+            btnEvol.classList.remove("active");
+            if (titleEl) titleEl.textContent = "Visão Gráfica";
+            if (iconEl) iconEl.className = "fas fa-chart-pie";
+        }
+    }
+}
+
+function setMobileInvestChartMode(mode) {
+    currentMobileInvestChartMode = mode;
+    localStorage.setItem('tonu_mobile_invest_chart_mode', mode);
+    syncMobileInvestChartModeUI();
+
+    const wrapper = document.getElementById("mobileInvestChartWrapper");
+    if (wrapper) {
+        wrapper.style.opacity = '0';
+        setTimeout(() => {
+            renderMobileInvestChart();
+            wrapper.style.opacity = '1';
+        }, 120);
+    } else {
+        renderMobileInvestChart();
+    }
+}
+
+function renderMobileInvestChart() {
+    if (currentMobileInvestChartMode === 'evolution') {
+        renderMobileEvolutionChart();
+    } else {
+        renderMobileAllocationChart();
+    }
+}
+
+// Build timeline data for mobile evolution grouped bar chart
+function buildMobileEvolutionChartData() {
+    if (!allRawInvestments || allRawInvestments.length === 0) {
+        return { labels: [], invested: [], total: [] };
+    }
+
+    // 1. Normaliza transações de compra/venda
+    const normalizedTx = [...allRawInvestments].map(t => {
+        const rawDate = t.date || t.created_at || '';
+        const d = new Date(rawDate + (rawDate.length === 10 ? 'T12:00:00' : ''));
+        return {
+            ...t,
+            isCorporateEvent: false,
+            parsedDate: !isNaN(d.getTime()) ? d : new Date(),
+            sortPriority: (t.type || '').toLowerCase().includes('compra') || (t.type || '').toLowerCase().includes('buy') ? 1 : 2
+        };
+    });
+
+    // 2. Normaliza eventos corporativos
+    const normalizedEvents = (allRawCorporateEvents || []).map(ev => {
+        const rawDate = ev.event_date || ev.date || '';
+        const d = new Date(rawDate + (rawDate.length === 10 ? 'T12:00:00' : ''));
+        return {
+            ...ev,
+            isCorporateEvent: true,
+            parsedDate: !isNaN(d.getTime()) ? d : new Date(),
+            sortPriority: 0
+        };
+    });
+
+    // 3. Mescla e ordena por cronologia rigorosa
+    const validTimeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
+        const da = a.parsedDate.getTime();
+        const db = b.parsedDate.getTime();
+        if (da !== db) return da - db;
+        if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+        return (a.created_at || '').localeCompare(b.created_at || '');
+    });
+
+    if (validTimeline.length === 0) {
+        return { labels: [], invested: [], total: [] };
+    }
+
+    // Janela padrão de últimos 12 meses (idêntica ao Desktop e Evolução de Proventos)
+    const end = new Date();
+    const start = new Date(end.getFullYear(), end.getMonth() - 11, 1);
+
+    const allMonths = [];
+    const curMonth = new Date(start);
+    while (curMonth <= end || (curMonth.getFullYear() === end.getFullYear() && curMonth.getMonth() === end.getMonth())) {
+        const year = curMonth.getFullYear();
+        const monthNum = curMonth.getMonth() + 1;
+        const key = `${year}-${String(monthNum).padStart(2, '0')}`;
+        const rawMonth = curMonth.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+        const capitalizedMonth = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1);
+
+        allMonths.push({
+            key: key,
+            label: capitalizedMonth,
+            year: year,
+            month: monthNum,
+            date: new Date(curMonth)
+        });
+        curMonth.setMonth(curMonth.getMonth() + 1);
+    }
+
+    // Mapa de posições simuladas acumuladas
+    const simulatedMap = new Map();
+    const labels = [];
+    const invested = [];
+    const total = [];
+
+    // Função auxiliar para aplicar movimentações na carteira simulada
+    function applyItem(item) {
+        const ticker = (item.ticker || '').toUpperCase().trim();
+        if (!ticker) return;
+
+        if (!simulatedMap.has(ticker)) {
+            simulatedMap.set(ticker, { quantity: 0, costBasis: 0, averageCost: 0 });
+        }
+        const pos = simulatedMap.get(ticker);
+
+        if (item.isCorporateEvent) {
+            const evType = (item.event_type || item.type || '').trim();
+            if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+                const rf = parseFloat(item.ratio_from) || 1;
+                const rt = parseFloat(item.ratio_to) || 1;
+                if (rf > 0 && rt > 0 && pos.quantity > 0) {
+                    pos.quantity = pos.quantity * (rt / rf);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+                const bShares = parseFloat(item.bonus_shares || item.shares_received || 0);
+                const bCost = parseFloat(item.bonus_unit_cost || item.unit_value || 0);
+                if (bShares > 0) {
+                    pos.quantity += bShares;
+                    pos.costBasis += (bShares * bCost);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Amortização') {
+                const amort = parseFloat(item.amortization_per_share || item.unit_value || 0);
+                if (amort > 0 && pos.quantity > 0) {
+                    pos.costBasis = Math.max(0, pos.costBasis - (amort * pos.quantity));
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            }
+        } else {
+            const qty = parseFloat(item.quantity) || 0;
+            const totVal = parseFloat(item.total_value || item.amount || (qty * (parseFloat(item.unit_price) || 0))) || 0;
+            const type = (item.type || '').toLowerCase();
+
+            if (type.includes('compra') || type.includes('buy')) {
+                pos.costBasis += totVal;
+                pos.quantity += qty;
+                pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+            } else if (type.includes('venda') || type.includes('sell')) {
+                const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                pos.costBasis = Math.max(0, pos.costBasis - (avg * qty));
+                pos.quantity = Math.max(0, pos.quantity - qty);
+                if (pos.quantity <= 0.0001) {
+                    pos.quantity = 0;
+                    pos.costBasis = 0;
+                    pos.averageCost = 0;
+                } else {
+                    pos.averageCost = pos.costBasis / pos.quantity;
+                }
+            }
+        }
+    }
+
+    // Pré-acumula todas as transações anteriores à janela de exibição
+    let timelineIndex = 0;
+    while (timelineIndex < validTimeline.length && validTimeline[timelineIndex].parsedDate < start) {
+        applyItem(validTimeline[timelineIndex]);
+        timelineIndex++;
+    }
+
+    // Processa os meses da janela
+    for (let i = 0; i < allMonths.length; i++) {
+        const m = allMonths[i];
+        const isCurrentMonth = (i === allMonths.length - 1);
+        const monthEnd = new Date(m.year, m.month, 0, 23, 59, 59);
+
+        while (timelineIndex < validTimeline.length && validTimeline[timelineIndex].parsedDate <= monthEnd) {
+            applyItem(validTimeline[timelineIndex]);
+            timelineIndex++;
+        }
+
+        let monthInvested = 0;
+        let monthTotal = 0;
+
+        simulatedMap.forEach((pos, ticker) => {
+            if (pos.quantity > 0.0001) {
+                const investedInAsset = Math.max(0, pos.costBasis || 0);
+                monthInvested += investedInAsset;
+
+                const cleanTk = ticker.toUpperCase().trim().replace(/\.SA$/, '');
+                let assetPrice = 0;
+
+                if (isCurrentMonth) {
+                    const quote = quotes.get(cleanTk) || quotes.get(ticker) || quotes.get(`${cleanTk}.SA`);
+                    if (quote && Number.isFinite(quote.price) && quote.price > 0) {
+                        assetPrice = quote.price;
+                    } else {
+                        assetPrice = pos.quantity > 0 ? (investedInAsset / pos.quantity) : 0;
+                    }
+                } else {
+                    const histMap = historicalMonthlyQuotes.get(cleanTk) || historicalMonthlyQuotes.get(ticker) || historicalMonthlyQuotes.get(`${cleanTk}.SA`);
+                    const monthPrice = histMap ? histMap[m.key] : null;
+
+                    if (monthPrice && Number.isFinite(monthPrice) && monthPrice > 0) {
+                        assetPrice = monthPrice;
+                    } else if (isTesouroTicker(ticker)) {
+                        assetPrice = pos.quantity > 0 ? (investedInAsset / pos.quantity) : 0;
+                    } else {
+                        const closestPrice = findClosestHistoricalPrice(histMap, m.key);
+                        if (closestPrice && Number.isFinite(closestPrice) && closestPrice > 0) {
+                            assetPrice = closestPrice;
+                        } else {
+                            const quote = quotes.get(cleanTk) || quotes.get(ticker);
+                            if (quote && Number.isFinite(quote.price) && quote.price > 0) {
+                                assetPrice = quote.price;
+                            } else {
+                                assetPrice = pos.quantity > 0 ? (investedInAsset / pos.quantity) : 0;
+                            }
+                        }
+                    }
+                }
+
+                monthTotal += pos.quantity * assetPrice;
+            }
+        });
+
+        // No mês atual, assegura consistência absoluta com a custódia ativa e os cards do topo
+        if (isCurrentMonth && activePositions && activePositions.length > 0) {
+            let cardTotalInvestido = 0;
+            let cardTotalPatrimonio = 0;
+            activePositions.forEach(p => {
+                cardTotalInvestido += (p.costBasis || 0);
+                const cleanTk = (p.ticker || '').toUpperCase().trim().replace(/\.SA$/, '');
+                const quote = quotes.get(cleanTk) || quotes.get(p.ticker) || quotes.get(`${cleanTk}.SA`);
+                const livePrice = (quote && Number.isFinite(quote.price) && quote.price > 0)
+                    ? quote.price
+                    : (p.currentPrice || p.averageCost || 0);
+                const val = (p.currentValue !== undefined && Number.isFinite(p.currentValue) && p.currentValue > 0)
+                    ? p.currentValue
+                    : ((p.quantity || 0) * livePrice);
+                cardTotalPatrimonio += (val > 0 ? val : (p.costBasis || 0));
+            });
+
+            if (cardTotalInvestido > 0) {
+                monthInvested = cardTotalInvestido;
+                monthTotal = cardTotalPatrimonio > 0 ? cardTotalPatrimonio : cardTotalInvestido;
+            }
+        }
+
+        labels.push(m.label);
+        invested.push(Math.round(monthInvested * 100) / 100);
+        total.push(Math.round(monthTotal * 100) / 100);
+    }
+
+    return { labels, invested, total };
+}
+
+function renderMobileEvolutionChart() {
+    const canvas = document.getElementById("mobileInvestAllocationChart");
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const centerTotalEl = document.getElementById("mobileChartCenterTotal");
+    const emptyNoticeEl = document.getElementById("mobileChartEmptyNotice");
+    if (centerTotalEl) centerTotalEl.style.display = "none";
+
+    const isDark = document.body.classList.contains("dark-theme");
+    const textColor = isDark ? '#e2e8f0' : '#475569';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)';
+
+    if (mobileAllocationChart) {
+        mobileAllocationChart.destroy();
+        mobileAllocationChart = null;
+    }
+
+    const evoData = buildMobileEvolutionChartData();
+    const hasData = evoData.total && evoData.total.length > 0 && evoData.total.some(v => v > 0);
+
+    if (!hasData) {
+        if (emptyNoticeEl) {
+            emptyNoticeEl.textContent = "Sem histórico de evolução";
+            emptyNoticeEl.style.display = "block";
+        }
+        return;
+    }
+
+    if (emptyNoticeEl) emptyNoticeEl.style.display = "none";
+
+    const ctx = canvas.getContext("2d");
+
+    // Cálculo do Ganho de Capital (Patrimônio - Valor Aplicado) - Estilo Investidor 10
+    const gainCapital = evoData.total.map((tot, i) => {
+        const inv = evoData.invested[i] || 0;
+        return Math.round((tot - inv) * 100) / 100;
+    });
+
+    // Verde mais claro consistente para Ganho de Capital (sem vermelho, mesmo se negativo)
+    const gainBgColors = '#96e9c1';
+    const gainHoverColors = '#7ddfb3';
+
+    // Cálculo proporcional do eixo Y com folga para respirar e apoio no eixo zero
+    const allValues = [...evoData.invested, ...gainCapital, ...evoData.total];
+    const maxPositive = Math.max(...allValues.filter(v => v > 0), 0);
+    const minNegative = Math.min(...allValues.filter(v => v < 0), 0);
+    const range = Math.max(maxPositive - minNegative, 100);
+    const padding = range * 0.12;
+    const suggestedMax = Math.ceil((maxPositive + padding) / 50) * 50;
+    const suggestedMin = Math.floor((minNegative - padding) / 50) * 50;
+
+    // Plugin para barra fixa no eixo zero (Linha de base sólida do Investidor 10)
+    // Plugin para barra fixa no eixo zero (Traço contínuo de fora a fora demarcando o zero total - Estilo Investidor 10)
+    const zeroLinePlugin = {
+        id: 'mobileZeroLinePlugin',
+        afterDatasetsDraw: (chart) => {
+            const yScale = chart.scales.y;
+            if (!yScale) return;
+            const rawY = yScale.getPixelForValue(0);
+            if (rawY === undefined || isNaN(rawY)) return;
+            const zeroY = Math.round(rawY);
+            if (zeroY >= chart.chartArea.top - 2 && zeroY <= chart.chartArea.bottom + 2) {
+                const c = chart.ctx;
+                c.save();
+                c.beginPath();
+                c.strokeStyle = isDark ? '#94A3B8' : '#475569';
+                c.lineWidth = 2.5; // Risco de fora a fora demarcando o zero total
+                // Atravessa de fora a fora o gráfico (da borda esquerda x = 0 à borda direita do gráfico)
+                c.moveTo(0, zeroY);
+                c.lineTo(chart.width, zeroY);
+                c.stroke();
+                c.restore();
+            }
+        }
+    };
+
+    // Gráfico de Barras Empilhadas idêntico ao Desktop / Investidor 10 (Uma barra só, uma sobre a outra, partindo do eixo zero)
+    mobileAllocationChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: evoData.labels,
+            datasets: [
+                {
+                    label: 'Valor aplicado',
+                    data: evoData.invested,
+                    backgroundColor: '#2cb875',
+                    hoverBackgroundColor: '#24a565',
+                    borderRadius: 0,
+                    borderSkipped: false,
+                    stack: 'patrimonio',
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.75,
+                    maxBarThickness: 18
+                },
+                {
+                    label: 'Ganho de Capital',
+                    data: gainCapital,
+                    backgroundColor: gainBgColors,
+                    hoverBackgroundColor: gainHoverColors,
+                    borderRadius: 4,
+                    borderSkipped: false,
+                    stack: 'patrimonio',
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.75,
+                    maxBarThickness: 18
+                }
+            ]
+        },
+        plugins: [zeroLinePlugin],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
+            interaction: {
+                intersect: false,
+                mode: 'index',
+                axis: 'x'
+            },
+            layout: {
+                padding: {
+                    left: 5,
+                    right: 15,
+                    top: 6,
+                    bottom: 4
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    align: 'center',
+                    labels: {
+                        boxWidth: 9,
+                        boxHeight: 9,
+                        padding: 12,
+                        font: { size: 10, weight: '600' },
+                        color: textColor,
+                        usePointStyle: true,
+                        pointStyle: 'rectRounded'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.parsed.y || 0;
+                            const isGain = context.datasetIndex === 1;
+                            if (isGain) {
+                                const inv = evoData.invested[context.dataIndex] || 0;
+                                const pct = inv > 0 ? ((Math.abs(val) / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
+                                const sign = val < -0.001 ? '-' : (val > 0.001 ? '+' : '');
+                                return ` ${context.dataset.label}: ${sign}${formatCurrency(Math.abs(val))} (${sign}${pct}%)`;
+                            }
+                            return ` ${context.dataset.label}: ${formatCurrency(val)}`;
+                        },
+                        labelTextColor: function(context) {
+                            if (context.datasetIndex === 1) {
+                                const val = context.parsed.y || 0;
+                                if (val < -0.001) return '#EF4444';
+                                if (val > 0.001) return '#00B894';
+                                return '#94A3B8';
+                            }
+                            return '#FFFFFF';
+                        },
+                        labelColor: function(context) {
+                            if (context.datasetIndex === 1) {
+                                const val = context.parsed.y || 0;
+                                if (val < -0.001) {
+                                    return {
+                                        borderColor: '#EF4444',
+                                        backgroundColor: '#EF4444',
+                                        borderWidth: 1,
+                                        borderRadius: 2
+                                    };
+                                } else if (val > 0.001) {
+                                    return {
+                                        borderColor: '#00B894',
+                                        backgroundColor: '#96e9c1',
+                                        borderWidth: 1,
+                                        borderRadius: 2
+                                    };
+                                } else {
+                                    return {
+                                        borderColor: '#94A3B8',
+                                        backgroundColor: '#94A3B8',
+                                        borderWidth: 1,
+                                        borderRadius: 2
+                                    };
+                                }
+                            }
+                            return {
+                                borderColor: '#2cb875',
+                                backgroundColor: '#2cb875',
+                                borderWidth: 1,
+                                borderRadius: 2
+                            };
+                        },
+                        footer: function(items) {
+                            let total = 0;
+                            items.forEach(it => { total += (it.parsed.y || 0); });
+                            return `Patrimônio Total: ${formatCurrency(total)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: { display: false },
+                    ticks: {
+                        font: { size: 10, weight: '600' },
+                        color: textColor
+                    }
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: false,
+                    suggestedMin: suggestedMin,
+                    suggestedMax: suggestedMax,
+                    grid: {
+                        color: function(context) {
+                            if (context.tick && context.tick.value === 0) {
+                                return isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
+                            }
+                            return gridColor;
+                        },
+                        lineWidth: function(context) {
+                            return (context.tick && context.tick.value === 0) ? 2.5 : 1;
+                        }
+                    },
+                    ticks: {
+                        font: { size: 9 },
+                        color: textColor,
+                        callback: function(val) {
+                            if (val >= 1000000) return 'R$ ' + (val / 1000000).toFixed(1) + 'M';
+                            if (val >= 1000) return 'R$ ' + (val / 1000).toFixed(0) + 'k';
+                            return 'R$ ' + val;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderMobileAllocationChart() {
+    const canvas = document.getElementById("mobileInvestAllocationChart");
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const centerTotalEl = document.getElementById("mobileChartCenterTotal");
+    const centerValEl = document.getElementById("mobileChartCenterVal");
+    const emptyNoticeEl = document.getElementById("mobileChartEmptyNotice");
+
+    if (mobileAllocationChart) {
+        mobileAllocationChart.destroy();
+        mobileAllocationChart = null;
+    }
+
+    if (!activePositions || activePositions.length === 0) {
+        if (centerTotalEl) centerTotalEl.style.display = "none";
+        if (emptyNoticeEl) {
+            emptyNoticeEl.textContent = "Sem ativos na carteira";
+            emptyNoticeEl.style.display = "block";
+        }
+        return;
+    }
+
+    if (emptyNoticeEl) emptyNoticeEl.style.display = "none";
+
+    const classTotals = {};
+    let grandTotal = 0;
+    activePositions.forEach(p => {
+        let cls = resolveAssetClass(p.ticker, p.asset_class) || 'Outros';
+        const val = (p.currentValue !== undefined && Number.isFinite(p.currentValue) && p.currentValue > 0)
+            ? p.currentValue
+            : (Number(p.costBasis) || 0);
+        classTotals[cls] = (classTotals[cls] || 0) + val;
+        grandTotal += val;
+    });
+
+    const labels = Object.keys(classTotals);
+    const data = labels.map(l => classTotals[l]);
+
+    const paletteMap = {
+        'Ações': '#4338CA',
+        'FIIs': '#0284C7',
+        'ETFs': '#10B981',
+        'Tesouro': '#F59E0B',
+        'Renda Fixa': '#F59E0B',
+        'BDRs': '#EA580C',
+        'Cripto': '#7C3AED',
+        'Outros': '#64748B'
+    };
+    const bgColors = labels.map(l => paletteMap[l] || '#818CF8');
+
+    const isDark = document.body.classList.contains("dark-theme");
+    const textColor = isDark ? '#e2e8f0' : '#475569';
+
+    if (centerTotalEl && centerValEl) {
+        centerValEl.textContent = formatCurrency(grandTotal);
+        centerTotalEl.style.display = "block";
+    }
+
+    mobileAllocationChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: bgColors,
+                borderWidth: 2,
+                borderColor: isDark ? '#1e293b' : '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 9,
+                        padding: 8,
+                        font: { size: 10, weight: 600 },
+                        color: textColor,
+                        generateLabels: function(chart) {
+                            const original = Chart.overrides.doughnut.plugins.legend.labels.generateLabels(chart);
+                            return original.map((item, idx) => {
+                                const val = data[idx] || 0;
+                                const pct = grandTotal > 0 ? Math.round((val / grandTotal) * 100) : 0;
+                                item.text = `${item.text} (${pct}%)`;
+                                return item;
+                            });
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.raw || 0;
+                            const pct = grandTotal > 0 ? ((val / grandTotal) * 100).toFixed(1) : 0;
+                            return ` ${context.label}: ${formatCurrency(val)} (${pct}%)`;
+                        }
+                    }
+                }
+            },
+            cutout: '68%'
+        }
+    });
+}
+
+function renderMobileDividendsEvolutionChart() {
+    const canvas = document.getElementById("mobileDividendsEvolutionChart");
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const card = document.getElementById("mobileDivChartCard");
+    if (!allRawDividends || allRawDividends.length === 0) {
+        if (card) card.style.display = "none";
+        return;
+    }
+    if (card) card.style.display = "block";
+
+    const now = new Date();
+    const todayISO = now.toISOString().substring(0, 10);
+    const curYearMonth = todayISO.substring(0, 7);
+
+    // Constrói os meses base: 11 meses atrás até o mês atual
+    const monthKeys = [];
+    const monthLabels = [];
+    for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        monthKeys.push(`${y}-${m}`);
+        monthLabels.push(d.toLocaleDateString('pt-BR', { month: 'short' }));
+    }
+
+    // Se houver proventos agendados para meses futuros, inclui os meses futuros no gráfico
+    const futureMonthsSet = new Set();
+    allRawDividends.forEach(d => {
+        const dt = (d.payment_date || d.date || '').substring(0, 7);
+        if (dt && dt > curYearMonth && !monthKeys.includes(dt)) {
+            futureMonthsSet.add(dt);
+        }
+    });
+
+    const sortedFuture = Array.from(futureMonthsSet).sort();
+    sortedFuture.forEach(ym => {
+        const parts = ym.split('-');
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = new Date(y, m, 1);
+        monthKeys.push(ym);
+        const lbl = d.toLocaleDateString('pt-BR', { month: 'short' });
+        monthLabels.push(`${lbl}*`);
+    });
+
+    const dataRecebidos = new Array(monthKeys.length).fill(0);
+    const dataAReceber = new Array(monthKeys.length).fill(0);
+
+    allRawDividends.forEach(d => {
+        const rawDate = (d.payment_date || d.date || '').substring(0, 10);
+        const ym = rawDate.substring(0, 7);
+        const idx = monthKeys.indexOf(ym);
+        if (idx !== -1) {
+            const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
+            if (rawDate <= todayISO) {
+                dataRecebidos[idx] += val;
+            } else {
+                dataAReceber[idx] += val;
+            }
+        }
+    });
+
+    if (mobileDividendsChart) {
+        mobileDividendsChart.destroy();
+    }
+
+    const isDark = document.body.classList.contains("dark-theme");
+    const textColor = isDark ? '#e2e8f0' : '#475569';
+    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+
+    mobileDividendsChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: monthLabels,
+            datasets: [
+                {
+                    label: 'Proventos recebidos',
+                    data: dataRecebidos.map(v => Math.round(v * 100) / 100),
+                    backgroundColor: '#0984E3',
+                    hoverBackgroundColor: '#0767b3',
+                    stack: 'provStack',
+                    borderRadius: 4,
+                    borderSkipped: false
+                },
+                {
+                    label: 'Proventos a receber',
+                    data: dataAReceber.map(v => Math.round(v * 100) / 100),
+                    backgroundColor: '#74B9FF',
+                    hoverBackgroundColor: '#4ea3ff',
+                    stack: 'provStack',
+                    borderRadius: 4,
+                    borderSkipped: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+                axis: 'x'
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.parsed.y || 0;
+                            if (val <= 0) return null;
+                            return ` ${context.dataset.label}: ${formatCurrency(val)}`;
+                        },
+                        footer: function(items) {
+                            const total = items.reduce((acc, it) => acc + (it.parsed.y || 0), 0);
+                            return `Total: ${formatCurrency(total)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: { display: false },
+                    ticks: { font: { size: 9 }, color: textColor }
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    grid: { color: gridColor },
+                    ticks: {
+                        font: { size: 9 },
+                        color: textColor,
+                        callback: function(v) {
+                            if (v >= 1000) return 'R$ ' + (v / 1000).toFixed(0) + 'k';
+                            return 'R$ ' + v;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ============================================
+// MATRIZ ANUAL DE PROVENTOS NO CELULAR
+// ============================================
+function renderMobileProventosMatrix() {
+    const table = document.getElementById("mobileProventosMatrixTable");
+    if (!table) return;
+
+    const card = document.getElementById("mobileMatrixChartCard");
+    if (!allRawDividends || allRawDividends.length === 0) {
+        if (card) card.style.display = "none";
+        return;
+    }
+    if (card) card.style.display = "block";
+
+    const matrix = {};
+    const matrixAReceber = {};
+    const now = new Date();
+    const todayISO = now.toISOString().substring(0, 10);
+
+    allRawDividends.forEach(d => {
+        const dt = (d.payment_date || d.date || '').substring(0, 10);
+        if (dt.length < 7) return;
+        const year = parseInt(dt.substring(0, 4), 10);
+        const month = parseInt(dt.substring(5, 7), 10) - 1;
+        if (isNaN(year) || isNaN(month) || month < 0 || month > 11) return;
+
+        if (!matrix[year]) {
+            matrix[year] = new Array(12).fill(0);
+            matrixAReceber[year] = new Array(12).fill(0);
+        }
+        const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
+        matrix[year][month] += val;
+        if (dt > todayISO) {
+            matrixAReceber[year][month] += val;
+        }
+    });
+
+    const years = Object.keys(matrix).map(Number).sort((a, b) => b - a);
+    if (years.length === 0) {
+        table.innerHTML = '<tr><td style="text-align:center; padding:16px; color:#94a3b8;">Nenhum histórico disponível</td></tr>';
+        return;
+    }
+
+    const monthHeaders = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+
+    let html = `
+        <thead>
+            <tr style="background:var(--color-bg, #f8fafc); border-bottom:1px solid var(--color-border, #e2e8f0);">
+                <th style="padding:6px 8px; text-align:left; font-weight:700;">Ano</th>
+                ${monthHeaders.map(m => `<th style="padding:6px 6px; font-weight:600;">${m}</th>`).join('')}
+                <th style="padding:6px 8px; font-weight:700; color:#0984E3;">Média</th>
+                <th style="padding:6px 8px; font-weight:700; color:#8B5CF6;">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+
+    years.forEach(year => {
+        const months = matrix[year];
+        const aReceberMonths = matrixAReceber[year] || [];
+        const total = months.reduce((acc, v) => acc + v, 0);
+        let divisor = 12;
+        if (year === curYear) {
+            divisor = Math.max(1, curMonth + 1);
+        }
+        const media = total / divisor;
+
+        html += `
+            <tr style="border-bottom:1px solid var(--color-border, #f1f5f9);">
+                <td style="padding:6px 8px; text-align:left; font-weight:700; color:var(--color-text, #1e293b);">${year}</td>
+                ${months.map((v, mIdx) => {
+                    if (v <= 0) {
+                        return `<td style="padding:6px 6px; font-size:10px; color:#cbd5e1;">-</td>`;
+                    }
+                    const isAReceber = (aReceberMonths[mIdx] && aReceberMonths[mIdx] > 0);
+                    const colorStyle = isAReceber ? 'color:#0284c7; font-weight:700;' : 'color:#10b981; font-weight:600;';
+                    const titleText = isAReceber ? `Provento a receber: ${formatCurrency(v)}` : `Provento recebido: ${formatCurrency(v)}`;
+                    const tag = isAReceber ? '<span style="font-size:8.5px; vertical-align:top; color:#0284c7;">*</span>' : '';
+                    return `
+                        <td style="padding:6px 6px; font-size:10px; ${colorStyle}" title="${titleText}">
+                            ${formatCurrency(v).replace('R$', '').trim()}${tag}
+                        </td>
+                    `;
+                }).join('')}
+                <td style="padding:6px 8px; font-weight:600; color:#0984E3; font-size:10px;">${formatCurrency(media)}</td>
+                <td style="padding:6px 8px; font-weight:700; color:#8B5CF6; font-size:10.5px; background:rgba(139,92,246,0.05);">${formatCurrency(total)}</td>
+            </tr>
+        `;
+    });
+
+    html += '</tbody>';
+    table.innerHTML = html;
+}
+
+// ============================================
+// RENDERIZAR ATIVOS EM CUSTÓDIA
+// ============================================
+function isSameAssetClass(classA, classB) {
+    if (!classA || !classB) return false;
+    const norm = (c) => {
+        const u = String(c).toUpperCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (u === 'ACAO' || u === 'ACOES') return 'ACOES';
+        if (u === 'FII' || u === 'FIIS') return 'FIIS';
+        if (u === 'ETF' || u === 'ETFS') return 'ETFS';
+        if (u === 'TESOURO' || u.includes('RENDA FIXA')) return 'TESOURO';
+        if (u === 'BDR' || u === 'BDRS') return 'BDRS';
+        if (u === 'CRIPTO' || u === 'CRIPTOMOEDAS') return 'CRIPTO';
+        return u;
+    };
+    return norm(classA) === norm(classB);
+}
+
+function renderPositions() {
+    const container = document.getElementById("positionsListContainer");
+    if (!container) return;
+
+    activePositions.forEach(p => {
+        p.asset_class = resolveAssetClass(p.ticker, p.asset_class);
+    });
+
+    let filtered = activePositions;
+    if (currentAssetFilter !== 'all') {
+        filtered = activePositions.filter(p => isSameAssetClass(p.asset_class, currentAssetFilter));
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="mobile-empty-friendly">
+                <div class="empty-icon-box"><i class="fas fa-chart-pie"></i></div>
+                <h3>Nenhum ativo em custódia</h3>
+                <p>Registre sua primeira compra para acompanhar seus investimentos, cotações e rendimentos.</p>
+                <button type="button" class="btn-empty-action" onclick="openAddOperationModal()">
+                    <i class="fas fa-plus"></i> Adicionar Operação
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = filtered.map((pos, idx) => {
+        const formattedQty = pos.quantity % 1 === 0 ? pos.quantity.toFixed(0) : pos.quantity.toFixed(4);
+        const currentPrice = pos.currentPrice || pos.quote?.price || pos.averageCost || 0;
+        const isRealQuote = pos.quote && !pos.quote.simulated;
+        const totalVal = (pos.currentValue !== undefined && Number.isFinite(pos.currentValue))
+            ? pos.currentValue
+            : (pos.quantity * currentPrice);
+
+        const quoteDot = isRealQuote 
+            ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00B894;margin-left:4px;vertical-align:middle;" title="Cotação ao vivo (B3)"></span>`
+            : `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#94a3b8;margin-left:4px;vertical-align:middle;" title="Preço Médio"></span>`;
+
+        const costBasis = pos.costBasis || 0;
+        const gain = Math.round((totalVal - costBasis) * 100) / 100;
+        const gainPct = costBasis > 0 ? ((gain / costBasis) * 100) : 0;
+        const isPositiveGain = gain >= 0;
+        const signGain = gain > 0 ? '+' : '';
+        const gainColor = Math.abs(gain) < 0.001 ? 'var(--color-text, #334155)' : (isPositiveGain ? '#00B894' : '#FF7675');
+
+        const classMeta = {
+            'Ações': { color: '#10B981', icon: 'fa-chart-line' },
+            'FIIs': { color: '#0284C7', icon: 'fa-building' },
+            'Renda Fixa': { color: '#4338CA', icon: 'fa-landmark' },
+            'Cripto': { color: '#d97706', icon: 'fa-coins' },
+            'BDRs': { color: '#EA580C', icon: 'fa-globe-americas' },
+            'Fundos': { color: '#7C3AED', icon: 'fa-pie-chart' },
+            'ETFs': { color: '#0D9488', icon: 'fa-layer-group' }
+        };
+        const meta = classMeta[pos.asset_class] || { color: '#4338CA', icon: 'fa-wallet' };
+        const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(meta.color) : 'rgba(67, 56, 202, 0.15)';
+        const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+
+        return `
+            <div class="asset-card stagger-card" style="animation-delay: ${delay}s;">
+                <div class="asset-card-top">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${meta.color}; width:38px; height:38px;">
+                            <i class="fas ${meta.icon}"></i>
+                        </div>
+                        <div>
+                            <span class="asset-ticker">${pos.ticker}</span>
+                            <span class="asset-class-badge">${pos.asset_class}</span>
+                        </div>
+                    </div>
+                    <span class="asset-total" data-sensitive>${formatCurrency(totalVal)}</span>
+                </div>
+                <div class="asset-details-grid">
+                    <div class="asset-details-item">
+                        <span class="lbl">Quantidade</span>
+                        <span class="val">${formattedQty} cotas</span>
+                    </div>
+                    <div class="asset-details-item">
+                        <span class="lbl">Preço Médio</span>
+                        <span class="val" data-sensitive>${formatCurrency(pos.averageCost)}</span>
+                    </div>
+                    <div class="asset-details-item">
+                        <span class="lbl">Preço Atual</span>
+                        <span class="val" style="color:#4338CA; font-weight:700;">${formatCurrency(currentPrice)}${quoteDot}</span>
+                    </div>
+                    <div class="asset-details-item">
+                        <span class="lbl">Rentabilidade</span>
+                        <span class="val" style="color:${gainColor}; font-weight:700;">${signGain}${gainPct.toFixed(2).replace('.', ',')}%</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
+}
+
+// ============================================
+// RENDERIZAR LANÇAMENTOS (OPERAÇÕES)
+// ============================================
+function renderOperations() {
+    const container = document.getElementById("operationsListContainer");
+    if (!container) return;
+
+    // Ordena decrescente para ver as mais recentes no topo
+    let list = [...allRawInvestments].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    if (currentOpFilter !== 'all') {
+        list = list.filter(op => (op.type || '').toLowerCase().includes(currentOpFilter.toLowerCase()));
+    }
+
+    if (list.length === 0) {
+        container.innerHTML = `
+            <div class="mobile-empty-friendly">
+                <div class="empty-icon-box"><i class="fas fa-layer-group"></i></div>
+                <h3>Nenhuma operação encontrada</h3>
+                <p>Adicione suas compras e vendas de ativos para alimentar seu histórico.</p>
+                <button type="button" class="btn-empty-action" onclick="openAddOperationModal()">
+                    <i class="fas fa-plus"></i> Nova Operação
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = list.map((op, idx) => {
+        const isBuy = (op.type || '').toLowerCase().includes('compra') || (op.type || '').toLowerCase().includes('buy');
+        const badgeClass = isBuy ? 'buy' : 'sell';
+        const badgeText = isBuy ? 'Compra' : 'Venda';
+        const total = parseFloat(op.total_value || op.amount || (op.quantity * op.price)) || 0;
+        const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+
+        return `
+            <div class="op-card stagger-card" style="animation-delay: ${delay}s;">
+                <div class="clean-card-top" style="margin-bottom:4px;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="clean-card-title" style="font-weight:700;">${op.ticker}</span>
+                        <span class="op-badge ${badgeClass}">${badgeText}</span>
+                    </div>
+                    <span class="clean-card-amount" data-sensitive style="color:${isBuy ? '#10b981' : '#ef4444'};">
+                        ${isBuy ? '+' : '-'} ${formatCurrency(total)}
+                    </span>
+                </div>
+                <div class="clean-card-middle">
+                    <span class="clean-tag category">${op.quantity} un. @ ${formatCurrency(op.unit_price)}</span>
+                </div>
+                <div class="clean-card-bottom" style="margin-top:4px;">
+                    <span><i class="far fa-calendar-alt" style="margin-right:4px;"></i>${formatDate(op.date)}</span>
+                    <div class="op-actions">
+                        <button class="op-btn" onclick="editOperation('${op.id}')" title="Editar"><i class="fas fa-pen"></i></button>
+                        <button class="op-btn del" onclick="deleteOperation('${op.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
+}
+
+// ============================================
+// FILTRAGEM E RENDERIZAÇÃO DE PROVENTOS (RECEBIDOS & A RECEBER)
+// ============================================
+let currentDividendStatusFilter = 'all'; // 'all' | 'recebidos' | 'a_receber'
+
+function filterDividendStatus(status, btn) {
+    currentDividendStatusFilter = status;
+    document.querySelectorAll("#tabContentProventos .chip-btn").forEach(b => b.classList.remove("active"));
+    if (btn) {
+        btn.classList.add("active");
+    } else {
+        const idMap = { all: 'chipDivAll', recebidos: 'chipDivRecebidos', a_receber: 'chipDivAReceber' };
+        if (idMap[status]) document.getElementById(idMap[status])?.classList.add("active");
+    }
+    renderDividends();
+}
+window.filterDividendStatus = filterDividendStatus;
+
+function renderDividends() {
+    const container = document.getElementById("dividendsListContainer");
+    if (!container) return;
+
+    // Atualiza gráfico de evolução e matriz anual no mobile
+    renderMobileDividendsEvolutionChart();
+    renderMobileProventosMatrix();
+
+    const todayISO = new Date().toISOString().substring(0, 10);
+
+    let list = allRawDividends || [];
+    if (currentDividendStatusFilter === 'recebidos') {
+        list = list.filter(d => {
+            const dt = (d.payment_date || d.date || '').substring(0, 10);
+            return dt <= todayISO;
+        });
+    } else if (currentDividendStatusFilter === 'a_receber') {
+        list = list.filter(d => {
+            const dt = (d.payment_date || d.date || '').substring(0, 10);
+            return dt > todayISO;
+        });
+    }
+
+    if (list.length === 0) {
+        let msg = "Nenhum provento registrado ainda.";
+        if (currentDividendStatusFilter === 'a_receber') {
+            msg = "Nenhum provento a receber pendente.";
+        } else if (currentDividendStatusFilter === 'recebidos') {
+            msg = "Nenhum provento recebido ainda.";
+        }
+
+        container.innerHTML = `
+            <div class="mobile-empty-friendly">
+                <div class="empty-icon-box"><i class="fas ${currentDividendStatusFilter === 'a_receber' ? 'fa-clock' : 'fa-hand-holding-usd'}"></i></div>
+                <h3>${currentDividendStatusFilter === 'a_receber' ? 'Nenhum provento a receber' : 'Nenhum provento registrado'}</h3>
+                <p>${msg}</p>
+                <button type="button" class="btn-empty-action" onclick="openAddDividendModal()">
+                    <i class="fas fa-plus"></i> Novo Provento
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = list.map((d, idx) => {
+        const val = parseFloat(d.total_value || d.amount || d.net_value) || 0;
+        const rawDate = (d.payment_date || d.date || '').substring(0, 10);
+        const isPaid = rawDate && rawDate <= todayISO;
+
+        const statusBadge = isPaid
+            ? `<span class="op-badge" style="background:rgba(16, 185, 129, 0.12); color:#10b981; border:1px solid rgba(16, 185, 129, 0.25); font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; margin-left:6px;"><i class="fas fa-check-circle" style="font-size:9px;"></i> Pago</span>`
+            : `<span class="op-badge" style="background:rgba(14, 165, 233, 0.12); color:#0284c7; border:1px solid rgba(14, 165, 233, 0.3); font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; margin-left:6px;"><i class="far fa-clock" style="font-size:9px;"></i> A Receber</span>`;
+
+        const dateComInfo = d.date_com ? `<span style="font-size:11px; color:#64748b; margin-left:6px;">• Com: ${formatDate(d.date_com.substring(0, 10))}</span>` : '';
+
+        const dateLine = isPaid
+            ? `<span style="color:#64748b;"><i class="fas fa-calendar-check" style="color:#10b981; margin-right:3px;"></i> Pago em: <strong>${formatDate(rawDate)}</strong>${dateComInfo}</span>`
+            : `<span style="color:#0284c7; font-weight:600;"><i class="far fa-clock" style="color:#0284c7; margin-right:3px;"></i> A receber em: <strong>${formatDate(rawDate)}</strong>${dateComInfo}</span>`;
+
+        const borderAccent = !isPaid ? 'border-left: 3px solid #0284c7;' : '';
+        const valueColor = isPaid ? '#8b5cf6' : '#0284c7';
+        const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+
+        return `
+            <div class="op-card stagger-card" style="${borderAccent} animation-delay: ${delay}s;">
+                <div class="clean-card-top" style="margin-bottom:4px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span class="clean-card-title" style="font-weight:700;">${d.ticker}</span>
+                        <span class="op-badge div">${d.type || 'Dividendo'}</span>
+                    </div>
+                    <span class="clean-card-amount" data-sensitive style="color:${valueColor};">
+                        + ${formatCurrency(val)}
+                    </span>
+                </div>
+                <div class="clean-card-middle">
+                    ${statusBadge}
+                    ${d.quantity ? `<span class="clean-tag category">${d.quantity} un.</span>` : ''}
+                </div>
+                <div class="clean-card-bottom" style="margin-top:4px;">
+                    <span style="font-size:11.5px;">${dateLine}</span>
+                    <div class="op-actions">
+                        <button class="op-btn" onclick="editDividend('${d.id}')" title="Editar"><i class="fas fa-pen"></i></button>
+                        <button class="op-btn del" onclick="deleteDividend('${d.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
+}
+
+// ============================================
+// NAVEGAÇÃO DE ABAS
+// ============================================
+function switchInvestTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll(".mobile-tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+
+    if (tab === 'carteira') {
+        document.getElementById("tabBtnCarteira").classList.add("active");
+        document.getElementById("tabContentCarteira").classList.add("active");
+        setTimeout(() => {
+            if (mobileAllocationChart) mobileAllocationChart.resize();
+            renderMobileInvestChart();
+        }, 50);
+    } else if (tab === 'lancamentos') {
+        document.getElementById("tabBtnLancamentos").classList.add("active");
+        document.getElementById("tabContentLancamentos").classList.add("active");
+    } else if (tab === 'proventos') {
+        document.getElementById("tabBtnProventos").classList.add("active");
+        document.getElementById("tabContentProventos").classList.add("active");
+        setTimeout(() => {
+            if (mobileDividendsChart) mobileDividendsChart.resize();
+        }, 50);
+    } else if (tab === 'eventos') {
+        document.getElementById("tabBtnEventos")?.classList.add("active");
+        document.getElementById("tabContentEventos")?.classList.add("active");
+        renderCorporateEventsList();
+    }
+}
+
+function filterAssetClass(cls, btn) {
+    currentAssetFilter = cls;
+    document.querySelectorAll("#tabContentCarteira .chip-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    renderPositions();
+}
+
+function filterOpType(type, btn) {
+    currentOpFilter = type;
+    document.querySelectorAll("#tabContentLancamentos .chip-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    renderOperations();
+}
+
+// ============================================
+// MODAL & HANDLER: OPERAÇÃO (COMPRA / VENDA)
+// ============================================
+function openAddOperationModal() {
+    document.getElementById("opModalTitle").textContent = "Nova Operação";
+    document.getElementById("opEditId").value = "";
+    document.getElementById("opTicker").value = "";
+    document.getElementById("opQty").value = "";
+    document.getElementById("opPrice").value = "";
+    document.getElementById("opTotal").value = "";
+    document.getElementById("opDate").value = new Date().toISOString().split("T")[0];
+    setOpType("Compra");
+    document.getElementById("modalOperation").classList.add("active");
+}
+
+function closeModalOperation(e) {
+    if (e && e.target && e.target !== e.currentTarget) return;
+    document.getElementById("modalOperation").classList.remove("active");
+}
+
+function setOpType(type) {
+    document.getElementById("opType").value = type;
+    const buyBtn = document.getElementById("toggleOpBuy");
+    const sellBtn = document.getElementById("toggleOpSell");
+    if (type === 'Compra') {
+        buyBtn.classList.add("active");
+        sellBtn.classList.remove("active");
+    } else {
+        sellBtn.classList.add("active");
+        buyBtn.classList.remove("active");
+    }
+}
+
+function calcOpTotal() {
+    const q = parseFloat(document.getElementById("opQty").value) || 0;
+    const p = parseFloat(document.getElementById("opPrice").value) || 0;
+    const totalEl = document.getElementById("opTotal");
+    if (totalEl) {
+        if (q > 0 && p > 0) {
+            totalEl.value = (q * p).toFixed(2);
+        } else {
+            totalEl.value = "0,00";
+        }
+    }
+}
+
+function calcDivTotal() {
+    const q = parseFloat(document.getElementById("divQty").value) || 0;
+    const u = parseFloat(document.getElementById("divUnitValue").value) || 0;
+    const totalEl = document.getElementById("divTotalValue");
+    if (totalEl) {
+        if (q > 0 && u > 0) {
+            totalEl.value = (q * u).toFixed(2);
+        } else {
+            totalEl.value = "0,00";
+        }
+    }
+}
+
+async function handleOpSubmit(e) {
+    e.preventDefault();
+    if (window.safeHaptic) window.safeHaptic(20);
+    const btn = document.getElementById("opSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+
+    const editId = document.getElementById("opEditId").value;
+    const type = document.getElementById("opType").value;
+    const ticker = document.getElementById("opTicker").value.trim().toUpperCase();
+    let assetClass = document.getElementById("opClass").value;
+    if (typeof window.resolveAssetClass === 'function') {
+        assetClass = window.resolveAssetClass(ticker, assetClass);
+    }
+    const qty = parseFloat(document.getElementById("opQty").value) || 0;
+    const price = parseFloat(document.getElementById("opPrice").value) || 0;
+    const totalValInput = parseFloat(document.getElementById("opTotal").value) || 0;
+    const total = totalValInput > 0 ? totalValInput : (qty * price);
+    const date = document.getElementById("opDate").value;
+    const note = document.getElementById("opNote").value.trim();
+
+    if (!ticker) {
+        showToast("Digite o ticker do ativo", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Operação";
+        return;
+    }
+    if (!qty || qty <= 0) {
+        showToast("Digite uma quantidade válida", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Operação";
+        return;
+    }
+    if (!price || price <= 0) {
+        showToast("Digite um preço unitário válido", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Operação";
+        return;
+    }
+    if (!date) {
+        showToast("Selecione a data da negociação", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Operação";
+        return;
+    }
+
+    const payload = {
+        user_id: currentUser.id,
+        ticker: ticker,
+        type: type,
+        asset_class: assetClass,
+        quantity: qty,
+        unit_price: price,
+        total_value: total,
+        date: date,
+        note: note || null
+    };
+
+    let isOnline = navigator.onLine && window.supabaseClient;
+    try {
+        if (isOnline) {
+            try {
+                if (editId) {
+                    const { error } = await supabaseClient
+                        .from("investments")
+                        .update(payload)
+                        .eq("id", editId)
+                        .eq("user_id", currentUser.id);
+                    if (error) throw error;
+                    showToast("Operação atualizada!", "success");
+                } else {
+                    const { error } = await supabaseClient
+                        .from("investments")
+                        .insert([payload]);
+                    if (error) throw error;
+                    showToast("Operação registrada com sucesso!", "success");
+                }
+            } catch (netErr) {
+                console.warn("Falha online, enfileirando operação offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            if (editId) {
+                allRawInvestments = allRawInvestments.map(o => String(o.id) === String(editId) ? { ...o, ...payload } : o);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('UPDATE_INVESTMENT', { id: editId, ...payload });
+                    await window.tonuSync.setCachedInvestments(currentUser.id, allRawInvestments);
+                }
+            } else {
+                const offlineOp = {
+                    id: 'offline_inv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                    ...payload,
+                    created_at: new Date().toISOString()
+                };
+                allRawInvestments.push(offlineOp);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_INVESTMENT', payload);
+                    await window.tonuSync.setCachedInvestments(currentUser.id, allRawInvestments);
+                }
+            }
+            showToast("📦 Operação salva offline! Será sincronizada quando a conexão retornar.", "info");
+        }
+
+        closeModalOperation();
+        await loadAllInvestmentData();
+    } catch (err) {
+        console.error("Erro ao salvar operação:", err);
+        showToast("Erro ao salvar: " + err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Salvar Operação";
+    }
+}
+
+function editOperation(id) {
+    const op = allRawInvestments.find(o => String(o.id) === String(id));
+    if (!op) return;
+
+    document.getElementById("opModalTitle").textContent = "Editar Operação";
+    document.getElementById("opEditId").value = op.id;
+    document.getElementById("opTicker").value = op.ticker;
+    const cleanTk = (op.ticker || '').toUpperCase().trim();
+    const resolvedCls = (typeof window.resolveAssetClass === 'function')
+        ? window.resolveAssetClass(cleanTk, op.asset_class)
+        : (op.asset_class || "Ações");
+    document.getElementById("opClass").value = resolvedCls;
+    document.getElementById("opQty").value = op.quantity;
+    document.getElementById("opPrice").value = op.unit_price || op.price || '';
+    document.getElementById("opTotal").value = op.total_value;
+    document.getElementById("opDate").value = (op.date || '').split("T")[0];
+    document.getElementById("opNote").value = op.note || '';
+    setOpType(op.type || "Compra");
+    document.getElementById("modalOperation").classList.add("active");
+}
+
+async function deleteOperation(id) {
+    const ok = await window.TonuConfirm({
+        title: "Excluir operação",
+        message: "Tem certeza que deseja excluir esta operação?",
+        confirmText: "Excluir",
+        danger: true
+    });
+    if (!ok) return;
+    try {
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from("investments")
+                    .delete()
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
+                if (error) throw error;
+                showToast("Operação excluída!", "success");
+            } catch (netErr) {
+                console.warn("Falha online ao excluir, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            allRawInvestments = allRawInvestments.filter(o => String(o.id) !== String(id));
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('DELETE_INVESTMENT', { id });
+                await window.tonuSync.setCachedInvestments(currentUser.id, allRawInvestments);
+            }
+            showToast("📦 Operação excluída offline! Será sincronizada quando a conexão retornar.", "info");
+        }
+
+        await loadAllInvestmentData();
+    } catch (err) {
+        showToast("Erro ao excluir: " + err.message, "error");
+    }
+}
+
+// ============================================
+// MODAL & HANDLER: PROVENTO
+// ============================================
+function updateDivDateStatusHint() {
+    const dateInput = document.getElementById("divDate");
+    const hintEl = document.getElementById("divDateStatusHint");
+    if (!dateInput || !hintEl) return;
+
+    const val = dateInput.value;
+    if (!val) {
+        hintEl.style.display = 'none';
+        return;
+    }
+
+    const todayISO = new Date().toISOString().substring(0, 10);
+    hintEl.style.display = 'block';
+    if (val > todayISO) {
+        hintEl.innerHTML = `<span style="color:#0284c7;"><i class="far fa-clock"></i> <strong>A Receber:</strong> provento futuro agendado para ${formatDate(val)}</span>`;
+    } else {
+        hintEl.innerHTML = `<span style="color:#10b981;"><i class="fas fa-check-circle"></i> <strong>Pago:</strong> provento já creditado em ${formatDate(val)}</span>`;
+    }
+}
+window.updateDivDateStatusHint = updateDivDateStatusHint;
+
+function openAddDividendModal() {
+    document.getElementById("divModalTitle").textContent = "Registrar Provento";
+    document.getElementById("divEditId").value = "";
+    document.getElementById("divTicker").value = "";
+    document.getElementById("divType").value = "Dividendo";
+    document.getElementById("divQty").value = "";
+    document.getElementById("divUnitValue").value = "";
+    document.getElementById("divTotalValue").value = "";
+    document.getElementById("divDateCom").value = "";
+    document.getElementById("divDate").value = new Date().toISOString().split("T")[0];
+    document.getElementById("divNote").value = "";
+    updateDivDateStatusHint();
+    document.getElementById("modalDividend").classList.add("active");
+}
+
+function closeModalDividend(e) {
+    if (e && e.target && e.target !== e.currentTarget) return;
+    document.getElementById("modalDividend").classList.remove("active");
+}
+
+function editDividend(id) {
+    const div = allRawDividends.find(d => String(d.id) === String(id));
+    if (!div) return;
+
+    document.getElementById("divModalTitle").textContent = "Editar Provento";
+    document.getElementById("divEditId").value = div.id;
+    document.getElementById("divTicker").value = div.ticker || "";
+    document.getElementById("divType").value = div.type || "Dividendo";
+    document.getElementById("divQty").value = div.quantity || "";
+    document.getElementById("divUnitValue").value = div.unit_value || "";
+    const total = div.total_value || div.amount || div.net_value || 0;
+    document.getElementById("divTotalValue").value = total ? parseFloat(total).toFixed(2) : "";
+    document.getElementById("divDateCom").value = div.date_com ? div.date_com.split("T")[0] : "";
+    document.getElementById("divDate").value = (div.date || div.payment_date || "").split("T")[0];
+    document.getElementById("divNote").value = div.note || "";
+    updateDivDateStatusHint();
+    document.getElementById("modalDividend").classList.add("active");
+}
+
+async function handleDivSubmit(e) {
+    e.preventDefault();
+    if (window.safeHaptic) window.safeHaptic(20);
+    const btn = document.getElementById("divSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+
+    const editId = document.getElementById("divEditId").value;
+    const ticker = document.getElementById("divTicker").value.trim().toUpperCase();
+    const type = document.getElementById("divType").value;
+    const qty = parseFloat(document.getElementById("divQty").value) || 0;
+    const unitValue = parseFloat(document.getElementById("divUnitValue").value) || 0;
+    const totalValInput = parseFloat(document.getElementById("divTotalValue").value) || 0;
+    const totalValue = totalValInput > 0 ? totalValInput : (qty * unitValue);
+    const dateCom = document.getElementById("divDateCom").value;
+    const date = document.getElementById("divDate").value;
+    const note = document.getElementById("divNote").value.trim();
+
+    if (!ticker) {
+        showToast("Digite o ticker do ativo", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Provento";
+        return;
+    }
+    if (!qty || qty <= 0) {
+        showToast("Digite uma quantidade válida", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Provento";
+        return;
+    }
+    if (!unitValue || unitValue <= 0) {
+        showToast("Digite um valor unitário válido", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Provento";
+        return;
+    }
+    if (!date) {
+        showToast("Selecione a data de pagamento", "error");
+        btn.disabled = false;
+        btn.textContent = "Salvar Provento";
+        return;
+    }
+
+    const isJCP = type && String(type).toUpperCase().includes("JCP");
+    const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
+    const netValue = isJCP ? parseFloat((totalValue * (1 - jcpTax)).toFixed(2)) : totalValue;
+
+    const payload = {
+        user_id: currentUser.id,
+        ticker: ticker,
+        type: type,
+        quantity: qty,
+        unit_value: unitValue,
+        total_value: totalValue,
+        net_value: netValue,
+        date: date,
+        date_com: dateCom || null,
+        note: note || null
+    };
+
+    let isOnline = navigator.onLine && window.supabaseClient;
+    try {
+        if (isOnline) {
+            try {
+                if (editId) {
+                    let res = await supabaseClient
+                        .from("dividends")
+                        .update(payload)
+                        .eq("id", editId)
+                        .eq("user_id", currentUser.id);
+
+                    if (res.error && res.error.code === 'PGRST204') {
+                        delete payload.net_value;
+                        delete payload.date_com;
+                        const retry = await supabaseClient
+                            .from("dividends")
+                            .update(payload)
+                            .eq("id", editId)
+                            .eq("user_id", currentUser.id);
+                        if (retry.error) throw retry.error;
+                    } else if (res.error) {
+                        throw res.error;
+                    }
+                    showToast("Provento atualizado!", "success");
+                } else {
+                    let res = await supabaseClient
+                        .from("dividends")
+                        .insert([payload]);
+
+                    if (res.error && res.error.code === 'PGRST204') {
+                        delete payload.net_value;
+                        delete payload.date_com;
+                        const retry = await supabaseClient
+                            .from("dividends")
+                            .insert([payload]);
+                        if (retry.error) throw retry.error;
+                    } else if (res.error) {
+                        throw res.error;
+                    }
+                    showToast("Provento salvo com sucesso!", "success");
+                }
+            } catch (netErr) {
+                console.warn("Falha online, enfileirando provento offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            if (editId) {
+                allRawDividends = allRawDividends.map(d => String(d.id) === String(editId) ? { ...d, ...payload } : d);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('UPDATE_DIVIDEND', { id: editId, ...payload });
+                    await window.tonuSync.setCachedDividends(currentUser.id, allRawDividends);
+                }
+            } else {
+                const offlineDiv = {
+                    id: 'offline_div_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                    ...payload,
+                    created_at: new Date().toISOString()
+                };
+                allRawDividends.unshift(offlineDiv);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_DIVIDEND', payload);
+                    await window.tonuSync.setCachedDividends(currentUser.id, allRawDividends);
+                }
+            }
+            showToast("📦 Provento salvo offline! Será sincronizado quando a conexão retornar.", "info");
+        }
+
+        closeModalDividend();
+        await loadAllInvestmentData();
+    } catch (err) {
+        console.error("Erro ao salvar provento:", err);
+        showToast("Erro ao salvar provento: " + (err.message || err), "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Salvar Provento";
+    }
+}
+
+async function deleteDividend(id) {
+    const ok = await window.TonuConfirm({
+        title: "Excluir provento",
+        message: "Tem certeza que deseja excluir este provento?",
+        confirmText: "Excluir",
+        danger: true
+    });
+    if (!ok) return;
+    try {
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from("dividends")
+                    .delete()
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
+                if (error) throw error;
+                showToast("Provento excluído!", "success");
+            } catch (netErr) {
+                console.warn("Falha online ao excluir provento, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            allRawDividends = allRawDividends.filter(d => String(d.id) !== String(id));
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('DELETE_DIVIDEND', { id });
+                await window.tonuSync.setCachedDividends(currentUser.id, allRawDividends);
+            }
+            showToast("📦 Provento excluído offline! Será sincronizado quando a conexão retornar.", "info");
+        }
+
+        await loadAllInvestmentData();
+    } catch (err) {
+        showToast("Erro ao excluir: " + err.message, "error");
+    }
+}
+
+// ============================================
+// EVENTOS CORPORATIVOS (MOBILE MODAL & CRUD)
+// ============================================
+function openAddCorporateEventModal() {
+    document.getElementById("corpModalTitle").textContent = "Novo Evento Corporativo";
+    document.getElementById("corpEditId").value = "";
+    document.getElementById("corpTicker").value = "";
+    document.getElementById("corpEventType").value = "Desdobramento";
+    document.getElementById("corpRatioFrom").value = "1";
+    document.getElementById("corpRatioTo").value = "";
+    document.getElementById("corpBonusShares").value = "";
+    document.getElementById("corpBonusUnitCost").value = "";
+    document.getElementById("corpAmortizationPerShare").value = "";
+    document.getElementById("corpEventDate").value = new Date().toISOString().split("T")[0];
+    document.getElementById("corpNote").value = "";
+    document.getElementById("corpSubmitBtn").textContent = "Salvar Evento";
+    onMobileCorpTypeChange("Desdobramento");
+
+    const modal = document.getElementById("modalCorporateEvent");
+    if (modal) modal.classList.add("active");
+}
+
+function editCorporateEvent(id) {
+    const ev = allRawCorporateEvents.find(e => e.id === id);
+    if (!ev) return;
+
+    document.getElementById("corpModalTitle").textContent = "Editar Evento";
+    document.getElementById("corpEditId").value = ev.id || "";
+    document.getElementById("corpTicker").value = ev.ticker || "";
+    document.getElementById("corpEventType").value = ev.event_type || "Desdobramento";
+    document.getElementById("corpRatioFrom").value = ev.ratio_from || "1";
+    document.getElementById("corpRatioTo").value = ev.ratio_to || "";
+    document.getElementById("corpBonusShares").value = ev.bonus_shares || "";
+    document.getElementById("corpBonusUnitCost").value = ev.bonus_unit_cost || "";
+    document.getElementById("corpAmortizationPerShare").value = ev.amortization_per_share || "";
+    document.getElementById("corpEventDate").value = ev.event_date ? ev.event_date.split("T")[0] : "";
+    document.getElementById("corpNote").value = ev.note || "";
+    document.getElementById("corpSubmitBtn").textContent = "Atualizar Evento";
+    onMobileCorpTypeChange(ev.event_type || "Desdobramento");
+
+    const modal = document.getElementById("modalCorporateEvent");
+    if (modal) modal.classList.add("active");
+}
+
+function closeModalCorporateEvent(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("sheet-close-btn") && !e.target.closest(".sheet-close-btn")) return;
+    const modal = document.getElementById("modalCorporateEvent");
+    if (modal) modal.classList.remove("active");
+}
+
+function onMobileCorpTypeChange(type) {
+    const ratioBox = document.getElementById("mobileCorpRatioFields");
+    const bonusBox = document.getElementById("mobileCorpBonusFields");
+    const amortBox = document.getElementById("mobileCorpAmortizationFields");
+
+    if (ratioBox) ratioBox.style.display = (type === "Desdobramento" || type === "Agrupamento") ? "grid" : "none";
+    if (bonusBox) bonusBox.style.display = (type === "Bonificação" || type === "Subscrição") ? "grid" : "none";
+    if (amortBox) amortBox.style.display = (type === "Amortização") ? "block" : "none";
+}
+
+async function handleCorpSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById("corpSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+
+    try {
+        const id = document.getElementById("corpEditId").value.trim();
+        const ticker = document.getElementById("corpTicker").value.trim().toUpperCase();
+        const eventType = document.getElementById("corpEventType").value.trim();
+        const eventDate = document.getElementById("corpEventDate").value;
+        const note = document.getElementById("corpNote").value.trim() || null;
+
+        if (!ticker || !eventDate) {
+            showToast("Informe o ticker e a data.", "error");
+            return;
+        }
+
+        const payload = {
+            user_id: currentUser.id,
+            ticker: ticker,
+            event_type: eventType,
+            event_date: eventDate,
+            note: note,
+            ratio_from: 1,
+            ratio_to: null,
+            bonus_shares: null,
+            bonus_unit_cost: 0,
+            amortization_per_share: null
+        };
+
+        if (eventType === "Desdobramento" || eventType === "Agrupamento") {
+            payload.ratio_from = parseFloat(document.getElementById("corpRatioFrom").value) || 1;
+            payload.ratio_to = parseFloat(document.getElementById("corpRatioTo").value) || 1;
+        } else if (eventType === "Bonificação" || eventType === "Subscrição") {
+            payload.bonus_shares = parseFloat(document.getElementById("corpBonusShares").value) || 0;
+            payload.bonus_unit_cost = parseFloat(document.getElementById("corpBonusUnitCost").value) || 0;
+        } else if (eventType === "Amortização") {
+            payload.amortization_per_share = parseFloat(document.getElementById("corpAmortizationPerShare").value) || 0;
+        }
+
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                if (id) {
+                    const { error } = await supabaseClient
+                        .from("corporate_events")
+                        .update(payload)
+                        .eq("id", id)
+                        .eq("user_id", currentUser.id);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabaseClient
+                        .from("corporate_events")
+                        .insert([payload]);
+                    if (error) throw error;
+                }
+            } catch (netErr) {
+                console.warn("Falha online em evento corporativo, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            if (id) {
+                allRawCorporateEvents = allRawCorporateEvents.map(item => item.id === id ? { ...item, ...payload } : item);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('UPDATE_CORPORATE_EVENT', { id, ...payload });
+                    await window.tonuSync.setCachedCorporateEvents(currentUser.id, allRawCorporateEvents);
+                }
+            } else {
+                const offlineCorp = {
+                    id: 'corp_' + Date.now(),
+                    ...payload,
+                    created_at: new Date().toISOString()
+                };
+                allRawCorporateEvents.push(offlineCorp);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_CORPORATE_EVENT', payload);
+                    await window.tonuSync.setCachedCorporateEvents(currentUser.id, allRawCorporateEvents);
+                }
+            }
+            showToast("📦 Evento salvo offline! Será sincronizado quando a conexão retornar.", "info");
+        } else {
+            showToast(id ? "Evento atualizado!" : "Evento salvo com sucesso!", "success");
+        }
+
+        closeModalCorporateEvent();
+        await loadAllInvestmentData();
+    } catch (err) {
+        showToast("Erro ao salvar: " + err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Salvar Evento";
+    }
+}
+
+async function deleteCorporateEvent(id) {
+    const ok = await window.TonuConfirm({
+        title: "Remover evento",
+        message: "Deseja realmente remover este evento? Suas cotas e preço médio serão recalculados.",
+        confirmText: "Remover",
+        danger: true
+    });
+    if (!ok) return;
+    try {
+        let isOnline = navigator.onLine && window.supabaseClient;
+        if (isOnline) {
+            try {
+                await supabaseClient
+                    .from("corporate_events")
+                    .delete()
+                    .eq("id", id)
+                    .eq("user_id", currentUser.id);
+                showToast("Evento excluído!", "success");
+            } catch (netErr) {
+                console.warn("Falha online ao excluir evento, enfileirando offline:", netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            allRawCorporateEvents = allRawCorporateEvents.filter(item => item.id !== id);
+            if (window.tonuSync) {
+                await window.tonuSync.enqueue('DELETE_CORPORATE_EVENT', { id });
+                await window.tonuSync.setCachedCorporateEvents(currentUser.id, allRawCorporateEvents);
+            }
+            showToast("📦 Evento excluído offline! Será sincronizado quando a conexão retornar.", "info");
+        }
+
+        await loadAllInvestmentData();
+    } catch (e) {
+        showToast("Erro ao excluir evento: " + (e.message || e), "error");
+    }
+}
+
+function renderCorporateEventsList() {
+    const container = document.getElementById("corporateEventsListContainer");
+    if (!container) return;
+
+    if (!allRawCorporateEvents || allRawCorporateEvents.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:30px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
+                <i class="fas fa-bolt" style="font-size:32px; color:#a29bfe; margin-bottom:10px; display:block;"></i>
+                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">Nenhum evento corporativo cadastrado.</p>
+                <button class="btn-add-primary" style="margin:0 auto;" onclick="openAddCorporateEventModal()">
+                    <i class="fas fa-plus"></i> Novo Evento
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    const sorted = [...allRawCorporateEvents].sort((a, b) => (b.event_date || '').localeCompare(a.event_date || ''));
+
+    container.innerHTML = sorted.map(ev => {
+        const evType = ev.event_type || 'Desdobramento';
+        let detail = '--';
+        let impact = '--';
+
+        if (evType === 'Desdobramento' || evType === 'Agrupamento') {
+            const rf = ev.ratio_from || 1;
+            const rt = ev.ratio_to || 1;
+            detail = `Proporção ${rf} : ${rt}`;
+            impact = `PM ajustado em ${(rf / rt).toFixed(4)}x`;
+        } else if (evType === 'Bonificação') {
+            detail = `+${ev.bonus_shares || 0} cotas`;
+            impact = ev.bonus_unit_cost ? `Custo R$ ${parseFloat(ev.bonus_unit_cost).toFixed(2)}/un` : 'Gratuito';
+        } else if (evType === 'Subscrição') {
+            detail = `+${ev.bonus_shares || 0} cotas`;
+            impact = ev.bonus_unit_cost ? `Exercício R$ ${parseFloat(ev.bonus_unit_cost).toFixed(2)}/un` : 'Subscrição';
+        } else if (evType === 'Amortização') {
+            detail = `- R$ ${parseFloat(ev.amortization_per_share || 0).toFixed(2)}/cota`;
+            impact = 'Amortização de Capital';
+        }
+
+        return `
+            <div class="op-card">
+                <div class="op-card-top">
+                    <div>
+                        <strong style="font-size:14px; color:var(--color-text,#0f172a);">${ev.ticker}</strong>
+                        <span class="op-badge" style="margin-left:6px; background:rgba(67,56,202,0.12); color:#4338CA;">${evType}</span>
+                    </div>
+                    <strong style="font-size:12px; color:#4338CA;">
+                        ${detail}
+                    </strong>
+                </div>
+                <div class="op-card-bottom">
+                    <span>${impact} • Ex: ${formatDate(ev.event_date)}</span>
+                    <div class="op-actions">
+                        <button class="op-btn" onclick="editCorporateEvent('${ev.id}')" title="Editar"><i class="fas fa-pen"></i></button>
+                        <button class="op-btn del" onclick="deleteCorporateEvent('${ev.id}')" title="Excluir"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+// ============================================
+// UTILITÁRIOS
+// ============================================
+// Utilitários (colorTo15PercentAlpha, formatCurrency, formatDate, toggleTheme via js/core.js)
+window.addEventListener('themeChanged', () => {
+    if (typeof renderMobileInvestChart === 'function') renderMobileInvestChart();
+    if (typeof renderMobileDividendsEvolutionChart === 'function') renderMobileDividendsEvolutionChart();
+});
+
+async function refreshMobileInvestments() {
+    const icon = document.getElementById("refreshInvestIcon");
+    if (icon) icon.classList.add("fa-spin");
+    try {
+        if (window.tonuSync && currentUser?.id) {
+            try {
+                await window.tonuSync.setCachedInvestments(currentUser.id, []);
+                await window.tonuSync.setCachedDividends(currentUser.id, []);
+                await window.tonuSync.setCachedCorporateEvents(currentUser.id, []);
+            } catch (_) {}
+        }
+        await loadAllInvestmentData();
+        showToast("Carteira atualizada!", "success");
+    } catch (err) {
+        showToast("Erro ao atualizar: " + err.message, "error");
+    } finally {
+        if (icon) icon.classList.remove("fa-spin");
+    }
+}
+
+// Exposição explícita na window para garantir suporte incondicional a inline handlers HTML no mobile
+window.switchInvestTab = switchInvestTab;
+window.filterAssetClass = filterAssetClass;
+window.filterOpType = filterOpType;
+window.filterDividendStatus = filterDividendStatus;
+window.openAddOperationModal = openAddOperationModal;
+window.closeModalOperation = closeModalOperation;
+window.setOpType = setOpType;
+window.handleOpSubmit = handleOpSubmit;
+window.saveOperation = handleOpSubmit;
+window.editOperation = editOperation;
+window.deleteOperation = deleteOperation;
+window.openAddDividendModal = openAddDividendModal;
+window.closeModalDividend = closeModalDividend;
+window.handleDivSubmit = handleDivSubmit;
+window.saveDividend = handleDivSubmit;
+window.editDividend = editDividend;
+window.deleteDividend = deleteDividend;
+window.openAddCorporateEventModal = openAddCorporateEventModal;
+window.closeModalCorporateEvent = closeModalCorporateEvent;
+window.handleCorpSubmit = handleCorpSubmit;
+window.saveCorporateEvent = handleCorpSubmit;
+window.editCorporateEvent = editCorporateEvent;
+window.deleteCorporateEvent = deleteCorporateEvent;
+window.openMobileIRReportModal = openMobileIRReportModal;
+window.refreshMobileInvestments = refreshMobileInvestments;
+window.setMobileInvestChartMode = setMobileInvestChartMode;
+window.loadAllInvestmentData = loadAllInvestmentData;
+window.renderPositions = renderPositions;
+window.renderOperations = renderOperations;
+window.renderDividends = renderDividends;
+window.renderCorporateEventsList = renderCorporateEventsList;
+window.updateSummaryHero = updateSummaryHero;
+</script>
+
+</body>
+</html>
