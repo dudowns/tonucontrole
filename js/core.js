@@ -3221,6 +3221,215 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
 // Busca rápida acessível via atalho Ctrl + K
 // Nota: O botão visual de busca no topo foi removido conforme solicitação do usuário.
 
+// ============================================
+// SWIPE ACTIONS COMPARTILHADO PARA DESKTOP (MOUSE DRAG + TOUCH)
+// ============================================
+(function () {
+    if (
+        typeof window === 'undefined' ||
+        typeof document === 'undefined' ||
+        typeof document.addEventListener !== 'function' ||
+        typeof window.addEventListener !== 'function'
+    ) return;
+
+    function closeSwipeRows(exceptRow) {
+        if (typeof document.querySelectorAll !== 'function') return;
+        document.querySelectorAll('[data-swipe-row].swiped-open, [data-swipe-row].is-swiping').forEach(function (row) {
+            if (row !== exceptRow) {
+                row.classList.remove('swiped-open', 'is-swiping');
+                var fg = row.querySelector('[data-swipe-content]');
+                if (fg) fg.style.transform = '';
+            }
+        });
+    }
+
+    function getSwipeActionWidth(row) {
+        if (!row) return 84;
+        var attr = Number(row.getAttribute('data-swipe-width'));
+        if (Number.isFinite(attr) && attr > 0) return attr;
+        var tray = row.querySelector('.swipe-actions-tray, .swipe-action-delete');
+        if (tray && tray.offsetWidth > 0) return tray.offsetWidth;
+        return 84;
+    }
+
+    function setupDesktopSwipe() {
+        if (window.__tonuDesktopSwipeInit || window.TonuMobileUI) return;
+        if (typeof document.addEventListener !== 'function' || typeof window.addEventListener !== 'function') return;
+        window.__tonuDesktopSwipeInit = true;
+
+        var activeRow = null;
+        var activeWidth = 84;
+        var startX = 0;
+        var startY = 0;
+        var baseOffset = 0;
+        var dragging = false;
+        var isMouseDown = false;
+        var lastTouchTime = 0;
+        var suppressClickUntil = 0;
+
+        function startDrag(target, clientX, clientY) {
+            var row = target && target.closest ? target.closest('[data-swipe-row]') : null;
+            if (!row) {
+                closeSwipeRows(null);
+                return false;
+            }
+            if (target.closest('button, a, input, select, label, textarea, [data-no-swipe]')) return false;
+            closeSwipeRows(row);
+            activeRow = row;
+            activeWidth = getSwipeActionWidth(row);
+            startX = clientX;
+            startY = clientY;
+            baseOffset = row.classList.contains('swiped-open') ? -activeWidth : 0;
+            dragging = false;
+            return true;
+        }
+
+        function moveDrag(clientX, clientY, eventObj) {
+            if (!activeRow) return;
+            var dx = clientX - startX;
+            var dy = clientY - startY;
+            if (!dragging && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 6) {
+                activeRow.classList.remove('is-swiping');
+                activeRow = null;
+                return;
+            }
+            if (!dragging && Math.abs(dx) < 8) return;
+            if (!dragging) {
+                dragging = true;
+                activeRow.classList.add('is-swiping');
+            }
+            if (eventObj && eventObj.cancelable) {
+                eventObj.preventDefault();
+            }
+            var fg = activeRow.querySelector('[data-swipe-content]');
+            if (fg) {
+                var nextOffset = Math.max(-activeWidth, Math.min(0, baseOffset + dx));
+                fg.style.transition = 'none';
+                fg.style.transform = 'translateX(' + nextOffset + 'px)';
+            }
+        }
+
+        function endDrag(clientX) {
+            if (!activeRow) return;
+            var row = activeRow;
+            var fg = row.querySelector('[data-swipe-content]');
+            var wasDragging = dragging;
+            var wasOpen = baseOffset < 0;
+            var width = activeWidth;
+            activeRow = null;
+            dragging = false;
+            row.classList.remove('is-swiping');
+
+            if (!fg) return;
+            if (!wasDragging) {
+                if (wasOpen) {
+                    suppressClickUntil = Date.now() + 260;
+                    row.classList.remove('swiped-open');
+                    fg.style.transition = '';
+                    fg.style.transform = '';
+                }
+                return;
+            }
+
+            suppressClickUntil = Date.now() + 300;
+            var dx = clientX - startX;
+            var shouldOpen = wasOpen ? (dx < 32) : (dx < -38);
+            fg.style.transition = '';
+            if (shouldOpen) {
+                row.classList.add('swiped-open');
+                fg.style.transform = 'translateX(-' + width + 'px)';
+            } else {
+                row.classList.remove('swiped-open');
+                fg.style.transform = '';
+            }
+        }
+
+        document.addEventListener('touchstart', function (e) {
+            if (!e.touches || e.touches.length !== 1) return;
+            lastTouchTime = Date.now();
+            startDrag(e.target, e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+
+        document.addEventListener('touchmove', function (e) {
+            if (!activeRow || !e.touches || e.touches.length !== 1) return;
+            moveDrag(e.touches[0].clientX, e.touches[0].clientY, e);
+        }, { passive: false });
+
+        document.addEventListener('touchend', function (e) {
+            if (!activeRow || !e.changedTouches || !e.changedTouches.length) return;
+            endDrag(e.changedTouches[0].clientX);
+        }, { passive: true });
+
+        document.addEventListener('touchcancel', function () {
+            if (!activeRow) return;
+            var row = activeRow;
+            var fg = row.querySelector('[data-swipe-content]');
+            row.classList.remove('is-swiping');
+            if (fg) {
+                fg.style.transition = '';
+                fg.style.transform = row.classList.contains('swiped-open') ? ('translateX(-' + activeWidth + 'px)') : '';
+            }
+            activeRow = null;
+            dragging = false;
+        }, { passive: true });
+
+        document.addEventListener('mousedown', function (e) {
+            if (e.button !== 0 || (Date.now() - lastTouchTime < 500)) return;
+            isMouseDown = startDrag(e.target, e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!isMouseDown || !activeRow) return;
+            moveDrag(e.clientX, e.clientY, e);
+        });
+
+        window.addEventListener('mouseup', function (e) {
+            if (!isMouseDown) return;
+            isMouseDown = false;
+            if (activeRow) endDrag(e.clientX);
+        });
+
+        window.addEventListener('blur', function () {
+            isMouseDown = false;
+            if (activeRow) {
+                activeRow.classList.remove('is-swiping');
+                activeRow = null;
+                dragging = false;
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            if (Date.now() < suppressClickUntil) {
+                e.stopPropagation();
+                e.preventDefault();
+                return;
+            }
+            if (e.target && e.target.closest && !e.target.closest('[data-swipe-row]')) {
+                closeSwipeRows(null);
+            }
+        }, true);
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeSwipeRows(null);
+            }
+        });
+    }
+
+    window.TonuSetupSwipe = setupDesktopSwipe;
+    window.TonuCloseSwipeRows = closeSwipeRows;
+    window.TonuDesktopSwipe = {
+        setup: setupDesktopSwipe,
+        closeRows: closeSwipeRows
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupDesktopSwipe);
+    } else {
+        setupDesktopSwipe();
+    }
+})();
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         checkValueMismatch,

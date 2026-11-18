@@ -94,6 +94,69 @@
     overflow: hidden;
 }
 
+.dashboard-grid .stat-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-width: 0;
+}
+
+.dashboard-grid .compact-eye-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border-light, #e2e8f0);
+    background: var(--color-bg, #f8fafc);
+    color: var(--color-text-muted, #64748b);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+
+.dashboard-grid .compact-eye-btn:hover {
+    color: var(--color-primary, #4338CA);
+    border-color: rgba(67, 56, 202, 0.35);
+    background: rgba(67, 56, 202, 0.08);
+}
+
+.dashboard-grid .stat-mini-invest {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--color-primary, #4338CA);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 1px 5px;
+    border-radius: 5px;
+    background: rgba(67, 56, 202, 0.07);
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.dashboard-grid .stat-mini-invest i {
+    font-size: 9px;
+}
+
+.dashboard-grid .stat-mini-invest span {
+    color: var(--color-text-muted, #64748b);
+    font-weight: 500;
+}
+
+.dashboard-grid .expense-pending-sub {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 10px;
+}
+
 @media (max-width: 768px) {
     .dashboard-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -453,11 +516,11 @@
 }
 
 /* ============================================
-   GRÁFICOS - LAYOUT 50% / 50% LADO A LADO NO PC
+   GRÁFICOS - VISÃO DE GASTOS MAIOR | FLUXO MENOR NO PC
    ============================================ */
 .charts-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.38fr) minmax(0, 0.92fr);
     gap: 20px;
     margin-bottom: var(--space-lg, 24px);
     align-items: stretch;
@@ -470,24 +533,24 @@
 }
 
 /* ============================================
-   CARD DE VISÃO DE GASTOS & FLUXO (50% / 50%)
+   CARD DE VISÃO DE GASTOS & FLUXO
    ============================================ */
 .expense-summary-card,
 .monthly-chart-card {
     background: var(--color-surface, #ffffff);
-    border-radius: 18px;
+    border-radius: 16px;
     border: 1px solid var(--color-border, #e2e8f0);
     box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
     overflow: hidden;
     position: relative;
-    min-height: 430px;
+    min-height: 410px;
     display: flex;
     flex-direction: column;
 }
 
 .expense-summary-card .card-header,
 .monthly-chart-card .card-header {
-    padding: 16px 20px;
+    padding: 15px 20px;
     border-bottom: 1px solid var(--color-border-light, #f1f5f9);
 }
 
@@ -502,17 +565,17 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 18px;
     padding: 16px 20px 20px;
     flex: 1;
-    min-height: 340px;
+    min-height: 335px;
     position: relative;
 }
 
 .expense-canvas-box {
     flex: 1;
     min-width: 0;
-    height: 320px;
+    height: 325px;
     position: relative;
     display: flex;
     align-items: center;
@@ -522,14 +585,14 @@
 .expense-canvas-box canvas {
     width: 100% !important;
     height: 100% !important;
-    max-height: 320px;
+    max-height: 325px;
 }
 
 /* ============================================
    LEGENDA LATERAL LEGÍVEL NO PC
    ============================================ */
 .expense-floating-legend {
-    width: 225px;
+    width: 245px;
     flex-shrink: 0;
     background: var(--color-bg, #f8fafc);
     border-radius: 14px;
@@ -538,7 +601,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 320px;
+    max-height: 325px;
     overflow-y: auto;
 }
 
@@ -667,9 +730,9 @@
 
 .monthly-chart-card .chart-wrap {
     flex: 1;
-    min-height: 300px;
-    height: 315px;
-    padding: 14px 18px 18px;
+    min-height: 270px;
+    height: 285px;
+    padding: 12px 16px 16px;
     position: relative;
 }
 
@@ -1469,14 +1532,14 @@
 }
 
 /* ============================================
-   GRID INFERIOR: TABELA + AÇÕES & INSIGHTS IA
+   AÇÕES & INSIGHTS IA + SAÚDE FINANCEIRA (DIAGNÓSTICO 360º) LADO A LADO
    ============================================ */
-.dashboard-bottom-grid {
+.dashboard-insights-command-grid {
     display: grid;
-    grid-template-columns: 1.35fr 0.65fr;
+    grid-template-columns: minmax(320px, 0.78fr) minmax(0, 1.42fr);
     gap: 20px;
-    margin-top: 20px;
-    align-items: stretch;
+    margin-bottom: 20px;
+    align-items: start;
 }
 
 .dashboard-sidebar-column {
@@ -1486,38 +1549,33 @@
     min-width: 0;
 }
 
-@media (max-width: 1023px) {
-    .dashboard-bottom-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* ============================================
-   DIAGNÓSTICO 360º EM LINHA HORIZONTAL (FULL WIDTH)
-   ============================================ */
-.diagnostic-full-row {
-    margin-top: 20px;
+.diagnostic-command-panel {
     width: 100%;
+    min-width: 0;
 }
 
-.diagnostic-full-row .insights-card {
+.diagnostic-command-panel .insights-card {
     width: 100%;
 }
 
 .diag360-top-row {
     display: grid;
-    grid-template-columns: minmax(270px, 0.85fr) 2.15fr;
-    gap: 18px;
+    grid-template-columns: 1fr;
+    gap: 14px;
     align-items: stretch;
 }
 
 .diag360-top-row .score-ring-card {
     margin-bottom: 0;
-    height: 100%;
 }
 
-@media (max-width: 1099px) {
-    .diag360-top-row {
+.dashboard-last-section {
+    width: 100%;
+    margin-top: 0;
+}
+
+@media (max-width: 1120px) {
+    .dashboard-insights-command-grid {
         grid-template-columns: 1fr;
     }
 }
@@ -1666,18 +1724,12 @@
     align-self: center;
 }
 
-/* Pilares do Diagnóstico 360 - Distribuídos em Colunas no PC */
+/* Pilares do Diagnóstico 360 - Grade equilibrada ao lado das ações */
 .insight-pillars-list {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     align-content: stretch;
-}
-
-@media (max-width: 1023px) {
-    .insight-pillars-list {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 640px) {

@@ -703,63 +703,70 @@
                 // Metadados de Parcelamento / Recorrência
                 const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(b) : null;
                 const isSelected = selectedBillIds.has(String(b.id));
+                const safeBillId = sanitize(String(b.id));
 
                 html += `
-                    <div class="bill-card clean-list-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_item_${b.id}">
-                        ${isSelectionMode ? `
-                            <div class="bill-select-box" style="margin-top:6px; display:flex; align-items:center;">
-                                <input type="checkbox" class="bill-checkbox" data-id="${b.id}" ${isSelected ? 'checked' : ''} onchange="toggleSelectBill('${b.id}', this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary,#4338CA);">
+                    <div class="bill-swipe-row" data-swipe-row data-swipe-width="84">
+                        <button type="button" class="swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteBill('${safeBillId}')" aria-label="Excluir conta">
+                            <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                            <span>Excluir</span>
+                        </button>
+                        <div class="bill-card clean-list-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_item_${safeBillId}" data-swipe-content>
+                            ${isSelectionMode ? `
+                                <div class="bill-select-box" style="margin-top:6px; display:flex; align-items:center;">
+                                    <input type="checkbox" class="bill-checkbox" data-id="${safeBillId}" ${isSelected ? 'checked' : ''} onchange="toggleSelectBill('${safeBillId}', this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary,#4338CA);">
+                                </div>
+                            ` : ''}
+                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catColor};" title="${sanitize(cleanCatName)}">
+                                <i class="fas ${catIcon}" aria-hidden="true"></i>
                             </div>
-                        ` : ''}
-                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catColor};" title="${sanitize(cleanCatName)}">
-                            <i class="fas ${catIcon}" aria-hidden="true"></i>
-                        </div>
-                        <div class="clean-card-body">
-                            <div class="clean-card-top">
-                                <span class="clean-card-title">${sanitize(b.description)}</span>
-                                <div class="clean-card-amount-wrap">
-                                    <span class="clean-card-amount ${isPaid ? 'income' : (isOverdue ? 'expense' : 'warning')}">
-                                        ${formatCurrency(b.amount)}
-                                    </span>
-                                    ${isPaid ? `
-                                        <button class="btn-paid" onclick="toggleBillPaid('${b.id}')" title="Conta Paga! Clique para marcar como pendente">
-                                            <i class="fas fa-check-double"></i> Paga
-                                        </button>
-                                    ` : (isOverdue ? `
-                                        <button class="btn-pay btn-pay-overdue" onclick="toggleBillPaid('${b.id}')" title="Conta Atrasada! Clique para pagar">
-                                            <i class="fas fa-check"></i> Pagar
-                                        </button>
-                                    ` : `
-                                        <button class="btn-pay btn-pay-pending" onclick="toggleBillPaid('${b.id}')" title="Clique para pagar esta conta">
-                                            <i class="fas fa-check"></i> Pagar
-                                        </button>
-                                    `)}
-                                    <div class="bill-actions">
-                                        ${(parseInt(b.installments, 10) > 1 || (b.description && /\(\d+\/\d+\)/.test(b.description))) ? `
-                                            <button class="btn-icon-sm" onclick="openAnticipationModal('${b.id}')" title="Antecipar / Quitar Parcelas Futuras">
-                                                <i class="fas fa-forward-step" style="color:#0284c7;"></i>
+                            <div class="clean-card-body">
+                                <div class="clean-card-top">
+                                    <span class="clean-card-title">${sanitize(b.description)}</span>
+                                    <div class="clean-card-amount-wrap">
+                                        <span class="clean-card-amount ${isPaid ? 'income' : (isOverdue ? 'expense' : 'warning')}">
+                                            ${formatCurrency(b.amount)}
+                                        </span>
+                                        ${isPaid ? `
+                                            <button class="btn-paid" onclick="toggleBillPaid('${safeBillId}')" title="Conta Paga! Clique para marcar como pendente">
+                                                <i class="fas fa-check-double"></i> Paga
                                             </button>
-                                        ` : ''}
-                                        <button class="btn-icon-sm" onclick="openBillModal('${b.id}')" title="Editar conta">
-                                            <i class="fas fa-pencil-alt" style="color:var(--color-primary,#4338CA);"></i>
-                                        </button>
-                                        <button class="btn-icon-sm text-danger" onclick="deleteBill('${b.id}')" title="Excluir conta">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
+                                        ` : (isOverdue ? `
+                                            <button class="btn-pay btn-pay-overdue" onclick="toggleBillPaid('${safeBillId}')" title="Conta Atrasada! Clique para pagar">
+                                                <i class="fas fa-check"></i> Pagar
+                                            </button>
+                                        ` : `
+                                            <button class="btn-pay btn-pay-pending" onclick="toggleBillPaid('${safeBillId}')" title="Clique para pagar esta conta">
+                                                <i class="fas fa-check"></i> Pagar
+                                            </button>
+                                        `)}
+                                        <div class="bill-actions">
+                                            ${(parseInt(b.installments, 10) > 1 || (b.description && /\(\d+\/\d+\)/.test(b.description))) ? `
+                                                <button class="btn-icon-sm" onclick="openAnticipationModal('${safeBillId}')" title="Antecipar / Quitar Parcelas Futuras">
+                                                    <i class="fas fa-forward-step" style="color:#0284c7;"></i>
+                                                </button>
+                                            ` : ''}
+                                            <button class="btn-icon-sm" onclick="openBillModal('${safeBillId}')" title="Editar conta">
+                                                <i class="fas fa-pencil-alt" style="color:var(--color-primary,#4338CA);"></i>
+                                            </button>
+                                            <button class="btn-icon-sm text-danger" onclick="deleteBill('${safeBillId}')" title="Excluir conta">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="clean-card-middle">
-                                <span class="clean-tag category">${sanitize(cleanCatName)}</span>
-                                ${statusBadge}
-                                ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
-                            </div>
-                            <div class="clean-card-bottom">
-                                <span>
-                                    <i class="far fa-calendar-alt" style="margin-right:4px;" aria-hidden="true"></i>Venc: ${formatDate(dueDateVal)}
-                                    ${b.notes ? ` • <span style="font-style:italic;" title="${sanitize(b.notes)}"><i class="fas fa-info-circle" style="margin-right:3px;"></i>${sanitize(b.notes)}</span>` : ''}
-                                </span>
-                                ${daysBadge}
+                                <div class="clean-card-middle">
+                                    <span class="clean-tag category">${sanitize(cleanCatName)}</span>
+                                    ${statusBadge}
+                                    ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
+                                </div>
+                                <div class="clean-card-bottom">
+                                    <span>
+                                        <i class="far fa-calendar-alt" style="margin-right:4px;" aria-hidden="true"></i>Venc: ${formatDate(dueDateVal)}
+                                        ${b.notes ? ` • <span style="font-style:italic;" title="${sanitize(b.notes)}"><i class="fas fa-info-circle" style="margin-right:3px;"></i>${sanitize(b.notes)}</span>` : ''}
+                                    </span>
+                                    ${daysBadge}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -774,6 +781,9 @@
 
         html += '</div>';
         container.innerHTML = html;
+        if (typeof window.TonuSetupSwipe === 'function') {
+            window.TonuSetupSwipe();
+        }
     }
 
     // ============================================

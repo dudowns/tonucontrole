@@ -767,34 +767,26 @@ body.dark-theme .expense-legend-item {
     border-bottom-color: var(--color-border) !important;
 }
 
-/* Bento Hero Cards & Tabela Desktop (Dark Theme) */
-body.dark-theme .bento-balance-card {
-    background: linear-gradient(135deg, #1E1B4B 0%, #312E81 48%, #3730A3 85%, #4338CA 100%) !important;
-    border-color: rgba(129, 140, 248, 0.28) !important;
-    box-shadow: 0 14px 34px -8px rgba(0, 0, 0, 0.55) !important;
-}
-
-body.dark-theme .bento-side-card {
-    background: var(--color-surface, #1E293B) !important;
+/* Cards compactos + Tabela Desktop (Dark Theme) */
+body.dark-theme .dashboard-grid .compact-eye-btn {
+    background: var(--color-bg, #0F172A) !important;
     border-color: var(--color-border, #334155) !important;
-}
-
-body.dark-theme .bento-side-card:hover {
-    border-color: #818CF8 !important;
-}
-
-body.dark-theme .bento-side-label,
-body.dark-theme .bento-side-sub {
     color: var(--color-text-muted, #94A3B8) !important;
 }
 
-body.dark-theme .bento-side-value {
-    color: var(--color-text, #F8FAFC) !important;
+body.dark-theme .dashboard-grid .compact-eye-btn:hover {
+    color: #818CF8 !important;
+    border-color: #818CF8 !important;
+    background: rgba(129, 140, 248, 0.14) !important;
 }
 
-body.dark-theme .bento-side-icon.indigo {
-    background: rgba(129, 140, 248, 0.16) !important;
-    color: #818CF8 !important;
+body.dark-theme .dashboard-grid .stat-mini-invest {
+    background: rgba(129, 140, 248, 0.14) !important;
+    color: #A5B4FC !important;
+}
+
+body.dark-theme .dashboard-grid .stat-mini-invest span {
+    color: #94A3B8 !important;
 }
 
 body.dark-theme .monthly-chart-card,

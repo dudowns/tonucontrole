@@ -591,30 +591,42 @@
                 const safeId = sanitize(String(t.id));
 
                 html += `
-                    <div class="transaction-card clean-list-card" onclick="openModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('${safeId}');}">
-                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catInfo.color};" title="${sanitize(cleanCatName)}">
-                            <i class="fas ${catInfo.icon}" aria-hidden="true"></i>
+                    <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
+                        <div class="swipe-actions-tray">
+                            <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); openModal('${safeId}')" aria-label="Editar transação">
+                                <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteTransaction('${safeId}')" aria-label="Apagar transação">
+                                <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                <span>Apagar</span>
+                            </button>
                         </div>
-                        <div class="clean-card-body">
-                            <div class="clean-card-top">
-                                <span class="clean-card-title">${sanitize(displayDesc)}</span>
-                                <div class="clean-card-amount-wrap">
-                                    <span class="clean-card-amount ${isIncome ? 'income' : 'expense'}">
-                                        ${amountPrefix}${formatBRL(t.amount)}
-                                    </span>
-                                    <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${safeId}')" title="Excluir" aria-label="Excluir transação">
-                                        <i class="fas fa-trash-alt" aria-hidden="true"></i>
-                                    </button>
+                        <div class="transaction-card clean-list-card compact-tx-card" data-swipe-content onclick="openModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('${safeId}');}">
+                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catInfo.color};" title="${sanitize(cleanCatName)}">
+                                <i class="fas ${catInfo.icon}" aria-hidden="true"></i>
+                            </div>
+                            <div class="clean-card-body">
+                                <div class="clean-card-top">
+                                    <span class="clean-card-title">${sanitize(displayDesc)}</span>
+                                    <div class="clean-card-amount-wrap">
+                                        <span class="clean-card-amount ${isIncome ? 'income' : 'expense'}">
+                                            ${amountPrefix}${formatBRL(t.amount)}
+                                        </span>
+                                        <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${safeId}')" title="Excluir" aria-label="Excluir transação">
+                                            <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="clean-card-middle">
-                                <span class="clean-tag category">${sanitize(cleanCatName)}</span>
-                                ${badge}
-                                ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
-                            </div>
-                            <div class="clean-card-bottom">
-                                <span><i class="far fa-calendar-alt" style="margin-right:4px;" aria-hidden="true"></i>${formatDateDisplay(effectiveDate)}</span>
-                                ${(t.due_date && t.due_date !== effectiveDate) ? `<span><i class="far fa-clock" style="margin-right:4px;" aria-hidden="true"></i>Venc: ${formatDateDisplay(t.due_date)}</span>` : ''}
+                                <div class="clean-card-meta-line">
+                                    <span class="clean-tag category">${sanitize(cleanCatName)}</span>
+                                    ${badge}
+                                    ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
+                                    <span class="clean-card-meta-dates">
+                                        <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>${formatDateDisplay(effectiveDate)}</span>
+                                        ${(t.due_date && t.due_date !== effectiveDate) ? `<span><i class="far fa-clock" style="margin-right:3px;" aria-hidden="true"></i>Venc: ${formatDateDisplay(t.due_date)}</span>` : ''}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -629,6 +641,9 @@
         html += '</div>';
 
         container.innerHTML = html;
+        if (typeof window.TonuSetupSwipe === 'function') {
+            window.TonuSetupSwipe();
+        }
     }
 
     // Update summary metrics

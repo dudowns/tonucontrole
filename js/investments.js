@@ -2933,6 +2933,49 @@ function renderProventosHistoryTable() {
 }
 
 // ============================================
+// AGRUPAMENTO POR DATA (LANÇAMENTOS & PROVENTOS)
+// ============================================
+function normalizeInvestDateKey(raw) {
+    if (!raw) return 'sem-data';
+    let s = String(raw).trim();
+    if (s.includes('T')) s = s.split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const p = s.split('/');
+        return `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+    }
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    }
+    return 'sem-data';
+}
+
+function getInvestDateGroupLabel(isoKey) {
+    if (!isoKey || isoKey === 'sem-data' || !/^\d{4}-\d{2}-\d{2}$/.test(isoKey)) {
+        return 'Sem data definida';
+    }
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const yesterdayKey = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+
+    if (isoKey === todayKey) return 'Hoje';
+    if (isoKey === yesterdayKey) return 'Ontem';
+
+    const parts = isoKey.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const monthName = months[month] || '';
+    if (year === now.getFullYear()) {
+        return `${day} de ${monthName}`;
+    }
+    return `${day} de ${monthName} de ${year}`;
+}
+
+// ============================================
 // MEUS PROVENTOS (TABELA DE TRANSAÇÕES)
 // ============================================
 function renderProventosListTable() {
@@ -3061,7 +3104,11 @@ function renderProventosListTable() {
         return provListSortAsc ? cmp : -cmp;
     });
 
-    body.innerHTML = filtered.map(d => {
+    const jcpTaxRate = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined)
+        ? window.TONU_JCP_TAX_RATE
+        : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
+
+    const buildProventoRowHtml = (d) => {
         const ticker = (d.ticker || '').toUpperCase().trim();
         const cls = getAssetClassForTicker(ticker);
         const iconCls = getIconForClass(cls);
@@ -3079,10 +3126,9 @@ function renderProventosListTable() {
         const unitVal = getDividendUnitValue(d);
         const qtyVal = getDividendQuantity(d);
         const isJCP = (d.type && String(d.type).toUpperCase().includes('JCP'));
-        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
         const netVal = (d.net_value !== undefined && d.net_value !== null && Number(d.net_value) > 0)
             ? Number(d.net_value)
-            : (isJCP ? totalVal * (1 - jcpTax) : totalVal);
+            : (isJCP ? totalVal * (1 - jcpTaxRate) : totalVal);
 
         return `
             <tr>
@@ -3108,7 +3154,7 @@ function renderProventosListTable() {
                 <td class="text-right prov-col-liquido">
                     <div class="prov-val-liquido-wrap">
                         <span class="prov-val-liquido ${isJCP ? 'is-jcp' : 'is-exempt'}">${formatCurrency(netVal)}</span>
-                        ${isJCP ? `<span class="prov-tax-pill" title="JCP sujeito a retenção de IR na fonte"><i class="fas fa-percent"></i> -${Math.round(jcpTax * 100)}% IR</span>` : '<span class="prov-tax-pill isento" title="Isento de Imposto de Renda"><i class="fas fa-check"></i> Líquido</span>'}
+                        ${isJCP ? `<span class="prov-tax-pill" title="JCP sujeito a retenção de IR na fonte"><i class="fas fa-percent"></i> -${Math.round(jcpTaxRate * 100)}% IR</span>` : '<span class="prov-tax-pill isento" title="Isento de Imposto de Renda"><i class="fas fa-check"></i> Líquido</span>'}
                     </div>
                 </td>
                 <td style="text-align:right;">
@@ -3123,6 +3169,55 @@ function renderProventosListTable() {
                 </td>
             </tr>
         `;
+    };
+
+    const shouldGroupByDate = (provListSortField === 'date' || provListSortField === 'dataCom');
+    if (!shouldGroupByDate) {
+        body.innerHTML = filtered.map(buildProventoRowHtml).join('');
+        return;
+    }
+
+    const groups = [];
+    const groupMap = new Map();
+    filtered.forEach(d => {
+        const rawKey = provListSortField === 'dataCom'
+            ? extractDataCom(d)
+            : (getDividendISODate(d) || d.date);
+        const dateKey = normalizeInvestDateKey(rawKey);
+        if (!groupMap.has(dateKey)) {
+            const g = { dateKey, items: [], dayNetTotal: 0 };
+            groupMap.set(dateKey, g);
+            groups.push(g);
+        }
+        const g = groupMap.get(dateKey);
+        g.items.push(d);
+
+        const totalVal = getDividendTotalValue(d);
+        const isJCP = (d.type && String(d.type).toUpperCase().includes('JCP'));
+        const netVal = (d.net_value !== undefined && d.net_value !== null && Number(d.net_value) > 0)
+            ? Number(d.net_value)
+            : (isJCP ? totalVal * (1 - jcpTaxRate) : totalVal);
+        g.dayNetTotal += netVal;
+    });
+
+    body.innerHTML = groups.map(g => {
+        const dateLabel = getInvestDateGroupLabel(g.dateKey);
+        const countLabel = `${g.items.length} ${g.items.length === 1 ? 'provento' : 'proventos'}`;
+        const groupHeaderHtml = `
+            <tr class="invest-date-group-row">
+                <td colspan="11">
+                    <div class="invest-date-group-header">
+                        <span class="invest-date-group-title">
+                            <i class="far fa-calendar-alt" aria-hidden="true"></i>
+                            <span>${dateLabel}</span>
+                            <span class="invest-date-count-badge">${countLabel}</span>
+                        </span>
+                        <span class="invest-date-subtotal positive">+ ${formatCurrency(g.dayNetTotal)}</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return groupHeaderHtml + g.items.map(buildProventoRowHtml).join('');
     }).join('');
 }
 
@@ -3634,50 +3729,95 @@ function renderTransactions() {
         return;
     }
 
-    const sorted = [...allTransactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const sorted = [...allTransactions].sort((a, b) => {
+        const keyA = normalizeInvestDateKey(a.date);
+        const keyB = normalizeInvestDateKey(b.date);
+        if (keyA !== keyB) return keyB.localeCompare(keyA);
+        return new Date(b.date || 0) - new Date(a.date || 0);
+    });
 
-    body.innerHTML = sorted.map(tx => {
-        const isBuy = tx.type === 'Compra';
-        const badgeClass = isBuy ? 'badge-buy' : 'badge-sell';
-        const badgeText = isBuy ? 'Compra' : 'Venda';
-
-        const cleanTicker = (tx.ticker || '').toUpperCase().trim();
-        let rawClass = tx.asset_class;
-        if (KNOWN_STOCK_UNITS.has(cleanTicker)) {
-            rawClass = 'Ações';
-        } else if (KNOWN_ETFS.has(cleanTicker)) {
-            rawClass = 'ETFs';
+    const groups = [];
+    const groupMap = new Map();
+    sorted.forEach(tx => {
+        const dateKey = normalizeInvestDateKey(tx.date);
+        if (!groupMap.has(dateKey)) {
+            const g = { dateKey, items: [], netTotal: 0 };
+            groupMap.set(dateKey, g);
+            groups.push(g);
         }
-        const assetClass = normalizeClass(rawClass || inferClass(cleanTicker) || 'Ações');
-        const classIcons = {
-            'Ações': '📈',
-            'FIIs': '🏢',
-            'ETFs': '📊',
-            'Tesouro': '🏛️'
-        };
-        const classIcon = classIcons[assetClass] || '📦';
+        const g = groupMap.get(dateKey);
+        g.items.push(tx);
+        const val = parseFloat(tx.total_value) || 0;
+        const isBuy = (tx.type || '').toLowerCase().includes('compra') || (tx.type || '').toLowerCase().includes('buy');
+        g.netTotal += isBuy ? val : -val;
+    });
 
-        return `
-            <tr>
-                <td>${formatDate(tx.date)}</td>
-                <td><strong>${tx.ticker}</strong></td>
-                <td><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">${classIcon} ${assetClass}</span></td>
-                <td><span class="${badgeClass}">${badgeText}</span></td>
-                <td>${tx.quantity}</td>
-                <td>${formatCurrency(tx.unit_price)}</td>
-                <td><strong>${formatCurrency(tx.total_value)}</strong></td>
-                <td>
-                    <div class="actions">
-                        <button class="btn btn-ghost btn-icon-sm" onclick="editTransaction('${tx.id}')" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-danger btn-icon-sm" onclick="deleteTransaction('${tx.id}')" title="Excluir">
-                            <i class="fas fa-trash"></i>
-                        </button>
+    const classIcons = {
+        'Ações': '📈',
+        'FIIs': '🏢',
+        'ETFs': '📊',
+        'Tesouro': '🏛️'
+    };
+
+    body.innerHTML = groups.map(g => {
+        const dateLabel = getInvestDateGroupLabel(g.dateKey);
+        const countLabel = `${g.items.length} ${g.items.length === 1 ? 'lançamento' : 'lançamentos'}`;
+        const isPositiveDay = g.netTotal >= 0;
+        const subtotalText = `${isPositiveDay ? '+' : '-'} ${formatCurrency(Math.abs(g.netTotal))}`;
+        const groupHeaderHtml = `
+            <tr class="invest-date-group-row">
+                <td colspan="8">
+                    <div class="invest-date-group-header">
+                        <span class="invest-date-group-title">
+                            <i class="far fa-calendar-alt" aria-hidden="true"></i>
+                            <span>${dateLabel}</span>
+                            <span class="invest-date-count-badge">${countLabel}</span>
+                        </span>
+                        <span class="invest-date-subtotal ${isPositiveDay ? 'buy' : 'sell'}">${subtotalText}</span>
                     </div>
                 </td>
             </tr>
         `;
+
+        const rowsHtml = g.items.map(tx => {
+            const isBuy = tx.type === 'Compra';
+            const badgeClass = isBuy ? 'badge-buy' : 'badge-sell';
+            const badgeText = isBuy ? 'Compra' : 'Venda';
+
+            const cleanTicker = (tx.ticker || '').toUpperCase().trim();
+            let rawClass = tx.asset_class;
+            if (KNOWN_STOCK_UNITS.has(cleanTicker)) {
+                rawClass = 'Ações';
+            } else if (KNOWN_ETFS.has(cleanTicker)) {
+                rawClass = 'ETFs';
+            }
+            const assetClass = normalizeClass(rawClass || inferClass(cleanTicker) || 'Ações');
+            const classIcon = classIcons[assetClass] || '📦';
+
+            return `
+                <tr>
+                    <td>${formatDate(tx.date)}</td>
+                    <td><strong>${tx.ticker}</strong></td>
+                    <td><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">${classIcon} ${assetClass}</span></td>
+                    <td><span class="${badgeClass}">${badgeText}</span></td>
+                    <td>${tx.quantity}</td>
+                    <td>${formatCurrency(tx.unit_price)}</td>
+                    <td><strong>${formatCurrency(tx.total_value)}</strong></td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-ghost btn-icon-sm" onclick="editTransaction('${tx.id}')" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger btn-icon-sm" onclick="deleteTransaction('${tx.id}')" title="Excluir">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        return groupHeaderHtml + rowsHtml;
     }).join('');
 }
 
