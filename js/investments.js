@@ -2587,8 +2587,16 @@ window.clearDemoDividends = clearDemoDividends;
 async function loadDividends() {
     try {
         const dBody = document.getElementById('dividendsBody');
-        if (dBody && typeof renderTableSkeleton === 'function') {
-            renderTableSkeleton(dBody, 4, 11);
+        if (dBody) {
+            if (dBody.tagName === 'TBODY' && typeof renderTableSkeleton === 'function') {
+                renderTableSkeleton(dBody, 4, 11);
+            } else {
+                dBody.innerHTML = '<div class="invest-statement-groups"><div class="invest-day-items">' +
+                    '<div class="skeleton-shimmer" style="width:100%;height:56px;border-radius:12px;"></div>' +
+                    '<div class="skeleton-shimmer" style="width:100%;height:56px;border-radius:12px;"></div>' +
+                    '<div class="skeleton-shimmer" style="width:100%;height:56px;border-radius:12px;"></div>' +
+                    '</div></div>';
+            }
         }
 
         if (!currentUser || !currentUser.id) {
@@ -2794,11 +2802,22 @@ function toggleProvListSort(field) {
         provListSortAsc = !provListSortAsc;
     } else {
         provListSortField = field;
-        provListSortAsc = (field === 'ticker' || field === 'class' || field === 'type') ? true : false;
+        provListSortAsc = (field === 'ticker' || field === 'class' || field === 'type' || field === 'status') ? true : false;
     }
     renderProventosListTable();
 }
 window.toggleProvListSort = toggleProvListSort;
+
+function onProvListSortSelectChange(val) {
+    if (!val || typeof val !== 'string') return;
+    const parts = val.split('_');
+    const field = parts[0] || 'date';
+    const dir = parts[1] || 'desc';
+    provListSortField = field;
+    provListSortAsc = (dir === 'asc');
+    renderProventosListTable();
+}
+window.onProvListSortSelectChange = onProvListSortSelectChange;
 
 function renderProventosHistoryTable() {
     const body = document.getElementById('provMatrixBody');
@@ -3028,27 +3047,37 @@ function renderProventosListTable() {
         }
     });
 
+    const sortSelect = document.getElementById('provListSortSelect');
+    if (sortSelect) {
+        const expectedVal = `${provListSortField}_${provListSortAsc ? 'asc' : 'desc'}`;
+        if (Array.from(sortSelect.options).some(opt => opt.value === expectedVal)) {
+            sortSelect.value = expectedVal;
+        }
+    }
+
     const sumTotal = filtered.reduce((acc, d) => acc + getDividendTotalValue(d), 0);
     const pill = document.getElementById('provListTotalPill');
     if (pill) pill.textContent = `Total ${formatCurrency(sumTotal)}`;
 
     if (filtered.length === 0) {
         body.innerHTML = `
-            <tr>
-                <td colspan="11" class="text-center text-muted" style="text-align:center;padding:36px 16px;">
-                    <div style="font-size:32px;margin-bottom:8px;">💰</div>
-                    <div style="font-size:14px;font-weight:600;color:var(--color-text);margin-bottom:4px;">Nenhum provento encontrado</div>
-                    <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:14px;">Registre seus proventos recebidos ou a receber para acompanhar os rendimentos da sua carteira.</div>
-                    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" style="font-size:11px; padding:5px 14px; border-radius:6px; display:inline-flex; align-items:center; gap:5px;">
-                            <i class="fas fa-plus"></i> Registrar Provento
-                        </button>
-                    </div>
-                </td>
-            </tr>
+            <div class="empty-state" style="padding:36px 16px;">
+                <span class="empty-icon">💰</span>
+                <h3>Nenhum provento encontrado</h3>
+                <p>Registre seus proventos recebidos ou a receber para acompanhar os rendimentos da sua carteira.</p>
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" style="font-size:12px; padding:6px 14px; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
+                        <i class="fas fa-plus"></i> Registrar Provento
+                    </button>
+                </div>
+            </div>
         `;
         return;
     }
+
+    const safeEsc = (v) => (typeof sanitizeString === 'function')
+        ? sanitizeString(String(v ?? ''))
+        : String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
     // Ordenação dos proventos
     filtered.sort((a, b) => {
@@ -3108,18 +3137,23 @@ function renderProventosListTable() {
         ? window.TONU_JCP_TAX_RATE
         : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
 
-    const buildProventoRowHtml = (d) => {
-        const ticker = (d.ticker || '').toUpperCase().trim();
-        const cls = getAssetClassForTicker(ticker);
+    const buildProventoCardHtml = (d) => {
+        const safeId = safeEsc(d.id);
+        const ticker = safeEsc((d.ticker || '').toUpperCase().trim());
+        const cls = safeEsc(getAssetClassForTicker(ticker));
         const iconCls = getIconForClass(cls);
         const isoDate = getDividendISODate(d);
         const isPaid = isoDate <= todayISO;
+        const iconColor = isPaid ? '#00B894' : '#0284C7';
+        const squircleBg = isPaid ? 'rgba(0, 184, 148, 0.14)' : 'rgba(2, 132, 199, 0.14)';
+        const squircleIcon = isPaid ? 'fas fa-hand-holding-usd' : 'far fa-clock';
         const statusBadge = isPaid
-            ? `<span class="prov-status-badge paid"><i class="fas fa-money-bill-wave"></i> Pago</span>`
-            : `<span class="prov-status-badge pending"><i class="far fa-credit-card"></i> A Receber</span>`;
+            ? `<span class="badge-mobile paid-prov"><i class="fas fa-check-circle" aria-hidden="true"></i> Pago</span>`
+            : `<span class="badge-mobile pending-prov"><i class="far fa-clock" aria-hidden="true"></i> A Receber</span>`;
 
+        const provTypeLabel = safeEsc(d.type || 'Dividendos');
         const dataCom = extractDataCom(d);
-        const dataComDisplay = dataCom ? formatPtBrDate(dataCom) : '-';
+        const dataComDisplay = dataCom ? formatPtBrDate(dataCom) : '';
         const datePayDisplay = formatPtBrDate(isoDate || d.date);
 
         const totalVal = getDividendTotalValue(d);
@@ -3129,51 +3163,59 @@ function renderProventosListTable() {
         const netVal = (d.net_value !== undefined && d.net_value !== null && Number(d.net_value) > 0)
             ? Number(d.net_value)
             : (isJCP ? totalVal * (1 - jcpTaxRate) : totalVal);
+        const taxBadge = isJCP
+            ? `<span class="badge-mobile jcp-tax" title="JCP sujeito a retenção de IR na fonte">-${Math.round(jcpTaxRate * 100)}% IR</span>`
+            : `<span class="badge-mobile isento-prov" title="Isento de Imposto de Renda">Isento IR</span>`;
 
         return `
-            <tr>
-                <td>
-                    <div class="prov-ticker-cell">
-                        <div class="prov-ticker-icon"><i class="${iconCls}"></i></div>
-                        <span class="prov-ticker-name">${ticker}</span>
+            <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
+                <div class="swipe-actions-tray">
+                    <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); openDividendModal('${safeId}')" aria-label="Editar provento">
+                        <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                        <span>Editar</span>
+                    </button>
+                    <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteDividend('${safeId}')" aria-label="Apagar provento">
+                        <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                        <span>Apagar</span>
+                    </button>
+                </div>
+                <div class="invest-item-card clean-list-card compact-tx-card" data-swipe-content onclick="openDividendModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDividendModal('${safeId}');}">
+                    <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${iconColor};" title="${cls}">
+                        <i class="${squircleIcon}" aria-hidden="true"></i>
                     </div>
-                </td>
-                <td><span class="prov-class-badge"><i class="${iconCls}"></i> ${cls}</span></td>
-                <td>${statusBadge}</td>
-                <td>${d.type || 'Dividendos'}</td>
-                <td class="text-center">${dataComDisplay}</td>
-                <td class="text-center">${datePayDisplay}</td>
-                <td class="text-right">${formatNumber(qtyVal, 2)}</td>
-                <td class="text-right">${formatCurrency(unitVal)}</td>
-                <td class="text-right prov-col-bruto">
-                    <div class="prov-val-bruto-wrap">
-                        <span class="prov-val-bruto">${formatCurrency(totalVal)}</span>
-                        <span class="prov-val-sublabel">Bruto</span>
+                    <div class="clean-card-body">
+                        <div class="clean-card-top">
+                            <span class="clean-card-title">${ticker} <span class="invest-card-subtitle">· ${provTypeLabel}</span></span>
+                            <div class="clean-card-amount-wrap">
+                                <span class="clean-card-amount ${isPaid ? 'income' : 'info'}">
+                                    + ${formatCurrency(netVal)}
+                                </span>
+                                <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteDividend('${safeId}')" title="Excluir provento" aria-label="Excluir provento">
+                                    <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="clean-card-meta-line">
+                            <span class="clean-tag category"><i class="${iconCls}" aria-hidden="true"></i> ${cls}</span>
+                            ${statusBadge}
+                            ${taxBadge}
+                            <span class="clean-tag qty-tag">${formatNumber(qtyVal, 2)} un. × ${formatCurrency(unitVal)}</span>
+                            ${isJCP && Math.abs(totalVal - netVal) > 0.009 ? `<span class="clean-tag bruto-tag">Bruto: ${formatCurrency(totalVal)}</span>` : ''}
+                            <span class="clean-card-meta-dates">
+                                <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>Pag: ${datePayDisplay}</span>
+                                ${dataComDisplay ? `<span><i class="far fa-bookmark" style="margin-right:3px;" aria-hidden="true"></i>Com: ${dataComDisplay}</span>` : ''}
+                            </span>
+                        </div>
                     </div>
-                </td>
-                <td class="text-right prov-col-liquido">
-                    <div class="prov-val-liquido-wrap">
-                        <span class="prov-val-liquido ${isJCP ? 'is-jcp' : 'is-exempt'}">${formatCurrency(netVal)}</span>
-                        ${isJCP ? `<span class="prov-tax-pill" title="JCP sujeito a retenção de IR na fonte"><i class="fas fa-percent"></i> -${Math.round(jcpTaxRate * 100)}% IR</span>` : '<span class="prov-tax-pill isento" title="Isento de Imposto de Renda"><i class="fas fa-check"></i> Líquido</span>'}
-                    </div>
-                </td>
-                <td style="text-align:right;">
-                    <div class="actions" style="justify-content:flex-end; gap:6px;">
-                        <button type="button" class="btn btn-ghost btn-icon-sm" onclick="openDividendModal('${d.id}')" title="Editar provento" aria-label="Editar provento">
-                            <i class="fas fa-pencil-alt"></i>
-                        </button>
-                        <button type="button" class="btn btn-danger btn-icon-sm" onclick="deleteDividend('${d.id}')" title="Excluir provento" aria-label="Excluir provento">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
+                </div>
+            </div>
         `;
     };
 
     const shouldGroupByDate = (provListSortField === 'date' || provListSortField === 'dataCom');
     if (!shouldGroupByDate) {
-        body.innerHTML = filtered.map(buildProventoRowHtml).join('');
+        body.innerHTML = `<div class="invest-statement-groups"><div class="invest-day-items">${filtered.map(buildProventoCardHtml).join('')}</div></div>`;
+        if (typeof window.TonuSetupSwipe === 'function') window.TonuSetupSwipe();
         return;
     }
 
@@ -3200,25 +3242,30 @@ function renderProventosListTable() {
         g.dayNetTotal += netVal;
     });
 
-    body.innerHTML = groups.map(g => {
+    const groupsHtml = groups.map(g => {
         const dateLabel = getInvestDateGroupLabel(g.dateKey);
         const countLabel = `${g.items.length} ${g.items.length === 1 ? 'provento' : 'proventos'}`;
-        const groupHeaderHtml = `
-            <tr class="invest-date-group-row">
-                <td colspan="11">
-                    <div class="invest-date-group-header">
-                        <span class="invest-date-group-title">
-                            <i class="far fa-calendar-alt" aria-hidden="true"></i>
-                            <span>${dateLabel}</span>
-                            <span class="invest-date-count-badge">${countLabel}</span>
-                        </span>
-                        <span class="invest-date-subtotal positive">+ ${formatCurrency(g.dayNetTotal)}</span>
-                    </div>
-                </td>
-            </tr>
+        return `
+            <section class="invest-day-group" aria-label="${dateLabel}">
+                <div class="ios-section-header">
+                    <span class="invest-date-group-title">
+                        <i class="far fa-calendar-alt" aria-hidden="true"></i>
+                        <span>${dateLabel}</span>
+                        <span class="invest-date-count-badge">${countLabel}</span>
+                    </span>
+                    <span class="subtotal-pill positive">+ ${formatCurrency(g.dayNetTotal)}</span>
+                </div>
+                <div class="invest-day-items">
+                    ${g.items.map(buildProventoCardHtml).join('')}
+                </div>
+            </section>
         `;
-        return groupHeaderHtml + g.items.map(buildProventoRowHtml).join('');
     }).join('');
+
+    body.innerHTML = `<div class="invest-statement-groups">${groupsHtml}</div>`;
+    if (typeof window.TonuSetupSwipe === 'function') {
+        window.TonuSetupSwipe();
+    }
 }
 
 function renderDividendsTable() {
@@ -3713,21 +3760,23 @@ function renderTransactions() {
 
     if (allTransactions.length === 0) {
         body.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center text-muted" style="text-align:center;padding:32px 16px;">
-                    <div style="font-size:32px;margin-bottom:8px;">📭</div>
-                    <div style="font-size:14px;font-weight:600;color:var(--color-text);margin-bottom:4px;">Nenhum lançamento registrado</div>
-                    <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:14px;">Registre suas operações para acompanhar seu histórico de compras e vendas.</div>
-                    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="openOperationModal()">
-                            <i class="fas fa-plus"></i> Nova Operação
-                        </button>
-                    </div>
-                </td>
-            </tr>
+            <div class="empty-state" style="padding:32px 16px;">
+                <span class="empty-icon">📭</span>
+                <h3>Nenhum lançamento registrado</h3>
+                <p>Registre suas operações para acompanhar seu histórico de compras e vendas.</p>
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="openOperationModal()">
+                        <i class="fas fa-plus"></i> Nova Operação
+                    </button>
+                </div>
+            </div>
         `;
         return;
     }
+
+    const safeEsc = (v) => (typeof sanitizeString === 'function')
+        ? sanitizeString(String(v ?? ''))
+        : String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
     const sorted = [...allTransactions].sort((a, b) => {
         const keyA = normalizeInvestDateKey(a.date);
@@ -3759,66 +3808,94 @@ function renderTransactions() {
         'Tesouro': '🏛️'
     };
 
-    body.innerHTML = groups.map(g => {
+    const groupsHtml = groups.map(g => {
         const dateLabel = getInvestDateGroupLabel(g.dateKey);
         const countLabel = `${g.items.length} ${g.items.length === 1 ? 'lançamento' : 'lançamentos'}`;
         const isPositiveDay = g.netTotal >= 0;
-        const subtotalText = `${isPositiveDay ? '+' : '-'} ${formatCurrency(Math.abs(g.netTotal))}`;
-        const groupHeaderHtml = `
-            <tr class="invest-date-group-row">
-                <td colspan="8">
-                    <div class="invest-date-group-header">
-                        <span class="invest-date-group-title">
-                            <i class="far fa-calendar-alt" aria-hidden="true"></i>
-                            <span>${dateLabel}</span>
-                            <span class="invest-date-count-badge">${countLabel}</span>
-                        </span>
-                        <span class="invest-date-subtotal ${isPositiveDay ? 'buy' : 'sell'}">${subtotalText}</span>
-                    </div>
-                </td>
-            </tr>
-        `;
+        const subtotalText = `${isPositiveDay ? '+ ' : '- '}${formatCurrency(Math.abs(g.netTotal))}`;
 
-        const rowsHtml = g.items.map(tx => {
-            const isBuy = tx.type === 'Compra';
-            const badgeClass = isBuy ? 'badge-buy' : 'badge-sell';
+        const cardsHtml = g.items.map(tx => {
+            const safeId = safeEsc(tx.id);
+            const isBuy = (tx.type || '').toLowerCase().includes('compra') || (tx.type || '').toLowerCase().includes('buy');
             const badgeText = isBuy ? 'Compra' : 'Venda';
+            const color = isBuy ? '#00B894' : '#EF4444';
+            const squircleBg = isBuy ? 'rgba(0, 184, 148, 0.14)' : 'rgba(239, 68, 68, 0.14)';
 
-            const cleanTicker = (tx.ticker || '').toUpperCase().trim();
+            const cleanTicker = safeEsc((tx.ticker || '').toUpperCase().trim());
             let rawClass = tx.asset_class;
             if (KNOWN_STOCK_UNITS.has(cleanTicker)) {
                 rawClass = 'Ações';
             } else if (KNOWN_ETFS.has(cleanTicker)) {
                 rawClass = 'ETFs';
             }
-            const assetClass = normalizeClass(rawClass || inferClass(cleanTicker) || 'Ações');
+            const assetClass = safeEsc(normalizeClass(rawClass || inferClass(cleanTicker) || 'Ações'));
             const classIcon = classIcons[assetClass] || '📦';
+            const qtyNum = Number(tx.quantity) || 0;
+            const qtyFmt = qtyNum % 1 === 0 ? qtyNum.toFixed(0) : formatNumber(qtyNum, 4);
 
             return `
-                <tr>
-                    <td>${formatDate(tx.date)}</td>
-                    <td><strong>${tx.ticker}</strong></td>
-                    <td><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">${classIcon} ${assetClass}</span></td>
-                    <td><span class="${badgeClass}">${badgeText}</span></td>
-                    <td>${tx.quantity}</td>
-                    <td>${formatCurrency(tx.unit_price)}</td>
-                    <td><strong>${formatCurrency(tx.total_value)}</strong></td>
-                    <td>
-                        <div class="actions">
-                            <button class="btn btn-ghost btn-icon-sm" onclick="editTransaction('${tx.id}')" title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-danger btn-icon-sm" onclick="deleteTransaction('${tx.id}')" title="Excluir">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
+                    <div class="swipe-actions-tray">
+                        <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); editTransaction('${safeId}')" aria-label="Editar lançamento">
+                            <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                            <span>Editar</span>
+                        </button>
+                        <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteTransaction('${safeId}')" aria-label="Apagar lançamento">
+                            <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                            <span>Apagar</span>
+                        </button>
+                    </div>
+                    <div class="invest-item-card clean-list-card compact-tx-card" data-swipe-content onclick="editTransaction('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();editTransaction('${safeId}');}">
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};" title="${assetClass}">
+                            <i class="fas ${isBuy ? 'fa-arrow-up' : 'fa-arrow-down'}" aria-hidden="true"></i>
                         </div>
-                    </td>
-                </tr>
+                        <div class="clean-card-body">
+                            <div class="clean-card-top">
+                                <span class="clean-card-title">${cleanTicker} <span class="invest-card-subtitle">· ${badgeText}</span></span>
+                                <div class="clean-card-amount-wrap">
+                                    <span class="clean-card-amount ${isBuy ? 'income' : 'expense'}">
+                                        ${isBuy ? '+ ' : '- '}${formatCurrency(tx.total_value)}
+                                    </span>
+                                    <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${safeId}')" title="Excluir lançamento" aria-label="Excluir lançamento">
+                                        <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="clean-card-meta-line">
+                                <span class="clean-tag category">${classIcon} ${assetClass}</span>
+                                <span class="badge-mobile ${isBuy ? 'op-buy' : 'op-sell'}">${badgeText}</span>
+                                <span class="clean-tag qty-tag">${qtyFmt} un. @ ${formatCurrency(tx.unit_price)}</span>
+                                <span class="clean-card-meta-dates">
+                                    <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>${formatDate(tx.date)}</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             `;
         }).join('');
 
-        return groupHeaderHtml + rowsHtml;
+        return `
+            <section class="invest-day-group" aria-label="${dateLabel}">
+                <div class="ios-section-header">
+                    <span class="invest-date-group-title">
+                        <i class="far fa-calendar-alt" aria-hidden="true"></i>
+                        <span>${dateLabel}</span>
+                        <span class="invest-date-count-badge">${countLabel}</span>
+                    </span>
+                    <span class="subtotal-pill ${isPositiveDay ? 'positive' : 'negative'}">${subtotalText}</span>
+                </div>
+                <div class="invest-day-items">
+                    ${cardsHtml}
+                </div>
+            </section>
+        `;
     }).join('');
+
+    body.innerHTML = `<div class="invest-statement-groups">${groupsHtml}</div>`;
+    if (typeof window.TonuSetupSwipe === 'function') {
+        window.TonuSetupSwipe();
+    }
 }
 
 // ============================================
