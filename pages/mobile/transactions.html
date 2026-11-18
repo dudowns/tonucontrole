@@ -561,11 +561,17 @@ function updateSummaryStrip(txs) {
     const elInc = document.getElementById('sumIncome');
     const elExp = document.getElementById('sumExpense');
     const elBal = document.getElementById('sumBalance');
-    if (elInc) elInc.textContent = formatCurrency(inc);
-    if (elExp) elExp.textContent = formatCurrency(exp);
     if (elBal) {
-        elBal.textContent = formatCurrency(bal);
         elBal.className = `hero-value ${bal >= 0 ? '' : 'expense'}`.trim();
+    }
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(elInc, inc, formatCurrency);
+        window.TonuMobileUI.animateValue(elExp, exp, formatCurrency);
+        window.TonuMobileUI.animateValue(elBal, bal, formatCurrency);
+    } else {
+        if (elInc) elInc.textContent = formatCurrency(inc);
+        if (elExp) elExp.textContent = formatCurrency(exp);
+        if (elBal) elBal.textContent = formatCurrency(bal);
     }
     if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 }

@@ -72,6 +72,7 @@
     }
 
     function applyPrivacyState(hidden) {
+        if (typeof hidden === 'undefined') hidden = isPrivacyHidden();
         document.documentElement.classList.toggle('tonu-privacy-hidden', !!hidden);
         document.body.classList.toggle('tonu-privacy-hidden', !!hidden);
 
@@ -120,6 +121,11 @@
         var target = Number(toVal);
         if (!Number.isFinite(target)) return;
 
+        if (el._tonuRafId && typeof window.cancelAnimationFrame === 'function') {
+            window.cancelAnimationFrame(el._tonuRafId);
+            el._tonuRafId = null;
+        }
+
         var fmt = typeof formatter === 'function'
             ? formatter
             : (typeof window.formatCurrency === 'function' ? window.formatCurrency : function (v) {
@@ -127,18 +133,20 @@
             });
 
         if (isPrivacyHidden() && el.hasAttribute('data-sensitive')) {
-            el.textContent = 'R$ •••••';
+            el.textContent = fmt(target);
+            el.dataset.animPrev = String(target);
             return;
         }
 
         if (prefersReducedMotion() || typeof window.requestAnimationFrame !== 'function') {
             el.textContent = fmt(target);
+            el.dataset.animPrev = String(target);
             return;
         }
 
         var prev = parseFloat(el.dataset.animPrev || '0');
         if (!Number.isFinite(prev)) prev = 0;
-        if (Math.abs(target - prev) < 0.01) {
+        if (Math.abs(target - prev) < 0.005) {
             el.textContent = fmt(target);
             el.dataset.animPrev = String(target);
             return;
@@ -153,12 +161,13 @@
             var current = prev + (target - prev) * eased;
             el.textContent = fmt(p >= 1 ? target : current);
             if (p < 1) {
-                window.requestAnimationFrame(step);
+                el._tonuRafId = window.requestAnimationFrame(step);
             } else {
+                el._tonuRafId = null;
                 el.dataset.animPrev = String(target);
             }
         }
-        window.requestAnimationFrame(step);
+        el._tonuRafId = window.requestAnimationFrame(step);
     }
 
     // ======================================================================

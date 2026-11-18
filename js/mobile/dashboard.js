@@ -829,7 +829,7 @@ function renderSummary() {
                 <div class="mobile-hero-stat">
                     <span class="stat-label"><i class="fas fa-arrow-down" style="color:#fca5a5;"></i> Saídas Pagas</span>
                     <span class="stat-value expense" id="heroExpenseVal" data-sensitive>${mask(formatCurrency(expense))}</span>
-                    ${pendingBillsAmount > 0 ? `<span class="hero-pending-note">Falta pagar: ${mask(formatCurrency(pendingBillsAmount))}</span>` : ''}
+                    ${pendingBillsAmount > 0 ? `<span class="hero-pending-note">Falta pagar: <span id="heroPendingNoteVal" data-sensitive>${mask(formatCurrency(pendingBillsAmount))}</span></span>` : ''}
                 </div>
             </div>
         </div>
@@ -842,7 +842,7 @@ function renderSummary() {
                 </div>
                 <div class="card-info">
                     <div class="card-label">Contas Pendentes</div>
-                    <div class="card-value ${pendingBills.length > 0 ? 'is-warning' : 'is-success'}" data-sensitive>
+                    <div class="card-value ${pendingBills.length > 0 ? 'is-warning' : 'is-success'}" id="kpiPendingBillsVal" data-sensitive>
                         ${mask(formatCurrency(pendingBillsAmount))}
                     </div>
                     <div class="card-sub-meta">${billsSubText}</div>
@@ -854,7 +854,7 @@ function renderSummary() {
                 </div>
                 <div class="card-info">
                     <div class="card-label">Proventos Mês</div>
-                    <div class="card-value" data-sensitive style="color: ${divValueColor};">
+                    <div class="card-value" id="kpiMonthDivsVal" data-sensitive style="color: ${divValueColor};">
                         ${mask(formatCurrency(displayMonthDivs))}
                     </div>
                     <div class="card-sub-meta ${monthPendingDivs > 0 || totalFutureDivs > 0 ? 'is-info' : ''}" data-sensitive>${divsSubText}</div>
@@ -867,6 +867,9 @@ function renderSummary() {
         window.TonuMobileUI.animateValue(document.getElementById('heroBalanceVal'), balance, formatCurrency);
         window.TonuMobileUI.animateValue(document.getElementById('heroIncomeVal'), income, formatCurrency);
         window.TonuMobileUI.animateValue(document.getElementById('heroExpenseVal'), expense, formatCurrency);
+        window.TonuMobileUI.animateValue(document.getElementById('heroPendingNoteVal'), pendingBillsAmount, formatCurrency);
+        window.TonuMobileUI.animateValue(document.getElementById('kpiPendingBillsVal'), pendingBillsAmount, formatCurrency);
+        window.TonuMobileUI.animateValue(document.getElementById('kpiMonthDivsVal'), displayMonthDivs, formatCurrency);
     }
     if (window.TonuMobileUI && typeof window.TonuMobileUI.applyPrivacyState === 'function') {
         window.TonuMobileUI.applyPrivacyState(isBalanceHidden);
@@ -1029,13 +1032,17 @@ function renderMobileChart() {
                 ${currentChartMode === 'categories' && sorted.length > 0 ? `
                     <div class="chart-center-total">
                         <span class="center-label">Total Gasto</span>
-                        <span class="center-value">${formatCurrency(totalExpensesAmount)}</span>
+                        <span class="center-value" id="mobileDonutCenterVal" data-sensitive>${isBalanceHidden ? '••••••' : formatCurrency(totalExpensesAmount)}</span>
                     </div>
                 ` : ''}
             </div>
             ${categoriesHtml}
         </div>
     `;
+
+    if (currentChartMode === 'categories' && sorted.length > 0 && !isBalanceHidden && window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(document.getElementById('mobileDonutCenterVal'), totalExpensesAmount, formatCurrency);
+    }
 
     const canvas = document.getElementById("mobileChartCanvas");
     if (!canvas) return;
@@ -1443,7 +1450,7 @@ function renderMobileInsights() {
                         <circle cx="36" cy="36" r="30" fill="none" stroke="${mobBadge.color}" stroke-width="6" stroke-dasharray="${circMob.toFixed(1)}" stroke-dashoffset="${offsetMob.toFixed(1)}" stroke-linecap="round" />
                     </svg>
                     <div class="mob-score-center">
-                        <span class="mob-score-val">${finalScoreMob}</span>
+                        <span class="mob-score-val" id="mobHealthScoreVal">${finalScoreMob}</span>
                         <span class="mob-score-sub">/100</span>
                     </div>
                 </div>
@@ -1462,7 +1469,7 @@ function renderMobileInsights() {
                     </div>
                     <div class="mobile-insight-text">
                         <span class="title">Taxa de Poupança</span>
-                        <span class="detail">${formatCurrency(Math.max(0, savings))} poupados</span>
+                        <span class="detail"><span id="mobInsightSavingsVal" data-sensitive>${formatCurrency(Math.max(0, savings))}</span> poupados</span>
                     </div>
                 </div>
                 <span class="mobile-insight-badge tone-${rateTone}">
@@ -1478,7 +1485,7 @@ function renderMobileInsights() {
                     </div>
                     <div class="mobile-insight-text">
                         <span class="title">Maior Despesa</span>
-                        <span class="detail">${typeof sanitizeString === 'function' ? sanitizeString(topCatName || '') : (topCatName || '')} (${formatCurrency(topCatAmount)})</span>
+                        <span class="detail">${typeof sanitizeString === 'function' ? sanitizeString(topCatName || '') : (topCatName || '')} (<span id="mobInsightTopCatVal" data-sensitive>${formatCurrency(topCatAmount)}</span>)</span>
                     </div>
                 </div>
                 <span class="mobile-insight-badge tone-warning">
@@ -1498,7 +1505,7 @@ function renderMobileInsights() {
                     </div>
                 </div>
                 <span class="mobile-insight-badge tone-purple">
-                    ${pendingBillsAmount > 0 ? `${formatCurrency(pendingBillsAmount)} pendente` : 'Em dia'}
+                    ${pendingBillsAmount > 0 ? `<span id="mobInsightPendingBillsVal" data-sensitive>${formatCurrency(pendingBillsAmount)}</span> pendente` : 'Em dia'}
                 </span>
             </div>
 
@@ -1513,7 +1520,7 @@ function renderMobileInsights() {
                         <span class="detail">${formatCurrency(totalDividends)} proventos · ${formatCurrency(totalAportes)} aportes</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge tone-purple">
+                <span class="mobile-insight-badge tone-purple" id="mobInsightInvestTotalVal" data-sensitive>
                     ${formatCurrency(totalAportes + totalDividends)}
                 </span>
             </div>
@@ -1529,7 +1536,7 @@ function renderMobileInsights() {
                         <span class="detail">${extraIncomeCount} lançamento${extraIncomeCount === 1 ? '' : 's'} (${extraIncomePercent}% da renda)</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge ${extraIncome > 0 ? 'tone-orange' : 'tone-neutral'}">
+                <span class="mobile-insight-badge ${extraIncome > 0 ? 'tone-orange' : 'tone-neutral'}" id="mobInsightExtraVal" data-sensitive>
                     ${formatCurrency(extraIncome)}
                 </span>
             </div>
@@ -1548,6 +1555,19 @@ function renderMobileInsights() {
             </div>
         </div>
     `;
+
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(document.getElementById('mobHealthScoreVal'), finalScoreMob, v => String(Math.round(v)));
+        if (!isBalanceHidden) {
+            window.TonuMobileUI.animateValue(document.getElementById('mobInsightSavingsVal'), Math.max(0, savings), formatCurrency);
+            window.TonuMobileUI.animateValue(document.getElementById('mobInsightTopCatVal'), topCatAmount, formatCurrency);
+            if (pendingBillsAmount > 0) {
+                window.TonuMobileUI.animateValue(document.getElementById('mobInsightPendingBillsVal'), pendingBillsAmount, formatCurrency);
+            }
+            window.TonuMobileUI.animateValue(document.getElementById('mobInsightInvestTotalVal'), totalAportes + totalDividends, formatCurrency);
+            window.TonuMobileUI.animateValue(document.getElementById('mobInsightExtraVal'), extraIncome, formatCurrency);
+        }
+    }
 }
 
 // ============================================
@@ -1808,8 +1828,11 @@ function buildGoalTypeSummaryCard(typeKey, items) {
             percent,
             currentLabel: 'Em custódia',
             currentValue: formatCurrency(current),
+            currentNum: current,
             targetLabel: pending.length > 0 ? 'Próximo alvo' : 'Alvo',
-            targetValue: formatCurrency(target)
+            targetValue: formatCurrency(target),
+            targetNum: target,
+            isMoney: true
         };
     }
 
@@ -1829,8 +1852,11 @@ function buildGoalTypeSummaryCard(typeKey, items) {
             percent,
             currentLabel: 'Acumulado',
             currentValue: formatCurrency(current),
+            currentNum: current,
             targetLabel: 'Alvo total',
-            targetValue: formatCurrency(target)
+            targetValue: formatCurrency(target),
+            targetNum: target,
+            isMoney: true
         };
     }
 
@@ -1853,8 +1879,11 @@ function buildGoalTypeSummaryCard(typeKey, items) {
             percent,
             currentLabel: 'Recebido no mês',
             currentValue: formatCurrency(current),
+            currentNum: current,
             targetLabel: 'Alvo mensal',
-            targetValue: formatCurrency(target)
+            targetValue: formatCurrency(target),
+            targetNum: target,
+            isMoney: true
         };
     }
 
@@ -1873,8 +1902,12 @@ function buildGoalTypeSummaryCard(typeKey, items) {
             percent,
             currentLabel: 'Concluídos',
             currentValue: `${doneCount} de ${count}`,
+            currentNum: doneCount,
             targetLabel: 'Restantes',
-            targetValue: `${Math.max(0, count - doneCount)}`
+            targetValue: `${Math.max(0, count - doneCount)}`,
+            targetNum: Math.max(0, count - doneCount),
+            totalCount: count,
+            isMoney: false
         };
     }
 
@@ -1892,8 +1925,11 @@ function buildGoalTypeSummaryCard(typeKey, items) {
         percent,
         currentLabel: 'Atual',
         currentValue: formatCurrency(current),
+        currentNum: current,
         targetLabel: 'Alvo',
-        targetValue: formatCurrency(target)
+        targetValue: formatCurrency(target),
+        targetNum: target,
+        isMoney: true
     };
 }
 
@@ -1926,7 +1962,7 @@ function renderMobileGoals() {
     }
 
     const isSingle = summaryCards.length === 1;
-    const cardsHtml = summaryCards.map(card => `
+    const cardsHtml = summaryCards.map((card, idx) => `
         <a href="goals.html" class="goal-type-card" aria-label="${card.title}: ${card.percent}% concluído">
             <div class="goal-type-card-top">
                 <div class="goal-type-icon" style="background:${card.iconBg}; color:${card.color};">
@@ -1936,7 +1972,7 @@ function renderMobileGoals() {
                     <div class="goal-type-name">${card.title}</div>
                     <div class="goal-type-sub">${card.subtitle}</div>
                 </div>
-                <span class="goal-type-pct" style="color:${card.color};">${card.percent}%</span>
+                <span class="goal-type-pct" id="mobGoalCardPct_${idx}" style="color:${card.color};">${card.percent}%</span>
             </div>
             <div class="goal-type-progress-track">
                 <div class="goal-type-progress-fill" style="width:${card.percent}%; background:${card.color};"></div>
@@ -1944,11 +1980,11 @@ function renderMobileGoals() {
             <div class="goal-type-values">
                 <div class="goal-type-val-block">
                     <span class="goal-type-val-label">${card.currentLabel}</span>
-                    <span class="goal-type-val-num">${card.currentValue}</span>
+                    <span class="goal-type-val-num" id="mobGoalCardCur_${idx}" ${card.isMoney ? 'data-sensitive' : ''}>${card.currentValue}</span>
                 </div>
                 <div class="goal-type-val-block right">
                     <span class="goal-type-val-label">${card.targetLabel}</span>
-                    <span class="goal-type-val-num">${card.targetValue}</span>
+                    <span class="goal-type-val-num" id="mobGoalCardTgt_${idx}" ${card.isMoney ? 'data-sensitive' : ''}>${card.targetValue}</span>
                 </div>
             </div>
         </a>
@@ -1963,6 +1999,16 @@ function renderMobileGoals() {
             ${cardsHtml}
         </div>
     `;
+
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        summaryCards.forEach((card, idx) => {
+            window.TonuMobileUI.animateValue(document.getElementById(`mobGoalCardPct_${idx}`), card.percent, v => `${Math.round(v)}%`);
+            if (card.isMoney && !isBalanceHidden) {
+                window.TonuMobileUI.animateValue(document.getElementById(`mobGoalCardCur_${idx}`), card.currentNum, formatCurrency);
+                window.TonuMobileUI.animateValue(document.getElementById(`mobGoalCardTgt_${idx}`), card.targetNum, formatCurrency);
+            }
+        });
+    }
 }
 
 // ============================================

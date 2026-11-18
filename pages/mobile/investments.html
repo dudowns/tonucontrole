@@ -1771,9 +1771,9 @@ function updateSummaryHero() {
         }
     });
 
-    document.getElementById("cardPatrimonioTotal").textContent = formatCurrency(totalPatrimonio);
-    document.getElementById("cardTotalInvestido").textContent = formatCurrency(totalInvestido);
-    document.getElementById("cardProventosTotal").textContent = formatCurrency(totalDivsRecebidos);
+    const patEl = document.getElementById("cardPatrimonioTotal");
+    const invEl = document.getElementById("cardTotalInvestido");
+    const provEl = document.getElementById("cardProventosTotal");
 
     const provTotalSub = document.getElementById("cardProventosTotalSub");
     if (provTotalSub) {
@@ -1796,29 +1796,28 @@ function updateSummaryHero() {
     const sign = ganhoTotal > 0 ? '+' : '';
     const color = isPositive ? '#6EE7B7' : '#FCA5A5';
 
-    if (rentEl) {
-        rentEl.textContent = `${sign}${rentabilidadeTotal.toFixed(2).replace('.', ',')}%`;
-        rentEl.style.color = Math.abs(rentabilidadeTotal) < 0.001 ? '#FFFFFF' : color;
-    }
-    if (ganhoEl) {
-        ganhoEl.textContent = `${sign}${formatCurrency(ganhoTotal)}`;
-        ganhoEl.style.color = Math.abs(ganhoTotal) < 0.001 ? '#FFFFFF' : color;
-    }
-    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
+    const formatPct = (v) => {
+        const s = v > 0.005 ? '+' : '';
+        return `${s}${Number(v || 0).toFixed(2).replace('.', ',')}%`;
+    };
+    const formatGain = (v) => {
+        const s = v > 0.005 ? '+' : '';
+        return `${s}${formatCurrency(v)}`;
+    };
+
+    if (rentEl) rentEl.style.color = Math.abs(rentabilidadeTotal) < 0.001 ? '#FFFFFF' : color;
+    if (ganhoEl) ganhoEl.style.color = Math.abs(ganhoTotal) < 0.001 ? '#FFFFFF' : color;
 
     // Cards da aba Proventos
     const divHistEl = document.getElementById("cardDivHistorico");
-    if (divHistEl) divHistEl.textContent = formatCurrency(totalDivsRecebidos);
     const divHistSub = document.getElementById("cardDivHistoricoSub");
     if (divHistSub) divHistSub.textContent = `${countRecebidos} pago${countRecebidos !== 1 ? 's' : ''}`;
 
     const divMesEl = document.getElementById("cardDivMes");
-    if (divMesEl) divMesEl.textContent = formatCurrency(totalDivsMesRecebidos);
     const divMesSub = document.getElementById("cardDivMesSub");
     if (divMesSub) divMesSub.textContent = `recebido no mês`;
 
     const divAReceberEl = document.getElementById("cardDivAReceber");
-    if (divAReceberEl) divAReceberEl.textContent = formatCurrency(totalDivsAReceber);
     const divAReceberSub = document.getElementById("cardDivAReceberSub");
     if (divAReceberSub) {
         if (countAReceber > 0) {
@@ -1828,6 +1827,33 @@ function updateSummaryHero() {
             divAReceberSub.textContent = `Nenhum provento futuro pendente`;
         }
     }
+
+    window._lastProvSummary = {
+        totalDivsRecebidos,
+        totalDivsMesRecebidos,
+        totalDivsAReceber
+    };
+
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(patEl, totalPatrimonio, formatCurrency);
+        window.TonuMobileUI.animateValue(invEl, totalInvestido, formatCurrency);
+        window.TonuMobileUI.animateValue(provEl, totalDivsRecebidos, formatCurrency);
+        window.TonuMobileUI.animateValue(rentEl, rentabilidadeTotal, formatPct);
+        window.TonuMobileUI.animateValue(ganhoEl, ganhoTotal, formatGain);
+        window.TonuMobileUI.animateValue(divHistEl, totalDivsRecebidos, formatCurrency);
+        window.TonuMobileUI.animateValue(divMesEl, totalDivsMesRecebidos, formatCurrency);
+        window.TonuMobileUI.animateValue(divAReceberEl, totalDivsAReceber, formatCurrency);
+    } else {
+        if (patEl) patEl.textContent = formatCurrency(totalPatrimonio);
+        if (invEl) invEl.textContent = formatCurrency(totalInvestido);
+        if (provEl) provEl.textContent = formatCurrency(totalDivsRecebidos);
+        if (rentEl) rentEl.textContent = `${sign}${rentabilidadeTotal.toFixed(2).replace('.', ',')}%`;
+        if (ganhoEl) ganhoEl.textContent = `${sign}${formatCurrency(ganhoTotal)}`;
+        if (divHistEl) divHistEl.textContent = formatCurrency(totalDivsRecebidos);
+        if (divMesEl) divMesEl.textContent = formatCurrency(totalDivsMesRecebidos);
+        if (divAReceberEl) divAReceberEl.textContent = formatCurrency(totalDivsAReceber);
+    }
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 
     // Contadores dos chips de status de proventos
     const countAllEl = document.getElementById("countDivAll");
@@ -1863,7 +1889,13 @@ async function updateMobileAchievementCard(totalCurrentEquity, totalInvested) {
         const totalFormatted = typeof formatCurrency === 'function' ? formatCurrency(totalCurrentEquity) : `R$ ${Number(totalCurrentEquity || 0).toFixed(2)}`;
 
         if (dateElMob) dateElMob.textContent = `Até ${formattedToday}`;
-        if (valElMob) valElMob.textContent = totalFormatted;
+        if (valElMob) {
+            if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+                window.TonuMobileUI.animateValue(valElMob, Number(totalCurrentEquity) || 0, formatCurrency);
+            } else {
+                valElMob.textContent = totalFormatted;
+            }
+        }
 
         let pastSnapshots = [];
         let proventos90Dias = 0;
@@ -2537,8 +2569,12 @@ function renderMobileAllocationChart() {
     const textColor = isDark ? '#e2e8f0' : '#475569';
 
     if (centerTotalEl && centerValEl) {
-        centerValEl.textContent = formatCurrency(grandTotal);
         centerTotalEl.style.display = "block";
+        if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+            window.TonuMobileUI.animateValue(centerValEl, grandTotal, formatCurrency);
+        } else {
+            centerValEl.textContent = formatCurrency(grandTotal);
+        }
     }
 
     mobileAllocationChart = new Chart(canvas, {
@@ -3315,6 +3351,20 @@ function switchInvestTab(tab) {
         document.getElementById("tabBtnProventos").classList.add("active");
         document.getElementById("tabContentProventos").classList.add("active");
         renderDividends();
+        if (window._lastProvSummary && window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+            const pairs = [
+                ['cardDivHistorico', window._lastProvSummary.totalDivsRecebidos],
+                ['cardDivMes', window._lastProvSummary.totalDivsMesRecebidos],
+                ['cardDivAReceber', window._lastProvSummary.totalDivsAReceber]
+            ];
+            pairs.forEach(([id, val]) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.dataset.animPrev = '0';
+                    window.TonuMobileUI.animateValue(el, val, formatCurrency);
+                }
+            });
+        }
         setTimeout(() => {
             if (mobileDividendsChart) mobileDividendsChart.resize();
         }, 50);

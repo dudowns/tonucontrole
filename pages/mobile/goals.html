@@ -2232,9 +2232,15 @@ function updateHeroStats() {
     const elTot = document.getElementById("heroTotalAcumulado");
     const elAlv = document.getElementById("heroTotalAlvo");
     const elCon = document.getElementById("heroMetasConcluidas");
-    if (elTot) elTot.textContent = formatCurrency(totalAcumulado);
-    if (elAlv) elAlv.textContent = formatCurrency(totalAlvo);
-    if (elCon) elCon.textContent = `${concluidas} de ${goals.length}`;
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(elTot, totalAcumulado, formatCurrency);
+        window.TonuMobileUI.animateValue(elAlv, totalAlvo, formatCurrency);
+        window.TonuMobileUI.animateValue(elCon, concluidas, v => `${Math.round(v)} de ${goals.length}`);
+    } else {
+        if (elTot) elTot.textContent = formatCurrency(totalAcumulado);
+        if (elAlv) elAlv.textContent = formatCurrency(totalAlvo);
+        if (elCon) elCon.textContent = `${concluidas} de ${goals.length}`;
+    }
     
     updateMobileTemporalHeader();
     if (typeof updateMobileCdiGlobalCard === 'function') updateMobileCdiGlobalCard();
@@ -3833,11 +3839,19 @@ async function updateMobileCdiGlobalCard() {
     const elIR = document.getElementById('mobileCdiIR');
     const elLiquido = document.getElementById('mobileCdiLiquido');
 
-    if (elAportado) elAportado.textContent = formatCurrency(totalAportado);
-    if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
-    if (elIOF) elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
-    if (elIR) elIR.textContent = `- ${formatCurrency(totalIR)}`;
-    if (elLiquido) elLiquido.textContent = formatCurrency(totalNet);
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(elAportado, totalAportado, formatCurrency);
+        window.TonuMobileUI.animateValue(elBruto, totalGrossYield, v => `+ ${formatCurrency(v)}`);
+        window.TonuMobileUI.animateValue(elIOF, totalIOF, v => `- ${formatCurrency(v)}`);
+        window.TonuMobileUI.animateValue(elIR, totalIR, v => `- ${formatCurrency(v)}`);
+        window.TonuMobileUI.animateValue(elLiquido, totalNet, formatCurrency);
+    } else {
+        if (elAportado) elAportado.textContent = formatCurrency(totalAportado);
+        if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
+        if (elIOF) elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
+        if (elIR) elIR.textContent = `- ${formatCurrency(totalIR)}`;
+        if (elLiquido) elLiquido.textContent = formatCurrency(totalNet);
+    }
 }
 
 window.openMobileYieldModal = openMobileYieldModal;

@@ -712,16 +712,21 @@ function updateStats() {
 
     // Total a pagar é estritamente a soma das contas pendentes/a vencer do mês
     const statTotalEl = document.getElementById("statTotal");
-    if (statTotalEl) statTotalEl.textContent = formatCurrency(pending);
-
     const statPaidEl = document.getElementById("statPaid");
-    if (statPaidEl) statPaidEl.textContent = formatCurrency(paid);
-
     const statPendingEl = document.getElementById("statPending");
-    if (statPendingEl) statPendingEl.textContent = formatCurrency(normalPending);
-
     const statOverdueEl = document.getElementById("statOverdue");
-    if (statOverdueEl) statOverdueEl.textContent = formatCurrency(overdue);
+
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(statTotalEl, pending, formatCurrency);
+        window.TonuMobileUI.animateValue(statPaidEl, paid, formatCurrency);
+        window.TonuMobileUI.animateValue(statPendingEl, normalPending, formatCurrency);
+        window.TonuMobileUI.animateValue(statOverdueEl, overdue, formatCurrency);
+    } else {
+        if (statTotalEl) statTotalEl.textContent = formatCurrency(pending);
+        if (statPaidEl) statPaidEl.textContent = formatCurrency(paid);
+        if (statPendingEl) statPendingEl.textContent = formatCurrency(normalPending);
+        if (statOverdueEl) statOverdueEl.textContent = formatCurrency(overdue);
+    }
 
     const statMonthRefBadge = document.getElementById("statMonthRefBadge");
     if (statMonthRefBadge && typeof MONTHS !== 'undefined') {
@@ -774,9 +779,14 @@ function updateInstallmentsBannerMobile() {
         banner.style.display = "flex";
         const countEl = document.getElementById("bannerInstallmentActiveCountMobile");
         const detailsEl = document.getElementById("bannerInstallmentDetailsMobile");
-        if (countEl) countEl.textContent = activeCount;
-        if (detailsEl) {
-            detailsEl.textContent = `A vencer: ${totalRemainingInstallments} • Saldo: ${formatCurrency(totalRemainingDebt)}`;
+        if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+            window.TonuMobileUI.animateValue(countEl, activeCount, v => String(Math.round(v)));
+            window.TonuMobileUI.animateValue(detailsEl, totalRemainingDebt, v => `A vencer: ${totalRemainingInstallments} • Saldo: ${formatCurrency(v)}`);
+        } else {
+            if (countEl) countEl.textContent = activeCount;
+            if (detailsEl) {
+                detailsEl.textContent = `A vencer: ${totalRemainingInstallments} • Saldo: ${formatCurrency(totalRemainingDebt)}`;
+            }
         }
     } else {
         banner.style.display = "none";
