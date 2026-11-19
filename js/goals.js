@@ -745,10 +745,23 @@ function updateGoalsStats(goals) {
     const elBar = document.getElementById('statsGlobalProgressBar');
     const elRem = document.getElementById('statsRemainingGlobal');
 
-    if (elAccumulated) elAccumulated.textContent = formatCurrency(totalAccumulated);
-    if (elTarget) elTarget.textContent = formatCurrency(globalTarget);
-    if (elCompleted) elCompleted.textContent = `${completedCount} de ${goals.length}`;
-    if (elPct) elPct.textContent = `${globalPct}%`;
+    const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+    if (elAccumulated) {
+        if (anim) anim(elAccumulated, totalAccumulated, formatCurrency);
+        else elAccumulated.textContent = formatCurrency(totalAccumulated);
+    }
+    if (elTarget) {
+        if (anim) anim(elTarget, globalTarget, formatCurrency);
+        else elTarget.textContent = formatCurrency(globalTarget);
+    }
+    if (elCompleted) {
+        if (anim) anim(elCompleted, completedCount, v => `${Math.round(v)} de ${goals.length}`);
+        else elCompleted.textContent = `${completedCount} de ${goals.length}`;
+    }
+    if (elPct) {
+        if (anim) anim(elPct, globalPct, v => `${Math.round(v)}%`);
+        else elPct.textContent = `${globalPct}%`;
+    }
     if (elBar) elBar.style.width = `${globalPct}%`;
     if (elRem) {
         elRem.textContent = remainingGlobal > 0
@@ -2602,11 +2615,27 @@ async function updateCdiGlobalCard(goals) {
     const elIR = document.getElementById('cdiStatIR');
     const elLiquido = document.getElementById('cdiStatLiquido');
 
-    if (elAportado) elAportado.textContent = formatCurrency(totalAportado);
-    if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
-    if (elIOF) elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
-    if (elIR) elIR.textContent = `- ${formatCurrency(totalIR)}`;
-    if (elLiquido) elLiquido.textContent = formatCurrency(totalNet);
+    const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+    if (elAportado) {
+        if (anim) anim(elAportado, totalAportado, formatCurrency);
+        else elAportado.textContent = formatCurrency(totalAportado);
+    }
+    if (elBruto) {
+        if (anim) anim(elBruto, totalGrossYield, v => `+ ${formatCurrency(v)}`);
+        else elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
+    }
+    if (elIOF) {
+        if (anim) anim(elIOF, totalIOF, v => `- ${formatCurrency(v)}`);
+        else elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
+    }
+    if (elIR) {
+        if (anim) anim(elIR, totalIR, v => `- ${formatCurrency(v)}`);
+        else elIR.textContent = `- ${formatCurrency(totalIR)}`;
+    }
+    if (elLiquido) {
+        if (anim) anim(elLiquido, totalNet, formatCurrency);
+        else elLiquido.textContent = formatCurrency(totalNet);
+    }
 }
 
 let currentYieldGoalId = null;
@@ -2742,12 +2771,31 @@ async function renderGoalYieldDetails(goal) {
     const elIR = document.getElementById('yieldStatIR');
     const elNetTotal = document.getElementById('yieldStatNetTotal');
 
-    if (elDep) elDep.textContent = formatCurrency(totalDeposited);
-    if (elGrossYield) elGrossYield.textContent = `+${formatCurrency(totalGrossYield)}`;
-    if (elGrossTotal) elGrossTotal.textContent = formatCurrency(grossTotal);
-    if (elIOF) elIOF.textContent = `-${formatCurrency(totalIOF)}`;
-    if (elIR) elIR.textContent = `-${formatCurrency(totalIR)}`;
-    if (elNetTotal) elNetTotal.textContent = formatCurrency(netTotal);
+    const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+    if (elDep) {
+        if (anim) anim(elDep, totalDeposited, formatCurrency);
+        else elDep.textContent = formatCurrency(totalDeposited);
+    }
+    if (elGrossYield) {
+        if (anim) anim(elGrossYield, totalGrossYield, v => `+${formatCurrency(v)}`);
+        else elGrossYield.textContent = `+${formatCurrency(totalGrossYield)}`;
+    }
+    if (elGrossTotal) {
+        if (anim) anim(elGrossTotal, grossTotal, formatCurrency);
+        else elGrossTotal.textContent = formatCurrency(grossTotal);
+    }
+    if (elIOF) {
+        if (anim) anim(elIOF, totalIOF, v => `-${formatCurrency(v)}`);
+        else elIOF.textContent = `-${formatCurrency(totalIOF)}`;
+    }
+    if (elIR) {
+        if (anim) anim(elIR, totalIR, v => `-${formatCurrency(v)}`);
+        else elIR.textContent = `-${formatCurrency(totalIR)}`;
+    }
+    if (elNetTotal) {
+        if (anim) anim(elNetTotal, netTotal, formatCurrency);
+        else elNetTotal.textContent = formatCurrency(netTotal);
+    }
 }
 
 async function saveGoalCdiPercentDirect() {

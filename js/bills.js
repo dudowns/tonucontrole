@@ -383,13 +383,26 @@
         const elOverdue = document.getElementById('billsStatOverdue');
         const elOverdueCount = document.getElementById('billsStatOverdueCount');
 
-        if (elTotal) elTotal.textContent = formatCurrency(remainingToPay);
+        const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+        if (elTotal) {
+            if (anim) anim(elTotal, remainingToPay, formatCurrency);
+            else elTotal.textContent = formatCurrency(remainingToPay);
+        }
         if (elTotalCount) elTotalCount.textContent = `${pendingCount} ${pendingCount === 1 ? 'a pagar' : 'a pagar'}`;
-        if (elPaid) elPaid.textContent = formatCurrency(paid);
+        if (elPaid) {
+            if (anim) anim(elPaid, paid, formatCurrency);
+            else elPaid.textContent = formatCurrency(paid);
+        }
         if (elPaidCount) elPaidCount.textContent = `${paidCount} ${paidCount === 1 ? 'paga' : 'pagas'}`;
-        if (elPending) elPending.textContent = formatCurrency(normalPending);
+        if (elPending) {
+            if (anim) anim(elPending, normalPending, formatCurrency);
+            else elPending.textContent = formatCurrency(normalPending);
+        }
         if (elPendingCount) elPendingCount.textContent = `${normalPendingCount} ${normalPendingCount === 1 ? 'a vencer' : 'a vencer'}`;
-        if (elOverdue) elOverdue.textContent = formatCurrency(overdue);
+        if (elOverdue) {
+            if (anim) anim(elOverdue, overdue, formatCurrency);
+            else elOverdue.textContent = formatCurrency(overdue);
+        }
         if (elOverdueCount) elOverdueCount.textContent = `${overdueCount} ${overdueCount === 1 ? 'atrasada' : 'atrasadas'}`;
 
         // Progresso do mês
@@ -398,7 +411,10 @@
         const elPct = document.getElementById('billsProgressPct');
         const elBar = document.getElementById('billsProgressBar');
 
-        if (elPct) elPct.textContent = `${pct}%`;
+        if (elPct) {
+            if (anim) anim(elPct, pct, v => `${Math.round(v)}%`);
+            else elPct.textContent = `${pct}%`;
+        }
         if (elBar) elBar.style.width = `${pct}%`;
 
         // Métricas de Parcelamento e Banner
@@ -428,7 +444,10 @@
             banner.style.display = 'flex';
             const countEl = document.getElementById('bannerInstallmentActiveCount');
             const detailsEl = document.getElementById('bannerInstallmentDetails');
-            if (countEl) countEl.textContent = activeCount;
+            if (countEl) {
+                if (typeof window.animateValue === 'function') window.animateValue(countEl, activeCount, v => String(Math.round(v)));
+                else countEl.textContent = activeCount;
+            }
             if (detailsEl) {
                 detailsEl.textContent = `Total de parcelas restantes a vencer: ${totalRemainingInstallments} • Saldo restante a quitar: ${formatCurrency(totalRemainingDebt)}`;
             }

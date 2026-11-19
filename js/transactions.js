@@ -664,13 +664,24 @@
         const elBalance = document.getElementById('totalBalance') || document.getElementById('statBalance');
         const elCount = document.getElementById('totalCount') || document.getElementById('statCount');
 
-        if (elIncome) elIncome.textContent = formatBRL(income);
-        if (elExpense) elExpense.textContent = formatBRL(expense);
+        const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+        if (elIncome) {
+            if (anim) anim(elIncome, income, formatBRL);
+            else elIncome.textContent = formatBRL(income);
+        }
+        if (elExpense) {
+            if (anim) anim(elExpense, expense, formatBRL);
+            else elExpense.textContent = formatBRL(expense);
+        }
         if (elBalance) {
-            elBalance.textContent = formatBRL(balance);
+            if (anim) anim(elBalance, balance, formatBRL);
+            else elBalance.textContent = formatBRL(balance);
             elBalance.style.color = balance >= 0 ? 'var(--color-success,#00b894)' : 'var(--color-danger,#ff7675)';
         }
-        if (elCount) elCount.textContent = String(transactions.length);
+        if (elCount) {
+            if (anim) anim(elCount, transactions.length, v => String(Math.round(v)));
+            else elCount.textContent = String(transactions.length);
+        }
     }
 
     // Filters

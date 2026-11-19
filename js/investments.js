@@ -2713,15 +2713,25 @@ async function loadDividends() {
 // UPDATE PROVENTOS SUMMARY
 // ============================================
 function updateProventosSummary() {
+    const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
     const totalAll = allDividends.reduce((sum, d) => sum + getDividendTotalValue(d), 0);
     const totalAllEl = document.getElementById('provTotalAll');
-    if (totalAllEl) totalAllEl.textContent = formatCurrency(totalAll);
+    if (totalAllEl) {
+        if (anim) anim(totalAllEl, totalAll, formatCurrency);
+        else totalAllEl.textContent = formatCurrency(totalAll);
+    }
 
     // Old elements for backwards compatibility
     const oldTotalEl = document.getElementById('divTotalAmount');
-    if (oldTotalEl) oldTotalEl.textContent = formatCurrency(totalAll);
+    if (oldTotalEl) {
+        if (anim) anim(oldTotalEl, totalAll, formatCurrency);
+        else oldTotalEl.textContent = formatCurrency(totalAll);
+    }
     const totalDividendsEl = document.getElementById('totalDividends');
-    if (totalDividendsEl) totalDividendsEl.textContent = formatCurrency(totalAll);
+    if (totalDividendsEl) {
+        if (anim) anim(totalDividendsEl, totalAll, formatCurrency);
+        else totalDividendsEl.textContent = formatCurrency(totalAll);
+    }
     const dividendsCountEl = document.getElementById('dividendsCount');
     if (dividendsCountEl) dividendsCountEl.textContent = `${allDividends.length} provento${allDividends.length !== 1 ? 's' : ''}`;
 
@@ -2736,11 +2746,17 @@ function updateProventosSummary() {
     });
     const total12M = last12MDivs.reduce((sum, d) => sum + getDividendTotalValue(d), 0);
     const total12MEl = document.getElementById('provTotal12M');
-    if (total12MEl) total12MEl.textContent = formatCurrency(total12M);
+    if (total12MEl) {
+        if (anim) anim(total12MEl, total12M, formatCurrency);
+        else total12MEl.textContent = formatCurrency(total12M);
+    }
 
     const monthlyAvg = total12M / 12;
     const monthlyAvgEl = document.getElementById('provMonthlyAvg');
-    if (monthlyAvgEl) monthlyAvgEl.textContent = formatCurrency(monthlyAvg);
+    if (monthlyAvgEl) {
+        if (anim) anim(monthlyAvgEl, monthlyAvg, formatCurrency);
+        else monthlyAvgEl.textContent = formatCurrency(monthlyAvg);
+    }
 
     // Monthly Goal
     const goal = parseFloat(localStorage.getItem('tonu_dividend_monthly_goal') || '500');
@@ -2749,7 +2765,10 @@ function updateProventosSummary() {
 
     const goalPct = goal > 0 ? (monthlyAvg / goal) * 100 : 0;
     const goalPctEl = document.getElementById('provGoalPct');
-    if (goalPctEl) goalPctEl.textContent = `${goalPct.toFixed(2).replace('.', ',')}%`;
+    if (goalPctEl) {
+        if (anim) anim(goalPctEl, goalPct, v => `${v.toFixed(2).replace('.', ',')}%`);
+        else goalPctEl.textContent = `${goalPct.toFixed(2).replace('.', ',')}%`;
+    }
 
     const progressBar = document.getElementById('provGoalProgressBar');
     if (progressBar) progressBar.style.width = `${Math.min(Math.max(goalPct, 0), 100)}%`;
@@ -3400,7 +3419,11 @@ function updateSummary() {
     const dividendsEl = document.getElementById('totalDividends');
     const dividendsCountEl = document.getElementById('dividendsCount');
 
-    if (patrimonyEl) patrimonyEl.textContent = formatCurrency(totalCurrentValue);
+    const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+    if (patrimonyEl) {
+        if (anim) anim(patrimonyEl, totalCurrentValue, formatCurrency);
+        else patrimonyEl.textContent = formatCurrency(totalCurrentValue);
+    }
 
     if (variationEl) {
         const sign = dayChange >= 0 ? '+' : '';
@@ -3411,14 +3434,20 @@ function updateSummary() {
         variationEl.className = 'stat-sub';
     }
 
-    if (assetCountEl) assetCountEl.textContent = positions.length;
+    if (assetCountEl) {
+        if (anim) anim(assetCountEl, positions.length, v => String(Math.round(v)));
+        else assetCountEl.textContent = positions.length;
+    }
     if (assetSubEl) assetSubEl.textContent =
         `${positions.length} posição${positions.length !== 1 ? 'ões' : ''} ativa${positions.length !== 1 ? 's' : ''}`;
 
     if (returnEl) {
-        const returnSign = returnPct >= 0 ? '+' : '';
         const colorClass = returnPct >= 0 ? 'text-success' : 'text-danger';
-        returnEl.textContent = `${returnSign}${returnPct.toFixed(2)}%`;
+        if (anim) anim(returnEl, returnPct, v => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`);
+        else {
+            const returnSign = returnPct >= 0 ? '+' : '';
+            returnEl.textContent = `${returnSign}${returnPct.toFixed(2)}%`;
+        }
         returnEl.className = `stat-value ${colorClass}`;
     }
 
@@ -3429,7 +3458,10 @@ function updateSummary() {
         gainEl.className = `stat-sub ${colorClass}`;
     }
 
-    if (dividendsEl) dividendsEl.textContent = formatCurrency(totalDividends);
+    if (dividendsEl) {
+        if (anim) anim(dividendsEl, totalDividends, formatCurrency);
+        else dividendsEl.textContent = formatCurrency(totalDividends);
+    }
     if (dividendsCountEl) dividendsCountEl.textContent = `${dividendsCount} provento${dividendsCount !== 1 ? 's' : ''}`;
 
     // ITEM 10: Atualizar Card de Conquistas com dados de portfolio_snapshots e proventos
@@ -3462,10 +3494,17 @@ async function updateAchievementCard(totalCurrentEquity, totalInvested) {
 
         const totalFormatted = typeof formatCurrency === 'function' ? formatCurrency(totalCurrentEquity) : `R$ ${Number(totalCurrentEquity || 0).toFixed(2)}`;
 
+        const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
         if (dateElPC) dateElPC.textContent = `Valor até ${formattedToday}`;
-        if (valElPC) valElPC.textContent = totalFormatted;
+        if (valElPC) {
+            if (anim) anim(valElPC, Number(totalCurrentEquity) || 0, formatCurrency);
+            else valElPC.textContent = totalFormatted;
+        }
         if (dateElMobile) dateElMobile.textContent = `Valor até ${formattedToday}`;
-        if (valElMobile) valElMobile.textContent = totalFormatted;
+        if (valElMobile) {
+            if (anim) anim(valElMobile, Number(totalCurrentEquity) || 0, formatCurrency);
+            else valElMobile.textContent = totalFormatted;
+        }
 
         let pastSnapshots = [];
         let proventos90Dias = 0;
@@ -3660,7 +3699,10 @@ function renderTable() {
 
     const total = positions.reduce((s, p) => s + p.currentValue, 0);
     const totalEl = document.getElementById('portfolioTotal');
-    if (totalEl) totalEl.textContent = formatCurrency(total);
+    if (totalEl) {
+        if (typeof window.animateValue === 'function') window.animateValue(totalEl, total, formatCurrency);
+        else totalEl.textContent = formatCurrency(total);
+    }
 
     renderClassCards();
     renderPieChart();

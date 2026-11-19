@@ -441,6 +441,96 @@ function formatNumber(value, decimals) {
 }
 window.formatNumber = formatNumber;
 
+function animateValue(el, toVal, formatter) {
+    if (!el) return;
+    var target = Number(toVal);
+    if (!Number.isFinite(target)) return;
+
+    if (el._tonuRafId && typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
+        window.cancelAnimationFrame(el._tonuRafId);
+        el._tonuRafId = null;
+    }
+
+    var fmt = typeof formatter === 'function'
+        ? formatter
+        : (typeof formatCurrency === 'function' ? formatCurrency : function (v) {
+            return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
+        });
+
+    var formattedTarget = fmt(target);
+    var isHidden = false;
+    try {
+        isHidden = typeof localStorage !== 'undefined' && localStorage.getItem('tonu_hide_balance') === 'true';
+    } catch (_) {}
+
+    var maskedIds = {
+        totalBalance: true,
+        totalIncome: true,
+        totalExpense: true,
+        billsAmount: true,
+        totalInvested: true,
+        dividendsMonthAmount: true
+    };
+    var isDesktopMaskedId = !!(el.id && maskedIds[el.id]);
+
+    if (isDesktopMaskedId && el.dataset) {
+        el.dataset.realValue = formattedTarget;
+    }
+
+    if (isHidden && (isDesktopMaskedId || (el.hasAttribute && el.hasAttribute('data-sensitive')) || (el.textContent && el.textContent.indexOf('•••') !== -1))) {
+        if (isDesktopMaskedId || (el.textContent && el.textContent.indexOf('•••') !== -1)) {
+            el.textContent = '••••••';
+        } else {
+            el.textContent = formattedTarget;
+        }
+        if (el.dataset) el.dataset.animPrev = String(target);
+        return;
+    }
+
+    var reducedMotion = false;
+    try {
+        reducedMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (_) {}
+
+    if (reducedMotion || typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+        el.textContent = formattedTarget;
+        if (el.dataset) el.dataset.animPrev = String(target);
+        return;
+    }
+
+    var prev = (el.dataset && el.dataset.animPrev !== undefined) ? parseFloat(el.dataset.animPrev) : NaN;
+    if (!Number.isFinite(prev)) prev = 0;
+
+    if (Math.abs(target - prev) < 0.005) {
+        el.textContent = formattedTarget;
+        if (el.dataset) el.dataset.animPrev = String(target);
+        return;
+    }
+
+    var duration = 550;
+    var startTime = (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
+
+    function step(now) {
+        var currentNow = typeof now === 'number' ? now : ((typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now());
+        var p = Math.min(1, Math.max(0, (currentNow - startTime) / duration));
+        var eased = 1 - Math.pow(1 - p, 3);
+        var current = prev + (target - prev) * eased;
+        el.textContent = fmt(p >= 1 ? target : current);
+        if (p < 1) {
+            el._tonuRafId = window.requestAnimationFrame(step);
+        } else {
+            el._tonuRafId = null;
+            if (el.dataset) {
+                el.dataset.animPrev = String(target);
+                if (isDesktopMaskedId) el.dataset.realValue = formattedTarget;
+            }
+        }
+    }
+    el._tonuRafId = window.requestAnimationFrame(step);
+}
+if (typeof window !== 'undefined') window.animateValue = animateValue;
+if (typeof globalThis !== 'undefined') globalThis.animateValue = animateValue;
+
 function formatDate(date, format) {
     format = format || 'short';
     if (!date) return '--/--/----';

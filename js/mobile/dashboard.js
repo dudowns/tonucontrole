@@ -30,6 +30,41 @@ let cachedDashboardEquity = 0;
 let isDashboardEquityLoaded = false;
 const _cache = { key: null, ts: 0, payload: null };
 const CACHE_TTL_MS = 45 * 1000;
+const MOBILE_REMOTE_SYNC_TIMEOUT_MS = 5000;
+let _mobileLoadSeq = 0;
+
+const DEFAULT_MOBILE_CATEGORIES = [
+    { id: 'cat_contas', name: '⚡ Contas Básicas', type: 'expense', icon: 'fa-bolt', color: '#0984E3' },
+    { id: 'cat_lazer', name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#8B5CF6' },
+    { id: 'cat_saude', name: '❤️ Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#FF6B6B' },
+    { id: 'cat_educacao', name: '📚 Educação', type: 'expense', icon: 'fa-book', color: '#0984E3' },
+    { id: 'cat_emprestimos', name: '🤝 Empréstimos', type: 'expense', icon: 'fa-hand-holding-usd', color: '#D63031' },
+    { id: 'cat_cartao', name: '💳 Cartão de Crédito', type: 'expense', icon: 'fa-credit-card', color: '#E17055' },
+    { id: 'cat_moradia', name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#E17055' },
+    { id: 'cat_comunicacao', name: '📡 Comunicação', type: 'expense', icon: 'fa-wifi', color: '#636E72' },
+    { id: 'cat_alimentacao', name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF6B6B' },
+    { id: 'cat_transporte', name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#FDCB6E' },
+    { id: 'cat_salario', name: '💰 Salário', type: 'income', icon: 'fa-money-bill-wave', color: '#00B894' },
+    { id: 'cat_investimentos', name: '💼 Investimentos', type: 'both', icon: 'fa-chart-line', color: '#00CEC9' },
+    { id: 'cat_bico', name: '🛵 Bico / Extra', type: 'income', icon: 'fa-gift', color: '#00B894' },
+    { id: 'cat_outros', name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#B2BEC3' }
+];
+
+function withMobileTimeout(promise, ms, fallbackValue) {
+    let timerId = null;
+    const timeoutPromise = new Promise((resolve) => {
+        timerId = setTimeout(() => resolve({ timedOut: true, value: fallbackValue }), ms);
+    });
+    return Promise.race([
+        Promise.resolve(promise).then(
+            (value) => ({ timedOut: false, value }),
+            (error) => ({ timedOut: false, error, value: fallbackValue })
+        ),
+        timeoutPromise
+    ]).finally(() => {
+        if (timerId !== null) clearTimeout(timerId);
+    });
+}
 
 // ============================================
 // NAVEGAÇÃO DE MÊS NO MOBILE
@@ -42,6 +77,7 @@ function getSelectedMonthDate() {
 }
 
 function updateMobileMonthDisplay() {
+    if (typeof document === 'undefined') return;
     const el = document.getElementById("selectedMonth");
     if (!el) return;
     const d = getSelectedMonthDate();
@@ -69,10 +105,226 @@ window.goToCurrentMonth = goToCurrentMonth;
 window.changeMonthHandler = changeMonth;
 window.goToCurrentMonthHandler = goToCurrentMonth;
 
+// Atualiza o mês imediatamente ao carregar o script (antes mesmo de auth/DB)
+try {
+    if (typeof document !== 'undefined' && document.readyState !== 'loading') {
+        updateMobileMonthDisplay();
+    }
+} catch (_) {}
+
+// ============================================
+// PERFIL, SAUDAÇÃO & CALLBACK OAUTH MOBILE
+// ============================================
+function hydrateMobileHeaderUser(user) {
+    if (!user || typeof document === 'undefined') return;
+    const rawName = user.user_metadata?.full_name || user.user_metadata?.name || user.name || user.email?.split("@")[0] || "Usuário";
+    const safeName = String(rawName).trim() || "Usuário";
+
+    const greetingEl = document.getElementById("greetingText");
+    if (greetingEl) {
+        greetingEl.textContent = `Olá, ${safeName} 👋`;
+    }
+
+    const avatarEl = document.getElementById("topbarAvatar");
+    if (avatarEl) {
+        const parts = safeName.split(/\s+/).filter(Boolean);
+        const initials = parts.length >= 2
+            ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+            : safeName.slice(0, 2).toUpperCase();
+        avatarEl.textContent = initials || "U";
+    }
+}
+
+async function ensureMobileProfileAndDefaults(user) {
+    if (!user || !user.id || !window.supabaseClient) return;
+    const fullName = user.user_metadata?.full_name || user.user_metadata?.name || user.name || user.email?.split("@")[0] || "Usuário";
+    const safeName = typeof sanitizeString === 'function' ? sanitizeString(fullName) : fullName;
+
+    try {
+        const { data: existingProfile } = await window.supabaseClient
+            .from('profiles')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (!existingProfile) {
+            await window.supabaseClient.from('profiles').insert([{
+                id: user.id,
+                full_name: safeName || 'Usuário',
+                currency: 'BRL',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }]);
+        }
+    } catch (_) {}
+
+    try {
+        const { data: existingCats, error: catCheckErr } = await window.supabaseClient
+            .from('categories')
+            .select('id')
+            .eq('user_id', user.id)
+            .limit(1);
+
+        if (!catCheckErr && (!existingCats || existingCats.length === 0)) {
+            const seed = DEFAULT_MOBILE_CATEGORIES.map(c => ({
+                user_id: user.id,
+                name: c.name,
+                type: c.type === 'both' ? 'income' : c.type,
+                icon: c.icon,
+                color: c.color
+            }));
+            await window.supabaseClient.from('categories').insert(seed);
+        }
+    } catch (_) {}
+}
+
+function cleanMobileOAuthUrl() {
+    try {
+        if (window.history && typeof window.history.replaceState === 'function') {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    } catch (_) {}
+}
+
+async function waitForOAuthHashSession(timeoutMs) {
+    const client = window.supabaseClient;
+    if (!client?.auth?.onAuthStateChange) return null;
+
+    return new Promise((resolve) => {
+        let settled = false;
+        let sub = null;
+        const finish = (u) => {
+            if (settled) return;
+            settled = true;
+            try { sub?.unsubscribe?.(); } catch (_) {}
+            clearTimeout(timer);
+            resolve(u || null);
+        };
+        const timer = setTimeout(() => finish(null), timeoutMs || 2500);
+        try {
+            const { data } = client.auth.onAuthStateChange((event, session) => {
+                if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+                    finish(session.user);
+                }
+            });
+            sub = data?.subscription;
+        } catch (_) {
+            finish(null);
+        }
+    });
+}
+
+async function resolveMobileOAuthSession() {
+    const search = window.location.search || '';
+    const hash = window.location.hash || '';
+    const urlParams = new URLSearchParams(search);
+    const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+
+    const oauthError = urlParams.get('error') || hashParams.get('error');
+    const oauthCode = urlParams.get('code');
+    const hasHashToken = hashParams.has('access_token') || hash.includes('access_token=');
+    const hadOAuthParams = Boolean(oauthError || oauthCode || hasHashToken || urlParams.has('state'));
+
+    if (oauthError) {
+        cleanMobileOAuthUrl();
+    }
+
+    let user = null;
+
+    // 1. Tenta getSession primeiro (processa detectSessionInUrl automaticamente no SDK v2)
+    if (window.supabaseClient?.auth?.getSession) {
+        const sessRes = await withMobileTimeout(window.supabaseClient.auth.getSession(), 4000, null);
+        user = sessRes?.value?.data?.session?.user || null;
+    }
+
+    // 2. Se veio ?code= (PKCE) e getSession ainda não resolveu a sessão, troca explicitamente
+    if (!user && oauthCode && window.supabaseClient?.auth?.exchangeCodeForSession) {
+        try {
+            const exRes = await withMobileTimeout(window.supabaseClient.auth.exchangeCodeForSession(oauthCode), 4500, null);
+            user = exRes?.value?.data?.user || exRes?.value?.data?.session?.user || null;
+        } catch (_) {}
+    }
+
+    // 3. Se veio #access_token= no hash, aguarda brevemente o evento SIGNED_IN
+    if (!user && hasHashToken) {
+        user = await waitForOAuthHashSession(2500);
+        if (!user && window.supabaseClient?.auth?.getSession) {
+            const retrySess = await withMobileTimeout(window.supabaseClient.auth.getSession(), 2000, null);
+            user = retrySess?.value?.data?.session?.user || null;
+        }
+    }
+
+    // 4. Fluxo padrão de sessão autenticada / offline (com timeout para nunca travar)
+    if (!user) {
+        if (typeof window.getAuthenticatedUser === 'function') {
+            const authRes = await withMobileTimeout(window.getAuthenticatedUser(), 3500, null);
+            user = authRes?.value || null;
+        } else if (window.supabaseOffline?.isAuthenticated) {
+            const offRes = await withMobileTimeout(window.supabaseOffline.isAuthenticated(), 3500, null);
+            user = offRes?.value || null;
+        }
+    }
+
+    if (!user && window.supabaseClient?.auth?.getUser && navigator.onLine !== false) {
+        const uRes = await withMobileTimeout(window.supabaseClient.auth.getUser(), 3000, null);
+        user = uRes?.value?.data?.user || null;
+    }
+
+    if (!user) {
+        try {
+            const s = sessionStorage.getItem("tonu_user");
+            if (s) {
+                const p = JSON.parse(s);
+                user = p.user || p;
+            }
+        } catch (_) {}
+    }
+
+    if (!user) {
+        try {
+            const off = localStorage.getItem("tonu_offline_session");
+            if (off) {
+                const p = JSON.parse(off);
+                user = p.user || p;
+            }
+        } catch (_) {}
+    }
+
+    if (!user && oauthError) {
+        return { user: null, oauthError, hadOAuthParams };
+    }
+
+    if (user) {
+        if (hadOAuthParams) {
+            cleanMobileOAuthUrl();
+        }
+        try {
+            sessionStorage.removeItem('tonu_logout_in_progress');
+            sessionStorage.setItem('tonu_user', JSON.stringify(user));
+        } catch (_) {}
+
+        if (window.supabaseOffline?.saveOfflineSession) {
+            try { await window.supabaseOffline.saveOfflineSession(user); } catch (_) {}
+        }
+        if (window.TonuSecureSession?.save) {
+            try { await window.TonuSecureSession.save(user); } catch (_) {}
+        }
+        if (hadOAuthParams) {
+            // Garante perfil e categorias padrão em background sem bloquear a renderização
+            ensureMobileProfileAndDefaults(user).catch(() => {});
+        }
+    }
+
+    return { user, oauthError: null, hadOAuthParams };
+}
+
 // ============================================
 // INICIALIZAÇÃO
 // ============================================
 document.addEventListener("DOMContentLoaded", async () => {
+    // Atualiza o mês imediatamente (zero "Carregando..." preso)
+    updateMobileMonthDisplay();
+
     // Tema
     const savedTheme = localStorage.getItem("tonu_theme") || "light";
     if (savedTheme === "dark") {
@@ -82,47 +334,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (icon) icon.classList.replace("fa-moon", "fa-sun");
     }
 
-    // Autenticação
+    // Autenticação + tratamento OAuth mobile
     try {
-        let user = null;
-        if (window.getAuthenticatedUser) {
-            user = await window.getAuthenticatedUser();
-        } else if (window.supabaseOffline) {
-            user = await window.supabaseOffline.isAuthenticated();
-        }
-
-        if (!user && window.supabaseClient && window.supabaseClient.auth) {
-            try {
-                const { data: sessData } = await supabaseClient.auth.getSession();
-                user = sessData?.session?.user;
-                if (!user) {
-                    const { data: userData } = await supabaseClient.auth.getUser();
-                    user = userData?.user;
-                }
-            } catch (_) {}
-        }
+        const { user, oauthError } = await resolveMobileOAuthSession();
 
         if (!user) {
-            try {
-                const s = sessionStorage.getItem("tonu_user");
-                if (s) {
-                    const p = JSON.parse(s);
-                    user = p.user || p;
-                }
-            } catch (_) {}
-        }
-
-        if (!user) {
-            try {
-                const off = localStorage.getItem("tonu_offline_session");
-                if (off) {
-                    const p = JSON.parse(off);
-                    user = p.user || p;
-                }
-            } catch (_) {}
-        }
-
-        if (!user) {
+            if (oauthError) {
+                showMobileToast("Erro na autenticação social. Faça login novamente.", "error");
+                setTimeout(() => { window.location.href = "../../index.html"; }, 900);
+                return;
+            }
             console.warn("⚠️ Nenhum usuário autenticado encontrado no Mobile Dashboard, redirecionando...");
             window.location.href = "../../index.html";
             return;
@@ -131,10 +352,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentUser = user;
         console.log("✅ Mobile: Usuário autenticado:", currentUser.email);
 
-        const name = user.user_metadata?.full_name || user.name || user.email?.split("@")[0] || "Usuário";
-        document.getElementById("greetingText").textContent = `Olá, ${name} 👋`;
+        hydrateMobileHeaderUser(currentUser);
 
-        await loadCategories();
+        // Inicia carregamento progressivo sem bloquear em loadCategories remoto
+        loadCategories({ cacheOnly: true }).catch(() => {});
         await loadMobileData();
     } catch (e) {
         console.error("❌ Erro na autenticação mobile:", e);
@@ -143,55 +364,85 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // ============================================
-// CARREGAR CATEGORIAS
+// CARREGAR CATEGORIAS (CACHE-FIRST + TIMEOUT)
 // ============================================
-async function loadCategories() {
-    try {
-        let loaded = null;
-        try {
-            const { data, error } = await supabaseClient
-                .from("categories")
-                .select("*")
-                .or(`user_id.eq.${currentUser.id},is_default.eq.true,user_id.is.null`)
-                .order("name");
-            if (!error && data && data.length > 0) loaded = data;
-        } catch (_) {
-            const { data, error } = await supabaseClient
-                .from("categories")
-                .select("*")
-                .eq("user_id", currentUser.id);
-            if (!error && data && data.length > 0) loaded = data;
-        }
+function normalizeMobileCategoriesList(list) {
+    const out = Array.isArray(list) ? list.slice() : [];
+    if (!out.some(c => (c.name && c.name.toLowerCase().includes('invest')) || c.id === 'cat_investimentos')) {
+        out.push({ id: 'cat_investimentos', name: '💼 Investimentos', type: 'both', icon: 'fa-chart-line', color: '#00CEC9' });
+    }
+    return out;
+}
 
-        if (loaded && loaded.length > 0) {
-            categories = loaded;
-            // Garantir que a categoria Investimentos esteja sempre presente
-            if (!categories.some(c => (c.name && c.name.toLowerCase().includes('invest')) || c.id === 'cat_investimentos')) {
-                categories.push({ id: 'cat_investimentos', name: '💼 Investimentos', type: 'both', icon: 'fa-chart-line', color: '#00CEC9' });
+async function loadCategories(options = {}) {
+    const cacheOnly = !!(options && options.cacheOnly);
+    const uid = currentUser?.id;
+
+    // 1. Cache local rápido (IndexedDB / localStorage) ou fallback imediato
+    if (categories.length === 0 && uid) {
+        let cachedCats = null;
+        if (window.tonuSync?.getEntityCache) {
+            try {
+                const res = await withMobileTimeout(window.tonuSync.getEntityCache(`categories_${uid}`), 400, null);
+                if (Array.isArray(res?.value) && res.value.length > 0) cachedCats = res.value;
+            } catch (_) {}
+        }
+        if (!cachedCats) {
+            try {
+                const raw = localStorage.getItem(`tonu_categories_${uid}`);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) cachedCats = parsed;
+                }
+            } catch (_) {}
+        }
+        categories = normalizeMobileCategoriesList(cachedCats || DEFAULT_MOBILE_CATEGORIES);
+    } else if (categories.length === 0) {
+        categories = normalizeMobileCategoriesList(DEFAULT_MOBILE_CATEGORIES);
+    }
+
+    if (cacheOnly || !uid || !window.supabaseClient || navigator.onLine === false) {
+        return categories;
+    }
+
+    // 2. Atualização remota com timeout seguro
+    try {
+        const fetchCatsPromise = (async () => {
+            try {
+                const { data, error } = await supabaseClient
+                    .from("categories")
+                    .select("*")
+                    .or(`user_id.eq.${uid},is_default.eq.true,user_id.is.null`)
+                    .order("name");
+                if (!error && Array.isArray(data) && data.length > 0) return data;
+            } catch (_) {}
+            const { data, error } = await supabaseClient
+                .from("categories")
+                .select("*")
+                .eq("user_id", uid);
+            if (!error && Array.isArray(data) && data.length > 0) return data;
+            return null;
+        })();
+
+        const remoteRes = await withMobileTimeout(fetchCatsPromise, 3500, null);
+        const loaded = remoteRes?.value;
+        if (Array.isArray(loaded) && loaded.length > 0) {
+            categories = normalizeMobileCategoriesList(loaded);
+            if (window.tonuSync?.setEntityCache) {
+                window.tonuSync.setEntityCache(`categories_${uid}`, categories).catch(() => {});
             }
-        } else {
-            categories = [
-                { id: 'cat_contas', name: '⚡ Contas Básicas', type: 'expense', icon: 'fa-bolt', color: '#0984E3' },
-                { id: 'cat_lazer', name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#8B5CF6' },
-                { id: 'cat_saude', name: '❤️ Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#FF6B6B' },
-                { id: 'cat_educacao', name: '📚 Educação', type: 'expense', icon: 'fa-book', color: '#0984E3' },
-                { id: 'cat_emprestimos', name: '🤝 Empréstimos', type: 'expense', icon: 'fa-hand-holding-usd', color: '#D63031' },
-                { id: 'cat_cartao', name: '💳 Cartão de Crédito', type: 'expense', icon: 'fa-credit-card', color: '#E17055' },
-                { id: 'cat_moradia', name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#E17055' },
-                { id: 'cat_comunicacao', name: '📡 Comunicação', type: 'expense', icon: 'fa-wifi', color: '#636E72' },
-                { id: 'cat_alimentacao', name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF6B6B' },
-                { id: 'cat_transporte', name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#FDCB6E' },
-                { id: 'cat_salario', name: '💰 Salário', type: 'income', icon: 'fa-money-bill-wave', color: '#00B894' },
-                { id: 'cat_investimentos', name: '💼 Investimentos', type: 'both', icon: 'fa-chart-line', color: '#00CEC9' },
-                { id: 'cat_bico', name: '🛵 Bico / Extra', type: 'income', icon: 'fa-gift', color: '#00B894' },
-                { id: 'cat_outros', name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#B2BEC3' }
-            ];
+            try {
+                localStorage.setItem(`tonu_categories_${uid}`, JSON.stringify(categories));
+            } catch (_) {}
         }
         console.log("✅ Categorias carregadas:", categories.length);
     } catch (e) {
         console.error("❌ Erro ao carregar categorias:", e);
-        categories = [];
+        if (categories.length === 0) {
+            categories = normalizeMobileCategoriesList(DEFAULT_MOBILE_CATEGORIES);
+        }
     }
+    return categories;
 }
 
 // ============================================
@@ -382,275 +633,271 @@ function calculateCurrentCustodyCost(investments = []) {
 window.calculateCurrentCustodyCost = calculateCurrentCustodyCost;
 
 // ============================================
-// CARREGAR DADOS MOBILE UNIFICADOS
+// CARREGAR DADOS MOBILE UNIFICADOS (CACHE-FIRST + TIMEOUT 5S)
 // ============================================
-async function loadMobileData(options = {}) {
-    try {
-        updateMobileMonthDisplay();
-        const forceRefresh = !!(options && options.forceRefresh);
-        const cacheKey = `${currentUser?.id || 'anon'}:${currentMonthOffset}`;
-        const now = Date.now();
-        if (!forceRefresh && _cache.payload && _cache.key === cacheKey && (now - _cache.ts) < CACHE_TTL_MS) {
-            const p = _cache.payload;
-            allTransactions = p.allTransactions;
-            allBills = p.allBills;
-            allDividends = p.allDividends;
-            allGoals = p.allGoals;
-            allInvestments = p.allInvestments;
-            window.allDividends = allDividends;
-            window.allInvestments = allInvestments;
+function renderAllMobileWidgets() {
+    renderSummary();
+    renderMobileChart();
+    renderMobileInsights();
+    renderMobileGoals();
+    renderCategoryBars();
+    renderTransactions();
+}
 
-            await loadSyncedPortfolioEquity();
-            renderSummary();
-            renderMobileChart();
-            renderMobileInsights();
-            renderMobileGoals();
-            renderCategoryBars();
-            renderTransactions();
-            loadAIInsights().catch(() => {});
-            return;
-        }
+function computeMobileDataFingerprint() {
+    const txHead = allTransactions.length > 0 ? `${allTransactions[0]?.id || ''}:${allTransactions[0]?.amount || ''}` : '';
+    const txSum = allTransactions.reduce((acc, t) => acc + Math.abs(Number(t?.amount || 0)), 0);
+    const billsSum = allBills.reduce((acc, b) => acc + Math.abs(Number(b?.amount || 0)), 0);
+    return [
+        currentMonthOffset,
+        allTransactions.length,
+        txHead,
+        Math.round(txSum * 100),
+        allBills.length,
+        Math.round(billsSum * 100),
+        allDividends.length,
+        allGoals.length,
+        allInvestments.length,
+        Math.round(Number(cachedDashboardEquity || 0) * 100),
+        categories.length
+    ].join('|');
+}
 
-        const targetDate = getSelectedMonthDate();
-        const year = targetDate.getFullYear();
-        const month = String(targetDate.getMonth() + 1).padStart(2, "0");
-        const lastDayNum = new Date(year, targetDate.getMonth() + 1, 0).getDate();
-        const firstDay = `${year}-${month}-01`;
-        const lastDay = `${year}-${month}-${String(lastDayNum).padStart(2, "0")}`;
+async function hydrateMobileFromCache(userId, firstDay, lastDay, monthPrefix) {
+    const emptyResult = {
+        found: false,
+        allTransactions: [],
+        allBills: [],
+        allGoals: [],
+        allDividends: [],
+        allInvestments: []
+    };
+    if (!userId) return emptyResult;
 
-        // 1. Transações
-        const txPromise = supabaseClient
-            .from("transactions")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .gte("date", firstDay)
-            .lte("date", lastDay)
-            .order("date", { ascending: false });
+    let found = false;
+    let cachedTxList = [];
+    let cachedBillsList = [];
+    let cachedGoalsList = [];
+    let cachedDivsList = [];
+    let cachedInvList = [];
 
-        // 2. Contas (busca transações do tipo conta ou tabela bills se existir)
-        const billsPromise = (async () => {
-            try {
-                const { data } = await supabaseClient
-                    .from("transactions")
-                    .select("*")
-                    .eq("user_id", currentUser.id)
-                    .eq("type", "expense")
-                    .eq("is_bill", true)
-                    .gte("date", firstDay)
-                    .lte("date", lastDay);
-                if (data && data.length > 0) return { data };
-            } catch (e) {}
-            try {
-                return await supabaseClient
-                    .from("bills")
-                    .select("*")
-                    .eq("user_id", currentUser.id);
-            } catch (e) {
-                return { data: [] };
-            }
-        })();
-
-        // 3. Proventos (AWAIT)
-        const divPromise = (async () => {
-            return await loadDividends();
-        })();
-
-        // 4. Metas
-        const goalsPromise = supabaseClient
-            .from("goals")
-            .select("*")
-            .eq("user_id", currentUser.id);
-
-        // 5. Investimentos (AWAIT)
-        const invPromise = (async () => {
-            return await loadInvestments();
-        })();
-
-        const [txRes, billsRes, divData, goalsRes, invData] = await Promise.all([
-            txPromise,
-            billsPromise,
-            divPromise,
-            goalsPromise,
-            invPromise
+    if (window.tonuSync) {
+        const readCachePromise = Promise.all([
+            window.tonuSync.getCachedTransactions(userId).catch(() => []),
+            window.tonuSync.getCachedBills(userId).catch(() => []),
+            window.tonuSync.getCachedGoals(userId).catch(() => []),
+            window.tonuSync.getCachedDividends(userId).catch(() => []),
+            window.tonuSync.getCachedInvestments(userId).catch(() => [])
         ]);
+        const cacheRes = await withMobileTimeout(readCachePromise, 650, [[], [], [], [], []]);
+        const [txRaw, billsRaw, goalsRaw, divsRaw, invRaw] = Array.isArray(cacheRes?.value) ? cacheRes.value : [[], [], [], [], []];
 
-        let loadedData = txRes.data || [];
-        if (window.TonuDeduplicate) {
-            loadedData = window.TonuDeduplicate.deduplicate(loadedData, {
-                autoCleanRemote: true,
-                userId: currentUser?.id
+        if (Array.isArray(txRaw) && txRaw.length > 0) {
+            cachedTxList = txRaw.filter(t => {
+                const dt = String(t?.date || '').substring(0, 10);
+                return dt >= firstDay && dt <= lastDay;
+            });
+            found = true;
+        }
+        if (Array.isArray(billsRaw) && billsRaw.length > 0) {
+            cachedBillsList = billsRaw.filter(b => {
+                const dt = String(b?.date || b?.due_date || '').substring(0, 10);
+                if (!dt) return true;
+                return (dt >= firstDay && dt <= lastDay) || dt.substring(0, 7) === monthPrefix;
+            });
+            found = true;
+        }
+        if (Array.isArray(goalsRaw) && goalsRaw.length > 0) {
+            cachedGoalsList = goalsRaw;
+            found = true;
+        }
+        if (Array.isArray(divsRaw) && divsRaw.length > 0) {
+            cachedDivsList = divsRaw;
+            found = true;
+        }
+        if (Array.isArray(invRaw) && invRaw.length > 0) {
+            cachedInvList = invRaw;
+            found = true;
+        }
+    }
+
+    // Migração transparente de legado de localStorage para IndexedDB
+    try {
+        const legacyMap = [
+            ['tonu_transactions_', 'setCachedTransactions', (arr) => {
+                if (cachedTxList.length === 0) {
+                    cachedTxList = arr.filter(t => {
+                        const dt = String(t?.date || '').substring(0, 10);
+                        return !dt || (dt >= firstDay && dt <= lastDay);
+                    });
+                }
+            }],
+            ['tonu_bills_', 'setCachedBills', (arr) => {
+                if (cachedBillsList.length === 0) cachedBillsList = arr;
+            }],
+            ['tonu_goals_', 'setCachedGoals', (arr) => {
+                if (cachedGoalsList.length === 0) cachedGoalsList = arr;
+            }],
+            ['tonu_dividends_', 'setCachedDividends', (arr) => {
+                if (cachedDivsList.length === 0) cachedDivsList = arr;
+            }],
+            ['tonu_investments_', 'setCachedInvestments', (arr) => {
+                if (cachedInvList.length === 0) cachedInvList = arr;
+            }]
+        ];
+        for (const [prefix, setter, assignFn] of legacyMap) {
+            const raw = localStorage.getItem(prefix + userId);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    if (window.tonuSync?.[setter]) {
+                        window.tonuSync[setter](userId, parsed).catch(() => {});
+                    }
+                    assignFn(parsed);
+                    found = true;
+                }
+                localStorage.removeItem(prefix + userId);
+            }
+        }
+    } catch (_) {}
+
+    if (window.TonuDeduplicate && cachedTxList.length > 0) {
+        try {
+            cachedTxList = window.TonuDeduplicate.deduplicate(cachedTxList, {
+                autoCleanRemote: false,
+                userId
             }).cleanList;
+        } catch (_) {}
+    }
+
+    return {
+        found,
+        allTransactions: cachedTxList,
+        allBills: cachedBillsList,
+        allGoals: cachedGoalsList,
+        allDividends: cachedDivsList,
+        allInvestments: cachedInvList
+    };
+}
+
+function persistCanonicalMobileCache(userId, txList, billsList, goalsList, divsList, invList) {
+    if (!userId) return;
+    try { localStorage.setItem(`tonu_has_synced_${userId}`, '1'); } catch (_) {}
+    if (window.tonuSync) {
+        if (txList.length > 0) window.tonuSync.setCachedTransactions(userId, txList).catch(() => {});
+        if (billsList.length > 0) window.tonuSync.setCachedBills(userId, billsList).catch(() => {});
+        if (goalsList.length > 0) window.tonuSync.setCachedGoals(userId, goalsList).catch(() => {});
+        if (divsList.length > 0) window.tonuSync.setCachedDividends(userId, divsList).catch(() => {});
+        if (invList.length > 0) window.tonuSync.setCachedInvestments(userId, invList).catch(() => {});
+    }
+    try {
+        localStorage.removeItem('tonu_transactions_' + userId);
+        localStorage.removeItem('tonu_bills_' + userId);
+        localStorage.removeItem('tonu_goals_' + userId);
+        localStorage.removeItem('tonu_dividends_' + userId);
+        localStorage.removeItem('tonu_investments_' + userId);
+    } catch (_) {}
+}
+
+async function fetchRemoteMobileBundle(year, month, firstDay, lastDay) {
+    // Atualiza categorias e busca todas as entidades em paralelo
+    const catPromise = loadCategories({ cacheOnly: false });
+
+    const txPromise = supabaseClient
+        .from("transactions")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .gte("date", firstDay)
+        .lte("date", lastDay)
+        .order("date", { ascending: false });
+
+    const billsPromise = (async () => {
+        try {
+            const { data, error } = await supabaseClient
+                .from("transactions")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .eq("type", "expense")
+                .eq("is_bill", true)
+                .gte("date", firstDay)
+                .lte("date", lastDay);
+            if (!error && data && data.length > 0) return { data, error: null };
+        } catch (_) {}
+        try {
+            return await supabaseClient
+                .from("bills")
+                .select("*")
+                .eq("user_id", currentUser.id);
+        } catch (e) {
+            return { data: [], error: e };
         }
-        allTransactions = loadedData;
+    })();
 
-        allBills = billsRes?.data || [];
-        allGoals = goalsRes?.data || [];
-        allDividends = Array.isArray(divData) ? divData : (allDividends || []);
-        allInvestments = Array.isArray(invData) ? invData : (allInvestments || []);
+    const divPromise = loadDividends();
+    const goalsPromise = supabaseClient
+        .from("goals")
+        .select("*")
+        .eq("user_id", currentUser.id);
+    const invPromise = loadInvestments();
 
-        // ==================================================================
-        // CANONICAL INDEXEDDB CACHE NO DASHBOARD MOBILE
-        // ==================================================================
-        const isRemoteEmpty = (allTransactions.length === 0 && allBills.length === 0 && allDividends.length === 0 && allGoals.length === 0 && allInvestments.length === 0);
+    const [, txRes, billsRes, divData, goalsRes, invData] = await Promise.all([
+        catPromise,
+        txPromise,
+        billsPromise,
+        divPromise,
+        goalsPromise,
+        invPromise
+    ]);
 
-        if (isRemoteEmpty && currentUser && currentUser.id) {
-            console.log("ℹ️ Dados remotos vazios, consultando cache canônico IndexedDB...");
-            let cacheFound = false;
+    return {
+        txRes: txRes || { data: [] },
+        billsRes: billsRes || { data: [] },
+        divData: Array.isArray(divData) ? divData : [],
+        goalsRes: goalsRes || { data: [] },
+        invData: Array.isArray(invData) ? invData : []
+    };
+}
 
-            if (window.tonuSync) {
-                try {
-                    const cachedTx = await window.tonuSync.getCachedTransactions(currentUser.id);
-                    if (Array.isArray(cachedTx) && cachedTx.length > 0) {
-                        allTransactions = cachedTx.filter(t => t.date >= firstDay && t.date <= lastDay);
-                        cacheFound = true;
-                    }
-                } catch (_) {}
+async function applyRemoteBundle(remote, seq, cacheKey, renderedFingerprint) {
+    if (seq !== _mobileLoadSeq || !remote) return;
 
-                try {
-                    const cachedBills = await window.tonuSync.getCachedBills(currentUser.id);
-                    if (Array.isArray(cachedBills) && cachedBills.length > 0) {
-                        allBills = cachedBills.filter(b => b.date >= firstDay && b.date <= lastDay);
-                        cacheFound = true;
-                    }
-                } catch (_) {}
+    const { txRes, billsRes, divData, goalsRes, invData } = remote;
+    const hadRemoteError = Boolean(txRes?.error && billsRes?.error && goalsRes?.error);
 
-                try {
-                    const cachedGoals = await window.tonuSync.getCachedGoals(currentUser.id);
-                    if (Array.isArray(cachedGoals) && cachedGoals.length > 0) {
-                        allGoals = cachedGoals;
-                        cacheFound = true;
-                    }
-                } catch (_) {}
+    let nextTx = Array.isArray(txRes?.data) ? txRes.data : allTransactions;
+    if (Array.isArray(txRes?.data) && window.TonuDeduplicate) {
+        nextTx = window.TonuDeduplicate.deduplicate(nextTx, {
+            autoCleanRemote: true,
+            userId: currentUser?.id
+        }).cleanList;
+    }
 
-                try {
-                    const cachedDivs = await window.tonuSync.getCachedDividends(currentUser.id);
-                    if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
-                        allDividends = cachedDivs;
-                        cacheFound = true;
-                    }
-                } catch (_) {}
+    const nextBills = Array.isArray(billsRes?.data) ? billsRes.data : allBills;
+    let nextGoals = Array.isArray(goalsRes?.data) ? goalsRes.data : allGoals;
+    const nextDivs = Array.isArray(divData) ? divData : allDividends;
+    const nextInv = Array.isArray(invData) ? invData : allInvestments;
 
-                try {
-                    const cachedInv = await window.tonuSync.getCachedInvestments(currentUser.id);
-                    if (Array.isArray(cachedInv) && cachedInv.length > 0) {
-                        allInvestments = cachedInv;
-                        cacheFound = true;
-                    }
-                } catch (_) {}
+    // Se metas vieram vazias por erro/offline parcial, preserva metas cacheadas
+    if ((!nextGoals || nextGoals.length === 0) && currentUser?.id && window.tonuSync) {
+        try {
+            const cachedGoals = await withMobileTimeout(window.tonuSync.getCachedGoals(currentUser.id), 450, []);
+            if (Array.isArray(cachedGoals?.value) && cachedGoals.value.length > 0) {
+                nextGoals = cachedGoals.value;
             }
+        } catch (_) {}
+    }
 
-            // Migração transparente de legado de localStorage para IndexedDB
-            try {
-                const legacyTx = localStorage.getItem('tonu_transactions_' + currentUser.id);
-                if (legacyTx && window.tonuSync) {
-                    const parsed = JSON.parse(legacyTx);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        await window.tonuSync.setCachedTransactions(currentUser.id, parsed);
-                        if (allTransactions.length === 0) allTransactions = parsed;
-                        cacheFound = true;
-                    }
-                    localStorage.removeItem('tonu_transactions_' + currentUser.id);
-                }
-                const legacyBills = localStorage.getItem('tonu_bills_' + currentUser.id);
-                if (legacyBills && window.tonuSync) {
-                    const parsed = JSON.parse(legacyBills);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        await window.tonuSync.setCachedBills(currentUser.id, parsed);
-                        if (allBills.length === 0) allBills = parsed;
-                        cacheFound = true;
-                    }
-                    localStorage.removeItem('tonu_bills_' + currentUser.id);
-                }
-                const legacyGoals = localStorage.getItem('tonu_goals_' + currentUser.id);
-                if (legacyGoals && window.tonuSync) {
-                    const parsed = JSON.parse(legacyGoals);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        await window.tonuSync.setCachedGoals(currentUser.id, parsed);
-                        if (allGoals.length === 0) allGoals = parsed;
-                        cacheFound = true;
-                    }
-                    localStorage.removeItem('tonu_goals_' + currentUser.id);
-                }
-                const legacyDivs = localStorage.getItem('tonu_dividends_' + currentUser.id);
-                if (legacyDivs && window.tonuSync) {
-                    const parsed = JSON.parse(legacyDivs);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        await window.tonuSync.setCachedDividends(currentUser.id, parsed);
-                        if (allDividends.length === 0) allDividends = parsed;
-                        cacheFound = true;
-                    }
-                    localStorage.removeItem('tonu_dividends_' + currentUser.id);
-                }
-                const legacyInv = localStorage.getItem('tonu_investments_' + currentUser.id);
-                if (legacyInv && window.tonuSync) {
-                    const parsed = JSON.parse(legacyInv);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        await window.tonuSync.setCachedInvestments(currentUser.id, parsed);
-                        if (allInvestments.length === 0) allInvestments = parsed;
-                        cacheFound = true;
-                    }
-                    localStorage.removeItem('tonu_investments_' + currentUser.id);
-                }
-            } catch (_) {}
+    if (!hadRemoteError) {
+        allTransactions = nextTx;
+        allBills = nextBills;
+        allGoals = nextGoals;
+        allDividends = nextDivs;
+        allInvestments = nextInv;
+        window.allDividends = allDividends;
+        window.allInvestments = allInvestments;
 
-            if (cacheFound) {
-                console.log("📶 Usando dados do cache IndexedDB:", {
-                    transacoes: allTransactions.length,
-                    contas: allBills.length,
-                    proventos: allDividends.length,
-                    investimentos: allInvestments.length,
-                    metas: allGoals.length
-                });
-                setMobileCacheBanner(true);
-            } else {
-                setMobileCacheBanner(false);
-            }
-        } else {
-            setMobileCacheBanner(false);
-            // Atualiza cache canônico IndexedDB para consultas offline futuras
-            if (currentUser && currentUser.id && window.tonuSync) {
-                try {
-                    if (allTransactions.length > 0) {
-                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
-                    }
-                    if (allBills.length > 0) {
-                        await window.tonuSync.setCachedBills(currentUser.id, allBills);
-                    }
-                    if (allGoals.length > 0) {
-                        await window.tonuSync.setCachedGoals(currentUser.id, allGoals);
-                    }
-                    if (allDividends.length > 0) {
-                        await window.tonuSync.setCachedDividends(currentUser.id, allDividends);
-                    }
-                    if (allInvestments.length > 0) {
-                        await window.tonuSync.setCachedInvestments(currentUser.id, allInvestments);
-                    }
-                } catch (_) {}
-            }
-            // Limpa chaves financeiras concorrentes antigas do localStorage
-            if (currentUser && currentUser.id) {
-                try {
-                    localStorage.removeItem('tonu_transactions_' + currentUser.id);
-                    localStorage.removeItem('tonu_bills_' + currentUser.id);
-                    localStorage.removeItem('tonu_goals_' + currentUser.id);
-                    localStorage.removeItem('tonu_dividends_' + currentUser.id);
-                    localStorage.removeItem('tonu_investments_' + currentUser.id);
-                } catch (_) {}
-            }
-        }
-
-        // Se metas vieram vazias mas há cache IndexedDB (ex: offline parcial), recupera metas cacheadas
-        if ((!allGoals || allGoals.length === 0) && currentUser?.id && window.tonuSync) {
-            try {
-                const cachedGoals = await window.tonuSync.getCachedGoals(currentUser.id);
-                if (Array.isArray(cachedGoals) && cachedGoals.length > 0) {
-                    allGoals = cachedGoals;
-                }
-            } catch (_) {}
-        }
-
-        // Sincroniza patrimônio em custódia antes de renderizar o carrossel de metas
-        await loadSyncedPortfolioEquity();
+        await withMobileTimeout(loadSyncedPortfolioEquity({ forceRefresh: true }), 2500, cachedDashboardEquity);
+        persistCanonicalMobileCache(currentUser?.id, allTransactions, allBills, allGoals, allDividends, allInvestments);
 
         _cache.key = cacheKey;
         _cache.ts = Date.now();
@@ -661,6 +908,122 @@ async function loadMobileData(options = {}) {
             allGoals,
             allInvestments
         };
+    }
+
+    if (seq !== _mobileLoadSeq) return;
+
+    setMobileCacheBanner(navigator.onLine === false && renderedFingerprint ? 'cache' : 'hidden');
+
+    const newFingerprint = computeMobileDataFingerprint();
+    if (!renderedFingerprint || newFingerprint !== renderedFingerprint) {
+        renderAllMobileWidgets();
+    }
+
+    loadAIInsights().catch(() => {});
+    if (typeof window.checkNotifications === 'function') {
+        window.checkNotifications();
+    }
+}
+
+async function loadMobileData(options = {}) {
+    const seq = ++_mobileLoadSeq;
+    try {
+        updateMobileMonthDisplay();
+        const forceRefresh = !!(options && options.forceRefresh);
+        const cacheKey = `${currentUser?.id || 'anon'}:${currentMonthOffset}`;
+        const now = Date.now();
+
+        if (!forceRefresh && _cache.payload && _cache.key === cacheKey && (now - _cache.ts) < CACHE_TTL_MS) {
+            const p = _cache.payload;
+            allTransactions = p.allTransactions;
+            allBills = p.allBills;
+            allDividends = p.allDividends;
+            allGoals = p.allGoals;
+            allInvestments = p.allInvestments;
+            window.allDividends = allDividends;
+            window.allInvestments = allInvestments;
+
+            setMobileCacheBanner('hidden');
+            await loadSyncedPortfolioEquity({ cacheOnly: true });
+            renderAllMobileWidgets();
+            loadAIInsights().catch(() => {});
+            return;
+        }
+
+        const targetDate = getSelectedMonthDate();
+        const year = targetDate.getFullYear();
+        const month = String(targetDate.getMonth() + 1).padStart(2, "0");
+        const lastDayNum = new Date(year, targetDate.getMonth() + 1, 0).getDate();
+        const firstDay = `${year}-${month}-01`;
+        const lastDay = `${year}-${month}-${String(lastDayNum).padStart(2, "0")}`;
+        const monthPrefix = `${year}-${month}`;
+
+        // 1. RENDERIZAÇÃO PROGRESSIVA (CACHE-FIRST NO INDEXEDDB)
+        const cached = await hydrateMobileFromCache(currentUser?.id, firstDay, lastDay, monthPrefix);
+        if (seq !== _mobileLoadSeq) return;
+
+        let renderedFingerprint = null;
+        const hasPreviousSync = (() => {
+            try { return Boolean(currentUser?.id && localStorage.getItem(`tonu_has_synced_${currentUser.id}`)); } catch (_) { return false; }
+        })();
+
+        if (cached.found || hasPreviousSync) {
+            allTransactions = cached.allTransactions;
+            allBills = cached.allBills;
+            allGoals = cached.allGoals;
+            allDividends = cached.allDividends;
+            allInvestments = cached.allInvestments;
+            window.allDividends = allDividends;
+            window.allInvestments = allInvestments;
+
+            await loadSyncedPortfolioEquity({ cacheOnly: true });
+            renderAllMobileWidgets();
+            renderedFingerprint = computeMobileDataFingerprint();
+            loadAIInsights(false).catch(() => {});
+
+            setMobileCacheBanner(navigator.onLine === false ? 'cache' : 'syncing');
+        } else {
+            setMobileCacheBanner('hidden');
+        }
+
+        // Se estiver offline, não tenta aguardar chamadas remotas
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            if (!renderedFingerprint) renderAllMobileWidgets();
+            setMobileCacheBanner(cached.found ? 'cache' : 'hidden');
+            return;
+        }
+
+        // 2. SINCRONIZAÇÃO EM BACKGROUND COM TIMEOUT DE SEGURANÇA (5s)
+        const remotePromise = fetchRemoteMobileBundle(year, month, firstDay, lastDay);
+        const raceResult = await withMobileTimeout(remotePromise, MOBILE_REMOTE_SYNC_TIMEOUT_MS, { __timedOut: true });
+
+        if (seq !== _mobileLoadSeq) return;
+
+        if (raceResult?.timedOut || raceResult?.value?.__timedOut) {
+            console.warn("⏱️ Sincronização mobile excedeu 5s; exibindo dados em cache/disponíveis.");
+            setMobileCacheBanner(renderedFingerprint ? 'cache' : 'hidden');
+            if (!renderedFingerprint) {
+                renderAllMobileWidgets();
+            }
+            showMobileToast("Sincronização lenta. Exibindo dados disponíveis...", "warning");
+
+            // Se responder em segundo plano logo depois no mesmo mês, atualiza silenciosamente
+            remotePromise.then(async (lateRemote) => {
+                if (seq !== _mobileLoadSeq || !lateRemote) return;
+                await applyRemoteBundle(lateRemote, seq, cacheKey, computeMobileDataFingerprint());
+            }).catch(() => {});
+            return;
+        }
+
+        if (raceResult?.error || !raceResult?.value) {
+            setMobileCacheBanner(renderedFingerprint ? 'cache' : 'hidden');
+            if (!renderedFingerprint) {
+                renderAllMobileWidgets();
+            }
+            return;
+        }
+
+        await applyRemoteBundle(raceResult.value, seq, cacheKey, renderedFingerprint);
 
         console.log("📊 Mobile: Dados unificados prontos:", {
             transacoes: allTransactions.length,
@@ -669,27 +1032,17 @@ async function loadMobileData(options = {}) {
             investimentos: allInvestments.length,
             metas: allGoals.length
         });
-
-        renderSummary();
-        renderMobileChart();
-        renderMobileInsights();
-        renderMobileGoals();
-        renderCategoryBars();
-        renderTransactions();
-        loadAIInsights().catch(() => {});
-
-        if (typeof window.checkNotifications === 'function') {
-            window.checkNotifications();
-        }
     } catch (error) {
         console.error("❌ Erro ao carregar dados mobile:", error);
+        setMobileCacheBanner('hidden');
+        renderAllMobileWidgets();
     }
 }
 
 async function syncMobileDashboardNow() {
     try {
         if (window.tonuSync && typeof window.tonuSync.flushQueue === 'function') {
-            await window.tonuSync.flushQueue();
+            await withMobileTimeout(window.tonuSync.flushQueue(), 4000, null);
         }
         await loadMobileData({ forceRefresh: true });
         showMobileToast("Dados sincronizados! ☁️", "success");
@@ -702,22 +1055,19 @@ async function syncMobileDashboardNow() {
 window.loadMobileData = loadMobileData;
 window.syncMobileDashboardNow = syncMobileDashboardNow;
 
-function setMobileCacheBanner(show) {
-    let banner = document.getElementById("mobileCacheSyncBanner");
-    if (!banner) {
-        banner = document.createElement("div");
-        banner.id = "mobileCacheSyncBanner";
-        banner.style.cssText = "display:none; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:10px; padding:8px 12px; margin:0 16px 12px 16px; font-size:12px; font-weight:600; text-align:center;";
-        const container = document.getElementById("summaryContainer") || document.getElementById("main-content");
-        if (container && container.parentNode) {
-            container.parentNode.insertBefore(banner, container);
-        }
-    }
-    if (show) {
-        banner.innerHTML = '<i class="fas fa-wifi" style="margin-right:6px;"></i> 📶 Exibindo dados em cache — sincronizando...';
-        banner.style.display = "block";
+function setMobileCacheBanner(mode) {
+    const banner = document.getElementById("mobileCacheSyncBanner");
+    if (!banner) return;
+
+    if (mode === true || mode === 'cache') {
+        banner.className = "mob-sync-status-pill is-visible is-cache";
+        banner.innerHTML = '<i class="fas fa-wifi" aria-hidden="true"></i> <span>Exibindo dados em cache — sincronizando...</span>';
+    } else if (mode === 'syncing') {
+        banner.className = "mob-sync-status-pill is-visible";
+        banner.innerHTML = '<i class="fas fa-sync-alt fa-spin" aria-hidden="true"></i> <span>Sincronizando dados em segundo plano...</span>';
     } else {
-        banner.style.display = "none";
+        banner.className = "mob-sync-status-pill";
+        banner.innerHTML = '';
     }
 }
 
@@ -1575,6 +1925,7 @@ function renderMobileInsights() {
 // ============================================
 async function loadSyncedPortfolioEquity(options = {}) {
     const force = !!(options && options.forceRefresh);
+    const cacheOnly = !!(options && options.cacheOnly);
     if (!force && isDashboardEquityLoaded && cachedDashboardEquity > 0) {
         return cachedDashboardEquity;
     }
@@ -1593,7 +1944,7 @@ async function loadSyncedPortfolioEquity(options = {}) {
             } catch (_) {}
         }
 
-        if ((!corpList || corpList.length === 0) && navigator.onLine && window.supabaseClient && currentUser?.id) {
+        if (!cacheOnly && (!corpList || corpList.length === 0) && navigator.onLine && window.supabaseClient && currentUser?.id) {
             try {
                 const { data: corpData } = await window.supabaseClient
                     .from("corporate_events")
@@ -1718,38 +2069,40 @@ async function loadSyncedPortfolioEquity(options = {}) {
     } catch (_) {}
 
     // 2. Fallback: portfolio_snapshots no Supabase
-    try {
-        if (navigator.onLine && window.supabaseClient && currentUser?.id) {
-            const { data } = await window.supabaseClient
-                .from('portfolio_snapshots')
-                .select('total_equity')
-                .eq('user_id', currentUser.id)
-                .order('date', { ascending: false })
-                .limit(1);
-            if (data && data[0]?.total_equity && Number(data[0].total_equity) > 0) {
-                cachedDashboardEquity = Number(data[0].total_equity);
-                isDashboardEquityLoaded = true;
-                try { localStorage.setItem('tonu_total_equity_' + uid, String(cachedDashboardEquity)); } catch (_) {}
-                return cachedDashboardEquity;
+    if (!cacheOnly) {
+        try {
+            if (navigator.onLine && window.supabaseClient && currentUser?.id) {
+                const { data } = await window.supabaseClient
+                    .from('portfolio_snapshots')
+                    .select('total_equity')
+                    .eq('user_id', currentUser.id)
+                    .order('date', { ascending: false })
+                    .limit(1);
+                if (data && data[0]?.total_equity && Number(data[0].total_equity) > 0) {
+                    cachedDashboardEquity = Number(data[0].total_equity);
+                    isDashboardEquityLoaded = true;
+                    try { localStorage.setItem('tonu_total_equity_' + uid, String(cachedDashboardEquity)); } catch (_) {}
+                    return cachedDashboardEquity;
+                }
             }
-        }
-    } catch (_) {}
+        } catch (_) {}
 
-    // 3. Fallback: user_stats no Supabase
-    try {
-        if (navigator.onLine && window.supabaseClient && currentUser?.id) {
-            const { data: uStat } = await window.supabaseClient
-                .from('user_stats')
-                .select('patrimony')
-                .eq('user_id', currentUser.id)
-                .maybeSingle();
-            if (uStat && Number(uStat.patrimony) > 0) {
-                cachedDashboardEquity = Number(uStat.patrimony);
-                isDashboardEquityLoaded = true;
-                return cachedDashboardEquity;
+        // 3. Fallback: user_stats no Supabase
+        try {
+            if (navigator.onLine && window.supabaseClient && currentUser?.id) {
+                const { data: uStat } = await window.supabaseClient
+                    .from('user_stats')
+                    .select('patrimony')
+                    .eq('user_id', currentUser.id)
+                    .maybeSingle();
+                if (uStat && Number(uStat.patrimony) > 0) {
+                    cachedDashboardEquity = Number(uStat.patrimony);
+                    isDashboardEquityLoaded = true;
+                    return cachedDashboardEquity;
+                }
             }
-        }
-    } catch (_) {}
+        } catch (_) {}
+    }
 
     // 4. Fallback: localStorage sincronizado com metas/investimentos
     try {
@@ -2024,6 +2377,7 @@ function renderCategoryBars() {
 // ============================================
 function renderTransactions() {
     const container = document.getElementById("mobileTransactions");
+    if (!container) return;
 
     const recent = allTransactions.filter(t => isTxPaid(t)).slice(0, 10);
 

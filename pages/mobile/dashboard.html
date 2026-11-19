@@ -8,23 +8,23 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="TonuControle">
-    <link rel="manifest" href="../../manifest.json?v=3.2.1">
-    <link rel="icon" type="image/svg+xml" href="../../icons/favicon.svg?v=3.2.1">
-    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png?v=3.2.1">
-    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png?v=3.2.1">
-    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png?v=3.2.1">
-    <link rel="shortcut icon" href="../../icons/icon-128x128.png?v=3.2.1">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png?v=3.2.1">
+    <link rel="manifest" href="../../manifest.json?v=3.2.6">
+    <link rel="icon" type="image/svg+xml" href="../../icons/favicon.svg?v=3.2.6">
+    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png?v=3.2.6">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png?v=3.2.6">
+    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png?v=3.2.6">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png?v=3.2.6">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png?v=3.2.6">
     <title>TonuControle - Mobile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../css/theme.css?v=3.2.1">
-    <link rel="stylesheet" href="../../css/dark-theme.css?v=3.2.1">
-    <link rel="stylesheet" href="../../css/mobile.css?v=4.2.0">
-    <link rel="stylesheet" href="../../css/notifications.css?v=3.2.1">
-    <link rel="stylesheet" href="../../css/sync-status.css?v=3.2.1">
+    <link rel="stylesheet" href="../../css/theme.css?v=3.2.6">
+    <link rel="stylesheet" href="../../css/dark-theme.css?v=3.2.6">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.2.1">
+    <link rel="stylesheet" href="../../css/notifications.css?v=3.2.6">
+    <link rel="stylesheet" href="../../css/sync-status.css?v=3.2.6">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .skip-link {
@@ -57,7 +57,7 @@
 <header class="mobile-topbar">
     <div class="topbar-header">
         <div class="topbar-left">
-            <div class="app-icon"><img src="../../icons/logo.png?v=3.2.1" alt="TonuControle"></div>
+            <div class="app-icon"><img src="../../icons/logo.png?v=3.2.6" alt="TonuControle"></div>
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
@@ -93,7 +93,7 @@
             <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
                 <i class="fas fa-chevron-left"></i>
             </button>
-            <span class="month-label" id="selectedMonth">Carregando...</span>
+            <span class="month-label" id="selectedMonth">Mês atual</span>
             <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês">
                 <i class="fas fa-chevron-right"></i>
             </button>
@@ -101,8 +101,47 @@
         </div>
     </div>
 
-    <!-- BALANÇO HERO & CARDS -->
-    <div id="summaryContainer"></div>
+    <!-- PILL DISCRETO DE SINCRONIZAÇÃO EM BACKGROUND -->
+    <div id="mobileCacheSyncBanner" class="mob-sync-status-pill" aria-live="polite"></div>
+
+    <!-- BALANÇO HERO & CARDS (SKELETON ESTRUTURADO) -->
+    <div id="summaryContainer">
+        <div class="mobile-hero-balance mob-skeleton-hero" aria-hidden="true">
+            <div class="mob-sk-hero-top">
+                <div class="mob-skeleton mob-skeleton--hero" style="height:13px;width:44%;"></div>
+                <div class="mob-skeleton mob-skeleton--hero mob-sk-circle" style="height:30px;width:30px;"></div>
+            </div>
+            <div class="mob-skeleton mob-skeleton--hero" style="height:30px;width:58%;margin:4px 0 12px;"></div>
+            <div class="mobile-hero-footer">
+                <div class="mobile-hero-stat mob-sk-stat">
+                    <div class="mob-skeleton mob-skeleton--hero" style="height:10px;width:48%;"></div>
+                    <div class="mob-skeleton mob-skeleton--hero" style="height:15px;width:72%;"></div>
+                </div>
+                <div class="mobile-hero-stat mob-sk-stat">
+                    <div class="mob-skeleton mob-skeleton--hero" style="height:10px;width:52%;"></div>
+                    <div class="mob-skeleton mob-skeleton--hero" style="height:15px;width:72%;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="mobile-grid mobile-grid--compact" aria-hidden="true">
+            <div class="mobile-card mobile-card--compact mob-sk-kpi-card">
+                <div class="mob-skeleton" style="width:28px;height:28px;border-radius:8px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:9px;width:68%;"></div>
+                    <div class="mob-skeleton" style="height:14px;width:56%;"></div>
+                    <div class="mob-skeleton" style="height:9px;width:50%;"></div>
+                </div>
+            </div>
+            <div class="mobile-card mobile-card--compact mob-sk-kpi-card">
+                <div class="mob-skeleton" style="width:28px;height:28px;border-radius:8px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:9px;width:64%;"></div>
+                    <div class="mob-skeleton" style="height:14px;width:54%;"></div>
+                    <div class="mob-skeleton" style="height:9px;width:46%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- AÇÕES RÁPIDAS -->
     <div class="mobile-quick-actions" aria-label="Ações rápidas">
@@ -128,11 +167,78 @@
         </a>
     </div>
 
-    <!-- GRÁFICO INTERATIVO MOBILE (FLUXO & CATEGORIAS) -->
-    <div id="mobileChartContainer"></div>
+    <!-- GRÁFICO INTERATIVO MOBILE (SKELETON ESTRUTURADO) -->
+    <div id="mobileChartContainer">
+        <div class="mobile-chart-card" aria-hidden="true">
+            <div class="mobile-chart-header">
+                <div class="mob-skeleton" style="height:15px;width:42%;"></div>
+                <div class="mob-skeleton" style="height:28px;width:38%;border-radius:10px;"></div>
+            </div>
+            <div class="mob-sk-chart-body">
+                <div class="mob-skeleton-donut-wrap">
+                    <div class="mob-skeleton mob-skeleton-donut-ring"></div>
+                    <div class="mob-skeleton-donut-center">
+                        <div class="mob-skeleton" style="height:9px;width:52px;"></div>
+                        <div class="mob-skeleton" style="height:14px;width:68px;"></div>
+                    </div>
+                </div>
+                <div class="mob-sk-bars">
+                    <div class="mob-sk-bar-row">
+                        <div class="mob-sk-bar-meta">
+                            <div class="mob-skeleton" style="height:11px;width:40%;"></div>
+                            <div class="mob-skeleton" style="height:11px;width:26%;"></div>
+                        </div>
+                        <div class="mob-skeleton" style="height:5px;width:100%;border-radius:99px;"></div>
+                    </div>
+                    <div class="mob-sk-bar-row">
+                        <div class="mob-sk-bar-meta">
+                            <div class="mob-skeleton" style="height:11px;width:34%;"></div>
+                            <div class="mob-skeleton" style="height:11px;width:22%;"></div>
+                        </div>
+                        <div class="mob-skeleton" style="height:5px;width:100%;border-radius:99px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <!-- DIAGNÓSTICO 360º & INSIGHTS MOBILE -->
-    <div id="mobileInsightsContainer"></div>
+    <!-- DIAGNÓSTICO 360º & INSIGHTS MOBILE (SKELETON ESTRUTURADO) -->
+    <div id="mobileInsightsContainer">
+        <div class="mobile-insights-card" aria-hidden="true">
+            <div class="mobile-insights-header">
+                <div class="mob-skeleton" style="height:15px;width:46%;"></div>
+                <div class="mob-skeleton" style="height:18px;width:24%;border-radius:8px;"></div>
+            </div>
+            <div class="mob-sk-insights-score">
+                <div class="mob-skeleton mob-sk-circle" style="width:54px;height:54px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:14px;width:36%;border-radius:8px;"></div>
+                    <div class="mob-skeleton" style="height:13px;width:62%;"></div>
+                    <div class="mob-skeleton" style="height:10px;width:78%;"></div>
+                </div>
+            </div>
+            <div class="mob-sk-row">
+                <div class="mob-sk-row-left">
+                    <div class="mob-skeleton" style="width:32px;height:32px;border-radius:10px;flex-shrink:0;"></div>
+                    <div class="mob-sk-kpi-info">
+                        <div class="mob-skeleton" style="height:12px;width:54%;"></div>
+                        <div class="mob-skeleton" style="height:10px;width:40%;"></div>
+                    </div>
+                </div>
+                <div class="mob-skeleton" style="height:20px;width:20%;border-radius:8px;"></div>
+            </div>
+            <div class="mob-sk-row">
+                <div class="mob-sk-row-left">
+                    <div class="mob-skeleton" style="width:32px;height:32px;border-radius:10px;flex-shrink:0;"></div>
+                    <div class="mob-sk-kpi-info">
+                        <div class="mob-skeleton" style="height:12px;width:48%;"></div>
+                        <div class="mob-skeleton" style="height:10px;width:36%;"></div>
+                    </div>
+                </div>
+                <div class="mob-skeleton" style="height:20px;width:24%;border-radius:8px;"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- INSIGHTS IA MOBILE -->
     <section class="mobile-insights-card" id="mobileAIInsightsCard" aria-label="Insights IA">
@@ -159,9 +265,36 @@
         <a href="transactions.html">Ver todas →</a>
     </div>
     <div id="mobileTransactions">
-        <div class="mob-skeleton-card"><div class="mob-skeleton" style="height:16px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:12px;width:36%;"></div></div>
-        <div class="mob-skeleton-card"><div class="mob-skeleton" style="height:16px;width:64%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:12px;width:42%;"></div></div>
-        <div class="mob-skeleton-card"><div class="mob-skeleton" style="height:16px;width:52%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:12px;width:30%;"></div></div>
+        <div class="mob-skeleton-tx-row" aria-hidden="true">
+            <div class="tx-left">
+                <div class="mob-skeleton" style="width:35px;height:35px;border-radius:10px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:13px;width:62%;"></div>
+                    <div class="mob-skeleton" style="height:10px;width:34%;"></div>
+                </div>
+            </div>
+            <div class="mob-skeleton" style="height:14px;width:22%;"></div>
+        </div>
+        <div class="mob-skeleton-tx-row" aria-hidden="true">
+            <div class="tx-left">
+                <div class="mob-skeleton" style="width:35px;height:35px;border-radius:10px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:13px;width:54%;"></div>
+                    <div class="mob-skeleton" style="height:10px;width:38%;"></div>
+                </div>
+            </div>
+            <div class="mob-skeleton" style="height:14px;width:20%;"></div>
+        </div>
+        <div class="mob-skeleton-tx-row" aria-hidden="true">
+            <div class="tx-left">
+                <div class="mob-skeleton" style="width:35px;height:35px;border-radius:10px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:13px;width:68%;"></div>
+                    <div class="mob-skeleton" style="height:10px;width:30%;"></div>
+                </div>
+            </div>
+            <div class="mob-skeleton" style="height:14px;width:24%;"></div>
+        </div>
     </div>
 </main>
 
@@ -243,15 +376,15 @@
 
 <!-- SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../../js/supabase.js"></script>
-<script src="../../js/core.js"></script>
-<script src="../../js/security.js"></script>
-<script src="../../js/sync.js"></script>
-<script src="../../js/financial-tools.js"></script>
-<script src="../../js/notifications.js"></script>
-<script src="../../js/sw-register.js"></script>
-<script src="../../js/mobile/ui.js?v=1.0.0"></script>
-<script src="../../js/mobile/dashboard.js?v=4.1.2"></script>
+<script src="../../js/supabase.js?v=3.2.6"></script>
+<script src="../../js/core.js?v=3.2.6"></script>
+<script src="../../js/security.js?v=3.2.6"></script>
+<script src="../../js/sync.js?v=3.2.6"></script>
+<script src="../../js/financial-tools.js?v=3.2.6"></script>
+<script src="../../js/notifications.js?v=3.2.6"></script>
+<script src="../../js/sw-register.js?v=3.2.6"></script>
+<script src="../../js/mobile/ui.js?v=1.0.1"></script>
+<script src="../../js/mobile/dashboard.js?v=4.2.0"></script>
 
 </body>
 </html>

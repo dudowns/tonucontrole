@@ -4612,6 +4612,176 @@ body.dark-theme .mobile-dashboard-page .tone-orange {
     font-size: 13px;
 }
 
+/* ==========================================================================
+   STRUCTURED FINTECH SKELETONS & DISCRETE SYNC PILL
+   ========================================================================== */
+.mob-sync-status-pill {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 0 10px;
+    padding: 7px 12px;
+    border-radius: 12px;
+    background: var(--mob-primary-soft);
+    border: 1px solid rgba(67, 56, 202, 0.18);
+    color: var(--mob-primary);
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    transition: opacity 0.2s ease;
+}
+.mob-sync-status-pill.is-visible {
+    display: flex;
+}
+.mob-sync-status-pill.is-cache {
+    background: var(--mob-info-soft);
+    border-color: rgba(2, 132, 199, 0.22);
+    color: var(--mob-info);
+}
+html[data-theme="dark"] .mob-sync-status-pill,
+body.dark-theme .mob-sync-status-pill {
+    background: rgba(99, 102, 241, 0.16);
+    border-color: rgba(129, 140, 248, 0.28);
+    color: #C7D2FE;
+}
+
+/* Hero Skeleton (Aurora Card proportions) */
+.mob-skeleton-hero {
+    pointer-events: none;
+}
+.mob-skeleton--hero {
+    background: rgba(255, 255, 255, 0.20) !important;
+}
+.mob-skeleton--hero::after {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent) !important;
+}
+.mob-sk-hero-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.mob-sk-circle {
+    border-radius: 50% !important;
+}
+.mob-sk-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Compact KPI Card Skeletons */
+.mob-sk-kpi-card {
+    pointer-events: none;
+    min-height: 62px;
+}
+.mob-sk-kpi-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* Chart Card Skeleton */
+.mob-sk-chart-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0 4px;
+    gap: 14px;
+}
+.mob-skeleton-donut-wrap {
+    position: relative;
+    width: 142px;
+    height: 142px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.mob-skeleton-donut-ring {
+    width: 142px;
+    height: 142px;
+    border-radius: 50%;
+    position: relative;
+}
+.mob-skeleton-donut-ring::before {
+    content: "";
+    position: absolute;
+    inset: 24px;
+    border-radius: 50%;
+    background: var(--mob-surface);
+    z-index: 2;
+}
+.mob-skeleton-donut-center {
+    position: absolute;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+.mob-sk-bars {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.mob-sk-bar-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.mob-sk-bar-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+/* Insights Skeleton */
+.mob-sk-insights-score {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 12px;
+    margin-bottom: 10px;
+    border-radius: 14px;
+    background: var(--mob-surface-2);
+}
+.mob-sk-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--mob-border);
+}
+.mob-sk-row:last-child {
+    border-bottom: none;
+    padding-bottom: 2px;
+}
+.mob-sk-row-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Transaction Row Skeleton inside #mobileTransactions */
+.mob-skeleton-tx-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 13px;
+    border-bottom: 1px solid var(--mob-border);
+}
+.mob-skeleton-tx-row:last-child {
+    border-bottom: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
