@@ -52,7 +52,7 @@
     <link rel="stylesheet" href="css/theme.css?v=3.2.1">
     <link rel="stylesheet" href="css/dark-theme.css?v=3.2.1">
 
-    <!-- Anti-flicker Theme Init -->
+    <!-- Anti-flicker Theme & Post-Logout Gate -->
     <script>
         (function () {
             var t = localStorage.getItem('tonu_theme') || 'light';
@@ -60,6 +60,18 @@
                 document.documentElement.setAttribute('data-theme', 'dark');
                 document.documentElement.classList.add('dark-theme');
             }
+            try {
+                var rawLo = sessionStorage.getItem('tonu_just_logged_out');
+                if (rawLo) {
+                    var parsedLo = JSON.parse(rawLo);
+                    if (parsedLo && (!parsedLo.ts || (Date.now() - Number(parsedLo.ts)) < 60000)) {
+                        window.__TONU_POST_LOGOUT_META = parsedLo;
+                        document.documentElement.classList.add('tonu-post-logout');
+                    } else {
+                        sessionStorage.removeItem('tonu_just_logged_out');
+                    }
+                }
+            } catch (_) {}
         })();
     </script>
 
@@ -156,10 +168,30 @@
                 linear-gradient(145deg, #090a17 0%, #13132b 55%, #091819 100%) !important;
         }
 
-        #splashScreen.hidden {
+        #splashScreen.hidden,
+        html.tonu-post-logout #splashScreen {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
+        }
+
+        html.tonu-post-logout #splashScreen {
+            display: none !important;
+        }
+
+        html.tonu-post-logout .login-container {
+            animation: tonuPostLogoutLoginIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @keyframes tonuPostLogoutLoginIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px) scale(0.986);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         /* Ambient background glow orbs */
@@ -2533,7 +2565,7 @@
     <script src="js/supabase.js?v=3.2.1"></script>
 
     <!-- 5. Core -->
-    <script src="js/core.js?v=3.2.1"></script>
+    <script src="js/core.js?v=3.2.9"></script>
 
     <!-- 6. Security -->
     <script src="js/security.js?v=3.2.1"></script>
@@ -2978,6 +3010,51 @@
             });
 
             // ==========================================
+            // RETORNO PÓS-LOGOUT (PULA SPLASH E EVITA REDIRECT IMEDIATO)
+            // ==========================================
+            let postLogoutMeta = window.__TONU_POST_LOGOUT_META || null;
+            if (!postLogoutMeta) {
+                try {
+                    const rawLo = sessionStorage.getItem('tonu_just_logged_out');
+                    if (rawLo) {
+                        const parsedLo = JSON.parse(rawLo);
+                        if (parsedLo && (!parsedLo.ts || (Date.now() - Number(parsedLo.ts)) < 60000)) {
+                            postLogoutMeta = parsedLo;
+                        }
+                    }
+                } catch (_) {}
+            }
+            try { sessionStorage.removeItem('tonu_just_logged_out'); } catch (_) {}
+
+            const splash = document.getElementById('splashScreen');
+
+            if (postLogoutMeta) {
+                if (splash) splash.classList.add('hidden');
+                completeAppInitialization();
+
+                const loMode = postLogoutMeta.mode || 'standard';
+                const loMsg = loMode === 'global'
+                    ? 'Todos os dispositivos foram desconectados com segurança.'
+                    : (loMode === 'biometric'
+                        ? 'Sessão encerrada. Acesso por biometria mantido 🔐'
+                        : 'Sessão encerrada com segurança 👋');
+                setTimeout(function () {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(loMsg, 'success');
+                    }
+                }, 220);
+
+                // Tema
+                const savedTheme = localStorage.getItem('tonu_theme') || 'light';
+                if (savedTheme === 'dark') {
+                    document.body.classList.add('dark-theme');
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+                console.log('✅ TonuControle Login pronto após logout!');
+                return;
+            }
+
+            // ==========================================
             // VERIFICAÇÃO DE SESSÃO EXISTENTE
             // ==========================================
             let authenticatedUser = null;
@@ -3025,7 +3102,6 @@
             const fill = document.getElementById('progressFill');
             const percentText = document.getElementById('splashPercent');
             const statusText = document.getElementById('statusText');
-            const splash = document.getElementById('splashScreen');
 
             let redirectTimeout = null;
 

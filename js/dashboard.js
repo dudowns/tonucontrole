@@ -774,8 +774,7 @@ function updateBalanceVisibilityUI() {
         'totalIncome',
         'totalExpense',
         'billsAmount',
-        'totalInvested',
-        'dividendsMonthAmount'
+        'totalInvested'
     ];
 
     elementsToMask.forEach(id => {
@@ -1177,34 +1176,28 @@ function _applyDashboardSummaryCards(currentTxs, prevTxs) {
         expenseEl.textContent = formatCurrency(currentExpense);
         expenseEl.dataset.realValue = formatCurrency(currentExpense);
     }
-    const isBentoBalance = !!(balanceEl && balanceEl.closest('.bento-balance-card'));
-
     if (balanceEl) {
         balanceEl.textContent = formatCurrency(balance);
         balanceEl.dataset.realValue = formatCurrency(balance);
-        if (isBentoBalance) {
-            balanceEl.style.color = balance >= 0 ? '#FFFFFF' : '#FCA5A5';
-        } else {
-            balanceEl.style.color = balance >= 0 ? '#00B894' : '#FF7675';
-        }
+        balanceEl.style.color = balance >= 0 ? '#00B894' : '#FF7675';
     }
 
     // CARD CONTAS A PAGAR E INVESTIMENTOS
     if (billsAmountEl) {
         billsAmountEl.textContent = formatCurrency(billsTotal);
         billsAmountEl.dataset.realValue = formatCurrency(billsTotal);
-        billsAmountEl.style.color = billsTotal > 0 ? (overdueCount > 0 ? '#EF4444' : '#D97706') : '#10B981';
+        billsAmountEl.style.color = billsTotal > 0 ? (overdueCount > 0 ? '#FF7675' : '#F59E0B') : '#00B894';
     }
 
     if (billsCountEl) {
         if (billsCount > 0) {
             if (overdueCount > 0) {
-                billsCountEl.innerHTML = `<span style="color:#EF4444; font-weight:700;"><i class="fas fa-exclamation-circle"></i> ${overdueCount} em atraso</span>`;
+                billsCountEl.innerHTML = `<span style="color:#FF7675; font-weight:700;"><i class="fas fa-exclamation-circle"></i> ${overdueCount} atraso</span>`;
             } else {
-                billsCountEl.innerHTML = `<span style="color:#D97706; font-weight:600;"><i class="fas fa-clock"></i> ${billsCount} ${billsCount === 1 ? 'pendente' : 'pendentes'}</span>`;
+                billsCountEl.innerHTML = `<span style="color:#F59E0B; font-weight:600;"><i class="fas fa-clock"></i> ${billsCount} pend.</span>`;
             }
         } else {
-            billsCountEl.innerHTML = `<span style="color:#10B981; font-weight:600;"><i class="fas fa-check-circle"></i> Tudo pago</span>`;
+            billsCountEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-check-circle"></i> Tudo pago</span>`;
         }
     }
 
@@ -1217,23 +1210,22 @@ function _applyDashboardSummaryCards(currentTxs, prevTxs) {
     const balanceStatusEl = document.getElementById('balanceStatus');
 
     if (incomeTrendEl) {
-        const baseSubCls = isBentoBalance ? 'bento-submetric-sub ' : 'stat-sub ';
         if (prevIncome > 0) {
             const sign = incomeTrend >= 0 ? '+' : '';
             incomeTrendEl.textContent = sign + incomeTrend.toFixed(0) + '% vs anterior';
-            incomeTrendEl.className = baseSubCls + (incomeTrend >= 0 ? 'text-success' : 'text-danger');
+            incomeTrendEl.className = 'stat-sub ' + (incomeTrend >= 0 ? 'text-success' : 'text-danger');
         } else {
             incomeTrendEl.textContent = 'Mês de referência';
-            incomeTrendEl.className = baseSubCls.trim();
+            incomeTrendEl.className = 'stat-sub';
         }
     }
 
     const expensePendingSubEl = document.getElementById('expensePendingSub');
     if (expenseTrendEl) {
-        const trendText = prevExpense > 0
+        const trendText = prevExpense > 0 
             ? (expenseTrend >= 0 ? '+' : '') + expenseTrend.toFixed(0) + '% vs anterior'
             : 'Mês de referência';
-        const trendClass = prevExpense > 0
+        const trendClass = prevExpense > 0 
             ? (expenseTrend <= 0 ? 'text-success' : 'text-danger')
             : '';
 
@@ -1244,72 +1236,30 @@ function _applyDashboardSummaryCards(currentTxs, prevTxs) {
                 trendSpan.className = trendClass;
             }
             if (billsTotal > 0) {
-                expensePendingSubEl.innerHTML = `<i class="fas fa-clock" style="margin-right:3px;"></i> Falta pagar: <strong>${formatCurrency(billsTotal)}</strong>`;
-                expensePendingSubEl.style.color = isBentoBalance ? '#FDE68A' : '#F59E0B';
+                expensePendingSubEl.innerHTML = `<i class="fas fa-clock" style="margin-right:2px;"></i> Falta pagar: <strong>${formatCurrency(billsTotal)}</strong>`;
+                expensePendingSubEl.style.color = '#F59E0B';
             } else {
-                expensePendingSubEl.innerHTML = `<i class="fas fa-check-circle" style="margin-right:3px;"></i> Nenhuma pendência`;
-                expensePendingSubEl.style.color = isBentoBalance ? '#6EE7B7' : '#00B894';
+                expensePendingSubEl.innerHTML = `<i class="fas fa-check-circle" style="margin-right:2px;"></i> Nenhuma pendência`;
+                expensePendingSubEl.style.color = '#00B894';
             }
         } else {
             expenseTrendEl.textContent = trendText;
-            expenseTrendEl.className = (isBentoBalance ? 'bento-submetric-sub ' : 'stat-sub ') + trendClass;
+            expenseTrendEl.className = 'stat-sub ' + trendClass;
         }
     }
 
     if (balanceStatusEl) {
         const projected = balance - billsTotal;
-        const posColor = isBentoBalance ? '#6EE7B7' : '#00B894';
-        const negColor = isBentoBalance ? '#FCA5A5' : '#FF7675';
         if (billsTotal > 0) {
-            balanceStatusEl.innerHTML = `<span>Previsto pós-contas: <strong style="color:${projected >= 0 ? posColor : negColor}">${formatCurrency(projected)}</strong></span>`;
+            balanceStatusEl.innerHTML = `<span>Previsto pós-contas: <strong style="color:${projected >= 0 ? '#00B894' : '#FF7675'}">${formatCurrency(projected)}</strong></span>`;
         } else {
             if (balance > 0) {
-                balanceStatusEl.innerHTML = `<span style="color:${posColor}; font-weight:600;"><i class="fas fa-arrow-trend-up"></i> Fluxo positivo no mês</span>`;
+                balanceStatusEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-arrow-trend-up"></i> Positivo</span>`;
             } else if (balance < 0) {
-                balanceStatusEl.innerHTML = `<span style="color:${negColor}; font-weight:600;"><i class="fas fa-arrow-trend-down"></i> Saldo negativo no mês</span>`;
+                balanceStatusEl.innerHTML = `<span style="color:#FF7675; font-weight:600;"><i class="fas fa-arrow-trend-down"></i> Negativo</span>`;
             } else {
                 balanceStatusEl.textContent = 'Zerado';
             }
-        }
-    }
-}
-
-function updateDividendsBentoCard() {
-    const amountEl = document.getElementById('dividendsMonthAmount');
-    const countEl = document.getElementById('dividendsMonthCount');
-    if (!amountEl && !countEl) return;
-
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() + currentMonthOffset);
-    const year = d.getFullYear();
-    const month = d.getMonth();
-    const lastDay = getLastDayOfMonth(year, month);
-    const firstDay = formatDateKey(year, month, 1);
-    const lastDayStr = formatDateKey(year, month, lastDay);
-
-    const monthDividends = (window.allDividends || []).filter(item => {
-        if (!item) return false;
-        const dDate = normalizeDateOnly(item.payment_date || item.date);
-        return dDate >= firstDay && dDate <= lastDayStr && !item.is_demo && !String(item.id || '').startsWith('demo-');
-    });
-
-    const totalDividends = monthDividends.reduce((sum, item) => {
-        const val = Number(item.total_value || item.net_value || item.amount || item.total_amount) ||
-            (Number(item.unit_value || 0) * Number(item.quantity || 0));
-        return sum + (val > 0 ? val : 0);
-    }, 0);
-
-    if (amountEl) {
-        amountEl.textContent = formatCurrency(totalDividends);
-        amountEl.dataset.realValue = formatCurrency(totalDividends);
-    }
-    if (countEl) {
-        const count = monthDividends.length;
-        if (count > 0) {
-            countEl.textContent = `${count} ${count === 1 ? 'recebimento no mês' : 'recebimentos no mês'}`;
-        } else {
-            countEl.textContent = 'Nenhum recebimento no mês';
         }
     }
 }
@@ -1328,7 +1278,6 @@ async function loadDashboard(options = {}) {
         window.allInvestments = Array.isArray(p.investments) ? p.investments.slice() : [];
         window.allDividends = Array.isArray(p.dividends) ? p.dividends.slice() : [];
         _applyDashboardSummaryCards(p.currentTxs || [], p.prevTxs || []);
-        updateDividendsBentoCard();
         try {
             await generateDashboardInsights();
         } catch (_) {}
@@ -1388,7 +1337,6 @@ async function loadDashboard(options = {}) {
                 loadInvestments(currentUser?.id),
                 loadDividends(currentUser?.id)
             ]);
-            updateDividendsBentoCard();
             await generateDashboardInsights();
         } catch (gErr) {
             console.warn('Erro ao gerar insights:', gErr);
@@ -1476,37 +1424,9 @@ async function loadRecentTransactions() {
 
     try {
         container.innerHTML = `
-            <div class="desktop-tx-table-wrap">
-                <table class="desktop-tx-table" aria-label="Carregando últimas transações">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Descrição</th>
-                            <th>Categoria</th>
-                            <th class="col-amount">Valor</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><div class="skeleton-shimmer" style="width: 68px; height: 13px;"></div></td>
-                            <td><div class="skeleton-shimmer" style="width: 150px; height: 13px;"></div></td>
-                            <td><div class="skeleton-shimmer" style="width: 90px; height: 13px;"></div></td>
-                            <td class="col-amount"><div class="skeleton-shimmer" style="width: 75px; height: 13px; margin-left: auto;"></div></td>
-                        </tr>
-                        <tr>
-                            <td><div class="skeleton-shimmer" style="width: 68px; height: 13px;"></div></td>
-                            <td><div class="skeleton-shimmer" style="width: 120px; height: 13px;"></div></td>
-                            <td><div class="skeleton-shimmer" style="width: 82px; height: 13px;"></div></td>
-                            <td class="col-amount"><div class="skeleton-shimmer" style="width: 68px; height: 13px; margin-left: auto;"></div></td>
-                        </tr>
-                        <tr>
-                            <td><div class="skeleton-shimmer" style="width: 68px; height: 13px;"></div></td>
-                            <td><div class="skeleton-shimmer" style="width: 165px; height: 13px;"></div></td>
-                            <td><div class="skeleton-shimmer" style="width: 96px; height: 13px;"></div></td>
-                            <td class="col-amount"><div class="skeleton-shimmer" style="width: 78px; height: 13px; margin-left: auto;"></div></td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="loading-transactions">
+                <span class="spinner"></span>
+                <p>Carregando transações...</p>
             </div>
         `;
 
@@ -1554,7 +1474,7 @@ async function loadRecentTransactions() {
             return;
         }
 
-        const rowsHtml = recentTransactions.map(t => {
+        container.innerHTML = recentTransactions.map(t => {
             const isIncome = t.type === 'income';
             const sign = isIncome ? '+' : '-';
             const cls = isIncome ? 'income' : 'expense';
@@ -1576,44 +1496,28 @@ async function loadRecentTransactions() {
                 ? window.TonuDeduplicate.cleanDisplayDescription(t.description || '')
                 : sanitizeReportText(t.description || '').replace(/\s*\(pago\)\s*/gi, '').trim();
             displayDesc = displayDesc.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)\/]/g, '').trim();
-            const safeDesc = stripHTML(displayDesc || catName);
-            const safeCat = stripHTML(catName);
 
             return `
-                <tr>
-                    <td class="col-date">${formatDate(t.date)}</td>
-                    <td class="col-desc" title="${safeDesc}">${safeDesc}</td>
-                    <td class="col-cat">
-                        <span class="tx-table-cat">
-                            <span class="tx-cat-dot" style="background:${catColor};" aria-hidden="true"></span>
-                            <i class="fas ${catIcon}" style="color:${catColor}; font-size: 11px;" aria-hidden="true"></i>
-                            <span class="tx-cat-text">${safeCat}</span>
-                        </span>
-                    </td>
-                    <td class="col-amount">
-                        <span class="tx-table-amount ${cls}">${sign} ${formatCurrency(t.amount)}</span>
-                    </td>
-                </tr>
+                <div class="transaction-item">
+                    <div class="tx-left">
+                        <div class="tx-icon" style="background:${catColor}">
+                            <i class="fas ${catIcon}"></i>
+                        </div>
+                        <div class="tx-info">
+                            <strong>${stripHTML(displayDesc || catName)}</strong>
+                            <div class="tx-meta">
+                                <span>${formatDate(t.date)}</span>
+                                <span class="tx-category" style="color:${catColor};background:${catColor}15;">
+                                    <i class="fas ${catIcon}"></i>
+                                    ${stripHTML(catName)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="tx-amount ${cls}">${sign} ${formatCurrency(t.amount)}</span>
+                </div>
             `;
         }).join('');
-
-        container.innerHTML = `
-            <div class="desktop-tx-table-wrap">
-                <table class="desktop-tx-table" aria-label="Últimas transações">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Descrição</th>
-                            <th>Categoria</th>
-                            <th class="col-amount">Valor</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rowsHtml}
-                    </tbody>
-                </table>
-            </div>
-        `;
 
     } catch (error) {
         console.error('❌ Erro ao carregar transacoes recentes:', error);
@@ -2122,7 +2026,7 @@ async function generateDashboardInsights() {
         } else {
             savingTipHTML = `
                 <div class="insight-strategy-item">
-                    <i class="fas fa-receipt" style="color:#4338CA;"></i>
+                    <i class="fas fa-receipt" style="color:#6c5ce7;"></i>
                     <div>
                         <strong>Controle de despesas:</strong>
                         Cadastre suas despesas diárias para identificar os centros de custo com maior potencial de economia.
@@ -2155,7 +2059,7 @@ async function generateDashboardInsights() {
         } else {
             capacityTipHTML = `
                 <div class="insight-strategy-item">
-                    <i class="fas fa-wallet" style="color:#4338CA;"></i>
+                    <i class="fas fa-wallet" style="color:#6c5ce7;"></i>
                     <div>
                         <strong>Fluxo equilibrado:</strong>
                         Sem contas pendentes para o período. Mantenha os custos sob controle para preservar seu superávit.
@@ -2168,7 +2072,7 @@ async function generateDashboardInsights() {
         if (totalDividends > 0 && totalBillsAmount > 0) {
             passiveTipHTML = `
                 <div class="insight-strategy-item">
-                    <i class="fas fa-coins" style="color:#4338CA;"></i>
+                    <i class="fas fa-coins" style="color:#8b5cf6;"></i>
                     <div>
                         <strong>Liberdade Financeira:</strong>
                         Seus proventos do mês cobrem <strong>${passiveCoveragePct}%</strong> das suas contas fixas. Reinvestir seus proventos acelerará a independência financeira.
@@ -2178,7 +2082,7 @@ async function generateDashboardInsights() {
         } else if (totalDividends > 0) {
             passiveTipHTML = `
                 <div class="insight-strategy-item">
-                    <i class="fas fa-coins" style="color:#4338CA;"></i>
+                    <i class="fas fa-coins" style="color:#8b5cf6;"></i>
                     <div>
                         <strong>Renda Passiva ativa:</strong>
                         Você recebeu <strong>${formatCurrency(totalDividends)}</strong> em proventos neste mês. Cada novo aporte amplia os rendimentos futuros.
@@ -2380,43 +2284,42 @@ async function generateDashboardInsights() {
 
         // RENDERIZAÇÃO COMPLETA DO CARD DE SAÚDE FINANCEIRA (DIAGNÓSTICO 360º)
         container.innerHTML = `
-            <div class="diag360-top-row">
-                <!-- ANEL VELOCÍMETRO DO SCORE 360º -->
-                <div class="score-ring-card">
-                    <div class="score-ring-wrap">
-                        <svg class="score-svg" viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="38" class="score-ring-bg" />
-                            <circle cx="50" cy="50" r="38" class="score-ring-fg" stroke="${scoreBadge.color}" stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="${strokeOffset.toFixed(1)}" />
-                        </svg>
-                        <div class="score-text-inner">
-                            <span class="score-num">${finalScore}</span>
-                            <span class="score-total">/100</span>
-                        </div>
-                    </div>
-                    <div class="score-header-text">
-                        <div class="score-badge-pill" style="background:${scoreBadge.bg}; color:${scoreBadge.color};">${scoreBadge.label}</div>
-                        <h4 style="margin:4px 0 2px 0; font-size:15px; font-weight:700; color:var(--color-text,#1e293b);">Saúde Financeira 360º</h4>
-                        <p style="margin:0; font-size:12px; color:var(--color-text-muted,#64748b);">Equilíbrio • Pontualidade • Dívidas • Futuro</p>
+            <!-- ANEL VELOCÍMETRO DO SCORE 360º -->
+            <div class="score-ring-card">
+                <div class="score-ring-wrap">
+                    <svg class="score-svg" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="38" class="score-ring-bg" />
+                        <circle cx="50" cy="50" r="38" class="score-ring-fg" stroke="${scoreBadge.color}" stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="${strokeOffset.toFixed(1)}" />
+                    </svg>
+                    <div class="score-text-inner">
+                        <span class="score-num">${finalScore}</span>
+                        <span class="score-total">/100</span>
                     </div>
                 </div>
+                <div class="score-header-text">
+                    <div class="score-badge-pill" style="background:${scoreBadge.bg}; color:${scoreBadge.color};">${scoreBadge.label}</div>
+                    <h4 style="margin:4px 0 2px 0; font-size:15px; font-weight:700; color:var(--color-text,#1e293b);">Saúde Financeira 360º</h4>
+                    <p style="margin:0; font-size:12px; color:var(--color-text-muted,#64748b);">Equilíbrio • Pontualidade • Dívidas • Futuro</p>
+                </div>
+            </div>
 
-                ${!quickActionsBody ? `
-                    <!-- FALLBACK CHECKLIST SE NÃO HOUVER CARD DEDICADO -->
-                    <div class="quick-actions-section">
-                        <div class="quick-actions-title"><i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?</div>
-                        <div class="quick-actions-grid">
-                            ${displayedActionCards.length > 0 ? displayedActionCards.join('') : `
-                                <div class="action-card all-good">
-                                    <i class="fas fa-check-circle" style="color:#10b981; font-size:18px;"></i>
-                                    <span>Tudo em dia! Suas contas estão pagas e o orçamento equilibrado. ✨</span>
-                                </div>
-                            `}
-                        </div>
+            ${!quickActionsBody ? `
+                <!-- FALLBACK CHECKLIST SE NÃO HOUVER CARD DEDICADO -->
+                <div class="quick-actions-section">
+                    <div class="quick-actions-title"><i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?</div>
+                    <div class="quick-actions-grid">
+                        ${displayedActionCards.length > 0 ? displayedActionCards.join('') : `
+                            <div class="action-card all-good">
+                                <i class="fas fa-check-circle" style="color:#10b981; font-size:18px;"></i>
+                                <span>Tudo em dia! Suas contas estão pagas e o orçamento equilibrado. ✨</span>
+                            </div>
+                        `}
                     </div>
-                ` : ''}
+                </div>
+            ` : ''}
 
-                <!-- PILARES DO APLICATIVO -->
-                <div class="insight-pillars-list">
+            <!-- PILARES DO APLICATIVO -->
+            <div class="insight-pillars-list">
                 <!-- Pilar 1: Renda Poupada & Taxa de Poupança -->
                 <div class="insight-metric-block">
                     <div class="insight-metric-left">
@@ -2507,7 +2410,6 @@ async function generateDashboardInsights() {
                     <span class="insight-metric-badge badge ${totalExtraIncome > 0 ? 'badge-success' : 'badge-neutral'}">
                         ${totalExtraIncome > 0 ? extraIncomePct + '% da renda' : 'Sem extras'}
                     </span>
-                </div>
                 </div>
             </div>
 
@@ -2635,7 +2537,7 @@ function getCategoryStyle(name, index, cat) {
         return { color: '#0984E3', icon: 'fa-bolt', name: '⚡ Contas Básicas' };
     }
     if (n.includes('lazer') || n.includes('jogo') || n.includes('game') || n.includes('cinema') || n.includes('viagem') || n.includes('passeio') || n.includes('hotel') || n.includes('festa')) {
-        return { color: '#8B5CF6', icon: 'fa-gamepad', name: '🎮 Lazer' };
+        return { color: '#A29BFE', icon: 'fa-gamepad', name: '🎮 Lazer' };
     }
     if (n.includes('saude') || n.includes('farmacia') || n.includes('medic') || n.includes('hospital') || n.includes('drogaria') || n.includes('dentista') || n.includes('consulta')) {
         return { color: '#FF6B6B', icon: 'fa-heartbeat', name: '❤️ Saúde' };
@@ -2671,7 +2573,7 @@ function getCategoryStyle(name, index, cat) {
         return { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' };
     }
 
-    const defaultBackendColors = ['#0984E3', '#8B5CF6', '#FF6B6B', '#FDCB6E', '#E17055', '#D63031', '#636E72', '#00B894', '#00CEC9', '#B2BEC3'];
+    const defaultBackendColors = ['#0984E3', '#A29BFE', '#FF6B6B', '#FDCB6E', '#E17055', '#D63031', '#636E72', '#00B894', '#00CEC9', '#B2BEC3'];
     return {
         color: defaultBackendColors[(index || 0) % defaultBackendColors.length],
         icon: 'fa-tag',
@@ -2838,8 +2740,8 @@ async function loadCategoryChart() {
         if (legendContainer) {
             if (labels.length === 0) {
                 legendContainer.innerHTML = `
-                    <div class="expense-legend-empty">
-                        <i class="fas fa-inbox" style="font-size:18px;display:block;margin-bottom:6px;opacity:0.5;"></i>
+                    <div style="text-align:center;color:var(--color-text-muted,#94a3b8);font-size:11px;padding:8px 0;">
+                        <i class="fas fa-inbox" style="font-size:16px;display:block;margin-bottom:4px;opacity:0.5;"></i>
                         Nenhuma despesa
                     </div>
                 `;
@@ -2851,18 +2753,18 @@ async function loadCategoryChart() {
                     const icon = icons[idx];
 
                     return `
-                        <div class="expense-legend-item">
-                            <div class="expense-legend-top">
-                                <div class="expense-legend-left">
-                                    <span class="expense-legend-shape" style="color:${color};">
+                        <div style="display:flex;flex-direction:column;gap:3px;padding:4px 4px;font-size:11px;border-bottom:1px solid var(--color-border-light,#f1f5f9);">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                                <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                                    <span style="color:${color};font-size:10px;flex-shrink:0;width:14px;text-align:center;">
                                         <i class="fas ${icon}"></i>
                                     </span>
-                                    <span class="expense-legend-name" title="${stripHTML(label)}">${stripHTML(label)}</span>
+                                    <span style="font-weight:600;color:var(--color-text,#1e293b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85px;font-size:11px;">${stripHTML(label)}</span>
                                 </div>
-                                <span class="expense-legend-pct">${pct}%</span>
+                                <span style="font-weight:700;color:var(--color-text,#1e293b);font-size:11px;flex-shrink:0;">${pct}%</span>
                             </div>
-                            <div class="expense-legend-bar">
-                                <div class="expense-legend-bar-fill" style="width:${pct}%;background:${color};"></div>
+                            <div style="width:100%;height:4px;background:rgba(148,163,184,0.18);border-radius:3px;overflow:hidden;">
+                                <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;transition:width 0.4s ease;"></div>
                             </div>
                         </div>
                     `;
@@ -3030,9 +2932,9 @@ async function loadCategoryChart() {
                     },
                     tooltip: {
                         backgroundColor: 'rgba(15, 23, 42, 0.94)',
-                        titleFont: { size: window.innerWidth >= 1024 ? 13 : 11, weight: '600' },
-                        bodyFont: { size: window.innerWidth >= 1024 ? 12.5 : 10 },
-                        padding: window.innerWidth >= 1024 ? 10 : 8,
+                        titleFont: { size: 11, weight: '600' },
+                        bodyFont: { size: 10 },
+                        padding: 8,
                         cornerRadius: 8,
                         callbacks: {
                             label: function (context) {
@@ -3073,14 +2975,14 @@ window.setMonthlyPeriod = function (period) {
 
     if (btn6 && btn12) {
         if (monthlyChartPeriod === 6) {
-            btn6.style.background = '#4338CA';
+            btn6.style.background = '#6C5CE7';
             btn6.style.color = '#ffffff';
             btn6.style.fontWeight = '700';
             btn12.style.background = 'transparent';
             btn12.style.color = 'var(--color-text-muted, #64748b)';
             btn12.style.fontWeight = '600';
         } else {
-            btn12.style.background = '#4338CA';
+            btn12.style.background = '#6C5CE7';
             btn12.style.color = '#ffffff';
             btn12.style.fontWeight = '700';
             btn6.style.background = 'transparent';
@@ -3248,12 +3150,12 @@ async function loadMonthlyChart() {
                         align: 'end',
                         labels: {
                             color: textColor,
-                            font: { size: window.innerWidth >= 1024 ? 13 : 11, weight: '600', family: "'Inter', sans-serif" },
+                            font: { size: 11, weight: '600', family: "'Inter', sans-serif" },
                             usePointStyle: true,
                             pointStyle: 'circle',
-                            padding: window.innerWidth >= 1024 ? 18 : 14,
-                            boxWidth: window.innerWidth >= 1024 ? 10 : 8,
-                            boxHeight: window.innerWidth >= 1024 ? 10 : 8
+                            padding: 14,
+                            boxWidth: 8,
+                            boxHeight: 8
                         }
                     },
                     tooltip: {
@@ -3262,10 +3164,10 @@ async function loadMonthlyChart() {
                         bodyColor: '#e2e8f0',
                         borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                         borderWidth: 1,
-                        padding: 12,
+                        padding: 10,
                         cornerRadius: 10,
-                        titleFont: { size: window.innerWidth >= 1024 ? 13 : 12, weight: '700' },
-                        bodyFont: { size: window.innerWidth >= 1024 ? 12.5 : 11 },
+                        titleFont: { size: 12, weight: '700' },
+                        bodyFont: { size: 11 },
                         callbacks: {
                             title: function (items) {
                                 if (!items.length) return '';
@@ -3288,7 +3190,7 @@ async function loadMonthlyChart() {
                         },
                         ticks: {
                             color: textColor,
-                            font: { size: window.innerWidth >= 1024 ? 12 : 10 },
+                            font: { size: 10 },
                             callback: function (value) {
                                 return formatCurrency(value);
                             }
@@ -3298,7 +3200,7 @@ async function loadMonthlyChart() {
                         grid: { display: false },
                         ticks: {
                             color: textColor,
-                            font: { size: window.innerWidth >= 1024 ? 12.5 : 11, weight: '500' }
+                            font: { size: 11, weight: '500' }
                         }
                     }
                 },
@@ -3586,7 +3488,7 @@ async function exportarPDF() {
         const doc = new jsPDF('p', 'pt', 'a4');
 
         const COLOR_NAVY = [30, 41, 59];
-        const COLOR_PURPLE = [67, 56, 202];
+        const COLOR_PURPLE = [108, 92, 231];
         const COLOR_GREEN = [16, 185, 129];
         const COLOR_RED = [239, 68, 68];
         const COLOR_TEXT = [30, 41, 59];
@@ -3937,15 +3839,7 @@ function renderAIInsights(insights, meta) {
     }
 
     if (list.length === 0) {
-        const msg = meta?.errorMessage
-            ? _escapeAiInsightHtml(meta.errorMessage)
-            : (meta?.reason === 'offline'
-                ? 'Sem conexão no momento. O Diagnóstico 360º abaixo segue ativo.'
-                : 'Insights IA indisponíveis no momento. O Diagnóstico 360º abaixo segue ativo.');
-        if (badgeEl && meta?.reason) {
-            badgeEl.textContent = meta.reason === 'offline' ? 'Offline' : (meta.reason === 'api_key_invalid' || meta.reason === 'not_configured' ? 'Config. pendente' : 'Indisponível');
-        }
-        body.innerHTML = `<p class="ai-insights-empty">${msg}</p>`;
+        body.innerHTML = '<p class="ai-insights-empty">Insights IA indisponíveis no momento. O Diagnóstico 360º abaixo segue ativo.</p>';
         return;
     }
 
@@ -3982,7 +3876,7 @@ async function loadAIInsights(forceRefresh) {
     const force = forceRefresh === true;
     const uid = currentUser?.id;
     if (!uid) {
-        renderAIInsights([], { reason: 'unauthorized' });
+        renderAIInsights([]);
         return;
     }
 
@@ -4001,7 +3895,7 @@ async function loadAIInsights(forceRefresh) {
     }
 
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        renderAIInsights([], { reason: 'offline' });
+        renderAIInsights([]);
         return;
     }
 
@@ -4023,7 +3917,7 @@ async function loadAIInsights(forceRefresh) {
             token = data?.session?.access_token || '';
         }
         if (!token) {
-            renderAIInsights([], { reason: 'no_token', errorMessage: 'Sessão expirada. Faça login novamente para gerar Insights IA.' });
+            renderAIInsights([]);
             return;
         }
 
@@ -4039,21 +3933,12 @@ async function loadAIInsights(forceRefresh) {
             body: JSON.stringify({ forceRefresh: force })
         });
 
-        let data = null;
-        try {
-            data = await res.json();
-        } catch (_) {
-            data = null;
-        }
-
         if (!res.ok) {
-            renderAIInsights([], {
-                reason: data?.reason || (res.status === 401 ? 'unauthorized' : 'error'),
-                errorMessage: data?.error || ''
-            });
+            renderAIInsights([]);
             return;
         }
 
+        const data = await res.json();
         const insights = Array.isArray(data?.insights) ? data.insights : [];
         if (insights.length > 0) {
             try {
@@ -4063,16 +3948,10 @@ async function loadAIInsights(forceRefresh) {
                     ts: Date.now()
                 }));
             } catch (_) {}
-            renderAIInsights(insights, { source: data?.source || 'ai' });
-            return;
         }
-
-        renderAIInsights([], {
-            reason: data?.reason || (data?.gemini_configured === false ? 'not_configured' : 'error'),
-            errorMessage: data?.error || ''
-        });
+        renderAIInsights(insights, { source: data?.source || 'ai' });
     } catch (_) {
-        renderAIInsights([], { reason: (typeof navigator !== 'undefined' && navigator.onLine === false) ? 'offline' : 'error' });
+        renderAIInsights([]);
     } finally {
         _aiInsightsFetchInFlight = false;
         if (refreshIcon) refreshIcon.classList.remove('fa-spin');
@@ -4183,7 +4062,7 @@ window.DashboardWidgets = {
                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
                         <div><span style="font-size:11px;color:#94a3b8;">Receitas</span><br><span style="font-size:18px;font-weight:700;color:#00b894;" id="wIncome">R$ 0,00</span></div>
                         <div><span style="font-size:11px;color:#94a3b8;">Despesas</span><br><span style="font-size:18px;font-weight:700;color:#ff7675;" id="wExpense">R$ 0,00</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Saldo</span><br><span style="font-size:18px;font-weight:700;color:#4338CA;" id="wBalance">R$ 0,00</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Saldo</span><br><span style="font-size:18px;font-weight:700;color:#6c5ce7;" id="wBalance">R$ 0,00</span></div>
                     </div>
                 `;
                 setTimeout(() => {
@@ -4232,12 +4111,12 @@ window.DashboardWidgets = {
             case 'balance':
                 container.innerHTML = `
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;border-radius:10px;background:#4338CA;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:#6c5ce7;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
                             <i class="fas fa-wallet"></i>
                         </div>
                         <div>
                             <div style="font-size:11px;color:#94a3b8;">Saldo</div>
-                            <div style="font-size:20px;font-weight:700;color:#4338CA;" id="wBalanceOnly">R$ 0,00</div>
+                            <div style="font-size:20px;font-weight:700;color:#6c5ce7;" id="wBalanceOnly">R$ 0,00</div>
                         </div>
                     </div>
                 `;
@@ -4251,7 +4130,7 @@ window.DashboardWidgets = {
                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
                         <div><span style="font-size:11px;color:#94a3b8;">Pendentes</span><br><span style="font-size:18px;font-weight:700;color:#fdcb6e;" id="wBillsPending">0</span></div>
                         <div><span style="font-size:11px;color:#94a3b8;">Pagas</span><br><span style="font-size:18px;font-weight:700;color:#00b894;" id="wBillsPaid">0</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Total</span><br><span style="font-size:18px;font-weight:700;color:#4338CA;" id="wBillsTotal">R$ 0,00</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Total</span><br><span style="font-size:18px;font-weight:700;color:#6c5ce7;" id="wBillsTotal">R$ 0,00</span></div>
                     </div>
                 `;
                 setTimeout(() => {
@@ -4266,7 +4145,7 @@ window.DashboardWidgets = {
             case 'patrimony':
                 container.innerHTML = `
                     <div style="text-align:center;padding:8px 0;">
-                        <div style="font-size:28px;font-weight:800;color:#4338CA;" id="wPatrimony">R$ 0,00</div>
+                        <div style="font-size:28px;font-weight:800;color:#6c5ce7;" id="wPatrimony">R$ 0,00</div>
                         <div style="font-size:12px;color:#94a3b8;">Patrimônio Total</div>
                     </div>
                 `;

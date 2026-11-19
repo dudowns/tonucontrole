@@ -882,10 +882,316 @@ function closeSidebar() {
 
 // ============================================
 // 6. LOGOUT (NÃO-DESTRUTIVO PARA BIOMETRIA / COMPLETO PARA USUÁRIO COMUM)
+//    + TRANSIÇÃO CRIATIVA DE DESPEDIDA (AURORA INDIGO & EMERALD)
 // ============================================
+function _resolveUserDisplayNameForLogout() {
+    var rawName = '';
+    try {
+        var su = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('tonu_user') : null;
+        if (su) {
+            var parsed = JSON.parse(su);
+            var u = parsed.user || parsed;
+            rawName = u?.user_metadata?.full_name || u?.user_metadata?.name || u?.name || u?.email?.split('@')[0] || '';
+        }
+    } catch (_) {}
+
+    if (!rawName) {
+        try {
+            var off = typeof localStorage !== 'undefined' ? localStorage.getItem('tonu_offline_session') : null;
+            if (off) {
+                var po = JSON.parse(off);
+                var uo = po.user || po;
+                rawName = uo?.user_metadata?.full_name || uo?.user_metadata?.name || uo?.name || uo?.email?.split('@')[0] || '';
+            }
+        } catch (_) {}
+    }
+
+    if (!rawName) {
+        try {
+            var lu = typeof localStorage !== 'undefined' ? localStorage.getItem('tonu_user') : null;
+            if (lu) {
+                var pl = JSON.parse(lu);
+                var ul = pl.user || pl;
+                rawName = ul?.user_metadata?.full_name || ul?.user_metadata?.name || ul?.name || ul?.email?.split('@')[0] || '';
+            }
+        } catch (_) {}
+    }
+
+    if (!rawName && typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+        try {
+            var nameEl = document.querySelector('#sidebarUserName, #mobileUserName, .user-name');
+            if (nameEl && nameEl.textContent) {
+                rawName = nameEl.textContent;
+            }
+        } catch (_) {}
+    }
+
+    var clean = String(rawName || '').trim();
+    if (!clean || clean.toLowerCase() === 'carregando...' || clean.toLowerCase() === 'usuário') return '';
+    if (clean.indexOf('@') !== -1) clean = clean.split('@')[0];
+    var first = clean.split(/\s+/)[0] || clean;
+    return first ? (first.charAt(0).toUpperCase() + first.slice(1)) : '';
+}
+
+function _resolveLogoutAssetPrefix() {
+    if (typeof window === 'undefined' || !window.location) return './';
+    var p = window.location.pathname || '';
+    if (p.indexOf('/mobile/') !== -1) return '../../';
+    if (p.indexOf('/pages/') !== -1) return '../';
+    return './';
+}
+
+function _canRenderLogoutOverlay() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+    if (typeof navigator !== 'undefined' && navigator.userAgent === 'NodeTest') return false;
+    return Boolean(
+        document.body &&
+        typeof document.body.appendChild === 'function' &&
+        typeof document.createElement === 'function'
+    );
+}
+
+function _ensureLogoutStylesheet(assetPrefix) {
+    if (typeof document === 'undefined' || !document.head) return Promise.resolve();
+    try {
+        var existingLinks = document.querySelectorAll ? document.querySelectorAll('link[rel="stylesheet"]') : [];
+        for (var i = 0; i < existingLinks.length; i++) {
+            var href = existingLinks[i].getAttribute('href') || '';
+            if (href.indexOf('post-login-transition.css') !== -1) {
+                return Promise.resolve();
+            }
+        }
+    } catch (_) {}
+
+    return new Promise(function (resolve) {
+        var settled = false;
+        var finish = function () {
+            if (settled) return;
+            settled = true;
+            resolve();
+        };
+        try {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = assetPrefix + 'css/post-login-transition.css?v=3.2.9';
+            link.addEventListener('load', finish);
+            link.addEventListener('error', finish);
+            document.head.appendChild(link);
+            setTimeout(finish, 140);
+        } catch (_) {
+            finish();
+        }
+    });
+}
+
+function _buildLogoutOverlayElement(options) {
+    var mode = (options && options.mode) || 'standard';
+    var firstName = (options && options.firstName) || '';
+    var prefix = (options && options.assetPrefix) || './';
+
+    var existing = document.getElementById('tonuLogoutOverlay');
+    if (existing && existing.parentNode) {
+        existing.parentNode.removeChild(existing);
+    }
+
+    var el = document.createElement('div');
+    el.id = 'tonuLogoutOverlay';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('aria-label', 'Encerrando sessão com segurança.');
+
+    var orb1 = document.createElement('div');
+    orb1.className = 'tonu-pl-orb tonu-pl-orb--indigo';
+    orb1.setAttribute('aria-hidden', 'true');
+    var orb2 = document.createElement('div');
+    orb2.className = 'tonu-pl-orb tonu-pl-orb--emerald';
+    orb2.setAttribute('aria-hidden', 'true');
+    el.appendChild(orb1);
+    el.appendChild(orb2);
+
+    var card = document.createElement('div');
+    card.className = 'tonu-pl-card';
+
+    var pill = document.createElement('div');
+    pill.className = 'tonu-pl-securing-pill';
+    pill.id = 'tonuLoBadge';
+    var dot = document.createElement('span');
+    dot.className = 'tonu-pl-pulse-dot';
+    dot.setAttribute('aria-hidden', 'true');
+    var pillText = document.createElement('span');
+    pillText.id = 'tonuLoBadgeText';
+    pillText.textContent = mode === 'global'
+        ? 'Desconectando todos os dispositivos'
+        : (mode === 'biometric' ? 'Protegendo acesso biométrico' : 'Encerrando sessão com segurança');
+    pill.appendChild(dot);
+    pill.appendChild(pillText);
+    card.appendChild(pill);
+
+    var orbitStage = document.createElement('div');
+    orbitStage.className = 'tonu-pl-orbit-stage';
+    orbitStage.setAttribute('aria-hidden', 'true');
+
+    var halo = document.createElement('div');
+    halo.className = 'tonu-pl-halo-glow';
+    var spinnerRing = document.createElement('div');
+    spinnerRing.className = 'tonu-pl-spinner-ring';
+    var innerRing = document.createElement('div');
+    innerRing.className = 'tonu-pl-inner-ring';
+
+    var logoCore = document.createElement('div');
+    logoCore.className = 'tonu-pl-logo-core';
+    var logoImg = document.createElement('img');
+    logoImg.src = prefix + 'icons/logo.png?v=3.2.9';
+    logoImg.alt = 'TonuControle';
+    logoImg.addEventListener('error', function () {
+        logoCore.innerHTML = '<span class="tonu-pl-logo-fallback">🔒</span>';
+    });
+    logoCore.appendChild(logoImg);
+
+    var checkChip = document.createElement('div');
+    checkChip.className = 'tonu-pl-check-chip';
+    checkChip.innerHTML = '<i class="fas fa-check"></i>';
+
+    orbitStage.appendChild(halo);
+    orbitStage.appendChild(spinnerRing);
+    orbitStage.appendChild(innerRing);
+    orbitStage.appendChild(logoCore);
+    orbitStage.appendChild(checkChip);
+    card.appendChild(orbitStage);
+
+    var kicker = document.createElement('div');
+    kicker.className = 'tonu-pl-brand-kicker';
+    kicker.textContent = 'TonuControle';
+    card.appendChild(kicker);
+
+    var title = document.createElement('h2');
+    title.className = 'tonu-pl-title';
+    title.id = 'tonuLoTitle';
+    if (firstName) {
+        title.appendChild(document.createTextNode('Até breve, '));
+        var accent = document.createElement('span');
+        accent.className = 'tonu-pl-user-accent';
+        accent.textContent = firstName;
+        title.appendChild(accent);
+        title.appendChild(document.createTextNode('!'));
+    } else {
+        var accentOnly = document.createElement('span');
+        accentOnly.className = 'tonu-pl-user-accent';
+        accentOnly.textContent = 'Até breve!';
+        title.appendChild(accentOnly);
+    }
+    card.appendChild(title);
+
+    var status = document.createElement('p');
+    status.className = 'tonu-pl-status';
+    status.id = 'tonuLoStatus';
+    status.textContent = mode === 'global'
+        ? 'Revogando tokens ativos na nuvem...'
+        : (mode === 'biometric' ? 'Preservando login rápido por biometria...' : 'Limpando credenciais temporárias...');
+    card.appendChild(status);
+
+    var steps = document.createElement('div');
+    steps.className = 'tonu-pl-steps';
+    steps.id = 'tonuLoSteps';
+    steps.setAttribute('aria-hidden', 'true');
+    for (var i = 0; i < 3; i++) {
+        var sDot = document.createElement('span');
+        sDot.className = 'tonu-pl-step-dot' + (i === 0 ? ' is-active' : '');
+        steps.appendChild(sDot);
+    }
+    card.appendChild(steps);
+
+    var insight = document.createElement('div');
+    insight.className = 'tonu-pl-insight';
+    insight.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i>';
+    var insightSpan = document.createElement('span');
+    insightSpan.textContent = mode === 'global'
+        ? 'Todos os acessos remotos estão sendo desconectados por segurança.'
+        : (mode === 'biometric'
+            ? 'Sua biometria foi mantida para você entrar com 1 toque na próxima vez.'
+            : 'Seus dados financeiros continuam criptografados e protegidos.');
+    insight.appendChild(insightSpan);
+    card.appendChild(insight);
+
+    el.appendChild(card);
+    return el;
+}
+
+function _updateLogoutStage(text, stepIdx) {
+    var statusEl = typeof document !== 'undefined' ? document.getElementById('tonuLoStatus') : null;
+    if (statusEl && text && statusEl.textContent !== text) {
+        statusEl.classList.add('is-swapping');
+        setTimeout(function () {
+            statusEl.textContent = text;
+            statusEl.classList.remove('is-swapping');
+        }, 140);
+    }
+    if (typeof stepIdx === 'number' && typeof document !== 'undefined') {
+        var dots = document.querySelectorAll('#tonuLoSteps .tonu-pl-step-dot');
+        dots.forEach(function (dot, i) {
+            dot.classList.remove('is-active', 'is-done');
+            if (i < stepIdx) dot.classList.add('is-done');
+            else if (i === stepIdx) dot.classList.add('is-active');
+        });
+    }
+}
+
+async function _finishCreativeLogoutAndNavigate(overlay, mode, firstName, redirectUrl, startedAt) {
+    var elapsed = Date.now() - startedAt;
+    var minDisplayMs = 950;
+    var remaining = Math.max(0, minDisplayMs - elapsed);
+
+    if (remaining > 0) {
+        await new Promise(function (resolve) { setTimeout(resolve, remaining); });
+    }
+
+    if (overlay) {
+        overlay.classList.add('is-ready');
+        var badgeEl = document.getElementById('tonuLoBadge');
+        var badgeTextEl = document.getElementById('tonuLoBadgeText');
+        if (badgeEl) {
+            badgeEl.classList.remove('tonu-pl-securing-pill');
+            badgeEl.classList.add('tonu-pl-success-pill');
+        }
+        if (badgeTextEl) {
+            badgeTextEl.textContent = mode === 'global'
+                ? 'Todos os dispositivos desconectados'
+                : (mode === 'biometric' ? 'Sessão encerrada • Biometria mantida' : 'Sessão encerrada com sucesso');
+        }
+        _updateLogoutStage('Redirecionando para a tela de login...', 2);
+        var dots = document.querySelectorAll('#tonuLoSteps .tonu-pl-step-dot');
+        dots.forEach(function (dot) {
+            dot.classList.remove('is-active');
+            dot.classList.add('is-done');
+        });
+    }
+
+    try {
+        sessionStorage.setItem('tonu_just_logged_out', JSON.stringify({
+            mode: mode,
+            name: firstName || '',
+            ts: Date.now()
+        }));
+    } catch (_) {}
+
+    await new Promise(function (resolve) { setTimeout(resolve, overlay ? 480 : 80); });
+
+    if (overlay) {
+        overlay.classList.add('is-leaving');
+        await new Promise(function (resolve) { setTimeout(resolve, 560); });
+    }
+
+    try {
+        sessionStorage.removeItem('tonu_logout_in_progress');
+        sessionStorage.removeItem('tonu_logout_in_progress_time');
+    } catch (_) {}
+
+    window.location.href = redirectUrl;
+}
+
 async function logout() {
     const logoutStartTime = sessionStorage.getItem('tonu_logout_in_progress_time');
-    const isRecent = logoutStartTime && (Date.now() - Number(logoutStartTime) < 3500);
+    const isRecent = logoutStartTime && (Date.now() - Number(logoutStartTime) < 6000);
     if (sessionStorage.getItem('tonu_logout_in_progress') === 'true' && isRecent) {
         console.log('🚪 Logout já em progresso');
         return;
@@ -909,26 +1215,48 @@ async function logout() {
         const hasBiometrics = (typeof window !== 'undefined' && window.TonuBiometrics && typeof window.TonuBiometrics.isConfigured === 'function' && window.TonuBiometrics.isConfigured()) ||
             (typeof localStorage !== 'undefined' && localStorage.getItem('tonu_biometrics_enabled') === 'true' && !!localStorage.getItem('tonu_biometrics_credential'));
 
+        const mode = hasBiometrics ? 'biometric' : 'standard';
+        const firstName = _resolveUserDisplayNameForLogout();
+        const startedAt = Date.now();
+        let overlay = null;
+
+        if (_canRenderLogoutOverlay()) {
+            const assetPrefix = _resolveLogoutAssetPrefix();
+            await _ensureLogoutStylesheet(assetPrefix);
+            overlay = _buildLogoutOverlayElement({ mode, firstName, assetPrefix });
+            document.body.appendChild(overlay);
+            requestAnimationFrame(function () {
+                overlay.classList.add('is-visible');
+            });
+            setTimeout(function () {
+                if (overlay && !overlay.classList.contains('is-ready')) {
+                    _updateLogoutStage(
+                        hasBiometrics
+                            ? 'Bloqueando visualização dos dados...'
+                            : 'Finalizando conexão com o servidor...',
+                        1
+                    );
+                }
+            }, 460);
+        }
+
         // 2. Se SIM (biometria ativa):
         //    - NÃO chamar supabaseClient.auth.signOut() para preservar o refresh_token de reautenticação
         //    - Apenas limpar sessionStorage: 'tonu_user', 'tonu_session_unlocked', 'tonu_csrf_token'
         //    - MANTER localStorage: 'tonu_offline_session', 'tonu_biometrics_session', 'tonu_biometrics_user_info'
-        //    - Redirecionar para o login
+        //    - Redirecionar para o login após transição suave
         if (hasBiometrics) {
             console.log('🔐 Logout não-destrutivo: Biometria ativa. Mantendo tokens seguros para login instantâneo por Face ID.');
             try {
                 sessionStorage.removeItem('tonu_user');
                 sessionStorage.removeItem('tonu_session_unlocked');
                 sessionStorage.removeItem('tonu_csrf_token');
+                sessionStorage.removeItem('tonu_just_logged_in');
             } catch (e) {
                 console.warn('⚠️ Erro ao limpar sessionStorage no logout biométrico:', e);
             }
 
-            setTimeout(function () {
-                sessionStorage.removeItem('tonu_logout_in_progress');
-                sessionStorage.removeItem('tonu_logout_in_progress_time');
-                window.location.href = redirectUrl;
-            }, 100);
+            await _finishCreativeLogoutAndNavigate(overlay, mode, firstName, redirectUrl, startedAt);
             return;
         }
 
@@ -961,22 +1289,20 @@ async function logout() {
             sessionStorage.removeItem('tonu_user');
             sessionStorage.removeItem('tonu_session_unlocked');
             sessionStorage.removeItem('tonu_csrf_token');
+            sessionStorage.removeItem('tonu_just_logged_in');
         } catch (e) {
             console.warn('⚠️ Erro ao limpar storages:', e);
         }
 
         console.log('✅ Logout completo concluído, redirecionando...');
-
-        setTimeout(function () {
-            sessionStorage.removeItem('tonu_logout_in_progress');
-            sessionStorage.removeItem('tonu_logout_in_progress_time');
-            window.location.href = redirectUrl;
-        }, 150);
+        await _finishCreativeLogoutAndNavigate(overlay, mode, firstName, redirectUrl, startedAt);
 
     } catch (error) {
         console.error('❌ Erro ao fazer logout:', error);
-        sessionStorage.removeItem('tonu_logout_in_progress');
-        sessionStorage.removeItem('tonu_logout_in_progress_time');
+        try {
+            sessionStorage.removeItem('tonu_logout_in_progress');
+            sessionStorage.removeItem('tonu_logout_in_progress_time');
+        } catch (_) {}
         const fallbackUrl = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
         window.location.href = fallbackUrl;
     }
@@ -988,7 +1314,7 @@ async function logoutAllDevices() {
     if (!confirmed) return;
 
     const logoutStartTime = sessionStorage.getItem('tonu_logout_in_progress_time');
-    const isRecent = logoutStartTime && (Date.now() - Number(logoutStartTime) < 3500);
+    const isRecent = logoutStartTime && (Date.now() - Number(logoutStartTime) < 6000);
     if (sessionStorage.getItem('tonu_logout_in_progress') === 'true' && isRecent) {
         console.log('🚪 Logout já em progresso');
         return;
@@ -1001,6 +1327,25 @@ async function logoutAllDevices() {
 
         if (typeof window !== 'undefined' && typeof window.stopAutoRefresh === 'function') {
             try { window.stopAutoRefresh(); } catch (_) {}
+        }
+
+        const firstName = _resolveUserDisplayNameForLogout();
+        const startedAt = Date.now();
+        let overlay = null;
+
+        if (_canRenderLogoutOverlay()) {
+            const assetPrefix = _resolveLogoutAssetPrefix();
+            await _ensureLogoutStylesheet(assetPrefix);
+            overlay = _buildLogoutOverlayElement({ mode: 'global', firstName, assetPrefix });
+            document.body.appendChild(overlay);
+            requestAnimationFrame(function () {
+                overlay.classList.add('is-visible');
+            });
+            setTimeout(function () {
+                if (overlay && !overlay.classList.contains('is-ready')) {
+                    _updateLogoutStage('Removendo sessões locais e biometria...', 1);
+                }
+            }, 460);
         }
 
         if (typeof window !== 'undefined' && window.TonuBiometrics) {
@@ -1040,15 +1385,13 @@ async function logoutAllDevices() {
         } catch (_) {}
 
         const redirectUrl = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
-        setTimeout(function () {
-            sessionStorage.removeItem('tonu_logout_in_progress');
-            sessionStorage.removeItem('tonu_logout_in_progress_time');
-            window.location.href = redirectUrl;
-        }, 150);
+        await _finishCreativeLogoutAndNavigate(overlay, 'global', firstName, redirectUrl, startedAt);
     } catch (err) {
         console.error('❌ Erro no logoutAllDevices:', err);
-        sessionStorage.removeItem('tonu_logout_in_progress');
-        sessionStorage.removeItem('tonu_logout_in_progress_time');
+        try {
+            sessionStorage.removeItem('tonu_logout_in_progress');
+            sessionStorage.removeItem('tonu_logout_in_progress_time');
+        } catch (_) {}
         window.location.href = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
     }
 }
