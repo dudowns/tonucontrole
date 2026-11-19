@@ -3,7 +3,7 @@
 // ============================================
 
 // NOTA: Sincronizar CACHE_NAME com a versão em package.json a cada release
-const CACHE_NAME = 'tonucontrole-v3.2.6';
+const CACHE_NAME = 'tonucontrole-v3.2.7';
 
 const RELATIVE_ASSETS = [
   './',
@@ -23,6 +23,7 @@ const RELATIVE_ASSETS = [
   './css/notifications.css',
   './css/sync.css',
   './css/mobile.css',
+  './css/post-login-transition.css',
   './icons/favicon.svg',
   './icons/logo.png',
   './icons/icon-72x72.png',
@@ -52,6 +53,7 @@ const RELATIVE_ASSETS = [
   './js/investments.js',
   './js/settings.js',
   './js/sw-register.js',
+  './js/post-login-transition.js',
   './js/data/cnpj-base.js',
   './js/reports/ir-report.js',
   './js/mobile/ui.js',

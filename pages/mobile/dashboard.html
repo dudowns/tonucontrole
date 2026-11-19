@@ -8,23 +8,24 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="TonuControle">
-    <link rel="manifest" href="../../manifest.json?v=3.2.6">
-    <link rel="icon" type="image/svg+xml" href="../../icons/favicon.svg?v=3.2.6">
-    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png?v=3.2.6">
-    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png?v=3.2.6">
-    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png?v=3.2.6">
-    <link rel="shortcut icon" href="../../icons/icon-128x128.png?v=3.2.6">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png?v=3.2.6">
+    <link rel="manifest" href="../../manifest.json?v=3.2.7">
+    <link rel="icon" type="image/svg+xml" href="../../icons/favicon.svg?v=3.2.7">
+    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png?v=3.2.7">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png?v=3.2.7">
+    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png?v=3.2.7">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png?v=3.2.7">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png?v=3.2.7">
     <title>TonuControle - Mobile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../css/theme.css?v=3.2.6">
-    <link rel="stylesheet" href="../../css/dark-theme.css?v=3.2.6">
-    <link rel="stylesheet" href="../../css/mobile.css?v=4.2.1">
-    <link rel="stylesheet" href="../../css/notifications.css?v=3.2.6">
-    <link rel="stylesheet" href="../../css/sync-status.css?v=3.2.6">
+    <link rel="stylesheet" href="../../css/theme.css?v=3.2.7">
+    <link rel="stylesheet" href="../../css/dark-theme.css?v=3.2.7">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.2.2">
+    <link rel="stylesheet" href="../../css/notifications.css?v=3.2.7">
+    <link rel="stylesheet" href="../../css/sync-status.css?v=3.2.7">
+    <link rel="stylesheet" href="../../css/post-login-transition.css?v=3.2.7">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .skip-link {
@@ -44,12 +45,36 @@
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
     <script>
-        if (localStorage.getItem('tonu_bottom_nav_labels') === 'false') {
-            document.documentElement.classList.add('nav-icons-only');
-        }
+        (function () {
+            if (localStorage.getItem('tonu_bottom_nav_labels') === 'false') {
+                document.documentElement.classList.add('nav-icons-only');
+            }
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+            try {
+                var raw = sessionStorage.getItem('tonu_just_logged_in');
+                var hasRecentLogin = false;
+                if (raw) {
+                    var parsed = JSON.parse(raw);
+                    if (parsed && (!parsed.ts || (Date.now() - Number(parsed.ts)) < 120000)) {
+                        hasRecentLogin = true;
+                    }
+                }
+                var search = window.location.search || '';
+                var hash = window.location.hash || '';
+                var hasOAuth = search.indexOf('code=') !== -1 || search.indexOf('post_login=1') !== -1 || hash.indexOf('access_token=') !== -1;
+                if (hasRecentLogin || hasOAuth) {
+                    document.documentElement.classList.add('tonu-entering-dashboard');
+                }
+            } catch (_) {}
+        })();
     </script>
 </head>
 <body class="has-bottom-nav mobile-dashboard-page">
+<script src="../../js/post-login-transition.js?v=3.2.7"></script>
 
 <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
 
@@ -376,15 +401,15 @@
 
 <!-- SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../../js/supabase.js?v=3.2.6"></script>
-<script src="../../js/core.js?v=3.2.6"></script>
-<script src="../../js/security.js?v=3.2.6"></script>
-<script src="../../js/sync.js?v=3.2.6"></script>
-<script src="../../js/financial-tools.js?v=3.2.6"></script>
-<script src="../../js/notifications.js?v=3.2.6"></script>
-<script src="../../js/sw-register.js?v=3.2.6"></script>
-<script src="../../js/mobile/ui.js?v=1.0.1"></script>
-<script src="../../js/mobile/dashboard.js?v=4.2.0"></script>
+<script src="../../js/supabase.js?v=3.2.7"></script>
+<script src="../../js/core.js?v=3.2.7"></script>
+<script src="../../js/security.js?v=3.2.7"></script>
+<script src="../../js/sync.js?v=3.2.7"></script>
+<script src="../../js/financial-tools.js?v=3.2.7"></script>
+<script src="../../js/notifications.js?v=3.2.7"></script>
+<script src="../../js/sw-register.js?v=3.2.7"></script>
+<script src="../../js/mobile/ui.js?v=1.0.2"></script>
+<script src="../../js/mobile/dashboard.js?v=4.2.2"></script>
 
 </body>
 </html>

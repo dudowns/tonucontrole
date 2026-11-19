@@ -2539,13 +2539,13 @@
     <script src="js/security.js?v=3.2.1"></script>
 
     <!-- 7. Auth -->
-    <script src="js/auth.js?v=3.2.1"></script>
+    <script src="js/auth.js?v=3.2.7"></script>
 
     <!-- 8. Validators -->
     <script src="js/validators.js?v=3.2.1"></script>
 
     <!-- 9. Service Worker -->
-    <script src="js/sw-register.js?v=3.2.1"></script>
+    <script src="js/sw-register.js?v=3.2.7"></script>
 
     <script>
         // ==========================================
@@ -3052,6 +3052,14 @@
 
                     setTimeout(() => {
                         if (authenticatedUser) {
+                            try {
+                                const authName = authenticatedUser.user_metadata?.full_name || authenticatedUser.user_metadata?.name || authenticatedUser.email?.split('@')[0] || '';
+                                sessionStorage.setItem('tonu_just_logged_in', JSON.stringify({
+                                    method: 'session',
+                                    name: authName,
+                                    ts: Date.now()
+                                }));
+                            } catch (_) {}
                             var redirectUrl = getAppTargetUrl('dashboard.html');
                             console.log('🚀 Usuário autenticado, direcionando automaticamente para:', redirectUrl);
                             window.location.href = redirectUrl;
@@ -3276,12 +3284,19 @@
 
                 setTimeout(() => {
                     if (data.session) {
+                        try {
+                            sessionStorage.setItem('tonu_just_logged_in', JSON.stringify({
+                                method: 'register',
+                                name: name,
+                                ts: Date.now()
+                            }));
+                        } catch (_) {}
                         window.location.href = getAppTargetUrl('dashboard.html');
                     } else {
                         const baseUrl = window.getBaseUrl ? window.getBaseUrl() : window.location.origin;
                         window.location.href = baseUrl + '/index.html';
                     }
-                }, 1200);
+                }, 1000);
 
             } catch (error) {
                 console.error('❌ Erro no registro:', error);
@@ -3343,6 +3358,15 @@
                 });
 
                 if (error) throw error;
+
+                try {
+                    sessionStorage.setItem('tonu_social_login', provider);
+                    sessionStorage.setItem('tonu_just_logged_in', JSON.stringify({
+                        method: provider,
+                        name: '',
+                        ts: Date.now()
+                    }));
+                } catch (_) {}
 
                 showToast(`Redirecionando para ${provider}...`, 'info');
 
@@ -3421,10 +3445,18 @@
                     }
 
                     showToast('✅ Autenticado com sucesso! Entrando...', 'success');
+                    try {
+                        const bioName = user.user_metadata?.full_name || user.user_metadata?.name || user.name || user.email?.split('@')[0] || '';
+                        sessionStorage.setItem('tonu_just_logged_in', JSON.stringify({
+                            method: 'biometric',
+                            name: bioName,
+                            ts: Date.now()
+                        }));
+                    } catch (_) {}
                     const targetUrl = getAppTargetUrl('dashboard.html');
                     setTimeout(() => {
                         window.location.href = targetUrl;
-                    }, 400);
+                    }, 350);
                 }
             } catch (err) {
                 if (err.message === 'IFRAME_RESTRICTION') {

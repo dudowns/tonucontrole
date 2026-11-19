@@ -847,6 +847,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Inicializando Dashboard...');
 
     try {
+        updateMonthDisplay('selectedMonth', currentMonthOffset);
+    } catch (_) {}
+
+    const urlSearch = window.location.search || '';
+    const urlHash = window.location.hash || '';
+    const searchParams = new URLSearchParams(urlSearch);
+    const oauthCode = searchParams.get('code');
+    const hadOAuthParams = Boolean(oauthCode || urlHash.includes('access_token=') || searchParams.get('error'));
+
+    try {
         let user = null;
         if (window.getAuthenticatedUser) {
             user = await window.getAuthenticatedUser();
@@ -857,6 +867,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const { data: sessData } = await supabaseClient.auth.getSession();
                 user = sessData?.session?.user;
+                if (!user && oauthCode && supabaseClient.auth.exchangeCodeForSession) {
+                    const { data: exData } = await supabaseClient.auth.exchangeCodeForSession(oauthCode);
+                    user = exData?.user || exData?.session?.user;
+                }
                 if (!user) {
                     const { data: userData } = await supabaseClient.auth.getUser();
                     user = userData?.user;
@@ -879,10 +893,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         if (!user) {
+            window.TonuPostLoginTransition?.complete({ forceImmediate: true });
             window.location.href = '../index.html';
             return;
         }
+        if (hadOAuthParams && window.history?.replaceState) {
+            try { window.history.replaceState({}, document.title, window.location.pathname); } catch (_) {}
+        }
         currentUser = user;
+        window.TonuPostLoginTransition?.updateUser(currentUser);
+        window.TonuPostLoginTransition?.setStage('Sincronizando suas contas e lançamentos...');
         console.log('✅ Usuario autenticado:', currentUser.email);
     } catch (e) {
         console.error('❌ Erro na autenticacao:', e);
@@ -894,16 +914,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (_) {}
         }
         if (!currentUser) {
+            window.TonuPostLoginTransition?.complete({ forceImmediate: true });
             window.location.href = '../index.html';
             return;
         }
+        window.TonuPostLoginTransition?.updateUser(currentUser);
     }
 
-    await loadUserProfile();
-    await loadCategories();
-    updateMonthDisplay('selectedMonth', currentMonthOffset);
-    await loadDashboard();
-    updateBalanceVisibilityUI();
+    try {
+        await loadUserProfile();
+        await loadCategories();
+        updateMonthDisplay('selectedMonth', currentMonthOffset);
+        await loadDashboard();
+        updateBalanceVisibilityUI();
+    } catch (err) {
+        console.warn('⚠️ Erro parcial ao carregar dashboard:', err);
+    } finally {
+        window.TonuPostLoginTransition?.complete();
+    }
 
     // 🔥 LAZY LOADING DOS GRÁFICOS
     loadChartsLazy();

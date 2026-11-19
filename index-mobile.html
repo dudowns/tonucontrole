@@ -147,6 +147,15 @@
                 badge.textContent = isMobileDevice ? '📱 Versão Mobile' : '💻 Versão Desktop';
             }
             setTimeout(() => {
+                try {
+                    if (sessionStorage.getItem('tonu_user') || localStorage.getItem('tonu_offline_session')) {
+                        sessionStorage.setItem('tonu_just_logged_in', JSON.stringify({
+                            method: 'session',
+                            name: '',
+                            ts: Date.now()
+                        }));
+                    }
+                } catch (_) {}
                 const targetUrl = isMobileDevice 
                     ? basePath + '/pages/mobile/dashboard.html'
                     : basePath + '/pages/dashboard.html';

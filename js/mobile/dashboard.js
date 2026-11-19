@@ -353,12 +353,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("✅ Mobile: Usuário autenticado:", currentUser.email);
 
         hydrateMobileHeaderUser(currentUser);
+        window.TonuPostLoginTransition?.updateUser(currentUser);
+        window.TonuPostLoginTransition?.setStage("Sincronizando seu resumo financeiro...");
 
         // Inicia carregamento progressivo sem bloquear em loadCategories remoto
         loadCategories({ cacheOnly: true }).catch(() => {});
         await loadMobileData();
     } catch (e) {
         console.error("❌ Erro na autenticação mobile:", e);
+        window.TonuPostLoginTransition?.complete({ forceImmediate: true });
         window.location.href = "../../index.html";
     }
 });
@@ -946,6 +949,7 @@ async function loadMobileData(options = {}) {
             setMobileCacheBanner('hidden');
             await loadSyncedPortfolioEquity({ cacheOnly: true });
             renderAllMobileWidgets();
+            window.TonuPostLoginTransition?.complete();
             loadAIInsights().catch(() => {});
             return;
         }
@@ -979,6 +983,7 @@ async function loadMobileData(options = {}) {
             await loadSyncedPortfolioEquity({ cacheOnly: true });
             renderAllMobileWidgets();
             renderedFingerprint = computeMobileDataFingerprint();
+            window.TonuPostLoginTransition?.complete();
             loadAIInsights(false).catch(() => {});
 
             setMobileCacheBanner(navigator.onLine === false ? 'cache' : 'syncing');
@@ -990,6 +995,7 @@ async function loadMobileData(options = {}) {
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
             if (!renderedFingerprint) renderAllMobileWidgets();
             setMobileCacheBanner(cached.found ? 'cache' : 'hidden');
+            window.TonuPostLoginTransition?.complete();
             return;
         }
 
@@ -1005,6 +1011,7 @@ async function loadMobileData(options = {}) {
             if (!renderedFingerprint) {
                 renderAllMobileWidgets();
             }
+            window.TonuPostLoginTransition?.complete();
             showMobileToast("Sincronização lenta. Exibindo dados disponíveis...", "warning");
 
             // Se responder em segundo plano logo depois no mesmo mês, atualiza silenciosamente
@@ -1020,10 +1027,12 @@ async function loadMobileData(options = {}) {
             if (!renderedFingerprint) {
                 renderAllMobileWidgets();
             }
+            window.TonuPostLoginTransition?.complete();
             return;
         }
 
         await applyRemoteBundle(raceResult.value, seq, cacheKey, renderedFingerprint);
+        window.TonuPostLoginTransition?.complete();
 
         console.log("📊 Mobile: Dados unificados prontos:", {
             transacoes: allTransactions.length,
@@ -1036,6 +1045,7 @@ async function loadMobileData(options = {}) {
         console.error("❌ Erro ao carregar dados mobile:", error);
         setMobileCacheBanner('hidden');
         renderAllMobileWidgets();
+        window.TonuPostLoginTransition?.complete();
     }
 }
 
