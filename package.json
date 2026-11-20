@@ -37,8 +37,5 @@
         "control"
     ],
     "author": "TonuControle",
-    "license": "MIT",
-    "devDependencies": {
-        "lighthouse": "^13.6.0"
-    }
+    "license": "MIT"
 }
