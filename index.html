@@ -115,10 +115,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background-color: #1b1752;
-            background-image:
-                radial-gradient(ellipse at 50% 42%, rgba(99, 102, 241, 0.24) 0%, transparent 64%),
-                linear-gradient(145deg, #15123f 0%, #1e1a58 48%, #282373 100%);
+            background-color: #f3f5fa;
+            background-image: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.92) 0%, #f1f4f9 65%, #e8edf6 100%);
             padding: 20px 16px;
             position: relative;
             overflow-x: hidden;
@@ -127,10 +125,8 @@
         }
 
         body.dark-theme {
-            background-color: #0a0b1a !important;
-            background-image:
-                radial-gradient(ellipse at 50% 42%, rgba(79, 70, 229, 0.20) 0%, transparent 62%),
-                linear-gradient(145deg, #080916 0%, #101129 52%, #18163a 100%) !important;
+            background-color: #0b0d14 !important;
+            background-image: radial-gradient(circle at 50% 42%, rgba(79, 70, 229, 0.10) 0%, #0b0d14 70%) !important;
             color: #f8fafc !important;
         }
 
@@ -651,8 +647,8 @@
             width: 100%;
             background: #ffffff;
             border-radius: 22px;
-            box-shadow: 0 28px 72px -16px rgba(8, 7, 28, 0.62), 0 8px 24px -8px rgba(15, 12, 48, 0.38);
-            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow: 0 24px 64px -18px rgba(15, 23, 42, 0.16), 0 6px 20px rgba(67, 56, 202, 0.08);
+            border: 1px solid rgba(15, 23, 42, 0.08);
             overflow: hidden;
             animation: slideUp 0.55s cubic-bezier(0.16, 1, 0.3, 1);
             min-height: 452px;
@@ -662,8 +658,8 @@
 
         body.dark-theme .login-container {
             background: #13141f !important;
-            border-color: rgba(255, 255, 255, 0.10) !important;
-            box-shadow: 0 28px 72px -14px rgba(0, 0, 0, 0.78), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+            border-color: rgba(255, 255, 255, 0.09) !important;
+            box-shadow: 0 24px 64px -14px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
         }
 
         @keyframes slideUp {
@@ -1962,17 +1958,15 @@
             }
 
             body {
-                background-color: #0a0b1a;
-                background-image:
-                    radial-gradient(ellipse at 50% 42%, rgba(79, 70, 229, 0.20) 0%, transparent 62%),
-                    linear-gradient(145deg, #080916 0%, #101129 52%, #18163a 100%);
+                background-color: #0b0d14;
+                background-image: radial-gradient(circle at 50% 42%, rgba(79, 70, 229, 0.10) 0%, #0b0d14 70%);
                 color: #f8fafc;
             }
 
             .login-container,
             .login-side {
                 background: #13141f;
-                border-color: rgba(255, 255, 255, 0.10);
+                border-color: rgba(255, 255, 255, 0.09);
             }
 
             .login-card-header h2,
