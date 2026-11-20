@@ -805,7 +805,42 @@
     }
 
     // ======================================================================
-    // 11. BOOTSTRAP
+    // 11. AURORA DOCK ENHANCEMENTS (LIQUID GLASS & TOUCH RIPPLE)
+    // ======================================================================
+    function setupAuroraDock() {
+        var nav = document.querySelector('.bottom-nav');
+        if (!nav) return;
+
+        var updateScrollGlass = function () {
+            nav.classList.toggle('is-scrolled', window.scrollY > 16);
+        };
+        updateScrollGlass();
+        window.addEventListener('scroll', updateScrollGlass, { passive: true });
+
+        nav.addEventListener('click', function (e) {
+            var addBtn = e.target && e.target.closest ? e.target.closest('.nav-add-btn') : null;
+            if (addBtn) {
+                haptic('medium');
+                return;
+            }
+            var anchor = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+            if (!anchor) return;
+            try {
+                var existing = anchor.querySelector('.mob-nav-ripple');
+                if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+                var ripple = document.createElement('span');
+                ripple.className = 'mob-nav-ripple';
+                ripple.setAttribute('aria-hidden', 'true');
+                anchor.appendChild(ripple);
+                setTimeout(function () {
+                    if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
+                }, 420);
+            } catch (_) {}
+        });
+    }
+
+    // ======================================================================
+    // 12. BOOTSTRAP
     // ======================================================================
     var initialized = false;
     function init(opts) {
@@ -815,6 +850,7 @@
 
         syncThemeMeta();
         applyPrivacyState(isPrivacyHidden());
+        setupAuroraDock();
         setupLinkProgress();
         setupPullToRefresh(opts.onRefresh);
         setupSwipeTabNavigation();
