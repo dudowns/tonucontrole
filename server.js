@@ -113,6 +113,7 @@ app.use((req, res, next) => {
         '.env',
         '.git',
         'package.json',
+        'package-lock.json',
         'bun.lock',
         'metadata.json',
         'server.js',

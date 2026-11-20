@@ -111,19 +111,17 @@
         body {
             font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background-color: #e4e9fb;
+            background-color: #f3f5fa;
             background-image:
-                radial-gradient(at 10% 15%, rgba(67, 56, 202, 0.24) 0px, transparent 48%),
-                radial-gradient(at 90% 18%, rgba(16, 185, 129, 0.18) 0px, transparent 44%),
-                radial-gradient(at 84% 88%, rgba(79, 70, 229, 0.20) 0px, transparent 50%),
-                radial-gradient(at 16% 85%, rgba(79, 70, 229, 0.14) 0px, transparent 46%),
-                radial-gradient(rgba(67, 56, 202, 0.085) 1.1px, transparent 1.1px),
-                linear-gradient(145deg, #e0e7ff 0%, #eef2ff 48%, #d1fae5 100%);
-            background-size: auto, auto, auto, auto, 26px 26px, auto;
-            padding: 24px 16px;
+                radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.85) 0%, rgba(243, 245, 250, 0.25) 60%, rgba(226, 232, 240, 0.55) 100%),
+                linear-gradient(rgba(15, 23, 42, 0.032) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15, 23, 42, 0.032) 1px, transparent 1px);
+            background-size: auto, 38px 38px, 38px 38px;
+            padding: 20px 16px;
             position: relative;
             overflow-x: hidden;
             color: #0f172a;
@@ -131,15 +129,120 @@
         }
 
         body.dark-theme {
-            background-color: #070916 !important;
+            background-color: #0b0d14 !important;
             background-image:
-                radial-gradient(at 12% 16%, rgba(79, 70, 229, 0.34) 0px, transparent 50%),
-                radial-gradient(at 88% 18%, rgba(16, 185, 129, 0.18) 0px, transparent 46%),
-                radial-gradient(at 82% 86%, rgba(67, 56, 202, 0.26) 0px, transparent 52%),
-                radial-gradient(rgba(129, 140, 248, 0.09) 1.1px, transparent 1.1px),
-                linear-gradient(145deg, #070814 0%, #111132 50%, #071918 100%) !important;
-            background-size: auto, auto, auto, 26px 26px, auto !important;
+                radial-gradient(circle at 50% 48%, rgba(19, 20, 31, 0.25) 0%, rgba(11, 13, 20, 0.88) 100%),
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px) !important;
+            background-size: auto, 38px 38px, 38px 38px !important;
             color: #f8fafc !important;
+        }
+
+        /* ==========================================
+           SÍMBOLOS E ILUSTRAÇÕES FINANCEIRAS LATERAIS
+           ========================================== */
+        .login-ambient-backdrop {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .corner-art {
+            position: absolute;
+            pointer-events: none;
+            user-select: none;
+            opacity: 0.88;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .corner-art svg {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .corner-art.corner-tl {
+            top: clamp(14px, 3.5vh, 36px);
+            left: clamp(14px, 3vw, 40px);
+            width: clamp(175px, 18vw, 245px);
+        }
+
+        .corner-art.corner-bl {
+            bottom: clamp(14px, 3.5vh, 34px);
+            left: clamp(14px, 3vw, 42px);
+            width: clamp(165px, 16vw, 225px);
+        }
+
+        .corner-art.corner-tr {
+            top: clamp(14px, 3.5vh, 36px);
+            right: clamp(14px, 3vw, 40px);
+            width: clamp(175px, 18vw, 245px);
+        }
+
+        .corner-art.corner-br {
+            bottom: clamp(14px, 3.5vh, 34px);
+            right: clamp(14px, 3vw, 42px);
+            width: clamp(165px, 16vw, 225px);
+        }
+
+        .corner-card-surface {
+            fill: rgba(255, 255, 255, 0.88);
+            stroke: rgba(15, 23, 42, 0.08);
+        }
+
+        .corner-card-inner {
+            fill: rgba(248, 250, 252, 0.92);
+            stroke: rgba(15, 23, 42, 0.06);
+        }
+
+        .corner-stroke-muted {
+            stroke: rgba(100, 116, 139, 0.28);
+        }
+
+        .corner-text-main {
+            fill: #1e293b;
+        }
+
+        .corner-text-muted {
+            fill: #64748b;
+        }
+
+        body.dark-theme .corner-card-surface {
+            fill: rgba(22, 24, 37, 0.82);
+            stroke: rgba(255, 255, 255, 0.09);
+        }
+
+        body.dark-theme .corner-card-inner {
+            fill: rgba(30, 33, 50, 0.85);
+            stroke: rgba(255, 255, 255, 0.07);
+        }
+
+        body.dark-theme .corner-stroke-muted {
+            stroke: rgba(148, 163, 184, 0.24);
+        }
+
+        body.dark-theme .corner-text-main {
+            fill: #e2e8f0;
+        }
+
+        body.dark-theme .corner-text-muted {
+            fill: #94a3b8;
+        }
+
+        @media (min-width: 861px) and (max-width: 1180px) {
+            .corner-art.corner-tl,
+            .corner-art.corner-tr {
+                width: 155px;
+                opacity: 0.72;
+            }
+
+            .corner-art.corner-bl,
+            .corner-art.corner-br {
+                width: 145px;
+                opacity: 0.72;
+            }
         }
 
         /* ==========================================
@@ -655,23 +758,23 @@
            ========================================== */
         .login-container {
             display: flex;
-            max-width: 940px;
+            max-width: 760px;
             width: 100%;
             background: #ffffff;
-            border-radius: 26px;
-            box-shadow: 0 30px 80px -18px rgba(49, 46, 129, 0.26), 0 8px 28px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: 22px;
+            box-shadow: 0 24px 64px -18px rgba(15, 23, 42, 0.16), 0 6px 20px rgba(67, 56, 202, 0.08);
+            border: 1px solid rgba(15, 23, 42, 0.08);
             overflow: hidden;
             animation: slideUp 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-            min-height: 580px;
+            min-height: 452px;
             position: relative;
             z-index: 10;
         }
 
         body.dark-theme .login-container {
             background: #13141f !important;
-            border-color: rgba(255, 255, 255, 0.08) !important;
-            box-shadow: 0 28px 70px -12px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+            border-color: rgba(255, 255, 255, 0.09) !important;
+            box-shadow: 0 24px 64px -14px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
         }
 
         @keyframes slideUp {
@@ -689,12 +792,12 @@
            WELCOME SIDE — DESKTOP SPLIT SCREEN
            ========================================== */
         .welcome-side {
-            flex: 0.96;
+            flex: 0.92;
             background:
-                radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.22) 0%, transparent 45%),
-                radial-gradient(circle at 15% 88%, rgba(99, 102, 241, 0.24) 0%, transparent 50%),
-                linear-gradient(148deg, #27226d 0%, #3730A3 46%, #4338CA 78%, #4F46E5 100%);
-            padding: 44px 38px;
+                radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.20) 0%, transparent 45%),
+                radial-gradient(circle at 15% 88%, rgba(99, 102, 241, 0.22) 0%, transparent 50%),
+                linear-gradient(148deg, #27226d 0%, #3730A3 48%, #4338CA 82%, #4F46E5 100%);
+            padding: 28px 26px;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -710,7 +813,7 @@
             background-image:
                 linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-            background-size: 36px 36px;
+            background-size: 32px 32px;
             mask-image: radial-gradient(circle at 35% 35%, rgba(0, 0, 0, 0.75) 0%, transparent 80%);
             -webkit-mask-image: radial-gradient(circle at 35% 35%, rgba(0, 0, 0, 0.75) 0%, transparent 80%);
             pointer-events: none;
@@ -725,19 +828,19 @@
         }
 
         .welcome-ambient-orb.orb-1 {
-            width: 260px;
-            height: 260px;
-            top: -80px;
-            right: -60px;
-            background: radial-gradient(circle, rgba(16, 185, 129, 0.28) 0%, transparent 70%);
+            width: 220px;
+            height: 220px;
+            top: -70px;
+            right: -50px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.26) 0%, transparent 70%);
         }
 
         .welcome-ambient-orb.orb-2 {
-            width: 240px;
-            height: 240px;
-            bottom: -80px;
-            left: -60px;
-            background: radial-gradient(circle, rgba(79, 70, 229, 0.35) 0%, transparent 70%);
+            width: 200px;
+            height: 200px;
+            bottom: -70px;
+            left: -50px;
+            background: radial-gradient(circle, rgba(79, 70, 229, 0.32) 0%, transparent 70%);
         }
 
         .welcome-ambient-orb.orb-3 {
@@ -754,8 +857,8 @@
         .welcome-brand-row {
             display: flex;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 26px;
+            gap: 12px;
+            margin-bottom: 16px;
         }
 
         .welcome-logo-container {
@@ -765,15 +868,15 @@
         }
 
         .welcome-logo {
-            width: 78px;
-            height: 78px;
-            border-radius: 22px;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
             border: 2px solid rgba(255, 255, 255, 0.28);
-            box-shadow: 0 18px 40px -8px rgba(15, 12, 48, 0.55), 0 0 28px rgba(16, 185, 129, 0.16);
+            box-shadow: 0 12px 28px -8px rgba(15, 12, 48, 0.55), 0 0 22px rgba(16, 185, 129, 0.14);
             position: relative;
             z-index: 1;
             animation: logoFloatBreath 4.4s ease-in-out infinite;
@@ -791,28 +894,28 @@
         .welcome-brand-meta {
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 1px;
         }
 
         .welcome-brand-name {
-            font-size: 20px;
+            font-size: 17px;
             font-weight: 800;
             letter-spacing: -0.02em;
             color: #ffffff;
         }
 
         .welcome-brand-sub {
-            font-size: 12.5px;
+            font-size: 11.5px;
             font-weight: 500;
             color: rgba(255, 255, 255, 0.72);
         }
 
         .welcome-title {
-            font-size: clamp(1.7rem, 2.5vw, 2.05rem);
+            font-size: clamp(1.3rem, 1.9vw, 1.55rem);
             font-weight: 800;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             letter-spacing: -0.03em;
-            line-height: 1.18;
+            line-height: 1.2;
             color: #ffffff;
             text-wrap: balance;
         }
@@ -826,26 +929,26 @@
         }
 
         .welcome-desc {
-            font-size: 14px;
+            font-size: 12.5px;
             color: rgba(255, 255, 255, 0.82);
-            line-height: 1.55;
-            max-width: 340px;
-            margin-bottom: 26px;
+            line-height: 1.48;
+            max-width: 300px;
+            margin-bottom: 16px;
         }
 
         .welcome-features {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
 
         .welcome-features .feature {
             display: flex;
             flex-direction: column;
-            padding: 11px 14px;
+            padding: 9px 12px;
             background: rgba(255, 255, 255, 0.08);
             border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 14px;
+            border-radius: 12px;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease;
@@ -869,24 +972,24 @@
         .welcome-features .feature .feature-main {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             width: 100%;
         }
 
         .feature-icon-wrap {
-            width: 34px;
-            height: 34px;
-            min-width: 34px;
+            width: 30px;
+            height: 30px;
+            min-width: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 10px;
+            border-radius: 8px;
             background: rgba(255, 255, 255, 0.12);
             border: 1px solid rgba(255, 255, 255, 0.16);
         }
 
         .feature-icon-wrap i {
-            font-size: 14px;
+            font-size: 13px;
             color: #34D399;
         }
 
@@ -894,32 +997,32 @@
             display: flex;
             flex-direction: column;
             gap: 1px;
-            line-height: 1.3;
+            line-height: 1.28;
         }
 
         .feature-text strong {
             font-weight: 700;
             color: #ffffff;
-            font-size: 13px;
+            font-size: 12.5px;
             letter-spacing: -0.01em;
         }
 
         .feature-text span {
-            font-size: 12px;
+            font-size: 11px;
             color: rgba(255, 255, 255, 0.74);
         }
 
         .welcome-features .feature .feature-toggle-icon {
             margin-left: auto;
-            width: 22px;
-            height: 22px;
-            min-width: 22px;
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: rgba(255, 255, 255, 0.65);
-            font-size: 10px;
+            font-size: 9px;
             transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
         }
 
@@ -946,12 +1049,12 @@
         }
 
         .welcome-features .feature .feature-expand-desc {
-            margin: 8px 0 0 0;
-            padding: 8px 10px;
-            border-radius: 10px;
+            margin: 7px 0 0 0;
+            padding: 7px 9px;
+            border-radius: 8px;
             background: rgba(15, 23, 42, 0.24);
-            font-size: 12px;
-            line-height: 1.48;
+            font-size: 11.5px;
+            line-height: 1.44;
             color: rgba(255, 255, 255, 0.9);
         }
 
@@ -963,8 +1066,8 @@
            LOGIN SIDE
            ========================================== */
         .login-side {
-            flex: 1.04;
-            padding: 36px 40px 32px;
+            flex: 1.08;
+            padding: 26px 28px 22px;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -976,21 +1079,21 @@
         }
 
         .login-card-header {
-            margin-bottom: 20px;
+            margin-bottom: 14px;
         }
 
         .login-card-header h2 {
-            font-size: 22px;
+            font-size: 19px;
             font-weight: 800;
             color: #0f172a;
             letter-spacing: -0.025em;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }
 
         .login-card-header p {
-            font-size: 13.5px;
+            font-size: 12.5px;
             color: #64748b;
-            line-height: 1.4;
+            line-height: 1.38;
         }
 
         body.dark-theme .login-card-header h2 {
@@ -1004,24 +1107,24 @@
         .login-side .mobile-logo {
             display: none;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .mobile-logo-container {
             position: relative;
             display: inline-block;
-            margin-bottom: 12px;
+            margin-bottom: 6px;
         }
 
         .mobile-logo-box {
-            width: 72px;
-            height: 72px;
-            border-radius: 20px;
+            width: 52px;
+            height: 52px;
+            border-radius: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            box-shadow: 0 14px 32px -6px rgba(67, 56, 202, 0.34), 0 4px 12px rgba(15, 23, 42, 0.08);
+            box-shadow: 0 10px 24px -6px rgba(67, 56, 202, 0.30), 0 3px 10px rgba(15, 23, 42, 0.08);
             position: relative;
             z-index: 1;
             margin: 0 auto;
@@ -1037,11 +1140,11 @@
         }
 
         .login-side .mobile-logo h2 {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 800;
             color: #0f172a;
             letter-spacing: -0.03em;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         body.dark-theme .login-side .mobile-logo h2 {
@@ -1057,7 +1160,7 @@
         }
 
         .login-side .mobile-logo p {
-            font-size: 13px;
+            font-size: 12px;
             color: #64748b;
             font-weight: 500;
         }
@@ -1072,9 +1175,9 @@
         .tabs {
             display: flex;
             background: #f1f5f9;
-            border-radius: 12px;
-            padding: 4px;
-            margin-bottom: 18px;
+            border-radius: 10px;
+            padding: 3px;
+            margin-bottom: 14px;
             border: 1px solid #e2e8f0;
             gap: 4px;
         }
@@ -1086,13 +1189,13 @@
 
         .tab-btn {
             flex: 1;
-            min-height: 40px;
-            padding: 8px 14px;
+            min-height: 36px;
+            padding: 6px 12px;
             border: none;
             background: transparent;
-            border-radius: 9px;
+            border-radius: 8px;
             font-family: inherit;
-            font-size: 13.5px;
+            font-size: 13px;
             font-weight: 600;
             color: #64748b;
             cursor: pointer;
@@ -1128,7 +1231,7 @@
         .auth-form {
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 10px;
         }
 
         .auth-form.hidden {
@@ -1153,11 +1256,11 @@
         .form-group {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 4px;
         }
 
         .form-group label {
-            font-size: 12.5px;
+            font-size: 12px;
             font-weight: 700;
             color: #334155;
             letter-spacing: -0.01em;
@@ -1174,11 +1277,11 @@
         .input-wrapper > i:first-child,
         .input-wrapper > i.input-icon {
             position: absolute;
-            left: 14px;
+            left: 13px;
             top: 50%;
             transform: translateY(-50%);
             color: #94a3b8;
-            font-size: 14px;
+            font-size: 13.5px;
             transition: color 0.2s ease;
             pointer-events: none;
             z-index: 1;
@@ -1186,11 +1289,11 @@
 
         .input-wrapper input {
             width: 100%;
-            height: 46px;
-            padding: 10px 14px 10px 40px;
+            height: 41px;
+            padding: 8px 12px 8px 38px;
             border: 1.5px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 14px;
+            border-radius: 10px;
+            font-size: 13.5px;
             font-family: inherit;
             background: #f8fafc;
             color: #0f172a;
@@ -1200,7 +1303,7 @@
 
         .input-wrapper.has-toggle input,
         .input-wrapper:has(.password-toggle-btn) input {
-            padding-right: 46px;
+            padding-right: 44px;
         }
 
         .input-wrapper input:hover:not(:focus) {
@@ -1211,7 +1314,7 @@
         .input-wrapper input:focus {
             border-color: #4F46E5;
             background: #ffffff;
-            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
         }
 
         body.dark-theme .input-wrapper input {
@@ -1223,7 +1326,7 @@
         body.dark-theme .input-wrapper input:focus {
             border-color: #818CF8 !important;
             background: #1f2233 !important;
-            box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.20) !important;
+            box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.20) !important;
         }
 
         .input-wrapper input:focus + i,
@@ -1238,7 +1341,7 @@
 
         .input-wrapper input::placeholder {
             color: #94a3b8;
-            font-size: 13.5px;
+            font-size: 13px;
         }
 
         body.dark-theme .input-wrapper input::placeholder {
@@ -1247,16 +1350,16 @@
 
         /* Seletor de versão (Desktop / Mobile) */
         .device-switcher-box {
-            margin-top: 16px;
-            padding: 8px 12px;
+            margin-top: 12px;
+            padding: 6px 10px;
             background: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-radius: 12px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 12px;
-            gap: 8px;
+            font-size: 11.5px;
+            gap: 6px;
         }
 
         body.dark-theme .device-switcher-box {
@@ -1269,7 +1372,7 @@
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             white-space: nowrap;
         }
 
@@ -1284,8 +1387,8 @@
 
         .device-btn {
             border: none;
-            padding: 5px 10px;
-            border-radius: 8px;
+            padding: 4px 8px;
+            border-radius: 7px;
             font-size: 11px;
             font-weight: 600;
             font-family: inherit;
@@ -1704,18 +1807,18 @@
         #loginBtn,
         #registerBtn {
             width: 100%;
-            height: 46px;
-            padding: 10px 18px;
+            height: 42px;
+            padding: 9px 16px;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #4F46E5 100%);
             color: #ffffff;
-            font-size: 14.5px;
+            font-size: 14px;
             font-weight: 700;
             font-family: inherit;
             cursor: pointer;
             transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, opacity 0.18s ease;
-            box-shadow: 0 8px 20px -6px rgba(67, 56, 202, 0.45);
+            box-shadow: 0 8px 18px -6px rgba(67, 56, 202, 0.42);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1729,7 +1832,7 @@
         #loginBtn:hover,
         #registerBtn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 12px 26px -6px rgba(67, 56, 202, 0.55);
+            box-shadow: 0 12px 24px -6px rgba(67, 56, 202, 0.52);
         }
 
         .btn-primary:active,
@@ -1771,13 +1874,13 @@
            ========================================== */
         .btn-biometric {
             width: 100%;
-            height: 44px;
-            padding: 10px 16px;
+            height: 40px;
+            padding: 8px 14px;
             border: 1.5px solid #e2e8f0;
-            border-radius: 12px;
+            border-radius: 10px;
             background: #ffffff;
             color: #1e293b;
-            font-size: 13.5px;
+            font-size: 13px;
             font-weight: 600;
             font-family: inherit;
             cursor: pointer;
@@ -1799,7 +1902,7 @@
         }
 
         .btn-biometric i {
-            font-size: 16px;
+            font-size: 15px;
             color: #10B981;
         }
 
@@ -1821,8 +1924,8 @@
         .divider {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin: 16px 0 14px 0;
+            gap: 10px;
+            margin: 12px 0 10px 0;
         }
 
         .divider::before,
@@ -1852,17 +1955,17 @@
         .social-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            gap: 8px;
         }
 
         .btn-social {
-            height: 44px;
-            padding: 9px 14px;
+            height: 40px;
+            padding: 8px 12px;
             border: 1.5px solid #e2e8f0;
-            border-radius: 12px;
+            border-radius: 10px;
             background: #ffffff;
             font-family: inherit;
-            font-size: 13px;
+            font-size: 12.5px;
             font-weight: 600;
             color: #1e293b;
             cursor: pointer;
@@ -1870,7 +1973,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 7px;
         }
 
         .btn-social:hover {
@@ -1983,12 +2086,35 @@
             }
 
             body {
-                background-color: #090a12;
+                background-color: #0b0d14;
                 background-image:
-                    radial-gradient(at 12% 14%, rgba(67, 56, 202, 0.22) 0px, transparent 52%),
-                    radial-gradient(at 88% 18%, rgba(16, 185, 129, 0.12) 0px, transparent 52%),
-                    radial-gradient(at 50% 45%, rgba(79, 70, 229, 0.10) 0px, transparent 62%);
+                    radial-gradient(circle at 50% 48%, rgba(19, 20, 31, 0.25) 0%, rgba(11, 13, 20, 0.88) 100%),
+                    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+                background-size: auto, 38px 38px, 38px 38px;
                 color: #f8fafc;
+            }
+
+            .corner-card-surface {
+                fill: rgba(22, 24, 37, 0.82);
+                stroke: rgba(255, 255, 255, 0.09);
+            }
+
+            .corner-card-inner {
+                fill: rgba(30, 33, 50, 0.85);
+                stroke: rgba(255, 255, 255, 0.07);
+            }
+
+            .corner-stroke-muted {
+                stroke: rgba(148, 163, 184, 0.24);
+            }
+
+            .corner-text-main {
+                fill: #e2e8f0;
+            }
+
+            .corner-text-muted {
+                fill: #94a3b8;
             }
 
             .login-container,
@@ -2101,19 +2227,38 @@
         }
 
         /* ==========================================
-           RESPONSIVIDADE — MOBILE CARD ÚNICO CENTRALIZADO
+           RESPONSIVIDADE — XIAOMI & MOBILE COMPACTO
            ========================================== */
         @media (max-width: 860px) {
             body {
-                padding: 18px 14px;
+                padding: 16px 18px;
+            }
+
+            .corner-art.corner-bl,
+            .corner-art.corner-tr {
+                display: none;
+            }
+
+            .corner-art.corner-tl {
+                top: 10px;
+                left: 10px;
+                width: 112px;
+                opacity: 0.62;
+            }
+
+            .corner-art.corner-br {
+                bottom: 10px;
+                right: 10px;
+                width: 112px;
+                opacity: 0.62;
             }
 
             .login-container {
                 flex-direction: column;
-                max-width: 420px;
+                max-width: 348px;
                 min-height: auto;
-                border-radius: 24px;
-                box-shadow: 0 20px 50px -14px rgba(15, 23, 42, 0.14), 0 4px 14px rgba(55, 48, 163, 0.06);
+                border-radius: 20px;
+                box-shadow: 0 18px 44px -14px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(55, 48, 163, 0.06);
             }
 
             .welcome-side {
@@ -2125,7 +2270,7 @@
             }
 
             .login-side {
-                padding: 28px 22px 24px;
+                padding: 20px 18px 16px;
                 min-height: auto;
             }
 
@@ -2133,6 +2278,49 @@
                 display: flex !important;
                 flex-direction: column;
                 align-items: center;
+                margin-bottom: 12px;
+            }
+
+            .tabs {
+                margin-bottom: 12px;
+            }
+
+            .tab-btn {
+                min-height: 40px;
+            }
+
+            .auth-form {
+                gap: 9px;
+            }
+
+            .input-wrapper input {
+                height: 42px;
+                font-size: 14px;
+            }
+
+            .btn-primary,
+            #loginBtn,
+            #registerBtn {
+                height: 44px;
+                font-size: 14px;
+            }
+
+            .btn-biometric {
+                height: 44px;
+            }
+
+            .divider {
+                margin: 10px 0 9px 0;
+            }
+
+            .btn-social {
+                height: 42px;
+                font-size: 12.5px;
+            }
+
+            .device-switcher-box {
+                margin-top: 10px;
+                padding: 6px 8px;
             }
 
             .splash-logo-container {
@@ -2160,47 +2348,36 @@
 
         @media (max-width: 480px) {
             body {
-                padding: 14px 12px;
+                padding: 12px 14px;
+            }
+
+            .corner-art.corner-tl,
+            .corner-art.corner-br {
+                width: 96px;
+                opacity: 0.55;
             }
 
             .login-container {
-                border-radius: 22px;
+                max-width: 336px;
+                border-radius: 18px;
             }
 
             .mobile-logo-box {
-                width: 68px;
-                height: 68px;
-                border-radius: 19px;
+                width: 48px;
+                height: 48px;
+                border-radius: 14px;
+            }
+
+            .login-side .mobile-logo h2 {
+                font-size: 19px;
+            }
+
+            .login-side .mobile-logo p {
+                font-size: 11.5px;
             }
 
             .login-side {
-                padding: 24px 18px 20px;
-            }
-
-            .input-wrapper input {
-                height: 46px;
-                font-size: 14px;
-            }
-
-            .btn-primary,
-            #loginBtn,
-            #registerBtn {
-                height: 48px;
-                font-size: 14.5px;
-            }
-
-            .btn-biometric {
-                height: 46px;
-            }
-
-            .social-grid {
-                grid-template-columns: 1fr 1fr;
-                gap: 8px;
-            }
-
-            .btn-social {
-                height: 44px;
-                font-size: 12.5px;
+                padding: 18px 16px 14px;
             }
 
             .splash-logo-container {
@@ -2226,7 +2403,27 @@
             }
         }
 
-        @media (max-width: 360px) {
+        @media (max-height: 680px) and (max-width: 860px) {
+            .login-side .mobile-logo {
+                flex-direction: row;
+                justify-content: center;
+                text-align: left;
+                gap: 10px;
+                margin-bottom: 10px;
+            }
+
+            .mobile-logo-container {
+                margin-bottom: 0;
+            }
+
+            .mobile-logo-box {
+                width: 40px;
+                height: 40px;
+                border-radius: 12px;
+            }
+        }
+
+        @media (max-width: 340px) {
             .social-grid {
                 grid-template-columns: 1fr;
             }
@@ -2286,6 +2483,108 @@
     TOAST
     ========================================== -->
     <div id="toast" class="toast hidden" role="alert" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- ==========================================
+    SÍMBOLOS & ILUSTRAÇÕES LATERAIS DO FUNDO
+    ========================================== -->
+    <div class="login-ambient-backdrop" aria-hidden="true">
+        <!-- Canto Superior Esquerdo: Gráfico de Crescimento e Candles -->
+        <div class="corner-art corner-tl">
+            <svg viewBox="0 0 240 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="10" width="210" height="148" rx="18" class="corner-card-surface" stroke-width="1.2"/>
+                <rect x="26" y="26" width="84" height="10" rx="5" fill="#4338CA" fill-opacity="0.16"/>
+                <rect x="26" y="42" width="54" height="7" rx="3.5" fill="#64748B" fill-opacity="0.22"/>
+                <circle cx="192" cy="34" r="12" fill="#10B981" fill-opacity="0.14" stroke="#10B981" stroke-opacity="0.45" stroke-width="1.2"/>
+                <path d="M187 35L191 31L194 34L198 29" stroke="#10B981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- Linhas guia -->
+                <line x1="26" y1="76" x2="202" y2="76" class="corner-stroke-muted" stroke-dasharray="3 4"/>
+                <line x1="26" y1="102" x2="202" y2="102" class="corner-stroke-muted" stroke-dasharray="3 4"/>
+                <line x1="26" y1="128" x2="202" y2="128" class="corner-stroke-muted" stroke-dasharray="3 4"/>
+                <!-- Candles financeiros -->
+                <line x1="42" y1="84" x2="42" y2="130" stroke="#4F46E5" stroke-opacity="0.45" stroke-width="1.6"/>
+                <rect x="36" y="96" width="12" height="24" rx="4" fill="#4F46E5" fill-opacity="0.28"/>
+                <line x1="72" y1="74" x2="72" y2="126" stroke="#10B981" stroke-opacity="0.55" stroke-width="1.6"/>
+                <rect x="66" y="84" width="12" height="28" rx="4" fill="#10B981" fill-opacity="0.34"/>
+                <line x1="102" y1="78" x2="102" y2="122" stroke="#4F46E5" stroke-opacity="0.45" stroke-width="1.6"/>
+                <rect x="96" y="88" width="12" height="22" rx="4" fill="#4F46E5" fill-opacity="0.24"/>
+                <line x1="132" y1="62" x2="132" y2="112" stroke="#10B981" stroke-opacity="0.65" stroke-width="1.6"/>
+                <rect x="126" y="70" width="12" height="30" rx="4" fill="#10B981" fill-opacity="0.42"/>
+                <line x1="162" y1="54" x2="162" y2="104" stroke="#10B981" stroke-opacity="0.75" stroke-width="1.6"/>
+                <rect x="156" y="60" width="12" height="32" rx="4" fill="#10B981" fill-opacity="0.55"/>
+                <line x1="190" y1="48" x2="190" y2="96" stroke="#4338CA" stroke-opacity="0.65" stroke-width="1.6"/>
+                <rect x="184" y="54" width="12" height="26" rx="4" fill="#4338CA" fill-opacity="0.45"/>
+                <!-- Curva de tendência -->
+                <path d="M38 118C68 108 92 98 124 82C148 70 168 62 194 52" stroke="#4338CA" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="194" cy="52" r="4.5" fill="#10B981" stroke="#ffffff" stroke-width="1.5"/>
+            </svg>
+        </div>
+
+        <!-- Canto Inferior Esquerdo: Cofre Seguro & Moeda -->
+        <div class="corner-art corner-bl">
+            <svg viewBox="0 0 220 175" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="12" y="22" width="188" height="138" rx="18" class="corner-card-surface" stroke-width="1.2"/>
+                <rect x="28" y="38" width="54" height="54" rx="14" class="corner-card-inner" stroke-width="1.2"/>
+                <!-- Escudo de segurança -->
+                <path d="M55 48L69 53.5V64C69 73.2 63 80.8 55 83.5C47 80.8 41 73.2 41 64V53.5L55 48Z" fill="#4338CA" fill-opacity="0.16" stroke="#4338CA" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M49.5 64.5L53.2 68.2L60.8 60.5" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- Detalhes de saldo/carteira -->
+                <rect x="96" y="42" width="84" height="10" rx="5" fill="#4338CA" fill-opacity="0.18"/>
+                <rect x="96" y="58" width="56" height="8" rx="4" fill="#64748B" fill-opacity="0.22"/>
+                <rect x="96" y="72" width="72" height="8" rx="4" fill="#10B981" fill-opacity="0.26"/>
+                <!-- Cartão / Carteira inferior -->
+                <rect x="28" y="106" width="156" height="38" rx="10" class="corner-card-inner" stroke-width="1"/>
+                <circle cx="48" cy="125" r="10" fill="#10B981" fill-opacity="0.22" stroke="#10B981" stroke-width="1.4"/>
+                <text x="48" y="129" text-anchor="middle" font-size="10" font-weight="800" fill="#059669" font-family="Plus Jakarta Sans, sans-serif">R$</text>
+                <rect x="68" y="118" width="68" height="6" rx="3" fill="#64748B" fill-opacity="0.26"/>
+                <rect x="68" y="128" width="44" height="5" rx="2.5" fill="#64748B" fill-opacity="0.16"/>
+                <rect x="148" y="119" width="24" height="12" rx="6" fill="#4338CA" fill-opacity="0.2"/>
+            </svg>
+        </div>
+
+        <!-- Canto Superior Direito: Anel de Alocação / Carteira -->
+        <div class="corner-art corner-tr">
+            <svg viewBox="0 0 240 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="20" y="12" width="210" height="148" rx="18" class="corner-card-surface" stroke-width="1.2"/>
+                <!-- Donut de alocação -->
+                <circle cx="84" cy="86" r="42" stroke="rgba(100,116,139,0.14)" stroke-width="14"/>
+                <circle cx="84" cy="86" r="42" stroke="#4338CA" stroke-width="14" stroke-dasharray="145 264" stroke-linecap="round" transform="rotate(-90 84 86)"/>
+                <circle cx="84" cy="86" r="42" stroke="#10B981" stroke-width="14" stroke-dasharray="78 264" stroke-dashoffset="-155" stroke-linecap="round" transform="rotate(-90 84 86)"/>
+                <circle cx="84" cy="86" r="24" class="corner-card-inner" stroke-width="1"/>
+                <text x="84" y="90" text-anchor="middle" font-size="11" font-weight="800" class="corner-text-main" font-family="Plus Jakarta Sans, sans-serif">R$</text>
+                <!-- Legenda simbólica lateral -->
+                <circle cx="146" cy="58" r="5" fill="#4338CA"/>
+                <rect x="158" y="54" width="54" height="8" rx="4" fill="#4338CA" fill-opacity="0.2"/>
+                <circle cx="146" cy="82" r="5" fill="#10B981"/>
+                <rect x="158" y="78" width="44" height="8" rx="4" fill="#10B981" fill-opacity="0.26"/>
+                <circle cx="146" cy="106" r="5" fill="#6366F1" fill-opacity="0.55"/>
+                <rect x="158" y="102" width="50" height="8" rx="4" fill="#64748B" fill-opacity="0.2"/>
+                <rect x="142" y="124" width="70" height="16" rx="8" fill="#10B981" fill-opacity="0.14"/>
+                <path d="M153 134L158 129L161 132L166 127" stroke="#059669" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <rect x="172" y="129" width="30" height="6" rx="3" fill="#059669" fill-opacity="0.45"/>
+            </svg>
+        </div>
+
+        <!-- Canto Inferior Direito: Metas & Evolução Patrimonial -->
+        <div class="corner-art corner-br">
+            <svg viewBox="0 0 220 175" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="18" y="20" width="188" height="138" rx="18" class="corner-card-surface" stroke-width="1.2"/>
+                <!-- Alvo concêntrico de metas -->
+                <circle cx="64" cy="72" r="28" fill="#10B981" fill-opacity="0.10" stroke="#10B981" stroke-opacity="0.45" stroke-width="1.5"/>
+                <circle cx="64" cy="72" r="18" fill="#4338CA" fill-opacity="0.10" stroke="#4338CA" stroke-opacity="0.55" stroke-width="1.5"/>
+                <circle cx="64" cy="72" r="7" fill="#10B981"/>
+                <!-- Barras crescentes -->
+                <rect x="112" y="78" width="14" height="24" rx="4" fill="#4338CA" fill-opacity="0.24"/>
+                <rect x="132" y="66" width="14" height="36" rx="4" fill="#4F46E5" fill-opacity="0.34"/>
+                <rect x="152" y="52" width="14" height="50" rx="4" fill="#10B981" fill-opacity="0.46"/>
+                <rect x="172" y="40" width="14" height="62" rx="4" fill="#10B981" fill-opacity="0.72"/>
+                <!-- Barra de progresso inferior -->
+                <rect x="34" y="118" width="154" height="24" rx="9" class="corner-card-inner" stroke-width="1"/>
+                <rect x="44" y="126" width="96" height="8" rx="4" fill="#E2E8F0" fill-opacity="0.75"/>
+                <rect x="44" y="126" width="72" height="8" rx="4" fill="#4338CA" fill-opacity="0.82"/>
+                <rect x="148" y="126" width="30" height="8" rx="4" fill="#10B981" fill-opacity="0.3"/>
+            </svg>
+        </div>
+    </div>
 
     <!-- ==========================================
     CONTAINER DE LOGIN
