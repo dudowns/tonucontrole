@@ -3,7 +3,7 @@
 // ============================================
 
 // NOTA: Sincronizar CACHE_NAME com a versão em package.json a cada release
-const CACHE_NAME = 'tonucontrole-v3.2.14';
+const CACHE_NAME = 'tonucontrole-v3.2.15';
 
 const RELATIVE_ASSETS = [
   './',
