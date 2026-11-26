@@ -28,6 +28,7 @@
     <link rel="stylesheet" href="../css/sync.css?v=3.2.12">
     <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.37">
     <link rel="stylesheet" href="../css/post-login-transition.css?v=3.2.12">
+    <link rel="stylesheet" href="../css/desktop-redesign.css?v=1.0.0">
 
     <!-- Device Router & Anti-flicker Theme / Post-Login Gate -->
     <script src="../js/device-router.js?v=3.2.12"></script>
@@ -110,7 +111,7 @@
         <main class="main-content full" id="mainContent">
             <!-- TOPBAR -->
             <header class="topbar">
-                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Alternar menu">
+                <button class="menu-toggle" aria-label="Alternar menu">
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="topbar-title">
@@ -182,7 +183,7 @@
                 <!-- SELETOR UNIFICADO DE MÊS E ANO -->
                 <div class="global-period-bar">
                     <div class="month-selector month-selector-capsule" role="group" aria-label="Selecionar mês e ano de referência">
-                        <button type="button" class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior" title="Mês anterior">
+                        <button type="button" class="month-nav" aria-label="Mês anterior" title="Mês anterior">
                             <i class="fas fa-chevron-left" aria-hidden="true"></i>
                         </button>
                         <button type="button" class="month-trigger-btn" id="monthYearTrigger" aria-expanded="false" aria-haspopup="dialog" title="Escolher mês e ano">
@@ -190,7 +191,7 @@
                             <span class="month-label" id="selectedMonth">Carregando...</span>
                             <i class="fas fa-chevron-down month-trigger-caret" aria-hidden="true"></i>
                         </button>
-                        <button type="button" class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês" title="Próximo mês">
+                        <button type="button" class="month-nav" aria-label="Próximo mês" title="Próximo mês">
                             <i class="fas fa-chevron-right" aria-hidden="true"></i>
                         </button>
 
@@ -207,7 +208,7 @@
                             <div class="months-grid-12" id="monthsGrid12"></div>
                         </div>
                     </div>
-                    <button type="button" class="month-today-chip" id="goCurrentMonthBtn" onclick="goToCurrentMonth()" title="Voltar para o mês atual">Mês atual</button>
+                    <button type="button" class="month-today-chip" id="goCurrentMonthBtn" title="Voltar para o mês atual">Mês atual</button>
                 </div>
 
                 <!-- 1. CARD DE SALDO (HERO AZUL-ÍNDIGO CENTRALIZADO) -->
@@ -299,8 +300,8 @@
                             </div>
                             <div class="chart-controls-wrap">
                                 <div class="chart-btn-group">
-                                    <button type="button" class="btn-chart-toggle active" id="btnPeriod6" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(6)">6M</button>
-                                    <button type="button" class="btn-chart-toggle" id="btnPeriod12" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(12)">12M</button>
+                                    <button type="button" class="btn-chart-toggle active" id="btnPeriod6">6M</button>
+                                    <button type="button" class="btn-chart-toggle" id="btnPeriod12">12M</button>
                                 </div>
                             </div>
                         </div>

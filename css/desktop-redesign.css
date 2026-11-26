@@ -1,0 +1,507 @@
+/* ==========================================================================
+   TONUCONTROLE — ETAPA 01: REFINAMENTO VISUAL EXCLUSIVO DO DASHBOARD DESKTOP
+   Escopo estrito: pages/dashboard.html em viewports desktop (>= 1024px)
+   Temas suportados: Claro e Escuro
+   ========================================================================== */
+
+@media (min-width: 1024px) {
+    /* ----------------------------------------------------------------------
+       1. ANIMAÇÕES SUAVES DE ENTRADA E NAVEGAÇÃO (~300ms)
+       ---------------------------------------------------------------------- */
+    @keyframes dashboardContentEnter {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    body.dashboard-page .content.dashboard-content {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 14px 24px 32px;
+        animation: dashboardContentEnter 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    body.dashboard-page .sidebar {
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                    background-color 0.3s ease,
+                    border-color 0.3s ease !important;
+    }
+
+    body.dashboard-page .main-content {
+        transition: margin-left 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                    width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                    background-color 0.3s ease !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       2. IDENTIDADE VISUAL DA LOGO NA SIDEBAR (.sidebar-brand)
+       Gradiente azul mais suave, bordas elegantes, sombra discreta,
+       integração limpa entre logo original e nome (sem recortar/alterar logo.png)
+       ---------------------------------------------------------------------- */
+    body.dashboard-page .sidebar-brand {
+        margin: 12px 12px 6px !important;
+        padding: 11px 14px !important;
+        gap: 11px !important;
+        border-radius: 14px !important;
+        background: linear-gradient(135deg, #EEF4FF 0%, #E2ECFF 52%, #DBEAFE 100%) !important;
+        border: 1px solid rgba(37, 99, 235, 0.16) !important;
+        box-shadow: 0 2px 10px rgba(37, 99, 235, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+        color: #1E3A8A !important;
+        transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
+    }
+
+    body.dashboard-page .sidebar-brand:hover {
+        border-color: rgba(37, 99, 235, 0.28) !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    }
+
+    body.dashboard-page .sidebar-brand .brand-icon {
+        width: 34px !important;
+        height: 34px !important;
+        padding: 2px !important;
+        border-radius: 10px !important;
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 1px solid rgba(37, 99, 235, 0.14) !important;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12) !important;
+        transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s ease !important;
+    }
+
+    body.dashboard-page .sidebar-brand:hover .brand-icon {
+        transform: scale(1.04) !important;
+        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.16) !important;
+    }
+
+    body.dashboard-page .sidebar-brand .brand-icon img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+    }
+
+    body.dashboard-page .sidebar-brand h2 {
+        font-size: 16.5px !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.025em !important;
+        color: #172554 !important;
+        line-height: 1.15 !important;
+    }
+
+    /* Tema Escuro — Logo na Sidebar */
+    html.dark body.dashboard-page .sidebar-brand,
+    html.dark-theme body.dashboard-page .sidebar-brand,
+    body.dark-theme.dashboard-page .sidebar-brand,
+    [data-theme="dark"] body.dashboard-page .sidebar-brand {
+        background: linear-gradient(135deg, rgba(30, 58, 138, 0.42) 0%, rgba(37, 99, 235, 0.22) 56%, rgba(19, 28, 49, 0.92) 100%) !important;
+        border: 1px solid rgba(96, 165, 250, 0.22) !important;
+        box-shadow: 0 4px 14px rgba(2, 6, 23, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+        color: #F1F5F9 !important;
+    }
+
+    html.dark body.dashboard-page .sidebar-brand:hover,
+    html.dark-theme body.dashboard-page .sidebar-brand:hover,
+    body.dark-theme.dashboard-page .sidebar-brand:hover,
+    [data-theme="dark"] body.dashboard-page .sidebar-brand:hover {
+        border-color: rgba(96, 165, 250, 0.36) !important;
+        box-shadow: 0 6px 18px rgba(2, 6, 23, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+    }
+
+    html.dark body.dashboard-page .sidebar-brand .brand-icon,
+    html.dark-theme body.dashboard-page .sidebar-brand .brand-icon,
+    body.dark-theme.dashboard-page .sidebar-brand .brand-icon,
+    [data-theme="dark"] body.dashboard-page .sidebar-brand .brand-icon {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 1px solid rgba(147, 197, 253, 0.32) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    html.dark body.dashboard-page .sidebar-brand h2,
+    html.dark-theme body.dashboard-page .sidebar-brand h2,
+    body.dark-theme.dashboard-page .sidebar-brand h2,
+    [data-theme="dark"] body.dashboard-page .sidebar-brand h2 {
+        color: #F8FAFC !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       3. MENU LATERAL — TRANSIÇÕES E ESTADOS REFINADOS (~300ms)
+       ---------------------------------------------------------------------- */
+    body.dashboard-page .sidebar-nav {
+        padding: 10px 10px 8px !important;
+        gap: 4px !important;
+    }
+
+    body.dashboard-page .sidebar-nav a {
+        position: relative !important;
+        padding: 10px 14px 10px 16px !important;
+        border-radius: 11px !important;
+        transition: background-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                    color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                    box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    }
+
+    body.dashboard-page .sidebar-nav a::before {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 50%;
+        width: 3px;
+        height: 18px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #2563EB 0%, #4338CA 100%);
+        opacity: 0;
+        transform: translateY(-50%) scaleY(0.45);
+        transition: opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+        pointer-events: none;
+    }
+
+    body.dashboard-page .sidebar-nav a:hover {
+        background: rgba(37, 99, 235, 0.08) !important;
+        color: #1D4ED8 !important;
+        transform: translateX(3px) !important;
+    }
+
+    body.dashboard-page .sidebar-nav a:hover i {
+        transform: scale(1.06) !important;
+    }
+
+    body.dashboard-page .sidebar-nav a:active {
+        transform: translateX(1px) scale(0.985) !important;
+        transition-duration: 0.1s !important;
+    }
+
+    body.dashboard-page .sidebar-nav a.active {
+        background: linear-gradient(135deg, rgba(219, 234, 254, 0.88) 0%, rgba(224, 231, 255, 0.72) 100%) !important;
+        color: #1E3A8A !important;
+        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.14), 0 2px 8px rgba(37, 99, 235, 0.07) !important;
+        transform: translateX(0) !important;
+    }
+
+    body.dashboard-page .sidebar-nav a.active::before {
+        opacity: 1;
+        transform: translateY(-50%) scaleY(1);
+    }
+
+    body.dashboard-page .sidebar-nav a.active:hover {
+        background: linear-gradient(135deg, rgba(219, 234, 254, 0.96) 0%, rgba(224, 231, 255, 0.84) 100%) !important;
+        color: #1E3A8A !important;
+        transform: translateX(0) !important;
+    }
+
+    body.dashboard-page .sidebar-nav a i {
+        transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                    color 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    }
+
+    /* Tema Escuro — Menu Lateral */
+    html.dark body.dashboard-page .sidebar-nav a:hover,
+    html.dark-theme body.dashboard-page .sidebar-nav a:hover,
+    body.dark-theme.dashboard-page .sidebar-nav a:hover,
+    [data-theme="dark"] body.dashboard-page .sidebar-nav a:hover {
+        background: rgba(59, 130, 246, 0.14) !important;
+        color: #93C5FD !important;
+    }
+
+    html.dark body.dashboard-page .sidebar-nav a.active,
+    html.dark-theme body.dashboard-page .sidebar-nav a.active,
+    body.dark-theme.dashboard-page .sidebar-nav a.active,
+    [data-theme="dark"] body.dashboard-page .sidebar-nav a.active {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.24) 0%, rgba(67, 56, 202, 0.18) 100%) !important;
+        color: #EFF6FF !important;
+        box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.22), 0 2px 10px rgba(2, 6, 23, 0.24) !important;
+    }
+
+    html.dark body.dashboard-page .sidebar-nav a.active::before,
+    html.dark-theme body.dashboard-page .sidebar-nav a.active::before,
+    body.dark-theme.dashboard-page .sidebar-nav a.active::before,
+    [data-theme="dark"] body.dashboard-page .sidebar-nav a.active::before {
+        background: linear-gradient(180deg, #60A5FA 0%, #3B82F6 100%);
+    }
+
+    html.dark body.dashboard-page .sidebar-nav a.active:hover,
+    html.dark-theme body.dashboard-page .sidebar-nav a.active:hover,
+    body.dark-theme.dashboard-page .sidebar-nav a.active:hover,
+    [data-theme="dark"] body.dashboard-page .sidebar-nav a.active:hover {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.28) 0%, rgba(67, 56, 202, 0.22) 100%) !important;
+        color: #FFFFFF !important;
+    }
+
+    body.dashboard-page .sidebar-user-profile,
+    body.dashboard-page .sidebar-footer .btn-sair {
+        transition: background-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                    border-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                    color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       4. SELETOR DE MÊS E ANO — REFERÊNCIA CONTAS & BOLETOS (DIREITA, CÁPSULA COMPACTA)
+       ---------------------------------------------------------------------- */
+    body.dashboard-page .global-period-bar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        width: 100%;
+        margin: 0 0 12px;
+        position: relative;
+        z-index: 30;
+    }
+
+    body.dashboard-page .month-selector.month-selector-capsule {
+        margin: 0;
+        height: 34px;
+        min-height: 34px;
+        padding: 3px 5px;
+        gap: 2px;
+        border-radius: 9999px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-hairline);
+        box-shadow: 0 2px 8px rgba(23, 37, 84, 0.045);
+        position: relative;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    body.dashboard-page .month-selector.month-selector-capsule:hover {
+        border-color: rgba(37, 99, 235, 0.28);
+        box-shadow: 0 3px 12px rgba(23, 37, 84, 0.07);
+    }
+
+    body.dashboard-page .month-selector.month-selector-capsule .month-nav {
+        width: 26px;
+        height: 26px;
+        min-width: 26px;
+        min-height: 26px;
+        border-radius: 9999px;
+        font-size: 10.5px;
+        color: var(--text-secondary);
+        transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+    }
+
+    body.dashboard-page .month-selector.month-selector-capsule .month-nav:hover {
+        background: var(--accent-soft);
+        color: var(--accent-royal);
+    }
+
+    body.dashboard-page .month-selector.month-selector-capsule .month-nav:active {
+        transform: scale(0.92);
+    }
+
+    body.dashboard-page .month-trigger-btn {
+        height: 26px;
+        min-width: 138px;
+        padding: 0 9px;
+        gap: 6px;
+        border-radius: 9999px;
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--text-primary);
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    body.dashboard-page .month-trigger-btn .month-label-icon {
+        font-size: 11.5px;
+        color: var(--accent-royal);
+    }
+
+    body.dashboard-page .month-trigger-btn .month-label {
+        font-size: 12.5px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        line-height: 1;
+        text-transform: capitalize;
+        white-space: nowrap;
+    }
+
+    body.dashboard-page .month-trigger-btn .month-trigger-caret {
+        font-size: 9.5px;
+        margin-left: 1px;
+    }
+
+    body.dashboard-page .month-today-chip {
+        height: 30px;
+        padding: 0 11px;
+        font-size: 11.5px;
+        font-weight: 700;
+        border-radius: 9999px;
+        white-space: nowrap;
+        order: -1;
+        transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.18s ease;
+    }
+
+    /* Popover alinhado à direita para nunca cortar na borda direita do viewport */
+    body.dashboard-page .month-year-popover {
+        top: calc(100% + 8px);
+        left: auto;
+        right: 0;
+        transform: none;
+        width: 264px;
+        border-radius: 14px;
+        padding: 10px;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+    }
+
+    html.dark body.dashboard-page .month-selector.month-selector-capsule,
+    html.dark-theme body.dashboard-page .month-selector.month-selector-capsule,
+    body.dark-theme.dashboard-page .month-selector.month-selector-capsule,
+    [data-theme="dark"] body.dashboard-page .month-selector.month-selector-capsule {
+        background: #131C31 !important;
+        border-color: #223254 !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.26) !important;
+    }
+
+    html.dark body.dashboard-page .month-selector.month-selector-capsule:hover,
+    html.dark-theme body.dashboard-page .month-selector.month-selector-capsule:hover,
+    body.dark-theme.dashboard-page .month-selector.month-selector-capsule:hover,
+    [data-theme="dark"] body.dashboard-page .month-selector.month-selector-capsule:hover {
+        border-color: rgba(96, 165, 250, 0.4) !important;
+    }
+
+    html.dark body.dashboard-page .month-trigger-btn,
+    html.dark-theme body.dashboard-page .month-trigger-btn,
+    body.dark-theme.dashboard-page .month-trigger-btn,
+    [data-theme="dark"] body.dashboard-page .month-trigger-btn {
+        color: #F1F5F9;
+    }
+
+    html.dark body.dashboard-page .month-trigger-btn .month-label-icon,
+    html.dark-theme body.dashboard-page .month-trigger-btn .month-label-icon,
+    body.dark-theme.dashboard-page .month-trigger-btn .month-label-icon,
+    [data-theme="dark"] body.dashboard-page .month-trigger-btn .month-label-icon {
+        color: #60A5FA;
+    }
+
+    /* ----------------------------------------------------------------------
+       5. PROPORÇÕES, ALINHAMENTO E CONSISTÊNCIA VISUAL DO DASHBOARD
+       ---------------------------------------------------------------------- */
+    body.dashboard-page .due-bills-banner {
+        margin-bottom: 12px;
+    }
+
+    body.dashboard-page .hero-balance-section {
+        margin-bottom: 14px;
+    }
+
+    body.dashboard-page .hero-balance-card {
+        padding: 18px 24px;
+        border-radius: 16px;
+    }
+
+    body.dashboard-page .dashboard-grid {
+        gap: 14px;
+        margin-bottom: 16px;
+        align-items: stretch;
+    }
+
+    body.dashboard-page .dashboard-grid .card-stat {
+        min-height: 82px !important;
+        padding: 13px 16px !important;
+        border-radius: 14px !important;
+        transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+                    border-color 0.24s ease,
+                    box-shadow 0.24s ease !important;
+    }
+
+    body.dashboard-page .dashboard-grid .card-stat .stat-info {
+        min-width: 0;
+    }
+
+    body.dashboard-page .dashboard-grid .card-stat .stat-value {
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Consistência de cores entre legenda do resumo e barras sólidas (#10B981 / #EF4444) */
+    body.dashboard-page .monthly-summary-swatch.income {
+        background: #10B981;
+    }
+
+    body.dashboard-page .monthly-summary-swatch.expense {
+        background: #EF4444;
+    }
+
+    body.dashboard-page .charts-grid {
+        gap: 14px;
+        margin-bottom: 16px;
+        align-items: stretch;
+    }
+
+    body.dashboard-page .monthly-chart-card,
+    body.dashboard-page .category-chart-card,
+    body.dashboard-page .dashboard-lower-grid .card {
+        border-radius: 16px;
+        transition: border-color 0.24s ease, box-shadow 0.24s ease;
+    }
+
+    body.dashboard-page .chart-card-header,
+    body.dashboard-page .dashboard-lower-grid .card-header {
+        min-height: 50px;
+        padding: 12px 18px;
+    }
+
+    body.dashboard-page .monthly-chart-summary {
+        padding: 8px 18px 2px;
+    }
+
+    body.dashboard-page .monthly-chart-wrap {
+        height: 212px;
+        min-height: 204px;
+        max-height: 228px;
+        flex: 0 0 212px;
+        padding: 6px 16px 12px;
+    }
+
+    body.dashboard-page .category-chart-container {
+        padding: 16px 18px;
+        gap: 18px;
+        align-items: center;
+    }
+
+    body.dashboard-page .dashboard-lower-grid {
+        gap: 14px;
+    }
+
+    body.dashboard-page .dashboard-lower-left,
+    body.dashboard-page .dashboard-lower-right {
+        gap: 14px;
+    }
+
+    /* Ajustes sutis para 1280px–1366px sem alterar estrutura */
+    @media (min-width: 1024px) and (max-width: 1366px) {
+        body.dashboard-page .content.dashboard-content {
+            padding: 14px 20px 28px;
+        }
+
+        body.dashboard-page .charts-grid .card .category-chart-wrap,
+        body.dashboard-page .category-chart-wrap {
+            flex: 0 0 188px;
+            width: 188px;
+            height: 188px;
+        }
+
+        body.dashboard-page .category-chart-container {
+            padding: 14px 16px;
+            gap: 14px;
+        }
+    }
+
+    /* Respeito à preferência de movimento reduzido */
+    @media (prefers-reduced-motion: reduce) {
+        body.dashboard-page .content.dashboard-content {
+            animation: none;
+        }
+
+        body.dashboard-page .sidebar,
+        body.dashboard-page .main-content,
+        body.dashboard-page .sidebar-nav a,
+        body.dashboard-page .sidebar-nav a::before,
+        body.dashboard-page .sidebar-brand,
+        body.dashboard-page .sidebar-brand .brand-icon,
+        body.dashboard-page .dashboard-grid .card-stat {
+            transition: none !important;
+        }
+    }
+}

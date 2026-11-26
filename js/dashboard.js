@@ -877,6 +877,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         initMonthYearPicker();
         updateMonthDisplay('selectedMonth', currentMonthOffset);
+
+        const menuToggleBtn = document.querySelector('.topbar .menu-toggle');
+        if (menuToggleBtn && !menuToggleBtn.dataset.cspBound) {
+            menuToggleBtn.dataset.cspBound = 'true';
+            menuToggleBtn.addEventListener('click', () => {
+                if (typeof window.toggleSidebar === 'function') window.toggleSidebar();
+            });
+        }
+
+        const btnPeriod6 = document.getElementById('btnPeriod6');
+        if (btnPeriod6 && !btnPeriod6.dataset.cspBound) {
+            btnPeriod6.dataset.cspBound = 'true';
+            btnPeriod6.addEventListener('click', () => {
+                if (typeof window.setMonthlyPeriod === 'function') window.setMonthlyPeriod(6);
+            });
+        }
+
+        const btnPeriod12 = document.getElementById('btnPeriod12');
+        if (btnPeriod12 && !btnPeriod12.dataset.cspBound) {
+            btnPeriod12.dataset.cspBound = 'true';
+            btnPeriod12.addEventListener('click', () => {
+                if (typeof window.setMonthlyPeriod === 'function') window.setMonthlyPeriod(12);
+            });
+        }
     } catch (_) {}
 
     const urlSearch = window.location.search || '';
@@ -1026,6 +1050,21 @@ function initMonthYearPicker() {
     const popover = document.getElementById('monthYearPopover');
     const prevY = document.getElementById('prevYearBtn');
     const nextY = document.getElementById('nextYearBtn');
+    const prevMonthBtn = document.querySelector('.month-selector-capsule > .month-nav[aria-label="Mês anterior"]');
+    const nextMonthBtn = document.querySelector('.month-selector-capsule > .month-nav[aria-label="Próximo mês"]');
+    const todayBtn = document.getElementById('goCurrentMonthBtn');
+
+    if (prevMonthBtn) {
+        prevMonthBtn.addEventListener('click', () => changeMonth(-1));
+    }
+
+    if (nextMonthBtn) {
+        nextMonthBtn.addEventListener('click', () => changeMonth(1));
+    }
+
+    if (todayBtn) {
+        todayBtn.addEventListener('click', () => goToCurrentMonth());
+    }
 
     if (trigger && popover) {
         trigger.addEventListener('click', (e) => {
@@ -3414,24 +3453,15 @@ async function loadMonthlyChart() {
             monthlyChart = null;
         }
 
-        // GRADIENTES MODERNOS PARA BARRAS
-        const height = canvas.clientHeight || 260;
-        const incomeGradient = ctx.createLinearGradient(0, 0, 0, height);
-        incomeGradient.addColorStop(0, '#10B981');
-        incomeGradient.addColorStop(1, 'rgba(16, 185, 129, 0.45)');
-
-        const expenseGradient = ctx.createLinearGradient(0, 0, 0, height);
-        expenseGradient.addColorStop(0, '#EF4444');
-        expenseGradient.addColorStop(1, 'rgba(239, 68, 68, 0.45)');
-
+        // CORES SÓLIDAS UNIFORMES PARA BARRAS (consistentes com a legenda)
         const chartDatasets = [
             {
                 type: 'bar',
                 label: 'Receitas',
                 data: incomes,
-                backgroundColor: incomeGradient,
+                backgroundColor: '#10B981',
                 borderColor: '#10B981',
-                borderWidth: 1.5,
+                borderWidth: 1,
                 borderRadius: 6,
                 borderSkipped: false
             },
@@ -3439,9 +3469,9 @@ async function loadMonthlyChart() {
                 type: 'bar',
                 label: 'Despesas',
                 data: expenses,
-                backgroundColor: expenseGradient,
+                backgroundColor: '#EF4444',
                 borderColor: '#EF4444',
-                borderWidth: 1.5,
+                borderWidth: 1,
                 borderRadius: 6,
                 borderSkipped: false
             }
