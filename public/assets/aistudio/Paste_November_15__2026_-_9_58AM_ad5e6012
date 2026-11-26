@@ -1,0 +1,854 @@
+Aqui está o prompt para o Gemini implementar os 3 itens restantes do Horizonte 2 em sequência: Insights IA, Chat de Finanças e Fluxo de Caixa IA.
+
+⚠️ Aviso realista: o Gemini não vai conseguir fazer 30h de trabalho em 1 sessão. Ele vai executar em ordem, com checkpoints entre cada item. Se estourar o limite de contexto no meio, você retoma com um novo prompt a partir do checkpoint. Por isso o prompt está dividido em 3 fases independentes.
+
+Cole o bloco abaixo na conversa:
+
+markdown
+# TAREFA COMPLETA — Horizonte 2 (Items 2, 3, 4)
+
+Você é engenheiro sênior de front-end + backend. O Item 1 (Categorização IA) já está
+implementado em `server.js` (rotas `/api/classify` e `/api/ai-health`), com SDK
+`@google/genai` já instalado, cache em memória e rate limit em memória.
+
+Agora você vai implementar **3 features em ordem**, cada uma em uma **fase independente**,
+com checkpoint obrigatório ao final de cada fase antes de continuar.
+
+## REGRAS GERAIS (todas as fases)
+
+- Preserve 100% da API pública (`window.*`) e das rotas `/api/*` existentes.
+- Não crie tabelas no Supabase. Todo cache e rate limit é **em memória** (Map no server.js).
+- Reaproveite `@google/genai` já instalado, mantendo o modelo atual do `server.js`
+  (não troque o nome do modelo — o teste com chave real definirá se funciona ou não).
+- Reaproveite `express-rate-limit`, `helmet`, `compression` já configurados.
+- **Guardrails obrigatórios em toda chamada Gemini:**
+  - Timeout de 10s via `AbortSignal.timeout(10000)` OU `Promise.race`.
+  - Fallback silencioso: se falhar, retorna resposta vazia/nula sem quebrar o app.
+  - Rate limit em memória por `user_id` (JWT).
+  - Log estruturado: `console.log('[feature] user=xxx source=ai latency_ms=N')`.
+- Validação por arquivo: `node --check <arquivo>`.
+- Se algo parecer ambíguo, **pergunte antes de alterar**.
+
+## AUTENTICAÇÃO
+
+- Toda rota `/api/*` que consome Gemini exige header `Authorization: Bearer <supabase_jwt>`.
+- Extrair `user_id` do JWT (claim `sub`). Sem JWT → HTTP 401.
+- Reaproveitar a função de validação de JWT já existente em `/api/classify`.
+
+## ORDEM DE EXECUÇÃO
+
+**FASE 1** → Item 2 (Insights IA) — checkpoint ao final
+**FASE 2** → Item 3 (Chat de Finanças) — checkpoint ao final
+**FASE 3** → Item 4 (Fluxo de Caixa IA) — checkpoint ao final
+
+**NÃO comece a Fase 2 antes de reportar o checkpoint da Fase 1.**
+**NÃO comece a Fase 3 antes de reportar o checkpoint da Fase 2.**
+
+Se estourar contexto no meio de uma fase, pare e reporte `PRECISO_RETOMAR` com o estado.
+
+---
+
+# 🔵 FASE 1 — ITEM 2: INSIGHTS IA NO DASHBOARD (~8h)
+
+## Objetivo
+Card "💡 Insights do Mês" no Dashboard (desktop + mobile) com 3 insights gerados por IA
+baseados nos dados dos últimos 90 dias do usuário.
+
+## Backend (`server.js`)
+
+Adicionar rota:
+
+### `POST /api/insights`
+- **Auth:** Bearer JWT (obrigatório)
+- **Body:** `{ "user_id": "..." }` (opcional; servidor usa JWT se omitido)
+- **Response sucesso:**
+  ```json
+  {
+    "insights": [
+      {"type": "warning", "text": "Gastos com alimentação subiram 40% este mês."},
+      {"type": "success", "text": "Você bateu 80% da meta de reserva de emergência."},
+      {"type": "info", "text": "Seu saldo médio mensal é R$ 1.200."}
+    ],
+    "source": "ai" | "cache",
+    "generated_at": "2025-11-15T..."
+  }
+Response modo degradado: {"insights": [], "gemini_configured": false}
+
+Fluxo da rota:
+Valida JWT → extrai user_id
+
+Checa cache em memória (Map<user_id, { insights, generated_at }>) com TTL 24h
+
+Se HIT: retorna { insights, source: "cache" }
+
+Se MISS:
+a. Valida rate limit (30 chamadas/dia por user_id — insights são gerados 1x/dia, mas
+mantém margem para refresh manual)
+b. Busca dados do usuário no Supabase (via cliente Supabase com service_role):
+
+transactions dos últimos 90 dias (select: description, amount, type, category, date)
+
+goals ativas (select: title, current_amount, target_amount)
+c. Agrega no backend (NÃO envia dados brutos à IA — privacidade + custo):
+
+js
+const summary = {
+    total_income: tx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
+    total_expense: tx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+    top_categories: Object.entries(tx.reduce((acc, t) => {
+        if (t.type === 'expense') acc[t.category] = (acc[t.category] || 0) + t.amount;
+        return acc;
+    }, {})).sort((a, b) => b[1] - a[1]).slice(0, 5),
+    goals_count: goals.length,
+    goals_progress: goals.map(g => ({
+        title: g.title,
+        pct: g.target_amount > 0 ? Math.round(g.current_amount / g.target_amount * 100) : 0
+    }))
+};
+d. Chama Gemini com prompt:
+
+text
+Você é um consultor financeiro. Analise os dados abaixo e gere EXATAMENTE 3
+insights acionáveis, cada um em 1 frase curta (máx. 15 palavras), em português
+brasileiro. Formato de saída: JSON puro, sem markdown.
+
+Dados: ${JSON.stringify(summary)}
+
+Formato:
+{"insights": [{"type": "warning|success|info", "text": "..."}, ...]}
+
+Foque em: gastos acima da média, oportunidades de economia, progresso de metas.
+e. Parse defensivo do JSON (remover json, trim, try/catch)
+f. Se parse falhar: retorna fallback {"insights": [{"type":"info","text":"Continue registrando transações para insights personalizados."}]}
+g. Salva no cache em memória
+
+Retorna { insights, source: "ai" }
+
+GET /api/insights-health
+Retorna { "status": "ok", "cache_size": N, "gemini_configured": true/false }
+
+Frontend — Dashboard Desktop (js/dashboard.js)
+Adicionar função:
+
+js
+async function loadAIInsights(forceRefresh = false) {
+    const body = document.getElementById('aiInsightsBody');
+    if (!body) return;
+    
+    // Cache local em sessionStorage (6h TTL)
+    const CACHE_KEY = `tonu_ai_insights_${currentUser?.id}`;
+    if (!forceRefresh) {
+        try {
+            const cached = sessionStorage.getItem(CACHE_KEY);
+            if (cached) {
+                const { data, ts } = JSON.parse(cached);
+                if (Date.now() - ts < 6 * 60 * 60 * 1000) {
+                    renderAIInsights(data.insights);
+                    return;
+                }
+            }
+        } catch (_) {}
+    }
+    
+    body.innerHTML = '<div class="skeleton-shimmer" style="width:100%;height:40px;border-radius:8px;"></div>';
+    
+    try {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (!session) { body.innerHTML = ''; return; }
+        
+        const res = await fetch(`${window.getBaseUrl()}/api/insights`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({})
+        });
+        
+        if (!res.ok) { body.innerHTML = ''; return; }
+        const data = await res.json();
+        if (!data.insights || data.insights.length === 0) {
+            body.innerHTML = '<p class="text-muted" style="font-size:12px;">Registre mais transações para insights personalizados.</p>';
+            return;
+        }
+        
+        try {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+                data, ts: Date.now()
+            }));
+        } catch (_) {}
+        
+        renderAIInsights(data.insights);
+    } catch (e) {
+        console.warn('[AI Insights] Falha silenciosa:', e.message);
+        body.innerHTML = '<p class="text-muted" style="font-size:12px;">Insights indisponíveis no momento.</p>';
+    }
+}
+
+function renderAIInsights(insights) {
+    const body = document.getElementById('aiInsightsBody');
+    if (!body || !Array.isArray(insights)) return;
+    
+    const iconMap = {
+        warning: 'fa-exclamation-triangle',
+        success: 'fa-check-circle',
+        info: 'fa-info-circle'
+    };
+    const colorMap = {
+        warning: '#F59E0B',
+        success: '#10B981',
+        info: '#6C5CE7'
+    };
+    
+    body.innerHTML = insights.map(i => `
+        <div class="ai-insight-item" style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--color-border-light,#f1f5f9);">
+            <i class="fas ${iconMap[i.type] || iconMap.info}" 
+               style="color:${colorMap[i.type] || colorMap.info};font-size:14px;margin-top:2px;flex-shrink:0;"></i>
+            <span style="font-size:12.5px;line-height:1.45;color:var(--color-text,#1e293b);">${i.text}</span>
+        </div>
+    `).join('');
+}
+
+window.loadAIInsights = loadAIInsights;
+Chamar loadAIInsights() em loadDashboard() após renderizar os cards principais,
+e em visibilitychange + focus (debounced) com forceRefresh a cada 6h.
+
+Frontend — Dashboard Desktop (pages/dashboard.html)
+Adicionar card no grid de insights (substituir ou complementar o card existente de
+"Saúde Financeira"):
+
+html
+<div class="card insights-card" id="aiInsightsCard">
+    <div class="card-header">
+        <h3>💡 Insights do Mês</h3>
+        <button type="button" class="btn-ghost-sm" 
+                onclick="window.loadAIInsights && window.loadAIInsights(true)"
+                title="Atualizar insights">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+    <div class="card-body" id="aiInsightsBody">
+        <div class="skeleton-shimmer" style="width:100%;height:40px;border-radius:8px;"></div>
+    </div>
+</div>
+Frontend — Dashboard Mobile (pages/mobile/dashboard.html)
+Adicionar card equivalente no mobileInsightsContainer ou logo após:
+
+html
+<section class="mobile-insights-card" id="mobileAIInsightsCard">
+    <div class="mobile-insights-header">
+        <div class="mobile-insights-title">
+            <i class="fas fa-sparkles" style="color:#6C5CE7;"></i> Insights IA
+        </div>
+        <button type="button" onclick="window.loadAIInsights && window.loadAIInsights(true)"
+                style="background:none;border:none;color:#6C5CE7;font-size:12px;cursor:pointer;">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+    <div id="aiInsightsBody" style="padding:4px 0;">
+        <div class="skeleton-shimmer" style="width:100%;height:40px;border-radius:8px;"></div>
+    </div>
+</section>
+Validações obrigatórias Fase 1
+node --check server.js → PASS
+
+node --check js/dashboard.js → PASS
+
+npm test → 67/67 (não pode quebrar)
+
+npm run test:csp → 3/3 (não pode quebrar)
+
+npm run build → SUCCESS
+
+node tests/global-scope.test.js → 7/7
+
+Teste manual com curl:
+
+bash
+curl -s -X POST http://localhost:3000/api/insights \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <jwt>" \
+  -d '{}' | jq
+Se gemini_configured: false → OK (chave não configurada)
+
+Se gemini_configured: true e insights: [] → erro na chamada Gemini (reportar log)
+
+Se insights.length === 3 → ✅ funcionou
+
+Checkpoint Fase 1
+Reportar:
+
+text
+═══════════════════════════════════════
+CHECKPOINT FASE 1 — ITEM 2: INSIGHTS IA
+═══════════════════════════════════════
+- Backend (server.js):         [rotas criadas?]
+- Frontend desktop:            [card + função criadas?]
+- Frontend mobile:             [card + função criadas?]
+- Testes:                      [X/67] + [X/3] + [X/7]
+- Build:                       [SUCCESS/FAIL]
+- Teste curl:                  [resultado real]
+═══════════════════════════════════════
+PARAR após o checkpoint. Aguardar confirmação para Fase 2.
+
+🟣 FASE 2 — ITEM 3: CHAT DE FINANÇAS (~12h)
+Objetivo
+Chat estilo ChatGPT, com contexto financeiro do usuário injetado, acessível via botão
+flutuante no Dashboard (desktop e mobile).
+
+Backend (server.js)
+POST /api/chat
+Auth: Bearer JWT (obrigatório)
+
+Body: { "message": "Como estou este mês?", "history": [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}] }
+
+history opcional, máx. 10 mensagens (limita contexto)
+
+Response:
+
+json
+{ "reply": "Você gastou R$ 2.400 este mês...", "source": "ai" }
+Fluxo:
+Valida JWT → user_id
+
+Rate limit em memória: 20 mensagens/dia por user_id
+
+Busca contexto do usuário (últimos 30 dias + metas):
+
+Soma de income/expense
+
+Top 3 categorias de gasto
+
+Progresso das metas
+
+Saldo atual
+
+NUNCA deixa Gemini calcular totais — backend calcula e passa pronto:
+
+text
+Contexto do usuário (valores já calculados pelo sistema, use-os como verdade):
+- Saldo total: R$ 5.430,21
+- Receitas mês: R$ 8.200,00
+- Despesas mês: R$ 4.120,50
+- Top 3 categorias de gasto: Alimentação R$ 1.200, Lazer R$ 800, Transporte R$ 450
+- Metas ativas: 3 (Reserva 45%, Viagem 20%, Notebook 80%)
+
+Pergunta do usuário: "${message}"
+
+Histórico (últimas trocas):
+${history.map(m => `${m.role}: ${m.content}`).join('\n')}
+
+Responda em português brasileiro, tom consultivo, máx. 3 frases. 
+NUNCA invente números — use apenas os valores do contexto acima.
+Se a pergunta exigir cálculo não fornecido, diga "não tenho esse dado".
+Timeout 10s. Fallback: {"reply": "Não consigo responder agora. Tente novamente em instantes."}
+
+Retorna { reply, source: "ai" }
+
+GET /api/chat-health
+Retorna { "status": "ok", "gemini_configured": true/false }
+
+Frontend (Desktop + Mobile)
+Botão flutuante no Dashboard
+html
+<button id="chatFloatBtn" 
+        onclick="window.openFinanceChat()"
+        aria-label="Abrir chat de finanças"
+        style="position:fixed;bottom:24px;right:24px;width:56px;height:56px;
+               border-radius:50%;background:linear-gradient(135deg,#6C5CE7,#8B5CF6);
+               border:none;color:#fff;font-size:22px;cursor:pointer;
+               box-shadow:0 8px 24px rgba(108,92,231,0.35);z-index:9999;
+               display:flex;align-items:center;justify-content:center;">
+    <i class="fas fa-comments"></i>
+</button>
+Modal de chat (desktop + mobile usam o mesmo componente)
+js
+window.openFinanceChat = function () {
+    let modal = document.getElementById('financeChatModal');
+    if (modal) { modal.style.display = 'flex'; return; }
+    
+    modal = document.createElement('div');
+    modal.id = 'financeChatModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);' +
+        'backdrop-filter:blur(6px);z-index:100000;display:flex;' +
+        'align-items:center;justify-content:center;padding:16px;';
+    modal.innerHTML = `
+        <div style="background:var(--color-surface,#fff);border-radius:20px;
+                    max-width:480px;width:100%;max-height:80vh;display:flex;
+                    flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="padding:14px 18px;border-bottom:1px solid var(--color-border,#e2e8f0);
+                        display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <h3 style="margin:0;font-size:15px;font-weight:700;color:var(--color-text,#0f172a);">
+                        💬 Assistente Financeiro
+                    </h3>
+                    <small style="font-size:11px;color:var(--color-text-muted,#64748b);">
+                        Powered by IA
+                    </small>
+                </div>
+                <button type="button" onclick="document.getElementById('financeChatModal').style.display='none'"
+                        style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">
+                    &times;
+                </button>
+            </div>
+            <div id="chatMessages" style="flex:1;overflow-y:auto;padding:14px 18px;
+                        display:flex;flex-direction:column;gap:10px;min-height:200px;max-height:400px;">
+                <div class="chat-welcome" style="color:var(--color-text-muted,#64748b);
+                     font-size:13px;text-align:center;padding:20px;">
+                    👋 Olá! Posso responder sobre suas finanças. Tente:
+                    <br><br>
+                    <button type="button" onclick="window.sendChatSuggestion('Como estou este mês?')"
+                            class="chat-suggest">Como estou este mês?</button>
+                    <button type="button" onclick="window.sendChatSuggestion('Onde posso economizar?')"
+                            class="chat-suggest">Onde posso economizar?</button>
+                    <button type="button" onclick="window.sendChatSuggestion('Como estão minhas metas?')"
+                            class="chat-suggest">Como estão minhas metas?</button>
+                </div>
+            </div>
+            <form onsubmit="window.sendChatMessage(event)" 
+                  style="padding:12px 14px;border-top:1px solid var(--color-border,#e2e8f0);
+                         display:flex;gap:8px;">
+                <input type="text" id="chatInput" required
+                       placeholder="Pergunte sobre suas finanças..."
+                       style="flex:1;padding:10px 14px;border-radius:12px;
+                              border:1px solid var(--color-border,#e2e8f0);
+                              background:var(--color-bg,#f8fafc);font-size:13px;
+                              color:var(--color-text,#0f172a);">
+                <button type="submit" id="chatSendBtn"
+                        style="padding:0 16px;border-radius:12px;border:none;
+                               background:linear-gradient(135deg,#6C5CE7,#8B5CF6);
+                               color:#fff;font-weight:700;cursor:pointer;">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    `;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+    document.body.appendChild(modal);
+    
+    // Estilos das sugestões
+    if (!document.getElementById('chatStyles')) {
+        const style = document.createElement('style');
+        style.id = 'chatStyles';
+        style.textContent = `
+            .chat-suggest{display:inline-block;margin:4px 4px;padding:6px 12px;
+                border-radius:999px;background:rgba(108,92,231,0.1);
+                border:1px solid rgba(108,92,231,0.25);color:#6C5CE7;
+                font-size:12px;font-weight:600;cursor:pointer;}
+            .chat-suggest:hover{background:rgba(108,92,231,0.18);}
+            .chat-msg-user{align-self:flex-end;background:#6C5CE7;color:#fff;
+                padding:8px 12px;border-radius:14px 14px 4px 14px;max-width:80%;
+                font-size:13px;line-height:1.4;}
+            .chat-msg-ai{align-self:flex-start;background:var(--color-bg,#f8fafc);
+                color:var(--color-text,#0f172a);padding:8px 12px;border-radius:14px 14px 14px 4px;
+                max-width:80%;font-size:13px;line-height:1.4;
+                border:1px solid var(--color-border,#e2e8f0);}
+            .chat-typing{display:inline-block;color:#94a3b8;font-style:italic;}
+        `;
+        document.head.appendChild(style);
+    }
+};
+
+window.sendChatSuggestion = function (text) {
+    document.getElementById('chatInput').value = text;
+    window.sendChatMessage(new Event('submit'));
+};
+
+window.sendChatMessage = async function (event) {
+    event.preventDefault();
+    const input = document.getElementById('chatInput');
+    const messages = document.getElementById('chatMessages');
+    const sendBtn = document.getElementById('chatSendBtn');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    // Remove welcome se for a primeira mensagem
+    const welcome = messages.querySelector('.chat-welcome');
+    if (welcome) welcome.remove();
+    
+    // Adiciona mensagem do usuário
+    const userMsg = document.createElement('div');
+    userMsg.className = 'chat-msg-user';
+    userMsg.textContent = message;
+    messages.appendChild(userMsg);
+    
+    // Typing indicator
+    const typing = document.createElement('div');
+    typing.className = 'chat-msg-ai';
+    typing.innerHTML = '<span class="chat-typing">Digitando...</span>';
+    messages.appendChild(typing);
+    messages.scrollTop = messages.scrollHeight;
+    
+    input.value = '';
+    sendBtn.disabled = true;
+    
+    try {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (!session) throw new Error('not authenticated');
+        
+        const history = Array.from(messages.querySelectorAll('.chat-msg-user, .chat-msg-ai'))
+            .filter(m => !m.querySelector('.chat-typing'))
+            .slice(-10)
+            .map(m => ({
+                role: m.classList.contains('chat-msg-user') ? 'user' : 'assistant',
+                content: m.textContent
+            }));
+        
+        const res = await fetch(`${window.getBaseUrl()}/api/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ message, history: history.slice(0, -1) })
+        });
+        
+        const data = await res.json();
+        typing.remove();
+        
+        const aiMsg = document.createElement('div');
+        aiMsg.className = 'chat-msg-ai';
+        aiMsg.textContent = data.reply || 'Não consegui responder agora.';
+        messages.appendChild(aiMsg);
+        messages.scrollTop = messages.scrollHeight;
+    } catch (e) {
+        typing.remove();
+        const errMsg = document.createElement('div');
+        errMsg.className = 'chat-msg-ai';
+        errMsg.style.color = '#ef4444';
+        errMsg.textContent = 'Erro ao conectar. Tente novamente.';
+        messages.appendChild(errMsg);
+    } finally {
+        sendBtn.disabled = false;
+        input.focus();
+    }
+};
+Validações obrigatórias Fase 2
+node --check server.js → PASS
+
+npm test → 67/67
+
+npm run test:csp → 3/3
+
+npm run build → SUCCESS
+
+node tests/global-scope.test.js → 7/7
+
+Teste curl:
+
+bash
+curl -s -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <jwt>" \
+  -d '{"message":"Como estou este mês?","history":[]}' | jq
+Checkpoint Fase 2
+Reportar no mesmo formato da Fase 1.
+
+PARAR após o checkpoint. Aguardar confirmação para Fase 3.
+
+🟢 FASE 3 — ITEM 4: FLUXO DE CAIXA IA (~10h)
+Objetivo
+Gráfico de projeção de fluxo de caixa 30 dias no Dashboard, híbrido:
+
+Determinístico (backend): soma saldo atual + contas a receber − contas a pagar
+
+IA (camada extra): identifica anomalias e sugere reserva extra
+
+Backend (server.js)
+POST /api/cashflow-forecast
+Auth: Bearer JWT (obrigatório)
+
+Body: { "days": 30 } (default 30, máx. 60)
+
+Response:
+
+json
+{
+  "daily": [
+    {"date": "2025-11-16", "balance": 5430.21, "income": 0, "expense": 0},
+    {"date": "2025-11-17", "balance": 5430.21, "income": 0, "expense": 0},
+    {"date": "2025-11-20", "balance": 4830.21, "income": 0, "expense": 600}
+  ],
+  "summary": {
+    "current_balance": 5430.21,
+    "projected_balance_30d": 3200.50,
+    "min_balance": 2800.00,
+    "min_date": "2025-11-28",
+    "risk_alert": "Saldo ficará abaixo de R$ 500 no dia 28/11. Sugestão: reserve R$ 400 adicionais em alimentação."
+  },
+  "source": "deterministic+ai"
+}
+Fluxo:
+Valida JWT → user_id
+
+Rate limit em memória: 10 chamadas/dia por user_id
+
+Camada determinística:
+a. Busca transactions com is_bill=true e paid=false nos próximos N dias
+b. Busca saldo atual (income pago − expense pago histórico)
+c. Calcula projeção dia a dia: balance[d] = balance[d-1] + income[d] - expense[d]
+
+Camada IA (opcional — se rate limit permitir):
+a. Se min_balance < 500 OU projected_balance_30d < 0: gera alerta com IA
+b. Prompt:
+
+text
+Análise de fluxo de caixa:
+- Saldo atual: R$ X
+- Saldo projetado em 30 dias: R$ Y
+- Menor saldo do período: R$ Z no dia DD/MM
+- Top 3 despesas: [categoria: R$ valor]
+
+Gere 1 frase curta (máx. 20 palavras) de ALERTA + SUGESTÃO em português.
+Formato: apenas o texto, sem prefixo.
+c. Se IA falhar: usa fallback determinístico
+"Saldo ficará negativo em [data]. Reveja contas a pagar."
+
+Cache em memória 1h
+
+Retorna
+
+Frontend — Dashboard Desktop
+Adicionar seção no grid principal:
+
+html
+<div class="card cashflow-card" id="cashflowCard">
+    <div class="card-header">
+        <h3>📈 Fluxo de Caixa (30 dias)</h3>
+        <button type="button" class="btn-ghost-sm"
+                onclick="window.loadCashFlow && window.loadCashFlow(true)">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="cashflow-summary" id="cashflowSummary"
+             style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+                    margin-bottom:16px;"></div>
+        <div class="chart-wrap" style="height:220px;position:relative;">
+            <canvas id="cashflowChart"></canvas>
+        </div>
+        <div id="cashflowAlert" style="margin-top:12px;"></div>
+    </div>
+</div>
+Função JS:
+
+js
+async function loadCashFlow(forceRefresh = false) {
+    const CACHE_KEY = `tonu_cashflow_${currentUser?.id}`;
+    if (!forceRefresh) {
+        try {
+            const cached = sessionStorage.getItem(CACHE_KEY);
+            if (cached) {
+                const { data, ts } = JSON.parse(cached);
+                if (Date.now() - ts < 60 * 60 * 1000) {
+                    renderCashFlow(data);
+                    return;
+                }
+            }
+        } catch (_) {}
+    }
+    
+    try {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (!session) return;
+        
+        const res = await fetch(`${window.getBaseUrl()}/api/cashflow-forecast`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ days: 30 })
+        });
+        
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() })); } catch (_) {}
+        renderCashFlow(data);
+    } catch (e) {
+        console.warn('[CashFlow] Falha silenciosa:', e.message);
+    }
+}
+
+function renderCashFlow(data) {
+    // Cards de resumo
+    const summary = document.getElementById('cashflowSummary');
+    if (summary && data.summary) {
+        summary.innerHTML = `
+            <div><small class="text-muted">Saldo Atual</small><br>
+                 <strong>${formatCurrency(data.summary.current_balance)}</strong></div>
+            <div><small class="text-muted">Em 30 dias</small><br>
+                 <strong style="color:${data.summary.projected_balance_30d >= 0 ? '#10B981' : '#ef4444'};">
+                     ${formatCurrency(data.summary.projected_balance_30d)}</strong></div>
+            <div><small class="text-muted">Menor saldo</small><br>
+                 <strong style="color:${data.summary.min_balance >= 500 ? '#10B981' : '#F59E0B'};">
+                     ${formatCurrency(data.summary.min_balance)}</strong></div>
+        `;
+    }
+    
+    // Alerta
+    const alert = document.getElementById('cashflowAlert');
+    if (alert && data.summary?.risk_alert) {
+        alert.innerHTML = `
+            <div style="padding:10px 14px;border-radius:10px;
+                        background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);
+                        font-size:12.5px;color:#92400e;display:flex;gap:8px;">
+                <i class="fas fa-exclamation-triangle" style="color:#F59E0B;margin-top:2px;"></i>
+                <span>${data.summary.risk_alert}</span>
+            </div>
+        `;
+    } else if (alert) {
+        alert.innerHTML = '';
+    }
+    
+    // Gráfico (Chart.js)
+    const ctx = document.getElementById('cashflowChart')?.getContext('2d');
+    if (!ctx || !data.daily) return;
+    
+    if (window._cashflowChart) window._cashflowChart.destroy();
+    
+    window._cashflowChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.daily.map(d => d.date.slice(5)),
+            datasets: [{
+                label: 'Saldo projetado',
+                data: data.daily.map(d => d.balance),
+                borderColor: '#6C5CE7',
+                backgroundColor: 'rgba(108,92,231,0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { 
+                    beginAtZero: false,
+                    ticks: { callback: v => 'R$ ' + v.toFixed(0) }
+                }
+            }
+        }
+    });
+}
+
+window.loadCashFlow = loadCashFlow;
+Frontend — Dashboard Mobile
+Adicionar card equivalente (versão compacta com gráfico menor):
+
+html
+<section class="mobile-chart-card" id="mobileCashflowCard">
+    <div class="mobile-chart-header">
+        <div class="mobile-chart-title">
+            <i class="fas fa-chart-line" style="color:#6C5CE7;"></i> Fluxo de Caixa
+        </div>
+    </div>
+    <div id="mobileCashflowSummary" style="display:flex;justify-content:space-between;
+         font-size:11px;color:var(--color-text-muted,#64748b);margin-bottom:8px;"></div>
+    <div style="height:140px;position:relative;">
+        <canvas id="mobileCashflowChart"></canvas>
+    </div>
+</section>
+Implementar loadMobileCashFlow() similar (reaproveita mesma rota).
+
+Validações obrigatórias Fase 3
+node --check server.js → PASS
+
+node --check js/dashboard.js → PASS
+
+npm test → 67/67
+
+npm run test:csp → 3/3
+
+npm run build → SUCCESS
+
+node tests/global-scope.test.js → 7/7
+
+Teste curl:
+
+bash
+curl -s -X POST http://localhost:3000/api/cashflow-forecast \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <jwt>" \
+  -d '{"days":30}' | jq '.daily | length'
+Esperado: 30 (ou próximo)
+
+Checkpoint Fase 3
+Reportar no mesmo formato.
+
+📊 RELATÓRIO FINAL (após Fase 3)
+text
+═══════════════════════════════════════════════════
+HORIZONTE 2 — COMPLETO
+═══════════════════════════════════════════════════
+
+Item 2 (Insights IA):       [OK / FALHOU]
+Item 3 (Chat de Finanças):  [OK / FALHOU]
+Item 4 (Fluxo de Caixa IA): [OK / FALHOU]
+
+Rotas criadas:
+- POST /api/insights
+- GET  /api/insights-health
+- POST /api/chat
+- GET  /api/chat-health
+- POST /api/cashflow-forecast
+
+Testes finais: [X/67] + [X/3] + [X/7]
+Build: [SUCCESS/FAIL]
+
+Bugs/limitações conhecidas:
+- [...]
+✅ CHECKLIST FINAL
+□ Fase 1 reportada + confirmada
+□ Fase 2 reportada + confirmada
+□ Fase 3 reportada + confirmada
+□ Testes 67/67 + 3/3 + 7/7
+□ Build SUCCESS
+□ Nenhuma regressão visual nas 6 telas mobile
+□ Nenhum confirm() nativo reintroduzido
+□ Logs estruturados em todas as rotas IA
+□ Fallback silencioso em todas as rotas IA
+□ Rate limit em memória (não tabela Supabase)
+Começar pela Fase 1. Reportar checkpoint e aguardar.
+
+text
+
+---
+
+## ⚠️ Avisos honestos
+
+### 1. Vai estourar contexto no meio
+
+**Provavelmente** o Gemini vai conseguir entregar a **Fase 1 completa** (8h de trabalho, mas comprimido em ~200 linhas de código). A **Fase 2** vai ser mais apertada (12h em ~250 linhas). A **Fase 3** vai depender do contexto restante.
+
+**Se ele reportar `PRECISO_RETOMAR`:** você cola o checkpoint dele + "continue da Fase X" e ele retoma.
+
+### 2. O bug do modelo ainda está pendente
+
+O `server.js` atual usa `gemini-4-hydrogen`. Se esse modelo realmente não existir na API pública, **as 3 novas features vão falhar** também. O teste com chave real é obrigatório **antes** de celebrar as 3 fases como concluídas.
+
+**Recomendação:** faça o teste de chave real primeiro (5 min). Se `gemini-4-hydrogen` funcionar → as 3 fases funcionam. Se falhar → corrija para `gemini-2.0-flash` e **aí** as 3 fases funcionam.
+
+### 3. Item 3 (Chat) tem risco de alucinação
+
+O prompt já avisa "NUNCA invente números", mas IA é IA. Se o usuário perguntar "quanto gastei em outubro" e o backend não passar esse dado, a IA pode inventar. **Mitigação:** o backend calcula tudo e passa pronto. Está no prompt, mas vale monitorar nas primeiras semanas.
+
+### 4. Fase 3 (Cashflow) é híbrida — a parte IA é opcional
+
+O núcleo é determinístico (soma de bills futuras). A IA só adiciona a frase de alerta. Se ela falhar, o gráfico continua funcionando. **Feature mais segura das 3.**
+
+---
+
+## 🎯 Sequência recomendada
+
+1. **Agora:** teste de chave real (5 min) — resolve o bug do modelo
+2. **Depois:** cole o prompt acima e execute Fase 1
+3. **Aprovar checkpoint** → Fase 2
+4. **Aprovar checkpoint** → Fase 3
+5. **Testar as 3 features em conjunto** no app
+
+Boa sorte. 🚀

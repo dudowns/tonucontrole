@@ -1,0 +1,1467 @@
+// ============================================
+// TONUCONTROLE - TRANSACTIONS CONTROLLER
+// ============================================
+
+(function () {
+    'use strict';
+
+    console.log('💳 Transactions.js carregando...');
+
+    let currentUser = null;
+    let allTransactions = [];
+    let currentFilteredTransactions = [];
+    let categories = [];
+    let currentEditId = null;
+    let currentMonthOffset = 0;
+    let _userSelectedCategory = false;
+    let _settingCategoryProgrammatically = false;
+
+    const MONTH_NAMES = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+
+    function getSelectedMonthDate() {
+        const d = new Date();
+        d.setDate(1); // Previne salto de mês quando o dia atual for 29, 30 ou 31
+        d.setMonth(d.getMonth() + currentMonthOffset);
+        return d;
+    }
+
+    function getSelectedYearMonth() {
+        const d = getSelectedMonthDate();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+    }
+
+    function getTxYearMonth(dateVal) {
+        if (!dateVal) return '';
+        if (typeof dateVal === 'string') {
+            const m = dateVal.trim().match(/^(\d{4})-(\d{1,2})/);
+            if (m) {
+                return `${m[1]}-${m[2].padStart(2, '0')}`;
+            }
+        }
+        try {
+            const d = (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateVal.trim()))
+                ? new Date(dateVal.trim().substring(0, 10) + 'T12:00:00')
+                : new Date(dateVal);
+            if (!isNaN(d.getTime())) {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                return `${y}-${m}`;
+            }
+        } catch {}
+        return '';
+    }
+
+    function updateMonthDisplay() {
+        const d = getSelectedMonthDate();
+        const el = document.getElementById('selectedMonth');
+        if (el) {
+            el.textContent = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+        }
+        return d;
+    }
+
+    function changeMonth(delta) {
+        currentMonthOffset += Number(delta) || 0;
+        updateMonthDisplay();
+        filterTransactions();
+    }
+
+    function goToCurrentMonth() {
+        currentMonthOffset = 0;
+        updateMonthDisplay();
+        filterTransactions();
+    }
+
+    function toggleAdvancedFilters() {
+        const panel = document.getElementById('advancedFiltersPanel');
+        if (panel) {
+            panel.classList.toggle('hidden');
+        }
+    }
+
+    function clearAdvancedFilters() {
+        const dateStart = document.getElementById('filterDateStart');
+        const dateEnd = document.getElementById('filterDateEnd');
+        const minAmount = document.getElementById('filterMinAmount');
+        const maxAmount = document.getElementById('filterMaxAmount');
+        const filterTag = document.getElementById('filterTag');
+
+        if (dateStart) dateStart.value = '';
+        if (dateEnd) dateEnd.value = '';
+        if (minAmount) minAmount.value = '';
+        if (maxAmount) maxAmount.value = '';
+        if (filterTag) filterTag.value = '';
+
+        filterTransactions();
+    }
+
+    // Helper functions
+    function sanitize(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function formatBRL(val) {
+        if (typeof window.formatCurrency === 'function') {
+            return window.formatCurrency(val);
+        }
+        if (val === null || val === undefined || val === '') val = 0;
+        if (typeof val === 'string') {
+            const cleaned = val.replace(/[R$\s]/g, '');
+            if (cleaned.includes(',') && cleaned.includes('.')) {
+                val = cleaned.replace(/\./g, '').replace(',', '.');
+            } else if (cleaned.includes(',')) {
+                val = cleaned.replace(',', '.');
+            }
+            val = parseFloat(val);
+        }
+        const num = Number(val) || 0;
+        try {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num).replace(/\u00A0/g, ' ');
+        } catch {
+            const isNegative = num < 0;
+            const parts = Math.abs(num).toFixed(2).split('.');
+            const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            const res = 'R$ ' + intPart + ',' + parts[1];
+            return isNegative ? '-' + res : res;
+        }
+    }
+
+    function formatDateDisplay(dateStr) {
+        if (!dateStr) return '--/--/----';
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        return dateStr;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            let user = null;
+            if (window.getAuthenticatedUser) user = await window.getAuthenticatedUser();
+            if (!user && window.supabaseOffline) {
+                user = await window.supabaseOffline.isAuthenticated();
+            }
+
+            if (!user && window.supabaseClient?.auth) {
+                try {
+                    const { data: sessData } = await window.supabaseClient.auth.getSession();
+                    user = sessData?.session?.user;
+                    if (!user) {
+                        const { data: { user: authUser } } = await window.supabaseClient.auth.getUser();
+                        user = authUser;
+                    }
+                } catch (_) {}
+            }
+
+            if (!user) {
+                try {
+                    const s = sessionStorage.getItem('tonu_user');
+                    if (s) { const p = JSON.parse(s); user = p.user || p; }
+                } catch (_) {}
+            }
+
+            if (!user) {
+                try {
+                    const off = localStorage.getItem('tonu_offline_session');
+                    if (off) { const p = JSON.parse(off); user = p.user || p; }
+                } catch (_) {}
+            }
+
+            if (!user) {
+                console.warn('⚠️ Usuário não logado, redirecionando para login');
+                window.location.href = '../index.html';
+                return;
+            }
+
+            currentUser = user;
+            console.log('✅ Transações: Usuário autenticado:', currentUser.email);
+
+            if (window.loadGlobalUserProfile) {
+                await window.loadGlobalUserProfile();
+            }
+
+            updateMonthDisplay();
+            await loadCategories();
+            await loadTransactions();
+            setupFilterListeners();
+
+            // Vincular controles de parcelamento e recorrência
+            if (window.TonuInstallments) {
+                window.TonuInstallments.bindFormControls('t');
+            }
+
+            // Check if URL has ?new=true to open modal automatically
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('new') === 'true') {
+                openModal();
+            }
+
+        } catch (err) {
+            console.error('❌ Erro na inicialização das transações:', err);
+        }
+    });
+
+    // Load categories
+    async function loadCategories() {
+        try {
+            if (window.supabaseClient) {
+                const { data, error } = await window.supabaseClient
+                    .from('categories')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('name');
+
+                if (!error && data && data.length > 0) {
+                    categories = data;
+                }
+            }
+
+            if (categories.length === 0) {
+                // Fallback default categories
+                categories = [
+                    { id: 'cat_salario', name: 'Salário', type: 'income', icon: 'fa-money-bill-wave' },
+                    { id: 'cat_invest', name: 'Investimentos', type: 'income', icon: 'fa-chart-line' },
+                    { id: 'cat_outras_rec', name: 'Outras Receitas', type: 'income', icon: 'fa-plus-circle' },
+                    { id: 'cat_alimentacao', name: 'Alimentação', type: 'expense', icon: 'fa-utensils' },
+                    { id: 'cat_moradia', name: 'Moradia', type: 'expense', icon: 'fa-home' },
+                    { id: 'cat_transporte', name: 'Transporte', type: 'expense', icon: 'fa-car' },
+                    { id: 'cat_saude', name: 'Saúde', type: 'expense', icon: 'fa-heartbeat' },
+                    { id: 'cat_lazer', name: 'Lazer', type: 'expense', icon: 'fa-gamepad' },
+                    { id: 'cat_educacao', name: 'Educação', type: 'expense', icon: 'fa-graduation-cap' },
+                    { id: 'cat_outros', name: 'Outros', type: 'expense', icon: 'fa-tags' }
+                ];
+            }
+
+            populateCategorySelects();
+        } catch (e) {
+            console.warn('⚠️ Falha ao carregar categorias:', e);
+        }
+    }
+
+    function populateCategorySelects() {
+        const catSelect = document.getElementById('tCategory');
+        const filterCat = document.getElementById('filterCategory');
+        const selectedType = document.getElementById('tType')?.value || 'expense';
+
+        if (catSelect) {
+            catSelect.innerHTML = '<option value="">Selecione uma categoria...</option>';
+            const filtered = categories.filter(c => !c.type || c.type === selectedType);
+            filtered.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.name;
+                opt.textContent = cat.name;
+                catSelect.appendChild(opt);
+            });
+        }
+
+        if (filterCat && filterCat.options.length <= 1) {
+            filterCat.innerHTML = '<option value="">Todas as categorias</option>';
+            const uniqueNames = Array.from(new Set(categories.map(c => c.name)));
+            uniqueNames.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                filterCat.appendChild(opt);
+            });
+        }
+    }
+
+    // Load transactions
+    async function loadTransactions() {
+        const container = document.getElementById('transactionsList') || document.getElementById('transactionsContainer');
+        if (container) {
+            container.innerHTML = `
+                <div style="text-align:center;padding:40px 16px;">
+                    <span class="spinner" style="width:32px;height:32px;border-width:3px;margin-bottom:12px;"></span>
+                    <p style="color:var(--color-text-muted,#94a3b8);">Carregando transações...</p>
+                </div>
+            `;
+        }
+
+        try {
+            let txs = [];
+            let fetchedFromDb = false;
+
+            // 1. Se estiver offline, carrega imediatamente do IndexedDB canônico
+            if (!navigator.onLine && window.tonuSync && currentUser?.id) {
+                const cached = await window.tonuSync.getCachedTransactions(currentUser.id);
+                if (cached && cached.length > 0) {
+                    allTransactions = cached;
+                    filterTransactions();
+                    return;
+                }
+            }
+
+            // 2. Se online, busca do Supabase
+            if (window.supabaseClient && currentUser && navigator.onLine) {
+                try {
+                    const { data, error } = await window.supabaseClient
+                        .from('transactions')
+                        .select('*')
+                        .eq('user_id', currentUser.id)
+                        .order('date', { ascending: false });
+
+                    if (!error && data) {
+                        txs = data;
+                        fetchedFromDb = true;
+                    }
+                } catch (netErr) {
+                    console.warn('⚠️ Falha ao buscar transações do Supabase, recorrendo ao cache:', netErr);
+                }
+            }
+
+            // 3. Fallback para IndexedDB se Supabase não retornou ou falhou
+            if (!fetchedFromDb && window.tonuSync && currentUser?.id) {
+                const cached = await window.tonuSync.getCachedTransactions(currentUser.id);
+                if (cached && cached.length > 0) {
+                    txs = cached;
+                }
+            }
+
+            // 4. Se obteve do banco, sincroniza com o IndexedDB canônico
+            if (fetchedFromDb && window.tonuSync && currentUser?.id) {
+                await window.tonuSync.setCachedTransactions(currentUser.id, txs);
+            }
+
+            // 🔥 APLICA A DESDUPLICAÇÃO INTELIGENTE (remove duplicatas e unifica status)
+            if (window.TonuDeduplicate) {
+                const dedupResult = window.TonuDeduplicate.deduplicate(txs, {
+                    autoCleanRemote: true,
+                    userId: currentUser?.id
+                });
+                txs = dedupResult.cleanList;
+
+                if (window.tonuSync && currentUser?.id) {
+                    await window.tonuSync.setCachedTransactions(currentUser.id, txs);
+                }
+            }
+
+            // Garante que para qualquer conta ou transação paga com paid_date, o campo date reflita a data real do clique/pagamento
+            txs.forEach(t => {
+                if (t.paid && t.paid_date) {
+                    if (!t.due_date && t.date && t.date !== t.paid_date) {
+                        t.due_date = t.date;
+                    }
+                    t.date = t.paid_date;
+                }
+            });
+
+            allTransactions = txs;
+            // Aplica imediatamente o filtro do mês selecionado
+            filterTransactions();
+
+        } catch (err) {
+            console.error('❌ Erro ao carregar transações:', err);
+            if (container) {
+                container.innerHTML = `
+                    <div style="text-align:center;padding:30px;color:var(--color-danger,#ff7675);">
+                        <p>Erro ao carregar transações. Verifique sua conexão.</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    // Helper to resolve category icon, color, and display name
+    function getCategoryInfo(t) {
+        const isIncome = t.type === 'income';
+        const defaultColor = isIncome ? '#00b894' : '#ff7675';
+        let cat = null;
+
+        if (t.categories && typeof t.categories === 'object') {
+            cat = t.categories;
+        } else if (t.category_id && categories && categories.length > 0) {
+            cat = categories.find(c => c.id === t.category_id);
+        }
+
+        if (!cat && t.category && categories && categories.length > 0) {
+            const rawName = String(t.category).trim().toLowerCase();
+            const cleanName = rawName.replace(/^[\p{Emoji}\s]+/u, '').trim();
+            cat = categories.find(c => {
+                const cRaw = (c.name || '').trim().toLowerCase();
+                const cClean = cRaw.replace(/^[\p{Emoji}\s]+/u, '').trim();
+                return cRaw === rawName || (cleanName && cClean === cleanName) || cRaw.includes(cleanName) || (cleanName && cleanName.includes(cClean));
+            });
+        }
+
+        const backendStyle = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
+            ? window.getBackendCategoryStyle(t.category || cat?.name || t.description, cat)
+            : null;
+
+        let icon = cat?.icon || backendStyle?.icon;
+        let color = cat?.color || backendStyle?.color || defaultColor;
+        let name = cat?.name || backendStyle?.name || t.category || (isIncome ? 'Receita' : 'Despesa');
+
+        if (!icon) {
+            const catLower = (t.category || '').toLowerCase();
+            if (catLower.includes('salário') || catLower.includes('salario') || catLower.includes('renda') || catLower.includes('soldo')) {
+                icon = 'fa-money-bill-wave';
+            } else if (catLower.includes('invest') || catLower.includes('rendimento') || catLower.includes('dividendo') || catLower.includes('ações') || catLower.includes('acoes')) {
+                icon = 'fa-chart-line';
+            } else if (catLower.includes('aliment') || catLower.includes('comida') || catLower.includes('restaurante') || catLower.includes('mercado') || catLower.includes('lanche') || catLower.includes('ifood') || catLower.includes('café') || catLower.includes('cafe')) {
+                icon = 'fa-utensils';
+            } else if (catLower.includes('mora') || catLower.includes('casa') || catLower.includes('aluguel') || catLower.includes('condom') || catLower.includes('energia') || catLower.includes('luz') || catLower.includes('água') || catLower.includes('agua') || catLower.includes('iptu')) {
+                icon = 'fa-home';
+            } else if (catLower.includes('transp') || catLower.includes('carro') || catLower.includes('uber') || catLower.includes('combust') || catLower.includes('gasolina') || catLower.includes('onibus') || catLower.includes('ônibus') || catLower.includes('metro') || catLower.includes('metrô') || catLower.includes('veículo') || catLower.includes('veiculo')) {
+                icon = 'fa-car';
+            } else if (catLower.includes('saude') || catLower.includes('saúde') || catLower.includes('farm') || catLower.includes('médic') || catLower.includes('medic') || catLower.includes('hospital') || catLower.includes('dent')) {
+                icon = 'fa-heartbeat';
+            } else if (catLower.includes('lazer') || catLower.includes('viag') || catLower.includes('game') || catLower.includes('jogo') || catLower.includes('cinema') || catLower.includes('praia') || catLower.includes('festa') || catLower.includes('passeio')) {
+                icon = 'fa-gamepad';
+            } else if (catLower.includes('educa') || catLower.includes('curso') || catLower.includes('livro') || catLower.includes('faculd') || catLower.includes('escola') || catLower.includes('treinamento')) {
+                icon = 'fa-graduation-cap';
+            } else if (catLower.includes('assinatura') || catLower.includes('stream') || catLower.includes('netfl') || catLower.includes('spot') || catLower.includes('mensal') || catLower.includes('software')) {
+                icon = 'fa-credit-card';
+            } else if (catLower.includes('free') || catLower.includes('bico') || catLower.includes('trabalho') || catLower.includes('serviço') || catLower.includes('servico') || catLower.includes('consultoria')) {
+                icon = 'fa-laptop-code';
+            } else if (catLower.includes('compra') || catLower.includes('shopping') || catLower.includes('vestu') || catLower.includes('roupa')) {
+                icon = 'fa-shopping-bag';
+            } else if (catLower.includes('pet') || catLower.includes('veterin') || catLower.includes('animal')) {
+                icon = 'fa-paw';
+            } else {
+                icon = isIncome ? 'fa-wallet' : 'fa-tags';
+            }
+        }
+
+        if (icon && !icon.startsWith('fa-')) {
+            icon = 'fa-' + icon;
+        }
+
+        return { icon, color, name };
+    }
+
+    function isTransactionPaid(t) {
+        if (!t) return false;
+        if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+        if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+        return true;
+    }
+
+    function getDateGroupHeader(dateStr) {
+        if (!dateStr || dateStr === 'sem_data') return 'Sem data';
+        const parts = String(dateStr).split('T')[0].split('-');
+        if (parts.length < 3) return dateStr;
+        const y = Number(parts[0]);
+        const m = Number(parts[1]);
+        const d = Number(parts[2]);
+        if (!y || !m || !d) return dateStr;
+
+        const today = new Date();
+        if (today.getFullYear() === y && (today.getMonth() + 1) === m && today.getDate() === d) {
+            return 'Hoje';
+        }
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (yesterday.getFullYear() === y && (yesterday.getMonth() + 1) === m && yesterday.getDate() === d) {
+            return 'Ontem';
+        }
+
+        return `${String(d).padStart(2, '0')} de ${MONTH_NAMES[m - 1] || m}`;
+    }
+
+    function colorToSoftBg(colorStr) {
+        if (!colorStr) return 'rgba(67, 56, 202, 0.14)';
+        if (colorStr.startsWith('#')) {
+            let hex = colorStr.replace('#', '');
+            if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+            const num = parseInt(hex, 16);
+            if (!isNaN(num)) {
+                const r = (num >> 16) & 255;
+                const g = (num >> 8) & 255;
+                const b = num & 255;
+                return `rgba(${r}, ${g}, ${b}, 0.14)`;
+            }
+        }
+        if (colorStr.startsWith('rgb(')) {
+            return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.14)');
+        }
+        return 'rgba(67, 56, 202, 0.14)';
+    }
+
+    function cleanCategoryLabel(rawName) {
+        const str = String(rawName || 'Geral');
+        const cleaned = str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim();
+        return cleaned || str;
+    }
+
+    // Render transactions list (grouped by day like mobile statement)
+    function renderTransactions(transactions) {
+        const container = document.getElementById('transactionsList') || document.getElementById('transactionsContainer');
+        if (!container) return;
+
+        if (transactions.length === 0) {
+            const selDate = getSelectedMonthDate();
+            const monthName = MONTH_NAMES[selDate.getMonth()];
+            const yearNum = selDate.getFullYear();
+            const statusVal = document.getElementById('filterStatus')?.value || 'paid';
+            const statusLabel = statusVal === 'paid' ? 'pagas' : (statusVal === 'pending' ? 'pendentes' : '');
+            container.innerHTML = `
+                <div class="card">
+                    <div class="empty-state" style="text-align:center;padding:48px 16px;">
+                        <div style="font-size:48px;margin-bottom:12px;">📅</div>
+                        <h3 style="font-size:18px;font-weight:600;margin-bottom:6px;">Nenhuma transação ${statusLabel} em ${monthName} de ${yearNum}</h3>
+                        <p style="color:var(--color-text-muted,#94a3b8);font-size:14px;margin-bottom:16px;">
+                            Não foram encontradas transações ${statusLabel} para este mês ou com os filtros aplicados.
+                        </p>
+                        <button class="btn btn-primary" onclick="openModal()">
+                            <i class="fas fa-plus"></i> Nova Transação
+                        </button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        // Agrupa transações por data (extrato diário com subtotal do dia)
+        const groups = [];
+        let currentGroup = null;
+
+        transactions.forEach(t => {
+            const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
+            const dateKey = effectiveDate ? String(effectiveDate).split('T')[0] : 'sem_data';
+
+            if (!currentGroup || currentGroup.dateKey !== dateKey) {
+                currentGroup = {
+                    dateKey,
+                    dateHeader: getDateGroupHeader(dateKey),
+                    items: [],
+                    dayTotal: 0
+                };
+                groups.push(currentGroup);
+            }
+
+            currentGroup.items.push(t);
+            const amt = parseFloat(t.amount) || 0;
+            currentGroup.dayTotal += (t.type === 'income' ? amt : -amt);
+        });
+
+        let html = '<div class="transactions-statement-groups">';
+        groups.forEach(g => {
+            const isDayPositive = g.dayTotal >= 0;
+            const dayTotalFormatted = (isDayPositive ? '+ ' : '- ') + formatBRL(Math.abs(g.dayTotal));
+
+            html += `
+                <section class="tx-day-group" aria-label="${sanitize(g.dateHeader)}">
+                    <div class="ios-section-header">
+                        <span>${sanitize(g.dateHeader)}</span>
+                        <span class="subtotal-pill">${dayTotalFormatted}</span>
+                    </div>
+                    <div class="tx-day-items">
+            `;
+
+            g.items.forEach(t => {
+                const isIncome = t.type === 'income';
+                const catInfo = getCategoryInfo(t);
+                const squircleBg = colorToSoftBg(catInfo.color);
+                const amountPrefix = isIncome ? '+ ' : '- ';
+                const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
+                const isPaid = isTransactionPaid(t);
+
+                const rawDesc = t.description || 'Sem descrição';
+                const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(rawDesc) : rawDesc;
+                const isAnticipation = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+
+                let badge = '';
+                if (isAnticipation) {
+                    badge += `<span class="badge-mobile anticipation"><i class="fas fa-bolt"></i> Antecipação</span>`;
+                }
+                if (t.is_bill) {
+                    badge += `<span class="badge-mobile bill">Conta</span>`;
+                }
+                if (!isPaid) {
+                    badge += `<span class="badge-mobile pending">Pendente</span>`;
+                }
+
+                const cleanCatName = cleanCategoryLabel(catInfo.name);
+                const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
+                const safeId = sanitize(String(t.id));
+
+                html += `
+                    <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
+                        <div class="swipe-actions-tray">
+                            <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); openModal('${safeId}')" aria-label="Editar transação">
+                                <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteTransaction('${safeId}')" aria-label="Apagar transação">
+                                <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                <span>Apagar</span>
+                            </button>
+                        </div>
+                        <div class="transaction-card clean-list-card compact-tx-card" data-swipe-content onclick="openModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('${safeId}');}">
+                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catInfo.color};" title="${sanitize(cleanCatName)}">
+                                <i class="fas ${catInfo.icon}" aria-hidden="true"></i>
+                            </div>
+                            <div class="clean-card-body">
+                                <div class="clean-card-top">
+                                    <span class="clean-card-title">${sanitize(displayDesc)}</span>
+                                    <div class="clean-card-amount-wrap">
+                                        <span class="clean-card-amount ${isIncome ? 'income' : 'expense'}">
+                                            ${amountPrefix}${formatBRL(t.amount)}
+                                        </span>
+                                        <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${safeId}')" title="Excluir" aria-label="Excluir transação">
+                                            <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="clean-card-meta-line">
+                                    <span class="clean-tag category">${sanitize(cleanCatName)}</span>
+                                    ${badge}
+                                    ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
+                                    <span class="clean-card-meta-dates">
+                                        <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>${formatDateDisplay(effectiveDate)}</span>
+                                        ${(t.due_date && t.due_date !== effectiveDate) ? `<span><i class="far fa-clock" style="margin-right:3px;" aria-hidden="true"></i>Venc: ${formatDateDisplay(t.due_date)}</span>` : ''}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </section>
+            `;
+        });
+        html += '</div>';
+
+        container.innerHTML = html;
+        if (typeof window.TonuSetupSwipe === 'function') {
+            window.TonuSetupSwipe();
+        }
+    }
+
+    // Update summary metrics
+    function updateSummaryCards(transactions) {
+        let income = 0;
+        let expense = 0;
+
+        transactions.forEach(t => {
+            const amt = parseFloat(t.amount) || 0;
+            if (t.type === 'income') income += amt;
+            else if (t.type === 'expense') expense += amt;
+        });
+
+        const balance = income - expense;
+
+        const elIncome = document.getElementById('totalIncome') || document.getElementById('statIncome');
+        const elExpense = document.getElementById('totalExpense') || document.getElementById('statExpense');
+        const elBalance = document.getElementById('totalBalance') || document.getElementById('statBalance');
+        const elCount = document.getElementById('totalCount') || document.getElementById('statCount');
+
+        const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+        if (elIncome) {
+            if (anim) anim(elIncome, income, formatBRL);
+            else elIncome.textContent = formatBRL(income);
+        }
+        if (elExpense) {
+            if (anim) anim(elExpense, expense, formatBRL);
+            else elExpense.textContent = formatBRL(expense);
+        }
+        if (elBalance) {
+            if (anim) anim(elBalance, balance, formatBRL);
+            else elBalance.textContent = formatBRL(balance);
+            elBalance.style.color = balance >= 0 ? 'var(--color-success,#00b894)' : 'var(--color-danger,#ff7675)';
+        }
+        if (elCount) {
+            if (anim) anim(elCount, transactions.length, v => String(Math.round(v)));
+            else elCount.textContent = String(transactions.length);
+        }
+    }
+
+    // Filters
+    function setupFilterListeners() {
+        const searchInput = document.getElementById('searchInput') || document.getElementById('filterSearch');
+        const typeSelect = document.getElementById('filterType');
+        const recSelect = document.getElementById('filterRecurrence');
+        const catSelect = document.getElementById('filterCategory');
+        const statusSelect = document.getElementById('filterStatus');
+        const monthInput = document.getElementById('filterMonth');
+
+        const apply = () => filterTransactions();
+
+        const debouncedApply = (typeof window.TonuDebounce === 'function')
+            ? window.TonuDebounce(filterTransactions, 180)
+            : apply;
+        window._debouncedFilterTransactions = debouncedApply;
+
+        if (searchInput) searchInput.addEventListener('input', debouncedApply);
+        if (typeSelect) typeSelect.addEventListener('change', apply);
+        if (recSelect) recSelect.addEventListener('change', apply);
+        if (catSelect) catSelect.addEventListener('change', apply);
+        if (statusSelect) statusSelect.addEventListener('change', apply);
+        if (monthInput) monthInput.addEventListener('change', apply);
+
+        const typeFormSelect = document.getElementById('tType');
+        if (typeFormSelect) {
+            typeFormSelect.addEventListener('change', populateCategorySelects);
+        }
+
+        const descFormInput = document.getElementById('tDescription');
+        if (descFormInput) {
+            descFormInput.addEventListener('input', (e) => {
+                if (!currentEditId && !_userSelectedCategory) {
+                    _debouncedAutoClassify(e.target.value);
+                }
+            });
+        }
+
+        const catFormSelect = document.getElementById('tCategory');
+        if (catFormSelect) {
+            catFormSelect.addEventListener('change', (e) => {
+                if (e.isTrusted && !_settingCategoryProgrammatically) {
+                    _userSelectedCategory = Boolean(catFormSelect.value);
+                }
+            });
+        }
+    }
+
+    function _normalizeCategoryText(str) {
+        return String(str || '')
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
+    function _matchCategoryOption(selectEl, suggestedCategory) {
+        if (!selectEl || !suggestedCategory) return null;
+        const targetNorm = _normalizeCategoryText(suggestedCategory);
+        if (!targetNorm) return null;
+
+        const opts = Array.from(selectEl.options || []).filter(o => o.value);
+        for (const opt of opts) {
+            if (_normalizeCategoryText(opt.value) === targetNorm || _normalizeCategoryText(opt.textContent) === targetNorm) {
+                return opt;
+            }
+        }
+        for (const opt of opts) {
+            const vNorm = _normalizeCategoryText(opt.value);
+            const tNorm = _normalizeCategoryText(opt.textContent);
+            if ((vNorm && (vNorm.includes(targetNorm) || targetNorm.includes(vNorm))) ||
+                (tNorm && (tNorm.includes(targetNorm) || targetNorm.includes(tNorm)))) {
+                return opt;
+            }
+        }
+        for (const opt of opts) {
+            if (_normalizeCategoryText(opt.value) === 'outros' || _normalizeCategoryText(opt.textContent) === 'outros') {
+                return opt;
+            }
+        }
+        return null;
+    }
+
+    async function TonuAutoClassify(description, targetSelectId) {
+        try {
+            const desc = String(description || '').trim();
+            if (!desc || desc.length < 3) return null;
+            if (_userSelectedCategory) return null;
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
+
+            let token = null;
+            try {
+                if (window.supabaseClient?.auth) {
+                    const { data } = await window.supabaseClient.auth.getSession();
+                    token = data?.session?.access_token || null;
+                }
+            } catch (_) {}
+            if (!token) return null;
+
+            const isSubpath = (typeof window !== 'undefined' && window.location && String(window.location.pathname || '').startsWith('/tonucontrole'));
+            const endpoint = isSubpath ? '/tonucontrole/api/classify' : '/api/classify';
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ description: desc })
+            });
+            if (!res || !res.ok) return null;
+
+            const payload = await res.json();
+            const suggested = payload?.category || null;
+            if (!suggested || _userSelectedCategory) return null;
+
+            const selectEl = document.getElementById(targetSelectId || 'tCategory');
+            if (selectEl) {
+                const matched = _matchCategoryOption(selectEl, suggested);
+                if (matched) {
+                    _settingCategoryProgrammatically = true;
+                    selectEl.value = matched.value;
+                    _settingCategoryProgrammatically = false;
+                }
+            }
+            return suggested;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    const _debouncedAutoClassify = (typeof window.TonuDebounce === 'function')
+        ? window.TonuDebounce((val) => { TonuAutoClassify(val); }, 800)
+        : (val) => { TonuAutoClassify(val); };
+
+    function filterTransactions() {
+        const query = (document.getElementById('searchInput')?.value || document.getElementById('filterSearch')?.value || '').toLowerCase().trim();
+        const type = document.getElementById('filterType')?.value || '';
+        const recurrenceFilter = document.getElementById('filterRecurrence')?.value || 'all';
+        const cat = document.getElementById('filterCategory')?.value || '';
+        const status = document.getElementById('filterStatus')?.value || 'paid';
+        const dateStart = document.getElementById('filterDateStart')?.value || '';
+        const dateEnd = document.getElementById('filterDateEnd')?.value || '';
+        const minAmount = parseFloat(document.getElementById('filterMinAmount')?.value);
+        const maxAmount = parseFloat(document.getElementById('filterMaxAmount')?.value);
+        const tag = (document.getElementById('filterTag')?.value || '').toLowerCase().trim();
+
+        const selectedYearMonth = getSelectedYearMonth();
+
+        const filtered = allTransactions.filter(t => {
+            // Filtragem por mês do seletor (ou intervalo personalizado se preenchido nos filtros avançados)
+            if (dateStart || dateEnd) {
+                const tDateOnly = (t.date || '').substring(0, 10);
+                if (!tDateOnly) return false;
+                if (dateStart && tDateOnly < dateStart) return false;
+                if (dateEnd && tDateOnly > dateEnd) return false;
+            } else {
+                // Filtrar estritamente apenas pelo mês do seletor
+                const txYM = getTxYearMonth(t.date);
+                if (txYM !== selectedYearMonth) {
+                    return false;
+                }
+            }
+
+            if (query) {
+                const descMatch = (t.description || '').toLowerCase().includes(query);
+                const catMatch = (t.category || '').toLowerCase().includes(query);
+                const tagMatch = (t.tags || '').toLowerCase().includes(query);
+                if (!descMatch && !catMatch && !tagMatch) return false;
+            }
+
+            if (type && type !== 'all') {
+                if (type === 'anticipation') {
+                    const isAnt = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+                    if (!isAnt) return false;
+                } else if (t.type !== type) {
+                    return false;
+                }
+            }
+
+            // Recorrência / Parcelamento / Antecipações
+            if (recurrenceFilter !== 'all') {
+                if (recurrenceFilter === 'anticipation') {
+                    const isAnt = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+                    if (!isAnt) return false;
+                } else {
+                    const info = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : { type: 'single' };
+                    if (recurrenceFilter === 'installments' && !info.isInstallment) return false;
+                    if (recurrenceFilter === 'recurring' && !info.isRecurring) return false;
+                    if (recurrenceFilter === 'single' && (info.isInstallment || info.isRecurring)) return false;
+                }
+            }
+
+            if (cat && cat !== 'all' && cat !== '' && t.category !== cat) return false;
+
+            // Status: 'paid' (padrão - apenas pagas), 'pending' (apenas pendentes) ou 'all' (todas)
+            const isPaid = isTransactionPaid(t);
+            if (status === 'paid' && !isPaid) return false;
+            if (status === 'pending' && isPaid) return false;
+
+            const amt = parseFloat(t.amount) || 0;
+            if (!isNaN(minAmount) && amt < minAmount) return false;
+            if (!isNaN(maxAmount) && amt > maxAmount) return false;
+
+            if (tag) {
+                const cleanTag = tag.startsWith('#') ? tag : '#' + tag;
+                const txTags = (t.tags || '').toLowerCase();
+                if (!txTags.includes(tag) && !txTags.includes(cleanTag)) return false;
+            }
+
+            return true;
+        });
+
+        filtered.sort((a, b) => {
+            const dateA = a.date || '';
+            const dateB = b.date || '';
+            if (dateA !== dateB) return dateB.localeCompare(dateA);
+            return (b.created_at || '').localeCompare(a.created_at || '');
+        });
+
+        currentFilteredTransactions = filtered;
+        renderTransactions(filtered);
+        updateSummaryCards(filtered);
+
+        const filteredCountEl = document.getElementById('filteredCount');
+        if (filteredCountEl) filteredCountEl.textContent = String(filtered.length);
+
+        const totalCountDisplay = document.getElementById('totalCountDisplay');
+        if (totalCountDisplay) {
+            const monthTotal = allTransactions.filter(t => {
+                if (getTxYearMonth(t.date) !== selectedYearMonth) return false;
+                if (status === 'paid') return isTransactionPaid(t);
+                if (status === 'pending') return !isTransactionPaid(t);
+                return true;
+            }).length;
+            totalCountDisplay.textContent = String(monthTotal);
+        }
+    }
+
+    // Modal functions
+    function openModal(id = null) {
+        currentEditId = id;
+        _userSelectedCategory = Boolean(id);
+        const modal = document.getElementById('transactionModal');
+        const overlay = document.getElementById('modalOverlay');
+        const modalTitle = document.getElementById('modalTitle');
+        const form = document.getElementById('transactionForm');
+        const btnDelete = document.getElementById('btnDelete');
+
+        const recTypeInput = document.getElementById('tRecurrenceType');
+        const instTotalInput = document.getElementById('tInstallmentTotal');
+        const instCurrentInput = document.getElementById('tInstallmentCurrent');
+        const futureGroup = document.getElementById('tGenerateFutureGroup');
+
+        if (!modal) return;
+
+        if (form) form.reset();
+
+        const dateInput = document.getElementById('tDate');
+        if (dateInput && !id) {
+            const selDate = getSelectedMonthDate();
+            const now = new Date();
+            // Se estiver no mês atual real, preenche com a data local de hoje; se estiver em outro mês, preenche com o 1º dia do mês selecionado
+            if (selDate.getFullYear() === now.getFullYear() && selDate.getMonth() === now.getMonth()) {
+                dateInput.value = (typeof now.toLocaleDateString === 'function')
+                    ? now.toLocaleDateString('sv')
+                    : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            } else {
+                const y = selDate.getFullYear();
+                const m = String(selDate.getMonth() + 1).padStart(2, '0');
+                dateInput.value = `${y}-${m}-01`;
+            }
+        }
+
+        const paidCheckbox = document.getElementById('tPaid');
+        if (paidCheckbox && !id) paidCheckbox.checked = true;
+
+        if (id) {
+            const tx = allTransactions.find(t => String(t.id) === String(id));
+            if (tx) {
+                if (modalTitle) modalTitle.textContent = 'Editar Transação';
+                document.getElementById('editId').value = tx.id;
+                document.getElementById('tType').value = tx.type || 'expense';
+                populateCategorySelects();
+                document.getElementById('tDescription').value = tx.description || '';
+                document.getElementById('tAmount').value = tx.amount || '';
+                document.getElementById('tDate').value = tx.date || '';
+                document.getElementById('tCategory').value = tx.category || '';
+                if (paidCheckbox) paidCheckbox.checked = tx.paid !== false;
+                if (document.getElementById('tTags')) document.getElementById('tTags').value = tx.tags || '';
+                if (document.getElementById('tNotes')) document.getElementById('tNotes').value = tx.notes || '';
+
+                // Carregar Recorrência e Parcelas
+                const hasInstallments = (parseInt(tx.installments, 10) > 1);
+                let recVal = tx.recurrence_type;
+                if (!recVal) {
+                    if (hasInstallments) recVal = 'installments';
+                    else if (tx.is_recurring) recVal = 'monthly';
+                    else recVal = 'single';
+                }
+                if (recTypeInput) recTypeInput.value = recVal;
+                if (instTotalInput) instTotalInput.value = tx.installments || 2;
+                if (instCurrentInput) instCurrentInput.value = tx.current_installment || 1;
+                if (futureGroup) futureGroup.style.display = 'none';
+
+                if (btnDelete) btnDelete.classList.remove('hidden');
+            }
+        } else {
+            if (modalTitle) modalTitle.textContent = 'Nova Transação';
+            if (document.getElementById('editId')) document.getElementById('editId').value = '';
+            if (btnDelete) btnDelete.classList.add('hidden');
+            populateCategorySelects();
+
+            if (recTypeInput) recTypeInput.value = 'single';
+            if (instTotalInput) instTotalInput.value = '2';
+            if (instCurrentInput) instCurrentInput.value = '1';
+            if (futureGroup) futureGroup.style.display = 'flex';
+        }
+
+        if (recTypeInput) {
+            recTypeInput.dispatchEvent(new Event('change'));
+        }
+
+        if (overlay) overlay.classList.add('active');
+        modal.classList.remove('hidden');
+        modal.classList.add('show');
+        document.body.classList.add('no-scroll');
+
+        setTimeout(() => {
+            const descInput = document.getElementById('tDescription');
+            if (descInput) descInput.focus();
+        }, 60);
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('transactionModal');
+        const overlay = document.getElementById('modalOverlay');
+        if (overlay) overlay.classList.remove('active');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('show');
+        }
+        document.body.classList.remove('no-scroll');
+        currentEditId = null;
+    }
+
+    // Tecla ESC para fechar modal de transação
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const overlay = document.getElementById('modalOverlay');
+            if (overlay && overlay.classList.contains('active')) {
+                closeModal();
+            }
+        }
+    });
+
+    // Save transaction
+    async function saveTransaction(event) {
+        if (event) event.preventDefault();
+
+        const desc = document.getElementById('tDescription')?.value.trim();
+        const rawAmount = parseFloat(document.getElementById('tAmount')?.value);
+        const type = document.getElementById('tType')?.value || 'expense';
+        const dateRaw = document.getElementById('tDate')?.value;
+        const date = (dateRaw && /^\d{4}-\d{2}-\d{2}/.test(dateRaw)) ? dateRaw.substring(0, 10) : (dateRaw || (new Date().toLocaleDateString('sv')));
+        const category = document.getElementById('tCategory')?.value || 'Outros';
+        const paid = document.getElementById('tPaid')?.checked ?? true;
+        const tags = document.getElementById('tTags')?.value.trim() || null;
+        const notes = document.getElementById('tNotes')?.value.trim() || null;
+        const editId = document.getElementById('editId')?.value || currentEditId;
+
+        const recurrenceType = document.getElementById('tRecurrenceType')?.value || 'single';
+        let installmentsTotal = 1;
+        let installmentCurrent = 1;
+        let generateFuture = false;
+        let finalAmount = rawAmount;
+
+        if (recurrenceType === 'installments') {
+            installmentsTotal = Math.max(2, parseInt(document.getElementById('tInstallmentTotal')?.value, 10) || 2);
+            installmentCurrent = Math.max(1, Math.min(installmentsTotal, parseInt(document.getElementById('tInstallmentCurrent')?.value, 10) || 1));
+            const mode = document.querySelector('input[name="tAmountMode"]:checked')?.value || 'per_installment';
+            if (mode === 'total') {
+                finalAmount = parseFloat((rawAmount / installmentsTotal).toFixed(2));
+            }
+            generateFuture = !editId && (document.getElementById('tGenerateFuture')?.checked ?? false);
+        }
+
+        const isRecurring = (recurrenceType === 'monthly' || recurrenceType === 'semiannual');
+
+        if (!desc || isNaN(finalAmount) || finalAmount <= 0 || !date) {
+            if (window.showToast) window.showToast('Preencha os campos obrigatórios corretamente!', 'warning');
+            return;
+        }
+
+        let matchedCatId = null;
+        if (categories && categories.length > 0) {
+            const found = categories.find(c => c.name === category);
+            if (found) matchedCatId = found.id;
+        }
+
+        const baseTransactionData = {
+            user_id: currentUser.id,
+            description: desc,
+            amount: finalAmount,
+            type: type,
+            date: date,
+            category: category,
+            ...(matchedCatId ? { category_id: matchedCatId } : {}),
+            paid: paid,
+            tags: tags,
+            notes: notes,
+            recurrence_type: recurrenceType,
+            is_recurring: isRecurring,
+            installments: recurrenceType === 'installments' ? installmentsTotal : 1,
+            current_installment: recurrenceType === 'installments' ? installmentCurrent : 1,
+            installment_total: recurrenceType === 'installments' ? installmentsTotal : 1,
+            installment_number: recurrenceType === 'installments' ? installmentCurrent : 1,
+            updated_at: new Date().toISOString()
+        };
+
+        try {
+            if (editId) {
+                // Update local state
+                const idx = allTransactions.findIndex(t => String(t.id) === String(editId));
+                if (idx !== -1) {
+                    allTransactions[idx] = { ...allTransactions[idx], ...baseTransactionData, id: editId };
+                }
+
+                // Salva no IndexedDB canônico e enfileira para sincronização
+                if (window.tonuSync && currentUser?.id) {
+                    await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                    await window.tonuSync.enqueue('UPDATE_TRANSACTION', { id: editId, ...baseTransactionData });
+                }
+
+                if (window.showToast) window.showToast('Transação atualizada com sucesso! ✅', 'success');
+            } else {
+                const genUuid = () => {
+                    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                        try { return crypto.randomUUID(); } catch (e) {}
+                    }
+                    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                        return v.toString(16);
+                    });
+                };
+
+                if (generateFuture && installmentsTotal > installmentCurrent) {
+                    // Geração em lote das parcelas futuras
+                    const batch = [];
+                    const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
+                    const parentTxId = genUuid();
+
+                    for (let i = installmentCurrent; i <= installmentsTotal; i++) {
+                        const monthOffset = i - installmentCurrent;
+                        const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
+                        const itemPaid = (i === installmentCurrent) ? paid : false;
+                        const txId = (i === installmentCurrent) ? parentTxId : genUuid();
+
+                        batch.push({
+                            ...baseTransactionData,
+                            id: txId,
+                            description: `${cleanDesc} (${i}/${installmentsTotal})`,
+                            amount: finalAmount,
+                            date: dueDate,
+                            installments: installmentsTotal,
+                            current_installment: i,
+                            installment_total: installmentsTotal,
+                            installment_number: i,
+                            parent_transaction_id: (i === installmentCurrent) ? null : parentTxId,
+                            paid: itemPaid,
+                            created_at: new Date().toISOString()
+                        });
+                    }
+
+                    // Prepend to allTransactions
+                    batch.forEach(item => allTransactions.unshift(item));
+
+                    // Salva no IndexedDB canônico e enfileira
+                    if (window.tonuSync && currentUser?.id) {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                        for (const item of batch) {
+                            await window.tonuSync.enqueue('INSERT_TRANSACTION', item);
+                        }
+                    }
+
+                    if (window.showToast) window.showToast(`Lançamento parcelado criado com ${batch.length} parcelas registradas! 📦`, 'success');
+                } else if (recurrenceType === 'monthly') {
+                    // Geração em lote de 12 meses (mês original + 11 seguintes)
+                    const batch = [];
+                    const parentTxId = genUuid();
+
+                    for (let m = 0; m < 12; m++) {
+                        const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, m) : date;
+                        const itemPaid = (m === 0) ? paid : false;
+                        const txId = (m === 0) ? parentTxId : genUuid();
+
+                        batch.push({
+                            ...baseTransactionData,
+                            id: txId,
+                            description: desc,
+                            amount: finalAmount,
+                            date: dueDate,
+                            installments: 1,
+                            current_installment: 1,
+                            installment_total: 1,
+                            installment_number: 1,
+                            is_recurring: true,
+                            recurrence_type: 'monthly',
+                            parent_transaction_id: (m === 0) ? null : parentTxId,
+                            paid: itemPaid,
+                            created_at: new Date().toISOString()
+                        });
+                    }
+
+                    // Prepend to allTransactions
+                    batch.forEach(item => allTransactions.unshift(item));
+
+                    if (window.tonuSync && currentUser?.id) {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                        for (const item of batch) {
+                            await window.tonuSync.enqueue('INSERT_TRANSACTION', item);
+                        }
+                    }
+
+                    if (window.showToast) window.showToast('Transação recorrente gerada para os próximos 12 meses! 🔁', 'success');
+                } else {
+                    const newId = genUuid();
+                    const newTx = {
+                        ...baseTransactionData,
+                        id: newId,
+                        created_at: new Date().toISOString()
+                    };
+
+                    allTransactions.unshift(newTx);
+
+                    // Salva no IndexedDB canônico e enfileira
+                    if (window.tonuSync && currentUser?.id) {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                        await window.tonuSync.enqueue('INSERT_TRANSACTION', newTx);
+                    }
+
+                    if (window.showToast) window.showToast('Transação criada com sucesso! 🎉', 'success');
+                }
+            }
+
+            closeModal();
+            filterTransactions();
+
+            // Check category budget limits and show notifications if approaching or exceeding
+            if (type === 'expense' && window.TonuBudget && currentUser) {
+                try {
+                    window.TonuBudget.checkLimitAfterTransaction(currentUser.id, baseTransactionData, allTransactions, categories);
+                } catch (bErr) {
+                    console.warn('⚠️ Erro ao verificar limite pós-transação:', bErr);
+                }
+            }
+
+            if (typeof window.checkNotifications === 'function') {
+                window.checkNotifications();
+            }
+
+            if (typeof window.sendRealtimePush === 'function') {
+                const isExpense = type === 'expense';
+                const formattedAmt = typeof formatCurrency === 'function' ? formatCurrency(Math.abs(finalAmount)) : `R$ ${Math.abs(finalAmount)}`;
+                window.sendRealtimePush({
+                    title: isExpense ? '💸 Despesa Registrada' : '💰 Receita Registrada',
+                    body: `${desc} no valor de ${formattedAmt}`,
+                    url: 'pages/transactions.html',
+                    tag: `tx-realtime-${Date.now()}`
+                });
+            }
+
+        } catch (err) {
+            console.error('❌ Erro ao salvar transação:', err);
+            if (window.showToast) window.showToast('Erro ao salvar transação: ' + err.message, 'error');
+        }
+    }
+
+    // Delete transaction com paridade inteligente de parcelas e recorrência
+    async function deleteTransaction(optionalId = null) {
+        const id = optionalId || document.getElementById('editId')?.value || currentEditId;
+        if (!id) return;
+
+        const target = allTransactions.find(t => String(t.id) === String(id));
+        let seriesInfo = { fromNow: [], all: [] };
+        if (target) {
+            if (typeof window.getFullSeriesInfo === 'function') {
+                seriesInfo = await window.getFullSeriesInfo(target, allTransactions, { userId: currentUser?.id });
+            } else if (typeof window.findSeriesInfo === 'function') {
+                seriesInfo = window.findSeriesInfo(target, allTransactions);
+            } else if (typeof window.findRemainingSeries === 'function') {
+                const rem = window.findRemainingSeries(target, allTransactions);
+                seriesInfo = { fromNow: rem, all: rem };
+            }
+        }
+
+        let deleteMode = 'single';
+        const isAnticipation = !!(target && (target.is_anticipation || (target.description && String(target.description).toLowerCase().startsWith('antecipação:'))));
+        let shouldRevertBills = false;
+
+        if (isAnticipation) {
+            const match = String(target.description || '').match(/\(([\d,\s]+)\)$/);
+            const numsStr = match ? match[1] : '';
+            const confirmedAnticipation = await window.TonuConfirm({
+                title: 'Excluir antecipação?',
+                message: 'Deseja realmente excluir esta transação de antecipação?',
+                confirmText: 'Excluir',
+                danger: true
+            });
+            if (!confirmedAnticipation) return;
+            shouldRevertBills = await window.TonuConfirm({
+                title: `Reverter parcelas${numsStr ? ` (${numsStr})` : ''}?`,
+                message:
+                    `Esta transação refere-se a uma antecipação de parcelas${numsStr ? ` (${numsStr})` : ''}.\n\n` +
+                    `Deseja também REVERTER essas parcelas para o estado NÃO PAGO em Contas a Pagar?\n\n` +
+                    `• Reverter: Exclui a transação e reverte as parcelas para pendentes.\n` +
+                    `• Manter: Exclui apenas a transação do extrato mantendo as parcelas quitadas.`,
+                confirmText: 'Reverter parcelas',
+                cancelText: 'Manter quitadas',
+                danger: false
+            });
+        } else if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
+            deleteMode = await window.confirmRecurringDelete({
+                countFromNow: seriesInfo.fromNow.length,
+                countAll: seriesInfo.all.length,
+                itemName: target.description || 'Transação',
+                itemType: 'transação'
+            });
+            if (deleteMode === 'cancel') return;
+        } else {
+            const confirmedDelete = await window.TonuConfirm({
+                title: 'Excluir transação?',
+                message: 'Deseja realmente excluir esta transação?',
+                confirmText: 'Excluir',
+                danger: true
+            });
+            if (!confirmedDelete) return;
+        }
+
+        try {
+            if (shouldRevertBills && typeof window.revertAnticipatedBills === 'function') {
+                try {
+                    const revRes = await window.revertAnticipatedBills(target, { userId: currentUser?.id });
+                    if (revRes && revRes.revertedCount > 0 && window.showToast) {
+                        window.showToast(`${revRes.revertedCount} parcelas foram revertidas para pendentes em Contas! 🔄`, 'info');
+                    }
+                } catch (revErr) {
+                    console.warn('Erro ao reverter parcelas antecipadas:', revErr);
+                }
+            }
+
+            let idsToDelete = [String(id)];
+            if (deleteMode === 'from_now') {
+                idsToDelete = [String(id), ...seriesInfo.fromNow.map(r => String(r.id))];
+            } else if (deleteMode === 'all_series' || deleteMode === 'all') {
+                idsToDelete = [String(id), ...seriesInfo.all.map(r => String(r.id))];
+            }
+
+            const idSet = new Set(idsToDelete);
+            allTransactions = allTransactions.filter(t => !idSet.has(String(t.id)));
+
+            if (window.tonuSync && currentUser?.id) {
+                try {
+                    const cached = await window.tonuSync.getCachedTransactions(currentUser.id);
+                    if (Array.isArray(cached)) {
+                        const filteredCached = cached.filter(t => !idSet.has(String(t.id)));
+                        await window.tonuSync.setCachedTransactions(currentUser.id, filteredCached);
+                    } else {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                    }
+                } catch (_) {}
+
+                for (const delId of idsToDelete) {
+                    await window.tonuSync.enqueue('DELETE_TRANSACTION', { id: delId });
+                }
+            }
+
+            if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+                try {
+                    await window.supabaseClient.from('transactions').delete().in('id', idsToDelete).eq('user_id', currentUser.id);
+                } catch (supaErr) {
+                    console.warn('Erro ao remover transações do Supabase:', supaErr);
+                }
+            }
+
+            const msg = idsToDelete.length > 1
+                ? `${idsToDelete.length} transações excluídas com sucesso! 🗑️`
+                : 'Transação excluída com sucesso! 🗑️';
+            if (window.showToast) window.showToast(msg, 'info');
+            closeModal();
+            filterTransactions();
+
+        } catch (err) {
+            console.error('❌ Erro ao excluir transação:', err);
+            if (window.showToast) window.showToast('Falha ao excluir: ' + err.message, 'error');
+        }
+    }
+
+    // Export functions
+    function exportTransactionsCSV() {
+        const txsToExport = (currentFilteredTransactions && currentFilteredTransactions.length > 0)
+            ? currentFilteredTransactions
+            : allTransactions;
+
+        if (txsToExport.length === 0) {
+            if (window.showToast) window.showToast('Nenhuma transação para exportar', 'warning');
+            return;
+        }
+
+        const headers = ['ID', 'Data', 'Tipo', 'Descricao', 'Valor', 'Categoria', 'Status', 'Parcela', 'Tags', 'Notas'];
+        let csv = '\uFEFF' + headers.join(';') + '\r\n';
+        txsToExport.forEach(t => {
+            const instText = (t.installments > 1 || t.installment_total > 1)
+                ? `${t.current_installment || t.installment_number || 1}/${t.installments || t.installment_total || 1}`
+                : '';
+            const row = [
+                `"${t.id || ''}"`,
+                `"${t.date || ''}"`,
+                `"${t.type === 'income' ? 'Receita' : 'Despesa'}"`,
+                `"${(t.description || '').replace(/"/g, '""')}"`,
+                `"${Number(t.amount || 0).toFixed(2).replace('.', ',')}"`,
+                `"${(t.category || '').replace(/"/g, '""')}"`,
+                `"${t.paid ? 'Pago' : 'Pendente'}"`,
+                `"${instText}"`,
+                `"${(t.tags || '').replace(/"/g, '""')}"`,
+                `"${(t.notes || '').replace(/"/g, '""')}"`
+            ];
+            csv += row.join(';') + '\r\n';
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const now = new Date();
+        const todayStr = (typeof now.toLocaleDateString === 'function') ? now.toLocaleDateString('sv') : now.toISOString().split('T')[0];
+        a.download = `transacoes_tonucontrole_${todayStr}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Global exports
+    window.changeMonth = changeMonth;
+    window.goToCurrentMonth = goToCurrentMonth;
+    window.changeMonthHandler = changeMonth;
+    window.goToCurrentMonthHandler = goToCurrentMonth;
+    window.toggleAdvancedFilters = toggleAdvancedFilters;
+    window.clearAdvancedFilters = clearAdvancedFilters;
+    window.openModal = openModal;
+    window.openNewTransactionModal = openModal;
+    window.closeModal = closeModal;
+    window.saveTransaction = saveTransaction;
+    window.deleteTransaction = deleteTransaction;
+    window.filterTransactions = filterTransactions;
+    window._debouncedFilterTransactions = (typeof window.TonuDebounce === 'function')
+        ? window.TonuDebounce(filterTransactions, 180)
+        : filterTransactions;
+    window.exportTransactionsCSV = exportTransactionsCSV;
+    window.loadTransactions = loadTransactions;
+    window.TonuAutoClassify = TonuAutoClassify;
+
+    // Atalhos Rápidos (App Shortcuts PWA)
+    if (typeof window !== 'undefined') {
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const action = params.get('action');
+                if (action === 'new_expense' || action === 'new') {
+                    setTimeout(() => {
+                        if (typeof openModal === 'function') openModal('expense');
+                    }, 400);
+                } else if (action === 'new_income') {
+                    setTimeout(() => {
+                        if (typeof openModal === 'function') openModal('income');
+                    }, 400);
+                }
+            } catch (_) {}
+        });
+    }
+
+})();

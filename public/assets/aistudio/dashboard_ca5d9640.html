@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#4338CA">
+    <title>Dashboard | TonuControle</title>
+
+    <link rel="manifest" href="../manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png">
+    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png">
+
+    <!-- Fontes e Ícones -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.12">
+    <link rel="stylesheet" href="../css/sidebar-patch.css?v=3.2.12">
+    <link rel="stylesheet" href="../css/dashboard.css?v=3.2.12">
+    <link rel="stylesheet" href="../css/notifications.css?v=3.2.12">
+    <link rel="stylesheet" href="../css/sync.css?v=3.2.12">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.12">
+    <link rel="stylesheet" href="../css/post-login-transition.css?v=3.2.12">
+
+    <!-- Device Router & Anti-flicker Theme / Post-Login Gate -->
+    <script src="../js/device-router.js?v=3.2.12"></script>
+    <script>
+        (function () {
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+            try {
+                var raw = sessionStorage.getItem('tonu_just_logged_in');
+                var hasRecentLogin = false;
+                if (raw) {
+                    var parsed = JSON.parse(raw);
+                    if (parsed && (!parsed.ts || (Date.now() - Number(parsed.ts)) < 120000)) {
+                        hasRecentLogin = true;
+                    }
+                }
+                var search = window.location.search || '';
+                var hash = window.location.hash || '';
+                var hasOAuth = search.indexOf('code=') !== -1 || search.indexOf('post_login=1') !== -1 || hash.indexOf('access_token=') !== -1;
+                if (hasRecentLogin || hasOAuth) {
+                    document.documentElement.classList.add('tonu-entering-dashboard');
+                }
+            } catch (_) {}
+        })();
+    </script>
+</head>
+
+<body class="dashboard-page">
+    <script src="../js/post-login-transition.js?v=3.2.12"></script>
+
+    <div class="app-shell">
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button" aria-label="Fechar menu"></div>
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
+            <div class="sidebar-brand">
+                <div class="brand-icon"><img src="../icons/logo.png?v=3.2.12" alt="TonuControle"></div>
+                <h2>TonuControle</h2>
+            </div>
+            <ul class="sidebar-nav" role="menubar">
+                <li role="none"><a href="dashboard.html" class="active" role="menuitem" aria-current="page"><i class="fas fa-chart-pie" aria-hidden="true"></i> Dashboard</a></li>
+                <li role="none"><a href="transactions.html" role="menuitem"><i class="fas fa-exchange-alt" aria-hidden="true"></i> Transações</a></li>
+                <li role="none"><a href="bills.html" role="menuitem"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Contas</a></li>
+                <li role="none"><a href="goals.html" role="menuitem"><i class="fas fa-bullseye" aria-hidden="true"></i> Metas</a></li>
+                <li role="none"><a href="investments.html" role="menuitem"><i class="fas fa-chart-line" aria-hidden="true"></i> Investimentos</a></li>
+                <li role="none"><a href="settings.html" role="menuitem"><i class="fas fa-cog" aria-hidden="true"></i> Configurações</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="settings.html" class="sidebar-user-profile" id="sidebarUserProfile"
+                    title="Abrir Configurações e Perfil">
+                    <div class="avatar-circle" id="sidebarUserAvatar">U</div>
+                    <div class="sidebar-user-info">
+                        <span class="sidebar-user-name" id="sidebarUserName">Usuário</span>
+                        <span class="sidebar-user-email" id="sidebarUserEmail">Configurações</span>
+                        <div class="sidebar-user-status" id="sidebarUserStatus">
+                            <span class="status-dot"></span>
+                            <span>Ativo</span>
+                        </div>
+                    </div>
+                    <i class="fas fa-cog sidebar-user-icon" aria-hidden="true"></i>
+                </a>
+                <button class="btn-sair" onclick="logout()" aria-label="Sair da conta">
+                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content full" id="mainContent">
+            <!-- TOPBAR -->
+            <header class="topbar">
+                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Alternar menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="topbar-title">
+                    <div class="sub">Visão geral</div>
+                    <div class="topbar-heading-row">
+                        <h1>Dashboard</h1>
+                        <span id="desktopGreetingText" class="topbar-greeting">Olá 👋</span>
+                    </div>
+                </div>
+                <div class="topbar-actions">
+                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button class="balance-toggle-btn" id="toggleBalanceBtn" onclick="toggleBalanceVisibility()" title="Ocultar ou mostrar saldos" aria-label="Alternar visibilidade do saldo">
+                        <i class="fas fa-eye" id="toggleBalanceIcon"></i>
+                    </button>
+                    <button id="notifBellBtn" class="notif-bell-btn" onclick="window.toggleNotificationDropdown(event)"
+                        title="Lembretes e Notificações">
+                        <i class="fas fa-bell"></i>
+                        <span class="notif-badge hidden" id="notifBadgeCount">0</span>
+                    </button>
+
+                    <!-- MENU DROPDOWN DE FERRAMENTAS & RELATÓRIOS -->
+                    <div class="tools-menu-wrapper">
+                        <button class="btn btn-outline" id="toolsDropdownBtn" onclick="toggleToolsMenu(event)" title="Relatórios e Ferramentas">
+                            <i class="fas fa-sliders-h"></i> <span class="hide-mobile">Ferramentas</span> <i class="fas fa-chevron-down" style="font-size: 10px; margin-left: 4px;"></i>
+                        </button>
+                        <div class="tools-menu-dropdown" id="toolsMenuDropdown">
+                            <button type="button" class="tools-menu-item" onclick="openCashFlowModal(); closeToolsMenu();">
+                                <i class="fas fa-chart-line" style="color: #4338CA;"></i> Projeção de Caixa
+                            </button>
+                            <button type="button" class="tools-menu-item" onclick="TonuWeeklyReport.showWeeklySummaryModal(); closeToolsMenu();">
+                                <i class="fas fa-envelope-open-text" style="color: #10B981;"></i> Resumo Semanal
+                            </button>
+                            <button type="button" class="tools-menu-item" onclick="exportarPDF(); closeToolsMenu();">
+                                <i class="fas fa-file-pdf" style="color: #EF4444;"></i> Exportar Relatório PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="window.location.href='transactions.html'">
+                        <i class="fas fa-plus"></i> Nova
+                    </button>
+                </div>
+            </header>
+
+            <!-- CONTENT CENTRALIZADO (CLEAN VERTICAL STACK) -->
+            <div class="content dashboard-content">
+                <!-- BANNER DE CONTAS ATRASADAS -->
+                <div id="dueBillsWarningBanner" class="due-bills-banner" style="display:none;">
+                    <div class="due-banner-left">
+                        <div class="due-banner-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="due-banner-info">
+                            <h4 id="dueBannerTitle">⚠️ Atenção: Você tem contas em atraso!</h4>
+                            <p id="dueBannerDesc">Acesse a lista e efetue o pagamento para regularizar suas contas.</p>
+                        </div>
+                    </div>
+                    <div class="due-banner-actions">
+                        <button class="btn btn-danger btn-sm" onclick="window.location.href='bills.html'">
+                            <i class="fas fa-file-invoice-dollar"></i> Ver Contas
+                        </button>
+                        <button class="btn btn-ghost btn-sm"
+                            onclick="document.getElementById('dueBillsWarningBanner').style.display='none'">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SELECTOR DE MÊS -->
+                <div class="month-selector">
+                    <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="month-label" id="selectedMonth">Carregando...</span>
+                    <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="btn-today" onclick="goToCurrentMonth()">Hoje</button>
+                </div>
+
+                <!-- 1. CARD DE SALDO (HERO AZUL-ÍNDIGO CENTRALIZADO) -->
+                <section class="hero-balance-section" aria-label="Saldo operacional">
+                    <div class="hero-balance-card card-stat-balance" id="cardStatBalance" onclick="window.location.href='transactions.html'" role="button" tabindex="0" title="Saldo das receitas recebidas menos despesas pagas no mês">
+                        <div class="hero-balance-top">
+                            <div class="hero-balance-title-group">
+                                <span class="hero-balance-icon"><i class="fas fa-wallet" aria-hidden="true"></i></span>
+                                <span class="hero-balance-label">Saldo Operacional</span>
+                            </div>
+                            <div class="hero-balance-controls">
+                                <button type="button" class="eye-toggle-btn hero-eye-btn" onclick="event.stopPropagation(); toggleBalanceVisibility();" title="Ocultar ou mostrar saldos" aria-label="Alternar visibilidade do saldo">
+                                    <i class="fas fa-eye" id="cardBalanceIcon"></i>
+                                </button>
+                                <span class="hero-balance-link">Extrato <i class="fas fa-arrow-right" aria-hidden="true"></i></span>
+                            </div>
+                        </div>
+                        <div class="hero-balance-main">
+                            <div class="hero-balance-value stat-value" id="totalBalance">R$ 0,00</div>
+                            <div class="hero-balance-sub stat-sub" id="balanceStatus">Calculando...</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. CARDS DE RESUMO -->
+                <section class="dashboard-grid dashboard-summary-cards" id="summaryGrid" aria-label="Resumo financeiro do mês">
+                    <!-- Total de Receitas -->
+                    <div class="card-stat success" id="cardStatIncome" onclick="window.location.href='transactions.html?type=income'" title="Clique para ver receitas">
+                        <div class="stat-icon success"><i class="fas fa-arrow-up" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Total de Receitas</div>
+                            <div class="stat-value" id="totalIncome">R$ 0,00</div>
+                            <div class="stat-sub" id="incomeTrend">+0% vs anterior</div>
+                        </div>
+                    </div>
+
+                    <!-- Total de Despesas -->
+                    <div class="card-stat danger" id="cardStatExpense" onclick="window.location.href='transactions.html?type=expense'" title="Clique para ver despesas">
+                        <div class="stat-icon danger"><i class="fas fa-arrow-down" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Total de Despesas</div>
+                            <div class="stat-value" id="totalExpense">R$ 0,00</div>
+                            <div class="stat-sub" id="expenseTrend">
+                                <span>+0% vs anterior</span>
+                                <span id="expensePendingSub" class="expense-pending-sub"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contas a Pagar -->
+                    <div class="card-stat warning" id="cardStatBills" onclick="window.location.href='bills.html'" title="Ver Contas a Pagar">
+                        <div class="stat-icon warning"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Contas a Pagar</div>
+                            <div class="stat-value" id="billsAmount">R$ 0,00</div>
+                            <div class="stat-sub" id="billsCount">0 pendentes</div>
+                        </div>
+                    </div>
+
+                    <!-- Patrimônio Investido -->
+                    <div class="card-stat primary" id="cardStatInvested" onclick="window.location.href='investments.html'" title="Ver Investimentos">
+                        <div class="stat-icon primary"><i class="fas fa-chart-line" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Investido</div>
+                            <div class="stat-value" id="totalInvested">R$ 0,00</div>
+                            <div class="stat-sub" id="investedCount">0 ativos</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Alertas -->
+                <div id="alertContainer"></div>
+
+                <!-- 3. GRÁFICOS EMPILHADOS VERTICALMENTE (100% LARGURA) -->
+                <section class="charts-grid" aria-label="Gráficos financeiros">
+                    <div class="card monthly-chart-card">
+                        <div class="card-header chart-card-header">
+                            <div class="chart-title-group">
+                                <h3>Evolução Mensal</h3>
+                                <span class="chart-meta-caption" id="monthlyPeriodBadge">Últimos 6 meses</span>
+                            </div>
+                            <div class="chart-controls-wrap">
+                                <div class="chart-btn-group">
+                                    <button type="button" class="btn-chart-toggle active" id="btnPeriod6" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(6)">6M</button>
+                                    <button type="button" class="btn-chart-toggle" id="btnPeriod12" onclick="window.setMonthlyPeriod && window.setMonthlyPeriod(12)">12M</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RESUMO RÁPIDO DO PERÍODO -->
+                        <div id="monthlyChartSummary" class="monthly-chart-summary">
+                            <div class="monthly-summary-item">
+                                <span class="monthly-summary-swatch income"></span>
+                                <span class="monthly-summary-label">Receitas:</span>
+                                <strong id="totalPeriodIncomeVal" class="monthly-summary-val income">R$ 0,00</strong>
+                                <span class="monthly-summary-avg">(méd. <span id="avgIncomeVal">R$ 0,00</span>)</span>
+                            </div>
+                            <div class="monthly-summary-item">
+                                <span class="monthly-summary-swatch expense"></span>
+                                <span class="monthly-summary-label">Despesas:</span>
+                                <strong id="totalPeriodExpenseVal" class="monthly-summary-val expense">R$ 0,00</strong>
+                                <span class="monthly-summary-avg">(méd. <span id="avgExpenseVal">R$ 0,00</span>)</span>
+                            </div>
+                        </div>
+
+                        <div class="chart-wrap monthly-chart-wrap">
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card category-chart-card">
+                        <div class="card-header chart-card-header">
+                            <div class="chart-title-group">
+                                <h3>Distribuição de Gastos</h3>
+                                <span class="chart-meta-caption">Mês atual</span>
+                            </div>
+                        </div>
+                        <div class="category-chart-container">
+                            <div class="chart-wrap category-chart-wrap">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                            <div class="category-legend-list" id="expenseLegendCard"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. AÇÕES, INSIGHTS IA & SAÚDE FINANCEIRA LADO A LADO -->
+                <section class="dashboard-diagnostics-row" aria-label="Ações, insights e saúde financeira">
+                    <!-- O QUE FAZER HOJE? -->
+                    <div class="card quick-actions-panel" id="dashboardQuickActionsCard">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <h3>O que fazer hoje?</h3>
+                                <span class="badge-inline-status" id="quickActionsBadge">Ações Rápidas</span>
+                            </div>
+                        </div>
+                        <div class="card-body" id="dashboardQuickActionsBody">
+                            <div class="skeleton-shimmer" style="width: 100%; height: 42px; border-radius: 10px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- INSIGHTS IA (GEMINI) -->
+                    <div class="card insights-card ai-insights-card" id="aiInsightsCard">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <h3>Insights IA</h3>
+                                <span class="badge-inline-status" id="aiInsightsSourceBadge">90 dias</span>
+                            </div>
+                            <button type="button" class="btn-ghost-sm" id="aiInsightsRefreshBtn" onclick="window.loadAIInsights && window.loadAIInsights(true)" title="Atualizar Insights IA" aria-label="Atualizar Insights IA">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div class="card-body" id="aiInsightsBody">
+                            <div style="display: flex; flex-direction: column; gap: 8px; padding: 6px 0;">
+                                <div class="skeleton-shimmer" style="width: 90%; height: 14px;"></div>
+                                <div class="skeleton-shimmer" style="width: 80%; height: 13px;"></div>
+                                <div class="skeleton-shimmer" style="width: 70%; height: 13px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SAÚDE FINANCEIRA (DIAGNÓSTICO 360º) -->
+                    <div class="card insights-card" id="dashboardInsightsCard">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <h3>Saúde Financeira</h3>
+                                <span class="badge-inline-status" id="insightsMonthBadge">Diagnóstico 360º</span>
+                            </div>
+                            <button type="button" class="btn-ghost-sm" onclick="window.generateDashboardInsights && window.generateDashboardInsights()" title="Atualizar Diagnóstico" aria-label="Atualizar Diagnóstico">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div class="card-body" id="dashboardInsightsBody">
+                            <div style="display: flex; flex-direction: column; gap: 8px; padding: 6px 0;">
+                                <div class="skeleton-shimmer" style="width: 85%; height: 14px;"></div>
+                                <div class="skeleton-shimmer" style="width: 95%; height: 13px;"></div>
+                                <div class="skeleton-shimmer" style="width: 60%; height: 13px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. ÚLTIMAS 10 TRANSAÇÕES EM LARGURA TOTAL NO RODAPÉ -->
+                <section class="dashboard-transactions-section" aria-label="Últimas transações">
+                    <div class="card transactions-card">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <h3>Últimas Transações</h3>
+                                <span class="tx-count-caption" id="txCountBadge">0</span>
+                            </div>
+                            <a href="transactions.html" class="view-all-link">
+                                Ver todas <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                        <div class="card-body transactions-card-list" id="transactionsList">
+                            <div class="tx-skeleton-list">
+                                <div class="tx-skeleton-card">
+                                    <div class="tx-skeleton-left">
+                                        <div class="skeleton-shimmer" style="width: 38px; height: 38px; border-radius: 11px;"></div>
+                                        <div class="tx-skeleton-lines">
+                                            <div class="skeleton-shimmer" style="width: 48%; height: 14px;"></div>
+                                            <div class="skeleton-shimmer" style="width: 32%; height: 11px;"></div>
+                                        </div>
+                                    </div>
+                                    <div class="skeleton-shimmer" style="width: 78px; height: 15px;"></div>
+                                </div>
+                                <div class="tx-skeleton-card">
+                                    <div class="tx-skeleton-left">
+                                        <div class="skeleton-shimmer" style="width: 38px; height: 38px; border-radius: 11px;"></div>
+                                        <div class="tx-skeleton-lines">
+                                            <div class="skeleton-shimmer" style="width: 42%; height: 14px;"></div>
+                                            <div class="skeleton-shimmer" style="width: 28%; height: 11px;"></div>
+                                        </div>
+                                    </div>
+                                    <div class="skeleton-shimmer" style="width: 68px; height: 15px;"></div>
+                                </div>
+                                <div class="tx-skeleton-card">
+                                    <div class="tx-skeleton-left">
+                                        <div class="skeleton-shimmer" style="width: 38px; height: 38px; border-radius: 11px;"></div>
+                                        <div class="tx-skeleton-lines">
+                                            <div class="skeleton-shimmer" style="width: 56%; height: 14px;"></div>
+                                            <div class="skeleton-shimmer" style="width: 36%; height: 11px;"></div>
+                                        </div>
+                                    </div>
+                                    <div class="skeleton-shimmer" style="width: 82px; height: 15px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="../js/supabase.js?v=3.2.12"></script>
+    <script src="../js/core.js?v=3.2.12"></script>
+    <script src="../js/security.js?v=3.2.12"></script>
+    <script src="../js/financial-tools.js?v=3.2.12"></script>
+    <script src="../js/sync.js?v=3.2.12"></script>
+    <script src="../js/notifications.js?v=3.2.12"></script>
+    <script src="../js/dashboard.js?v=3.2.12"></script>
+    <script src="../js/sw-register.js?v=3.2.12"></script>
+
+    <script>
+        // ==========================================
+        // DOM READY - INICIALIZAR TEMA
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('tonu_theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.querySelector('.theme-toggle-btn i')?.classList.replace('fa-moon', 'fa-sun');
+            }
+
+            // Fechar sidebar com ESC
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeSidebar();
+            });
+
+            console.log('✅ Dashboard.html carregado!');
+        });
+
+        // ==========================================
+        // RESPONSIVO - SIDEBAR
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function () {
+            const main = document.getElementById('mainContent');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            if (window.innerWidth <= 768) {
+                if (main) main.classList.add('full');
+                if (sidebar) sidebar.classList.add('hidden');
+                if (overlay) overlay.classList.remove('show');
+            } else {
+                if (main) main.classList.remove('full');
+                if (sidebar) sidebar.classList.remove('hidden');
+            }
+        });
+
+        window.addEventListener('resize', function () {
+            const main = document.getElementById('mainContent');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            if (window.innerWidth <= 768) {
+                if (main) main.classList.add('full');
+                if (sidebar) sidebar.classList.add('hidden');
+                if (overlay) overlay.classList.remove('show');
+            } else {
+                if (main) main.classList.remove('full');
+                if (sidebar) sidebar.classList.remove('hidden');
+            }
+        });
+
+        // ==========================================
+        // MENU DE FERRAMENTAS TOPBAR
+        // ==========================================
+        function toggleToolsMenu(e) {
+            if (e) e.stopPropagation();
+            const menu = document.getElementById('toolsMenuDropdown');
+            if (menu) {
+                menu.classList.toggle('show');
+            }
+        }
+
+        function closeToolsMenu() {
+            const menu = document.getElementById('toolsMenuDropdown');
+            if (menu) {
+                menu.classList.remove('show');
+            }
+        }
+
+        // ==========================================
+        // FECHAR SIDEBAR E MENUS AO CLICAR FORA
+        // ==========================================
+        document.addEventListener('click', function (e) {
+            if (e.target.classList.contains('sidebar-overlay')) {
+                closeSidebar();
+            }
+            if (!e.target.closest('.tools-menu-wrapper')) {
+                closeToolsMenu();
+            }
+        });
+    </script>
+</body>
+
+</html>

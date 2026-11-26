@@ -8,6 +8,7 @@
     let notifications = [];
     let isDropdownOpen = false;
     let activeFilter = 'all'; // 'all' | 'unread'
+    let isNotificationLogAvailable = true;
 
     // Armazenamento de notificações dispensadas pelo usuário
     const DISMISSED_STORAGE_KEY = 'tonu_dismissed_notifications';
@@ -191,6 +192,7 @@
             dropdown = document.createElement('div');
             dropdown.id = 'notifDropdownMenu';
             dropdown.className = 'notif-dropdown';
+            dropdown.style.display = 'none';
             dropdown.style.zIndex = '999999';
             dropdown.innerHTML = `
                 <div class="notif-header">
@@ -255,6 +257,8 @@
             dropdown.style.left = 'auto';
         }
 
+        clearAppBadgeNative();
+        checkNotificationsThrottled();
         updateNotificationBadge();
         renderNotificationList();
 
@@ -333,23 +337,88 @@
         renderNotificationList();
     }
 
+    // ============================================
+    // PWA APP BADGING API (Window & Service Worker Sync)
+    // ============================================
+    function clearAppBadgeNative() {
+        if ('clearAppBadge' in navigator) {
+            navigator.clearAppBadge().catch((e) => console.warn('[Badge] Falha ao limpar app badge:', e));
+        }
+        if (navigator.serviceWorker) {
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_APP_BADGE' });
+            } else if (navigator.serviceWorker.ready) {
+                navigator.serviceWorker.ready.then(reg => {
+                    if (reg && reg.active) reg.active.postMessage({ type: 'CLEAR_APP_BADGE' });
+                }).catch(() => {});
+            }
+        }
+    }
+
+    function setAppBadgeNative(count) {
+        const num = Math.min(Math.max(0, Number(count) || 0), 99);
+        if (num <= 0) {
+            clearAppBadgeNative();
+            return;
+        }
+        if ('setAppBadge' in navigator) {
+            navigator.setAppBadge(num).catch((e) => console.warn('[Badge] Falha ao definir app badge:', e));
+        }
+        if (navigator.serviceWorker) {
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'SET_APP_BADGE', count: num });
+            } else if (navigator.serviceWorker.ready) {
+                navigator.serviceWorker.ready.then(reg => {
+                    if (reg && reg.active) reg.active.postMessage({ type: 'SET_APP_BADGE', count: num });
+                }).catch(() => {});
+            }
+        }
+    }
+
+    // Helper: verifica se notificação é elegível para o badge numérico (foco em HOJE e urgentes)
+    function isNotificationValidForBadge(n, readIds) {
+        if (!n) return false;
+        if (readIds[n.id] || n.isRead) return false;
+
+        // Apenas notificações para o dia de HOJE ou pendências urgentes contam no badge
+        if (n.isToday || n.type === 'danger' || n.type === 'warning' || n.type === 'success') {
+            return true;
+        }
+
+        if (n.createdAt) {
+            const createdTime = new Date(n.createdAt).getTime();
+            if (!isNaN(createdTime)) {
+                const ageMs = Date.now() - createdTime;
+                return ageMs <= 24 * 60 * 60 * 1000;
+            }
+        }
+        return false;
+    }
+
     // Update Topbar Badge & Dropdown Counters
     function updateNotificationBadge() {
         const readIds = getReadIds();
         const totalCount = Array.isArray(notifications) ? notifications.length : 0;
-        const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !readIds[n.id] && !n.isRead).length : 0;
+        
+        // Apenas notificações geradas nas últimas 24h ou não lidas na sessão atual contam no badge
+        const validBadgeNotifs = Array.isArray(notifications)
+            ? notifications.filter(n => isNotificationValidForBadge(n, readIds))
+            : [];
+        const rawBadgeCount = validBadgeNotifs.length;
+        const displayBadgeText = rawBadgeCount > 99 ? '99+' : String(rawBadgeCount);
+        const cappedBadgeNum = Math.min(rawBadgeCount, 99);
 
         // 1. Atualizar contadores das abas no menu dropdown ("Todas (X)" e "Não lidas (Y)")
         const cntAllEl = document.getElementById('notifCountAll');
         const cntUnreadEl = document.getElementById('notifCountUnread');
-        if (cntAllEl) cntAllEl.textContent = String(totalCount);
-        if (cntUnreadEl) cntUnreadEl.textContent = String(unreadCount);
+        if (cntAllEl) cntAllEl.textContent = totalCount > 99 ? '99+' : String(totalCount);
+        if (cntUnreadEl) cntUnreadEl.textContent = displayBadgeText;
 
         // 2. Atualizar badges de notificação na barra superior / páginas
         const badges = document.querySelectorAll('#notifBadgeCount, .notif-badge');
         badges.forEach(badge => {
-            if (unreadCount > 0) {
-                badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+            if (rawBadgeCount > 0) {
+                badge.textContent = displayBadgeText;
                 badge.classList.remove('hidden');
                 badge.style.display = 'flex';
                 badge.classList.add('has-unread');
@@ -364,8 +433,8 @@
         // 3. Atualizar marcadores nas abas de Configurações (Desktop e Mobile)
         const settingsBadges = document.querySelectorAll('#settingsNotifTabBadge, #mobileSettingsNotifBadge');
         settingsBadges.forEach(b => {
-            if (unreadCount > 0) {
-                b.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+            if (rawBadgeCount > 0) {
+                b.textContent = displayBadgeText;
                 b.classList.remove('hidden');
                 b.style.display = 'inline-flex';
             } else {
@@ -378,14 +447,14 @@
         // 4. Atualizar badge contador no card de Histórico de Notificações
         const historyCountBadge = document.getElementById('notifHistoryCountBadge');
         if (historyCountBadge) {
-            historyCountBadge.textContent = unreadCount > 0 ? `${unreadCount} não lida(s)` : `${totalCount} total`;
+            historyCountBadge.textContent = rawBadgeCount > 0 ? `${displayBadgeText} recente(s)` : `${totalCount} total`;
         }
 
         // 5. Atualizar botões de sino (destaque/animação quando há não lidas ou urgentes)
         const bellButtons = document.querySelectorAll('#notifBellBtn, .notif-bell-btn');
-        const hasUrgent = Array.isArray(notifications) && notifications.some(n => n.type === 'danger' && !readIds[n.id] && !n.isRead);
+        const hasUrgent = validBadgeNotifs.some(n => n.type === 'danger');
         bellButtons.forEach(btn => {
-            if (unreadCount > 0) {
+            if (rawBadgeCount > 0) {
                 btn.classList.add('has-unread');
             } else {
                 btn.classList.remove('has-unread');
@@ -399,12 +468,25 @@
                 btn.classList.remove('has-urgent');
             }
         });
+
+        // 6. Sincronizar App Badge nativo (PWA Desktop / Mobile)
+        // Se o app estiver aberto e visível pelo usuário, o badge do ícone do SO permanece limpo.
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+            clearAppBadgeNative();
+        } else if (cappedBadgeNum > 0) {
+            setAppBadgeNative(cappedBadgeNum);
+        } else {
+            clearAppBadgeNative();
+        }
     }
 
     // Dismiss a single notification permanently
     function dismissNotification(id) {
         saveDismissedId(id);
         notifications = notifications.filter(n => n.id !== id);
+        if (notifications.length === 0) {
+            clearAppBadgeNative();
+        }
         updateNotificationBadge();
         renderNotificationList();
 
@@ -477,10 +559,10 @@
 
         if (!itemsToShow || itemsToShow.length === 0) {
             container.innerHTML = `
-                <div class="notif-empty">
-                    <i class="fas fa-bell-slash notif-empty-icon"></i>
-                    <p>${activeFilter === 'unread' ? 'Nenhuma notificação não lida.' : 'Nenhuma notificação no momento.'}</p>
-                    <small>Você está em dia com seus pagamentos e metas!</small>
+                <div class="notif-empty" style="text-align:center; padding:36px 16px;">
+                    <i class="fas fa-check-circle notif-empty-icon" style="color:#00B894; font-size:40px; margin-bottom:12px; display:inline-block;"></i>
+                    <p style="font-size:14px; font-weight:700; color:var(--color-text, #2d3436); margin:0 0 6px;">${activeFilter === 'unread' ? 'Nenhuma pendência por hoje!' : 'Tudo em dia por hoje!'}</p>
+                    <small style="color:var(--color-text-muted, #64748b); font-size:12px; display:block; line-height:1.4;">Nenhuma conta vencendo ou provento pendente.</small>
                 </div>
             `;
             return;
@@ -489,7 +571,7 @@
         container.innerHTML = itemsToShow.map(n => {
             const isRead = !!readIds[n.id];
             const badgeClass = n.type === 'danger' ? 'overdue' : (n.type === 'warning' ? 'due-today' : (n.type === 'success' ? 'paid-today' : 'due-soon'));
-            const iconBg = n.type === 'danger' ? '#FF7675' : (n.type === 'warning' ? '#FDCB6E' : (n.type === 'success' ? '#00B894' : '#6C5CE7'));
+            const iconBg = n.type === 'danger' ? '#FF7675' : (n.type === 'warning' ? '#FDCB6E' : (n.type === 'success' ? '#00B894' : '#4338CA'));
             const tagLabel = n.tag || (n.type === 'danger' ? 'Atrasada' : (n.type === 'warning' ? 'Atenção' : (n.type === 'success' ? 'Recebido' : 'Aviso')));
             const safeItemTitle = typeof sanitizeString === 'function' ? sanitizeString(n.title || '') : (n.title || '');
             const safeItemMessage = typeof sanitizeString === 'function' ? sanitizeString(n.message || '') : (n.message || '');
@@ -560,7 +642,7 @@
         const isDanger = notif.type === 'danger';
         const isWarning = notif.type === 'warning';
         const isSuccess = notif.type === 'success';
-        const color = isDanger ? '#FF7675' : (isWarning ? '#FDCB6E' : (isSuccess ? '#00B894' : '#6C5CE7'));
+        const color = isDanger ? '#FF7675' : (isWarning ? '#FDCB6E' : (isSuccess ? '#00B894' : '#4338CA'));
 
         const safeTitle = typeof sanitizeString === 'function' ? sanitizeString(notif.title || '') : (notif.title || '');
         const safeMessage = typeof sanitizeString === 'function' ? sanitizeString(notif.message || '') : (notif.message || '');
@@ -683,43 +765,71 @@
                 const billTitle = bill.description || bill.name || 'Conta a Pagar';
                 if (billDate) {
                     const billId = bill.id || String(billDate) + '_' + String(bill.amount);
+                    const billAmount = Math.abs(Number(bill.amount) || 0);
+                    const dueObj = (typeof window.parseLocalDate === 'function') ? window.parseLocalDate(billDate) : new Date(billDate + 'T12:00:00');
+                    const dueTime = dueObj.getTime();
+
                     if (billDate < todayStr) {
-                        overdueCount++;
-                        const notifId = 'bill_overdue_' + billId;
+                        const overdueDays = Math.max(1, Math.round((today.getTime() - dueTime) / (1000 * 60 * 60 * 24)));
+                        // Ignorar contas muito antigas (>30 dias) para manter o feed focado no dia a dia
+                        if (overdueDays <= 30) {
+                            overdueCount++;
+                            const notifId = 'bill_overdue_' + billId;
+                            if (!dismissed[notifId]) {
+                                const item = {
+                                    id: notifId,
+                                    type: 'danger',
+                                    tag: 'Atrasada',
+                                    icon: 'fa-exclamation-circle',
+                                    title: `⚠️ Conta em atraso: ${billTitle}`,
+                                    message: `⚠️ Conta ${billTitle} atrasada há ${overdueDays} dia${overdueDays > 1 ? 's' : ''} (${formatCurrency(billAmount)})`,
+                                    link: 'bills.html',
+                                    actionBtnText: 'Pagar Conta',
+                                    priority: 1,
+                                    isToday: overdueDays <= 3
+                                };
+                                notifications.push(item);
+                                if (!firstUrgentNotif) firstUrgentNotif = item;
+                            }
+                        }
+                    } else if (billDate === todayStr) {
+                        dueSoonCount++;
+                        const notifId = 'bill_due_today_' + billId;
                         if (!dismissed[notifId]) {
                             const item = {
                                 id: notifId,
-                                type: 'danger',
-                                tag: 'Atrasada',
-                                icon: 'fa-exclamation-circle',
-                                title: `Conta em atraso: ${billTitle}`,
-                                message: `Venceu em ${formatDate(billDate)} no valor de ${formatCurrency(Math.abs(bill.amount))}`,
+                                type: 'warning',
+                                tag: 'Vence Hoje',
+                                icon: 'fa-clock',
+                                title: `⏰ Vence Hoje: ${billTitle}`,
+                                message: `⏰ Conta ${billTitle} vence hoje (${formatCurrency(billAmount)})`,
                                 link: 'bills.html',
-                                actionBtnText: 'Efetuar Pagamento'
+                                actionBtnText: 'Pagar Conta',
+                                priority: 2,
+                                isToday: true
                             };
                             notifications.push(item);
                             if (!firstUrgentNotif) firstUrgentNotif = item;
                         }
                     } else {
-                        const dueObj = (typeof window.parseLocalDate === 'function') ? window.parseLocalDate(billDate) : new Date(billDate + 'T12:00:00');
-                        const dueTime = dueObj.getTime();
                         const diffDays = Math.round((dueTime - today.getTime()) / (1000 * 60 * 60 * 24));
-                        if (diffDays <= 3 && diffDays >= 0) {
+                        if (diffDays >= 1 && diffDays <= 3) {
                             dueSoonCount++;
-                            const notifId = 'bill_due_' + billId;
+                            const notifId = 'bill_due_soon_' + billId;
                             if (!dismissed[notifId]) {
                                 const item = {
                                     id: notifId,
-                                    type: 'warning',
-                                    tag: diffDays === 0 ? 'Vence Hoje' : `Vence em ${diffDays}d`,
-                                    icon: 'fa-clock',
-                                    title: `Vence em breve: ${billTitle}`,
-                                    message: `Vence ${diffDays === 0 ? 'hoje' : 'em ' + diffDays + ' dia(s)'} (${formatDate(billDate)}) - ${formatCurrency(Math.abs(bill.amount))}`,
+                                    type: 'info',
+                                    tag: diffDays === 1 ? 'Vence Amanhã' : `Vence em ${diffDays}d`,
+                                    icon: 'fa-calendar-alt',
+                                    title: `📅 Vence em breve: ${billTitle}`,
+                                    message: `📅 ${billTitle} vence em ${diffDays === 1 ? 'amanhã' : diffDays + ' dias'} (${formatCurrency(billAmount)})`,
                                     link: 'bills.html',
-                                    actionBtnText: 'Ver Detalhes'
+                                    actionBtnText: 'Ver Detalhes',
+                                    priority: 4,
+                                    isToday: false
                                 };
                                 notifications.push(item);
-                                if (!firstUrgentNotif && diffDays === 0) firstUrgentNotif = item;
                             }
                         }
                     }
@@ -822,26 +932,17 @@
                 }
             }
 
-            // 3. Sync status notification if offline queue has items
-            if (window.tonuSync && window.tonuSync.db) {
+            // 3. Fila de Sincronização offline: gerenciada exclusivamente pelo indicador visual de sync (bolinha)
+            // Se a fila estiver vazia (0 pendências), assegura a limpeza do App Badge nativo
+            if (window.tonuSync) {
                 try {
-                    const queue = await window.tonuSync.getQueue?.();
-                    if (queue && queue.length > 0) {
-                        const notifId = 'sync_queue';
-                        if (!dismissed[notifId]) {
-                            notifications.push({
-                                id: notifId,
-                                type: 'info',
-                                tag: 'Offline',
-                                icon: 'fa-sync',
-                                title: 'Sincronização pendente',
-                                message: `Há ${queue.length} alteração(ões) offline aguardando conexão.`,
-                                link: '#',
-                                actionBtnText: 'Sincronizar'
-                            });
-                        }
+                    const queueCount = (typeof window.tonuSync.getPendingCount === 'function')
+                        ? await window.tonuSync.getPendingCount()
+                        : ((await window.tonuSync.getQueue?.())?.length || 0);
+                    if (queueCount === 0) {
+                        clearAppBadgeNative();
                     }
-                } catch {}
+                } catch (_) {}
             }
 
             // 4. Check Dividends / Proventos (Recebidos hoje ou a receber em breve)
@@ -920,10 +1021,12 @@
                                 type: 'success',
                                 tag: 'Creditado Hoje',
                                 icon: 'fa-money-bill-wave',
-                                title: `Provento creditado: ${ticker}`,
-                                message: `Você recebeu ${formatCurrency(totalVal)} referente a ${div.quantity ? div.quantity + ' cotas/ações de ' : ''}${ticker} (${typeLabel}) hoje!`,
+                                title: `💰 Provento Creditado: ${ticker}`,
+                                message: `💰 Provento de ${ticker} creditado hoje (${formatCurrency(totalVal)})`,
                                 link: 'investments.html#proventos',
-                                actionBtnText: 'Ver Proventos'
+                                actionBtnText: 'Ver Proventos',
+                                priority: 3,
+                                isToday: true
                             };
                             notifications.unshift(item);
 
@@ -939,36 +1042,35 @@
                                 }
                                 showPremiumNotificationBanner(item);
 
-                                if ('Notification' in window && Notification.permission === 'granted' && window.billNotificationManager?.settings?.enabled) {
-                                    try {
-                                        new Notification(`💰 Provento Creditado: ${ticker}`, {
-                                            body: `Você recebeu ${formatCurrency(totalVal)} de ${ticker} (${typeLabel}) hoje!`,
-                                            icon: '/icons/icon-192x192.png'
-                                        });
-                                    } catch (err) {}
-                                }
+                                showNativeWebNotification(`💰 Provento Creditado: ${ticker}`, {
+                                    body: `Você recebeu ${formatCurrency(totalVal)} de ${ticker} (${typeLabel}) hoje!`,
+                                    icon: '/icons/icon-192x192.png?v=3.2.1',
+                                    tag: 'dividend-paid-' + divKey
+                                });
                             }
                         }
                     } else {
-                        // B) Provento a Receber nos próximos dias (1 a 5 dias)
+                        // B) Provento a Receber nos próximos 3 dias (1 a 3 dias)
                         const dueObj = (typeof window.parseLocalDate === 'function') ? window.parseLocalDate(payIso) : new Date(payIso + 'T12:00:00');
                         const nowObj = (typeof window.parseLocalDate === 'function') ? window.parseLocalDate(todayStr) : new Date(todayStr + 'T12:00:00');
                         const dueTime = dueObj.getTime();
                         const nowTime = nowObj.getTime();
                         const diffDays = Math.round((dueTime - nowTime) / (1000 * 60 * 60 * 24));
 
-                        if (diffDays >= 1 && diffDays <= 5) {
+                        if (diffDays >= 1 && diffDays <= 3) {
                             const notifId = 'dividend_upcoming_' + divKey;
                             if (!dismissed[notifId]) {
                                 const item = {
                                     id: notifId,
                                     type: 'info',
                                     tag: diffDays === 1 ? 'Cai Amanhã' : `Cai em ${diffDays}d`,
-                                    icon: 'fa-calendar-check',
-                                    title: `Provento a receber: ${ticker}`,
-                                    message: `Previsão de crédito de ${formatCurrency(totalVal)} (${typeLabel}) em ${formatDate(payIso)} (${diffDays === 1 ? 'amanhã' : 'em ' + diffDays + ' dias'}).`,
+                                    icon: 'fa-chart-line',
+                                    title: `📈 Provento a receber: ${ticker}`,
+                                    message: `📈 ${ticker} cai em ${diffDays === 1 ? 'amanhã' : diffDays + ' dias'} (${formatCurrency(totalVal)})`,
                                     link: 'investments.html#proventos',
-                                    actionBtnText: 'Ver Proventos'
+                                    actionBtnText: 'Ver Proventos',
+                                    priority: 4,
+                                    isToday: false
                                 };
                                 notifications.push(item);
                             }
@@ -977,45 +1079,135 @@
                 });
             }
 
-            // 5. Integração com histórico do Supabase (notification_log)
-            if (user && window.supabaseClient) {
+            // 5. Metas: Quase lá! (>= 90% e < 100%)
+            try {
+                let goalsList = [];
+                if (user && window.supabaseClient) {
+                    try {
+                        const { data: dbGoals } = await window.supabaseClient
+                            .from('goals')
+                            .select('*')
+                            .eq('user_id', user.id);
+                        if (dbGoals && dbGoals.length > 0) goalsList = dbGoals;
+                    } catch (e) {
+                        console.warn('Fallback para metas locais:', e);
+                    }
+                }
+                if (goalsList.length === 0) {
+                    const localGoals = localStorage.getItem('tonu_goals_' + userId) ||
+                                       localStorage.getItem('tonu_goals_offline_user') ||
+                                       localStorage.getItem('tonu_goals');
+                    if (localGoals) {
+                        try {
+                            const parsed = JSON.parse(localGoals);
+                            if (Array.isArray(parsed)) goalsList = parsed;
+                        } catch {}
+                    }
+                }
+                if (goalsList.length === 0 && Array.isArray(window.allGoals) && window.allGoals.length > 0) {
+                    goalsList = window.allGoals;
+                }
+
+                goalsList.forEach(g => {
+                    if (!g || g.completed) return;
+                    const tgt = Number(g.target_amount) || 0;
+                    const cur = Number(g.current_amount) || 0;
+                    if (tgt > 0 && cur < tgt) {
+                        const pct = cur / tgt;
+                        if (pct >= 0.90 && pct < 1.0) {
+                            const remaining = tgt - cur;
+                            const goalTitle = g.title || g.name || 'Meta';
+                            const notifId = 'goal_near_' + (g.id || goalTitle);
+                            if (!dismissed[notifId]) {
+                                notifications.push({
+                                    id: notifId,
+                                    type: 'info',
+                                    tag: 'Quase lá!',
+                                    icon: 'fa-bullseye',
+                                    title: `🎯 Quase lá! Meta: ${goalTitle}`,
+                                    message: `🎯 Quase lá! Faltam ${formatCurrency(remaining)} para atingir a meta ${goalTitle}.`,
+                                    link: 'goals.html',
+                                    actionBtnText: 'Ver Metas',
+                                    priority: 4,
+                                    isToday: true
+                                });
+                            }
+                        }
+                    }
+                });
+            } catch (goalErr) {
+                console.warn('Erro ao checar metas:', goalErr);
+            }
+
+            // 6. Integração com histórico do Supabase (notification_log) - Estritamente últimos 3 dias
+            if (user && window.supabaseClient && isNotificationLogAvailable) {
                 try {
-                    const { data: logData } = await window.supabaseClient
+                    const threeDaysAgoIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+                    const { data: logData, error: logErr } = await window.supabaseClient
                         .from('notification_log')
                         .select('*')
                         .eq('user_id', user.id)
+                        .gte('created_at', threeDaysAgoIso)
                         .is('dismissed_at', null)
                         .order('created_at', { ascending: false })
-                        .limit(50);
+                        .limit(30);
+
+                    if (logErr) {
+                        if (logErr.status === 403 || logErr.code === '42501' || logErr.code === '42P01' || logErr.status === 404) {
+                            isNotificationLogAvailable = false;
+                        }
+                        throw logErr;
+                    }
 
                     if (logData && logData.length > 0) {
+                        const threeDaysAgoMs = Date.now() - 3 * 24 * 60 * 60 * 1000;
                         logData.forEach(item => {
                             const notifId = 'log_' + item.id;
-                            if (!dismissed[notifId]) {
-                                if (item.read_at) {
-                                    markAsReadSilently(notifId);
-                                }
-                                notifications.push({
-                                    id: notifId,
-                                    logId: item.id,
-                                    type: item.type === 'danger' ? 'danger' : (item.type === 'bills' ? 'warning' : 'info'),
-                                    tag: item.type === 'bills' ? 'Conta' : (item.type === 'dividends_credited' ? 'Provento' : (item.type === 'goals' ? 'Meta' : 'Alerta')),
-                                    icon: item.icon || (item.type === 'danger' ? 'fa-exclamation-circle' : (item.type === 'bills' ? 'fa-file-invoice-dollar' : 'fa-bell')),
-                                    title: item.title,
-                                    message: item.body,
-                                    link: item.url || '#',
-                                    actionBtnText: 'Visualizar',
-                                    isFromLog: true,
-                                    createdAt: item.created_at,
-                                    isRead: !!item.read_at
-                                });
+                            if (dismissed[notifId]) return;
+
+                            // Ignorar estritamente se mais antigo que 3 dias
+                            if (item.created_at) {
+                                const t = new Date(item.created_at).getTime();
+                                if (!isNaN(t) && t < threeDaysAgoMs) return;
                             }
+
+                            if (item.read_at) {
+                                markAsReadSilently(notifId);
+                            }
+                            notifications.push({
+                                id: notifId,
+                                logId: item.id,
+                                type: item.type === 'danger' ? 'danger' : (item.type === 'bills' ? 'warning' : 'info'),
+                                tag: item.type === 'bills' ? 'Conta' : (item.type === 'dividends_credited' ? 'Provento' : (item.type === 'goals' ? 'Meta' : 'Alerta')),
+                                icon: item.icon || (item.type === 'danger' ? 'fa-exclamation-circle' : (item.type === 'bills' ? 'fa-file-invoice-dollar' : 'fa-bell')),
+                                title: item.title,
+                                message: item.body,
+                                link: item.url || '#',
+                                actionBtnText: 'Visualizar',
+                                isFromLog: true,
+                                createdAt: item.created_at,
+                                isRead: !!item.read_at,
+                                priority: item.type === 'danger' ? 1 : (item.type === 'bills' ? 2 : 4)
+                            });
                         });
                     }
                 } catch (logErr) {
-                    console.warn('[Notifications] Erro ao integrar notification_log em checkNotifications:', logErr);
+                    if (logErr && (logErr.status === 403 || logErr.code === '42501' || logErr.code === '42P01' || logErr.status === 404)) {
+                        isNotificationLogAvailable = false;
+                    }
+                    console.warn('[Notifications] notification_log não disponível ou restrito (403/404):', logErr?.message || logErr);
                 }
             }
+
+            // Ordenação: Urgentes (Atrasadas/Limite) -> Hoje (Vence Hoje) -> Proventos Hoje -> Próximos dias/Metas
+            notifications.sort((a, b) => {
+                const pA = a.priority || (a.type === 'danger' ? 1 : (a.type === 'warning' ? 2 : (a.type === 'success' ? 3 : 4)));
+                const pB = b.priority || (b.type === 'danger' ? 1 : (b.type === 'warning' ? 2 : (b.type === 'success' ? 3 : 4)));
+                if (pA !== pB) return pA - pB;
+                const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return tB - tA;
+            });
 
         } catch (err) {
             console.warn('⚠️ Erro ao checar notificações:', err);
@@ -1031,6 +1223,7 @@
             saveDismissedId(n.id);
         });
         notifications = [];
+        clearAppBadgeNative();
         updateNotificationBadge();
         renderNotificationList();
 
@@ -1097,11 +1290,11 @@
             } catch (_) {}
         }
 
-        if (!user || !window.supabaseClient) {
+        if (!user || !window.supabaseClient || !isNotificationLogAvailable) {
             containers.forEach(c => {
                 c.innerHTML = `
                     <div style="text-align:center; padding:20px; color:var(--color-text-muted, #64748b);">
-                        <p style="font-size:13px; margin:0;">Faça login para visualizar o histórico de notificações.</p>
+                        <p style="font-size:13px; margin:0;">${!isNotificationLogAvailable ? 'Histórico em nuvem indisponível ou tabela não provisionada.' : 'Faça login para visualizar o histórico de notificações.'}</p>
                     </div>
                 `;
             });
@@ -1143,10 +1336,10 @@
                 const safeTitle = typeof sanitizeString === 'function' ? sanitizeString(item.title) : item.title;
                 const safeBody = typeof sanitizeString === 'function' ? sanitizeString(item.body) : item.body;
                 const icon = item.type === 'danger' ? 'fa-exclamation-circle' : (item.type === 'bills' ? 'fa-file-invoice-dollar' : (item.type === 'dividends_credited' ? 'fa-money-bill-wave' : (item.type === 'goals' ? 'fa-bullseye' : 'fa-bell')));
-                const iconColor = item.type === 'danger' ? '#FF7675' : (item.type === 'bills' ? '#E17055' : (item.type === 'dividends_credited' ? '#00B894' : '#6C5CE7'));
+                const iconColor = item.type === 'danger' ? '#FF7675' : (item.type === 'bills' ? '#E17055' : (item.type === 'dividends_credited' ? '#00B894' : '#4338CA'));
 
                 return `
-                    <div class="notif-history-item" onclick="window.markHistoryItemRead('${item.id}', '${item.url || ''}')" style="display:flex; align-items:flex-start; gap:12px; padding:10px 12px; border-bottom:1px solid var(--color-border-light, #f1f2f6); cursor:pointer; background:${isUnread ? 'rgba(108, 92, 231, 0.05)' : 'transparent'}; border-radius:8px; transition:background 0.15s ease; margin-bottom:4px;">
+                    <div class="notif-history-item" onclick="window.markHistoryItemRead('${item.id}', '${item.url || ''}')" style="display:flex; align-items:flex-start; gap:12px; padding:10px 12px; border-bottom:1px solid var(--color-border-light, #f1f2f6); cursor:pointer; background:${isUnread ? 'rgba(67, 56, 202, 0.06)' : 'transparent'}; border-radius:8px; transition:background 0.15s ease; margin-bottom:4px;">
                         <div style="width:32px; height:32px; border-radius:8px; background:${iconColor}22; color:${iconColor}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                             <i class="fas ${icon}" style="font-size:13px;"></i>
                         </div>
@@ -1168,7 +1361,10 @@
                 c.innerHTML = html;
             });
         } catch (err) {
-            console.warn('[Notifications] Erro ao carregar notification_log:', err);
+            if (err && (err.status === 403 || err.code === '42501' || err.code === '42P01' || err.status === 404)) {
+                isNotificationLogAvailable = false;
+            }
+            console.warn('[Notifications] Erro ao carregar notification_log:', err?.message || err);
             containers.forEach(c => {
                 c.innerHTML = `
                     <div style="text-align:center; padding:20px; color:var(--color-danger, #ff7675);">
@@ -1217,6 +1413,7 @@
             notifications.forEach(n => {
                 markAsReadSilently(n.id);
             });
+            clearAppBadgeNative();
             updateNotificationBadge();
             renderNotificationList();
             await loadNotificationHistory();
@@ -1249,6 +1446,7 @@
                 .eq('user_id', user.id);
 
             if (error) throw error;
+            clearAppBadgeNative();
             await loadNotificationHistory();
             if (window.showToast) {
                 window.showToast('Histórico de notificações limpo com sucesso! 🗑️', 'info');
@@ -1484,17 +1682,12 @@
             // Exibir Banner Flutuante Premium in-app
             showPremiumNotificationBanner(testItem);
 
-            // Push Notification Web
-            if ('Notification' in window && Notification.permission === 'granted') {
-                try {
-                    new Notification('TonuControle - Teste de Alerta', {
-                        body: 'Seus alertas e lembretes de contas estão ativos e funcionando perfeitamente!',
-                        icon: '/icons/icon-192x192.png'
-                    });
-                } catch (e) {
-                    console.warn('Push notification falhou:', e);
-                }
-            }
+            // Push Notification Web (compatível com Desktop, Android Chrome e iOS Safari PWA)
+            await showNativeWebNotification('TonuControle - Teste de Alerta', {
+                body: 'Seus alertas e lembretes de contas estão ativos e funcionando perfeitamente!',
+                icon: '/icons/icon-192x192.png?v=3.2.1',
+                tag: 'tonu-test-' + Date.now()
+            });
 
             if (window.showToast) {
                 window.showToast('🔔 Notificação premium disparada com sucesso!', 'success');
@@ -1502,7 +1695,7 @@
         },
 
         async checkDueBills(force) {
-            await checkNotifications();
+            await checkNotificationsThrottled(!!force);
             if (this.settings.sound && notifications.length > 0) {
                 this.playChime();
             }
@@ -1565,11 +1758,68 @@
         }
     }
 
+    async function testBadgeManually(count) {
+        const val = Number(count) || 3;
+
+        // No iOS e no navegador, a Badging API exige permissão de notificações concedida
+        if ('Notification' in window && Notification.permission !== 'granted') {
+            try {
+                const perm = await Notification.requestPermission();
+                if (perm !== 'granted') {
+                    if (window.showToast) {
+                        window.showToast('⚠️ No iPhone e PC, é necessário permitir notificações para o selo aparecer no ícone.', 'warning');
+                    }
+                    return;
+                }
+            } catch (e) {
+                console.warn('[Badge] Falha ao solicitar permissão:', e);
+            }
+        }
+
+        setAppBadgeNative(val);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        let msg = `Badge (${val}) ativado no ícone!`;
+        if (isStandalone) {
+            msg += ' Saia para a tela inicial do celular ou olhe a barra de tarefas do PC.';
+        } else {
+            msg += ' (Abra pelo ícone do app instalado para visualizar).';
+        }
+        if (window.showToast) {
+            window.showToast(msg, 'success');
+        } else {
+            console.log(msg);
+        }
+    }
+
+    function clearBadgeManually() {
+        clearAppBadgeNative();
+        if (window.showToast) {
+            window.showToast('Badge removido do ícone!', 'info');
+        }
+    }
+
+    let _lastNotifCheck = 0;
+    let _checkingNotifs = false;
+    const NOTIF_CHECK_MIN_INTERVAL = 30 * 1000;
+
+    async function checkNotificationsThrottled(force = false) {
+        const now = Date.now();
+        if (_checkingNotifs) return;
+        if (!force && (now - _lastNotifCheck) < NOTIF_CHECK_MIN_INTERVAL) return;
+        _checkingNotifs = true;
+        _lastNotifCheck = now;
+        try {
+            return await checkNotifications();
+        } finally {
+            _checkingNotifs = false;
+        }
+    }
+
     // Exports to Global Scope
     window.toggleNotificationDropdown = toggleNotificationDropdown;
     window.openNotificationDropdown = openNotificationDropdown;
     window.closeNotificationDropdown = closeNotificationDropdown;
-    window.checkNotifications = checkNotifications;
+    window.checkNotifications = checkNotificationsThrottled;
     window.updateNotificationBadge = updateNotificationBadge;
     window.clearAllNotifications = clearAllNotifications;
     window.dismissNotification = dismissNotification;
@@ -1583,17 +1833,39 @@
     window.markAllHistoryRead = markAllHistoryRead;
     window.clearNotificationHistory = clearNotificationHistory;
     window.sendRealtimePush = sendRealtimePush;
+    window.clearAppBadgeNative = clearAppBadgeNative;
+    window.setAppBadgeNative = setAppBadgeNative;
+    window.testBadgeManually = testBadgeManually;
+    window.clearBadgeManually = clearBadgeManually;
 
     // Initialization
     function initNotificationDropdownSystem() {
+        // Limpar badge nativo ao abrir o app (inicialização DOMContentLoaded)
+        clearAppBadgeNative();
+
         getNotificationDropdown();
         getNotificationBackdrop();
         attachBellListeners();
-        setTimeout(checkNotifications, 300);
+        setTimeout(() => checkNotificationsThrottled(true), 300);
         setTimeout(loadNotificationHistory, 500);
         if (typeof window.renderNotificationSettingsUI === 'function') {
             window.renderNotificationSettingsUI();
         }
+    }
+
+    // Limpar badge nativo ao abrir o app (DOMContentLoaded, visibilitychange, focus ou esvaziamento da fila de sync)
+    if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                clearAppBadgeNative();
+            }
+        });
+        window.addEventListener('focus', () => {
+            clearAppBadgeNative();
+        });
+        window.addEventListener('tonu:sync-queue-empty', () => {
+            clearAppBadgeNative();
+        });
     }
 
     if (document.readyState === 'loading') {
@@ -1615,7 +1887,42 @@
         for (let i = 0; i < rawData.length; ++i) {
             outputArray[i] = rawData.charCodeAt(i);
         }
-        return outputArray;
+        // Retorna ArrayBuffer puro fatiado para compatibilidade estrita com iOS WebKit
+        return outputArray.buffer.slice(0);
+    }
+
+    async function showNativeWebNotification(title, options = {}) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+        if (window.billNotificationManager && window.billNotificationManager.settings?.enabled === false) return false;
+
+        const notifOptions = {
+            body: options.body || '',
+            icon: options.icon || '/icons/icon-192x192.png?v=3.2.1',
+            badge: '/icons/icon-96x96.png?v=3.2.1',
+            tag: options.tag || 'tonu-local-' + Date.now(),
+            renotify: true,
+            data: options.data || { url: './' }
+        };
+
+        if ('serviceWorker' in navigator) {
+            try {
+                const reg = await navigator.serviceWorker.ready;
+                if (reg && typeof reg.showNotification === 'function') {
+                    await reg.showNotification(title, notifOptions);
+                    return true;
+                }
+            } catch (swErr) {
+                console.warn('[Push] Falha em reg.showNotification, tentando fallback:', swErr);
+            }
+        }
+
+        try {
+            new Notification(title, notifOptions);
+            return true;
+        } catch (e) {
+            console.warn('[Push] new Notification indisponível neste dispositivo:', e);
+            return false;
+        }
     }
 
     async function registerPushSubscription() {
@@ -1651,24 +1958,44 @@
 
         try {
             const registration = await navigator.serviceWorker.ready;
-            
-            // Verificar se já existe subscription
-            let subscription = await registration.pushManager.getSubscription();
-            
-            if (!subscription) {
-                subscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                });
+
+            // Remove assinatura anterior potencialmente expirada/inválida (410) antes de gerar nova
+            const existingSub = await registration.pushManager.getSubscription();
+            const oldEndpoint = existingSub?.endpoint || '';
+            if (existingSub) {
+                try {
+                    await existingSub.unsubscribe();
+                } catch (unsubErr) {
+                    console.warn('[Push] Aviso ao renovar assinatura antiga:', unsubErr);
+                }
             }
 
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+
             // Enviar para o Supabase
-            const { data: { user } } = await window.supabaseClient.auth.getUser();
+            let user = window.currentUser || null;
+            if (!user && window.supabaseClient?.auth) {
+                const userRes = await window.supabaseClient.auth.getUser();
+                user = userRes?.data?.user || null;
+            }
             if (!user) {
                 if (typeof window.showToast === 'function') {
                     window.showToast('Faça login para salvar suas notificações push.', 'warning');
                 }
                 return { success: false, reason: 'not-authenticated' };
+            }
+
+            if (oldEndpoint && oldEndpoint !== subscription.endpoint) {
+                try {
+                    await window.supabaseClient
+                        .from('push_subscriptions')
+                        .delete()
+                        .eq('user_id', user.id)
+                        .eq('endpoint', oldEndpoint);
+                } catch (_) {}
             }
 
             const pushPrefs = billNotificationManager.getPushPreferences();
@@ -1700,6 +2027,76 @@
         }
     }
 
+    // ============================================
+    // AUTO-RESTAURAÇÃO SILENCIOSA DE SUBSCRIPTION (iOS / Safari / PWA)
+    // ============================================
+    async function ensurePushSubscriptionSilent() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+            return;
+        }
+
+        // Só executa se a permissão já foi concedida previamente
+        if (Notification.permission !== 'granted') {
+            return;
+        }
+
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        if (isIOS && !isStandalone) {
+            return;
+        }
+
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            let subscription = await registration.pushManager.getSubscription();
+
+            if (subscription) {
+                console.log('[Push] Subscription existe? Sim');
+            } else {
+                console.log('[Push] Subscription existe? Não');
+                try {
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                    });
+                    console.log(`[Push] Re-inscrição feita com sucesso: ${subscription.endpoint}`);
+                } catch (subErr) {
+                    console.warn(`[Push] Falha na re-inscrição: ${subErr?.message || subErr}`);
+                    return;
+                }
+            }
+
+            // Envia / atualiza silenciosamente no Supabase (upsert)
+            if (subscription && window.supabaseClient) {
+                let user = window.currentUser;
+                if (!user && window.supabaseClient.auth) {
+                    const sessionRes = await window.supabaseClient.auth.getSession();
+                    user = sessionRes?.data?.session?.user;
+                }
+
+                if (user && user.id) {
+                    const pushPrefs = billNotificationManager.getPushPreferences();
+                    const subJson = subscription.toJSON();
+                    const { error: upsertErr } = await window.supabaseClient
+                        .from('push_subscriptions')
+                        .upsert({
+                            user_id: user.id,
+                            endpoint: subJson.endpoint,
+                            keys: subJson.keys,
+                            user_agent: navigator.userAgent,
+                            preferences: pushPrefs,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id,endpoint' });
+                    if (upsertErr) {
+                        console.warn('[Push] Falha ao sincronizar subscription no Supabase:', upsertErr.message || upsertErr);
+                    }
+                }
+            }
+        } catch (err) {
+            console.debug('[Push] Falha na verificação de subscription:', err?.message || err);
+        }
+    }
+
     async function unregisterPushSubscription() {
         if (!('serviceWorker' in navigator)) return;
         try {
@@ -1724,8 +2121,30 @@
     // Expor globalmente
     window.registerPushSubscription = registerPushSubscription;
     window.unregisterPushSubscription = unregisterPushSubscription;
+    window.ensurePushSubscriptionSilent = ensurePushSubscriptionSilent;
+    window.showNativeWebNotification = showNativeWebNotification;
     window.getPushPreferences = () => billNotificationManager.getPushPreferences();
     window.savePushPreferences = (prefs) => billNotificationManager.savePushPreferences(prefs);
+
+    function schedulePushSubscriptionSync() {
+        setTimeout(ensurePushSubscriptionSilent, 1200);
+        if (window.supabaseClient?.auth?.onAuthStateChange) {
+            try {
+                window.supabaseClient.auth.onAuthStateChange((event) => {
+                    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                        setTimeout(ensurePushSubscriptionSilent, 300);
+                    }
+                });
+            } catch (_) {}
+        }
+    }
+
+    // Executa ao abrir o app (DOMContentLoaded) e quando a sessão autenticar
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', schedulePushSubscriptionSync);
+    } else {
+        schedulePushSubscriptionSync();
+    }
 
     console.log('🔔 Notifications.js Premium carregado com sucesso!');
 })();

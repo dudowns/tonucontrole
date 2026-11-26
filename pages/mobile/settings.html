@@ -3,261 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#4338CA">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="manifest" href="../../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png">
+    <link rel="manifest" href="../../manifest.json?v=3.2.33">
+    <link rel="icon" type="image/svg+xml" href="../../icons/favicon.svg?v=3.2.33">
+    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png?v=3.2.33">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png?v=3.2.33">
+    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png?v=3.2.33">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png?v=3.2.33">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png?v=3.2.33">
     <title>Configurações - Mobile | TonuControle</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../css/theme.css">
-    <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css">
-    <link rel="stylesheet" href="../../css/notifications.css">
-    <style>
-        body { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)); background: var(--color-bg, #f6f7fb); }
-        
-        .mobile-settings-profile {
-            background: var(--color-surface, #ffffff);
-            border-radius: 16px;
-            padding: 20px 16px;
-            margin: 12px 14px;
-            border: 1px solid var(--color-border, #e8ecf1);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .mobile-avatar {
-            width: 58px;
-            height: 58px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #6C5CE7, #A29BFE);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            color: white;
-            font-weight: 700;
-            flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.25);
-        }
-
-        .mobile-profile-details {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .mobile-user-name {
-            font-weight: 700;
-            font-size: 16px;
-            color: var(--color-text, #2d3436);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .mobile-user-email {
-            font-size: 12px;
-            color: var(--color-text-light, #636e72);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin-top: 2px;
-        }
-
-        .mobile-status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            background: rgba(0, 184, 148, 0.12);
-            color: #00b894;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 999px;
-            margin-top: 4px;
-        }
-
-        .mobile-group-title {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--color-text-muted, #94a3b8);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin: 18px 18px 6px 18px;
-        }
-
-        .settings-card-group {
-            background: var(--color-surface, #ffffff);
-            border-radius: 14px;
-            border: 1px solid var(--color-border, #e8ecf1);
-            margin: 0 14px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-        }
-
-        .settings-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--color-border-light, #f1f2f6);
-            transition: background 0.15s ease;
-            cursor: pointer;
-        }
-
-        .settings-item:last-child {
-            border-bottom: none;
-        }
-
-        .settings-item:active {
-            background: var(--color-bg, #f6f7fb);
-        }
-
-        .settings-item .left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .item-icon-box {
-            width: 34px;
-            height: 34px;
-            border-radius: 9px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 15px;
-            flex-shrink: 0;
-        }
-
-        .item-icon-box.purple { background: rgba(108, 92, 231, 0.12); color: #6C5CE7; }
-        .item-icon-box.green { background: rgba(0, 184, 148, 0.12); color: #00B894; }
-        .item-icon-box.blue { background: rgba(9, 132, 227, 0.12); color: #0984E3; }
-        .item-icon-box.amber { background: rgba(253, 203, 110, 0.22); color: #d68910; }
-        .item-icon-box.red { background: rgba(255, 118, 117, 0.15); color: #FF7675; }
-
-        .item-text-title {
-            font-size: 13.5px;
-            font-weight: 600;
-            color: var(--color-text, #2d3436);
-        }
-
-        .item-text-sub {
-            font-size: 11px;
-            color: var(--color-text-muted, #94a3b8);
-            margin-top: 1px;
-        }
-
-        .settings-item .right {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--color-text-muted, #94a3b8);
-            font-size: 12px;
-        }
-
-        .version-info {
-            text-align: center;
-            padding: 24px 16px 12px 16px;
-            font-size: 11px;
-            color: var(--color-text-muted, #94a3b8);
-            line-height: 1.5;
-        }
-    </style>
+    <link rel="stylesheet" href="../../css/theme.css?v=3.2.33">
+    <link rel="stylesheet" href="../../css/dark-theme.css?v=3.2.33">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.3.3">
+    <link rel="stylesheet" href="../../css/notifications.css?v=3.2.33">
+    <link rel="stylesheet" href="../../css/post-login-transition.css?v=3.2.33">
 </head>
-<body>
+<body class="has-bottom-nav">
 
 <header class="mobile-topbar">
     <div class="topbar-header">
         <div class="topbar-left">
-            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <div class="app-icon"><img src="../../icons/logo.png?v=3.2.1" alt="TonuControle"></div>
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
+            <button type="button" class="topbar-btn" onclick="window.TonuMobileUI && window.TonuMobileUI.openCommandPalette()" title="Busca rápida" aria-label="Busca rápida"><i class="fas fa-search"></i></button>
+            <button type="button" class="topbar-btn" data-privacy-toggle onclick="window.TonuMobileUI && window.TonuMobileUI.togglePrivacyMode()" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade"><i class="fas fa-eye" data-privacy-icon></i></button>
+            <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button class="topbar-btn" id="notifBellBtn" onclick="window.toggleNotificationDropdown(event)" title="Lembretes e Notificações" aria-label="Notificações">
+                <i class="fas fa-bell"></i>
+                <span class="notif-badge hidden" id="notifBadgeCount">0</span>
+            </button>
+            <button class="topbar-btn" onclick="forceSyncNow()" title="Sincronizar" aria-label="Sincronizar"><i class="fas fa-sync-alt"></i></button>
+            <a href="#profileSection" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
+                <span id="topbarAvatar">U</span>
+            </a>
         </div>
     </div>
-    <div class="greeting">⚙️ Configurações</div>
+    <div class="greeting">Configurações & Conta</div>
 </header>
 
 <main class="mobile-content">
-    <!-- PERFIL -->
-    <div class="mobile-settings-profile" id="profileSection">
-        <div class="mobile-avatar-wrapper" onclick="triggerMobileAvatarUpload()" style="position:relative; cursor:pointer;" title="Alterar foto de perfil">
-            <div class="mobile-avatar" id="userAvatar" style="overflow:hidden; display:flex; align-items:center; justify-content:center; background-size:cover; background-position:center;">U</div>
-            <div class="avatar-edit-badge" style="position:absolute; bottom:-2px; right:-2px; width:22px; height:22px; background:#6C5CE7; color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; border:2px solid var(--color-surface, #fff); box-shadow:0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-camera"></i></div>
+
+    <!-- PERFIL COMPACTO -->
+    <section class="mob-settings-profile-card" id="profileSection" aria-label="Perfil">
+        <div class="mob-settings-avatar-wrap" onclick="triggerMobileAvatarUpload()" title="Alterar foto de perfil" role="button" tabindex="0" aria-label="Alterar foto de perfil">
+            <div class="mob-settings-avatar" id="userAvatar">U</div>
+            <div class="mob-settings-avatar-badge"><i class="fas fa-camera" aria-hidden="true"></i></div>
         </div>
         <input type="file" id="mobileAvatarInput" accept="image/png,image/jpeg,image/webp,image/jpg" style="display:none;" onchange="handleMobileAvatarSelect(event)">
-        <div class="mobile-profile-details">
-            <div class="mobile-user-name" id="userName">Usuário</div>
-            <div class="mobile-user-email" id="userEmail">email@exemplo.com</div>
-            <div class="mobile-status-pill">
-                <i class="fas fa-check-circle" style="font-size:9px;"></i> <span id="syncBadgeText">Ativo & Sincronizado</span>
+        <div class="mob-settings-profile-meta">
+            <div class="mob-settings-user-name" id="userName">Usuário</div>
+            <div class="mob-settings-user-email" id="userEmail">email@exemplo.com</div>
+            <div class="mob-settings-sync-line">
+                <i class="fas fa-check-circle" aria-hidden="true"></i>
+                <span id="syncBadgeText">Ativo & Sincronizado</span>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- SELETOR DE SEÇÕES (SCROLLABLE TABS) -->
-    <div class="mobile-tabs-scroll" id="settingsTabsBar">
-        <button class="mobile-tab-pill active" onclick="switchMobileSettingsTab('general', this)">
-            <i class="fas fa-sliders-h"></i> Geral
-        </button>
-        <button class="mobile-tab-pill" onclick="switchMobileSettingsTab('limits', this)">
-            <i class="fas fa-bullseye"></i> Limites
-        </button>
-        <button class="mobile-tab-pill" onclick="switchMobileSettingsTab('notifications', this)">
-            <i class="fas fa-bell"></i> Notificações
-            <span class="settings-tab-badge hidden" id="mobileSettingsNotifBadge">0</span>
-        </button>
-        <button class="mobile-tab-pill" onclick="switchMobileSettingsTab('security', this)">
-            <i class="fas fa-shield-alt"></i> Segurança
-        </button>
-        <button class="mobile-tab-pill" onclick="switchMobileSettingsTab('pwa', this)">
-            <i class="fas fa-mobile-alt"></i> PWA
-        </button>
-        <button class="mobile-tab-pill" onclick="switchMobileSettingsTab('sync', this)">
-            <i class="fas fa-sync"></i> Sincronização
-        </button>
-    </div>
-
-    <!-- 1. GERAL & VISUAL -->
-    <div class="mobile-settings-section-wrapper" data-section="general">
-        <div class="mobile-group-title"><i class="fas fa-sliders-h" style="color:#6C5CE7; margin-right:4px;"></i> Geral & Visual</div>
-        <div class="settings-card-group">
-            <div class="settings-item" onclick="toggleTheme()">
-                <div class="left">
-                    <div class="item-icon-box purple"><i class="fas fa-moon"></i></div>
-                    <div>
-                        <div class="item-text-title">Modo Escuro (Dark Mode)</div>
-                        <div class="item-text-sub">Alto contraste e economia de bateria</div>
+    <!-- 1. PREFERÊNCIAS & VISUAL -->
+    <section class="settings-card-group" aria-label="Preferências e Visual">
+        <div class="settings-group-title">Preferências & Visual</div>
+        <div class="settings-list-card">
+            <div class="settings-row">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon"><i class="fas fa-moon" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Modo Escuro</strong>
+                        <small id="themeStatus">Desativado</small>
                     </div>
                 </div>
-                <div class="right">
-                    <span id="themeStatus">Desativado</span>
-                    <i class="fas fa-adjust"></i>
+                <div class="settings-row-right">
+                    <label class="mobile-toggle-switch" aria-label="Alternar modo escuro">
+                        <input type="checkbox" id="mobileThemeToggle" onchange="toggleTheme()">
+                        <span class="mobile-toggle-slider"></span>
+                    </label>
                 </div>
             </div>
 
-            <div class="settings-item">
-                <div class="left">
-                    <div class="item-icon-box amber"><i class="fas fa-coins"></i></div>
-                    <div>
-                        <div class="item-text-title">Moeda do Sistema</div>
-                        <div class="item-text-sub">Símbolo e formatação dos valores</div>
+            <div class="settings-row">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon amber"><i class="fas fa-coins" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Moeda do Sistema</strong>
+                        <small>Formatação de saldos</small>
                     </div>
                 </div>
-                <div class="right">
-                    <select id="mobileCurrencySelect" onchange="changeMobileCurrency(this.value)" style="padding:6px 10px; border-radius:8px; border:1px solid var(--color-border, #cbd5e1); background:var(--color-surface, #fff); font-size:13px; font-weight:600; color:inherit; cursor:pointer;">
+                <div class="settings-row-right">
+                    <select id="mobileCurrencySelect" class="mob-settings-select" onchange="changeMobileCurrency(this.value)" aria-label="Moeda do sistema">
                         <option value="BRL">BRL (R$)</option>
                         <option value="USD">USD ($)</option>
                         <option value="EUR">EUR (€)</option>
@@ -265,427 +106,255 @@
                 </div>
             </div>
 
-            <!-- ITEM 7: GESTÃO DE EVENTOS CORPORATIVOS (MOBILE) -->
-            <div class="settings-item">
-                <div class="left">
-                    <div class="item-icon-box purple"><i class="fas fa-bolt"></i></div>
-                    <div>
-                        <div class="item-text-title">Eventos Corporativos</div>
-                        <div class="item-text-sub">Ativar gestão de eventos corporativos (B3)</div>
+            <div class="settings-row">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon green"><i class="fas fa-eye-slash" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Ocultar Saldos</strong>
+                        <small id="hideBalanceStatus">Desativado</small>
                     </div>
                 </div>
-                <div class="right">
-                    <input type="checkbox" id="mobileToggleCorpEvents" onchange="toggleCorporateEventsPref(this.checked)" style="width:18px; height:18px; accent-color:#6C5CE7; cursor:pointer;">
+                <div class="settings-row-right">
+                    <label class="mobile-toggle-switch" aria-label="Ocultar saldos">
+                        <input type="checkbox" id="mobileHideBalanceToggle" onchange="toggleHideBalancePref()">
+                        <span class="mobile-toggle-slider"></span>
+                    </label>
                 </div>
             </div>
 
-            <div class="settings-item" onclick="toggleHideBalancePref()">
-                <div class="left">
-                    <div class="item-icon-box green"><i class="fas fa-eye-slash"></i></div>
-                    <div>
-                        <div class="item-text-title">Privacidade de Valores</div>
-                        <div class="item-text-sub">Ocultar saldos por padrão no app</div>
+            <button type="button" class="settings-row" onclick="toggleBottomNavLabelsPref()">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon blue"><i class="fas fa-bars" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Menu Inferior</strong>
+                        <small>Alternar nomes ou apenas ícones</small>
                     </div>
                 </div>
-                <div class="right">
-                    <span id="hideBalanceStatus">Desativado</span>
-                    <i class="fas fa-lock"></i>
+                <div class="settings-row-right">
+                    <span class="settings-row-value" id="bottomNavLabelsStatus">Com Nomes</span>
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
                 </div>
-            </div>
+            </button>
 
-            <div class="settings-item" onclick="openMobileCategoryManager()" style="cursor:pointer;">
-                <div class="left">
-                    <div class="item-icon-box purple"><i class="fas fa-tags"></i></div>
-                    <div>
-                        <div class="item-text-title">Gerenciar Categorias</div>
-                        <div class="item-text-sub">Criar, editar ícones, cores e tipos</div>
+            <div class="settings-row">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon"><i class="fas fa-bolt" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Eventos Corporativos (B3)</strong>
+                        <small>Exibir aba em Investimentos</small>
                     </div>
                 </div>
-                <div class="right"><i class="fas fa-chevron-right"></i></div>
-            </div>
-
-            <div class="settings-item" onclick="switchToDesktop()">
-                <div class="left">
-                    <div class="item-icon-box blue"><i class="fas fa-desktop"></i></div>
-                    <div>
-                        <div class="item-text-title">Painel Avançado Desktop</div>
-                        <div class="item-text-sub">Acessar versão completa para PC</div>
-                    </div>
-                </div>
-                <div class="right"><i class="fas fa-arrow-right"></i></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. LIMITES DE GASTOS -->
-    <div class="mobile-settings-section-wrapper" data-section="limits">
-        <div class="mobile-group-title"><i class="fas fa-bullseye" style="color:#0984E3; margin-right:4px;"></i> Limites de Gastos & Categorias</div>
-        <div class="settings-card-group">
-            <div class="settings-item" onclick="openMobileCategoryManager()" style="cursor:pointer;">
-                <div class="left">
-                    <div class="item-icon-box purple"><i class="fas fa-tags"></i></div>
-                    <div>
-                        <div class="item-text-title">Gerenciar Categorias</div>
-                        <div class="item-text-sub">Criar, editar ícones, cores e tipos</div>
-                    </div>
-                </div>
-                <div class="right"><i class="fas fa-chevron-right"></i></div>
-            </div>
-            <div class="settings-item" style="flex-direction:column; align-items:flex-start; gap:10px;">
-                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                    <div class="left">
-                        <div class="item-icon-box blue"><i class="fas fa-wallet"></i></div>
-                        <div>
-                            <div class="item-text-title">Teto Mensal Geral</div>
-                            <div class="item-text-sub">Limite orçamentário para o mês</div>
-                        </div>
-                    </div>
-                    <span id="budgetDisplayVal" style="font-weight:700; color:#0984E3; font-size:13px;">R$ 0,00</span>
-                </div>
-                <div style="display:flex; gap:8px; width:100%; margin-top:4px;">
-                    <input type="number" id="mobileBudgetInput" placeholder="Ex: 3500.00" step="10" min="0" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid var(--color-border, #e2e8f0); background:var(--color-bg, #f8fafc); font-size:13px; color:inherit;">
-                    <button class="btn btn-primary" onclick="saveMobileBudget()" style="padding:8px 14px; border-radius:8px; background:#6C5CE7; color:white; border:none; font-weight:600; font-size:12px; cursor:pointer;">
-                        Salvar
-                    </button>
-                </div>
-            </div>
-            <!-- Orçamentos Individuais por Categoria -->
-            <div class="settings-item" style="flex-direction:column; align-items:flex-start; gap:10px;">
-                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                    <div class="left">
-                        <div class="item-icon-box green"><i class="fas fa-chart-pie"></i></div>
-                        <div>
-                            <div class="item-text-title">Tetos por Categoria</div>
-                            <div class="item-text-sub">Limites individuais por tipo de gasto</div>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-outline" onclick="toggleMobileCategoryBudgetsView()" style="font-size:11px; padding:4px 8px; border-radius:6px; cursor:pointer;" id="toggleBudgetsViewBtn">
-                        <i class="fas fa-sliders-h"></i> Ajustar
-                    </button>
-                </div>
-                <div id="mobileCategoryBudgetsContainer" style="display:none; width:100%; margin-top:4px;">
-                </div>
-            </div>
-            <div class="settings-item">
-                <div class="left">
-                    <div class="item-icon-box amber"><i class="fas fa-exclamation-triangle"></i></div>
-                    <div>
-                        <div class="item-text-title">Avisar com 80% Atingido</div>
-                        <div class="item-text-sub">Alerta preventivo de estouro</div>
-                    </div>
-                </div>
-                <div class="right">
-                    <input type="checkbox" id="checkAlert80" onchange="saveAlertPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
+                <div class="settings-row-right">
+                    <label class="mobile-toggle-switch" aria-label="Eventos corporativos">
+                        <input type="checkbox" id="mobileToggleCorpEvents" onchange="toggleCorporateEventsPref(this.checked)">
+                        <span class="mobile-toggle-slider"></span>
+                    </label>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- 3. NOTIFICAÇÕES -->
-    <div class="mobile-settings-section-wrapper" data-section="notifications">
-        <div class="mobile-group-title"><i class="fas fa-bell" style="color:#FDCB6E; margin-right:4px;"></i> Notificações Push</div>
-        <div class="settings-card-group">
-            <div class="settings-item" onclick="window.registerPushSubscription()" style="cursor:pointer;">
-                <div class="left">
-                    <div class="item-icon-box blue" style="background:#0984E3;"><i class="fas fa-bell"></i></div>
-                    <div>
-                        <div class="item-text-title">Ativar Notificações Push</div>
-                        <div class="item-text-sub">Receba alertas mesmo com o app fechado</div>
+    <!-- 2. FINANÇAS & LIMITES -->
+    <section class="settings-card-group" aria-label="Finanças e Limites">
+        <div class="settings-group-title">Finanças & Limites</div>
+        <div class="settings-list-card">
+            <button type="button" class="settings-row" onclick="openMobileCategoryManager()">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon"><i class="fas fa-tags" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Gerenciar Categorias</strong>
+                        <small>Ícones, cores e tipos</small>
                     </div>
                 </div>
-                <div class="right"><i class="fas fa-chevron-right" style="font-size:11px;"></i></div>
-            </div>
-            <div class="settings-item">
-                <div class="left">
-                    <div class="item-icon-box amber"><i class="fas fa-file-invoice-dollar"></i></div>
-                    <div>
-                        <div class="item-text-title">Contas a Pagar</div>
-                        <div class="item-text-sub">Contas a vencer hoje ou atrasadas</div>
+                <div class="settings-row-right">
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </div>
+            </button>
+
+            <button type="button" class="settings-row" onclick="openMobileSheet('mobileBudgetSheet')">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon blue"><i class="fas fa-wallet" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Teto Mensal Geral</strong>
+                        <small>Limite global e alerta 80%</small>
                     </div>
                 </div>
-                <div class="right">
-                    <input type="checkbox" id="checkPushBills" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
+                <div class="settings-row-right">
+                    <span class="settings-row-value accent" id="budgetDisplayVal">R$ 0,00</span>
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
                 </div>
-            </div>
-            <div class="settings-item">
-                <div class="left">
-                    <div class="item-icon-box green"><i class="fas fa-money-bill-wave"></i></div>
-                    <div>
-                        <div class="item-text-title">Proventos Creditados</div>
-                        <div class="item-text-sub">Dividendos/JCP recebidos no dia</div>
+            </button>
+
+            <button type="button" class="settings-row" onclick="openMobileCategoryBudgetsSheet()">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon green"><i class="fas fa-chart-pie" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Tetos por Categoria</strong>
+                        <small>Limites individuais de gastos</small>
                     </div>
                 </div>
-                <div class="right">
-                    <input type="checkbox" id="checkPushDivsCredited" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
+                <div class="settings-row-right">
+                    <span class="settings-row-value">Ajustar</span>
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
                 </div>
-            </div>
-            <div class="settings-item">
-                <div class="left">
-                    <div class="item-icon-box blue"><i class="fas fa-calendar-alt"></i></div>
-                    <div>
-                        <div class="item-text-title">Proventos Previstos</div>
-                        <div class="item-text-sub">Aviso prévio 1 a 3 dias antes</div>
-                    </div>
-                </div>
-                <div class="right">
-                    <input type="checkbox" id="checkPushDivsUpcoming" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
-                </div>
-            </div>
-            <div class="settings-item">
-                <div class="left">
-                    <div class="item-icon-box purple"><i class="fas fa-bullseye"></i></div>
-                    <div>
-                        <div class="item-text-title">Metas Atingidas</div>
-                        <div class="item-text-sub">Quando bater 100% de uma meta</div>
-                    </div>
-                </div>
-                <div class="right">
-                    <input type="checkbox" id="checkPushGoals" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
-                </div>
-            </div>
-            <div class="settings-item">
-                <div class="left">
-                    <div class="item-icon-box amber"><i class="fas fa-chart-pie"></i></div>
-                    <div>
-                        <div class="item-text-title">Orçamento Estourado</div>
-                        <div class="item-text-sub">Gasto ultrapassou o teto estipulado</div>
-                    </div>
-                </div>
-                <div class="right">
-                    <input type="checkbox" id="checkPushBudgets" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
-                </div>
-            </div>
-            <div class="settings-item">
-                <div class="left">
-                    <div class="item-icon-box green"><i class="fas fa-volume-up"></i></div>
-                    <div>
-                        <div class="item-text-title">Sons e Vibração</div>
-                        <div class="item-text-sub">Feedback audível ao receber alertas</div>
-                    </div>
-                </div>
-                <div class="right">
-                    <input type="checkbox" id="checkNotifSound" onchange="saveNotifPrefs()" checked style="transform:scale(1.2); cursor:pointer;">
-                </div>
-            </div>
-            <div class="settings-item" onclick="testNotificationAlert()">
-                <div class="left">
-                    <div class="item-icon-box purple"><i class="fas fa-paper-plane"></i></div>
-                    <div>
-                        <div class="item-text-title">Testar Notificação</div>
-                        <div class="item-text-sub">Disparar alerta de teste no celular</div>
-                    </div>
-                </div>
-                <div class="right"><i class="fas fa-play" style="font-size:11px;"></i></div>
-            </div>
+            </button>
         </div>
+    </section>
 
-        <div class="mobile-group-title" style="margin-top:16px;"><i class="fas fa-history" style="color:#0984E3; margin-right:4px;"></i> Histórico de Notificações</div>
-        <div class="settings-card-group" style="padding: 12px 14px;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                <button class="btn btn-outline btn-sm" onclick="window.markAllHistoryRead()" style="font-size:11px; padding:4px 8px;">
-                    <i class="fas fa-check-double"></i> Marcar lidas
-                </button>
-                <button class="btn btn-outline btn-sm" onclick="window.clearNotificationHistory()" style="font-size:11px; padding:4px 8px;">
-                    <i class="fas fa-trash-alt"></i> Limpar
-                </button>
-            </div>
-            <div id="mobileNotifHistoryListContainer" style="max-height: 280px; overflow-y: auto;">
-                <div style="text-align:center; padding:16px; font-size:12px; color:var(--color-text-muted);">
-                    <i class="fas fa-spinner fa-spin"></i> Carregando...
+    <!-- 3. SEGURANÇA & NOTIFICAÇÕES -->
+    <section class="settings-card-group" aria-label="Segurança e Notificações">
+        <div class="settings-group-title">Segurança & Alertas</div>
+        <div class="settings-list-card">
+            <button type="button" class="settings-row" onclick="openMobileNotifSheet()">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon amber"><i class="fas fa-bell" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Notificações & Histórico</strong>
+                        <small>Push, som e últimas mensagens</small>
+                    </div>
+                </div>
+                <div class="settings-row-right">
+                    <span class="settings-tab-badge hidden" id="mobileSettingsNotifBadge">0</span>
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </div>
+            </button>
+
+            <button type="button" class="settings-row" onclick="configurePinModal()">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon green"><i class="fas fa-key" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Bloqueio por PIN</strong>
+                        <small>Senha de 4 dígitos ao abrir</small>
+                    </div>
+                </div>
+                <div class="settings-row-right">
+                    <span class="settings-row-value success" id="pinStatusText">Desativado</span>
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </div>
+            </button>
+
+            <div class="settings-row">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon"><i class="fas fa-fingerprint" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Biometria (Face ID / Digital)</strong>
+                        <small id="mobileBioSubText">Verificando dispositivo...</small>
+                    </div>
+                </div>
+                <div class="settings-row-right">
+                    <span class="settings-row-value" id="mobileBioStatusText" style="display:none;">Verificando...</span>
+                    <div id="mobileBioActionContainer"></div>
                 </div>
             </div>
+
+            <div class="settings-row">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon blue"><i class="fas fa-shield-halved" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Autenticação em 2 Etapas</strong>
+                        <small id="mobile2FAStatusText">Inativo</small>
+                    </div>
+                </div>
+                <div class="settings-row-right">
+                    <div id="mobile2FAActionContainer"></div>
+                </div>
+            </div>
+
+            <button type="button" class="settings-row" onclick="clearSecuritySession()">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon amber"><i class="fas fa-user-shield" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Encerrar Outras Sessões</strong>
+                        <small>Manter apenas este celular ativo</small>
+                    </div>
+                </div>
+                <div class="settings-row-right">
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </div>
+            </button>
         </div>
-    </div>
+    </section>
 
-    <!-- 4. SEGURANÇA -->
-    <div class="mobile-settings-section-wrapper" data-section="security">
-        <div class="mobile-group-title"><i class="fas fa-shield-alt" style="color:#00B894; margin-right:4px;"></i> Segurança & Privacidade</div>
-        <div class="settings-card-group">
-            <div class="settings-item" onclick="configurePinModal()">
-                <div class="left">
-                    <div class="item-icon-box green"><i class="fas fa-key"></i></div>
-                    <div>
-                        <div class="item-text-title">Bloqueio por PIN</div>
-                        <div class="item-text-sub">Exigir senha numérica de 4 dígitos ao abrir</div>
+    <!-- 4. DADOS, APP & SESSÃO -->
+    <section class="settings-card-group" aria-label="Dados, Aplicativo e Sessão">
+        <div class="settings-group-title">Dados, Aplicativo & Sessão</div>
+        <div class="settings-list-card">
+            <button type="button" class="settings-row" onclick="forceSyncNow()">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon green"><i class="fas fa-cloud-arrow-up" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Sincronizar com Nuvem</strong>
+                        <small id="lastSyncStatusText">Supabase conectado</small>
                     </div>
                 </div>
-                <div class="right">
-                    <span id="pinStatusText" style="color:#00B894; font-weight:600;">Desativado</span>
-                    <i class="fas fa-chevron-right"></i>
+                <div class="settings-row-right">
+                    <span class="settings-row-value success">Agora</span>
+                    <i class="fas fa-rotate" aria-hidden="true"></i>
                 </div>
-            </div>
+            </button>
 
-            <!-- BIOMETRIA (WEBAUTHN / FACE ID / DIGITAL) -->
-            <div class="settings-item" style="flex-direction:column; align-items:flex-start; gap:8px;">
-                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                    <div class="left">
-                        <div class="item-icon-box purple"><i class="fas fa-fingerprint"></i></div>
-                        <div>
-                            <div class="item-text-title">Biometria (Face ID / Digital)</div>
-                            <div class="item-text-sub" id="mobileBioSubText">Login biométrico ultra-rápido</div>
-                        </div>
-                    </div>
-                    <span id="mobileBioStatusText" style="color:#64748b; font-weight:600; font-size:12px;">Verificando...</span>
-                </div>
-                <div id="mobileBioActionContainer" style="width:100%; display:flex; justify-content:flex-end; gap:8px; margin-top:2px;">
-                    <!-- Preenchido dinamicamente via JS -->
-                </div>
-            </div>
-
-            <!-- AUTENTICAÇÃO EM DUAS ETAPAS (2FA) -->
-            <div class="settings-item" style="flex-direction:column; align-items:flex-start; gap:8px;">
-                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                    <div class="left">
-                        <div class="item-icon-box blue"><i class="fas fa-shield-halved"></i></div>
-                        <div>
-                            <div class="item-text-title">Autenticação em Duas Etapas (2FA)</div>
-                            <div class="item-text-sub">Camada adicional de segurança na conta</div>
-                        </div>
-                    </div>
-                    <span id="mobile2FAStatusText" style="color:#64748b; font-weight:600; font-size:12px;">Inativo</span>
-                </div>
-                <div id="mobile2FAActionContainer" style="width:100%; display:flex; justify-content:flex-end; gap:8px; margin-top:2px;">
-                    <!-- Preenchido dinamicamente via JS -->
-                </div>
-            </div>
-
-            <div class="settings-item" onclick="clearSecuritySession()">
-                <div class="left">
-                    <div class="item-icon-box amber"><i class="fas fa-user-shield"></i></div>
-                    <div>
-                        <div class="item-text-title">Encerrar Outras Sessões</div>
-                        <div class="item-text-sub">Manter apenas este aparelho conectado</div>
+            <button type="button" class="settings-row" onclick="openMobileSheet('mobileBackupPwaSheet')">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon"><i class="fas fa-database" aria-hidden="true"></i></div>
+                    <div class="settings-row-text">
+                        <strong>Backup, PWA & Versão PC</strong>
+                        <small>JSON, instalação, atualização e cache</small>
                     </div>
                 </div>
-                <div class="right"><i class="fas fa-shield-halved"></i></div>
-            </div>
+                <div class="settings-row-right">
+                    <span class="settings-row-value accent" id="pwaStatusText">Instalável</span>
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </div>
+            </button>
+
+            <button type="button" class="settings-row" onclick="openRiskZoneModal()">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon danger"><i class="fas fa-broom" aria-hidden="true"></i></div>
+                    <div class="settings-row-text settings-row-text-danger">
+                        <strong>Limpar Dados Locais</strong>
+                        <small>Remove apenas cache local (nuvem intacta)</small>
+                    </div>
+                </div>
+                <div class="settings-row-right">
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </div>
+            </button>
+
+            <button type="button" class="settings-row" onclick="logout()">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon danger"><i class="fas fa-sign-out-alt" aria-hidden="true"></i></div>
+                    <div class="settings-row-text settings-row-text-danger">
+                        <strong>Sair da Conta</strong>
+                        <small>Bloquear e manter acesso biométrico</small>
+                    </div>
+                </div>
+                <div class="settings-row-right">
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </div>
+            </button>
+
+            <button type="button" class="settings-row" onclick="logoutAllDevices()">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon danger"><i class="fas fa-power-off" aria-hidden="true"></i></div>
+                    <div class="settings-row-text settings-row-text-danger">
+                        <strong>Sair de Todos os Dispositivos</strong>
+                        <small>Revogar sessões e desativar biometria</small>
+                    </div>
+                </div>
+                <div class="settings-row-right">
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </div>
+            </button>
         </div>
-    </div>
+    </section>
 
-    <!-- 5. PWA & OFFLINE -->
-    <div class="mobile-settings-section-wrapper" data-section="pwa">
-        <div class="mobile-group-title"><i class="fas fa-mobile-alt" style="color:#6C5CE7; margin-right:4px;"></i> Aplicativo PWA</div>
-        <div class="settings-card-group">
-            <div class="settings-item" onclick="triggerPwaInstall()">
-                <div class="left">
-                    <div class="item-icon-box purple"><i class="fas fa-download"></i></div>
-                    <div>
-                        <div class="item-text-title">Instalar Aplicativo</div>
-                        <div class="item-text-sub">Fixar ícone direto na tela de início</div>
-                    </div>
-                </div>
-                <div class="right">
-                    <span id="pwaStatusText" style="font-size:11px; color:#6C5CE7; font-weight:600;">Instalável</span>
-                    <i class="fas fa-plus-circle"></i>
-                </div>
-            </div>
-            <div class="settings-item" onclick="forceAppCacheUpdate()">
-                <div class="left">
-                    <div class="item-icon-box blue"><i class="fas fa-sync-alt"></i></div>
-                    <div>
-                        <div class="item-text-title">Atualizar Aplicativo</div>
-                        <div class="item-text-sub">Buscar versão mais recente do sistema</div>
-                    </div>
-                </div>
-                <div class="right"><i class="fas fa-cloud-arrow-down"></i></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 6. SINCRONIZAÇÃO & DADOS -->
-    <div class="mobile-settings-section-wrapper" data-section="sync">
-        <div class="mobile-group-title"><i class="fas fa-sync" style="color:#00B894; margin-right:4px;"></i> Sincronização & Backup</div>
-        <div class="settings-card-group">
-            <div class="settings-item" onclick="forceSyncNow()">
-                <div class="left">
-                    <div class="item-icon-box green"><i class="fas fa-rotate"></i></div>
-                    <div>
-                        <div class="item-text-title">Sincronizar com Nuvem</div>
-                        <div class="item-text-sub" id="lastSyncStatusText">Supabase conectado</div>
-                    </div>
-                </div>
-                <div class="right">
-                    <span style="font-weight:600; color:#00B894; font-size:11px;">Agora</span>
-                    <i class="fas fa-arrow-up-from-bracket"></i>
-                </div>
-            </div>
-            <div class="settings-item" onclick="exportDataJson()">
-                <div class="left">
-                    <div class="item-icon-box purple"><i class="fas fa-file-export"></i></div>
-                    <div>
-                        <div class="item-text-title">Exportar Dados (Backup JSON)</div>
-                        <div class="item-text-sub">Baixar cópia de segurança completa</div>
-                    </div>
-                </div>
-                <div class="right"><i class="fas fa-download"></i></div>
-            </div>
-            <div class="settings-item" onclick="triggerRestoreBackup()">
-                <div class="left">
-                    <div class="item-icon-box green"><i class="fas fa-file-import"></i></div>
-                    <div>
-                        <div class="item-text-title">Restaurar Backup (JSON)</div>
-                        <div class="item-text-sub">Recuperar dados a partir de arquivo salvo</div>
-                    </div>
-                </div>
-                <div class="right"><i class="fas fa-upload"></i></div>
-            </div>
-            <div class="settings-item" onclick="clearLocalCache()">
-                <div class="left">
-                    <div class="item-icon-box amber"><i class="fas fa-broom"></i></div>
-                    <div>
-                        <div class="item-text-title">Limpar Cache Temporário</div>
-                        <div class="item-text-sub">Liberar espaço e recarregar dados da nuvem</div>
-                    </div>
-                </div>
-                <div class="right"><i class="fas fa-redo"></i></div>
-            </div>
-            <div class="settings-item" onclick="openRiskZoneModal()" style="border-left: 3px solid #FF7675;">
-                <div class="left">
-                    <div class="item-icon-box red"><i class="fas fa-exclamation-triangle"></i></div>
-                    <div>
-                        <div class="item-text-title" style="color:#FF7675; font-weight:700;">Zona de Risco: Excluir Tudo</div>
-                        <div class="item-text-sub">Apagar todas as transações, contas e metas</div>
-                    </div>
-                </div>
-                <div class="right"><i class="fas fa-chevron-right" style="color:#FF7675;"></i></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 7. CONTA & SESSÃO -->
-    <div class="mobile-settings-section-wrapper" data-section="all">
-        <div class="mobile-group-title">Sessão</div>
-        <div class="settings-card-group">
-            <div class="settings-item" onclick="logout()" role="button" tabindex="0">
-                <div class="left">
-                    <div class="item-icon-box red"><i class="fas fa-sign-out-alt"></i></div>
-                    <div>
-                        <div class="item-text-title" style="color: #FF7675;">Sair da Conta</div>
-                        <div class="item-text-sub">Bloquear e manter login biométrico</div>
-                    </div>
-                </div>
-                <div class="right"><i class="fas fa-chevron-right"></i></div>
-            </div>
-            <div class="settings-item" onclick="logoutAllDevices()" role="button" tabindex="0" style="border-top: 1px solid #f1f5f9;">
-                <div class="left">
-                    <div class="item-icon-box" style="background:#fee2e2; color:#ef4444;"><i class="fas fa-power-off"></i></div>
-                    <div>
-                        <div class="item-text-title" style="color: #ef4444;">Sair de Todos os Dispositivos</div>
-                        <div class="item-text-sub">Revogar sessão e desativar biometria</div>
-                    </div>
-                </div>
-                <div class="right"><i class="fas fa-chevron-right"></i></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="version-info">
-        TonuControle v2.1.0 • PWA Mobile Multi-Plataforma<br>
-        Seus dados sincronizados e protegidos com criptografia.
+    <div class="settings-footer-version">
+        TonuControle v3.2.33 • PWA Multi-Plataforma<br>
+        Dados sincronizados e protegidos com criptografia.
     </div>
 </main>
 
-<!-- BOTTOM NAV (COM BOTÃO CENTRAL +) -->
+<!-- BOTTOM NAV -->
 <nav class="bottom-nav">
     <a href="dashboard.html"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
     <a href="transactions.html"><i class="fas fa-exchange-alt"></i><span>Transações</span></a>
@@ -700,33 +369,283 @@
     <a href="settings.html" class="active"><i class="fas fa-cog"></i><span>Configurações</span></a>
 </nav>
 
-<!-- MODAL DE CONFIRMAÇÃO DUPLA: ZONA DE RISCO (ITEM 8) -->
-<div class="mobile-modal-overlay" id="riskZoneModal">
-    <div class="mobile-modal-sheet" style="border-top: 4px solid #FF7675;">
+<!-- SHEET 1: TETO MENSAL GERAL -->
+<div class="mobile-modal-overlay" id="mobileBudgetSheet" onclick="if(event.target===this) closeMobileSheet('mobileBudgetSheet')">
+    <div class="mobile-modal-sheet">
         <div class="sheet-header">
-            <div class="sheet-title" style="color:#FF7675; display:flex; align-items:center; gap:8px;">
-                <i class="fas fa-shield-alt"></i> Zona de Risco: Limpeza Local
-            </div>
-            <button class="sheet-close-btn" onclick="closeRiskZoneModal()"><i class="fas fa-times"></i></button>
+            <div class="sheet-title"><i class="fas fa-wallet" style="color:var(--mob-primary);"></i> Teto Mensal Geral</div>
+            <button type="button" class="sheet-close-btn" onclick="closeMobileSheet('mobileBudgetSheet')"><i class="fas fa-times"></i></button>
         </div>
-        <div class="sheet-body" style="padding:16px 20px 28px;">
-            <p style="font-size:13px; color:var(--color-text,#333); line-height:1.5; margin-bottom:12px;">
-                Esta ação irá <strong>limpar todo o armazenamento local e cache</strong> deste aplicativo no seu celular (IndexedDB, offline queue e preferências locais).
-            </p>
-            <div style="background:rgba(255,118,117,0.1); border:1px solid rgba(255,118,117,0.3); border-radius:10px; padding:12px; font-size:12px; color:#d63031; margin-bottom:16px; line-height:1.4;">
-                <i class="fas fa-info-circle"></i> <strong>Seus dados no Supabase não serão apagados.</strong> Eles continuam salvos e seguros na sua conta em nuvem.
+        <div class="mob-sheet-body">
+            <div class="mob-budget-input-group">
+                <input type="number" id="mobileBudgetInput" class="mob-budget-input" placeholder="Ex: 3500.00" step="10" min="0">
+                <button type="button" class="mob-sheet-primary-btn" onclick="saveMobileBudget()">
+                    <i class="fas fa-save"></i> Salvar
+                </button>
             </div>
-            <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--color-text-muted,#64748b);">
-                Digite <span style="color:#d63031; font-weight:800; user-select:all;">APAGAR</span> para confirmar:
-            </label>
-            <input type="text" id="confirmDeleteInput" placeholder="APAGAR" oninput="checkDeleteConfirmation(this.value)" autocomplete="off" autocapitalize="characters" style="width:100%; padding:10px 14px; font-size:14px; font-weight:700; text-transform:uppercase; border:2px solid var(--color-border,#e2e8f0); border-radius:10px; margin-bottom:16px; color:inherit; background:var(--color-surface,#fff); letter-spacing:1px;">
-            
+            <div class="settings-list-card">
+                <div class="settings-row">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon amber"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Avisar com 80% Atingido</strong>
+                            <small>Alerta preventivo antes de estourar</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right">
+                        <label class="mobile-toggle-switch" aria-label="Avisar com 80% atingido">
+                            <input type="checkbox" id="checkAlert80" onchange="saveAlertPrefs()" checked>
+                            <span class="mobile-toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SHEET 2: TETOS POR CATEGORIA -->
+<div class="mobile-modal-overlay" id="mobileCategoryBudgetsSheet" onclick="if(event.target===this) closeMobileSheet('mobileCategoryBudgetsSheet')">
+    <div class="mobile-modal-sheet">
+        <div class="sheet-header">
+            <div class="sheet-title"><i class="fas fa-chart-pie" style="color:var(--mob-primary);"></i> Tetos por Categoria</div>
+            <button type="button" class="sheet-close-btn" onclick="closeMobileSheet('mobileCategoryBudgetsSheet')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="mob-sheet-body">
+            <div id="mobileCategoryBudgetsContainer" style="max-height:60vh; overflow-y:auto;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- SHEET 3: NOTIFICAÇÕES & HISTÓRICO -->
+<div class="mobile-modal-overlay" id="mobileNotifSheet" onclick="if(event.target===this) closeMobileSheet('mobileNotifSheet')">
+    <div class="mobile-modal-sheet">
+        <div class="sheet-header">
+            <div class="sheet-title"><i class="fas fa-bell" style="color:var(--mob-primary);"></i> Notificações & Histórico</div>
+            <button type="button" class="sheet-close-btn" onclick="closeMobileSheet('mobileNotifSheet')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="mob-sheet-body" style="max-height:76vh; overflow-y:auto;">
+            <div class="settings-list-card">
+                <button type="button" class="settings-row" onclick="activateMobilePushSubscription()">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon blue"><i class="fas fa-bell"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Ativar Notificações Push</strong>
+                            <small id="mobilePushStatusText">Receber alertas com o app fechado</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right"><i class="fas fa-chevron-right"></i></div>
+                </button>
+                <div class="settings-row">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon amber"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Contas a Pagar</strong>
+                            <small>Vencendo hoje ou atrasadas</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right">
+                        <label class="mobile-toggle-switch"><input type="checkbox" id="checkPushBills" onchange="saveNotifPrefs()" checked><span class="mobile-toggle-slider"></span></label>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon green"><i class="fas fa-money-bill-wave"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Proventos Creditados</strong>
+                            <small>Dividendos e JCP no dia</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right">
+                        <label class="mobile-toggle-switch"><input type="checkbox" id="checkPushDivsCredited" onchange="saveNotifPrefs()" checked><span class="mobile-toggle-slider"></span></label>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon blue"><i class="fas fa-calendar-alt"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Proventos Previstos</strong>
+                            <small>Aviso 1 a 3 dias antes</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right">
+                        <label class="mobile-toggle-switch"><input type="checkbox" id="checkPushDivsUpcoming" onchange="saveNotifPrefs()" checked><span class="mobile-toggle-slider"></span></label>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon"><i class="fas fa-bullseye"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Metas Atingidas</strong>
+                            <small>Ao concluir 100% da meta</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right">
+                        <label class="mobile-toggle-switch"><input type="checkbox" id="checkPushGoals" onchange="saveNotifPrefs()" checked><span class="mobile-toggle-slider"></span></label>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon amber"><i class="fas fa-chart-pie"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Orçamento Estourado</strong>
+                            <small>Quando ultrapassar o teto</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right">
+                        <label class="mobile-toggle-switch"><input type="checkbox" id="checkPushBudgets" onchange="saveNotifPrefs()" checked><span class="mobile-toggle-slider"></span></label>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon green"><i class="fas fa-volume-up"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Som e Vibração</strong>
+                            <small>Feedback nos alertas</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right">
+                        <label class="mobile-toggle-switch"><input type="checkbox" id="checkNotifSound" onchange="saveNotifPrefs()" checked><span class="mobile-toggle-slider"></span></label>
+                    </div>
+                </div>
+                <button type="button" class="settings-row" onclick="testNotificationAlert()">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon"><i class="fas fa-paper-plane"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Testar Notificação</strong>
+                            <small>Disparar alerta de teste</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right"><i class="fas fa-play"></i></div>
+                </button>
+            </div>
+
+            <div>
+                <div class="mob-history-toolbar">
+                    <span class="settings-group-title" style="padding:0;">Histórico Recente</span>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" class="mob-settings-action-btn" onclick="window.markAllHistoryRead()">
+                            <i class="fas fa-check-double"></i> Lidas
+                        </button>
+                        <button type="button" class="mob-settings-action-btn" onclick="window.clearNotificationHistory()">
+                            <i class="fas fa-trash-alt"></i> Limpar
+                        </button>
+                    </div>
+                </div>
+                <div class="settings-list-card" style="padding:10px 12px;">
+                    <div id="mobileNotifHistoryListContainer" class="mob-history-scroll">
+                        <div style="text-align:center; padding:16px; font-size:12px; color:var(--mob-text-muted);">
+                            <i class="fas fa-spinner fa-spin"></i> Carregando...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SHEET 4: BACKUP, PWA & VERSÃO PC -->
+<div class="mobile-modal-overlay" id="mobileBackupPwaSheet" onclick="if(event.target===this) closeMobileSheet('mobileBackupPwaSheet')">
+    <div class="mobile-modal-sheet">
+        <div class="sheet-header">
+            <div class="sheet-title"><i class="fas fa-database" style="color:var(--mob-primary);"></i> Backup, PWA & Sistema</div>
+            <button type="button" class="sheet-close-btn" onclick="closeMobileSheet('mobileBackupPwaSheet')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="mob-sheet-body">
+            <div class="settings-list-card">
+                <button type="button" class="settings-row" onclick="exportDataJson()">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon"><i class="fas fa-file-export"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Exportar Backup (JSON)</strong>
+                            <small>Baixar cópia completa das finanças</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right"><i class="fas fa-download"></i></div>
+                </button>
+                <button type="button" class="settings-row" onclick="triggerRestoreBackup()">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon green"><i class="fas fa-file-import"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Restaurar Backup (JSON)</strong>
+                            <small>Recuperar dados de um arquivo salvo</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right"><i class="fas fa-upload"></i></div>
+                </button>
+                <button type="button" class="settings-row" onclick="triggerPwaInstall()">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon"><i class="fas fa-download"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Instalar Aplicativo PWA</strong>
+                            <small>Fixar na tela inicial do aparelho</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right"><i class="fas fa-plus-circle"></i></div>
+                </button>
+                <button type="button" class="settings-row" onclick="forceAppCacheUpdate()">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon blue"><i class="fas fa-sync-alt"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Atualizar Aplicativo</strong>
+                            <small>Buscar versão mais recente</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right"><i class="fas fa-cloud-arrow-down"></i></div>
+                </button>
+                <button type="button" class="settings-row" onclick="clearLocalCache()">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon amber"><i class="fas fa-broom"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Limpar Cache Temporário</strong>
+                            <small>Libera espaço sem apagar dados da conta</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right"><i class="fas fa-redo"></i></div>
+                </button>
+                <button type="button" class="settings-row" onclick="switchToDesktop()">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon blue"><i class="fas fa-desktop"></i></div>
+                        <div class="settings-row-text">
+                            <strong>Painel Avançado Desktop</strong>
+                            <small>Abrir versão completa para PC</small>
+                        </div>
+                    </div>
+                    <div class="settings-row-right"><i class="fas fa-arrow-right"></i></div>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE CONFIRMAÇÃO DUPLA: LIMPEZA LOCAL -->
+<div class="mobile-modal-overlay" id="riskZoneModal" onclick="if(event.target===this) closeRiskZoneModal()">
+    <div class="mobile-modal-sheet">
+        <div class="sheet-header">
+            <div class="sheet-title" style="color:var(--mob-danger); display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-shield-alt"></i> Limpeza de Dados Locais
+            </div>
+            <button type="button" class="sheet-close-btn" onclick="closeRiskZoneModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="mob-sheet-body">
+            <p style="font-size:13px; color:var(--mob-text); line-height:1.5; margin:0;">
+                Esta ação irá <strong>limpar todo o armazenamento local e cache</strong> deste aparelho (IndexedDB, fila offline e preferências locais).
+            </p>
+            <div style="background:var(--mob-danger-soft); border:1px solid rgba(239,68,68,0.28); border-radius:12px; padding:12px; font-size:12px; color:var(--mob-danger); line-height:1.45;">
+                <i class="fas fa-info-circle"></i> <strong>Seus dados no Supabase não serão apagados.</strong> Eles permanecem salvos na sua conta em nuvem.
+            </div>
+            <div>
+                <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--mob-text-muted);">
+                    Digite <span style="color:var(--mob-danger); font-weight:800; user-select:all;">APAGAR</span> para confirmar:
+                </label>
+                <input type="text" id="confirmDeleteInput" placeholder="APAGAR" oninput="checkDeleteConfirmation(this.value)" autocomplete="off" autocapitalize="characters" class="mob-budget-input" style="width:100%; text-transform:uppercase; letter-spacing:1px;">
+            </div>
             <div style="display:flex; gap:10px;">
-                <button type="button" onclick="closeRiskZoneModal()" class="btn" style="flex:1; padding:12px; border-radius:10px; border:1px solid var(--color-border,#e2e8f0); background:transparent; font-weight:600; font-size:13px; cursor:pointer;">
+                <button type="button" onclick="closeRiskZoneModal()" class="mob-settings-action-btn" style="flex:1; min-height:44px; justify-content:center;">
                     Cancelar
                 </button>
-                <button type="button" id="btnConfirmDeleteData" onclick="executeFullDataWipe()" disabled style="flex:1; padding:12px; border-radius:10px; border:none; background:#FF7675; color:white; font-weight:700; font-size:13px; opacity:0.4; cursor:not-allowed;">
-                    <i class="fas fa-trash-alt"></i> Limpar Dados Locais
+                <button type="button" id="btnConfirmDeleteData" onclick="executeFullDataWipe()" disabled style="flex:1; min-height:44px; border-radius:12px; border:none; background:var(--mob-danger); color:#fff; font-weight:700; font-size:13px; opacity:0.4; cursor:not-allowed;">
+                    <i class="fas fa-trash-alt"></i> Limpar Local
                 </button>
             </div>
         </div>
@@ -738,15 +657,47 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../../js/supabase.js"></script>
-<script src="../../js/core.js"></script>
+<script src="../../js/core.js?v=3.2.33"></script>
 <script src="../../js/auth.js"></script>
 <script src="../../js/security.js"></script>
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sync.js"></script>
 <script src="../../js/financial-tools.js"></script>
 <script src="../../js/sw-register.js"></script>
+<script src="../../js/mobile/ui.js?v=1.1.0"></script>
 <script>
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+
 let currentUser = null;
+
+function openMobileSheet(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add("active");
+    if (window.TonuBackHandler) {
+        window.TonuBackHandler.pushModal(() => closeMobileSheet(id));
+    }
+}
+
+function closeMobileSheet(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove("active");
+}
+
+async function openMobileCategoryBudgetsSheet() {
+    openMobileSheet("mobileCategoryBudgetsSheet");
+    await loadMobileCategoriesAndBudgets();
+}
+
+function openMobileNotifSheet() {
+    openMobileSheet("mobileNotifSheet");
+    if (window.loadNotificationHistory) {
+        window.loadNotificationHistory();
+    }
+}
 
 document.addEventListener("DOMContentLoaded", async () => {
     const savedTheme = localStorage.getItem("tonu_theme") || "light";
@@ -754,14 +705,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.body.classList.add("dark-theme");
         document.documentElement.setAttribute("data-theme", "dark");
         document.querySelector("#themeIcon")?.classList.replace("fa-moon", "fa-sun");
-        document.getElementById("themeStatus").textContent = "Ativado";
-    } else {
-        document.getElementById("themeStatus").textContent = "Desativado";
     }
+    syncMobileThemeSettingsUI(savedTheme);
 
     // Privacidade de Saldo
     const hideBalance = localStorage.getItem("tonu_hide_balance") === "true";
-    document.getElementById("hideBalanceStatus").textContent = hideBalance ? "Ativado" : "Desativado";
+    const hideStatusEl = document.getElementById("hideBalanceStatus");
+    const hideToggleEl = document.getElementById("mobileHideBalanceToggle");
+    if (hideStatusEl) hideStatusEl.textContent = hideBalance ? "Ativado" : "Desativado";
+    if (hideToggleEl) hideToggleEl.checked = hideBalance;
+
+    // Menu Inferior
+    initBottomNavLabelsPref();
 
     // Limites de Gastos
     const savedBudget = localStorage.getItem("tonu_budget_limit") || "0";
@@ -770,12 +725,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("mobileBudgetInput").value = savedBudget;
     }
 
+    // Alerta 80%
+    const alert80El = document.getElementById("checkAlert80");
+    if (alert80El) {
+        alert80El.checked = localStorage.getItem("tonu_alert_80") !== "false";
+    }
+
     // Moeda do Sistema
     const savedCurrency = localStorage.getItem("tonu_currency") || "BRL";
     const curSelect = document.getElementById("mobileCurrencySelect");
     if (curSelect) curSelect.value = savedCurrency;
 
-    // Preferência de Eventos Corporativos (ITEM 7)
+    // Preferência de Eventos Corporativos
     const corpEventsEnabled = localStorage.getItem("tonu_pref_corporate_events") === "true";
     const corpToggle = document.getElementById("mobileToggleCorpEvents");
     if (corpToggle) corpToggle.checked = corpEventsEnabled;
@@ -791,6 +752,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Carregar preferências granulares de notificação push
     loadMobileNotifPrefs();
+
+    // Status do PWA
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const pwaStatus = document.getElementById("pwaStatusText");
+    if (pwaStatus && isStandalone) {
+        pwaStatus.textContent = "Instalado";
+        pwaStatus.classList.remove("accent");
+        pwaStatus.classList.add("success");
+    }
 
     try {
         let user = null;
@@ -823,83 +793,117 @@ document.addEventListener("DOMContentLoaded", async () => {
             const name = user.user_metadata?.full_name || user.name || user.email?.split("@")[0] || "Usuário";
             document.getElementById("userName").textContent = name;
             document.getElementById("userEmail").textContent = user.email;
-            
-            // Carrega foto de perfil salva
-            loadMobileAvatar(user, name);
+            await loadMobileAvatar(user, name);
         }
     } catch (e) { console.error("Erro ao carregar usuário em configurações mobile:", e); }
 
-    // Inicializa controles de Biometria e 2FA
     await renderMobileSecurityUI();
-
-    // Inicializa na aba Geral
-    const defaultTabBtn = document.querySelector(".mobile-tab-pill[onclick*=\"'general'\"]");
-    switchMobileSettingsTab('general', defaultTabBtn);
 });
 
-function loadMobileAvatar(user, name) {
+async function loadMobileAvatar(user, name) {
     const avatarEl = document.getElementById("userAvatar");
-    if (!avatarEl) return;
-    const initial = (name || "U").charAt(0).toUpperCase();
-    const storedAvatar = localStorage.getItem("tonu_avatar_" + user.id) || user.user_metadata?.avatar_url;
+    const topbarAvatarEl = document.getElementById("topbarAvatar");
+    if (!avatarEl && !topbarAvatarEl) return;
+    const parts = (name || "U").trim().split(/\s+/).filter(Boolean);
+    const initial = parts.length >= 2
+        ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+        : (name || "U").charAt(0).toUpperCase();
+    const uid = user?.id || "user";
+    let storedAvatar = null;
+
+    if (window.tonuSync && typeof window.tonuSync.getEntityCache === "function") {
+        try { storedAvatar = await window.tonuSync.getEntityCache("avatar_" + uid); } catch (_) {}
+    }
+
+    if (!storedAvatar) {
+        try {
+            const legacy = localStorage.getItem("tonu_avatar_" + uid);
+            if (legacy) {
+                storedAvatar = legacy;
+                if (window.tonuSync && typeof window.tonuSync.setEntityCache === "function") {
+                    try { await window.tonuSync.setEntityCache("avatar_" + uid, legacy); } catch (_) {}
+                }
+                localStorage.removeItem("tonu_avatar_" + uid);
+            }
+        } catch (_) {}
+    }
+
+    if (!storedAvatar) storedAvatar = user?.user_metadata?.avatar_url || null;
+
+    if (!storedAvatar && window.supabaseClient && user?.id) {
+        try {
+            const { data: prof } = await window.supabaseClient
+                .from("profiles")
+                .select("avatar_url")
+                .eq("id", user.id)
+                .maybeSingle();
+            if (prof && prof.avatar_url) {
+                storedAvatar = prof.avatar_url;
+                if (window.tonuSync && typeof window.tonuSync.setEntityCache === "function") {
+                    try { await window.tonuSync.setEntityCache("avatar_" + uid, storedAvatar); } catch (_) {}
+                }
+            }
+        } catch (_) {}
+    }
+
     if (storedAvatar) {
-        avatarEl.innerHTML = `<img src="${storedAvatar}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" />`;
-        avatarEl.style.background = "transparent";
+        if (avatarEl) {
+            avatarEl.innerHTML = `<img src="${storedAvatar}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:inherit;" />`;
+            avatarEl.style.background = "transparent";
+        }
+        if (topbarAvatarEl) {
+            topbarAvatarEl.innerHTML = `<img src="${storedAvatar}" alt="Avatar" class="avatar-img-element" />`;
+        }
     } else {
-        avatarEl.textContent = initial;
+        if (avatarEl) avatarEl.textContent = (name || "U").charAt(0).toUpperCase();
+        if (topbarAvatarEl) topbarAvatarEl.textContent = initial || "U";
     }
 }
 
 function triggerMobileAvatarUpload() {
-    const input = document.getElementById("mobileAvatarInput");
-    if (input) input.click();
+    document.getElementById("mobileAvatarInput")?.click();
 }
 
 async function handleMobileAvatarSelect(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
-
     if (!file.type.startsWith("image/")) {
         showMobileToast("Selecione um arquivo de imagem válido.", "error");
         return;
     }
-
     if (file.size > 10 * 1024 * 1024) {
         showMobileToast("A foto deve ter no máximo 10MB.", "error");
         return;
     }
 
-    showMobileToast("📸 Otimizando foto de perfil...", "info");
-
+    showMobileToast("Otimizando foto de perfil...", "info");
     try {
         const compressedDataUrl = await resizeImageToSquare(file, 240, 240);
         const userId = currentUser ? currentUser.id : "user";
-        localStorage.setItem("tonu_avatar_" + userId, compressedDataUrl);
+        if (window.tonuSync && typeof window.tonuSync.setEntityCache === "function") {
+            await window.tonuSync.setEntityCache("avatar_" + userId, compressedDataUrl);
+            try { localStorage.removeItem("tonu_avatar_" + userId); } catch (_) {}
+        } else {
+            localStorage.setItem("tonu_avatar_" + userId, compressedDataUrl);
+        }
 
         const avatarEl = document.getElementById("userAvatar");
         if (avatarEl) {
-            avatarEl.innerHTML = `<img src="${compressedDataUrl}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" />`;
+            avatarEl.innerHTML = `<img src="${compressedDataUrl}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:inherit;" />`;
             avatarEl.style.background = "transparent";
         }
+        const topbarAvatarEl = document.getElementById("topbarAvatar");
+        if (topbarAvatarEl) {
+            topbarAvatarEl.innerHTML = `<img src="${compressedDataUrl}" alt="Avatar" class="avatar-img-element" />`;
+        }
 
-        // Salva nos metadados do Supabase Auth e na tabela profiles
         if (currentUser && window.supabaseClient) {
-            try {
-                await supabaseClient.auth.updateUser({
-                    data: { avatar_url: compressedDataUrl }
-                });
-            } catch (e) {}
-
-            try {
-                await supabaseClient
-                    .from("profiles")
-                    .update({ avatar_url: compressedDataUrl })
-                    .eq("id", currentUser.id);
-            } catch (e) {}
+            try { await supabaseClient.auth.updateUser({ data: { avatar_url: compressedDataUrl } }); } catch (_) {}
+            try { await supabaseClient.from("profiles").update({ avatar_url: compressedDataUrl }).eq("id", currentUser.id); } catch (_) {}
         }
 
         if (navigator.vibrate) navigator.vibrate(30);
-        showMobileToast("Foto de perfil atualizada com sucesso! 📸", "success");
+        showMobileToast("Foto de perfil atualizada!", "success");
     } catch (err) {
         console.error(err);
         showMobileToast("Erro ao processar imagem.", "error");
@@ -943,10 +947,9 @@ function changeMobileCurrency(val) {
     }
     window.dispatchEvent(new CustomEvent("tonu_currency_changed", { detail: { currency: val } }));
     if (navigator.vibrate) navigator.vibrate(20);
-    showMobileToast(`Moeda alterada para ${val} com sucesso! 💱`, "success");
+    showMobileToast(`Moeda alterada para ${val}!`, "success");
 }
 
-// ZONA DE RISCO - CONFIRMAÇÃO DUPLA
 function openRiskZoneModal() {
     const modal = document.getElementById("riskZoneModal");
     const input = document.getElementById("confirmDeleteInput");
@@ -981,24 +984,21 @@ async function executeFullDataWipe() {
     const btn = document.getElementById("btnConfirmDeleteData");
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Limpando local...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Limpando...';
     }
 
     if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
     try {
-        // NÃO apaga tabelas no Supabase - dados remotos permanecem intactos e seguros!
         if (window.tonuSync) {
             try { await window.tonuSync.clearQueue(); } catch (_) {}
             try { await window.tonuSync.clearAllCaches?.(); } catch (_) {}
         }
 
-        // Limpa caches locais
         const keysToRemove = [];
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && (key.startsWith('tonu_') || key.includes('cache') || key.includes('transactions') || key.includes('bills'))) {
-                // Preserva apenas tema e sessão
                 if (key !== 'tonu_theme' && key !== 'tonu_security_pin' && key !== 'tonu_device_mode') {
                     keysToRemove.push(key);
                 }
@@ -1014,48 +1014,33 @@ async function executeFullDataWipe() {
             } catch (_) {}
         }
 
-        showMobileToast("Cache e dados locais apagados com sucesso! Seus dados na nuvem permanecem seguros. 🛡️", "success");
+        showMobileToast("Dados locais limpos! Seus registros na nuvem continuam seguros.", "success");
         closeRiskZoneModal();
-        setTimeout(() => {
-            window.location.reload();
-        }, 1200);
+        setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
         console.error("Erro ao apagar dados:", err);
-        showMobileToast("Erro ao concluir exclusão dos dados.", "error");
+        showMobileToast("Erro ao concluir limpeza local.", "error");
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-trash-alt"></i> Apagar Tudo';
+            btn.innerHTML = '<i class="fas fa-trash-alt"></i> Limpar Local';
         }
     }
 }
 
-function switchMobileSettingsTab(tab, btn) {
-    document.querySelectorAll(".mobile-tab-pill").forEach(p => p.classList.remove("active"));
-    if (btn) btn.classList.add("active");
-
-    const sections = document.querySelectorAll(".mobile-settings-section-wrapper");
-    sections.forEach(sec => {
-        const secType = sec.getAttribute("data-section");
-        if (tab === "all" || secType === tab || secType === "all") {
-            sec.style.display = "block";
-        } else {
-            sec.style.display = "none";
-        }
-    });
-}
-
-// Função auxiliar específica de UI mobile para sincronização visual do tema
 function syncMobileThemeSettingsUI(theme) {
     const isDark = theme ? (theme === 'dark') : document.body.classList.contains("dark-theme");
     const icon = document.querySelector("#themeIcon");
     if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
     const status = document.getElementById("themeStatus");
     if (status) status.textContent = isDark ? "Ativado" : "Desativado";
+    const toggleEl = document.getElementById("mobileThemeToggle");
+    if (toggleEl) toggleEl.checked = isDark;
 }
 
 window.addEventListener('themeChanged', function (e) {
     const theme = e.detail && e.detail.theme;
     syncMobileThemeSettingsUI(theme);
+    if (window.TonuMobileUI && window.TonuMobileUI.syncThemeMeta) window.TonuMobileUI.syncThemeMeta();
     const isDark = theme === 'dark' || document.body.classList.contains("dark-theme");
     if (typeof showMobileToast === 'function') {
         showMobileToast(`Tema ${isDark ? 'escuro' : 'claro'} ativado!`, "info");
@@ -1066,8 +1051,52 @@ function toggleHideBalancePref() {
     const current = localStorage.getItem("tonu_hide_balance") === "true";
     const next = !current;
     localStorage.setItem("tonu_hide_balance", next ? "true" : "false");
-    document.getElementById("hideBalanceStatus").textContent = next ? "Ativado" : "Desativado";
+    const statusEl = document.getElementById("hideBalanceStatus");
+    const toggleEl = document.getElementById("mobileHideBalanceToggle");
+    if (statusEl) statusEl.textContent = next ? "Ativado" : "Desativado";
+    if (toggleEl) toggleEl.checked = next;
+    if (window.TonuMobileUI && window.TonuMobileUI.applyPrivacyState) {
+        window.TonuMobileUI.applyPrivacyState();
+    }
     showMobileToast(`Ocultar saldos: ${next ? 'Ativado' : 'Desativado'}`, "info");
+}
+window.addEventListener('tonu:privacyChanged', function (e) {
+    const hidden = e && e.detail ? !!e.detail.hidden : (localStorage.getItem("tonu_hide_balance") === "true");
+    const statusEl = document.getElementById("hideBalanceStatus");
+    const toggleEl = document.getElementById("mobileHideBalanceToggle");
+    if (statusEl) statusEl.textContent = hidden ? "Ativado" : "Desativado";
+    if (toggleEl) toggleEl.checked = hidden;
+});
+
+function initBottomNavLabelsPref() {
+    const isIconsOnly = localStorage.getItem("tonu_bottom_nav_labels") === "false";
+    const statusEl = document.getElementById("bottomNavLabelsStatus");
+    if (statusEl) statusEl.textContent = isIconsOnly ? "Apenas Ícones" : "Com Nomes";
+    if (isIconsOnly) {
+        document.body.classList.add("nav-icons-only");
+        document.documentElement.classList.add("nav-icons-only");
+    } else {
+        document.body.classList.remove("nav-icons-only");
+        document.documentElement.classList.remove("nav-icons-only");
+    }
+}
+
+function toggleBottomNavLabelsPref() {
+    const isIconsOnly = localStorage.getItem("tonu_bottom_nav_labels") === "false";
+    const nextIsIconsOnly = !isIconsOnly;
+    localStorage.setItem("tonu_bottom_nav_labels", nextIsIconsOnly ? "false" : "true");
+    const statusEl = document.getElementById("bottomNavLabelsStatus");
+    if (statusEl) statusEl.textContent = nextIsIconsOnly ? "Apenas Ícones" : "Com Nomes";
+    if (nextIsIconsOnly) {
+        document.body.classList.add("nav-icons-only");
+        document.documentElement.classList.add("nav-icons-only");
+        showMobileToast("Menu inferior: Apenas Ícones", "info");
+    } else {
+        document.body.classList.remove("nav-icons-only");
+        document.documentElement.classList.remove("nav-icons-only");
+        showMobileToast("Menu inferior: Nomes e Ícones", "info");
+    }
+    if (window.safeHaptic) window.safeHaptic(20);
 }
 
 function saveMobileBudget() {
@@ -1083,36 +1112,27 @@ function saveMobileBudget() {
         window.TonuBudget.setOverallLimit(userId, val);
     }
     document.getElementById("budgetDisplayVal").textContent = formatCurrency(val);
-    showMobileToast("Limite mensal salvo com sucesso! 🎯", "success");
+    closeMobileSheet("mobileBudgetSheet");
+    showMobileToast("Limite mensal salvo!", "success");
 }
 
 function openMobileCategoryManager() {
     if (window.TonuCategoryManagerInstance) {
         window.TonuCategoryManagerInstance.showManagerModal(() => {
-            if (mobileBudgetsExpanded) loadMobileCategoriesAndBudgets();
+            const catSheet = document.getElementById("mobileCategoryBudgetsSheet");
+            if (catSheet && catSheet.classList.contains("active")) {
+                loadMobileCategoriesAndBudgets();
+            }
         });
     } else {
         showMobileToast("Gerenciador de categorias indisponível.", "warning");
     }
 }
 
-let mobileBudgetsExpanded = false;
-async function toggleMobileCategoryBudgetsView() {
-    mobileBudgetsExpanded = !mobileBudgetsExpanded;
-    const container = document.getElementById("mobileCategoryBudgetsContainer");
-    const btn = document.getElementById("toggleBudgetsViewBtn");
-    if (!container) return;
-    container.style.display = mobileBudgetsExpanded ? "block" : "none";
-    if (btn) btn.innerHTML = mobileBudgetsExpanded ? '<i class="fas fa-times"></i> Fechar' : '<i class="fas fa-sliders-h"></i> Ajustar';
-    if (mobileBudgetsExpanded) {
-        await loadMobileCategoriesAndBudgets();
-    }
-}
-
 async function loadMobileCategoriesAndBudgets() {
     const container = document.getElementById("mobileCategoryBudgetsContainer");
     if (!container) return;
-    container.innerHTML = '<div style="text-align:center; padding:12px; font-size:12px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+    container.innerHTML = '<div style="text-align:center; padding:16px; font-size:12.5px; color:var(--mob-text-muted);"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
 
     try {
         const userId = currentUser ? currentUser.id : 'offline_user';
@@ -1129,18 +1149,18 @@ async function loadMobileCategoriesAndBudgets() {
         }
         if (cats.length === 0) {
             cats = [
-                { id: 'cat_alimentacao', name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF7675' },
-                { id: 'cat_transporte', name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#0984E3' },
-                { id: 'cat_moradia', name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#6C5CE7' },
-                { id: 'cat_lazer', name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#FDCB6E' },
-                { id: 'cat_saude', name: '💊 Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#00B894' },
-                { id: 'cat_outros', name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#636E72' }
+                { id: 'cat_alimentacao', name: 'Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF7675' },
+                { id: 'cat_transporte', name: 'Transporte', type: 'expense', icon: 'fa-car', color: '#0984E3' },
+                { id: 'cat_moradia', name: 'Moradia', type: 'expense', icon: 'fa-home', color: '#4338CA' },
+                { id: 'cat_lazer', name: 'Lazer', type: 'expense', icon: 'fa-gamepad', color: '#FDCB6E' },
+                { id: 'cat_saude', name: 'Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#00B894' },
+                { id: 'cat_outros', name: 'Outros', type: 'expense', icon: 'fa-tag', color: '#636E72' }
             ];
         }
 
         const expenseCats = cats.filter(c => c.type !== 'income');
         if (expenseCats.length === 0) {
-            container.innerHTML = '<p style="font-size:12px; color:#94a3b8; text-align:center;">Nenhuma categoria de despesa cadastrada.</p>';
+            container.innerHTML = '<p style="font-size:12.5px; color:var(--mob-text-muted); text-align:center;">Nenhuma categoria de despesa cadastrada.</p>';
             return;
         }
 
@@ -1149,26 +1169,26 @@ async function loadMobileCategoriesAndBudgets() {
                 ${expenseCats.map(c => {
                     const currentLimit = window.TonuBudget ? window.TonuBudget.getLimitForCategory(userId, c.id, c.name) : 0;
                     return `
-                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; background:var(--color-bg, #f8fafc); border-radius:8px; border:1px solid var(--color-border, #e2e8f0);">
-                        <div style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; min-width:110px;">
-                            <span style="width:10px; height:10px; border-radius:50%; background:${c.color || '#6c5ce7'}; display:inline-block;"></span>
-                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:110px;">${c.name}</span>
+                    <div class="mob-cat-budget-row">
+                        <div class="mob-cat-budget-label">
+                            <span class="mob-cat-budget-dot" style="background:${c.color || '#4338CA'};"></span>
+                            <span class="mob-cat-budget-name">${c.name}</span>
                         </div>
-                        <div style="display:flex; align-items:center; gap:4px;">
-                            <span style="font-size:11px; color:#94a3b8;">R$</span>
-                            <input type="number" class="mobile-cat-budget-input" data-cat-id="${c.id}" data-cat-name="${c.name}" value="${currentLimit > 0 ? currentLimit : ''}" placeholder="0,00" step="10" min="0" style="width:85px; padding:4px 6px; font-size:12px; border-radius:6px; border:1px solid var(--color-border, #e2e8f0); text-align:right;">
+                        <div class="mob-cat-budget-input-wrap">
+                            <span>R$</span>
+                            <input type="number" class="mobile-cat-budget-input" data-cat-id="${c.id}" data-cat-name="${c.name}" value="${currentLimit > 0 ? currentLimit : ''}" placeholder="0,00" step="10" min="0">
                         </div>
                     </div>
                     `;
                 }).join('')}
-                <button type="button" class="btn btn-primary" onclick="saveMobileCategoryBudgets()" style="margin-top:6px; padding:8px 12px; border-radius:8px; background:#6C5CE7; color:white; border:none; font-weight:600; font-size:12px; cursor:pointer; width:100%;">
+                <button type="button" class="mob-sheet-primary-btn" onclick="saveMobileCategoryBudgets()" style="margin-top:6px; width:100%;">
                     <i class="fas fa-save"></i> Salvar Tetos de Categorias
                 </button>
             </div>
         `;
     } catch (e) {
         console.error(e);
-        container.innerHTML = '<p style="font-size:12px; color:#ef4444; text-align:center;">Erro ao carregar orçamentos.</p>';
+        container.innerHTML = '<p style="font-size:12.5px; color:var(--mob-danger); text-align:center;">Erro ao carregar orçamentos.</p>';
     }
 }
 
@@ -1183,7 +1203,8 @@ function saveMobileCategoryBudgets() {
             window.TonuBudget.setCategoryBudget(userId, catId, val, catName);
         }
     });
-    showMobileToast("Tetos por categoria salvos com sucesso! 🎯", "success");
+    closeMobileSheet("mobileCategoryBudgetsSheet");
+    showMobileToast("Tetos por categoria salvos!", "success");
 }
 
 function saveAlertPrefs() {
@@ -1192,59 +1213,102 @@ function saveAlertPrefs() {
     showMobileToast("Preferência de alerta atualizada.", "info");
 }
 
+async function refreshMobilePushStatusText() {
+    const statusEl = document.getElementById("mobilePushStatusText");
+    if (!statusEl) return;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+        statusEl.textContent = "Push não suportado neste navegador";
+        return;
+    }
+    if (isIOS && !isStandalone) {
+        statusEl.textContent = "No iPhone, abra pelo ícone na Tela de Início";
+        return;
+    }
+    if (Notification.permission === 'denied') {
+        statusEl.textContent = "Bloqueado nas configurações do aparelho";
+        return;
+    }
+    if (Notification.permission !== 'granted') {
+        statusEl.textContent = "Toque aqui para permitir alertas no celular";
+        return;
+    }
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        statusEl.textContent = sub
+            ? "Ativo neste celular (toque para renovar)"
+            : "Permissão ok, toque para vincular este celular";
+    } catch (_) {
+        statusEl.textContent = "Toque para ativar ou renovar neste celular";
+    }
+}
+
+async function activateMobilePushSubscription() {
+    if (typeof window.registerPushSubscription === 'function') {
+        await window.registerPushSubscription();
+    }
+    await refreshMobilePushStatusText();
+}
+
 function loadMobileNotifPrefs() {
     const pushPrefs = window.getPushPreferences ? window.getPushPreferences() : {};
-    if (document.getElementById("checkPushBills")) {
-        document.getElementById("checkPushBills").checked = pushPrefs.bills !== false;
-    }
-    if (document.getElementById("checkPushDivsCredited")) {
-        document.getElementById("checkPushDivsCredited").checked = pushPrefs.dividends_credited !== false;
-    }
-    if (document.getElementById("checkPushDivsUpcoming")) {
-        document.getElementById("checkPushDivsUpcoming").checked = pushPrefs.dividends_upcoming !== false;
-    }
-    if (document.getElementById("checkPushGoals")) {
-        document.getElementById("checkPushGoals").checked = pushPrefs.goals !== false;
-    }
-    if (document.getElementById("checkPushBudgets")) {
-        document.getElementById("checkPushBudgets").checked = pushPrefs.budgets !== false;
-    }
-    if (document.getElementById("checkNotifSound")) {
-        document.getElementById("checkNotifSound").checked = localStorage.getItem("tonu_notif_sound") !== "false";
-    }
-    if (window.loadNotificationHistory) {
-        window.loadNotificationHistory();
-    }
+    if (document.getElementById("checkPushBills")) document.getElementById("checkPushBills").checked = pushPrefs.bills !== false;
+    if (document.getElementById("checkPushDivsCredited")) document.getElementById("checkPushDivsCredited").checked = pushPrefs.dividends_credited !== false;
+    if (document.getElementById("checkPushDivsUpcoming")) document.getElementById("checkPushDivsUpcoming").checked = pushPrefs.dividends_upcoming !== false;
+    if (document.getElementById("checkPushGoals")) document.getElementById("checkPushGoals").checked = pushPrefs.goals !== false;
+    if (document.getElementById("checkPushBudgets")) document.getElementById("checkPushBudgets").checked = pushPrefs.budgets !== false;
+    if (document.getElementById("checkNotifSound")) document.getElementById("checkNotifSound").checked = localStorage.getItem("tonu_notif_sound") !== "false";
+    if (window.loadNotificationHistory) window.loadNotificationHistory();
+    refreshMobilePushStatusText();
 }
 
 async function saveNotifPrefs() {
-    const bills = document.getElementById("checkPushBills") ? document.getElementById("checkPushBills").checked : true;
-    const dividends_credited = document.getElementById("checkPushDivsCredited") ? document.getElementById("checkPushDivsCredited").checked : true;
-    const dividends_upcoming = document.getElementById("checkPushDivsUpcoming") ? document.getElementById("checkPushDivsUpcoming").checked : true;
-    const goals = document.getElementById("checkPushGoals") ? document.getElementById("checkPushGoals").checked : true;
-    const budgets = document.getElementById("checkPushBudgets") ? document.getElementById("checkPushBudgets").checked : true;
-    const sound = document.getElementById("checkNotifSound") ? document.getElementById("checkNotifSound").checked : true;
+    const bills = document.getElementById("checkPushBills")?.checked ?? true;
+    const dividends_credited = document.getElementById("checkPushDivsCredited")?.checked ?? true;
+    const dividends_upcoming = document.getElementById("checkPushDivsUpcoming")?.checked ?? true;
+    const goals = document.getElementById("checkPushGoals")?.checked ?? true;
+    const budgets = document.getElementById("checkPushBudgets")?.checked ?? true;
+    const sound = document.getElementById("checkNotifSound")?.checked ?? true;
 
     localStorage.setItem("tonu_notif_sound", sound ? "true" : "false");
-
     const prefs = { bills, dividends_credited, dividends_upcoming, goals, budgets };
-    if (window.savePushPreferences) {
-        await window.savePushPreferences(prefs);
-    }
-    showMobileToast("Preferências de notificação push salvas! ✅", "success");
+    if (window.savePushPreferences) await window.savePushPreferences(prefs);
+    showMobileToast("Preferências de notificação salvas!", "success");
 }
 
-function testNotificationAlert() {
-    showMobileToast("🔔 Lembrete: Teste de notificação executado com sucesso!", "success");
-    if (navigator.vibrate) {
-        navigator.vibrate([100, 50, 100]);
+async function testNotificationAlert() {
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    if (window.billNotificationManager?.testNotification) {
+        await window.billNotificationManager.testNotification();
+    } else if (typeof window.showNativeWebNotification === 'function') {
+        await window.showNativeWebNotification('TonuControle - Teste de Alerta', {
+            body: 'Seus alertas no celular estão funcionando!'
+        });
+    } else {
+        showMobileToast("Teste de notificação executado com sucesso!", "success");
+    }
+    if (typeof window.sendRealtimePush === 'function' && navigator.onLine) {
+        window.sendRealtimePush({
+            title: 'TonuControle - Teste Push',
+            body: 'Push real recebido neste dispositivo com sucesso!',
+            url: 'pages/mobile/dashboard.html',
+            tag: 'mobile-test-' + Date.now()
+        });
     }
 }
 
-function configurePinModal() {
+async function configurePinModal() {
     const currentPin = localStorage.getItem("tonu_security_pin");
     if (currentPin) {
-        if (confirm("Você já possui um PIN cadastrado. Deseja removê-lo?")) {
+        const ok = await window.TonuConfirm({
+            title: "Remover PIN",
+            message: "Você já possui um PIN cadastrado. Deseja removê-lo?",
+            confirmText: "Remover",
+            danger: true
+        });
+        if (ok) {
             localStorage.removeItem("tonu_security_pin");
             document.getElementById("pinStatusText").textContent = "Desativado";
             showMobileToast("PIN de segurança removido.", "info");
@@ -1254,95 +1318,76 @@ function configurePinModal() {
         if (newPin && /^\d{4}$/.test(newPin.trim())) {
             localStorage.setItem("tonu_security_pin", newPin.trim());
             document.getElementById("pinStatusText").textContent = "Ativo (4 dígitos)";
-            showMobileToast("PIN de segurança ativado com sucesso! 🔒", "success");
+            showMobileToast("PIN de segurança ativado!", "success");
         } else if (newPin !== null) {
             showMobileToast("O PIN deve conter exatamente 4 números!", "error");
         }
     }
 }
 
-function clearSecuritySession() {
-    if (confirm("Deseja desconectar as sessões em outros navegadores e manter apenas este celular?")) {
-        showMobileToast("Outras sessões encerradas com sucesso! 🛡️", "success");
+async function clearSecuritySession() {
+    const ok = await window.TonuConfirm({
+        title: "Encerrar outras sessões",
+        message: "Deseja desconectar as sessões em outros navegadores e manter apenas este celular?",
+        confirmText: "Desconectar"
+    });
+    if (ok) {
+        showMobileToast("Outras sessões encerradas!", "success");
     }
 }
 
-// ============================================
-// BIOMETRIA E 2FA NO MOBILE
-// ============================================
 let isBioProcessingMobile = false;
 
 async function renderMobileSecurityUI() {
-    // 1. Renderiza Biometria
     const bioStatusText = document.getElementById("mobileBioStatusText");
     const bioSubText = document.getElementById("mobileBioSubText");
     const bioActionContainer = document.getElementById("mobileBioActionContainer");
 
     if (bioStatusText && bioActionContainer) {
         if (!window.TonuBiometrics) {
-            bioStatusText.textContent = "Indisponível";
-            bioStatusText.style.color = "#94a3b8";
-            if (bioSubText) bioSubText.textContent = "Módulo biométrico não carregado.";
+            if (bioSubText) bioSubText.textContent = "Módulo biométrico indisponível";
             bioActionContainer.innerHTML = '';
         } else {
             const supported = await window.TonuBiometrics.checkSupport();
             const isConfigured = window.TonuBiometrics.isConfigured();
 
             if (!supported) {
-                bioStatusText.textContent = "Não suportada";
-                bioStatusText.style.color = "#e17055";
-                if (bioSubText) bioSubText.textContent = "Dispositivo sem leitor biométrico compatível.";
-                bioActionContainer.innerHTML = `<span style="font-size:11px; padding:3px 8px; border-radius:6px; background:#f1f5f9; color:#64748b;">Incompatível</span>`;
+                if (bioSubText) bioSubText.textContent = "Aparelho sem leitor compatível";
+                bioActionContainer.innerHTML = `<span class="settings-row-value">Incompatível</span>`;
             } else if (isConfigured) {
-                bioStatusText.textContent = "Ativada ✅";
-                bioStatusText.style.color = "#00b894";
-                if (bioSubText) bioSubText.textContent = "Face ID / Digital configurada neste celular.";
+                if (bioSubText) bioSubText.textContent = "Ativada neste celular";
                 bioActionContainer.innerHTML = `
-                    <button type="button" class="btn btn-danger" onclick="disableMobileBiometrics()" style="padding:6px 12px; font-size:11.5px; border-radius:8px; border:none; background:#ff7675; color:white; cursor:pointer;">
+                    <button type="button" class="mob-settings-action-btn danger" onclick="disableMobileBiometrics()">
                         <i class="fas fa-times"></i> Desativar
                     </button>
                 `;
             } else {
-                bioStatusText.textContent = "Desativada";
-                bioStatusText.style.color = "#64748b";
-                if (bioSubText) bioSubText.textContent = "Entre com um toque sem digitar sua senha.";
+                if (bioSubText) bioSubText.textContent = "Entre com um toque sem senha";
                 bioActionContainer.innerHTML = `
-                    <button type="button" class="btn btn-primary" onclick="activateMobileBiometrics()" style="padding:6px 14px; font-size:11.5px; border-radius:8px; border:none; background:#6C5CE7; color:white; font-weight:600; cursor:pointer;">
-                        <i class="fas fa-fingerprint"></i> Ativar Biometria
+                    <button type="button" class="mob-settings-action-btn primary" onclick="activateMobileBiometrics()">
+                        <i class="fas fa-fingerprint"></i> Ativar
                     </button>
                 `;
             }
         }
     }
 
-    // 2. Renderiza 2FA
     const twoFAStatusText = document.getElementById("mobile2FAStatusText");
     const twoFAActionContainer = document.getElementById("mobile2FAActionContainer");
 
     if (twoFAStatusText && twoFAActionContainer) {
         if (!window.TonuSecurity) {
             twoFAStatusText.textContent = "Inativo";
-            twoFAStatusText.style.color = "#94a3b8";
             twoFAActionContainer.innerHTML = '';
         } else {
             const is2FA = window.TonuSecurity.is2FAEnabled();
-            if (is2FA) {
-                twoFAStatusText.textContent = "Ativo 🛡️";
-                twoFAStatusText.style.color = "#00b894";
-                twoFAActionContainer.innerHTML = `
-                    <button type="button" class="btn btn-danger" onclick="toggleMobile2FA(false)" style="padding:6px 12px; font-size:11.5px; border-radius:8px; border:none; background:#ff7675; color:white; cursor:pointer;">
-                        <i class="fas fa-times"></i> Desativar 2FA
-                    </button>
-                `;
-            } else {
-                twoFAStatusText.textContent = "Inativo";
-                twoFAStatusText.style.color = "#64748b";
-                twoFAActionContainer.innerHTML = `
-                    <button type="button" class="btn btn-primary" onclick="toggleMobile2FA(true)" style="padding:6px 14px; font-size:11.5px; border-radius:8px; border:none; background:#0984E3; color:white; font-weight:600; cursor:pointer;">
-                        <i class="fas fa-shield-alt"></i> Ativar 2FA
-                    </button>
-                `;
-            }
+            twoFAStatusText.textContent = is2FA ? "Ativo com código OTP" : "Desativado";
+            twoFAActionContainer.innerHTML = `
+                <label class="mobile-toggle-switch" aria-label="Autenticação em 2 etapas">
+                    <input type="checkbox" ${is2FA ? 'checked' : ''} onchange="toggleMobile2FA(this.checked)">
+                    <span class="mobile-toggle-slider"></span>
+                </label>
+            `;
         }
     }
 }
@@ -1358,16 +1403,14 @@ async function activateMobileBiometrics() {
             showMobileToast("Faça login para cadastrar biometria.", "warning");
             return;
         }
-
         if (window.TonuBiometrics && window.TonuBiometrics.isInIframe()) {
             showMobileIframeBioNotice();
             return;
         }
-
         isBioProcessingMobile = true;
         showMobileToast("Toque no sensor biométrico ou use o Face ID...", "info");
         await window.TonuBiometrics.registerBiometrics(currentUser);
-        showMobileToast("Biometria ativada com sucesso! 🎉", "success");
+        showMobileToast("Biometria ativada com sucesso!", "success");
         await renderMobileSecurityUI();
     } catch (err) {
         if (err.message === 'IFRAME_RESTRICTION') {
@@ -1381,23 +1424,33 @@ async function activateMobileBiometrics() {
     }
 }
 
-function disableMobileBiometrics() {
-    if (confirm("Deseja desativar o login biométrico neste aparelho?")) {
-        if (window.TonuBiometrics) {
-            window.TonuBiometrics.disableBiometrics();
-        }
+async function disableMobileBiometrics() {
+    const ok = await window.TonuConfirm({
+        title: "Desativar biometria",
+        message: "Deseja desativar o login biométrico neste aparelho?",
+        confirmText: "Desativar",
+        danger: true
+    });
+    if (ok) {
+        if (window.TonuBiometrics) window.TonuBiometrics.disableBiometrics();
         showMobileToast("Biometria desativada.", "info");
         renderMobileSecurityUI();
     }
 }
 
-function toggleMobile2FA(enable) {
+async function toggleMobile2FA(enable) {
     if (!window.TonuSecurity) return;
     if (enable) {
         window.TonuSecurity.set2FAEnabled(true);
-        showMobileToast("Autenticação em Duas Etapas (2FA) ativada! 🛡️", "success");
+        showMobileToast("Autenticação em Duas Etapas (2FA) ativada!", "success");
     } else {
-        if (confirm("Deseja desativar o 2FA para sua conta?")) {
+        const ok = await window.TonuConfirm({
+            title: "Desativar 2FA",
+            message: "Deseja desativar o 2FA para sua conta?",
+            confirmText: "Desativar",
+            danger: true
+        });
+        if (ok) {
             window.TonuSecurity.set2FAEnabled(false);
             showMobileToast("2FA desativado.", "info");
         }
@@ -1411,20 +1464,20 @@ function showMobileIframeBioNotice() {
 
     const currentUrl = window.location.href;
     const modalHtml = `
-    <div id="mobileBioIframeModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.7); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(5px); font-family:'Inter',sans-serif;">
-        <div style="background:#ffffff; border-radius:18px; max-width:380px; width:100%; padding:20px; box-shadow:0 20px 40px rgba(0,0,0,0.25); border:1px solid #e2e8f0; text-align:center;">
-            <div style="width:52px; height:52px; border-radius:50%; background:rgba(108,92,231,0.1); color:#6c5ce7; display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 12px auto;">
+    <div id="mobileBioIframeModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.7); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(5px); font-family:'Plus Jakarta Sans','Inter',sans-serif;">
+        <div style="background:var(--mob-surface,#ffffff); border-radius:18px; max-width:380px; width:100%; padding:20px; box-shadow:0 20px 40px rgba(0,0,0,0.25); border:1px solid var(--mob-border,#DBEAFE); text-align:center;">
+            <div style="width:52px; height:52px; border-radius:50%; background:rgba(37,99,235,0.12); color:#2563EB; display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 12px auto;">
                 <i class="fas fa-fingerprint"></i>
             </div>
-            <h3 style="font-size:16px; font-weight:800; color:#0f172a; margin:0 0 8px 0;">Abrir em Nova Aba</h3>
-            <p style="font-size:12px; color:#64748b; line-height:1.5; margin:0 0 16px 0;">
-                Por políticas de segurança WebAuthn do navegador, a leitura biométrica (Face ID / Digital) não pode ser iniciada em frames embutidos de preview.
+            <h3 style="font-size:16px; font-weight:800; color:var(--mob-text,#0f172a); margin:0 0 8px 0;">Abrir em Nova Aba</h3>
+            <p style="font-size:12px; color:var(--mob-text-muted,#64748b); line-height:1.5; margin:0 0 16px 0;">
+                Por políticas de segurança WebAuthn do navegador, a leitura biométrica não pode ser iniciada em quadros embutidos.
                 <br><br>
-                Abra em uma <strong>nova aba</strong> ou instale o app PWA para ativar sua biometria!
+                Abra em uma <strong>nova aba</strong> ou instale o app PWA para ativar sua biometria.
             </p>
             <div style="display:flex; gap:8px; justify-content:center;">
-                <button type="button" class="btn" onclick="document.getElementById('mobileBioIframeModal').remove()" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; background:transparent; font-size:12px; cursor:pointer;">Fechar</button>
-                <a href="${currentUrl}" target="_blank" rel="noopener noreferrer" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 12px; border-radius:8px; background:#6c5ce7; color:white; font-size:12px; font-weight:600; text-decoration:none;">
+                <button type="button" class="mob-settings-action-btn" onclick="document.getElementById('mobileBioIframeModal').remove()" style="flex:1; justify-content:center; min-height:42px;">Fechar</button>
+                <a href="${currentUrl}" target="_blank" rel="noopener noreferrer" class="mob-sheet-primary-btn" style="flex:1; text-decoration:none; min-height:42px;">
                     <i class="fas fa-external-link-alt"></i> Nova Aba
                 </a>
             </div>
@@ -1452,7 +1505,7 @@ function triggerPwaInstall() {
             deferredPrompt = null;
         });
     } else {
-        showMobileToast("Para instalar: toque no menu do navegador (três pontinhos ou compartilhar) e escolha 'Adicionar à tela de início' 📱", "info");
+        showMobileToast("No menu do navegador, toque em 'Adicionar à tela de início'.", "info");
     }
 }
 
@@ -1465,8 +1518,9 @@ async function forceAppCacheUpdate() {
         }
     }
     setTimeout(() => {
-        showMobileToast("Aplicativo atualizado com sucesso! 🎉", "success");
-    }, 1200);
+        showMobileToast("Aplicativo atualizado! Recarregando...", "success");
+        setTimeout(() => window.location.reload(), 600);
+    }, 800);
 }
 
 async function forceSyncNow() {
@@ -1476,7 +1530,7 @@ async function forceSyncNow() {
             await window.SyncService.sync();
         }
         document.getElementById("lastSyncStatusText").textContent = `Sincronizado às ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-        showMobileToast("Sincronização concluída com sucesso! ☁️", "success");
+        showMobileToast("Sincronização concluída!", "success");
     } catch (e) {
         showMobileToast("Dados já atualizados na nuvem!", "success");
     }
@@ -1491,6 +1545,7 @@ async function exportDataJson() {
         const { data: goals } = await supabaseClient.from("goals").select("*").eq("user_id", currentUser.id);
 
         const backup = {
+            appName: 'TonuControle',
             exportDate: new Date().toISOString(),
             user: currentUser.email,
             transactions: txs || [],
@@ -1507,7 +1562,7 @@ async function exportDataJson() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showMobileToast("Backup exportado com sucesso! 📥", "success");
+        showMobileToast("Backup exportado com sucesso!", "success");
     } catch (err) {
         console.error(err);
         showMobileToast("Erro ao exportar backup.", "error");
@@ -1525,15 +1580,12 @@ function triggerRestoreBackup() {
         try {
             const text = await file.text();
             let data;
-            try {
-                data = JSON.parse(text);
-            } catch (pErr) {
-                showMobileToast("Arquivo JSON corrompido ou inválido.", "error");
+            try { data = JSON.parse(text); } catch (_) {
+                showMobileToast("Arquivo JSON inválido.", "error");
                 return;
             }
-
-            if (!data || data.appName !== 'TonuControle') {
-                showMobileToast("Arquivo inválido. O backup deve ser do TonuControle.", "error");
+            if (!data || (!data.transactions && !data.bills && !data.goals)) {
+                showMobileToast("Arquivo inválido para restauração.", "error");
                 return;
             }
 
@@ -1541,30 +1593,26 @@ function triggerRestoreBackup() {
             const countBills = (data.bills || []).length;
             const countGoals = (data.goals || []).length;
 
-            if (!confirm(`Deseja restaurar este backup?\n\n• ${countTx} Transações\n• ${countBills} Contas\n• ${countGoals} Metas`)) return;
+            const ok = await window.TonuConfirm({
+                title: "Restaurar backup",
+                message: `Deseja restaurar este backup?\n\n• ${countTx} Transações\n• ${countBills} Contas\n• ${countGoals} Metas`,
+                confirmText: "Restaurar"
+            });
+            if (!ok) return;
 
             showMobileToast("Restaurando dados...", "info");
 
             if (supabaseClient && currentUser) {
-                if (data.transactions && data.transactions.length > 0) {
-                    const txToInsert = data.transactions.map(t => {
-                        const { id, ...rest } = t;
-                        return { ...rest, user_id: currentUser.id };
-                    });
+                if (data.transactions?.length) {
+                    const txToInsert = data.transactions.map(({ id, ...rest }) => ({ ...rest, user_id: currentUser.id }));
                     await supabaseClient.from("transactions").insert(txToInsert);
                 }
-                if (data.bills && data.bills.length > 0) {
-                    const billsToInsert = data.bills.map(b => {
-                        const { id, ...rest } = b;
-                        return { ...rest, user_id: currentUser.id };
-                    });
+                if (data.bills?.length) {
+                    const billsToInsert = data.bills.map(({ id, ...rest }) => ({ ...rest, user_id: currentUser.id }));
                     await supabaseClient.from("bills").insert(billsToInsert);
                 }
-                if (data.goals && data.goals.length > 0) {
-                    const goalsToInsert = data.goals.map(g => {
-                        const { id, ...rest } = g;
-                        return { ...rest, user_id: currentUser.id };
-                    });
+                if (data.goals?.length) {
+                    const goalsToInsert = data.goals.map(({ id, ...rest }) => ({ ...rest, user_id: currentUser.id }));
                     await supabaseClient.from("goals").insert(goalsToInsert);
                 }
             }
@@ -1573,7 +1621,7 @@ function triggerRestoreBackup() {
                 localStorage.setItem("tonu_budget_limits_" + currentUser.id, JSON.stringify(data.budgets));
             }
 
-            showMobileToast("Backup restaurado com sucesso! 🎉", "success");
+            showMobileToast("Backup restaurado com sucesso!", "success");
             setTimeout(() => window.location.reload(), 1200);
         } catch (err) {
             console.error("Erro ao restaurar backup:", err);
@@ -1585,11 +1633,17 @@ function triggerRestoreBackup() {
     setTimeout(() => input.remove(), 1000);
 }
 
-function clearLocalCache() {
-    if (confirm("Limpar o cache local? Seus dados na nuvem permanecem seguros e serão recarregados.")) {
+async function clearLocalCache() {
+    const ok = await window.TonuConfirm({
+        title: "Limpar cache local",
+        message: "Limpar o cache local? Seus dados na nuvem permanecem seguros e serão recarregados.",
+        confirmText: "Limpar cache",
+        danger: true
+    });
+    if (ok) {
         localStorage.removeItem("tonu_cached_transactions");
         localStorage.removeItem("tonu_cached_bills");
-        showMobileToast("Cache limpo! Recarregando página...", "info");
+        showMobileToast("Cache limpo! Recarregando...", "info");
         setTimeout(() => window.location.reload(), 1000);
     }
 }
@@ -1601,15 +1655,17 @@ function switchToDesktop() {
 }
 
 async function handleMobileLogout() {
-    if (confirm("Deseja realmente sair da sua conta?")) {
+    const ok = await window.TonuConfirm({
+        title: "Sair da conta",
+        message: "Deseja realmente sair da sua conta?",
+        confirmText: "Sair",
+        danger: true
+    });
+    if (ok) {
         if (typeof window.logout === 'function') {
             await window.logout();
         } else {
-            try {
-                if (window.supabaseClient && window.supabaseClient.auth) {
-                    await window.supabaseClient.auth.signOut();
-                }
-            } catch (_) {}
+            try { if (window.supabaseClient?.auth) await window.supabaseClient.auth.signOut(); } catch (_) {}
             localStorage.removeItem("tonu_offline_session");
             sessionStorage.clear();
             window.location.href = "../../index.html";
@@ -1617,14 +1673,6 @@ async function handleMobileLogout() {
     }
 }
 window.handleMobileLogout = handleMobileLogout;
-
-function formatCurrency(val) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(val);
-    }
-    const num = Number(val) || 0;
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(num);
-}
 
 function showMobileToast(msg, type) {
     const toast = document.getElementById("toast");

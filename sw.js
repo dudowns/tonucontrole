@@ -3,14 +3,17 @@
 // ============================================
 
 // NOTA: Sincronizar CACHE_NAME com a versão em package.json a cada release
-const CACHE_NAME = 'tonucontrole-v2.8.0';
+const CACHE_NAME = 'tonucontrole-v3.2.37';
 
 const RELATIVE_ASSETS = [
   './',
   './index.html',
+  './index-mobile.html',
   './manifest.json',
+  './css/design-system.css',
   './css/theme.css',
   './css/dark-theme.css',
+  './css/sidebar-patch.css',
   './css/dashboard.css',
   './css/transactions.css',
   './css/goals.css',
@@ -21,12 +24,23 @@ const RELATIVE_ASSETS = [
   './css/notifications.css',
   './css/sync.css',
   './css/mobile.css',
+  './css/post-login-transition.css',
+  './icons/favicon.svg',
   './icons/logo.png',
+  './icons/icon-72x72.png',
+  './icons/icon-96x96.png',
+  './icons/icon-128x128.png',
+  './icons/icon-144x144.png',
+  './icons/icon-152x152.png',
   './icons/icon-192x192.png',
   './icons/icon-256x256.png',
+  './icons/icon-384x384.png',
   './icons/icon-512x512.png',
   './icons/icon-maskable-192x192.png',
   './icons/icon-maskable-512x512.png',
+  './icons/preview/goal-travel.jpg',
+  './icons/preview/goal-car.jpg',
+  './icons/preview/goal-house.jpg',
   './js/device-router.js',
   './js/supabase.js',
   './js/core.js',
@@ -43,8 +57,10 @@ const RELATIVE_ASSETS = [
   './js/investments.js',
   './js/settings.js',
   './js/sw-register.js',
+  './js/post-login-transition.js',
   './js/data/cnpj-base.js',
   './js/reports/ir-report.js',
+  './js/mobile/ui.js',
   './js/mobile/dashboard.js',
   './pages/dashboard.html',
   './pages/transactions.html',
@@ -85,9 +101,44 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Helper universal para Badging API no Service Worker (WebKit / Safari iOS 16.4+ usa self.navigator, Chromium usa self.navigator / self.registration)
+async function setSWAppBadge(count) {
+  const num = Math.min(Math.max(0, Number(count) || 0), 99);
+  try {
+    if (num > 0) {
+      if (typeof self.navigator !== 'undefined' && 'setAppBadge' in self.navigator) {
+        await self.navigator.setAppBadge(num);
+      } else if (self.registration && 'setAppBadge' in self.registration) {
+        await self.registration.setAppBadge(num);
+      }
+    } else {
+      await clearSWAppBadge();
+    }
+  } catch (err) {
+    console.warn('[SW] Falha ao definir App Badge:', err);
+  }
+}
+
+async function clearSWAppBadge() {
+  try {
+    if (typeof self.navigator !== 'undefined' && 'clearAppBadge' in self.navigator) {
+      await self.navigator.clearAppBadge();
+    }
+    if (self.registration && 'clearAppBadge' in self.registration) {
+      await self.registration.clearAppBadge();
+    }
+  } catch (err) {
+    console.warn('[SW] Falha ao limpar App Badge:', err);
+  }
+}
+
 self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
+  } else if (event.data === 'CLEAR_APP_BADGE' || (event.data && event.data.type === 'CLEAR_APP_BADGE')) {
+    clearSWAppBadge();
+  } else if (event.data && event.data.type === 'SET_APP_BADGE') {
+    setSWAppBadge(event.data.count);
   }
 });
 
@@ -113,27 +164,37 @@ self.addEventListener('sync', (event) => {
 // PUSH & NOTIFICATION CLICK LISTENERS
 // ============================================
 self.addEventListener('push', (event) => {
-  let data = { title: 'TonuControle', body: 'Você tem uma notificação', icon: '/icons/icon-192x192.png' };
+  const defaultIcon = new URL('./icons/icon-192x192.png?v=3.2.2', self.registration.scope).href;
+  const defaultBadge = new URL('./icons/icon-96x96.png?v=3.2.2', self.registration.scope).href;
+  let data = { title: 'TonuControle', body: 'Você tem uma notificação', icon: defaultIcon };
   if (event.data) {
     try { data = event.data.json(); } catch (e) { data.body = event.data.text(); }
   }
-  event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: data.icon || '/icons/icon-192x192.png',
-      badge: '/icons/icon-96x96.png',
-      tag: data.tag || 'tonu-notification',
-      data: { url: data.url || './' },
-      vibrate: [200, 100, 200],
-      requireInteraction: true,
-      silent: false,
-      renotify: true
-    })
-  );
+
+  const resolvedIcon = (data.icon && typeof data.icon === 'string')
+    ? new URL(data.icon.replace(/^\/+/, ''), self.registration.scope).href
+    : defaultIcon;
+  const badgeCount = Number(data.badgeCount || data.badge_count || 1);
+  const tagValue = data.tag || ('tonu-notification-' + Date.now());
+
+  // Exibição imediata dentro de event.waitUntil para garantir ciclo de vida no iOS WebKit / Android
+  const notificationPromise = self.registration.showNotification(data.title || 'TonuControle', {
+    body: data.body || '',
+    icon: resolvedIcon,
+    badge: defaultBadge,
+    tag: tagValue,
+    renotify: true,
+    data: { url: data.url || './', badgeCount: badgeCount }
+  });
+
+  const badgePromise = setSWAppBadge(badgeCount).catch(() => {});
+
+  event.waitUntil(Promise.all([notificationPromise, badgePromise]));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
   const rawUrl = event.notification.data?.url || './';
   // Garante que URLs relativas resolvam contra o escopo do PWA (ex: /tonucontrole/)
   const sanitizedUrl = (typeof rawUrl === 'string' && rawUrl.startsWith('/') && !rawUrl.startsWith('//'))
@@ -142,7 +203,11 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = new URL(sanitizedUrl || './', self.registration.scope).href;
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    (async () => {
+      // Limpar App Badge nativo com garantia de conclusão antes de fechar o handler
+      await clearSWAppBadge();
+
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       for (const client of clientList) {
         if (client.url.includes(self.registration.scope) && 'focus' in client) {
           client.navigate(targetUrl);
@@ -152,7 +217,7 @@ self.addEventListener('notificationclick', (event) => {
       if (self.clients.openWindow) {
         return self.clients.openWindow(targetUrl);
       }
-    })
+    })()
   );
 });
 
@@ -172,19 +237,31 @@ self.addEventListener('fetch', (event) => {
                       url.includes('.html');
 
   if (isCodeOrDoc) {
+    const isScriptOrStyle = event.request.destination === 'script' ||
+                            event.request.destination === 'style' ||
+                            /\.(js|mjs|css)(\?|$)/i.test(url);
+
     event.respondWith(
       fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+          const contentType = (networkResponse.headers.get('content-type') || '').toLowerCase();
+          if (!(isScriptOrStyle && contentType.includes('text/html'))) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
         }
         return networkResponse;
       }).catch(() => {
         return caches.match(event.request).then((cached) => {
-          if (cached) return cached;
-          if (event.request.headers.get('accept')?.includes('text/html')) {
+          if (cached) {
+            const cachedType = (cached.headers.get('content-type') || '').toLowerCase();
+            if (!(isScriptOrStyle && cachedType.includes('text/html'))) {
+              return cached;
+            }
+          }
+          if (!isScriptOrStyle && event.request.headers.get('accept')?.includes('text/html')) {
             const fallbackIndex = new URL('./index.html', self.registration.scope).href;
             const fallbackRoot = new URL('./', self.registration.scope).href;
             return caches.match(fallbackIndex).then(res => res || caches.match(fallbackRoot));

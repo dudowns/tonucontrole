@@ -1,0 +1,2274 @@
+// ==========================================================================
+// TONUCONTROLE - FINANCIAL TOOLS & INTELLIGENCE SUITE
+// Módulos unificados: Orçamentos, Fluxo de Caixa, Relatórios,
+// Gerenciador de Categorias, Importador Bancário (OFX/CSV) e Backup JSON.
+// ==========================================================================
+
+(function () {
+    'use strict';
+
+    function formatMoney(val) {
+        if (typeof window.formatCurrency === 'function') {
+            return window.formatCurrency(val);
+        }
+        if (val === null || val === undefined || val === '') val = 0;
+        if (typeof val === 'string') {
+            const cleaned = val.replace(/[R$\s]/g, '');
+            if (cleaned.includes(',') && cleaned.includes('.')) {
+                val = cleaned.replace(/\./g, '').replace(',', '.');
+            } else if (cleaned.includes(',')) {
+                val = cleaned.replace(',', '.');
+            }
+            val = parseFloat(val);
+        }
+        const num = Number(val) || 0;
+        try {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num).replace(/\u00A0/g, ' ');
+        } catch {
+            const isNegative = num < 0;
+            const parts = Math.abs(num).toFixed(2).split('.');
+            const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            const res = 'R$ ' + intPart + ',' + parts[1];
+            return isNegative ? '-' + res : res;
+        }
+    }
+
+    // ==========================================================================
+    // 1. ORÇAMENTOS E LIMITES POR CATEGORIA (TonuBudget)
+    // ==========================================================================
+    class TonuBudgetManager {
+        constructor() {
+            this.storagePrefix = 'tonu_budget_limits_';
+            this.nameMapPrefix = 'tonu_budget_namemap_';
+            this.thresholdPrefix = 'tonu_budget_threshold_';
+        }
+
+        getBudgets(userId) {
+            try {
+                const raw = localStorage.getItem(this.storagePrefix + userId);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        getNameMap(userId) {
+            try {
+                const raw = localStorage.getItem(this.nameMapPrefix + userId);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        getWarningThreshold(userId) {
+            try {
+                const raw = localStorage.getItem(this.thresholdPrefix + userId);
+                const val = parseFloat(raw);
+                return (!isNaN(val) && val >= 50 && val <= 95) ? val : 80;
+            } catch (e) {
+                return 80;
+            }
+        }
+
+        setWarningThreshold(userId, threshold) {
+            const val = parseFloat(threshold) || 80;
+            localStorage.setItem(this.thresholdPrefix + userId, String(val));
+        }
+
+        getLimitForCategory(userId, categoryId, categoryName = null) {
+            const budgets = this.getBudgets(userId);
+            if (categoryId && budgets[categoryId] !== undefined) {
+                return Number(budgets[categoryId]) || 0;
+            }
+            if (categoryName) {
+                const cleanName = categoryName.trim().toLowerCase();
+                const nameMap = this.getNameMap(userId);
+                if (nameMap[cleanName] && budgets[nameMap[cleanName]] !== undefined) {
+                    return Number(budgets[nameMap[cleanName]]) || 0;
+                }
+                if (budgets[cleanName] !== undefined) {
+                    return Number(budgets[cleanName]) || 0;
+                }
+                // Check case-insensitive match on keys
+                for (const k in budgets) {
+                    if (k.toLowerCase() === cleanName) {
+                        return Number(budgets[k]) || 0;
+                    }
+                }
+            }
+            return 0;
+        }
+
+        setCategoryBudget(userId, categoryId, limitAmount, categoryName = null) {
+            const budgets = this.getBudgets(userId);
+            const nameMap = this.getNameMap(userId);
+            const limit = parseFloat(limitAmount) || 0;
+
+            const key = categoryId || (categoryName ? categoryName.trim() : null);
+            if (!key) return;
+
+            if (limit > 0) {
+                budgets[key] = limit;
+                if (categoryName) {
+                    const cleanName = categoryName.trim().toLowerCase();
+                    nameMap[cleanName] = key;
+                    budgets[cleanName] = limit;
+                }
+            } else {
+                delete budgets[key];
+                if (categoryName) {
+                    const cleanName = categoryName.trim().toLowerCase();
+                    delete nameMap[cleanName];
+                    delete budgets[cleanName];
+                }
+            }
+
+            localStorage.setItem(this.storagePrefix + userId, JSON.stringify(budgets));
+            localStorage.setItem(this.nameMapPrefix + userId, JSON.stringify(nameMap));
+
+            try {
+                window.dispatchEvent(new CustomEvent('tonu:budget-updated', { detail: { categoryId, categoryName, limit } }));
+            } catch (e) {}
+
+            if (typeof window.checkNotifications === 'function') {
+                window.checkNotifications();
+            }
+        }
+
+        calculateCategoryProgress(userId, transactions, categories, targetMonth = null) {
+            const now = new Date();
+            const monthPrefix = targetMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const threshold = this.getWarningThreshold(userId);
+            const results = [];
+
+            // Gather base expense categories
+            const categoryPool = [...(categories || []).filter(c => c.type === 'expense')];
+
+            // Also check transactions in the current month for any custom categories not in categories list
+            const seenCategoryKeys = new Set(categoryPool.map(c => (c.name || '').trim().toLowerCase()));
+            (transactions || []).forEach(t => {
+                if (t.type === 'expense' && t.category) {
+                    const clean = t.category.trim().toLowerCase();
+                    if (!seenCategoryKeys.has(clean)) {
+                        seenCategoryKeys.add(clean);
+                        categoryPool.push({
+                            id: t.category_id || ('cat_' + clean),
+                            name: t.category.trim(),
+                            icon: 'fa-tag',
+                            color: '#4338CA',
+                            type: 'expense'
+                        });
+                    }
+                }
+            });
+
+            // Also check if user has set limits for any categories not yet in the pool
+            const budgets = this.getBudgets(userId);
+            for (const bKey in budgets) {
+                const cleanKey = bKey.trim().toLowerCase();
+                if (!seenCategoryKeys.has(cleanKey) && !categoryPool.some(c => c.id === bKey)) {
+                    seenCategoryKeys.add(cleanKey);
+                    categoryPool.push({
+                        id: bKey,
+                        name: bKey,
+                        icon: 'fa-bullseye',
+                        color: '#f39c12',
+                        type: 'expense'
+                    });
+                }
+            }
+
+            categoryPool.forEach(cat => {
+                const limit = this.getLimitForCategory(userId, cat.id, cat.name);
+                const cleanName = (cat.name || '').trim().toLowerCase();
+
+                const spent = (transactions || [])
+                    .filter(t => {
+                        if (t.type !== 'expense') return false;
+                        if (!t.date || !t.date.startsWith(monthPrefix)) return false;
+                        const tCat = (t.category || '').trim().toLowerCase();
+                        return (cat.id && t.category_id && String(t.category_id) === String(cat.id)) ||
+                               (cleanName && tCat === cleanName);
+                    })
+                    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+                const percentage = limit > 0 ? (spent / limit) * 100 : 0;
+                const isExceeded = limit > 0 && spent > limit;
+                const isWarning = limit > 0 && percentage >= threshold && spent <= limit;
+
+                results.push({
+                    categoryId: cat.id,
+                    name: cat.name,
+                    icon: cat.icon || 'fa-tag',
+                    color: cat.color || '#4338CA',
+                    limit: limit,
+                    spent: spent,
+                    remaining: Math.max(0, limit - spent),
+                    exceededBy: Math.max(0, spent - limit),
+                    percentage: percentage,
+                    isExceeded: isExceeded,
+                    isWarning: isWarning,
+                    threshold: threshold
+                });
+            });
+
+            // Sort: Exceeded first, then warnings, then highest spent
+            results.sort((a, b) => {
+                if (a.isExceeded && !b.isExceeded) return -1;
+                if (!a.isExceeded && b.isExceeded) return 1;
+                if (a.isWarning && !b.isWarning) return -1;
+                if (!a.isWarning && b.isWarning) return 1;
+                if (a.limit > 0 && b.limit === 0) return -1;
+                if (a.limit === 0 && b.limit > 0) return 1;
+                return b.spent - a.spent;
+            });
+
+            return results;
+        }
+
+        checkLimitAfterTransaction(userId, transaction, allTransactions, categories) {
+            if (!transaction || transaction.type !== 'expense') return;
+
+            const now = new Date();
+            const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const txDate = transaction.date || currentMonthPrefix;
+            if (!txDate.startsWith(currentMonthPrefix)) return; // Only notify if current month
+
+            const catName = transaction.category || 'Outros';
+            const catId = transaction.category_id || null;
+            const limit = this.getLimitForCategory(userId, catId, catName);
+
+            if (limit <= 0) return; // No limit set for this category
+
+            const threshold = this.getWarningThreshold(userId);
+            const cleanName = catName.trim().toLowerCase();
+
+            // Calculate total spent in this category for current month
+            const txList = allTransactions || [];
+            const spent = txList
+                .filter(t => {
+                    if (t.type !== 'expense') return false;
+                    if (!t.date || !t.date.startsWith(currentMonthPrefix)) return false;
+                    const tCat = (t.category || '').trim().toLowerCase();
+                    return (catId && t.category_id && String(t.category_id) === String(catId)) ||
+                           (cleanName && tCat === cleanName);
+                })
+                .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+            const percentage = (spent / limit) * 100;
+
+            if (spent > limit) {
+                const diff = spent - limit;
+                if (typeof window.showToast === 'function') {
+                    window.showToast(`🚨 Limite Estourado: Você gastou ${formatMoney(spent)} em ${catName}! Limite de ${formatMoney(limit)} ultrapassado em ${formatMoney(diff)}.`, 'error');
+                }
+            } else if (percentage >= threshold) {
+                const remaining = limit - spent;
+                if (typeof window.showToast === 'function') {
+                    window.showToast(`⚠️ Atenção: Você atingiu ${percentage.toFixed(0)}% do limite de ${catName}! Gastou ${formatMoney(spent)} de ${formatMoney(limit)}. Restam ${formatMoney(remaining)}.`, 'warning');
+                }
+            }
+
+            if (typeof window.checkNotifications === 'function') {
+                setTimeout(window.checkNotifications, 100);
+            }
+        }
+
+        async openBudgetModal() {
+            try {
+                let user = null;
+                if (window.supabaseOffline) {
+                    user = await window.supabaseOffline.isAuthenticated();
+                }
+                if (!user && window.supabaseClient?.auth?.getUser) {
+                    const res = await window.supabaseClient.auth.getUser();
+                    user = res?.data?.user;
+                }
+
+                if (!user) {
+                    try {
+                        const raw = localStorage.getItem('tonu_user');
+                        if (raw) user = JSON.parse(raw);
+                    } catch (e) {}
+                }
+
+                if (!user) {
+                    if (window.showToast) window.showToast('Faça login para gerenciar limites.', 'warning');
+                    return;
+                }
+
+                let txList = [];
+                let catList = [];
+
+                if (window.supabaseClient) {
+                    try {
+                        const [txRes, catRes] = await Promise.all([
+                            window.supabaseClient.from('transactions').select('*').eq('user_id', user.id),
+                            window.supabaseClient.from('categories').select('*').eq('user_id', user.id)
+                        ]);
+                        txList = txRes.data || [];
+                        catList = catRes.data || [];
+                    } catch (e) {
+                        console.warn('Fallback para cache local:', e);
+                    }
+                }
+
+                if (txList.length === 0) {
+                    try {
+                        const local = localStorage.getItem('tonu_transactions_' + user.id);
+                        if (local) txList = JSON.parse(local);
+                    } catch (e) {}
+                }
+
+                if (catList.length === 0) {
+                    try {
+                        const local = localStorage.getItem('tonu_categories_' + user.id);
+                        if (local) catList = JSON.parse(local);
+                    } catch (e) {}
+                }
+
+                this.showBudgetModal(user.id, catList, txList);
+            } catch (e) {
+                console.error('❌ Erro ao abrir modal de orçamentos:', e);
+                if (window.showToast) window.showToast('Erro ao abrir gerenciador de limites.', 'error');
+            }
+        }
+
+        showBudgetModal(userId, categories, transactions, onSaveCallback) {
+            let modal = document.getElementById('tonuBudgetModal');
+            if (modal) modal.remove();
+
+            const progressList = this.calculateCategoryProgress(userId, transactions, categories);
+            const currentThreshold = this.getWarningThreshold(userId);
+
+            const activeBudgets = progressList.filter(p => p.limit > 0);
+            const totalBudget = activeBudgets.reduce((sum, p) => sum + p.limit, 0);
+            const totalSpent = progressList.reduce((sum, p) => sum + p.spent, 0);
+            const totalSpentInBudgeted = activeBudgets.reduce((sum, p) => sum + p.spent, 0);
+
+            const exceededCount = progressList.filter(p => p.isExceeded).length;
+            const warningCount = progressList.filter(p => p.isWarning).length;
+
+            const modalHtml = `
+            <div id="tonuBudgetModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.82); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px); font-family:'Inter',sans-serif;">
+                <div style="background:#ffffff; border-radius:20px; max-width:680px; width:100%; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); border:1px solid #e2e8f0; overflow:hidden;">
+                    
+                    <!-- HEADER -->
+                    <div style="padding:18px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:flex-start; background:#ffffff;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg, #3730A3, #4F46E5); color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 4px 10px rgba(67,56,202,0.25);">
+                                    <i class="fas fa-bullseye"></i>
+                                </div>
+                                <div>
+                                    <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:0;">
+                                        Limites & Tetos por Categoria
+                                    </h3>
+                                    <p style="font-size:12px; color:#64748b; margin:2px 0 0 0;">
+                                        Estipule limites mensais e receba notificações automáticas se chegar perto ou ultrapassar.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="document.getElementById('tonuBudgetModal').remove()" style="background:none; border:none; font-size:24px; cursor:pointer; color:#94a3b8; line-height:1; padding:4px;" title="Fechar">&times;</button>
+                    </div>
+
+                    <!-- STATS BAR -->
+                    <div style="padding:12px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; font-size:12px;">
+                        <div style="background:#ffffff; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0;">
+                            <span style="color:#64748b; display:block; font-size:11px;">Teto Total Definido</span>
+                            <strong style="color:#0f172a; font-size:15px; font-weight:700;">${formatMoney(totalBudget)}</strong>
+                        </div>
+                        <div style="background:#ffffff; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0;">
+                            <span style="color:#64748b; display:block; font-size:11px;">Gasto Total no Mês</span>
+                            <strong style="color:${totalSpentInBudgeted > totalBudget && totalBudget > 0 ? '#ff7675' : '#00b894'}; font-size:15px; font-weight:700;">
+                                ${formatMoney(totalSpent)}
+                            </strong>
+                        </div>
+                        <div style="background:#ffffff; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0;">
+                            <span style="color:#64748b; display:block; font-size:11px;">Status de Alertas</span>
+                            <div style="display:flex; gap:6px; align-items:center; margin-top:2px;">
+                                ${exceededCount > 0 ? `<span style="background:#fee2e2; color:#dc2626; padding:2px 6px; border-radius:6px; font-size:11px; font-weight:700;">🚨 ${exceededCount} estourado(s)</span>` : ''}
+                                ${warningCount > 0 ? `<span style="background:#fef3c7; color:#d97706; padding:2px 6px; border-radius:6px; font-size:11px; font-weight:700;">⚠️ ${warningCount} perto</span>` : ''}
+                                ${exceededCount === 0 && warningCount === 0 ? `<span style="background:#dcfce7; color:#16a34a; padding:2px 6px; border-radius:6px; font-size:11px; font-weight:700;">✅ Tudo no limite</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CONTROLS & FILTER BAR -->
+                    <div style="padding:12px 24px; background:#ffffff; border-bottom:1px solid #e2e8f0; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:200px;">
+                            <div style="position:relative; width:100%; max-width:240px;">
+                                <i class="fas fa-search" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:12px;"></i>
+                                <input type="text" id="budgetSearchInput" placeholder="Buscar categoria..." oninput="TonuBudget.filterList()" style="width:100%; padding:6px 10px 6px 30px; border-radius:8px; border:1px solid #cbd5e1; font-size:12px;">
+                            </div>
+                            <div style="display:flex; gap:4px;">
+                                <button type="button" class="btn-budget-filter active" id="btnFilterAll" onclick="TonuBudget.setFilter('all')" style="padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:#4338CA; color:#fff; border:none;">Todas (${progressList.length})</button>
+                                <button type="button" class="btn-budget-filter" id="btnFilterActive" onclick="TonuBudget.setFilter('active')" style="padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;">Com Limite (${activeBudgets.length})</button>
+                                <button type="button" class="btn-budget-filter" id="btnFilterAlerts" onclick="TonuBudget.setFilter('alerts')" style="padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;">Alertas (${exceededCount + warningCount})</button>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size:11px; color:#64748b; font-weight:600;">Alertar a:</label>
+                            <select id="budgetThresholdSelect" onchange="TonuBudget.updateThreshold('${userId}', this.value)" style="padding:4px 8px; border-radius:6px; border:1px solid #cbd5e1; font-size:11px; font-weight:600;">
+                                <option value="70" ${currentThreshold === 70 ? 'selected' : ''}>70% do teto</option>
+                                <option value="80" ${currentThreshold === 80 ? 'selected' : ''}>80% do teto (Padrão)</option>
+                                <option value="85" ${currentThreshold === 85 ? 'selected' : ''}>85% do teto</option>
+                                <option value="90" ${currentThreshold === 90 ? 'selected' : ''}>90% do teto</option>
+                            </select>
+
+                            <button type="button" onclick="TonuBudget.openNewCategoryModal('${userId}')" style="background:#EEF2FF; color:#4338CA; border:1px solid #C7D2FE; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                                <i class="fas fa-plus"></i> Nova Categoria
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- CATEGORIES LIST -->
+                    <div id="budgetCategoryListContainer" style="flex:1; overflow-y:auto; padding:16px 24px; max-height:440px; display:flex; flex-direction:column; gap:12px;">
+                        ${this.renderCategoryRows(userId, progressList)}
+                    </div>
+
+                    <!-- FOOTER -->
+                    <div style="padding:14px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+                        <span style="font-size:12px; color:#64748b;">
+                            <i class="fas fa-info-circle" style="color:#4338CA;"></i> Deixe em branco ou 0 para desativar o limite.
+                        </span>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-outline btn-sm" onclick="document.getElementById('tonuBudgetModal').remove()">Fechar</button>
+                            <button class="btn btn-primary btn-sm" onclick="TonuBudget.saveBudgetsFromModal('${userId}', ${JSON.stringify(progressList.map(p => ({ id: p.categoryId, name: p.name }))).replace(/"/g, '&quot;')})">
+                                <i class="fas fa-save"></i> Salvar Limites
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            this.currentSaveCallback = onSaveCallback;
+            this.currentProgressList = progressList;
+            this.currentFilter = 'all';
+        }
+
+        renderCategoryRows(userId, progressList) {
+            if (!progressList || progressList.length === 0) {
+                return '<div style="padding:32px; text-align:center; color:#94a3b8; font-size:13px;">Nenhuma categoria encontrada. Clique em "+ Nova Categoria" acima para criar uma!</div>';
+            }
+
+            return progressList.map(prog => {
+                const barColor = prog.isExceeded ? '#ff7675' : (prog.isWarning ? '#fdcb6e' : '#00b894');
+                const badgeHtml = prog.isExceeded
+                    ? `<span style="background:#fee2e2; color:#dc2626; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:800;">🚨 LIMITE ESTOURADO (+${formatMoney(prog.exceededBy)})</span>`
+                    : (prog.isWarning
+                        ? `<span style="background:#fef3c7; color:#d97706; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:800;">⚠️ ${prog.percentage.toFixed(0)}% CONSUMIDO (Perto)</span>`
+                        : (prog.limit > 0 ? `<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700;">✅ Dentro do Limite</span>` : ''));
+
+                const pctWidth = Math.min(Math.max(prog.percentage, 0), 100);
+
+                return `
+                <div class="budget-cat-row" data-cat-id="${prog.categoryId}" data-cat-name="${prog.name.toLowerCase()}" data-has-limit="${prog.limit > 0}" data-is-alert="${prog.isExceeded || prog.isWarning}" style="padding:14px 16px; background:#ffffff; border:1px solid ${prog.isExceeded ? '#fca5a5' : (prog.isWarning ? '#fde68a' : '#e2e8f0')}; border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,0.02); transition:all 0.2s ease;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+                        
+                        <!-- LEFT INFO -->
+                        <div style="display:flex; align-items:center; gap:12px; min-width:200px;">
+                            <div style="width:38px; height:38px; border-radius:10px; background:${prog.color || '#4338CA'}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+                                <i class="fas ${prog.icon || 'fa-tag'}"></i>
+                            </div>
+                            <div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <strong style="font-size:14px; color:#0f172a;">${prog.name}</strong>
+                                    ${badgeHtml}
+                                </div>
+                                <div style="font-size:12px; color:#64748b; margin-top:2px;">
+                                    Gasto no mês: <strong style="color:#0f172a;">${formatMoney(prog.spent)}</strong>
+                                    ${prog.limit > 0 ? ` • Restante: <span style="color:${prog.isExceeded ? '#dc2626' : '#16a34a'}; font-weight:600;">${prog.isExceeded ? 'R$ 0,00' : formatMoney(prog.remaining)}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT INPUT -->
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:12px; color:#64748b; font-weight:600;">Limite Mensal:</span>
+                            <div style="position:relative; width:130px;">
+                                <span style="position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:12px; font-weight:700; color:#64748b;">R$</span>
+                                <input type="number" step="10" min="0" id="budget_input_${prog.categoryId}" value="${prog.limit || ''}" placeholder="Sem limite" style="width:100%; padding:7px 8px 7px 28px; border-radius:8px; border:1px solid #cbd5e1; font-size:13px; font-weight:700; color:#0f172a; text-align:right;">
+                            </div>
+                            <!-- PRESETS -->
+                            <div style="display:flex; gap:2px;">
+                                <button type="button" title="Definir R$ 100" onclick="document.getElementById('budget_input_${prog.categoryId}').value='100'" style="padding:4px 6px; font-size:10px; font-weight:600; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:4px; cursor:pointer; color:#475569;">100</button>
+                                <button type="button" title="Definir R$ 250" onclick="document.getElementById('budget_input_${prog.categoryId}').value='250'" style="padding:4px 6px; font-size:10px; font-weight:600; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:4px; cursor:pointer; color:#475569;">250</button>
+                                <button type="button" title="Definir R$ 500" onclick="document.getElementById('budget_input_${prog.categoryId}').value='500'" style="padding:4px 6px; font-size:10px; font-weight:600; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:4px; cursor:pointer; color:#475569;">500</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PROGRESS BAR -->
+                    ${prog.limit > 0 ? `
+                    <div style="margin-top:6px;">
+                        <div style="width:100%; height:7px; background:#e2e8f0; border-radius:99px; overflow:hidden;">
+                            <div style="width:${pctWidth}%; height:100%; background:${barColor}; border-radius:99px; transition:width 0.3s ease;"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:11px; color:#64748b; margin-top:4px;">
+                            <span>${prog.percentage.toFixed(0)}% do limite consumido</span>
+                            <span>${prog.isExceeded ? `<strong style="color:#dc2626;">Estourou o teto em ${formatMoney(prog.exceededBy)}</strong>` : `Teto: ${formatMoney(prog.limit)}`}</span>
+                        </div>
+                    </div>
+                    ` : `
+                    <div style="font-size:11px; color:#94a3b8; font-style:italic; margin-top:4px;">
+                        Nenhum teto configurado para esta categoria. Defina um valor ao lado para receber alertas.
+                    </div>
+                    `}
+                </div>
+                `;
+            }).join('');
+        }
+
+        filterList() {
+            const query = (document.getElementById('budgetSearchInput')?.value || '').trim().toLowerCase();
+            const filter = this.currentFilter || 'all';
+            const rows = document.querySelectorAll('.budget-cat-row');
+
+            rows.forEach(row => {
+                const name = row.getAttribute('data-cat-name') || '';
+                const hasLimit = row.getAttribute('data-has-limit') === 'true';
+                const isAlert = row.getAttribute('data-is-alert') === 'true';
+
+                let matchesSearch = !query || name.includes(query);
+                let matchesFilter = true;
+
+                if (filter === 'active') matchesFilter = hasLimit;
+                else if (filter === 'alerts') matchesFilter = isAlert;
+
+                if (matchesSearch && matchesFilter) {
+                    row.style.display = 'block';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        setFilter(filterType) {
+            this.currentFilter = filterType;
+            document.querySelectorAll('.btn-budget-filter').forEach(b => {
+                b.style.background = '#f1f5f9';
+                b.style.color = '#475569';
+                b.style.border = '1px solid #e2e8f0';
+            });
+
+            const activeBtn = document.getElementById(filterType === 'all' ? 'btnFilterAll' : (filterType === 'active' ? 'btnFilterActive' : 'btnFilterAlerts'));
+            if (activeBtn) {
+                activeBtn.style.background = '#4338CA';
+                activeBtn.style.color = '#ffffff';
+                activeBtn.style.border = 'none';
+            }
+
+            this.filterList();
+        }
+
+        updateThreshold(userId, newThreshold) {
+            this.setWarningThreshold(userId, newThreshold);
+            if (window.showToast) {
+                window.showToast(`Notificações serão disparadas ao atingir ${newThreshold}% do limite.`, 'info');
+            }
+            if (typeof window.checkNotifications === 'function') {
+                window.checkNotifications();
+            }
+        }
+
+        openNewCategoryModal(userId) {
+            if (window.TonuCategoryManager) {
+                window.TonuCategoryManager.showEditModal(null, userId);
+            } else {
+                const name = prompt('Nome da nova categoria:');
+                if (name && name.trim()) {
+                    const limit = prompt(`Limite mensal em R$ para "${name.trim()}" (opcional):`, '100');
+                    const num = parseFloat(limit) || 0;
+                    this.setCategoryBudget(userId, null, num, name.trim());
+                    if (window.showToast) window.showToast(`Categoria "${name.trim()}" configurada com limite de ${formatMoney(num)}!`, 'success');
+                    this.openBudgetModal();
+                }
+            }
+        }
+
+        saveBudgetsFromModal(userId, categories) {
+            categories.forEach(cat => {
+                const input = document.getElementById(`budget_input_${cat.id}`);
+                if (input) {
+                    const val = parseFloat(input.value) || 0;
+                    this.setCategoryBudget(userId, cat.id, val, cat.name);
+                }
+            });
+
+            if (window.showToast) {
+                window.showToast('Limites de gastos atualizados com sucesso! 🎯', 'success');
+            }
+
+            const modal = document.getElementById('tonuBudgetModal');
+            if (modal) modal.remove();
+
+            if (typeof window.checkNotifications === 'function') {
+                window.checkNotifications();
+            }
+
+            if (this.currentSaveCallback) {
+                this.currentSaveCallback();
+            }
+        }
+    }
+
+    // ==========================================================================
+    // 2. PROJEÇÃO DE FLUXO DE CAIXA (TonuCashFlow)
+    // ==========================================================================
+    class TonuCashFlowManager {
+        calculateProjection(currentBalance, transactions, bills, daysAhead = 30) {
+            const today = new Date();
+            const dailyPoints = [];
+            let runningBalance = currentBalance;
+
+            for (let i = 0; i <= daysAhead; i++) {
+                const targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + i);
+                const dateStr = targetDate.toISOString().split('T')[0];
+
+                const dayBills = bills.filter(b => b.due_date === dateStr && !b.paid);
+                let dayIncome = 0;
+                let dayExpense = 0;
+
+                dayBills.forEach(b => {
+                    if (b.type === 'income') dayIncome += Number(b.amount || 0);
+                    else dayExpense += Number(b.amount || 0);
+                });
+
+                if (i > 0) {
+                    runningBalance = runningBalance + dayIncome - dayExpense;
+                }
+
+                dailyPoints.push({
+                    date: dateStr,
+                    dayLabel: `${targetDate.getDate()}/${targetDate.getMonth() + 1}`,
+                    balance: runningBalance,
+                    dayIncome,
+                    dayExpense,
+                    isNegative: runningBalance < 0
+                });
+            }
+
+            const minBalancePoint = dailyPoints.reduce((min, p) => p.balance < min.balance ? p : min, dailyPoints[0]);
+            const finalBalance = dailyPoints[dailyPoints.length - 1].balance;
+
+            return {
+                dailyPoints,
+                currentBalance,
+                finalBalance,
+                minBalance: minBalancePoint.balance,
+                minBalanceDate: minBalancePoint.date,
+                hasNegativeRisk: dailyPoints.some(p => p.balance < 0)
+            };
+        }
+
+        showCashFlowModal(currentBalance, transactions, bills) {
+            let modal = document.getElementById('tonuCashFlowModal');
+            if (modal) modal.remove();
+
+            const projection = this.calculateProjection(currentBalance, transactions, bills, 30);
+
+            const modalHtml = `
+            <div id="tonuCashFlowModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.8); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px); font-family:'Inter',sans-serif;">
+                <div style="background:#ffffff; border-radius:20px; max-width:700px; width:100%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); border:1px solid #e2e8f0; overflow:hidden;">
+                    
+                    <div style="padding:20px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:0 0 4px 0;">
+                                <i class="fas fa-chart-line" style="color:#0984e3; margin-right:8px;"></i> Projeção de Fluxo de Caixa (30 Dias)
+                            </h3>
+                            <p style="font-size:12px; color:#64748b; margin:0;">Simulação de saldo futuro considerando contas a vencer e receitas previstas.</p>
+                        </div>
+                        <button onclick="document.getElementById('tonuCashFlowModal').remove()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">&times;</button>
+                    </div>
+
+                    <div style="padding:16px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">
+                        <div style="background:#ffffff; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;">
+                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Saldo Atual</div>
+                            <div style="font-size:16px; font-weight:700; color:#0f172a;">${formatMoney(projection.currentBalance)}</div>
+                        </div>
+                        <div style="background:#ffffff; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;">
+                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Saldo em 30 Dias</div>
+                            <div style="font-size:16px; font-weight:700; color:${projection.finalBalance >= 0 ? '#00b894' : '#ff7675'};">
+                                ${formatMoney(projection.finalBalance)}
+                            </div>
+                        </div>
+                        <div style="background:#ffffff; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;">
+                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Menor Saldo Previsto</div>
+                            <div style="font-size:16px; font-weight:700; color:${projection.minBalance >= 0 ? '#0984e3' : '#e17055'};">
+                                ${formatMoney(projection.minBalance)}
+                            </div>
+                        </div>
+                    </div>
+
+                    ${projection.hasNegativeRisk ? `
+                    <div style="margin:12px 24px 0 24px; padding:10px 14px; background:#fdeaea; border-left:4px solid #ff7675; border-radius:8px; font-size:12px; color:#c0392b;">
+                        <strong>⚠️ Alerta de Saldo Negativo:</strong> Suas contas programadas ultrapassam o saldo em alguns dias. Considere antecipar receitas ou renegociar vencimentos.
+                    </div>
+                    ` : ''}
+
+                    <div style="flex:1; overflow-y:auto; padding:16px 24px; max-height:360px;">
+                        <h4 style="font-size:13px; font-weight:700; color:#0f172a; margin-bottom:10px;">Evolução Prevista Dia a Dia</h4>
+                        <div style="display:flex; flex-direction:column; gap:6px;">
+                            ${projection.dailyPoints.filter((p, i) => i === 0 || p.dayIncome > 0 || p.dayExpense > 0 || i === projection.dailyPoints.length - 1).map(p => `
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; font-size:12px;">
+                                    <span style="font-weight:600; color:#0f172a; width:80px;">${p.dayLabel}</span>
+                                    <div style="flex:1; display:flex; gap:12px; font-size:11px;">
+                                        ${p.dayIncome > 0 ? `<span style="color:#00b894;">+ ${formatMoney(p.dayIncome)}</span>` : ''}
+                                        ${p.dayExpense > 0 ? `<span style="color:#ff7675;">- ${formatMoney(p.dayExpense)}</span>` : ''}
+                                    </div>
+                                    <span style="font-weight:700; color:${p.balance >= 0 ? '#0f172a' : '#ff7675'};">
+                                        Saldo: ${formatMoney(p.balance)}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div style="padding:14px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; background:#f8fafc;">
+                        <button class="btn btn-outline btn-sm" onclick="document.getElementById('tonuCashFlowModal').remove()">Fechar</button>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+    }
+
+    // ==========================================================================
+    // 3. RESUMO SEMANAL E RELATÓRIOS (TonuWeeklyReport)
+    // ==========================================================================
+    class TonuWeeklyReportManager {
+        async generateWeeklyData() {
+            if (!window.supabaseClient) throw new Error('Cliente Supabase indisponível.');
+
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) throw new Error('Usuário não autenticado.');
+
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+
+            const sevenDaysAgo = new Date(now);
+            sevenDaysAgo.setDate(now.getDate() - 6);
+            sevenDaysAgo.setHours(0, 0, 0, 0);
+            const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+            const fourteenDaysAgo = new Date(now);
+            fourteenDaysAgo.setDate(now.getDate() - 13);
+            fourteenDaysAgo.setHours(0, 0, 0, 0);
+            const fourteenDaysAgoStr = fourteenDaysAgo.toISOString().split('T')[0];
+
+            const { data: transactions, error } = await supabaseClient
+                .from('transactions')
+                .select('*')
+                .eq('user_id', user.id)
+                .gte('date', fourteenDaysAgoStr)
+                .lte('date', todayStr)
+                .order('date', { ascending: false });
+
+            if (error) throw error;
+
+            const { data: categories } = await supabaseClient
+                .from('categories')
+                .select('*')
+                .eq('user_id', user.id);
+
+            const catMap = {};
+            (categories || []).forEach(c => { catMap[c.id] = c; });
+
+            const in7Days = new Date(now);
+            in7Days.setDate(now.getDate() + 7);
+            const in7DaysStr = in7Days.toISOString().split('T')[0];
+
+            const { data: upcomingBills } = await supabaseClient
+                .from('bills')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('paid', false)
+                .gte('due_date', todayStr)
+                .lte('due_date', in7DaysStr)
+                .order('due_date', { ascending: true });
+
+            let currentWeekExpenses = 0;
+            let currentWeekIncome = 0;
+            let previousWeekExpenses = 0;
+            let previousWeekIncome = 0;
+
+            const categoryTotals = {};
+            const dailyExpenses = {};
+
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(sevenDaysAgo);
+                d.setDate(sevenDaysAgo.getDate() + i);
+                const key = d.toISOString().split('T')[0];
+                dailyExpenses[key] = 0;
+            }
+
+            (transactions || []).forEach(t => {
+                const tDate = t.date;
+                const amt = parseFloat(t.amount) || 0;
+
+                if (tDate >= sevenDaysAgoStr) {
+                    if (t.type === 'expense') {
+                        currentWeekExpenses += amt;
+                        dailyExpenses[tDate] = (dailyExpenses[tDate] || 0) + amt;
+
+                        const cat = catMap[t.category_id] ? catMap[t.category_id].name : (t.category || 'Outros');
+                        categoryTotals[cat] = (categoryTotals[cat] || 0) + amt;
+                    } else if (t.type === 'income') {
+                        currentWeekIncome += amt;
+                    }
+                } else if (tDate >= fourteenDaysAgoStr) {
+                    if (t.type === 'expense') {
+                        previousWeekExpenses += amt;
+                    } else if (t.type === 'income') {
+                        previousWeekIncome += amt;
+                    }
+                }
+            });
+
+            let expenseDiffPercent = 0;
+            if (previousWeekExpenses > 0) {
+                expenseDiffPercent = ((currentWeekExpenses - previousWeekExpenses) / previousWeekExpenses) * 100;
+            }
+
+            const topCategories = Object.entries(categoryTotals)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 4)
+                .map(([name, total]) => ({
+                    name,
+                    total,
+                    percent: currentWeekExpenses > 0 ? (total / currentWeekExpenses) * 100 : 0
+                }));
+
+            return {
+                userEmail: user.email,
+                userName: user.user_metadata?.full_name || user.email.split('@')[0],
+                startDate: sevenDaysAgoStr,
+                endDate: todayStr,
+                currentWeekExpenses,
+                currentWeekIncome,
+                netBalance: currentWeekIncome - currentWeekExpenses,
+                previousWeekExpenses,
+                expenseDiffPercent,
+                topCategories,
+                dailyExpenses,
+                upcomingBills: upcomingBills || []
+            };
+        }
+
+        async showWeeklySummaryModal() {
+            try {
+                if (typeof showToast === 'function') showToast('📊 Calculando resumo semanal...', 'info');
+                const data = await this.generateWeeklyData();
+                this.renderModal(data);
+            } catch (e) {
+                console.error('❌ Erro ao gerar resumo semanal:', e);
+                if (typeof showToast === 'function') showToast('Erro ao carregar resumo semanal.', 'error');
+            }
+        }
+
+        renderModal(data) {
+            let existingModal = document.getElementById('weeklySummaryModal');
+            if (existingModal) existingModal.remove();
+
+            const fmt = (val) => (val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const isEconomy = data.expenseDiffPercent <= 0;
+            const diffIcon = isEconomy ? 'fa-arrow-down' : 'fa-arrow-up';
+            const diffText = Math.abs(data.expenseDiffPercent).toFixed(1) + '% em relação à semana anterior';
+
+            let topCatsHtml = '';
+            data.topCategories.forEach(cat => {
+                topCatsHtml += `
+                    <div style="margin-bottom: 8px;">
+                        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; margin-bottom:3px;">
+                            <span>${cat.name}</span>
+                            <span>${fmt(cat.total)} (${cat.percent.toFixed(0)}%)</span>
+                        </div>
+                        <div style="height:6px; background:#f1f5f9; border-radius:4px; overflow:hidden;">
+                            <div style="height:100%; width:${cat.percent}%; background:#4338CA; border-radius:4px;"></div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (!topCatsHtml) {
+                topCatsHtml = '<p style="font-size:13px; color:#94a3b8;">Nenhum gasto registrado nesta semana.</p>';
+            }
+
+            let billsHtml = '';
+            if (data.upcomingBills.length > 0) {
+                data.upcomingBills.forEach(b => {
+                    const dateFormatted = b.due_date ? b.due_date.split('-').reverse().join('/') : '';
+                    billsHtml += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:#fff8e6; border:1px solid #ffeaa7; border-radius:8px; margin-bottom:6px; font-size:13px;">
+                            <div>
+                                <strong>${b.description || b.name}</strong>
+                                <span style="font-size:11px; color:#d63031; display:block;">Vence em ${dateFormatted}</span>
+                            </div>
+                            <span style="font-weight:700; color:#d63031;">${fmt(b.amount)}</span>
+                        </div>
+                    `;
+                });
+            } else {
+                billsHtml = '<p style="font-size:13px; color:#00b894; margin:0;"><i class="fas fa-check-circle"></i> Nenhuma conta pendente para os próximos 7 dias!</p>';
+            }
+
+            const modalHtml = `
+            <div id="weeklySummaryModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.65); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px);">
+                <div style="background:#ffffff; border-radius:18px; max-width:540px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.25); border:1px solid #e2e8f0; animation:slideUp 0.3s ease;">
+                    <div style="padding:20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg, #f8fafc, #f1f5f9); border-radius:18px 18px 0 0;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:40px; height:40px; border-radius:10px; background:#4338CA; color:white; display:flex; align-items:center; justify-content:center; font-size:18px;">
+                                <i class="fas fa-envelope-open-text"></i>
+                            </div>
+                            <div>
+                                <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">Resumo Semanal de Gastos</h3>
+                                <p style="margin:2px 0 0 0; font-size:12px; color:#64748b;">Relatório consolidado dos últimos 7 dias</p>
+                            </div>
+                        </div>
+                        <button onclick="document.getElementById('weeklySummaryModal').remove()" style="background:none; border:none; font-size:20px; color:#94a3b8; cursor:pointer;">&times;</button>
+                    </div>
+
+                    <div style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <div style="background:#fff5f5; border:1px solid #fed7d7; border-radius:12px; padding:12px;">
+                                <span style="font-size:11px; font-weight:700; color:#c53030; text-transform:uppercase;">Total de Despesas</span>
+                                <div style="font-size:20px; font-weight:800; color:#e53e3e; margin-top:4px;">${fmt(data.currentWeekExpenses)}</div>
+                                <div style="font-size:11px; color:#742a2a; margin-top:4px; display:flex; align-items:center; gap:4px;">
+                                    <i class="fas ${diffIcon}"></i> ${diffText}
+                                </div>
+                            </div>
+                            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:12px;">
+                                <span style="font-size:11px; font-weight:700; color:#15803d; text-transform:uppercase;">Total de Receitas</span>
+                                <div style="font-size:20px; font-weight:800; color:#16a34a; margin-top:4px;">${fmt(data.currentWeekIncome)}</div>
+                                <div style="font-size:11px; color:#166534; margin-top:4px;">
+                                    Saldo: <strong>${fmt(data.netBalance)}</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px;">
+                            <h4 style="margin:0 0 10px 0; font-size:13px; font-weight:700; color:#334155;"><i class="fas fa-chart-pie" style="color:#4338CA;"></i> Maiores Gastos por Categoria</h4>
+                            ${topCatsHtml}
+                        </div>
+
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px;">
+                            <h4 style="margin:0 0 10px 0; font-size:13px; font-weight:700; color:#334155;"><i class="fas fa-calendar-check" style="color:#e67e22;"></i> Contas a Vencer nos Próximos 7 Dias</h4>
+                            ${billsHtml}
+                        </div>
+                    </div>
+
+                    <div style="padding:16px 20px; border-top:1px solid #f1f5f9; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; background:#f8fafc; border-radius:0 0 18px 18px;">
+                        <button class="btn btn-outline btn-sm" onclick="TonuWeeklyReport.copyWeeklySummary()">
+                            <i class="fas fa-copy"></i> Copiar Texto
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="TonuWeeklyReport.sendWeeklyEmail()">
+                            <i class="fas fa-paper-plane"></i> Enviar por E-mail
+                        </button>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        formatTextSummary(data) {
+            const fmt = (v) => formatMoney(v);
+            let text = `📊 *RESUMO SEMANAL TONUCONTROLE*\n`;
+            text += `📅 Período: ${data.startDate.split('-').reverse().join('/')} a ${data.endDate.split('-').reverse().join('/')}\n\n`;
+            text += `💸 Despesas da semana: ${fmt(data.currentWeekExpenses)}\n`;
+            text += `💰 Receitas da semana: ${fmt(data.currentWeekIncome)}\n`;
+            text += `⚖️ Saldo líquido: ${fmt(data.netBalance)}\n\n`;
+
+            if (data.topCategories.length > 0) {
+                text += `🏆 *Maiores Categorias:*\n`;
+                data.topCategories.forEach(c => {
+                    text += `• ${c.name}: ${fmt(c.total)} (${c.percent.toFixed(0)}%)\n`;
+                });
+                text += `\n`;
+            }
+
+            if (data.upcomingBills.length > 0) {
+                text += `🔔 *Contas a vencer nos próximos 7 dias:*\n`;
+                data.upcomingBills.forEach(b => {
+                    const dt = b.due_date ? b.due_date.split('-').reverse().join('/') : '';
+                    text += `• ${b.description || b.name} - ${fmt(b.amount)} (Vence: ${dt})\n`;
+                });
+            } else {
+                text += `✅ Nenhuma conta a vencer nos próximos 7 dias!\n`;
+            }
+
+            text += `\nGerado automaticamente pelo TonuControle.`;
+            return text;
+        }
+
+        async copyWeeklySummary() {
+            try {
+                const data = await this.generateWeeklyData();
+                const text = this.formatTextSummary(data);
+                await navigator.clipboard.writeText(text);
+                if (typeof showToast === 'function') showToast('Resumo copiado para a área de transferência! 📋', 'success');
+            } catch (err) {
+                if (typeof showToast === 'function') showToast('Erro ao copiar resumo.', 'error');
+            }
+        }
+
+        async sendWeeklyEmail() {
+            try {
+                const data = await this.generateWeeklyData();
+                const subject = encodeURIComponent(`📊 Resumo Semanal TonuControle (${data.startDate.split('-').reverse().join('/')} a ${data.endDate.split('-').reverse().join('/')})`);
+                const body = encodeURIComponent(this.formatTextSummary(data));
+
+                window.location.href = `mailto:${data.userEmail}?subject=${subject}&body=${body}`;
+                if (typeof showToast === 'function') showToast('Abrindo aplicativo de e-mail... 📧', 'info');
+            } catch (err) {
+                if (typeof showToast === 'function') showToast('Erro ao preparar e-mail.', 'error');
+            }
+        }
+    }
+
+    // ==========================================================================
+    // 4. GERENCIADOR DE CATEGORIAS (TonuCategoryManager)
+    // ==========================================================================
+    class TonuCategoryManager {
+        constructor() {
+            this.iconList = [
+                'fa-utensils', 'fa-shopping-cart', 'fa-home', 'fa-car', 'fa-heartbeat',
+                'fa-gamepad', 'fa-book', 'fa-credit-card', 'fa-money-bill-wave', 'fa-tag',
+                'fa-plane', 'fa-coffee', 'fa-film', 'fa-music', 'fa-dumbbell',
+                'fa-gift', 'fa-graduation-cap', 'fa-laptop', 'fa-paw', 'fa-shield-alt'
+            ];
+
+            this.colorList = [
+                '#FF7675', '#FDCB6E', '#10B981', '#0984E3', '#4338CA',
+                '#E17055', '#E84393', '#00CEC9', '#2D3436', '#636E72'
+            ];
+        }
+
+        async showManagerModal(onUpdatedCallback) {
+            let modal = document.getElementById('tonuCategoriesModal');
+            if (modal) modal.remove();
+
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
+            if (!user) return;
+
+            const { data: categories } = await window.supabaseClient
+                .from('categories')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('name');
+
+            const cats = categories || [];
+
+            const modalHtml = `
+            <div id="tonuCategoriesModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.65); z-index:999999; display:flex; align-items:center; justify-content:center; padding:12px; backdrop-filter:blur(8px); font-family:'Inter',sans-serif;">
+                <div style="background:#ffffff; border-radius:16px; max-width:480px; width:100%; max-height:calc(100vh - 24px); display:flex; flex-direction:column; box-shadow:0 20px 45px -10px rgba(0,0,0,0.25); border:1px solid #e2e8f0; overflow:hidden;">
+                    
+                    <div style="padding:12px 18px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <h3 style="font-size:15px; font-weight:700; color:#0f172a; margin:0 0 2px 0;">
+                                <i class="fas fa-tags" style="color:#4338CA; margin-right:6px;"></i> Gerenciar Categorias
+                            </h3>
+                            <p style="font-size:11px; color:#64748b; margin:0;">Crie ou personalize suas categorias com cores e ícones exclusivos.</p>
+                        </div>
+                        <button onclick="document.getElementById('tonuCategoriesModal').remove()" style="background:#f8fafc; border:1px solid #e2e8f0; width:28px; height:28px; border-radius:8px; font-size:14px; cursor:pointer; color:#64748b; display:flex; align-items:center; justify-content:center;">&times;</button>
+                    </div>
+
+                    <div style="padding:10px 18px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:11.5px; color:#64748b; font-weight:600;">${cats.length} categorias cadastradas</span>
+                        <button class="btn btn-primary btn-sm" style="min-height:30px; height:30px; font-size:11.5px; padding:4px 12px; border-radius:8px;" onclick="TonuCategoryManager.showEditModal(null, '${user.id}')">
+                            <i class="fas fa-plus"></i> Nova Categoria
+                        </button>
+                    </div>
+
+                    <div style="flex:1; overflow-y:auto; padding:12px 18px; max-height:380px; display:flex; flex-direction:column; gap:6px;">
+                        ${cats.map(c => {
+                            const catLimit = window.TonuBudget ? window.TonuBudget.getLimitForCategory(user.id, c.id, c.name) : 0;
+                            return `
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px;">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div style="width:30px; height:30px; border-radius:8px; background:${c.color || '#4338CA'}; color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:13px;">
+                                        <i class="fas ${c.icon || 'fa-tag'}"></i>
+                                    </div>
+                                    <div>
+                                        <div style="display:flex; align-items:center; gap:6px;">
+                                            <strong style="font-size:12px; color:#0f172a;">${c.name}</strong>
+                                        </div>
+                                        <div style="font-size:10px; color:#64748b;">
+                                            ${c.type === 'income' ? '🟢 Receita' : '🔴 Despesa'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:4px;">
+                                    <button class="btn btn-ghost btn-icon-sm" style="width:28px; height:28px; font-size:11px;" onclick="TonuCategoryManager.showEditModal('${c.id}', '${user.id}', '${c.name.replace(/'/g, "\\'")}', '${c.type}', '${c.icon}', '${c.color}')" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-icon-sm" style="width:28px; height:28px; font-size:11px;" onclick="TonuCategoryManager.deleteCategory('${c.id}', '${user.id}')" title="Excluir">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <div style="padding:10px 18px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; align-items:center; background:#f8fafc;">
+                        <button class="btn btn-secondary" style="min-height:34px; height:34px; font-size:12.5px; padding:6px 14px; border-radius:8px;" onclick="document.getElementById('tonuCategoriesModal').remove()">Fechar</button>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            this.currentUpdateCallback = onUpdatedCallback;
+        }
+
+        static showEditModal(id, userId, name = '', type = 'expense', icon = 'fa-tag', color = '#4338CA') {
+            let editModal = document.getElementById('categoryEditSubModal');
+            if (editModal) editModal.remove();
+
+            const isEdit = !!id;
+            const instance = window.TonuCategoryManagerInstance;
+            const currentLimit = window.TonuBudget ? window.TonuBudget.getLimitForCategory(userId, id, name) : 0;
+
+            const modalHtml = `
+            <div id="categoryEditSubModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.7); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:12px; backdrop-filter:blur(8px); font-family:'Inter',sans-serif;">
+                <div style="background:#ffffff; border-radius:16px; max-width:420px; width:100%; padding:16px 18px; box-shadow:0 20px 45px -10px rgba(0,0,0,0.3); border:1px solid #e2e8f0;">
+                    <h3 style="font-size:15px; font-weight:700; color:#0f172a; margin:0 0 12px 0;">
+                        ${isEdit ? 'Editar Categoria' : 'Nova Categoria'}
+                    </h3>
+
+                    <div style="display:flex; flex-direction:column; gap:9px;">
+                        <div>
+                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:3px;">Nome da Categoria</label>
+                            <input type="text" id="catEditName" value="${name}" placeholder="Ex: Delivery, Mercado, Lazer..." style="width:100%; padding:6px 10px; border-radius:8px; border:1.5px solid #cbd5e1; font-size:12.5px; height:34px; box-sizing:border-box;">
+                        </div>
+
+                        <div>
+                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:3px;">Tipo</label>
+                            <select id="catEditType" style="width:100%; padding:6px 10px; border-radius:8px; border:1.5px solid #cbd5e1; font-size:12.5px; height:34px; box-sizing:border-box;">
+                                <option value="expense" ${type === 'expense' ? 'selected' : ''}>🔴 Despesa</option>
+                                <option value="income" ${type === 'income' ? 'selected' : ''}>🟢 Receita</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Escolha a Cor</label>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                ${instance.colorList.map(c => `
+                                    <span onclick="document.querySelectorAll('.cat-color-choice').forEach(e=>e.style.outline='none'); this.style.outline='2.5px solid #0f172a'; document.getElementById('catEditSelectedColor').value='${c}';" class="cat-color-choice" style="width:24px; height:24px; border-radius:50%; background:${c}; cursor:pointer; display:inline-block; ${c === color ? 'outline:2.5px solid #0f172a;' : ''}"></span>
+                                `).join('')}
+                            </div>
+                            <input type="hidden" id="catEditSelectedColor" value="${color}">
+                        </div>
+
+                        <div>
+                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Escolha o Ícone</label>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; max-height:85px; overflow-y:auto; padding:2px;">
+                                ${instance.iconList.map(ic => `
+                                    <button type="button" onclick="document.querySelectorAll('.cat-icon-choice').forEach(e=>e.style.borderColor='#cbd5e1'); this.style.borderColor='#4338CA'; this.style.background='#EEF2FF'; document.getElementById('catEditSelectedIcon').value='${ic}';" class="cat-icon-choice" style="width:30px; height:30px; border-radius:6px; border:1px solid ${ic === icon ? '#4338CA' : '#cbd5e1'}; background:${ic === icon ? '#EEF2FF' : '#ffffff'}; color:#0f172a; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px;">
+                                        <i class="fas ${ic}"></i>
+                                    </button>
+                                `).join('')}
+                            </div>
+                            <input type="hidden" id="catEditSelectedIcon" value="${icon}">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid #e2e8f0;">
+                        <button class="btn btn-secondary" style="min-height:34px; height:34px; font-size:12.5px; padding:6px 14px; border-radius:8px;" onclick="document.getElementById('categoryEditSubModal').remove()">Cancelar</button>
+                        <button class="btn btn-primary" style="min-height:34px; height:34px; font-size:12.5px; padding:6px 14px; border-radius:8px;" onclick="TonuCategoryManager.saveCategory('${id || ''}', '${userId}')">
+                            <i class="fas fa-save"></i> Salvar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        static async saveCategory(id, userId) {
+            const name = document.getElementById('catEditName')?.value?.trim();
+            const type = document.getElementById('catEditType')?.value || 'expense';
+            const color = document.getElementById('catEditSelectedColor')?.value || '#4338CA';
+            const icon = document.getElementById('catEditSelectedIcon')?.value || 'fa-tag';
+            const budgetLimitInput = document.getElementById('catEditBudgetLimit');
+            const limitVal = budgetLimitInput ? (parseFloat(budgetLimitInput.value) || 0) : 0;
+
+            if (!name) {
+                if (window.showToast) window.showToast('Digite um nome para a categoria.', 'warning');
+                return;
+            }
+
+            try {
+                let savedId = id;
+                if (id) {
+                    await window.supabaseClient
+                        .from('categories')
+                        .update({ name, type, color, icon })
+                        .eq('id', id)
+                        .eq('user_id', userId);
+                } else {
+                    const insertRes = await window.supabaseClient
+                        .from('categories')
+                        .insert([{ user_id: userId, name, type, color, icon }])
+                        .select();
+                    if (insertRes?.data && insertRes.data[0]) {
+                        savedId = insertRes.data[0].id;
+                    }
+                }
+
+                // Save or update budget limit if configured in this modal
+                if (budgetLimitInput && window.TonuBudget) {
+                    window.TonuBudget.setCategoryBudget(userId, savedId || name, limitVal, name);
+                }
+
+                if (window.showToast) {
+                    window.showToast(`Categoria ${id ? 'atualizada' : 'criada'} com sucesso! 🎉`, 'success');
+                }
+
+                document.getElementById('categoryEditSubModal')?.remove();
+                if (window.TonuCategoryManagerInstance) {
+                    window.TonuCategoryManagerInstance.showManagerModal(window.TonuCategoryManagerInstance.currentUpdateCallback);
+                }
+
+                if (window.TonuCategoryManagerInstance?.currentUpdateCallback) {
+                    window.TonuCategoryManagerInstance.currentUpdateCallback();
+                }
+            } catch (e) {
+                console.error('❌ Erro ao salvar categoria:', e);
+                if (window.showToast) window.showToast('Erro ao salvar categoria.', 'error');
+            }
+        }
+
+        static async deleteCategory(id, userId) {
+            if (!confirm('Excluir esta categoria?')) return;
+
+            try {
+                await window.supabaseClient
+                    .from('categories')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', userId);
+
+                if (window.showToast) window.showToast('Categoria excluída! 🗑️', 'success');
+                window.TonuCategoryManagerInstance.showManagerModal(window.TonuCategoryManagerInstance.currentUpdateCallback);
+
+                if (window.TonuCategoryManagerInstance.currentUpdateCallback) {
+                    window.TonuCategoryManagerInstance.currentUpdateCallback();
+                }
+            } catch (e) {
+                console.error('❌ Erro ao deletar categoria:', e);
+            }
+        }
+    }
+
+    // ==========================================================================
+    // 5. IMPORTADOR BANCÁRIO (TonuBankImporter)
+    // ==========================================================================
+    class TonuBankImporter {
+        constructor() {
+            this.parsedTransactions = [];
+        }
+
+        selectAndImportFile(onSuccessCallback) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv, .ofx, .txt';
+            input.style.display = 'none';
+
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const fileName = file.name.toLowerCase();
+                const text = await file.text();
+
+                if (fileName.endsWith('.ofx')) {
+                    this.parseOFX(text);
+                } else {
+                    this.parseCSV(text);
+                }
+
+                if (this.parsedTransactions.length === 0) {
+                    if (window.showToast) window.showToast('Nenhuma transação válida encontrada no arquivo.', 'warning');
+                    return;
+                }
+
+                this.showImportPreviewModal(file.name, onSuccessCallback);
+            };
+
+            document.body.appendChild(input);
+            input.click();
+            setTimeout(() => input.remove(), 1000);
+        }
+
+        parseOFX(ofxText) {
+            this.parsedTransactions = [];
+            const regex = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi;
+            let match;
+
+            while ((match = regex.exec(ofxText)) !== null) {
+                const block = match[1];
+                const dateMatch = /<DTPOSTED>(\d{4})(\d{2})(\d{2})/i.exec(block);
+                const amountMatch = /<TRNAMT>([\d\.\-]+)/i.exec(block);
+                const memoMatch = /<MEMO>(.*)/i.exec(block);
+                const nameMatch = /<NAME>(.*)/i.exec(block);
+
+                if (dateMatch && amountMatch) {
+                    const date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+                    const rawAmount = parseFloat(amountMatch[1].replace(',', '.'));
+                    const description = (nameMatch ? nameMatch[1].trim() : (memoMatch ? memoMatch[1].trim() : 'Transação Importada'));
+
+                    const isIncome = rawAmount > 0;
+                    const amount = Math.abs(rawAmount);
+
+                    this.parsedTransactions.push({
+                        date: date,
+                        description: this.cleanDescription(description),
+                        amount: amount,
+                        type: isIncome ? 'income' : 'expense',
+                        selected: true
+                    });
+                }
+            }
+        }
+
+        parseCSV(csvText) {
+            this.parsedTransactions = [];
+            const lines = csvText.split(/\r?\n/).filter(line => line.trim().length > 0);
+            if (lines.length < 2) return;
+
+            const firstLine = lines[0];
+            const delimiter = firstLine.includes(';') ? ';' : ',';
+            const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase().replace(/["']/g, ''));
+
+            let dateIdx = headers.findIndex(h => h.includes('data') || h.includes('date'));
+            let descIdx = headers.findIndex(h => h.includes('desc') || h.includes('título') || h.includes('historico') || h.includes('memo') || h.includes('estabelecimento'));
+            let amountIdx = headers.findIndex(h => h.includes('valor') || h.includes('amount') || h.includes('val'));
+
+            if (dateIdx === -1) dateIdx = 0;
+            if (descIdx === -1) descIdx = 1;
+            if (amountIdx === -1) amountIdx = 2;
+
+            for (let i = 1; i < lines.length; i++) {
+                const row = this.parseCSVLine(lines[i], delimiter);
+                if (row.length <= Math.max(dateIdx, descIdx, amountIdx)) continue;
+
+                let rawDate = row[dateIdx]?.trim().replace(/["']/g, '');
+                let description = row[descIdx]?.trim().replace(/["']/g, '') || 'Lançamento Importado';
+                let rawAmountStr = row[amountIdx]?.trim().replace(/["'R$\s]/g, '');
+
+                if (!rawDate || !rawAmountStr) continue;
+
+                let formattedDate = rawDate;
+                if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+                    const parts = rawDate.split('/');
+                    formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                } else if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) {
+                    formattedDate = rawDate.substring(0, 10);
+                }
+
+                let numAmount;
+                if (rawAmountStr.includes(',') && rawAmountStr.includes('.')) {
+                    rawAmountStr = rawAmountStr.replace(/\./g, '').replace(',', '.');
+                } else if (rawAmountStr.includes(',')) {
+                    rawAmountStr = rawAmountStr.replace(',', '.');
+                }
+
+                numAmount = parseFloat(rawAmountStr);
+                if (isNaN(numAmount)) continue;
+
+                const isIncome = numAmount > 0;
+                const amount = Math.abs(numAmount);
+
+                this.parsedTransactions.push({
+                    date: formattedDate,
+                    description: this.cleanDescription(description),
+                    amount: amount,
+                    type: isIncome ? 'income' : 'expense',
+                    selected: true
+                });
+            }
+        }
+
+        parseCSVLine(text, delimiter) {
+            const pattern = new RegExp(
+                `(\\s*"((?:[^"]|"")*)"\\s*|\\s*([^"${delimiter}]*)\\s*)(${delimiter}|$)`,
+                'g'
+            );
+            const matches = [];
+            let match;
+            while ((match = pattern.exec(text)) !== null) {
+                let value = match[2] !== undefined ? match[2].replace(/""/g, '"') : match[3];
+                matches.push(value);
+                if (match[4] === '') break;
+            }
+            return matches;
+        }
+
+        cleanDescription(desc) {
+            if (!desc) return 'Transação';
+            return desc.replace(/[\n\r\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+        }
+
+        showImportPreviewModal(fileName, onSuccessCallback) {
+            let modal = document.getElementById('importPreviewModal');
+            if (modal) modal.remove();
+
+            const total = this.parsedTransactions.length;
+            const totalExpense = this.parsedTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+            const totalIncome = this.parsedTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+
+            const modalHtml = `
+            <div id="importPreviewModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.8); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px); font-family:'Inter',sans-serif;">
+                <div style="background:#ffffff; border-radius:20px; max-width:680px; width:100%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); border:1px solid #e2e8f0; overflow:hidden;">
+                    
+                    <div style="padding:20px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:0 0 4px 0;">
+                                <i class="fas fa-file-import" style="color:#4338CA; margin-right:8px;"></i> Importar Extrato Bancário
+                            </h3>
+                            <p style="font-size:12px; color:#64748b; margin:0;">Arquivo: <strong>${fileName}</strong> (${total} transações identificadas)</p>
+                        </div>
+                        <button onclick="document.getElementById('importPreviewModal').remove()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">&times;</button>
+                    </div>
+
+                    <div style="padding:12px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; gap:16px; font-size:13px;">
+                        <span style="color:#00b894; font-weight:600;"><i class="fas fa-arrow-down"></i> Entradas: ${formatMoney(totalIncome)}</span>
+                        <span style="color:#ff7675; font-weight:600;"><i class="fas fa-arrow-up"></i> Saídas: ${formatMoney(totalExpense)}</span>
+                    </div>
+
+                    <div style="flex:1; overflow-y:auto; padding:16px 24px; max-height:400px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:12px;">
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="checkbox" id="selectAllImports" checked onchange="TonuBankImporter.toggleSelectAll(this.checked)">
+                                <strong>Selecionar todas</strong>
+                            </label>
+                        </div>
+                        <div id="importListContainer" style="display:flex; flex-direction:column; gap:8px;">
+                            ${this.parsedTransactions.map((t, idx) => `
+                                <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px;">
+                                    <input type="checkbox" data-idx="${idx}" ${t.selected ? 'checked' : ''} onchange="TonuBankImporter.toggleItem(${idx}, this.checked)">
+                                    <div style="flex:1;">
+                                        <div style="font-weight:600; font-size:13px; color:#0f172a;">${t.description}</div>
+                                        <div style="font-size:11px; color:#64748b;">${t.date}</div>
+                                    </div>
+                                    <div style="font-weight:700; font-size:14px; color:${t.type === 'income' ? '#00b894' : '#ff7675'};">
+                                        ${t.type === 'income' ? '+' : '-'} ${formatMoney(t.amount)}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div style="padding:16px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:12px; background:#f8fafc;">
+                        <button class="btn btn-outline btn-sm" onclick="document.getElementById('importPreviewModal').remove()">Cancelar</button>
+                        <button class="btn btn-primary btn-sm" id="btnConfirmImport" onclick="TonuBankImporter.executeImport()">
+                            <i class="fas fa-check"></i> Confirmar e Salvar Transações
+                        </button>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            this.currentSuccessCallback = onSuccessCallback;
+        }
+
+        static toggleSelectAll(checked) {
+            const checkboxes = document.querySelectorAll('#importListContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = checked;
+                const idx = parseInt(cb.getAttribute('data-idx'), 10);
+                if (window.TonuBankImporterInstance.parsedTransactions[idx]) {
+                    window.TonuBankImporterInstance.parsedTransactions[idx].selected = checked;
+                }
+            });
+        }
+
+        static toggleItem(idx, checked) {
+            if (window.TonuBankImporterInstance.parsedTransactions[idx]) {
+                window.TonuBankImporterInstance.parsedTransactions[idx].selected = checked;
+            }
+        }
+
+        static async executeImport() {
+            const instance = window.TonuBankImporterInstance;
+            const toImport = instance.parsedTransactions.filter(t => t.selected);
+
+            if (toImport.length === 0) {
+                if (window.showToast) window.showToast('Nenhuma transação selecionada para importação.', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('btnConfirmImport');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importando...';
+            }
+
+            try {
+                const { data: { user } } = await window.supabaseClient.auth.getUser();
+                if (!user) throw new Error('Usuário não autenticado.');
+
+                let defaultCatId = null;
+                const { data: cats } = await window.supabaseClient
+                    .from('categories')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .limit(1);
+
+                if (cats && cats.length > 0) {
+                    defaultCatId = cats[0].id;
+                }
+
+                const records = toImport.map(t => ({
+                    user_id: user.id,
+                    description: t.description,
+                    amount: t.amount,
+                    type: t.type,
+                    date: t.date,
+                    paid: true,
+                    category_id: defaultCatId
+                }));
+
+                const { error } = await window.supabaseClient
+                    .from('transactions')
+                    .insert(records);
+
+                if (error) throw error;
+
+                if (window.showToast) {
+                    window.showToast(`🎉 ${toImport.length} transações importadas com sucesso!`, 'success');
+                }
+
+                const modal = document.getElementById('importPreviewModal');
+                if (modal) modal.remove();
+
+                if (instance.currentSuccessCallback) {
+                    instance.currentSuccessCallback();
+                } else if (window.loadTransactions) {
+                    window.loadTransactions();
+                }
+
+            } catch (err) {
+                console.error('❌ Erro na importação:', err);
+                if (window.showToast) window.showToast('Erro ao salvar transações importadas.', 'error');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Tentar Novamente';
+                }
+            }
+        }
+    }
+
+    // ==========================================================================
+    // 6. BACKUP INTEGRAL JSON (TonuBackup)
+    // ==========================================================================
+    class TonuBackupManager {
+        async exportFullJsonBackup() {
+            try {
+                if (window.showToast) window.showToast('Gerando backup completo dos dados...', 'info');
+
+                const { data: { user } } = await window.supabaseClient.auth.getUser();
+                if (!user) throw new Error('Usuário não autenticado');
+
+                const [
+                    { data: profile },
+                    { data: categories },
+                    { data: transactions },
+                    { data: bills },
+                    { data: goals },
+                    { data: investments }
+                ] = await Promise.all([
+                    window.supabaseClient.from('profiles').select('*').eq('id', user.id).single(),
+                    window.supabaseClient.from('categories').select('*').eq('user_id', user.id),
+                    window.supabaseClient.from('transactions').select('*').eq('user_id', user.id),
+                    window.supabaseClient.from('bills').select('*').eq('user_id', user.id),
+                    window.supabaseClient.from('goals').select('*').eq('user_id', user.id),
+                    window.supabaseClient.from('investments').select('*').eq('user_id', user.id)
+                ]);
+
+                const budgets = localStorage.getItem('tonu_budget_limits_' + user.id) || '{}';
+
+                const backupData = {
+                    version: '2.0.0',
+                    appName: 'TonuControle',
+                    exportedAt: new Date().toISOString(),
+                    user: {
+                        id: user.id,
+                        email: user.email
+                    },
+                    profile: profile || null,
+                    budgets: JSON.parse(budgets),
+                    categories: categories || [],
+                    transactions: transactions || [],
+                    bills: bills || [],
+                    goals: goals || [],
+                    investments: investments || []
+                };
+
+                const jsonStr = JSON.stringify(backupData, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const dateStr = new Date().toISOString().split('T')[0];
+                a.href = url;
+                a.download = `tonucontrole-backup-${dateStr}.json`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                }, 1000);
+
+                if (window.showToast) {
+                    window.showToast('Backup JSON exportado com sucesso! 📦', 'success');
+                }
+            } catch (err) {
+                console.error('❌ Erro ao exportar backup:', err);
+                if (window.showToast) window.showToast('Erro ao exportar backup.', 'error');
+            }
+        }
+
+        exportFullBackup() {
+            return this.exportFullJsonBackup();
+        }
+
+        selectAndRestoreBackup(onSuccessCallback) {
+            return this.importFullJsonBackup(onSuccessCallback);
+        }
+
+        async restoreFromJson(data, onSuccessCallback) {
+            try {
+                if (!data || data.appName !== 'TonuControle') {
+                    throw new Error('Arquivo de backup inválido. O arquivo deve ser gerado pelo TonuControle.');
+                }
+
+                const countTx = (data.transactions || []).length;
+                const countBills = (data.bills || []).length;
+                const countGoals = (data.goals || []).length;
+
+                const confirmed = confirm(
+                    `Deseja restaurar este backup?\n\n` +
+                    `• ${countTx} Transações\n` +
+                    `• ${countBills} Contas\n` +
+                    `• ${countGoals} Metas\n\n` +
+                    `Data do backup: ${data.exportedAt ? new Date(data.exportedAt).toLocaleDateString() : 'N/A'}`
+                );
+
+                if (!confirmed) return false;
+
+                if (window.showToast) window.showToast('Restaurando dados...', 'info');
+
+                let userId = null;
+                if (window.supabaseClient && window.supabaseClient.auth) {
+                    try {
+                        const { data: authData } = await window.supabaseClient.auth.getUser();
+                        userId = authData?.user?.id;
+                    } catch {}
+                }
+                if (!userId && window.currentUser) {
+                    userId = window.currentUser.id;
+                }
+
+                if (window.supabaseClient && userId) {
+                    if (data.transactions && data.transactions.length > 0) {
+                        const txToInsert = data.transactions.map(t => {
+                            const { id, ...rest } = t;
+                            return { ...rest, user_id: userId };
+                        });
+                        await window.supabaseClient.from('transactions').insert(txToInsert);
+                    }
+
+                    if (data.bills && data.bills.length > 0) {
+                        const billsToInsert = data.bills.map(b => {
+                            const { id, ...rest } = b;
+                            return { ...rest, user_id: userId };
+                        });
+                        await window.supabaseClient.from('bills').insert(billsToInsert);
+                    }
+
+                    if (data.goals && data.goals.length > 0) {
+                        const goalsToInsert = data.goals.map(g => {
+                            const { id, ...rest } = g;
+                            return { ...rest, user_id: userId };
+                        });
+                        await window.supabaseClient.from('goals').insert(goalsToInsert);
+                    }
+                }
+
+                if (data.budgets && userId) {
+                    localStorage.setItem('tonu_budget_limits_' + userId, JSON.stringify(data.budgets));
+                }
+
+                if (window.showToast) {
+                    window.showToast('Backup restaurado com sucesso! 🎉', 'success');
+                }
+
+                setTimeout(() => {
+                    if (onSuccessCallback) onSuccessCallback();
+                    else window.location.reload();
+                }, 1000);
+                return true;
+
+            } catch (err) {
+                console.error('❌ Erro na importação do backup:', err);
+                if (window.showToast) window.showToast('Falha ao restaurar backup: ' + err.message, 'error');
+                return false;
+            }
+        }
+
+        importFullJsonBackup(onSuccessCallback) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json, application/json';
+            input.style.display = 'none';
+
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    await this.restoreFromJson(data, onSuccessCallback);
+                } catch (err) {
+                    console.error('❌ Erro na leitura do arquivo:', err);
+                    if (window.showToast) window.showToast('Arquivo inválido: ' + err.message, 'error');
+                }
+            };
+
+            document.body.appendChild(input);
+            input.click();
+            setTimeout(() => input.remove(), 1000);
+        }
+    }
+
+    // ==========================================================================
+    // 7. GESTÃO DE PARCELAMENTO & RECORRÊNCIA (TonuInstallmentManager)
+    // Suporta: Único, Parcelado (com contagem de quantas parcelas faltam),
+    // Mensal e Semestral
+    // ==========================================================================
+    class TonuInstallmentManager {
+        constructor() {}
+
+        // Adiciona N meses a uma data YYYY-MM-DD com tratamento seguro de fim de mês
+        addMonthsToDate(dateStr, monthsToAdd) {
+            if (!dateStr) return new Date().toISOString().split('T')[0];
+            const parts = String(dateStr).split('T')[0].split('-');
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // 0 a 11
+            const day = parseInt(parts[2], 10);
+
+            const targetDate = new Date(year, month + monthsToAdd, 1);
+            const targetYear = targetDate.getFullYear();
+            const targetMonth = targetDate.getMonth();
+            const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
+            const finalDay = Math.min(day, maxDays);
+
+            const yStr = String(targetYear);
+            const mStr = String(targetMonth + 1).padStart(2, '0');
+            const dStr = String(finalDay).padStart(2, '0');
+            return `${yStr}-${mStr}-${dStr}`;
+        }
+
+        // Analisa um item (transação ou conta) e retorna metadados completos de parcelamento e recorrência
+        getInstallmentInfo(item) {
+            if (!item) {
+                return { type: 'single', isInstallment: false, isRecurring: false, label: 'Único' };
+            }
+
+            // 0. Caso especial: Transação de Antecipação de Parcelas
+            const isAnticipation = !!(item.is_anticipation || (item.description && String(item.description).toLowerCase().startsWith('antecipação:')));
+            if (isAnticipation) {
+                const descStr = String(item.description || '') + ' ' + String(item.notes || '');
+                // Extrai o conteúdo entre parênteses da descrição (ex: "Antecipação: Teste (8, 9, 10)")
+                const parenMatch = (item.description || '').match(/\(([^)]+)\)/);
+                const numsStr = parenMatch ? parenMatch[1].trim() : '';
+
+                // Obtém o total de parcelas da série (ex: 50)
+                let total = parseInt(item.installments || item.installment_total, 10) || null;
+                if (!total) {
+                    const totalMatch = descStr.match(/(?:de|\/)\s*(\d+)/i);
+                    if (totalMatch) total = parseInt(totalMatch[1], 10);
+                }
+
+                const numParts = numsStr ? numsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+                const isPlural = numParts.length > 1 || numsStr.includes('-') || numsStr.includes(',');
+                const antWord = isPlural ? 'Antecipadas' : 'Antecipada';
+
+                // Formatação: "8, 9, 10 / 50 (Antecipadas)" ou "10 / 50 (Antecipada)"
+                let labelText = '';
+                if (numsStr && total) {
+                    labelText = `${numsStr} / ${total} (${antWord})`;
+                } else if (numsStr) {
+                    labelText = isPlural ? `Parcelas ${numsStr} (${antWord})` : `Parcela ${numsStr} (${antWord})`;
+                } else if (total) {
+                    labelText = `Antecipada / ${total}`;
+                } else {
+                    labelText = 'Antecipada';
+                }
+
+                const badgeHtml = `
+                    <div class="installment-badge-wrap" title="Antecipação de Parcelas: ${numsStr}${total ? ' de ' + total : ''}">
+                        <span class="badge-installment" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:700;">
+                            <i class="fas fa-layer-group"></i> ${labelText}
+                        </span>
+                    </div>
+                `;
+
+                return {
+                    type: 'anticipation',
+                    isInstallment: true,
+                    isRecurring: false,
+                    isAnticipation: true,
+                    total: total,
+                    installmentsText: numsStr,
+                    label: labelText,
+                    badgeHtml: badgeHtml
+                };
+            }
+
+            let recurrenceType = item.recurrence_type || null;
+            let installments = parseInt(item.installments || item.installment_total, 10);
+            let current = parseInt(item.current_installment || item.installment_number || item.installment_current, 10);
+
+            // Fallback por detecção na descrição (ex: "(3/10)" ou "3 de 10")
+            const desc = (item.description || '') + ' ' + (item.notes || '');
+            const match = desc.match(/\b(\d+)\s*(?:\/|de)\s*(\d+)\b/i);
+            if (match && (!installments || installments <= 1)) {
+                current = parseInt(match[1], 10);
+                installments = parseInt(match[2], 10);
+                if (!recurrenceType && installments > 1) {
+                    recurrenceType = 'installments';
+                }
+            }
+
+            // Tratamento de tipos recorrentes (Mensal / Semestral)
+            if (recurrenceType === 'monthly' || (item.is_recurring && recurrenceType !== 'semiannual')) {
+                return {
+                    type: 'monthly',
+                    isInstallment: false,
+                    isRecurring: true,
+                    label: 'Mensal',
+                    icon: 'fa-rotate',
+                    badgeHtml: `<span class="badge-recurrence badge-monthly" title="Conta / Pagamento Mensal Recorrente"><i class="fas fa-rotate"></i> Mensal</span>`
+                };
+            }
+
+            if (recurrenceType === 'semiannual') {
+                return {
+                    type: 'semiannual',
+                    isInstallment: false,
+                    isRecurring: true,
+                    label: 'Semestral',
+                    icon: 'fa-calendar-days',
+                    badgeHtml: `<span class="badge-recurrence badge-semiannual" title="Conta / Pagamento Semestral Recorrente"><i class="fas fa-calendar-days"></i> Semestral</span>`
+                };
+            }
+
+            // Parcelamento
+            const isInstallment = recurrenceType === 'installments' || (installments && installments > 1);
+            if (isInstallment) {
+                const total = Math.max(2, installments || 2);
+                const curr = Math.max(1, Math.min(total, current || 1));
+                const remaining = Math.max(0, total - curr);
+                const isPaid = !!item.paid;
+                const unitAmount = parseFloat(item.amount) || 0;
+                const remainingAmount = remaining * unitAmount;
+                const progressPct = Math.round((curr / total) * 100);
+
+                let remainingText = '';
+                if (remaining === 0) {
+                    remainingText = isPaid ? 'Quitada 🎉' : 'Última parcela!';
+                } else if (remaining === 1) {
+                    remainingText = 'Falta 1 parcela';
+                } else {
+                    remainingText = `Faltam ${remaining} parcelas`;
+                }
+
+                let badgeHtml = `
+                    <div class="installment-badge-wrap" title="Parcela ${curr} de ${total} • ${remainingText}">
+                        <span class="badge-installment">
+                            <i class="fas fa-layer-group"></i> ${curr}/${total}
+                            <span class="installment-dot">•</span>
+                            <strong class="installment-remaining-badge">${remainingText}</strong>
+                        </span>
+                        ${remaining > 0 ? `<span class="installment-restam-val" title="Total restante a pagar">(Restam ${formatMoney(remainingAmount)})</span>` : ''}
+                    </div>
+                `;
+
+                return {
+                    type: 'installments',
+                    isInstallment: true,
+                    isRecurring: false,
+                    total: total,
+                    current: curr,
+                    remaining: remaining,
+                    remainingText: remainingText,
+                    remainingAmount: remainingAmount,
+                    progressPct: progressPct,
+                    isFinished: remaining === 0 && isPaid,
+                    label: `Parcela ${curr}/${total}`,
+                    badgeHtml: badgeHtml
+                };
+            }
+
+            // Pagamento Único
+            return {
+                type: 'single',
+                isInstallment: false,
+                isRecurring: false,
+                label: 'Único',
+                badgeHtml: `<span class="badge-single" title="Pagamento Único (À vista)"><i class="fas fa-bolt"></i> Único</span>`
+            };
+        }
+
+        // Vincula lógica ao formulário (tanto de bills quanto de transactions)
+        bindFormControls(prefix) {
+            const selectType = document.getElementById(prefix + 'RecurrenceType');
+            const fieldsWrap = document.getElementById(prefix + 'InstallmentFields');
+            const inputTotal = document.getElementById(prefix + 'InstallmentTotal');
+            const inputCurrent = document.getElementById(prefix + 'InstallmentCurrent');
+            const inputAmount = document.getElementById(prefix + 'Amount');
+            const remainingText = document.getElementById(prefix + 'InstallmentRemainingText');
+            const totalRemainingText = document.getElementById(prefix + 'InstallmentTotalRemainingText');
+
+            if (!selectType || !fieldsWrap) return;
+
+            const updatePreview = () => {
+                const type = selectType.value;
+                if (type !== 'installments') {
+                    fieldsWrap.style.display = 'none';
+                    return;
+                }
+                fieldsWrap.style.display = 'block';
+
+                const total = Math.max(2, parseInt(inputTotal?.value, 10) || 2);
+                let curr = Math.max(1, parseInt(inputCurrent?.value, 10) || 1);
+                if (curr > total) {
+                    curr = total;
+                    if (inputCurrent) inputCurrent.value = curr;
+                }
+
+                const rawAmount = parseFloat(inputAmount?.value) || 0;
+                const modeRadio = document.querySelector(`input[name="${prefix}AmountMode"]:checked`);
+                const mode = modeRadio ? modeRadio.value : 'per_installment';
+
+                let unitAmount = rawAmount;
+                let totalPurchase = rawAmount * total;
+                if (mode === 'total') {
+                    unitAmount = total > 0 ? (rawAmount / total) : 0;
+                    totalPurchase = rawAmount;
+                }
+
+                const remaining = Math.max(0, total - curr);
+                const remainingMoney = remaining * unitAmount;
+
+                if (remainingText) {
+                    if (remaining === 0) {
+                        remainingText.innerHTML = `<strong>Última parcela (${curr} de ${total})</strong>`;
+                    } else if (remaining === 1) {
+                        remainingText.innerHTML = `<strong>Falta 1 parcela</strong> após esta (${curr} de ${total})`;
+                    } else {
+                        remainingText.innerHTML = `<strong>Faltam ${remaining} parcelas</strong> após esta (${curr} de ${total})`;
+                    }
+                }
+
+                if (totalRemainingText) {
+                    totalRemainingText.textContent = `Restam ${formatMoney(remainingMoney)} a pagar • Compra total: ${formatMoney(totalPurchase)} (${total}x de ${formatMoney(unitAmount)})`;
+                }
+            };
+
+            selectType.addEventListener('change', updatePreview);
+            if (inputTotal) inputTotal.addEventListener('input', updatePreview);
+            if (inputCurrent) inputCurrent.addEventListener('input', updatePreview);
+            if (inputAmount) inputAmount.addEventListener('input', updatePreview);
+
+            const radios = document.querySelectorAll(`input[name="${prefix}AmountMode"]`);
+            radios.forEach(r => r.addEventListener('change', updatePreview));
+
+            updatePreview();
+        }
+    }
+
+    // ==========================================================================
+    // 7. MOTOR INTELIGENTE DE DESDUPLICAÇÃO DE TRANSAÇÕES E CONTAS
+    // ==========================================================================
+    class TonuDeduplicationManager {
+        constructor() {
+            this.cleaningInProgress = false;
+        }
+
+        normalizeDate(dateVal) {
+            if (!dateVal) return '';
+            const str = String(dateVal).trim();
+            const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+            if (isoMatch) {
+                return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+            }
+            const brMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+            if (brMatch) {
+                return `${brMatch[3]}-${brMatch[2].padStart(2, '0')}-${brMatch[1].padStart(2, '0')}`;
+            }
+            try {
+                const d = new Date(dateVal);
+                if (!isNaN(d.getTime())) {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}`;
+                }
+            } catch (e) {}
+            return str.substring(0, 10);
+        }
+
+        normalizeDescription(desc) {
+            if (!desc) return '';
+            let d = String(desc).toLowerCase();
+            // Remove tags HTML
+            d = d.replace(/<[^>]*>/g, ' ');
+            // Remove menções a (pago), [pago], - pago, pago no início ou fim
+            d = d.replace(/\s*[\(\[]\s*pago\s*[\)\]]\s*/gi, ' ');
+            d = d.replace(/^pago\s*[:\-]?\s*/gi, '');
+            d = d.replace(/\s*-\s*pago\s*$/gi, '');
+            d = d.replace(/\s+pago\s*$/gi, '');
+            // Remove indicações de parcela no final: (1/10), [1/10], 1/10
+            d = d.replace(/\s*[\(\[]\s*\d+\s*\/\s*\d+\s*[\)\]]\s*$/gi, '');
+            d = d.replace(/\s+\d+\s*\/\s*\d+\s*$/gi, '');
+            // Remove caracteres estranhos repetidos
+            d = d.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,]/g, ' ');
+            // Remove espaços extras
+            d = d.replace(/\s+/g, ' ').trim();
+            return d;
+        }
+
+        cleanDisplayDescription(desc) {
+            if (!desc) return 'Sem descrição';
+            let d = String(desc);
+            d = d.replace(/\s*[\(\[]\s*pago\s*[\)\]]\s*/gi, ' ');
+            d = d.replace(/\s*-\s*pago\s*$/gi, '');
+            d = d.replace(/\s+pago\s*$/gi, '');
+            return d.replace(/\s+/g, ' ').trim() || 'Sem descrição';
+        }
+
+        areDuplicates(t1, t2) {
+            if (!t1 || !t2) return false;
+            // Antecipações são lançamentos únicos e nunca devem ser tratadas como duplicatas
+            if (t1.is_anticipation || t2.is_anticipation) return false;
+            const desc1Raw = String(t1.description || '').toLowerCase();
+            const desc2Raw = String(t2.description || '').toLowerCase();
+            if (desc1Raw.startsWith('antecipação:') || desc2Raw.startsWith('antecipação:')) return false;
+
+            // 1. Mesmo ID
+            if (t1.id && t2.id && String(t1.id) === String(t2.id)) return true;
+
+            // Tipo deve bater (income vs expense)
+            const type1 = t1.type || 'expense';
+            const type2 = t2.type || 'expense';
+            if (type1 !== type2) return false;
+
+            // Valor deve ser idêntico (centavos)
+            const amt1 = Math.round(Math.abs(Number(t1.amount || 0)) * 100);
+            const amt2 = Math.round(Math.abs(Number(t2.amount || 0)) * 100);
+            if (amt1 !== amt2 || amt1 === 0) return false;
+
+            // Descrição normalizada deve bater
+            const desc1 = this.normalizeDescription(t1.description);
+            const desc2 = this.normalizeDescription(t2.description);
+            if (!desc1 || !desc2) return false;
+            if (desc1 !== desc2) return false;
+
+            // Datas e Período
+            const d1 = this.normalizeDate(t1.date);
+            const d2 = this.normalizeDate(t2.date);
+            const ym1 = d1 ? d1.substring(0, 7) : '';
+            const ym2 = d2 ? d2.substring(0, 7) : '';
+
+            // Se estão em meses diferentes, não são duplicatas
+            if (ym1 && ym2 && ym1 !== ym2) return false;
+
+            // Se têm a mesma data exata (mesmo dia), são duplicatas
+            if (d1 && d2 && d1 === d2) return true;
+
+            // Se um é conta (is_bill: true) e o outro é transação (is_bill: false ou nulo) no mesmo mês:
+            // é exatamente o caso de uma conta e seu lançamento duplicado
+            const isBill1 = !!(t1.is_bill === true || t1.is_bill === 'true' || t1.is_bill === 1);
+            const isBill2 = !!(t2.is_bill === true || t2.is_bill === 'true' || t2.is_bill === 1);
+            if (isBill1 !== isBill2) return true;
+
+            // Se um deles tem "(pago)" ou "pago" na descrição original:
+            const raw1 = String(t1.description || '').toLowerCase();
+            const raw2 = String(t2.description || '').toLowerCase();
+            if (raw1.includes('pago') || raw2.includes('pago')) return true;
+
+            // Se ambos são parcelados ou um deles é parcelado e o outro tem o mesmo nome no mesmo mês
+            const hasInst1 = (t1.installments && t1.installments > 1) || /\(\d+\/\d+\)/.test(raw1);
+            const hasInst2 = (t2.installments && t2.installments > 1) || /\(\d+\/\d+\)/.test(raw2);
+            if (hasInst1 || hasInst2) {
+                if (t1.current_installment && t2.current_installment) {
+                    return t1.current_installment === t2.current_installment;
+                }
+                return true;
+            }
+
+            // Se estão no mesmo mês e a diferença em dias é pequena (<= 7 dias, ex: vencimento vs pagamento)
+            if (d1 && d2) {
+                const time1 = new Date(d1).getTime();
+                const time2 = new Date(d2).getTime();
+                if (!isNaN(time1) && !isNaN(time2)) {
+                    const diffDays = Math.abs(time1 - time2) / (1000 * 60 * 60 * 24);
+                    if (diffDays <= 7) return true;
+                }
+            }
+
+            return false;
+        }
+
+        scoreTransaction(t) {
+            let score = 0;
+            const desc = String(t.description || '');
+            const rawDesc = desc.toLowerCase();
+
+            // O usuário prefere o lançamento parcelado original com "(X/Y)"
+            const isInstallment = (t.installments && t.installments > 1) || /\(\d+\/\d+\)/.test(desc);
+            if (isInstallment) score += 30;
+
+            // Transação normal tem preferência sobre conta (is_bill) em telas de transações/dashboard
+            const isBill = !!(t.is_bill === true || t.is_bill === 'true' || t.is_bill === 1);
+            if (!isBill) score += 20;
+
+            // Descrição limpa sem "(pago)"
+            if (!rawDesc.includes('(pago)') && !rawDesc.endsWith('pago')) score += 10;
+
+            // Categoria associada
+            if (t.category_id || (t.categories && typeof t.categories === 'object')) score += 5;
+
+            // Status pago ativo
+            if (t.paid === true || t.paid === 'true' || t.paid === 1) score += 3;
+
+            // Possui notas ou tags
+            if (t.notes) score += 2;
+            if (t.tags) score += 2;
+
+            return score;
+        }
+
+        deduplicate(transactions, options = {}) {
+            if (!Array.isArray(transactions) || transactions.length <= 1) {
+                return { cleanList: transactions || [], removedDuplicates: [] };
+            }
+
+            const groups = [];
+
+            // Agrupa itens duplicados
+            for (const item of transactions) {
+                if (!item) continue;
+                let foundGroup = false;
+                for (const group of groups) {
+                    if (this.areDuplicates(group[0], item)) {
+                        group.push(item);
+                        foundGroup = true;
+                        break;
+                    }
+                }
+                if (!foundGroup) {
+                    groups.push([item]);
+                }
+            }
+
+            const cleanList = [];
+            const removedDuplicates = [];
+
+            for (const group of groups) {
+                if (group.length === 1) {
+                    cleanList.push(group[0]);
+                    continue;
+                }
+
+                // Ordena pelo maior score para escolher o canônico
+                group.sort((a, b) => this.scoreTransaction(b) - this.scoreTransaction(a));
+
+                const canonical = { ...group[0] };
+                const duplicates = group.slice(1);
+
+                // Se alguma duplicata estava marcada como paga, garante que o canônico fica como pago
+                const anyPaid = group.some(t => t.paid === true || t.paid === 'true' || t.paid === 1);
+                if (anyPaid) {
+                    canonical.paid = true;
+                    const paidItem = group.find(t => t.paid_date);
+                    if (paidItem && !canonical.paid_date) {
+                        canonical.paid_date = paidItem.paid_date;
+                    }
+                }
+
+                cleanList.push(canonical);
+                duplicates.forEach(d => removedDuplicates.push(d));
+            }
+
+            // Se solicitado e houver duplicatas que são cópias descartáveis, faz a limpeza no Supabase
+            if (options.autoCleanRemote && removedDuplicates.length > 0 && window.supabaseClient && options.userId) {
+                this.cleanupRemoteDuplicates(removedDuplicates, options.userId);
+            }
+
+            return { cleanList, removedDuplicates };
+        }
+
+        async cleanupRemoteDuplicates(removedDuplicates, userId) {
+            if (this.cleaningInProgress) return;
+            this.cleaningInProgress = true;
+            try {
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                // Exclui do Supabase apenas duplicatas que NÃO são contas originais de bills.html
+                const idsToDelete = removedDuplicates
+                    .filter(d => !d.is_bill && d.id && uuidRegex.test(String(d.id)))
+                    .map(d => String(d.id));
+
+                if (idsToDelete.length > 0 && window.supabaseClient) {
+                    const { error } = await window.supabaseClient
+                        .from('transactions')
+                        .delete()
+                        .in('id', idsToDelete)
+                        .eq('user_id', userId);
+
+                    if (!error) {
+                        console.log(`🧹 ${idsToDelete.length} transações duplicadas removidas permanentemente do Supabase.`);
+                    }
+                }
+            } catch (err) {
+                console.warn('⚠️ Erro ao limpar transações duplicadas remotas:', err);
+            } finally {
+                this.cleaningInProgress = false;
+            }
+        }
+    }
+
+    // ==========================================================================
+    // INSTANCIAÇÃO GLOBAL
+    // ==========================================================================
+    window.TonuBudget = new TonuBudgetManager();
+    window.TonuCashFlow = new TonuCashFlowManager();
+    window.TonuWeeklyReport = new TonuWeeklyReportManager();
+    window.TonuCategoryManagerInstance = new TonuCategoryManager();
+    window.TonuCategoryManager = TonuCategoryManager;
+    window.TonuBankImporterInstance = new TonuBankImporter();
+    window.TonuBankImporter = TonuBankImporter;
+    window.TonuBackupInstance = new TonuBackupManager();
+    window.TonuBackup = window.TonuBackupInstance;
+    window.TonuInstallments = new TonuInstallmentManager();
+    window.TonuDeduplicate = new TonuDeduplicationManager();
+
+    console.log('⚡ TonuControle Financial Intelligence Suite unificada com sucesso!');
+})();

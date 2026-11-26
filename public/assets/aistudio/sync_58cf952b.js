@@ -1,0 +1,997 @@
+// ==========================================================================
+// TONUCONTROLE - PWA ADVANCED SYNC & OFFLINE MANAGER
+// Background Sync, IndexedDB Canonical Cache, Offline Resilience & Web Share
+// ==========================================================================
+
+(function () {
+    'use strict';
+
+    const DB_NAME = 'TonuControlePWA_DB';
+    const DB_VERSION = 1;
+    const QUEUE_STORE = 'sync_queue';
+    const SHARED_STORE = 'shared_target_data';
+    const CACHE_STORE = 'offline_entity_cache';
+
+    class TonuSyncManager {
+        constructor() {
+            this.db = null;
+            this.isSyncing = false;
+            this.isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+            this.syncListeners = [];
+            this.init();
+        }
+
+        async init() {
+            try {
+                this.db = await this.openDatabase();
+                console.log('📦 TonuControle IndexedDB inicializado com sucesso');
+
+                this.setupNetworkListeners();
+                this.setupServiceWorkerSync();
+                this.setupVisibilityListeners();
+                this.ensureSyncStyles();
+
+                if (typeof document !== 'undefined') {
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', () => this.updateSyncBadgeUI());
+                    } else {
+                        setTimeout(() => this.updateSyncBadgeUI(), 200);
+                    }
+                }
+
+                if (this.isOnline) {
+                    setTimeout(() => this.flushQueue(), 1500);
+                } else {
+                    this.updateSyncBadgeUI();
+                }
+            } catch (err) {
+                console.error('❌ Erro ao inicializar TonuSyncManager:', err);
+            }
+        }
+
+        ensureSyncStyles() {
+            if (typeof document === 'undefined') return;
+            if (!document.querySelector('link[href*="sync-status.css"]')) {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                const pathname = (typeof window !== 'undefined' && window.location.pathname) ? window.location.pathname : '';
+                let prefix = './css/';
+                if (pathname.includes('/pages/mobile/')) {
+                    prefix = '../../css/';
+                } else if (pathname.includes('/pages/')) {
+                    prefix = '../css/';
+                }
+                link.href = prefix + 'sync-status.css';
+                document.head.appendChild(link);
+            }
+        }
+
+        async updateSyncBadgeUI() {
+            if (typeof document === 'undefined') return;
+            this.ensureSyncStyles();
+
+            let pendingCount = 0;
+            try {
+                pendingCount = await this.getPendingCount();
+            } catch (_) {}
+
+            // Garante que a fila de sincronização NUNCA sobrescreva o badge do ícone do SO
+            if (typeof navigator !== 'undefined') {
+                try {
+                    if ('clearAppBadge' in navigator && pendingCount === 0) {
+                        navigator.clearAppBadge().catch(() => {});
+                        if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('tonu:sync-queue-empty'));
+                        }
+                    }
+                } catch (_) {}
+            }
+
+            // Limpar botão antigo de 36x36 se existir
+            const oldBtn = document.getElementById('tonuSyncIndicator');
+            if (oldBtn) oldBtn.remove();
+
+            // Garantir avatar no mobile topbar se não houver avatar na tela
+            const mobileActions = document.querySelector('.mobile-topbar .topbar-actions');
+            if (mobileActions && !document.getElementById('mobileTopAvatar')) {
+                const mobAvatar = document.createElement('div');
+                mobAvatar.id = 'mobileTopAvatar';
+                mobAvatar.className = 'mobile-topbar-avatar';
+                mobAvatar.title = 'Perfil e Status de Sincronização';
+                mobAvatar.style.cssText = 'width:30px; height:30px; border-radius:50%; background:var(--color-primary-bg, #EEF2FF); color:#4338CA; font-weight:700; font-size:12px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; position:relative; margin-left:4px;';
+                mobAvatar.textContent = 'U';
+                mobAvatar.onclick = (e) => this.showStatusToast(e);
+                mobileActions.appendChild(mobAvatar);
+            }
+
+            // Selecionar todos os avatares / ícones de perfil presentes (PC e Mobile)
+            const targets = document.querySelectorAll('#sidebarUserAvatar, #mobileTopAvatar, #mobileUserAvatar, .avatar-circle, .mobile-avatar-wrapper, #sidebarUserProfile');
+            if (!targets || targets.length === 0) return;
+
+            let statusClass = 'online';
+            let titleText = '100% Sincronizado com a nuvem';
+
+            if (this.isSyncing) {
+                statusClass = 'syncing';
+                titleText = 'Sincronizando com a nuvem...';
+            } else if (pendingCount > 0) {
+                statusClass = 'pending';
+                titleText = `${pendingCount} alteração(ões) pendente(s) (Clique para sincronizar)`;
+            } else if (!this.isOnline) {
+                statusClass = 'offline';
+                titleText = 'Modo Offline (Alterações salvas localmente)';
+            }
+
+            targets.forEach(container => {
+                // Aplica posição relativa
+                if (window.getComputedStyle(container).position === 'static') {
+                    container.style.position = 'relative';
+                }
+
+                let dot = container.querySelector('.sync-dot-badge');
+                if (!dot) {
+                    dot = document.createElement('span');
+                    dot.className = 'sync-dot-badge';
+                    container.appendChild(dot);
+                }
+
+                dot.className = `sync-dot-badge ${statusClass}`;
+                dot.title = titleText;
+                dot.onclick = (e) => this.showStatusToast(e);
+
+                // Permite clicar no próprio avatar para exibir o toast de status
+                if (!container.dataset.syncClickAttached) {
+                    container.dataset.syncClickAttached = 'true';
+                    container.addEventListener('click', (e) => {
+                        // Se for clique no avatar, exibe toast discreto
+                        if (e.target === container || e.target.classList?.contains('sync-dot-badge') || e.target.closest?.('.sync-dot-badge')) {
+                            this.showStatusToast(e);
+                        }
+                    });
+                }
+            });
+        }
+
+        async showStatusToast(e) {
+            if (e) {
+                e.stopPropagation();
+            }
+            try {
+                const pendingCount = await this.getPendingCount();
+                if (this.isSyncing) {
+                    if (typeof showToast === 'function') {
+                        showToast('🔄 Sincronizando dados com a nuvem...', 'info');
+                    }
+                } else if (pendingCount > 0) {
+                    if (this.isOnline) {
+                        this.flushQueue();
+                        if (typeof showToast === 'function') {
+                            showToast(`⚡ ${pendingCount} alteração(ões) pendente(s). Sincronizando agora...`, 'info');
+                        }
+                    } else {
+                        if (typeof showToast === 'function') {
+                            showToast(`📶 Modo Offline: ${pendingCount} alteração(ões) salva(s) no aparelho.`, 'warning');
+                        }
+                    }
+                } else if (!this.isOnline) {
+                    if (typeof showToast === 'function') {
+                        showToast('📶 Modo Offline: alterações salvas no aparelho.', 'error');
+                    }
+                } else {
+                    if (typeof showToast === 'function') {
+                        showToast('✅ Tudo em dia! Dados 100% sincronizados.', 'success');
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // ==================================================================
+        // 1. INDEXEDDB SETUP
+        // ==================================================================
+        openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+
+                    if (!db.objectStoreNames.contains(QUEUE_STORE)) {
+                        const queueStore = db.createObjectStore(QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
+                        queueStore.createIndex('timestamp', 'timestamp', { unique: false });
+                        queueStore.createIndex('status', 'status', { unique: false });
+                    }
+
+                    if (!db.objectStoreNames.contains(SHARED_STORE)) {
+                        const sharedStore = db.createObjectStore(SHARED_STORE, { keyPath: 'id', autoIncrement: true });
+                        sharedStore.createIndex('timestamp', 'timestamp', { unique: false });
+                    }
+
+                    if (!db.objectStoreNames.contains(CACHE_STORE)) {
+                        db.createObjectStore(CACHE_STORE, { keyPath: 'key' });
+                    }
+                };
+
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // ==================================================================
+        // 2. ENQUEUE OFFLINE OPERATIONS
+        // ==================================================================
+        async enqueue(action, data) {
+            if (!this.db) await this.openDatabase();
+
+            // Guarda 2: Idempotência para UPDATE_BILL
+            // Se já existe um UPDATE_BILL pendente para o mesmo bill.id, substitui em vez de empilhar
+            let existingQueueId = null;
+            if (action === 'UPDATE_BILL' && data && data.id) {
+                try {
+                    const queue = await this.getQueue();
+                    const existing = queue.find(q =>
+                        q.action === 'UPDATE_BILL' &&
+                        q.status === 'pending' &&
+                        q.data &&
+                        String(q.data.id) === String(data.id)
+                    );
+                    if (existing && existing.id) {
+                        existingQueueId = existing.id;
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Erro ao verificar idempotência na fila de sync:', e);
+                }
+            }
+
+            let payloadToStore = data;
+            if (window.TonuCrypto && typeof window.TonuCrypto.encrypt === 'function') {
+                try {
+                    payloadToStore = await window.TonuCrypto.encrypt(data);
+                } catch (e) {
+                    console.warn('⚠️ Erro ao criptografar offline:', e);
+                }
+            }
+
+            const item = {
+                action: action,
+                data: payloadToStore,
+                timestamp: Date.now(),
+                retries: 0,
+                status: 'pending'
+            };
+
+            if (existingQueueId !== null) {
+                item.id = existingQueueId;
+            }
+
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([QUEUE_STORE], 'readwrite');
+                const store = tx.objectStore(QUEUE_STORE);
+                const req = existingQueueId !== null ? store.put(item) : store.add(item);
+
+                req.onsuccess = (e) => {
+                    item.id = e.target.result;
+                    console.log(`📥 Operação offline ${existingQueueId !== null ? 'substituída (idempotente)' : 'enfileirada e protegida'} [ID: ${item.id}]:`, action);
+                    this.requestBackgroundSync();
+                    this.updateSyncBadgeUI();
+
+                    if (typeof showToast === 'function') {
+                        if (!navigator.onLine) {
+                            showToast('⚡ Ação salva localmente com segurança! Sincronizará ao retornar conexão.', 'info');
+                        }
+                    }
+
+                    if (navigator.onLine) {
+                        setTimeout(() => this.flushQueue(), 50);
+                    }
+
+                    resolve(item);
+                };
+
+                req.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async getQueue() {
+            if (!this.db) await this.openDatabase();
+
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([QUEUE_STORE], 'readonly');
+                const store = tx.objectStore(QUEUE_STORE);
+                const req = store.getAll();
+
+                req.onsuccess = async () => {
+                    const rawItems = req.result || [];
+                    const decryptedItems = await Promise.all(rawItems.map(async item => {
+                        let decryptedData = item.data;
+                        if (window.TonuCrypto && typeof window.TonuCrypto.decrypt === 'function') {
+                            try {
+                                decryptedData = await window.TonuCrypto.decrypt(item.data);
+                            } catch (err) { }
+                        }
+                        return { ...item, data: decryptedData };
+                    }));
+                    resolve(decryptedItems);
+                };
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async getPendingCount() {
+            const queue = await this.getQueue();
+            return queue.filter(q => q.status === 'pending').length;
+        }
+
+        async removeQueueItem(id) {
+            if (!this.db) return;
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([QUEUE_STORE], 'readwrite');
+                const store = tx.objectStore(QUEUE_STORE);
+                const req = store.delete(id);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async updateQueueItem(item) {
+            if (!this.db || !item || !item.id) return;
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([QUEUE_STORE], 'readwrite');
+                const store = tx.objectStore(QUEUE_STORE);
+                const req = store.put(item);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async clearQueue() {
+            if (!this.db) return;
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([QUEUE_STORE], 'readwrite');
+                const store = tx.objectStore(QUEUE_STORE);
+                const req = store.clear();
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        // ==================================================================
+        // 3. FLUSH SYNC QUEUE
+        // ==================================================================
+        async flushQueue() {
+            if (this.isSyncing || !navigator.onLine) return;
+            const queue = await this.getQueue();
+            const pending = queue.filter(q => q.status === 'pending');
+
+            if (pending.length === 0) return;
+
+            this.isSyncing = true;
+            console.log(`🔄 Iniciando sincronização de ${pending.length} itens pendentes...`);
+            this.updateSyncBadgeUI();
+
+            let successCount = 0;
+            let failureCount = 0;
+
+            for (const item of pending) {
+                try {
+                    const ok = await this.executeSyncAction(item);
+                    if (ok) {
+                        await this.removeQueueItem(item.id);
+                        successCount++;
+                    } else {
+                        item.retries = (item.retries || 0) + 1;
+                        failureCount++;
+                        if (item.retries >= 3) {
+                            console.warn(`⚠️ Item #${item.id} (${item.action}) atingiu limite de tentativas e foi removido da fila.`);
+                            await this.removeQueueItem(item.id);
+                        } else {
+                            await this.updateQueueItem(item);
+                        }
+                    }
+                } catch (err) {
+                    console.error(`❌ Erro ao sincronizar item #${item.id}:`, err?.message || err);
+                    failureCount++;
+                    item.retries = (item.retries || 0) + 1;
+                    if (item.retries >= 3) {
+                        console.warn(`⚠️ Item #${item.id} (${item.action}) falhou permanentemente e foi desempilhado da fila.`);
+                        await this.removeQueueItem(item.id);
+                    } else {
+                        await this.updateQueueItem(item);
+                    }
+                }
+            }
+
+            this.isSyncing = false;
+            this.updateSyncBadgeUI();
+
+            if (successCount > 0) {
+                console.log(`✅ Sincronização concluída: ${successCount} ações sincronizadas`);
+                if (typeof showToast === 'function') {
+                    showToast(`✅ ${successCount} operação(ões) sincronizada(s) com a nuvem!`, 'success');
+                    if (window.billNotificationManager) {
+                        window.billNotificationManager.playChime();
+                    }
+                }
+                if (typeof window.loadDashboard === 'function') window.loadDashboard({ forceRefresh: true });
+                if (typeof window.loadTransactions === 'function') window.loadTransactions();
+                if (typeof window.loadBills === 'function') window.loadBills();
+                if (typeof window.loadGoals === 'function') window.loadGoals();
+                if (typeof window.refreshDashboard === 'function') window.refreshDashboard();
+                if (typeof window.loadAllInvestmentData === 'function') window.loadAllInvestmentData();
+                if (typeof window.loadMobileData === 'function') window.loadMobileData({ forceRefresh: true });
+            }
+        }
+
+        // Helper para limpar ids temporários gerados offline
+        _sanitizeForInsert(record) {
+            if (Array.isArray(record)) {
+                return record.map(r => this._sanitizeForInsert(r));
+            }
+            if (!record || typeof record !== 'object') return record;
+            const copy = { ...record };
+            if (copy.id && typeof copy.id === 'string' && (copy.id.startsWith('offline_') || copy.id.startsWith('temp_'))) {
+                delete copy.id;
+            }
+            return copy;
+        }
+
+        // Helper para sanitizar colunas enviadas para a tabela transactions do Supabase
+        _filterTransactionColumns(record) {
+            if (!record || typeof record !== 'object') return record;
+            // Campos canônicos aceitos pela tabela transactions no Supabase
+            const allowed = [
+                'id', 'user_id', 'description', 'amount', 'type', 'date',
+                'category_id', 'paid', 'paid_date', 'is_bill', 'due_date',
+                'parent_transaction_id', 'is_anticipation', 'amount_paid',
+                'notes', 'tags', 'created_at'
+            ];
+            const filtered = {};
+            for (const key of allowed) {
+                if (record[key] !== undefined) {
+                    filtered[key] = record[key];
+                }
+            }
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (filtered.category_id && !uuidRegex.test(String(filtered.category_id))) {
+                delete filtered.category_id;
+            }
+            return filtered;
+        }
+
+        // Helper para extrair nome da coluna inexistente em erros 400/42703/PGRST104
+        _extractMissingColumn(error) {
+            if (!error) return null;
+            const msg = ((error.message || '') + ' ' + (error.details || '') + ' ' + (error.hint || ''));
+            const match1 = msg.match(/column ["']?([a-zA-Z0-9_]+)["']? of relation/i);
+            if (match1 && match1[1]) return match1[1];
+            const match2 = msg.match(/Could not find the ['"]?([a-zA-Z0-9_]+)['"]? column/i);
+            if (match2 && match2[1]) return match2[1];
+            return null;
+        }
+
+        // Helper para identificar erros de chave duplicada / conflito no banco (409 / 23505)
+        _isDuplicateOrConflictError(error) {
+            if (!error) return false;
+            return error.status === 409 ||
+                error.statusCode === 409 ||
+                error.code === '23505' ||
+                (typeof error.message === 'string' && (
+                    error.message.includes('duplicate key') ||
+                    error.message.includes('already exists') ||
+                    error.message.includes('conflict') ||
+                    error.message.includes('violates unique constraint')
+                ));
+        }
+
+        async executeSyncAction(item) {
+            if (!window.supabaseClient) {
+                console.warn('⚠️ Supabase client não disponível para sincronizar');
+                return false;
+            }
+
+            const { action, data } = item;
+
+            // Obtém ID do usuário para proteger mutações com filtro user_id
+            let userId = null;
+            try {
+                if (window.getAuthenticatedUser) {
+                    const u = await window.getAuthenticatedUser();
+                    userId = u?.id || null;
+                }
+                if (!userId && window.supabaseClient?.auth?.getUser) {
+                    const { data: authData } = await window.supabaseClient.auth.getUser();
+                    userId = authData?.user?.id || null;
+                }
+                if (!userId && typeof sessionStorage !== 'undefined') {
+                    const raw = sessionStorage.getItem('tonu_user');
+                    if (raw) userId = (JSON.parse(raw).user || JSON.parse(raw))?.id;
+                }
+            } catch (e) {}
+
+            if (!userId) {
+                console.warn('sync: userId ausente, abortando ação', action);
+                return false;
+            }
+
+            switch (action) {
+                case 'INSERT_TRANSACTION':
+                case 'INSERT_BILL': {
+                    const cleanData = this._sanitizeForInsert(data);
+                    const rawPayload = Array.isArray(cleanData) ? cleanData : [cleanData];
+                    let payload = rawPayload.map(item => this._filterTransactionColumns(item));
+
+                    let insertSucceeded = false;
+                    for (let attempt = 0; attempt < 4; attempt++) {
+                        const { error } = await window.supabaseClient.from('transactions').insert(payload);
+                        if (!error) {
+                            insertSucceeded = true;
+                            break;
+                        }
+                        if (this._isDuplicateOrConflictError(error)) {
+                            console.warn('⚠️ Transação já cadastrada na nuvem (409/23505). Marcando como sincronizada.');
+                            insertSucceeded = true;
+                            break;
+                        }
+
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol) {
+                            console.warn(`⚠️ Coluna '${missingCol}' ausente no Supabase. Removendo do payload e retentando...`);
+                            payload = payload.map(item => {
+                                const copy = { ...item };
+                                delete copy[missingCol];
+                                return copy;
+                            });
+                            continue;
+                        }
+
+                        console.error('❌ Erro Supabase insert:', error.message || error.details || error);
+                        throw error;
+                    }
+                    return insertSucceeded;
+                }
+                case 'UPDATE_TRANSACTION':
+                case 'UPDATE_BILL': {
+                    const { id, ...updates } = data;
+                    let filteredUpdates = this._filterTransactionColumns(updates);
+                    delete filteredUpdates.id;
+                    delete filteredUpdates.user_id;
+                    delete filteredUpdates.created_at;
+
+                    let updateSucceeded = false;
+                    for (let attempt = 0; attempt < 4; attempt++) {
+                        const { error } = await window.supabaseClient
+                            .from('transactions')
+                            .update(filteredUpdates)
+                            .eq('id', id)
+                            .eq('user_id', userId);
+
+                        if (!error) {
+                            updateSucceeded = true;
+                            break;
+                        }
+
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol && filteredUpdates[missingCol] !== undefined) {
+                            console.warn(`⚠️ Coluna '${missingCol}' ausente no Supabase para update. Removendo e retentando...`);
+                            delete filteredUpdates[missingCol];
+                            continue;
+                        }
+
+                        throw error;
+                    }
+                    return updateSucceeded;
+                }
+                case 'DELETE_TRANSACTION':
+                case 'DELETE_BILL': {
+                    const targetId = data.id || data;
+                    const { error } = await window.supabaseClient
+                        .from('transactions')
+                        .delete()
+                        .eq('id', targetId)
+                        .eq('user_id', userId);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'PAY_BILL': {
+                    const { billId, paymentData } = data;
+                    const { error: updateErr } = await window.supabaseClient
+                        .from('transactions')
+                        .update({ paid: true, paid_date: new Date().toISOString().split('T')[0] })
+                        .eq('id', billId)
+                        .eq('user_id', userId);
+                    if (updateErr) throw updateErr;
+
+                    if (paymentData) {
+                        const cleanPayment = this._sanitizeForInsert(paymentData);
+                        const filteredPayment = this._filterTransactionColumns(cleanPayment);
+                        const { error: insertErr } = await window.supabaseClient.from('transactions').insert([filteredPayment]);
+                        if (insertErr && !this._isDuplicateOrConflictError(insertErr)) {
+                            throw insertErr;
+                        }
+                    }
+                    return true;
+                }
+                case 'INSERT_GOAL': {
+                    let cleanData = this._sanitizeForInsert(data);
+                    let payload = Array.isArray(cleanData) ? cleanData : [cleanData];
+                    let insertSucceeded = false;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        const { error } = await window.supabaseClient.from('goals').insert(payload);
+                        if (!error || this._isDuplicateOrConflictError(error)) {
+                            insertSucceeded = true;
+                            break;
+                        }
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol) {
+                            payload = payload.map(item => {
+                                const copy = { ...item };
+                                delete copy[missingCol];
+                                return copy;
+                            });
+                            continue;
+                        }
+                        throw error;
+                    }
+                    return insertSucceeded;
+                }
+                case 'RENEW_GOAL':
+                case 'UPDATE_GOAL': {
+                    const { id, ...updates } = data;
+                    let payload = { ...updates };
+                    let updateSucceeded = false;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        const { error } = await window.supabaseClient
+                            .from('goals')
+                            .update(payload)
+                            .eq('id', id)
+                            .eq('user_id', userId);
+                        if (!error) {
+                            updateSucceeded = true;
+                            break;
+                        }
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol) {
+                            delete payload[missingCol];
+                            continue;
+                        }
+                        throw error;
+                    }
+                    return updateSucceeded;
+                }
+                case 'DELETE_GOAL': {
+                    const targetId = data.id || data;
+                    const { error } = await window.supabaseClient
+                        .from('goals')
+                        .delete()
+                        .eq('id', targetId)
+                        .eq('user_id', userId);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'INSERT_INVESTMENT': {
+                    const cleanData = this._sanitizeForInsert(data);
+                    const { error } = await window.supabaseClient.from('investments').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
+                    if (error) {
+                        if (this._isDuplicateOrConflictError(error)) {
+                            console.warn('⚠️ Investimento já cadastrado na nuvem (409/23505). Marcando como sincronizado.');
+                            return true;
+                        }
+                        throw error;
+                    }
+                    return true;
+                }
+                case 'UPDATE_INVESTMENT': {
+                    const { id, ...updates } = data;
+                    const { error } = await window.supabaseClient
+                        .from('investments')
+                        .update(updates)
+                        .eq('id', id)
+                        .eq('user_id', userId);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'DELETE_INVESTMENT': {
+                    const targetId = data.id || data;
+                    const { error } = await window.supabaseClient
+                        .from('investments')
+                        .delete()
+                        .eq('id', targetId)
+                        .eq('user_id', userId);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'INSERT_DIVIDEND': {
+                    const cleanData = this._sanitizeForInsert(data);
+                    const { error } = await window.supabaseClient.from('dividends').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
+                    if (error) {
+                        if (this._isDuplicateOrConflictError(error)) {
+                            console.warn('⚠️ Provento já cadastrado na nuvem (409/23505). Marcando como sincronizado.');
+                            return true;
+                        }
+                        throw error;
+                    }
+                    return true;
+                }
+                case 'UPDATE_DIVIDEND': {
+                    const { id, ...updates } = data;
+                    const { error } = await window.supabaseClient
+                        .from('dividends')
+                        .update(updates)
+                        .eq('id', id)
+                        .eq('user_id', userId);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'DELETE_DIVIDEND': {
+                    const targetId = data.id || data;
+                    const { error } = await window.supabaseClient
+                        .from('dividends')
+                        .delete()
+                        .eq('id', targetId)
+                        .eq('user_id', userId);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'INSERT_CORPORATE_EVENT': {
+                    const cleanData = this._sanitizeForInsert(data);
+                    const { error } = await window.supabaseClient.from('corporate_events').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
+                    if (error) {
+                        if (this._isDuplicateOrConflictError(error)) {
+                            console.warn('⚠️ Evento corporativo já cadastrado na nuvem (409/23505). Marcando como sincronizado.');
+                            return true;
+                        }
+                        throw error;
+                    }
+                    return true;
+                }
+                case 'UPDATE_CORPORATE_EVENT': {
+                    const { id, ...updates } = data;
+                    const { error } = await window.supabaseClient
+                        .from('corporate_events')
+                        .update(updates)
+                        .eq('id', id)
+                        .eq('user_id', userId);
+                    if (error) throw error;
+                    return true;
+                }
+                case 'DELETE_CORPORATE_EVENT': {
+                    const targetId = data.id || data;
+                    const { error } = await window.supabaseClient
+                        .from('corporate_events')
+                        .delete()
+                        .eq('id', targetId)
+                        .eq('user_id', userId);
+                    if (error) throw error;
+                    return true;
+                }
+                default:
+                    console.warn('⚠️ Ação desconhecida de sincronização:', action);
+                    return true;
+            }
+        }
+
+        // ==================================================================
+        // 4. CANONICAL INDEXEDDB ENTITY CACHE (PARTE 4, 7, 8)
+        // ==================================================================
+        async setEntityCache(key, data) {
+            if (!this.db) this.db = await this.openDatabase();
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([CACHE_STORE], 'readwrite');
+                const store = tx.objectStore(CACHE_STORE);
+                const req = store.put({ key, data, updatedAt: Date.now() });
+                req.onsuccess = () => resolve(true);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async getEntityCache(key) {
+            if (!this.db) this.db = await this.openDatabase();
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([CACHE_STORE], 'readonly');
+                const store = tx.objectStore(CACHE_STORE);
+                const req = store.get(key);
+                req.onsuccess = () => resolve(req.result ? req.result.data : null);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async getCachedTransactions(userId) {
+            const key = `transactions_${userId || 'current'}`;
+            const data = await this.getEntityCache(key);
+            if (Array.isArray(data) && data.length > 0) return data;
+            try {
+                const legacy = localStorage.getItem('tonu_' + key);
+                if (legacy) {
+                    const parsed = JSON.parse(legacy);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        await this.setEntityCache(key, parsed);
+                        return parsed;
+                    }
+                }
+            } catch (_) {}
+            return [];
+        }
+
+        async setCachedTransactions(userId, transactions) {
+            return await this.setEntityCache(`transactions_${userId || 'current'}`, transactions || []);
+        }
+
+        async getCachedBills(userId) {
+            const key = `bills_${userId || 'current'}`;
+            const data = await this.getEntityCache(key);
+            if (Array.isArray(data) && data.length > 0) return data;
+            try {
+                const legacy = localStorage.getItem('tonu_' + key);
+                if (legacy) {
+                    const parsed = JSON.parse(legacy);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        await this.setEntityCache(key, parsed);
+                        return parsed;
+                    }
+                }
+            } catch (_) {}
+            return [];
+        }
+
+        async setCachedBills(userId, bills) {
+            return await this.setEntityCache(`bills_${userId || 'current'}`, bills || []);
+        }
+
+        async getCachedGoals(userId) {
+            const data = await this.getEntityCache(`goals_${userId || 'current'}`);
+            return Array.isArray(data) ? data : [];
+        }
+
+        async setCachedGoals(userId, goals) {
+            return await this.setEntityCache(`goals_${userId || 'current'}`, goals || []);
+        }
+
+        async getCachedInvestments(userId) {
+            const data = await this.getEntityCache(`investments_${userId || 'current'}`);
+            return Array.isArray(data) ? data : [];
+        }
+
+        async setCachedInvestments(userId, investments) {
+            return await this.setEntityCache(`investments_${userId || 'current'}`, investments || []);
+        }
+
+        async getCachedDividends(userId) {
+            const data = await this.getEntityCache(`dividends_${userId || 'current'}`);
+            return Array.isArray(data) ? data : [];
+        }
+
+        async setCachedDividends(userId, dividends) {
+            return await this.setEntityCache(`dividends_${userId || 'current'}`, dividends || []);
+        }
+
+        async getCachedCorporateEvents(userId) {
+            const data = await this.getEntityCache(`corporate_events_${userId || 'current'}`);
+            return Array.isArray(data) ? data : [];
+        }
+
+        async setCachedCorporateEvents(userId, events) {
+            return await this.setEntityCache(`corporate_events_${userId || 'current'}`, events || []);
+        }
+
+        // ==================================================================
+        // 5. SERVICE WORKER BACKGROUND SYNC & LISTENERS
+        // ==================================================================
+        async requestBackgroundSync() {
+            if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    await registration.sync.register('tonu-sync-queue');
+                    console.log('⚡ Background Sync registrado no Service Worker: "tonu-sync-queue"');
+                } catch (err) {
+                    console.warn('⚠️ Background Sync API não suportada ou erro ao registrar:', err);
+                }
+            }
+        }
+
+        setupServiceWorkerSync() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data) {
+                        if (event.data.type === 'TRIGGER_SYNC') {
+                            console.log('⚡ Background Sync acionado pelo Service Worker');
+                            this.flushQueue();
+                        } else if (event.data.type === 'SYNC_COMPLETED') {
+                            console.log('📩 Mensagem do SW: Sincronização concluída');
+                        }
+                    }
+                });
+            }
+        }
+
+        setupNetworkListeners() {
+            window.addEventListener('online', () => {
+                this.isOnline = true;
+                console.log('🌐 Conexão de rede restaurada! Online.');
+                this.updateSyncBadgeUI();
+                if (typeof showToast === 'function') {
+                    showToast('🌐 Conexão restaurada! Sincronizando...', 'info');
+                }
+                this.flushQueue();
+            });
+
+            window.addEventListener('offline', () => {
+                this.isOnline = false;
+                console.log('📶 Você está offline no momento.');
+                this.updateSyncBadgeUI();
+                if (typeof showToast === 'function') {
+                    showToast('📶 Modo Offline ativo. Todas as alterações serão salvas localmente.', 'warning');
+                }
+            });
+        }
+
+        setupVisibilityListeners() {
+            // Fallback robusto quando Background Sync não é suportado pelo navegador
+            if (typeof document !== 'undefined') {
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible' && navigator.onLine) {
+                        this.flushQueue();
+                    }
+                });
+            }
+            if (typeof window !== 'undefined') {
+                window.addEventListener('focus', () => {
+                    if (navigator.onLine) {
+                        this.flushQueue();
+                    }
+                });
+            }
+        }
+
+        // ==================================================================
+        // 6. WEB SHARE TARGET API
+        // ==================================================================
+        async saveSharedData(data) {
+            if (!this.db) await this.openDatabase();
+
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([SHARED_STORE], 'readwrite');
+                const store = tx.objectStore(SHARED_STORE);
+                const req = store.add({
+                    ...data,
+                    timestamp: Date.now()
+                });
+
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async getLatestSharedData() {
+            if (!this.db) await this.openDatabase();
+
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([SHARED_STORE], 'readonly');
+                const store = tx.objectStore(SHARED_STORE);
+                const req = store.getAll();
+
+                req.onsuccess = () => {
+                    const items = req.result || [];
+                    if (items.length === 0) return resolve(null);
+                    items.sort((a, b) => b.timestamp - a.timestamp);
+                    resolve(items[0]);
+                };
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async clearSharedData() {
+            if (!this.db) return;
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([SHARED_STORE], 'readwrite');
+                const store = tx.objectStore(SHARED_STORE);
+                const req = store.clear();
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+    }
+
+    // Instância global
+    window.tonuSync = new TonuSyncManager();
+    console.log('✅ TonuSyncManager PWA carregado com suporte canônico IndexedDB');
+
+})();

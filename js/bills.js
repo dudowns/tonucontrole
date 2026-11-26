@@ -76,7 +76,15 @@
     }
 
     function getTodayString() {
-        return new Date().toLocaleDateString('sv');
+        if (typeof window.getToday === 'function') {
+            const t = window.getToday();
+            if (t && typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+        }
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     }
 
     function showToast(message, type = 'info') {
@@ -133,6 +141,7 @@
             }
 
             currentUser = user;
+            if (typeof window !== 'undefined') window.currentUser = user;
             console.log('✅ Contas: Usuário autenticado:', currentUser.email);
 
             if (window.loadGlobalUserProfile) {
@@ -374,13 +383,26 @@
         const elOverdue = document.getElementById('billsStatOverdue');
         const elOverdueCount = document.getElementById('billsStatOverdueCount');
 
-        if (elTotal) elTotal.textContent = formatCurrency(remainingToPay);
+        const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+        if (elTotal) {
+            if (anim) anim(elTotal, remainingToPay, formatCurrency);
+            else elTotal.textContent = formatCurrency(remainingToPay);
+        }
         if (elTotalCount) elTotalCount.textContent = `${pendingCount} ${pendingCount === 1 ? 'a pagar' : 'a pagar'}`;
-        if (elPaid) elPaid.textContent = formatCurrency(paid);
+        if (elPaid) {
+            if (anim) anim(elPaid, paid, formatCurrency);
+            else elPaid.textContent = formatCurrency(paid);
+        }
         if (elPaidCount) elPaidCount.textContent = `${paidCount} ${paidCount === 1 ? 'paga' : 'pagas'}`;
-        if (elPending) elPending.textContent = formatCurrency(normalPending);
+        if (elPending) {
+            if (anim) anim(elPending, normalPending, formatCurrency);
+            else elPending.textContent = formatCurrency(normalPending);
+        }
         if (elPendingCount) elPendingCount.textContent = `${normalPendingCount} ${normalPendingCount === 1 ? 'a vencer' : 'a vencer'}`;
-        if (elOverdue) elOverdue.textContent = formatCurrency(overdue);
+        if (elOverdue) {
+            if (anim) anim(elOverdue, overdue, formatCurrency);
+            else elOverdue.textContent = formatCurrency(overdue);
+        }
         if (elOverdueCount) elOverdueCount.textContent = `${overdueCount} ${overdueCount === 1 ? 'atrasada' : 'atrasadas'}`;
 
         // Progresso do mês
@@ -389,7 +411,10 @@
         const elPct = document.getElementById('billsProgressPct');
         const elBar = document.getElementById('billsProgressBar');
 
-        if (elPct) elPct.textContent = `${pct}%`;
+        if (elPct) {
+            if (anim) anim(elPct, pct, v => `${Math.round(v)}%`);
+            else elPct.textContent = `${pct}%`;
+        }
         if (elBar) elBar.style.width = `${pct}%`;
 
         // Métricas de Parcelamento e Banner
@@ -419,7 +444,10 @@
             banner.style.display = 'flex';
             const countEl = document.getElementById('bannerInstallmentActiveCount');
             const detailsEl = document.getElementById('bannerInstallmentDetails');
-            if (countEl) countEl.textContent = activeCount;
+            if (countEl) {
+                if (typeof window.animateValue === 'function') window.animateValue(countEl, activeCount, v => String(Math.round(v)));
+                else countEl.textContent = activeCount;
+            }
             if (detailsEl) {
                 detailsEl.textContent = `Total de parcelas restantes a vencer: ${totalRemainingInstallments} • Saldo restante a quitar: ${formatCurrency(totalRemainingDebt)}`;
             }
@@ -448,9 +476,9 @@
         document.querySelectorAll('.tab-status-btn').forEach(btn => {
             const isMatch = btn.dataset.status === currentStatus;
             btn.classList.toggle('active', isMatch);
-            btn.style.background = isMatch ? 'var(--color-surface, #fff)' : 'transparent';
-            btn.style.color = isMatch ? 'var(--color-primary, #6c5ce7)' : 'var(--color-text-muted, #64748b)';
-            btn.style.boxShadow = isMatch ? '0 1px 3px rgba(0,0,0,0.08)' : 'none';
+            btn.style.background = '';
+            btn.style.color = '';
+            btn.style.boxShadow = '';
         });
     }
 
@@ -492,7 +520,8 @@
             }
 
             // Status
-            const isOverdue = !b.paid && b.date && b.date < todayStr;
+            const dueDateStr = b.due_date || b.date;
+            const isOverdue = !b.paid && dueDateStr && dueDateStr < todayStr;
             if (status === 'paid' && !b.paid) return false;
             if (status === 'pending' && b.paid) return false;
             if (status === 'overdue' && (!isOverdue)) return false;
@@ -514,6 +543,60 @@
         renderBills(filtered);
     }
 
+    function getBillDateGroupHeader(dateStr) {
+        if (!dateStr || dateStr === 'sem_data') return 'Sem data';
+        const parts = String(dateStr).split('T')[0].split('-');
+        if (parts.length < 3) return dateStr;
+        const y = Number(parts[0]);
+        const m = Number(parts[1]);
+        const d = Number(parts[2]);
+        if (!y || !m || !d) return dateStr;
+
+        const today = new Date();
+        if (today.getFullYear() === y && (today.getMonth() + 1) === m && today.getDate() === d) {
+            return 'Hoje';
+        }
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (yesterday.getFullYear() === y && (yesterday.getMonth() + 1) === m && yesterday.getDate() === d) {
+            return 'Ontem';
+        }
+
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        if (tomorrow.getFullYear() === y && (tomorrow.getMonth() + 1) === m && tomorrow.getDate() === d) {
+            return 'Amanhã';
+        }
+
+        return `${String(d).padStart(2, '0')} de ${MONTH_NAMES[m - 1] || m}`;
+    }
+
+    function colorToSoftBg(colorStr) {
+        if (!colorStr) return 'rgba(67, 56, 202, 0.14)';
+        if (colorStr.startsWith('#')) {
+            let hex = colorStr.replace('#', '');
+            if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+            const num = parseInt(hex, 16);
+            if (!isNaN(num)) {
+                const r = (num >> 16) & 255;
+                const g = (num >> 8) & 255;
+                const b = num & 255;
+                return `rgba(${r}, ${g}, ${b}, 0.14)`;
+            }
+        }
+        if (colorStr.startsWith('rgb(')) {
+            return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.14)');
+        }
+        return 'rgba(67, 56, 202, 0.14)';
+    }
+
+    function cleanCategoryLabel(rawName) {
+        const str = String(rawName || 'Geral');
+        const cleaned = str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim();
+        return cleaned || str;
+    }
+
     function renderBills(bills) {
         currentFilteredBillsList = bills || [];
         const container = document.getElementById('billsContainer');
@@ -526,7 +609,7 @@
 
         if (bills.length === 0) {
             container.innerHTML = `
-                <div style="text-align:center;padding:48px 20px;">
+                <div class="card" style="text-align:center;padding:48px 20px;background:var(--color-surface,#fff);border-radius:16px;border:1px solid var(--color-border,#e2e8f0);">
                     <div style="font-size:42px;margin-bottom:12px;opacity:0.8;">📋</div>
                     <h4 style="font-size:16px;font-weight:700;margin:0 0 6px 0;color:var(--color-text,#2d3436);">Nenhuma conta encontrada</h4>
                     <p style="color:var(--color-text-muted,#94a3b8);font-size:13px;margin:0 auto 16px auto;max-width:360px;">
@@ -549,140 +632,265 @@
         };
         const todayDate = safeParseLocalDate(todayStr);
 
-        let html = '<div class="bills-list-group">';
+        // Ordena cronologicamente por data de vencimento para agrupar perfeitamente por dia
+        const sortedBills = [...bills].sort((a, b) => {
+            const dA = (a.due_date || a.date || '9999-12-31').split('T')[0];
+            const dB = (b.due_date || b.date || '9999-12-31').split('T')[0];
+            if (dA !== dB) return dA.localeCompare(dB);
+            return String(a.description || '').localeCompare(String(b.description || ''));
+        });
 
-        bills.forEach(b => {
-            const isPaid = !!b.paid;
-            const isOverdue = !isPaid && b.date && b.date < todayStr;
+        // Agrupa contas por data de vencimento com subtotal diário
+        const groups = [];
+        let currentGroup = null;
 
-            // Categoria
-            const cat = b.categories || categories.find(c => c.id === b.category_id) || {};
-            const catColor = cat.color || '#6C5CE7';
-            const catIcon = cat.icon || 'fa-file-invoice-dollar';
-            const catName = cat.name || 'Geral';
+        sortedBills.forEach(b => {
+            const dueDateVal = b.due_date || b.date || '';
+            const dateKey = dueDateVal ? String(dueDateVal).split('T')[0] : 'sem_data';
 
-            // Cálculo de urgência / dias restantes
-            let daysBadge = '';
-            if (isPaid) {
-                daysBadge = `<span class="days-left" style="color:#00B894;"><i class="fas fa-check"></i> Pago</span>`;
-            } else if (b.date) {
-                const dueDate = safeParseLocalDate(b.date);
-                const diffDays = Math.round((dueDate - todayDate) / 86400000);
+            if (!currentGroup || currentGroup.dateKey !== dateKey) {
+                currentGroup = {
+                    dateKey,
+                    dateHeader: getBillDateGroupHeader(dateKey),
+                    items: [],
+                    dayTotal: 0
+                };
+                groups.push(currentGroup);
+            }
 
-                if (diffDays < 0) {
-                    daysBadge = `<span class="days-left overdue"><i class="fas fa-exclamation-circle"></i> Vencida há ${Math.abs(diffDays)} dia(s)</span>`;
-                } else if (diffDays === 0) {
-                    daysBadge = `<span class="days-left urgent"><i class="fas fa-bell"></i> Vence HOJE!</span>`;
-                } else if (diffDays === 1) {
-                    daysBadge = `<span class="days-left urgent"><i class="fas fa-clock"></i> Vence amanhã</span>`;
-                } else if (diffDays <= 3) {
-                    daysBadge = `<span class="days-left" style="color:#d97706;"><i class="fas fa-clock"></i> Vence em ${diffDays} dias</span>`;
-                } else {
-                    daysBadge = `<span class="days-left" style="color:var(--color-text-muted,#94a3b8);">Vence em ${diffDays} dias</span>`;
+            currentGroup.items.push(b);
+            currentGroup.dayTotal += parseFloat(b.amount) || 0;
+        });
+
+        let html = '<div class="bills-statement-groups">';
+
+        groups.forEach(g => {
+            html += `
+                <section class="bills-day-group" aria-label="${sanitize(g.dateHeader)}">
+                    <div class="ios-section-header">
+                        <span>${sanitize(g.dateHeader)}</span>
+                        <span class="subtotal-pill">${formatCurrency(g.dayTotal)}</span>
+                    </div>
+                    <div class="bills-day-items">
+            `;
+
+            g.items.forEach(b => {
+                const isPaid = !!b.paid;
+                const dueDateVal = b.due_date || b.date;
+                const isOverdue = !isPaid && dueDateVal && dueDateVal < todayStr;
+
+                // Categoria + estilo com squircle
+                const cat = b.categories || categories.find(c => c.id === b.category_id) || {};
+                const backendCat = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
+                    ? window.getBackendCategoryStyle(b.category || cat.name || b.description, cat)
+                    : null;
+                const catColor = cat.color || backendCat?.color || '#4338CA';
+                let catIcon = cat.icon || backendCat?.icon || 'fa-file-invoice-dollar';
+                if (catIcon && !catIcon.startsWith('fa-')) catIcon = 'fa-' + catIcon;
+                const cleanCatName = cleanCategoryLabel(cat.name || b.category || 'Geral');
+                const squircleBg = colorToSoftBg(catColor);
+
+                // Cálculo de urgência / dias restantes
+                let daysBadge = '';
+                if (isPaid) {
+                    daysBadge = `<span class="days-left" style="color:#00B894;"><i class="fas fa-check"></i> Pago</span>`;
+                } else if (dueDateVal) {
+                    const dueDate = safeParseLocalDate(dueDateVal);
+                    const diffDays = Math.round((dueDate - todayDate) / 86400000);
+
+                    if (diffDays < 0) {
+                        daysBadge = `<span class="days-left overdue"><i class="fas fa-exclamation-circle"></i> Vencida há ${Math.abs(diffDays)} dia(s)</span>`;
+                    } else if (diffDays === 0) {
+                        daysBadge = `<span class="days-left urgent"><i class="fas fa-bell"></i> Vence HOJE!</span>`;
+                    } else if (diffDays === 1) {
+                        daysBadge = `<span class="days-left urgent"><i class="fas fa-clock"></i> Vence amanhã</span>`;
+                    } else if (diffDays <= 3) {
+                        daysBadge = `<span class="days-left" style="color:#d97706;"><i class="fas fa-clock"></i> Vence em ${diffDays} dias</span>`;
+                    } else {
+                        daysBadge = `<span class="days-left" style="color:var(--color-text-muted,#94a3b8);">Vence em ${diffDays} dias</span>`;
+                    }
                 }
-            }
 
-            // Status Badge
-            let statusBadge = '';
-            if (isPaid) {
-                statusBadge = `<span class="badge badge-success">PAGA</span>`;
-            } else if (isOverdue) {
-                statusBadge = `<span class="badge badge-overdue">ATRASADA</span>`;
-            } else {
-                statusBadge = `<span class="badge badge-pending">PENDENTE</span>`;
-            }
+                // Status Pill
+                let statusBadge = '<span class="badge badge-pending">PENDENTE</span>';
+                if (isPaid) {
+                    statusBadge = '<span class="badge badge-success">PAGA</span>';
+                } else if (isOverdue) {
+                    statusBadge = '<span class="badge badge-overdue">ATRASADA</span>';
+                }
 
-            // Metadados de Parcelamento / Recorrência
-            const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(b) : null;
+                // Metadados de Parcelamento / Recorrência
+                const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(b) : null;
+                const isSelected = selectedBillIds.has(String(b.id));
+                const safeBillId = sanitize(String(b.id));
 
-            const isSelected = selectedBillIds.has(String(b.id));
+                html += `
+                    <div class="bill-swipe-row" data-swipe-row data-swipe-width="84">
+                        <button type="button" class="swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteBill('${safeBillId}')" aria-label="Excluir conta">
+                            <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                            <span>Excluir</span>
+                        </button>
+                        <div class="bill-card clean-list-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_item_${safeBillId}" data-swipe-content>
+                            ${isSelectionMode ? `
+                                <div class="bill-select-box" style="margin-top:6px; display:flex; align-items:center;">
+                                    <input type="checkbox" class="bill-checkbox" data-id="${safeBillId}" ${isSelected ? 'checked' : ''} onchange="toggleSelectBill('${safeBillId}', this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary,#4338CA);">
+                                </div>
+                            ` : ''}
+                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catColor};" title="${sanitize(cleanCatName)}">
+                                <i class="fas ${catIcon}" aria-hidden="true"></i>
+                            </div>
+                            <div class="clean-card-body">
+                                <div class="clean-card-top">
+                                    <span class="clean-card-title">${sanitize(b.description)}</span>
+                                    <div class="clean-card-amount-wrap">
+                                        <span class="clean-card-amount ${isPaid ? 'income' : (isOverdue ? 'expense' : 'warning')}">
+                                            ${formatCurrency(b.amount)}
+                                        </span>
+                                        ${isPaid ? `
+                                            <button class="btn-paid" onclick="toggleBillPaid('${safeBillId}')" title="Conta Paga! Clique para marcar como pendente">
+                                                <i class="fas fa-check-double"></i> Paga
+                                            </button>
+                                        ` : (isOverdue ? `
+                                            <button class="btn-pay btn-pay-overdue" onclick="toggleBillPaid('${safeBillId}')" title="Conta Atrasada! Clique para pagar">
+                                                <i class="fas fa-check"></i> Pagar
+                                            </button>
+                                        ` : `
+                                            <button class="btn-pay btn-pay-pending" onclick="toggleBillPaid('${safeBillId}')" title="Clique para pagar esta conta">
+                                                <i class="fas fa-check"></i> Pagar
+                                            </button>
+                                        `)}
+                                        <div class="bill-actions">
+                                            ${(parseInt(b.installments, 10) > 1 || (b.description && /\(\d+\/\d+\)/.test(b.description))) ? `
+                                                <button class="btn-icon-sm" onclick="openAnticipationModal('${safeBillId}')" title="Antecipar / Quitar Parcelas Futuras">
+                                                    <i class="fas fa-forward-step" style="color:#0284c7;"></i>
+                                                </button>
+                                            ` : ''}
+                                            <button class="btn-icon-sm" onclick="openBillModal('${safeBillId}')" title="Editar conta">
+                                                <i class="fas fa-pencil-alt" style="color:var(--color-primary,#4338CA);"></i>
+                                            </button>
+                                            <button class="btn-icon-sm text-danger" onclick="deleteBill('${safeBillId}')" title="Excluir conta">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="clean-card-middle">
+                                    <span class="clean-tag category">${sanitize(cleanCatName)}</span>
+                                    ${statusBadge}
+                                    ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
+                                </div>
+                                <div class="clean-card-bottom">
+                                    <span>
+                                        <i class="far fa-calendar-alt" style="margin-right:4px;" aria-hidden="true"></i>Venc: ${formatDate(dueDateVal)}
+                                        ${b.notes ? ` • <span style="font-style:italic;" title="${sanitize(b.notes)}"><i class="fas fa-info-circle" style="margin-right:3px;"></i>${sanitize(b.notes)}</span>` : ''}
+                                    </span>
+                                    ${daysBadge}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
 
             html += `
-                <div class="bill-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_item_${b.id}">
-                    <div class="bill-left" style="align-items:center;">
-                        ${isSelectionMode ? `
-                            <div class="bill-select-box" style="margin-right:12px; display:flex; align-items:center;">
-                                <input type="checkbox" class="bill-checkbox" data-id="${b.id}" ${isSelected ? 'checked' : ''} onchange="toggleSelectBill('${b.id}', this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary,#6c5ce7);">
-                            </div>
-                        ` : ''}
-                        <div class="bill-icon" style="background:${catColor};">
-                            <i class="fas ${catIcon}"></i>
-                        </div>
-                        <div class="bill-info">
-                            <strong>${sanitize(b.description)}</strong>
-                            ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
-                            <small>
-                                <i class="fas fa-calendar-alt" style="margin-right:3px;"></i>${formatDate(b.date)} • ${sanitize(catName)}
-                                ${b.notes ? ` • <span style="font-style:italic;" title="${sanitize(b.notes)}"><i class="fas fa-info-circle"></i> ${sanitize(b.notes)}</span>` : ''}
-                            </small>
-                            <div style="margin-top:2px;">${daysBadge}</div>
-                        </div>
                     </div>
-
-                    <div class="bill-right">
-                        <div class="bill-amount ${isPaid ? 'text-success' : (isOverdue ? 'text-danger' : 'text-warning')}">
-                            ${formatCurrency(b.amount)}
-                        </div>
-                        ${isPaid ? `
-                            <button class="btn-paid" onclick="toggleBillPaid('${b.id}')" title="Conta Paga! Clique para marcar como pendente">
-                                <i class="fas fa-check-double"></i> Paga
-                            </button>
-                        ` : (isOverdue ? `
-                            <button class="btn-pay btn-pay-overdue" onclick="toggleBillPaid('${b.id}')" title="Conta Atrasada! Clique para pagar">
-                                <i class="fas fa-check"></i> Pagar
-                            </button>
-                        ` : `
-                            <button class="btn-pay btn-pay-pending" onclick="toggleBillPaid('${b.id}')" title="Clique para pagar esta conta">
-                                <i class="fas fa-check"></i> Pagar
-                            </button>
-                        `)}
-                        <div class="bill-actions">
-                            <button class="btn-icon-sm" onclick="openBillModal('${b.id}')" title="Editar conta">
-                                <i class="fas fa-pencil-alt" style="color:var(--color-primary,#6c5ce7);"></i>
-                            </button>
-                            <button class="btn-icon-sm text-danger" onclick="deleteBill('${b.id}')" title="Excluir conta">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                </section>
             `;
         });
 
         html += '</div>';
         container.innerHTML = html;
+        if (typeof window.TonuSetupSwipe === 'function') {
+            window.TonuSetupSwipe();
+        }
     }
 
     // ============================================
     // AÇÃO RÁPIDA: ALTERNAR STATUS DE PAGAMENTO (1 CLIQUE)
     // ============================================
-    async function toggleBillPaid(id) {
+    async function toggleBillPaid(id, targetStatus = undefined) {
         const bill = allBills.find(b => String(b.id) === String(id));
         if (!bill) return;
 
-        const newPaidStatus = !bill.paid;
-        const newPaidDate = newPaidStatus ? getTodayString() : null;
+        // Guarda 1: Previne cliques duplos rápidos concorrentes
+        if (bill._updating) return;
 
-        // Feedback tátil instantâneo no clique
-        if (window.triggerHaptic) {
-            window.triggerHaptic(newPaidStatus ? 'success' : 'medium');
-        }
+        const newPaidStatus = (targetStatus !== undefined) ? !!targetStatus : !bill.paid;
 
-        // Atualização otimista na tela
-        bill.paid = newPaidStatus;
-        bill.paid_date = newPaidDate;
-        applyFiltersAndRender();
-        updateSummaryCards(allBills);
+        // Guarda 3: Se já está no estado desejado (ex: pagar já pago), não faz nada
+        if (bill.paid === newPaidStatus) return;
 
-        // Atualizar cache de contas no IndexedDB canônico e enfileirar para sync
+        bill._updating = true;
+
         try {
+            const newPaidDate = newPaidStatus ? getTodayString() : null;
+
+            // Ao pagar: preserva a data de vencimento em due_date e atualiza date para a data real de pagamento (extrato)
+            if (newPaidStatus) {
+                if (!bill.due_date) {
+                    bill.due_date = bill.date;
+                }
+                bill.date = newPaidDate;
+            } else {
+                // Ao reverter para pendente: restaura date para a data de vencimento original
+                if (bill.due_date) {
+                    bill.date = bill.due_date;
+                }
+            }
+
+            // Feedback tátil instantâneo no clique
+            if (window.triggerHaptic) {
+                window.triggerHaptic(newPaidStatus ? 'success' : 'medium');
+            }
+
+            // Atualização otimista na tela
+            bill.paid = newPaidStatus;
+            bill.paid_date = newPaidDate;
+            applyFiltersAndRender();
+            updateSummaryCards(allBills);
+
+            // Atualizar cache de contas e transações no IndexedDB canônico
             if (window.tonuSync && currentUser?.id) {
                 await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                try {
+                    const cachedTx = await window.tonuSync.getCachedTransactions(currentUser.id);
+                    if (Array.isArray(cachedTx)) {
+                        const targetTx = cachedTx.find(t => String(t.id) === String(id));
+                        if (targetTx) {
+                            targetTx.paid = newPaidStatus;
+                            targetTx.paid_date = newPaidDate;
+                            targetTx.date = bill.date;
+                            targetTx.due_date = bill.due_date || targetTx.due_date;
+                            await window.tonuSync.setCachedTransactions(currentUser.id, cachedTx);
+                        }
+                    }
+                } catch (_) {}
+
                 await window.tonuSync.enqueue('UPDATE_BILL', {
                     id: id,
                     paid: newPaidStatus,
-                    paid_date: newPaidDate
+                    paid_date: newPaidDate,
+                    date: bill.date,
+                    due_date: bill.due_date || undefined
                 });
+            }
+
+            // Sincroniza diretamente no Supabase se online
+            if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+                try {
+                    await window.supabaseClient
+                        .from('transactions')
+                        .update({
+                            paid: newPaidStatus,
+                            paid_date: newPaidDate,
+                            date: bill.date,
+                            due_date: bill.due_date || null
+                        })
+                        .eq('id', id)
+                        .eq('user_id', currentUser.id);
+                } catch (supaErr) {
+                    console.warn('Erro ao atualizar Supabase ao pagar conta:', supaErr);
+                }
             }
 
             showToast(newPaidStatus ? 'Conta paga e lançada nas transações com sucesso! ✅' : 'Conta retornou para PENDENTE ⏳', 'success');
@@ -699,6 +907,8 @@
             applyFiltersAndRender();
             updateSummaryCards(allBills);
             showToast('Erro ao atualizar status: ' + err.message, 'error');
+        } finally {
+            bill._updating = false;
         }
     }
 
@@ -944,21 +1154,25 @@
                     // Geração em lote das parcelas futuras
                     const batch = [];
                     const cleanDesc = desc.replace(/\s*\(\d+\/\d+\)$/, '').trim();
+                    const parentBillId = genUuid();
 
                     for (let i = installmentCurrent; i <= installmentsTotal; i++) {
                         const monthOffset = i - installmentCurrent;
                         const dueDate = window.TonuInstallments ? window.TonuInstallments.addMonthsToDate(date, monthOffset) : date;
                         const itemPaid = (i === installmentCurrent) ? paid : false;
-                        const billId = genUuid();
+                        const billId = (i === installmentCurrent) ? parentBillId : genUuid();
 
                         batch.push({
                             ...baseBillPayload,
                             id: billId,
+                            parent_transaction_id: (i === installmentCurrent ? null : parentBillId),
                             description: `${cleanDesc} (${i}/${installmentsTotal})`,
                             amount: finalAmount,
                             date: dueDate,
                             installments: installmentsTotal,
                             current_installment: i,
+                            installment_total: installmentsTotal,
+                            installment_number: i,
                             paid: itemPaid,
                             paid_date: itemPaid ? getTodayString() : null
                         });
@@ -1054,17 +1268,77 @@
         const targetId = id || document.getElementById('billEditId')?.value || currentEditBillId;
         if (!targetId) return;
 
-        if (!confirm('Deseja realmente excluir esta conta?')) return;
+        const target = allBills.find(b => String(b.id) === String(targetId));
+        let seriesInfo = { fromNow: [], all: [] };
+        if (target) {
+            if (typeof window.getFullSeriesInfo === 'function') {
+                seriesInfo = await window.getFullSeriesInfo(target, allBills, { userId: currentUser?.id });
+            } else if (typeof window.findSeriesInfo === 'function') {
+                seriesInfo = window.findSeriesInfo(target, allBills);
+            } else if (typeof window.findRemainingSeries === 'function') {
+                const rem = window.findRemainingSeries(target, allBills);
+                seriesInfo = { fromNow: rem, all: rem };
+            }
+        }
+
+        let deleteMode = 'single';
+        if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
+            deleteMode = await window.confirmRecurringDelete({
+                countFromNow: seriesInfo.fromNow.length,
+                countAll: seriesInfo.all.length,
+                itemName: target.description || 'Conta',
+                itemType: 'conta'
+            });
+            if (deleteMode === 'cancel') return;
+        } else {
+            const confirmedDelete = await window.TonuConfirm({
+                title: 'Excluir conta?',
+                message: 'Deseja realmente excluir esta conta?',
+                confirmText: 'Excluir',
+                danger: true
+            });
+            if (!confirmedDelete) return;
+        }
 
         try {
-            allBills = allBills.filter(b => String(b.id) !== String(targetId));
-
-            if (window.tonuSync && currentUser?.id) {
-                await window.tonuSync.setCachedBills(currentUser.id, allBills);
-                await window.tonuSync.enqueue('DELETE_BILL', { id: targetId });
+            let idsToDelete = [String(targetId)];
+            if (deleteMode === 'from_now') {
+                idsToDelete = [String(targetId), ...seriesInfo.fromNow.map(r => String(r.id))];
+            } else if (deleteMode === 'all_series' || deleteMode === 'all') {
+                idsToDelete = [String(targetId), ...seriesInfo.all.map(r => String(r.id))];
             }
 
-            showToast('Conta excluída com sucesso! 🗑️', 'info');
+            const idSet = new Set(idsToDelete);
+            allBills = allBills.filter(b => !idSet.has(String(b.id)));
+
+            if (window.tonuSync && currentUser?.id) {
+                try {
+                    const cached = await window.tonuSync.getCachedBills(currentUser.id);
+                    if (Array.isArray(cached)) {
+                        const filteredCached = cached.filter(b => !idSet.has(String(b.id)));
+                        await window.tonuSync.setCachedBills(currentUser.id, filteredCached);
+                    } else {
+                        await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                    }
+                } catch (_) {}
+
+                for (const delId of idsToDelete) {
+                    await window.tonuSync.enqueue('DELETE_BILL', { id: delId });
+                }
+            }
+
+            if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+                try {
+                    await window.supabaseClient.from('transactions').delete().in('id', idsToDelete).eq('user_id', currentUser.id);
+                } catch (supaErr) {
+                    console.warn('Erro ao remover contas do Supabase:', supaErr);
+                }
+            }
+
+            const msg = idsToDelete.length > 1
+                ? `${idsToDelete.length} contas excluídas com sucesso! 🗑️`
+                : 'Conta excluída com sucesso! 🗑️';
+            showToast(msg, 'info');
             closeBillModal();
             applyFiltersAndRender();
             updateSummaryCards(allBills);
@@ -1151,6 +1425,184 @@
         }
     }
 
+    // ============================================
+    // ANTECIPAÇÃO / QUITAÇÃO DE PARCELAS
+    // ============================================
+    async function openAnticipationModal(billId) {
+        const target = allBills.find(b => String(b.id) === String(billId));
+        if (!target) return;
+
+        let series = [target];
+        try {
+            if (typeof window.getFullSeriesInfo === 'function') {
+                const info = await window.getFullSeriesInfo(target, allBills, { userId: currentUser?.id });
+                if (info && (info.all?.length > 0 || info.fromNow?.length > 0)) {
+                    series = [info.target, ...(info.all || [])].filter(Boolean);
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao consultar getFullSeriesInfo:', e);
+        }
+
+        // Se ainda tem apenas o target (ex: meses futuros não carregados na tela atual), busca no IndexedDB local completo
+        if (series.length <= 1 && window.tonuSync && currentUser?.id) {
+            try {
+                const allCached = await window.tonuSync.getCachedBills(currentUser.id);
+                if (Array.isArray(allCached) && allCached.length > 0) {
+                    const cleanDesc = String(target.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+                    const pId = target.parent_transaction_id ? String(target.parent_transaction_id) : String(target.id);
+                    const matched = allCached.filter(b => {
+                        if (!b) return false;
+                        if (String(b.id) === String(target.id)) return true;
+                        if (b.parent_transaction_id && (String(b.parent_transaction_id) === pId || String(b.id) === pId)) return true;
+                        if (target.parent_transaction_id && String(b.parent_transaction_id) === String(target.parent_transaction_id)) return true;
+                        const bDesc = String(b.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+                        return cleanDesc && bDesc === cleanDesc;
+                    });
+                    if (matched.length > 1) {
+                        series = matched;
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // Garante que APENAS parcelas desta conta estão na lista enviada ao modal (isolamento estrito)
+        const cleanTargetDesc = String(target.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+        const targetPId = target.parent_transaction_id ? String(target.parent_transaction_id) : String(target.id);
+        const filteredSeries = series.filter(b => {
+            if (!b) return false;
+            const bId = String(b.id);
+            if (bId === String(target.id)) return true;
+
+            const bPId = b.parent_transaction_id ? String(b.parent_transaction_id) : null;
+            if (targetPId) {
+                if (bId === targetPId) return true;
+                if (bPId) return bPId === targetPId;
+            }
+
+            const bDesc = String(b.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+            return cleanTargetDesc && bDesc === cleanTargetDesc && !bPId;
+        });
+
+        const modalFn = window.getAnticipationModal || window.showAnticipationModal;
+        if (typeof modalFn === 'function') {
+            modalFn({
+                target: target,
+                allSeries: filteredSeries.length > 0 ? filteredSeries : [target],
+                onConfirm: async function (selectedBills, typedAmount, paymentDate) {
+                    await processAnticipation(target, selectedBills, typedAmount, paymentDate);
+                }
+            });
+        }
+    }
+
+    async function processAnticipation(target, selectedBills, typedAmount, paymentDate) {
+        // Guarda obrigatória
+        if (!typedAmount || typedAmount <= 0) {
+            showToast('❌ Informe o valor pago para quitar as parcelas.', 'error');
+            return;
+        }
+
+        const today = paymentDate || getTodayString();
+        const selectedIds = selectedBills.map(b => String(b.id));
+        const idSet = new Set(selectedIds);
+
+        // 1. Marca as parcelas como pagas mantendo datas de vencimento e amount original intactos
+        allBills.forEach(b => {
+            if (idSet.has(String(b.id))) {
+                b.paid = true;
+                b.paid_date = today;
+                if (!b.amount_paid) b.amount_paid = b.amount;
+            }
+        });
+
+        // 2. Cria 1 única transação de extrato com amount = typedAmount e is_anticipation = true
+        const createFn = window.createAnticipationTransaction || window.createAnticipationPayload;
+        const txPayload = typeof createFn === 'function'
+            ? createFn(target, selectedBills, typedAmount, today)
+            : {
+                id: (typeof genUuid === 'function' ? genUuid() : (window.genUuid ? window.genUuid() : '00000000-0000-4000-8000-000000000000')),
+                user_id: currentUser?.id || target.user_id,
+                description: `Antecipação: ${(target.description || 'Conta').replace(/\s*\(\d+\/\d+\)$/, '').trim()}`,
+                amount: typedAmount,
+                date: today,
+                due_date: today,
+                type: 'expense',
+                category_id: target.category_id || null,
+                category: target.category || 'Contas / Empréstimos',
+                is_bill: false,
+                paid: true,
+                paid_date: today,
+                parent_transaction_id: String(target.parent_transaction_id || target.id),
+                is_anticipation: true
+            };
+
+        if (currentUser?.id && !txPayload.user_id) {
+            txPayload.user_id = currentUser.id;
+        }
+
+        // 3. Atualiza cache local IndexedDB e enfileira
+        if (window.tonuSync && currentUser?.id) {
+            try {
+                const cached = await window.tonuSync.getCachedBills(currentUser.id);
+                if (Array.isArray(cached)) {
+                    cached.forEach(b => {
+                        if (idSet.has(String(b.id))) {
+                            b.paid = true;
+                            b.paid_date = today;
+                            if (!b.amount_paid) b.amount_paid = b.amount;
+                        }
+                    });
+                    await window.tonuSync.setCachedBills(currentUser.id, cached);
+                } else {
+                    await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                }
+            } catch (_) {}
+
+            // Atualiza cache de transações também para aparecer imediatamente no extrato
+            try {
+                const cachedTx = await window.tonuSync.getCachedTransactions(currentUser.id);
+                const txList = Array.isArray(cachedTx) ? cachedTx : [];
+                txList.forEach(t => {
+                    if (idSet.has(String(t.id))) {
+                        t.paid = true;
+                        t.paid_date = today;
+                        if (!t.amount_paid) t.amount_paid = t.amount;
+                    }
+                });
+                if (!txList.some(t => String(t.id) === String(txPayload.id))) {
+                    txList.unshift(txPayload);
+                }
+                await window.tonuSync.setCachedTransactions(currentUser.id, txList);
+            } catch (_) {}
+
+            for (const bId of selectedIds) {
+                const matchingBill = selectedBills.find(b => String(b.id) === String(bId));
+                await window.tonuSync.enqueue('UPDATE_BILL', { id: bId, paid: true, paid_date: today, amount_paid: matchingBill?.amount });
+            }
+            await window.tonuSync.enqueue('INSERT_TRANSACTION', txPayload);
+        }
+
+        // 4. Grava no Supabase
+        if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+            try {
+                await window.supabaseClient.from('transactions').update({ paid: true, paid_date: today }).in('id', selectedIds).eq('user_id', currentUser.id);
+                const { error: insErr } = await window.supabaseClient.from('transactions').insert(txPayload);
+                if (insErr) {
+                    console.error('❌ Erro ao salvar antecipação no Supabase:', insErr);
+                } else {
+                    console.log('✅ Antecipação registrada com sucesso no Supabase');
+                }
+            } catch (err) {
+                console.warn('Erro ao salvar antecipação no Supabase:', err);
+            }
+        }
+
+        showToast(`✅ ${selectedBills.length} parcela(s) quitada(s) por ${formatCurrency(typedAmount)}!`, 'success');
+        applyFiltersAndRender();
+        updateSummaryCards(allBills);
+    }
+
     // Exportação global de funções
     window.openBillModal = openBillModal;
     window.closeBillModal = closeBillModal;
@@ -1165,5 +1617,6 @@
     window.toggleBillSelectionMode = toggleBillSelectionMode;
     window.cancelBillSelection = cancelBillSelection;
     window.toggleSelectBill = toggleSelectBill;
+    window.openAnticipationModal = openAnticipationModal;
 
 })();

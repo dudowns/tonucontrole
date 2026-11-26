@@ -7,43 +7,76 @@
    ============================================ */
 .bills-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin-bottom: 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 11px;
 }
 
 .bills-grid .card-stat {
-    padding: 6px 12px !important;
-    min-height: 54px !important;
-    border-radius: 10px !important;
-    gap: 8px !important;
+    padding: 13px 15px !important;
+    min-height: 76px !important;
+    border-radius: var(--radius-md, 14px) !important;
+    gap: 11px !important;
+    background: var(--bg-surface, #FFFFFF) !important;
+    border: 1px solid var(--border-hairline, #E7ECF4) !important;
+    box-shadow: var(--shadow-card, 0 2px 10px rgba(24, 34, 68, 0.035)) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
+}
+
+.bills-grid .card-stat:hover {
+    transform: translateY(-2px) !important;
+    border-color: rgba(37, 99, 235, 0.28) !important;
+    box-shadow: var(--shadow-md) !important;
 }
 
 .bills-grid .card-stat .stat-icon {
-    width: 28px !important;
-    height: 28px !important;
-    font-size: 12px !important;
-    border-radius: 7px !important;
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 15px !important;
+    border-radius: 50% !important;
+    color: #FFFFFF !important;
+}
+
+.bills-grid .card-stat:nth-child(1) .stat-icon {
+    border-radius: 10px !important;
+    background: var(--gradient-primary, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%)) !important;
+}
+
+.bills-grid .card-stat:nth-child(2) .stat-icon {
+    background: linear-gradient(135deg, #10B981, #059669) !important;
+}
+
+.bills-grid .card-stat:nth-child(3) .stat-icon {
+    border-radius: 10px !important;
+    background: linear-gradient(135deg, #FBBF24, #D97706) !important;
+}
+
+.bills-grid .card-stat:nth-child(4) .stat-icon {
+    background: linear-gradient(135deg, #F43F5E, #E11D48) !important;
 }
 
 .bills-grid .card-stat .stat-label {
-    font-size: 9px !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.04em !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    color: var(--text-secondary, #5D667E) !important;
 }
 
 .bills-grid .card-stat .stat-value {
-    font-size: 14px !important;
-    font-weight: 700 !important;
+    font-size: 19px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
     line-height: 1.2 !important;
-    margin-top: 1px !important;
+    margin-top: 2px !important;
+    color: var(--text-primary, #1E2438) !important;
 }
 
 .bills-grid .card-stat .stat-sub {
-    font-size: 10px !important;
-    font-weight: 500 !important;
-    margin-top: 1px !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    color: var(--text-muted, #8B93A7) !important;
+    margin-top: 2px !important;
 }
 
 .bills-grid .card-stat .stat-info {
@@ -55,27 +88,30 @@
    PROGRESSO
    ============================================ */
 .progress-section {
-    background: var(--color-surface);
-    padding: 14px 18px;
-    border-radius: 10px;
-    border: 1px solid var(--color-border);
-    margin-bottom: var(--space-md);
+    background: var(--bg-surface);
+    padding: 11px 16px;
+    border-radius: var(--radius-md, 14px);
+    border: 1px solid var(--border-hairline);
+    box-shadow: var(--shadow-card);
+    margin-bottom: 12px;
 }
 
 .progress-section .progress-header {
     display: flex;
     justify-content: space-between;
     margin-bottom: 6px;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
 }
 
 .progress-section .progress-header .pct {
-    color: var(--color-primary);
+    color: var(--accent-primary);
 }
 
 .progress-section .progress {
-    height: 8px;
+    height: 6px;
+    background: var(--bg-subtle) !important;
 }
 
 /* ============================================
@@ -83,14 +119,15 @@
    ============================================ */
 .filters-bar {
     display: flex;
-    gap: var(--space-sm);
-    margin-bottom: var(--space-lg);
+    gap: 8px;
+    margin-bottom: 12px;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .filters-bar .search-box {
     flex: 2;
-    min-width: 200px;
+    min-width: 210px;
     position: relative;
 }
 
@@ -99,134 +136,378 @@
     left: 12px;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--color-text-muted);
+    color: var(--text-muted);
     font-size: 13px;
+    pointer-events: none;
 }
 
 .filters-bar .search-box input {
-    padding-left: 36px;
+    padding-left: 34px;
+    height: 36px;
     min-height: 36px;
     font-size: 13px;
+    font-weight: 500;
+    border-radius: var(--radius-sm, 10px);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-hairline);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-card);
 }
 
 .filters-bar select {
     flex: 1;
-    min-width: 140px;
+    min-width: 155px;
+    height: 36px;
     min-height: 36px;
     font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius-sm, 10px);
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-hairline);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-card);
 }
 
 /* ============================================
-   CARDS DE CONTA
+   TOOLBAR DA LISTA & EXTRATO AGRUPADO POR DIA
    ============================================ */
-.bill-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.bills-list-toolbar {
+    background: var(--bg-surface, #FFFFFF);
+    border-radius: var(--radius-md, 14px);
+    border: 1px solid var(--border-hairline, #E7ECF4);
     padding: 10px 16px;
-    border-bottom: 1px solid var(--color-border-light);
-    transition: all var(--transition-fast);
-}
-
-.bill-card:hover {
-    background: var(--color-bg);
-}
-
-.bill-card:last-child {
-    border-bottom: none;
-}
-
-.bill-card.overdue {
-    background: var(--color-danger-bg);
-    border-left: 4px solid var(--color-danger);
-}
-
-.bill-card .bill-left {
+    margin-bottom: 10px;
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    flex: 1;
-    min-width: 0;
+    flex-wrap: wrap;
+    gap: 10px;
+    box-shadow: var(--shadow-card);
 }
 
-.bill-card .bill-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 14px;
-    flex-shrink: 0;
-}
-
-.bill-card .bill-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.bill-card .bill-info strong {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.bill-card .bill-info small {
-    font-size: 10px;
-    color: var(--color-text-muted);
-    display: block;
-}
-
-.bill-card .bill-info .days-left {
-    font-size: 10px;
-    font-weight: 600;
-}
-
-.bill-card .bill-info .days-left.urgent {
-    color: var(--color-danger);
-}
-
-.bill-card .bill-info .days-left.overdue {
-    color: var(--color-danger);
-}
-
-.bill-card .bill-right {
+.bills-list-toolbar-left {
     display: flex;
     align-items: center;
     gap: 10px;
-    flex-shrink: 0;
+    flex-wrap: wrap;
 }
 
-.bill-card .bill-amount {
+.bills-list-toolbar-left h3 {
+    font-size: 14.5px;
+    font-weight: 800;
+    color: var(--text-primary, #1E2438);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: -0.01em;
+}
+
+.status-tab-group {
+    display: inline-flex;
+    gap: 3px;
+    background: var(--bg-subtle, #F8FAFC);
+    padding: 3px;
+    border-radius: var(--radius-sm, 10px);
+    border: 1px solid var(--border-hairline, #E7ECF4);
+}
+
+.tab-status-btn {
+    border: none;
+    background: transparent;
+    font-size: 12.5px;
     font-weight: 700;
-    font-size: 15px;
-    min-width: 70px;
-    text-align: right;
+    padding: 5px 11px;
+    border-radius: 7px;
+    cursor: pointer;
+    color: var(--text-secondary, #5D667E);
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.bill-card .bill-amount.text-success {
-    color: var(--color-success);
+.tab-status-btn:hover {
+    color: var(--accent-royal, #2563EB);
 }
 
-.bill-card .bill-amount.text-danger {
-    color: var(--color-danger);
+.tab-status-btn.active {
+    background: var(--gradient-primary, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%));
+    color: #FFFFFF;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.24);
 }
 
-.bill-card .bill-amount.text-warning {
-    color: var(--color-warning-dark);
+.bills-statement-container {
+    width: 100%;
+}
+
+.bills-statement-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bills-day-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.ios-section-header {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted, #64748b);
+    margin: 6px 4px 5px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ios-section-header .subtotal-pill {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-primary, #172554);
+    background: var(--bg-subtle, #EFF6FF);
+    border: 1px solid var(--border-hairline, #DCE6F7);
+    padding: 2px 9px;
+    border-radius: 999px;
+    text-transform: none;
+    letter-spacing: normal;
+    font-feature-settings: 'tnum';
+    font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.3;
+}
+
+.bills-day-items {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.bill-swipe-row {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    width: 100%;
+}
+
+.bill-swipe-row .swipe-action-delete {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 84px;
+    border: none;
+    background: var(--red, #F43F5E);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    z-index: 1;
+    border-radius: 0 16px 16px 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.16s ease, filter 0.15s ease;
+}
+
+.bill-swipe-row .swipe-action-delete i {
+    font-size: 14px;
+}
+
+.bill-swipe-row .swipe-action-delete:hover {
+    filter: brightness(0.94);
+}
+
+.bill-swipe-row.is-swiping .swipe-action-delete,
+.bill-swipe-row.swiped-open .swipe-action-delete {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.bill-swipe-row > [data-swipe-content] {
+    position: relative;
+    z-index: 2;
+    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.18s ease, border-color 0.18s ease;
+    will-change: transform;
+    user-select: none;
+    cursor: grab;
+}
+
+.bill-swipe-row.is-swiping > [data-swipe-content] {
+    cursor: grabbing;
+}
+
+.bill-card.clean-list-card {
+    background: var(--bg-surface, #FFFFFF);
+    border-radius: var(--radius-md, 14px);
+    border: 1px solid var(--border-hairline, #E7ECF4);
+    padding: 10px 14px;
+    margin: 0;
+    width: 100%;
+    box-shadow: var(--shadow-card, 0 2px 10px rgba(24, 34, 68, 0.035));
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 11px;
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, border-color 0.18s ease;
+    box-sizing: border-box;
+}
+
+.bill-card.clean-list-card:hover {
+    background: var(--bg-subtle, #EFF6FF);
+    border-color: rgba(37, 99, 235, 0.28);
+}
+
+.bill-card.clean-list-card.overdue {
+    border-left: 3px solid var(--red, #F43F5E);
+}
+
+.bill-card.clean-list-card.selected {
+    border-color: var(--accent-royal, #2563EB);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
+.mobile-icon-squircle {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.clean-card-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+}
+
+.clean-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    flex-wrap: wrap;
+}
+
+.clean-card-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--color-text, #0f172a);
+    word-break: break-word;
+    line-height: 1.3;
+    flex: 1;
+    min-width: 160px;
+}
+
+.clean-card-amount-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.clean-card-amount {
+    font-size: 14px;
+    font-weight: 800;
+    font-feature-settings: 'tnum';
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    line-height: 1.25;
+}
+
+.clean-card-amount.income {
+    color: var(--green, #10B981);
+}
+
+.clean-card-amount.expense {
+    color: var(--red, #F43F5E);
+}
+
+.clean-card-amount.warning {
+    color: #d97706;
+}
+
+.clean-card-middle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin: 0;
+}
+
+.clean-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.clean-tag.category {
+    background: var(--bg-subtle, #EFF6FF);
+    color: var(--text-secondary, #475569);
+    border: 1px solid var(--border-hairline, #DCE6F7);
+}
+
+.clean-card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 11.5px;
+    color: #94a3b8;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.clean-card-bottom > span:first-child {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.clean-card-bottom .days-left {
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.clean-card-bottom .days-left.urgent,
+.clean-card-bottom .days-left.overdue {
+    color: var(--color-danger, #ef4444);
 }
 
 .bill-card .bill-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
 }
 
 .bill-card .bill-actions .btn-icon-sm {
-    width: 32px;
-    height: 32px;
-    min-height: 32px;
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
     font-size: 12px;
     display: inline-flex;
     align-items: center;
@@ -240,39 +521,97 @@
 }
 
 .bill-card .bill-actions .btn-icon-sm:hover {
-    background: var(--color-bg, #f1f5f9);
-    border-color: var(--color-primary, #6c5ce7);
-    color: var(--color-primary, #6c5ce7);
+    background: var(--bg-subtle, #EFF6FF);
+    border-color: var(--accent-royal, #2563EB);
+    color: var(--accent-royal, #2563EB);
 }
 
 .bill-card .bill-actions .btn-icon-sm.text-danger:hover {
-    border-color: var(--color-danger, #ef4444);
-    color: var(--color-danger, #ef4444);
-    background: #fee2e2;
+    border-color: var(--red, #F43F5E);
+    color: var(--red, #F43F5E);
+    background: var(--red-soft, #FFF1F2);
+}
+
+html.dark .ios-section-header .subtotal-pill,
+[data-theme="dark"] .ios-section-header .subtotal-pill,
+.dark-theme .ios-section-header .subtotal-pill {
+    background: var(--bg-subtle, #1A2744) !important;
+    color: var(--text-secondary, #CBD5E1) !important;
+    border: 1px solid var(--border-hairline, #223254);
+}
+
+html.dark .bills-list-toolbar,
+[data-theme="dark"] .bills-list-toolbar,
+.dark-theme .bills-list-toolbar {
+    background: var(--bg-surface, #131C31) !important;
+    border-color: var(--border-hairline, #223254) !important;
+}
+
+html.dark .bill-card.clean-list-card,
+[data-theme="dark"] .bill-card.clean-list-card,
+.dark-theme .bill-card.clean-list-card {
+    background: var(--bg-surface, #131C31) !important;
+    border-color: var(--border-hairline, #223254) !important;
+    color: var(--text-primary, #F1F5F9) !important;
+    box-shadow: var(--shadow-card) !important;
+}
+
+html.dark .bill-card.clean-list-card:hover,
+[data-theme="dark"] .bill-card.clean-list-card:hover,
+.dark-theme .bill-card.clean-list-card:hover {
+    background: var(--bg-subtle, #1A2744) !important;
+    border-color: rgba(59, 130, 246, 0.42) !important;
+}
+
+html.dark .bill-card.clean-list-card.overdue,
+[data-theme="dark"] .bill-card.clean-list-card.overdue,
+.dark-theme .bill-card.clean-list-card.overdue {
+    border-left: 3px solid var(--red-text, #FB7185) !important;
+}
+
+html.dark .clean-card-title,
+[data-theme="dark"] .clean-card-title,
+.dark-theme .clean-card-title {
+    color: var(--text-primary, #F1F5F9) !important;
+}
+
+html.dark .clean-tag.category,
+[data-theme="dark"] .clean-tag.category,
+.dark-theme .clean-tag.category {
+    background: var(--bg-subtle, #1A2540) !important;
+    color: var(--text-secondary, #CBD5E1) !important;
+    border-color: var(--border-hairline, #23304C) !important;
+}
+
+html.dark .clean-card-bottom,
+[data-theme="dark"] .clean-card-bottom,
+.dark-theme .clean-card-bottom {
+    color: var(--text-muted, #94A3B8) !important;
 }
 
 /* ============================================
-   BOTÃO PAGAR / PAGA (DESTAQUE)
+   BOTÃO PAGAR / PAGA (PÍLULA DO PREVIEW)
    ============================================ */
 .btn-pay {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 5px;
+    height: 30px;
     font-size: 12px;
     font-weight: 700;
-    padding: 6px 14px;
-    border-radius: 8px;
+    padding: 0 13px;
+    border-radius: 999px;
     border: none;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
     white-space: nowrap;
     line-height: 1;
 }
 
 .btn-pay:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
 }
 
 .btn-pay:active {
@@ -280,43 +619,44 @@
 }
 
 .btn-pay-pending {
-    background: #10b981;
+    background: var(--gradient-primary, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%));
     color: #ffffff;
-    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.24);
 }
 
 .btn-pay-pending:hover {
-    background: #059669;
+    background: var(--gradient-primary-hover, linear-gradient(135deg, #312E81 0%, #3730A3 52%, #1D4ED8 100%));
 }
 
 .btn-pay-overdue {
-    background: #ef4444;
+    background: var(--red, #F43F5E);
     color: #ffffff;
-    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 2px 6px rgba(244, 63, 94, 0.3);
     animation: pulse-danger 2s infinite;
 }
 
 .btn-pay-overdue:hover {
-    background: #dc2626;
+    background: #E11D48;
 }
 
 @keyframes pulse-danger {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-    50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(244, 63, 94, 0); }
 }
 
 .btn-paid {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 5px;
+    height: 30px;
     font-size: 12px;
-    font-weight: 600;
-    padding: 6px 12px;
-    border-radius: 8px;
-    background: #dcfce7;
-    color: #15803d;
-    border: 1px solid #86efac;
+    font-weight: 700;
+    padding: 0 13px;
+    border-radius: 999px;
+    background: var(--green-soft, #ECFDF5);
+    color: var(--green-text, #047857);
+    border: 1px solid rgba(16, 185, 129, 0.35);
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
@@ -400,78 +740,7 @@
     color: var(--color-text-muted);
 }
 
-/* ============================================
-   MONTH SELECTOR
-   ============================================ */
-.month-selector {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    padding: 2px 6px;
-    background: var(--color-surface);
-    border-radius: 8px;
-    border: 1px solid var(--color-border);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-    margin: 0 auto 10px auto;
-    width: fit-content;
-    height: 28px;
-    min-height: 28px;
-}
-
-.month-selector .month-nav {
-    width: 22px;
-    height: 22px;
-    min-width: 22px;
-    min-height: 22px;
-    border: 1px solid var(--color-border);
-    border-radius: 5px;
-    background: var(--color-bg);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
-    font-size: 10px;
-    padding: 0;
-}
-
-.month-selector .month-nav:hover {
-    background: var(--color-primary);
-    border-color: var(--color-primary);
-    color: white;
-}
-
-.month-selector .month-label {
-    font-size: 12px;
-    font-weight: 700;
-    min-width: 105px;
-    text-align: center;
-    line-height: 1;
-}
-
-.month-selector .btn-today {
-    padding: 2px 8px;
-    font-size: 10px;
-    font-weight: 700;
-    border-radius: 5px;
-    background: var(--color-primary);
-    color: white;
-    border: none;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    height: 22px;
-    min-height: 22px;
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.month-selector .btn-today:hover {
-    background: var(--color-primary-dark);
-}
+/* MONTH SELECTOR: padronizado em theme.css */
 
 /* ============================================
    RESPONSIVIDADE
@@ -505,22 +774,24 @@
         min-width: 100%;
     }
 
-    .bill-card {
-        flex-wrap: wrap;
-        gap: 6px;
-        padding: 8px 12px;
+    .bill-card.clean-list-card {
+        flex-wrap: nowrap;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px;
     }
 
-    .bill-card .bill-right {
+    .clean-card-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .clean-card-amount-wrap {
         width: 100%;
         justify-content: space-between;
+        margin-left: 0;
         padding-top: 4px;
-        border-top: 1px solid var(--color-border-light);
-    }
-
-    .bill-card .bill-amount {
-        font-size: 13px;
-        min-width: 60px;
     }
 }
 
@@ -548,16 +819,6 @@
     .bills-grid .card-stat .stat-label {
         font-size: 8px !important;
     }
-
-    .bill-card .bill-left {
-        flex-wrap: wrap;
-    }
-
-    .bill-card .bill-icon {
-        width: 30px;
-        height: 30px;
-        font-size: 12px;
-    }
 }
 
 /* ============================================
@@ -579,14 +840,14 @@
     font-weight: 700;
     padding: 2px 8px;
     border-radius: 6px;
-    background: #e0e7ff;
-    color: #4338ca;
-    border: 1px solid #c7d2fe;
+    background: var(--accent-light, #DBEAFE);
+    color: var(--accent-indigo, #3730A3);
+    border: 1px solid rgba(37, 99, 235, 0.25);
     letter-spacing: 0.2px;
 }
 
 .badge-installment i {
-    font-size: 10px;
+    font-size: 10.5px;
 }
 
 .installment-dot {
@@ -596,13 +857,13 @@
 
 .installment-remaining-badge {
     font-weight: 700;
-    color: #3730a3;
+    color: var(--accent-primary, #4338CA);
 }
 
 .installment-restam-val {
     font-size: 11px;
     font-weight: 600;
-    color: #4f46e5;
+    color: var(--accent-royal, #2563EB);
     opacity: 0.9;
 }
 
@@ -633,9 +894,9 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
-    padding: 1px 6px;
+    padding: 2px 7px;
     border-radius: 4px;
     background: #f1f5f9;
     color: #64748b;
@@ -646,19 +907,19 @@
 /* Modo escuro para badges */
 [data-theme="dark"] .badge-installment,
 .dark-theme .badge-installment {
-    background: rgba(99, 102, 241, 0.18);
-    color: #a5b4fc;
-    border-color: rgba(99, 102, 241, 0.35);
+    background: rgba(59, 130, 246, 0.18);
+    color: #93C5FD;
+    border-color: rgba(59, 130, 246, 0.35);
 }
 
 [data-theme="dark"] .installment-remaining-badge,
 .dark-theme .installment-remaining-badge {
-    color: #c7d2fe;
+    color: #DBEAFE;
 }
 
 [data-theme="dark"] .installment-restam-val,
 .dark-theme .installment-restam-val {
-    color: #818cf8;
+    color: #93C5FD;
 }
 
 [data-theme="dark"] .badge-monthly,

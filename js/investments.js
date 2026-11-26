@@ -5,6 +5,14 @@
 
 console.log('📈 Investments.js carregado');
 
+// Aliases de helpers globais (definidos em js/core.js)
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+var getToday = window.getToday;
+var sanitizeString = window.sanitizeString;
+
 // ============================================
 // ANIMAÇÃO DE CARREGAMENTO
 // ============================================
@@ -30,38 +38,6 @@ var BRAPI_TOKEN = (typeof window !== 'undefined' && window.BRAPI_TOKEN)
     || '';
 if (typeof window !== 'undefined') window.BRAPI_TOKEN = BRAPI_TOKEN;
 
-function formatCurrency(value) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(value);
-    }
-    if (value === null || value === undefined || value === '') value = 0;
-    if (typeof value === 'string') {
-        const cleaned = value.replace(/[R$\s]/g, '');
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-            value = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (cleaned.includes(',')) {
-            value = cleaned.replace(',', '.');
-        }
-        value = parseFloat(value);
-    }
-    const num = Number(value) || 0;
-    try {
-        const formatted = new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(num);
-        return formatted.replace(/\u00A0/g, ' ');
-    } catch {
-        const isNegative = num < 0;
-        const parts = Math.abs(num).toFixed(2).split('.');
-        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const res = 'R$ ' + intPart + ',' + parts[1];
-        return isNegative ? '-' + res : res;
-    }
-}
-
 // ============================================
 // ESTADO
 // ============================================
@@ -76,6 +52,8 @@ let selectedPeriod = '12m';
 let selectedEvolutionClass = 'all';
 let selectedPieClass = 'all';
 let patrimonyChart = null;
+let selectedPatrimonyBarIndex = null;
+let hoveredPatrimonyBarIndex = null;
 let pieChart = null;
 let dividendsChart = null;
 let dividendsPieChart = null;
@@ -103,11 +81,6 @@ var KNOWN_ETFS = (typeof window !== 'undefined' && window.KNOWN_ETFS) || (typeof
     'BBOV11', 'USTK11', 'HTEK11', 'BDEF11', 'BDIV11', 'NSDV11', 'QETH11', 'QBTC11',
     'CRPT11', 'DEFI11', 'WEB311', 'META11', 'NFTS11', 'BLOK11', 'ETHE11', 'BITH11'
 ]);
-
-function getToday() {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-}
 
 function inferClass(ticker) {
     if (!ticker) return 'Ações';
@@ -237,6 +210,18 @@ function closeAllModals() {
 document.addEventListener('click', (e) => {
     if (e.target.classList.contains('modal-overlay')) {
         closeModal(e.target.id);
+    }
+    if (selectedPatrimonyBarIndex !== null) {
+        const wrap = document.getElementById('patrimonyChart')?.closest('.chart-wrap');
+        if (wrap && !wrap.contains(e.target)) {
+            selectedPatrimonyBarIndex = null;
+            if (patrimonyChart) patrimonyChart.update('none');
+            const tooltipEl = wrap.querySelector('.custom-chart-tooltip');
+            if (tooltipEl) {
+                tooltipEl.style.opacity = '0';
+                tooltipEl.classList.remove('pinned');
+            }
+        }
     }
 });
 
@@ -1148,7 +1133,13 @@ async function saveDividend(e) {
 // EXCLUIR TRANSAÇÃO
 // ============================================
 async function deleteTransaction(id) {
-    if (!confirm('Tem certeza que deseja excluir esta transação?')) return;
+    const confirmedTx = await window.TonuConfirm({
+        title: 'Excluir transação?',
+        message: 'Tem certeza que deseja excluir esta transação?',
+        confirmText: 'Excluir',
+        danger: true
+    });
+    if (!confirmedTx) return;
 
     try {
         let isOnline = navigator.onLine && window.supabaseClient && currentUser?.id;
@@ -1189,7 +1180,13 @@ async function deleteTransaction(id) {
 // EXCLUIR PROVENTO
 // ============================================
 async function deleteDividend(id) {
-    if (!confirm('Tem certeza que deseja excluir este provento?')) return;
+    const confirmedDiv = await window.TonuConfirm({
+        title: 'Excluir provento?',
+        message: 'Tem certeza que deseja excluir este provento?',
+        confirmText: 'Excluir',
+        danger: true
+    });
+    if (!confirmedDiv) return;
 
     try {
         let isOnline = navigator.onLine && window.supabaseClient && currentUser && currentUser.id && !String(id).startsWith('demo-') && !String(id).startsWith('div-');
@@ -1260,7 +1257,7 @@ async function editTransaction(id) {
 
         const modalHeader = document.querySelector('#operationModal .modal-header');
         if (modalHeader) {
-            modalHeader.style.borderLeftColor = '#6C5CE7';
+            modalHeader.style.borderLeftColor = '#4338CA';
             modalHeader.style.borderLeftWidth = '4px';
         }
 
@@ -1636,6 +1633,11 @@ async function fetchQuotes(customPositions) {
         }
 
         updateQuoteStatus();
+        try {
+            decoratePositions();
+            renderChart();
+            renderPieChart();
+        } catch (_) {}
 
     } catch (error) {
         console.error('❌ Erro ao buscar cotações:', error.message);
@@ -2585,8 +2587,16 @@ window.clearDemoDividends = clearDemoDividends;
 async function loadDividends() {
     try {
         const dBody = document.getElementById('dividendsBody');
-        if (dBody && typeof renderTableSkeleton === 'function') {
-            renderTableSkeleton(dBody, 4, 11);
+        if (dBody) {
+            if (dBody.tagName === 'TBODY' && typeof renderTableSkeleton === 'function') {
+                renderTableSkeleton(dBody, 4, 11);
+            } else {
+                dBody.innerHTML = '<div class="invest-statement-groups"><div class="invest-day-items">' +
+                    '<div class="skeleton-shimmer" style="width:100%;height:56px;border-radius:12px;"></div>' +
+                    '<div class="skeleton-shimmer" style="width:100%;height:56px;border-radius:12px;"></div>' +
+                    '<div class="skeleton-shimmer" style="width:100%;height:56px;border-radius:12px;"></div>' +
+                    '</div></div>';
+            }
         }
 
         if (!currentUser || !currentUser.id) {
@@ -2703,15 +2713,25 @@ async function loadDividends() {
 // UPDATE PROVENTOS SUMMARY
 // ============================================
 function updateProventosSummary() {
+    const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
     const totalAll = allDividends.reduce((sum, d) => sum + getDividendTotalValue(d), 0);
     const totalAllEl = document.getElementById('provTotalAll');
-    if (totalAllEl) totalAllEl.textContent = formatCurrency(totalAll);
+    if (totalAllEl) {
+        if (anim) anim(totalAllEl, totalAll, formatCurrency);
+        else totalAllEl.textContent = formatCurrency(totalAll);
+    }
 
     // Old elements for backwards compatibility
     const oldTotalEl = document.getElementById('divTotalAmount');
-    if (oldTotalEl) oldTotalEl.textContent = formatCurrency(totalAll);
+    if (oldTotalEl) {
+        if (anim) anim(oldTotalEl, totalAll, formatCurrency);
+        else oldTotalEl.textContent = formatCurrency(totalAll);
+    }
     const totalDividendsEl = document.getElementById('totalDividends');
-    if (totalDividendsEl) totalDividendsEl.textContent = formatCurrency(totalAll);
+    if (totalDividendsEl) {
+        if (anim) anim(totalDividendsEl, totalAll, formatCurrency);
+        else totalDividendsEl.textContent = formatCurrency(totalAll);
+    }
     const dividendsCountEl = document.getElementById('dividendsCount');
     if (dividendsCountEl) dividendsCountEl.textContent = `${allDividends.length} provento${allDividends.length !== 1 ? 's' : ''}`;
 
@@ -2726,11 +2746,17 @@ function updateProventosSummary() {
     });
     const total12M = last12MDivs.reduce((sum, d) => sum + getDividendTotalValue(d), 0);
     const total12MEl = document.getElementById('provTotal12M');
-    if (total12MEl) total12MEl.textContent = formatCurrency(total12M);
+    if (total12MEl) {
+        if (anim) anim(total12MEl, total12M, formatCurrency);
+        else total12MEl.textContent = formatCurrency(total12M);
+    }
 
     const monthlyAvg = total12M / 12;
     const monthlyAvgEl = document.getElementById('provMonthlyAvg');
-    if (monthlyAvgEl) monthlyAvgEl.textContent = formatCurrency(monthlyAvg);
+    if (monthlyAvgEl) {
+        if (anim) anim(monthlyAvgEl, monthlyAvg, formatCurrency);
+        else monthlyAvgEl.textContent = formatCurrency(monthlyAvg);
+    }
 
     // Monthly Goal
     const goal = parseFloat(localStorage.getItem('tonu_dividend_monthly_goal') || '500');
@@ -2739,7 +2765,10 @@ function updateProventosSummary() {
 
     const goalPct = goal > 0 ? (monthlyAvg / goal) * 100 : 0;
     const goalPctEl = document.getElementById('provGoalPct');
-    if (goalPctEl) goalPctEl.textContent = `${goalPct.toFixed(2).replace('.', ',')}%`;
+    if (goalPctEl) {
+        if (anim) anim(goalPctEl, goalPct, v => `${v.toFixed(2).replace('.', ',')}%`);
+        else goalPctEl.textContent = `${goalPct.toFixed(2).replace('.', ',')}%`;
+    }
 
     const progressBar = document.getElementById('provGoalProgressBar');
     if (progressBar) progressBar.style.width = `${Math.min(Math.max(goalPct, 0), 100)}%`;
@@ -2792,11 +2821,22 @@ function toggleProvListSort(field) {
         provListSortAsc = !provListSortAsc;
     } else {
         provListSortField = field;
-        provListSortAsc = (field === 'ticker' || field === 'class' || field === 'type') ? true : false;
+        provListSortAsc = (field === 'ticker' || field === 'class' || field === 'type' || field === 'status') ? true : false;
     }
     renderProventosListTable();
 }
 window.toggleProvListSort = toggleProvListSort;
+
+function onProvListSortSelectChange(val) {
+    if (!val || typeof val !== 'string') return;
+    const parts = val.split('_');
+    const field = parts[0] || 'date';
+    const dir = parts[1] || 'desc';
+    provListSortField = field;
+    provListSortAsc = (dir === 'asc');
+    renderProventosListTable();
+}
+window.onProvListSortSelectChange = onProvListSortSelectChange;
 
 function renderProventosHistoryTable() {
     const body = document.getElementById('provMatrixBody');
@@ -2931,6 +2971,49 @@ function renderProventosHistoryTable() {
 }
 
 // ============================================
+// AGRUPAMENTO POR DATA (LANÇAMENTOS & PROVENTOS)
+// ============================================
+function normalizeInvestDateKey(raw) {
+    if (!raw) return 'sem-data';
+    let s = String(raw).trim();
+    if (s.includes('T')) s = s.split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const p = s.split('/');
+        return `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+    }
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    }
+    return 'sem-data';
+}
+
+function getInvestDateGroupLabel(isoKey) {
+    if (!isoKey || isoKey === 'sem-data' || !/^\d{4}-\d{2}-\d{2}$/.test(isoKey)) {
+        return 'Sem data definida';
+    }
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const yesterdayKey = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+
+    if (isoKey === todayKey) return 'Hoje';
+    if (isoKey === yesterdayKey) return 'Ontem';
+
+    const parts = isoKey.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const monthName = months[month] || '';
+    if (year === now.getFullYear()) {
+        return `${day} de ${monthName}`;
+    }
+    return `${day} de ${monthName} de ${year}`;
+}
+
+// ============================================
 // MEUS PROVENTOS (TABELA DE TRANSAÇÕES)
 // ============================================
 function renderProventosListTable() {
@@ -2983,27 +3066,37 @@ function renderProventosListTable() {
         }
     });
 
+    const sortSelect = document.getElementById('provListSortSelect');
+    if (sortSelect) {
+        const expectedVal = `${provListSortField}_${provListSortAsc ? 'asc' : 'desc'}`;
+        if (Array.from(sortSelect.options).some(opt => opt.value === expectedVal)) {
+            sortSelect.value = expectedVal;
+        }
+    }
+
     const sumTotal = filtered.reduce((acc, d) => acc + getDividendTotalValue(d), 0);
     const pill = document.getElementById('provListTotalPill');
     if (pill) pill.textContent = `Total ${formatCurrency(sumTotal)}`;
 
     if (filtered.length === 0) {
         body.innerHTML = `
-            <tr>
-                <td colspan="11" class="text-center text-muted" style="text-align:center;padding:36px 16px;">
-                    <div style="font-size:32px;margin-bottom:8px;">💰</div>
-                    <div style="font-size:14px;font-weight:600;color:var(--color-text);margin-bottom:4px;">Nenhum provento encontrado</div>
-                    <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:14px;">Registre seus proventos recebidos ou a receber para acompanhar os rendimentos da sua carteira.</div>
-                    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" style="font-size:11px; padding:5px 14px; border-radius:6px; display:inline-flex; align-items:center; gap:5px;">
-                            <i class="fas fa-plus"></i> Registrar Provento
-                        </button>
-                    </div>
-                </td>
-            </tr>
+            <div class="empty-state" style="padding:36px 16px;">
+                <span class="empty-icon">💰</span>
+                <h3>Nenhum provento encontrado</h3>
+                <p>Registre seus proventos recebidos ou a receber para acompanhar os rendimentos da sua carteira.</p>
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="openDividendModal()" style="font-size:12px; padding:6px 14px; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
+                        <i class="fas fa-plus"></i> Registrar Provento
+                    </button>
+                </div>
+            </div>
         `;
         return;
     }
+
+    const safeEsc = (v) => (typeof sanitizeString === 'function')
+        ? sanitizeString(String(v ?? ''))
+        : String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
     // Ordenação dos proventos
     filtered.sort((a, b) => {
@@ -3059,69 +3152,138 @@ function renderProventosListTable() {
         return provListSortAsc ? cmp : -cmp;
     });
 
-    body.innerHTML = filtered.map(d => {
-        const ticker = (d.ticker || '').toUpperCase().trim();
-        const cls = getAssetClassForTicker(ticker);
+    const jcpTaxRate = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined)
+        ? window.TONU_JCP_TAX_RATE
+        : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
+
+    const buildProventoCardHtml = (d) => {
+        const safeId = safeEsc(d.id);
+        const ticker = safeEsc((d.ticker || '').toUpperCase().trim());
+        const cls = safeEsc(getAssetClassForTicker(ticker));
         const iconCls = getIconForClass(cls);
         const isoDate = getDividendISODate(d);
         const isPaid = isoDate <= todayISO;
+        const iconColor = isPaid ? '#00B894' : '#0284C7';
+        const squircleBg = isPaid ? 'rgba(0, 184, 148, 0.14)' : 'rgba(2, 132, 199, 0.14)';
+        const squircleIcon = isPaid ? 'fas fa-hand-holding-usd' : 'far fa-clock';
         const statusBadge = isPaid
-            ? `<span class="prov-status-badge paid"><i class="fas fa-money-bill-wave"></i> Pago</span>`
-            : `<span class="prov-status-badge pending"><i class="far fa-credit-card"></i> A Receber</span>`;
+            ? `<span class="badge-mobile paid-prov"><i class="fas fa-check-circle" aria-hidden="true"></i> Pago</span>`
+            : `<span class="badge-mobile pending-prov"><i class="far fa-clock" aria-hidden="true"></i> A Receber</span>`;
 
+        const provTypeLabel = safeEsc(d.type || 'Dividendos');
         const dataCom = extractDataCom(d);
-        const dataComDisplay = dataCom ? formatPtBrDate(dataCom) : '-';
+        const dataComDisplay = dataCom ? formatPtBrDate(dataCom) : '';
         const datePayDisplay = formatPtBrDate(isoDate || d.date);
 
         const totalVal = getDividendTotalValue(d);
         const unitVal = getDividendUnitValue(d);
         const qtyVal = getDividendQuantity(d);
         const isJCP = (d.type && String(d.type).toUpperCase().includes('JCP'));
-        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
         const netVal = (d.net_value !== undefined && d.net_value !== null && Number(d.net_value) > 0)
             ? Number(d.net_value)
-            : (isJCP ? totalVal * (1 - jcpTax) : totalVal);
+            : (isJCP ? totalVal * (1 - jcpTaxRate) : totalVal);
+        const taxBadge = isJCP
+            ? `<span class="badge-mobile jcp-tax" title="JCP sujeito a retenção de IR na fonte">-${Math.round(jcpTaxRate * 100)}% IR</span>`
+            : `<span class="badge-mobile isento-prov" title="Isento de Imposto de Renda">Isento IR</span>`;
 
         return `
-            <tr>
-                <td>
-                    <div class="prov-ticker-cell">
-                        <div class="prov-ticker-icon"><i class="${iconCls}"></i></div>
-                        <span class="prov-ticker-name">${ticker}</span>
-                    </div>
-                </td>
-                <td><span class="prov-class-badge"><i class="${iconCls}"></i> ${cls}</span></td>
-                <td>${statusBadge}</td>
-                <td>${d.type || 'Dividendos'}</td>
-                <td class="text-center">${dataComDisplay}</td>
-                <td class="text-center">${datePayDisplay}</td>
-                <td class="text-right">${formatNumber(qtyVal, 2)}</td>
-                <td class="text-right">${formatCurrency(unitVal)}</td>
-                <td class="text-right prov-col-bruto">
-                    <div class="prov-val-bruto-wrap">
-                        <span class="prov-val-bruto">${formatCurrency(totalVal)}</span>
-                        <span class="prov-val-sublabel">Bruto</span>
-                    </div>
-                </td>
-                <td class="text-right prov-col-liquido">
-                    <div class="prov-val-liquido-wrap">
-                        <span class="prov-val-liquido ${isJCP ? 'is-jcp' : 'is-exempt'}">${formatCurrency(netVal)}</span>
-                        ${isJCP ? `<span class="prov-tax-pill" title="JCP sujeito a retenção de IR na fonte"><i class="fas fa-percent"></i> -${Math.round(jcpTax * 100)}% IR</span>` : '<span class="prov-tax-pill isento" title="Isento de Imposto de Renda"><i class="fas fa-check"></i> Líquido</span>'}
-                    </div>
-                </td>
-                <td style="text-align:right;">
-                    <div class="actions" style="justify-content:flex-end; gap:6px;">
-                        <button type="button" class="btn btn-ghost btn-icon-sm" onclick="openDividendModal('${d.id}')" title="Editar provento" aria-label="Editar provento">
-                            <i class="fas fa-pencil-alt"></i>
+            <div class="invest-row-slot">
+                <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
+                    <div class="swipe-actions-tray">
+                        <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); openDividendModal('${safeId}')" aria-label="Editar provento">
+                            <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                            <span>Editar</span>
                         </button>
-                        <button type="button" class="btn btn-danger btn-icon-sm" onclick="deleteDividend('${d.id}')" title="Excluir provento" aria-label="Excluir provento">
-                            <i class="fas fa-trash"></i>
+                        <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteDividend('${safeId}')" aria-label="Apagar provento">
+                            <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                            <span>Apagar</span>
                         </button>
                     </div>
-                </td>
-            </tr>
+                    <div class="invest-item-card clean-list-card compact-tx-card" data-swipe-content onclick="openDividendModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDividendModal('${safeId}');}">
+                        <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${iconColor};" title="${cls}">
+                            <i class="${squircleIcon}" aria-hidden="true"></i>
+                        </div>
+                        <div class="clean-card-body">
+                            <div class="clean-card-top">
+                                <span class="clean-card-title">${ticker} <span class="invest-card-subtitle">· ${provTypeLabel}</span></span>
+                                <div class="clean-card-amount-wrap">
+                                    <span class="clean-card-amount ${isPaid ? 'income' : 'info'}">
+                                        + ${formatCurrency(netVal)}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="clean-card-meta-line">
+                                <span class="clean-tag category"><i class="${iconCls}" aria-hidden="true"></i> ${cls}</span>
+                                ${statusBadge}
+                                ${taxBadge}
+                                <span class="clean-tag qty-tag">${formatNumber(qtyVal, 2)} un. × ${formatCurrency(unitVal)}</span>
+                                ${isJCP && Math.abs(totalVal - netVal) > 0.009 ? `<span class="clean-tag bruto-tag">Bruto: ${formatCurrency(totalVal)}</span>` : ''}
+                                <span class="clean-card-meta-dates">
+                                    <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>Pag: ${datePayDisplay}</span>
+                                    ${dataComDisplay ? `<span><i class="far fa-bookmark" style="margin-right:3px;" aria-hidden="true"></i>Com: ${dataComDisplay}</span>` : ''}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    };
+
+    const shouldGroupByDate = (provListSortField === 'date' || provListSortField === 'dataCom');
+    if (!shouldGroupByDate) {
+        body.innerHTML = `<div class="invest-statement-groups"><div class="invest-day-items">${filtered.map(buildProventoCardHtml).join('')}</div></div>`;
+        if (typeof window.TonuSetupSwipe === 'function') window.TonuSetupSwipe();
+        return;
+    }
+
+    const groups = [];
+    const groupMap = new Map();
+    filtered.forEach(d => {
+        const rawKey = provListSortField === 'dataCom'
+            ? extractDataCom(d)
+            : (getDividendISODate(d) || d.date);
+        const dateKey = normalizeInvestDateKey(rawKey);
+        if (!groupMap.has(dateKey)) {
+            const g = { dateKey, items: [], dayNetTotal: 0 };
+            groupMap.set(dateKey, g);
+            groups.push(g);
+        }
+        const g = groupMap.get(dateKey);
+        g.items.push(d);
+
+        const totalVal = getDividendTotalValue(d);
+        const isJCP = (d.type && String(d.type).toUpperCase().includes('JCP'));
+        const netVal = (d.net_value !== undefined && d.net_value !== null && Number(d.net_value) > 0)
+            ? Number(d.net_value)
+            : (isJCP ? totalVal * (1 - jcpTaxRate) : totalVal);
+        g.dayNetTotal += netVal;
+    });
+
+    const groupsHtml = groups.map(g => {
+        const dateLabel = getInvestDateGroupLabel(g.dateKey);
+        const countLabel = `${g.items.length} ${g.items.length === 1 ? 'provento' : 'proventos'}`;
+        return `
+            <section class="invest-day-group" aria-label="${dateLabel}">
+                <div class="ios-section-header">
+                    <span class="invest-date-group-title">
+                        <i class="far fa-calendar-alt" aria-hidden="true"></i>
+                        <span>${dateLabel}</span>
+                        <span class="invest-date-count-badge">${countLabel}</span>
+                    </span>
+                    <span class="subtotal-pill positive">+ ${formatCurrency(g.dayNetTotal)}</span>
+                </div>
+                <div class="invest-day-items">
+                    ${g.items.map(buildProventoCardHtml).join('')}
+                </div>
+            </section>
         `;
     }).join('');
+
+    body.innerHTML = `<div class="invest-statement-groups">${groupsHtml}</div>`;
+    if (typeof window.TonuSetupSwipe === 'function') {
+        window.TonuSetupSwipe();
+    }
 }
 
 function renderDividendsTable() {
@@ -3165,7 +3327,7 @@ function openAllTickersDistributionModal() {
         container.innerHTML = '<p style="font-size:12px;color:var(--color-text-muted);text-align:center;padding:16px 0;">Nenhum provento registrado nos últimos 12 meses.</p>';
     } else {
         const totalSum = last12MTickersData.reduce((a, b) => a + b[1], 0);
-        const colors = ['#0984E3', '#00B894', '#6C5CE7', '#FDCB6E', '#E17055', '#D63031', '#00CEC9', '#FD79A8'];
+        const colors = ['#0984E3', '#10B981', '#4338CA', '#FDCB6E', '#E17055', '#D63031', '#00CEC9', '#FD79A8'];
 
         container.innerHTML = last12MTickersData.map((item, idx) => {
             const pct = totalSum > 0 ? ((item[1] / totalSum) * 100).toFixed(2).replace('.', ',') : '0,00';
@@ -3239,6 +3401,15 @@ function updateSummary() {
 
     salvarPatrimonio(Math.round(totalCurrentValue * 100) / 100);
 
+    try {
+        const uid = currentUser?.id || 'demo';
+        localStorage.setItem('tonu_total_equity_' + uid, String(Math.round(totalCurrentValue * 100) / 100));
+        localStorage.setItem('tonu_total_invested_' + uid, String(Math.round(totalInvested * 100) / 100));
+        localStorage.setItem('tonu_unrealized_gain_' + uid, String(unrealizedGain));
+        localStorage.setItem('tonu_return_pct_' + uid, String(Math.round(returnPct * 100) / 100));
+        localStorage.setItem('tonu_total_equity_updated_at_' + uid, new Date().toISOString());
+    } catch (_) {}
+
     const patrimonyEl = document.getElementById('totalPatrimony');
     const variationEl = document.getElementById('patrimonyVariation');
     const assetCountEl = document.getElementById('assetCount');
@@ -3248,7 +3419,11 @@ function updateSummary() {
     const dividendsEl = document.getElementById('totalDividends');
     const dividendsCountEl = document.getElementById('dividendsCount');
 
-    if (patrimonyEl) patrimonyEl.textContent = formatCurrency(totalCurrentValue);
+    const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+    if (patrimonyEl) {
+        if (anim) anim(patrimonyEl, totalCurrentValue, formatCurrency);
+        else patrimonyEl.textContent = formatCurrency(totalCurrentValue);
+    }
 
     if (variationEl) {
         const sign = dayChange >= 0 ? '+' : '';
@@ -3259,14 +3434,20 @@ function updateSummary() {
         variationEl.className = 'stat-sub';
     }
 
-    if (assetCountEl) assetCountEl.textContent = positions.length;
+    if (assetCountEl) {
+        if (anim) anim(assetCountEl, positions.length, v => String(Math.round(v)));
+        else assetCountEl.textContent = positions.length;
+    }
     if (assetSubEl) assetSubEl.textContent =
         `${positions.length} posição${positions.length !== 1 ? 'ões' : ''} ativa${positions.length !== 1 ? 's' : ''}`;
 
     if (returnEl) {
-        const returnSign = returnPct >= 0 ? '+' : '';
         const colorClass = returnPct >= 0 ? 'text-success' : 'text-danger';
-        returnEl.textContent = `${returnSign}${returnPct.toFixed(2)}%`;
+        if (anim) anim(returnEl, returnPct, v => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`);
+        else {
+            const returnSign = returnPct >= 0 ? '+' : '';
+            returnEl.textContent = `${returnSign}${returnPct.toFixed(2)}%`;
+        }
         returnEl.className = `stat-value ${colorClass}`;
     }
 
@@ -3277,7 +3458,10 @@ function updateSummary() {
         gainEl.className = `stat-sub ${colorClass}`;
     }
 
-    if (dividendsEl) dividendsEl.textContent = formatCurrency(totalDividends);
+    if (dividendsEl) {
+        if (anim) anim(dividendsEl, totalDividends, formatCurrency);
+        else dividendsEl.textContent = formatCurrency(totalDividends);
+    }
     if (dividendsCountEl) dividendsCountEl.textContent = `${dividendsCount} provento${dividendsCount !== 1 ? 's' : ''}`;
 
     // ITEM 10: Atualizar Card de Conquistas com dados de portfolio_snapshots e proventos
@@ -3310,10 +3494,17 @@ async function updateAchievementCard(totalCurrentEquity, totalInvested) {
 
         const totalFormatted = typeof formatCurrency === 'function' ? formatCurrency(totalCurrentEquity) : `R$ ${Number(totalCurrentEquity || 0).toFixed(2)}`;
 
+        const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
         if (dateElPC) dateElPC.textContent = `Valor até ${formattedToday}`;
-        if (valElPC) valElPC.textContent = totalFormatted;
+        if (valElPC) {
+            if (anim) anim(valElPC, Number(totalCurrentEquity) || 0, formatCurrency);
+            else valElPC.textContent = totalFormatted;
+        }
         if (dateElMobile) dateElMobile.textContent = `Valor até ${formattedToday}`;
-        if (valElMobile) valElMobile.textContent = totalFormatted;
+        if (valElMobile) {
+            if (anim) anim(valElMobile, Number(totalCurrentEquity) || 0, formatCurrency);
+            else valElMobile.textContent = totalFormatted;
+        }
 
         let pastSnapshots = [];
         let proventos90Dias = 0;
@@ -3508,7 +3699,10 @@ function renderTable() {
 
     const total = positions.reduce((s, p) => s + p.currentValue, 0);
     const totalEl = document.getElementById('portfolioTotal');
-    if (totalEl) totalEl.textContent = formatCurrency(total);
+    if (totalEl) {
+        if (typeof window.animateValue === 'function') window.animateValue(totalEl, total, formatCurrency);
+        else totalEl.textContent = formatCurrency(total);
+    }
 
     renderClassCards();
     renderPieChart();
@@ -3579,7 +3773,7 @@ function renderTable() {
                     ${formatCurrency(price)}${quoteBadge}
                     ${isRealQuote && Math.abs(changePct) > 0.001 ? `<div style="font-size:11px;font-weight:600;" class="${changeClass}">${signChange}${changePct.toFixed(2)}%</div>` : ''}
                 </td>
-                <td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">${formatCurrency(p.currentValue)}</td>
+                <td style="text-align:right;font-weight:800;font-size:14.5px;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;">${formatCurrency(p.currentValue)}</td>
                 <td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;" class="${gainClass}">
                     ${signGain}${formatCurrency(gain)}
                     <div style="font-size:11px;font-weight:600;">${signGain}${gainPct.toFixed(2)}%</div>
@@ -3607,67 +3801,141 @@ function renderTransactions() {
 
     if (allTransactions.length === 0) {
         body.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center text-muted" style="text-align:center;padding:32px 16px;">
-                    <div style="font-size:32px;margin-bottom:8px;">📭</div>
-                    <div style="font-size:14px;font-weight:600;color:var(--color-text);margin-bottom:4px;">Nenhum lançamento registrado</div>
-                    <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:14px;">Registre suas operações para acompanhar seu histórico de compras e vendas.</div>
-                    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="openOperationModal()">
-                            <i class="fas fa-plus"></i> Nova Operação
-                        </button>
-                    </div>
-                </td>
-            </tr>
+            <div class="empty-state" style="padding:32px 16px;">
+                <span class="empty-icon">📭</span>
+                <h3>Nenhum lançamento registrado</h3>
+                <p>Registre suas operações para acompanhar seu histórico de compras e vendas.</p>
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="openOperationModal()">
+                        <i class="fas fa-plus"></i> Nova Operação
+                    </button>
+                </div>
+            </div>
         `;
         return;
     }
 
-    const sorted = [...allTransactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const safeEsc = (v) => (typeof sanitizeString === 'function')
+        ? sanitizeString(String(v ?? ''))
+        : String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
-    body.innerHTML = sorted.map(tx => {
-        const isBuy = tx.type === 'Compra';
-        const badgeClass = isBuy ? 'badge-buy' : 'badge-sell';
-        const badgeText = isBuy ? 'Compra' : 'Venda';
+    const sorted = [...allTransactions].sort((a, b) => {
+        const keyA = normalizeInvestDateKey(a.date);
+        const keyB = normalizeInvestDateKey(b.date);
+        if (keyA !== keyB) return keyB.localeCompare(keyA);
+        return new Date(b.date || 0) - new Date(a.date || 0);
+    });
 
-        const cleanTicker = (tx.ticker || '').toUpperCase().trim();
-        let rawClass = tx.asset_class;
-        if (KNOWN_STOCK_UNITS.has(cleanTicker)) {
-            rawClass = 'Ações';
-        } else if (KNOWN_ETFS.has(cleanTicker)) {
-            rawClass = 'ETFs';
+    const groups = [];
+    const groupMap = new Map();
+    sorted.forEach(tx => {
+        const dateKey = normalizeInvestDateKey(tx.date);
+        if (!groupMap.has(dateKey)) {
+            const g = { dateKey, items: [], netTotal: 0 };
+            groupMap.set(dateKey, g);
+            groups.push(g);
         }
-        const assetClass = normalizeClass(rawClass || inferClass(cleanTicker) || 'Ações');
-        const classIcons = {
-            'Ações': '📈',
-            'FIIs': '🏢',
-            'ETFs': '📊',
-            'Tesouro': '🏛️'
-        };
-        const classIcon = classIcons[assetClass] || '📦';
+        const g = groupMap.get(dateKey);
+        g.items.push(tx);
+        const val = parseFloat(tx.total_value) || 0;
+        const isBuy = (tx.type || '').toLowerCase().includes('compra') || (tx.type || '').toLowerCase().includes('buy');
+        g.netTotal += isBuy ? val : -val;
+    });
+
+    const classIcons = {
+        'Ações': '📈',
+        'FIIs': '🏢',
+        'ETFs': '📊',
+        'Tesouro': '🏛️'
+    };
+
+    const groupsHtml = groups.map(g => {
+        const dateLabel = getInvestDateGroupLabel(g.dateKey);
+        const countLabel = `${g.items.length} ${g.items.length === 1 ? 'lançamento' : 'lançamentos'}`;
+        const isPositiveDay = g.netTotal >= 0;
+        const subtotalText = `${isPositiveDay ? '+ ' : '- '}${formatCurrency(Math.abs(g.netTotal))}`;
+
+        const cardsHtml = g.items.map(tx => {
+            const safeId = safeEsc(tx.id);
+            const isBuy = (tx.type || '').toLowerCase().includes('compra') || (tx.type || '').toLowerCase().includes('buy');
+            const badgeText = isBuy ? 'Compra' : 'Venda';
+            const color = isBuy ? '#00B894' : '#EF4444';
+            const squircleBg = isBuy ? 'rgba(0, 184, 148, 0.14)' : 'rgba(239, 68, 68, 0.14)';
+
+            const cleanTicker = safeEsc((tx.ticker || '').toUpperCase().trim());
+            let rawClass = tx.asset_class;
+            if (KNOWN_STOCK_UNITS.has(cleanTicker)) {
+                rawClass = 'Ações';
+            } else if (KNOWN_ETFS.has(cleanTicker)) {
+                rawClass = 'ETFs';
+            }
+            const assetClass = safeEsc(normalizeClass(rawClass || inferClass(cleanTicker) || 'Ações'));
+            const classIcon = classIcons[assetClass] || '📦';
+            const qtyNum = Number(tx.quantity) || 0;
+            const qtyFmt = qtyNum % 1 === 0 ? qtyNum.toFixed(0) : formatNumber(qtyNum, 4);
+
+            return `
+                <div class="invest-row-slot">
+                    <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
+                        <div class="swipe-actions-tray">
+                            <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); editTransaction('${safeId}')" aria-label="Editar lançamento">
+                                <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteTransaction('${safeId}')" aria-label="Apagar lançamento">
+                                <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                <span>Apagar</span>
+                            </button>
+                        </div>
+                        <div class="invest-item-card clean-list-card compact-tx-card" data-swipe-content onclick="editTransaction('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();editTransaction('${safeId}');}">
+                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};" title="${assetClass}">
+                                <i class="fas ${isBuy ? 'fa-arrow-up' : 'fa-arrow-down'}" aria-hidden="true"></i>
+                            </div>
+                            <div class="clean-card-body">
+                                <div class="clean-card-top">
+                                    <span class="clean-card-title">${cleanTicker} <span class="invest-card-subtitle">· ${badgeText}</span></span>
+                                    <div class="clean-card-amount-wrap">
+                                        <span class="clean-card-amount ${isBuy ? 'income' : 'expense'}">
+                                            ${isBuy ? '+ ' : '- '}${formatCurrency(tx.total_value)}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="clean-card-meta-line">
+                                    <span class="clean-tag category">${classIcon} ${assetClass}</span>
+                                    <span class="badge-mobile ${isBuy ? 'op-buy' : 'op-sell'}">${badgeText}</span>
+                                    <span class="clean-tag qty-tag">${qtyFmt} un. @ ${formatCurrency(tx.unit_price)}</span>
+                                    <span class="clean-card-meta-dates">
+                                        <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>${formatDate(tx.date)}</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
 
         return `
-            <tr>
-                <td>${formatDate(tx.date)}</td>
-                <td><strong>${tx.ticker}</strong></td>
-                <td><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">${classIcon} ${assetClass}</span></td>
-                <td><span class="${badgeClass}">${badgeText}</span></td>
-                <td>${tx.quantity}</td>
-                <td>${formatCurrency(tx.unit_price)}</td>
-                <td><strong>${formatCurrency(tx.total_value)}</strong></td>
-                <td>
-                    <div class="actions">
-                        <button class="btn btn-ghost btn-icon-sm" onclick="editTransaction('${tx.id}')" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-danger btn-icon-sm" onclick="deleteTransaction('${tx.id}')" title="Excluir">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
+            <section class="invest-day-group" aria-label="${dateLabel}">
+                <div class="ios-section-header">
+                    <span class="invest-date-group-title">
+                        <i class="far fa-calendar-alt" aria-hidden="true"></i>
+                        <span>${dateLabel}</span>
+                        <span class="invest-date-count-badge">${countLabel}</span>
+                    </span>
+                    <span class="subtotal-pill ${isPositiveDay ? 'positive' : 'negative'}">${subtotalText}</span>
+                </div>
+                <div class="invest-day-items">
+                    ${cardsHtml}
+                </div>
+            </section>
         `;
     }).join('');
+
+    body.innerHTML = `<div class="invest-statement-groups">${groupsHtml}</div>`;
+    if (typeof window.TonuSetupSwipe === 'function') {
+        window.TonuSetupSwipe();
+    }
 }
 
 // ============================================
@@ -3946,17 +4214,28 @@ function buildChartData() {
             }
         }
 
-        // No mês atual, assegura consistência absoluta com o card "Patrimônio" no topo
-        if (isCurrentMonth && (!selectedEvolutionClass || selectedEvolutionClass === 'all') && positions.length > 0) {
-            const cardTotalCurrentValue = positions.reduce((s, p) => s + (p.currentValue || 0), 0);
-            const cardTotalInvested = positions.reduce((s, p) => s + (p.costBasis || 0), 0);
-            runningInvested = cardTotalInvested;
-            totalSimulatedValue = cardTotalCurrentValue;
-        } else if (isCurrentMonth && selectedEvolutionClass && selectedEvolutionClass !== 'all' && activePositions.length > 0) {
-            const classCurrentValue = activePositions.reduce((s, p) => s + (p.currentValue || 0), 0);
-            const classInvested = activePositions.reduce((s, p) => s + (p.costBasis || 0), 0);
-            runningInvested = classInvested;
-            totalSimulatedValue = classCurrentValue;
+        // No mês atual, assegura consistência absoluta com a custódia ativa e os cards do topo (idêntico ao mobile)
+        if (isCurrentMonth && activePositions && activePositions.length > 0) {
+            let cardTotalInvestido = 0;
+            let cardTotalPatrimonio = 0;
+            activePositions.forEach(p => {
+                const cost = Number(p.costBasis) || 0;
+                cardTotalInvestido += cost;
+                const cleanTk = (p.ticker || '').toUpperCase().trim().replace(/\.SA$/, '');
+                const quote = quotes.get(cleanTk) || quotes.get(p.ticker) || quotes.get(`${cleanTk}.SA`);
+                const livePrice = (quote && Number.isFinite(quote.price) && quote.price > 0)
+                    ? quote.price
+                    : (Number(p.currentPrice) || Number(p.averageCost) || 0);
+                const val = (p.currentValue !== undefined && Number.isFinite(p.currentValue) && p.currentValue > 0)
+                    ? p.currentValue
+                    : ((Number(p.quantity) || 0) * livePrice);
+                cardTotalPatrimonio += (val > 0 ? val : cost);
+            });
+
+            if (cardTotalInvestido > 0) {
+                runningInvested = cardTotalInvestido;
+                totalSimulatedValue = cardTotalPatrimonio > 0 ? cardTotalPatrimonio : cardTotalInvestido;
+            }
         }
 
         // Se a carteira não possuía ativos no mês, valores são zerados
@@ -4002,6 +4281,16 @@ function renderChart() {
     if (patrimonyChart) {
         patrimonyChart.destroy();
         patrimonyChart = null;
+    }
+    selectedPatrimonyBarIndex = null;
+    hoveredPatrimonyBarIndex = null;
+    canvas.onmousemove = null;
+    canvas.onmouseleave = null;
+    canvas.onclick = null;
+    const oldTooltip = canvas.parentNode?.querySelector('.custom-chart-tooltip');
+    if (oldTooltip) {
+        oldTooltip.style.opacity = '0';
+        oldTooltip.classList.remove('pinned');
     }
 
     const isDark = document.body.classList.contains('dark-theme');
@@ -4067,7 +4356,373 @@ function renderChart() {
     const padding = range * 0.1;
 
     const suggestedMax = Math.ceil((maxPositive + padding) / 50) * 50;
-    const suggestedMin = Math.floor((minNegative - padding) / 50) * 50;
+    const suggestedMin = minNegative < 0 ? Math.floor((minNegative - padding) / 50) * 50 : 0;
+
+    // Verde mais claro consistente para Ganho de Capital (sem vermelho, mesmo se negativo)
+    const gainBgColors = '#96e9c1';
+    const gainHoverColors = '#7ddfb3';
+
+    // Plugin para barra fixa no eixo zero (Traço contínuo de fora a fora demarcando o zero total - Estilo Investidor 10)
+    const zeroLinePlugin = {
+        id: 'patrimonyZeroLinePlugin',
+        afterDatasetsDraw: (chart) => {
+            const yScale = chart.scales.y;
+            if (!yScale) return;
+            const rawY = yScale.getPixelForValue(0);
+            if (rawY === undefined || isNaN(rawY)) return;
+            const zeroY = Math.round(rawY);
+            if (zeroY >= chart.chartArea.top - 2 && zeroY <= chart.chartArea.bottom + 2) {
+                const c = chart.ctx;
+                c.save();
+                c.beginPath();
+                c.strokeStyle = isDark ? '#94A3B8' : '#475569';
+                c.lineWidth = 2.5; // Risco de fora a fora demarcando o zero total
+                // Atravessa de fora a fora o gráfico (da borda esquerda x = 0 à borda direita do gráfico)
+                c.moveTo(0, zeroY);
+                c.lineTo(chart.width, zeroY);
+                c.stroke();
+                c.restore();
+            }
+        }
+    };
+
+    // Função utilitária para mapear com precisão cirúrgica a coluna inteira do mês sob o cursor
+    function getBarIndexFromEvent(chart, event) {
+        if (!chart || !chart.canvas) return null;
+
+        const canvas = chart.canvas;
+        const rect = canvas.getBoundingClientRect();
+        if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+
+        // Coordenadas CSS precisas relativas ao canvas (sem distorções de DPI acumuladas)
+        let mouseX, mouseY;
+        if (event.offsetX !== undefined && event.offsetY !== undefined) {
+            mouseX = event.offsetX;
+            mouseY = event.offsetY;
+        } else {
+            const clientX = (event.clientX !== undefined)
+                ? event.clientX
+                : (event.touches && event.touches[0] ? event.touches[0].clientX : (event.native?.clientX ?? null));
+            const clientY = (event.clientY !== undefined)
+                ? event.clientY
+                : (event.touches && event.touches[0] ? event.touches[0].clientY : (event.native?.clientY ?? null));
+            if (clientX === null || clientY === null) return null;
+            mouseX = clientX - rect.left;
+            mouseY = clientY - rect.top;
+        }
+
+        // Limites físicos do elemento canvas
+        if (mouseX < 0 || mouseX > rect.width || mouseY < 0 || mouseY > rect.height) {
+            return null;
+        }
+
+        const chartArea = chart.chartArea;
+        if (!chartArea) return null;
+
+        // Guarda vertical: ignora apenas se estiver sobre a legenda superior
+        if (mouseY < chartArea.top - 8) {
+            return null;
+        }
+
+        const labels = chart.data?.labels || [];
+        const totalBars = labels.length;
+        if (totalBars === 0) return null;
+        if (totalBars === 1) return 0;
+
+        // 1. Tenta a API nativa do Chart.js com coordenadas clampadas à área de plotagem
+        try {
+            const clampedX = Math.max(chartArea.left, Math.min(chartArea.right - 1, mouseX));
+            const clampedY = Math.max(chartArea.top, Math.min(chartArea.bottom - 1, mouseY));
+            const elements = chart.getElementsAtEventForMode(
+                { x: clampedX, y: clampedY },
+                'index',
+                { intersect: false, axis: 'x' },
+                false
+            );
+            if (elements && elements.length > 0 && elements[0].index !== undefined && elements[0].index < totalBars) {
+                return elements[0].index;
+            }
+        } catch (e) {
+            // Segue para fallback geométrico
+        }
+
+        // 2. Mapeamento geométrico pelos centros reais das colunas
+        const meta0 = chart.getDatasetMeta(0);
+        const meta1 = chart.getDatasetMeta(1);
+        const xScale = chart.scales?.x;
+
+        const centers = [];
+        for (let i = 0; i < totalBars; i++) {
+            let cx = null;
+            if (meta0?.data?.[i]?.x !== undefined && Number.isFinite(meta0.data[i].x)) {
+                cx = meta0.data[i].x;
+            } else if (meta1?.data?.[i]?.x !== undefined && Number.isFinite(meta1.data[i].x)) {
+                cx = meta1.data[i].x;
+            } else if (xScale && typeof xScale.getPixelForValue === 'function') {
+                cx = xScale.getPixelForValue(i);
+            }
+            centers.push(cx);
+        }
+
+        // Se temos os centros das extremidades, particiona por ponto médio
+        if (centers[0] !== null && centers[totalBars - 1] !== null) {
+            const c0 = centers[0];
+            const c1 = centers[1] ?? (c0 + 40);
+            const midFirst = (c0 + c1) / 2;
+            if (mouseX <= midFirst) return 0;
+
+            const cLast = centers[totalBars - 1];
+            const cPenult = centers[totalBars - 2] ?? (cLast - 40);
+            const midLast = (cPenult + cLast) / 2;
+            if (mouseX >= midLast) return totalBars - 1;
+
+            for (let i = 0; i < totalBars - 1; i++) {
+                const cur = centers[i];
+                const nxt = centers[i + 1];
+                if (cur !== null && nxt !== null) {
+                    const mid = (cur + nxt) / 2;
+                    if (mouseX < mid) {
+                        return i;
+                    }
+                }
+            }
+        }
+
+        // Vizinho mais próximo absoluto
+        let closestIdx = 0;
+        let minDistance = Infinity;
+        for (let i = 0; i < totalBars; i++) {
+            const cx = centers[i] ?? xScale?.getPixelForValue(i);
+            if (cx === null || cx === undefined) continue;
+            const dist = Math.abs(mouseX - cx);
+            if (dist < minDistance) {
+                minDistance = dist;
+                closestIdx = i;
+            }
+        }
+        return closestIdx;
+    }
+
+    // Plugin para realce visual da coluna/mês sob o mouse ou fixada por clique
+    const patrimonyColumnHoverPlugin = {
+        id: 'patrimonyColumnHoverPlugin',
+        beforeDatasetsDraw: (chart) => {
+            let activeIdx = -1;
+            if (hoveredPatrimonyBarIndex !== null && hoveredPatrimonyBarIndex >= 0) {
+                activeIdx = hoveredPatrimonyBarIndex;
+            } else if (selectedPatrimonyBarIndex !== null && selectedPatrimonyBarIndex >= 0) {
+                activeIdx = selectedPatrimonyBarIndex;
+            }
+            if (activeIdx < 0) return;
+
+            const totalBars = chart.data?.labels?.length || 0;
+            if (totalBars === 0 || activeIdx >= totalBars) return;
+
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return;
+
+            const meta0 = chart.getDatasetMeta(0);
+            const meta1 = chart.getDatasetMeta(1);
+            const barElem = (meta0 && meta0.data && meta0.data[activeIdx]) || (meta1 && meta1.data && meta1.data[activeIdx]);
+            
+            let barLeft, barWidth;
+            if (barElem && Number.isFinite(barElem.x) && Number.isFinite(barElem.width) && barElem.width > 0) {
+                barWidth = barElem.width;
+                barLeft = barElem.x - (barWidth / 2);
+            } else {
+                const xScale = chart.scales?.x;
+                const cx = (xScale && typeof xScale.getPixelForValue === 'function')
+                    ? xScale.getPixelForValue(activeIdx)
+                    : (chartArea.left + (chartArea.width / totalBars) * (activeIdx + 0.5));
+                barWidth = Math.max(16, (chartArea.width / totalBars) * 0.7);
+                barLeft = cx - (barWidth / 2);
+            }
+            const padX = 2;
+
+            ctx.save();
+            ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)';
+            if (typeof ctx.roundRect === 'function') {
+                ctx.beginPath();
+                ctx.roundRect(barLeft + padX, chartArea.top, barWidth - (padX * 2), chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
+                ctx.fill();
+            } else {
+                ctx.fillRect(barLeft + padX, chartArea.top, barWidth - (padX * 2), chartArea.bottom - chartArea.top);
+            }
+
+            if (selectedPatrimonyBarIndex === activeIdx) {
+                ctx.strokeStyle = isDark ? '#60A5FA' : '#2563EB';
+                ctx.lineWidth = 2;
+                if (typeof ctx.roundRect === 'function') {
+                    ctx.beginPath();
+                    ctx.roundRect(barLeft + padX, chartArea.top, barWidth - (padX * 2), chartArea.bottom - chartArea.top, [6, 6, 0, 0]);
+                    ctx.stroke();
+                } else {
+                    ctx.strokeRect(barLeft + padX, chartArea.top, barWidth - (padX * 2), chartArea.bottom - chartArea.top);
+                }
+            }
+            ctx.restore();
+        }
+    };
+
+    // Função para posicionar o tooltip exatamente centralizado sobre a barra ativa
+    function renderCustomPatrimonyTooltip(chart, targetIndex) {
+        if (!chart || !chart.canvas) return;
+        const chartCanvas = chart.canvas;
+        const container = chartCanvas.parentNode;
+        if (!container) return;
+
+        let tooltipEl = container.querySelector('.custom-chart-tooltip');
+        if (!tooltipEl) {
+            tooltipEl = document.createElement('div');
+            tooltipEl.className = 'custom-chart-tooltip';
+            container.appendChild(tooltipEl);
+        }
+
+        if (targetIndex === null || targetIndex === undefined || targetIndex < 0 || targetIndex >= data.labels.length) {
+            tooltipEl.style.opacity = '0';
+            tooltipEl.classList.remove('pinned');
+            return;
+        }
+
+        const idx = targetIndex;
+        const isPinned = (selectedPatrimonyBarIndex === idx);
+        const label = data.labels[idx] || '';
+        const inv = data.invested[idx] || 0;
+        const tot = data.total[idx] || 0;
+        const gn = gainCapital[idx] || 0;
+        const gnPct = inv > 0 ? (Math.abs(gn / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
+        const gnSign = gn < -0.001 ? '-' : (gn > 0.001 ? '+' : '');
+        
+        let gnColor = isDark ? '#E2E8F0' : '#64748B'; // Neutro para zero
+        let gnIndicatorColor = '#94A3B8';
+        if (gn < -0.001) {
+            gnColor = '#EF4444';
+            gnIndicatorColor = '#EF4444';
+        } else if (gn > 0.001) {
+            gnColor = '#00B894';
+            gnIndicatorColor = '#96e9c1';
+        }
+
+        tooltipEl.innerHTML = `
+            <div class="tooltip-header">
+                <span>${label}</span>
+                ${isPinned ? '<span class="pinned-badge"><i class="fas fa-thumbtack"></i> Fixado</span>' : ''}
+            </div>
+            <div class="tooltip-row">
+                <div class="tooltip-label">
+                    <span class="tooltip-indicator" style="background: #2cb875;"></span>
+                    <span>Valor aplicado</span>
+                </div>
+                <div class="tooltip-value">${formatCurrency(inv)}</div>
+            </div>
+            <div class="tooltip-row">
+                <div class="tooltip-label">
+                    <span class="tooltip-indicator" style="background: ${gnIndicatorColor};"></span>
+                    <span>Ganho de Capital</span>
+                </div>
+                <div class="tooltip-value" style="color: ${gnColor}; font-weight: 600;">
+                    ${gnSign}${formatCurrency(Math.abs(gn))} (${gnSign}${gnPct}%)
+                </div>
+            </div>
+            <div class="tooltip-row" style="border-top: 1px solid rgba(0,0,0,0.1); margin-top: 4px; padding-top: 4px;">
+                <div class="tooltip-label">
+                    <span style="font-weight: 700;">Patrimônio Total</span>
+                </div>
+                <div class="tooltip-value" style="font-weight: 700;">${formatCurrency(tot)}</div>
+            </div>
+            <div class="tooltip-arrow"></div>
+        `;
+
+        if (isPinned) {
+            tooltipEl.classList.add('pinned');
+        } else {
+            tooltipEl.classList.remove('pinned');
+        }
+
+        // Pega as coordenadas exatas da barra (considerando o topo da pilha empilhada)
+        const meta0 = chart.getDatasetMeta(0);
+        const meta1 = chart.getDatasetMeta(1);
+        const bar0 = meta0?.data?.[idx];
+        const bar1 = meta1?.data?.[idx];
+        let barX;
+        if (bar0 && Number.isFinite(bar0.x)) {
+            barX = bar0.x;
+        } else if (bar1 && Number.isFinite(bar1.x)) {
+            barX = bar1.x;
+        } else {
+            barX = chart.scales?.x?.getPixelForValue(idx) ?? (chartCanvas.width / 2);
+        }
+
+        // O topo real da coluna é o ponto mais alto (menor coordenada Y)
+        const y0 = (bar0 && Number.isFinite(bar0.y)) ? bar0.y : Infinity;
+        const y1 = (bar1 && Number.isFinite(bar1.y)) ? bar1.y : Infinity;
+        const rawBarTop = Math.min(y0, y1);
+        const barTop = (Number.isFinite(rawBarTop) && rawBarTop < Infinity) ? rawBarTop : (chart.chartArea?.top ?? (chartCanvas.height / 2));
+
+        // A base da barra
+        const b0 = bar0 ? bar0.base : chartCanvas.height;
+        const b1 = bar1 ? bar1.base : chartCanvas.height;
+        const barBottom = Math.max(b0, b1);
+
+        const canvasOffsetLeft = chartCanvas.offsetLeft || 0;
+        const canvasOffsetTop = chartCanvas.offsetTop || 0;
+        const barCenterX = Math.round(barX + canvasOffsetLeft);
+        const actualBarTop = Math.round(barTop + canvasOffsetTop);
+        const actualBarBottom = Math.round(barBottom + canvasOffsetTop);
+
+        const tooltipWidth = 195;
+        const tooltipHeight = tooltipEl.offsetHeight || 135;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight || 370;
+
+        // Centraliza horizontalmente acima da barra (sem vazar das bordas)
+        let left = Math.round(barCenterX - (tooltipWidth / 2));
+        if (left < 8) {
+            left = 8;
+        } else if (left + tooltipWidth > containerWidth - 8) {
+            left = Math.max(8, containerWidth - tooltipWidth - 8);
+        }
+
+        // Posição vertical: posiciona acima do topo da barra (nunca sobreposta à área ativa)
+        let top = Math.round(actualBarTop - tooltipHeight - 12);
+        let showArrow = true;
+        let arrowBelow = true;
+
+        // Se não houver espaço acima (top < 8), posiciona abaixo da base da barra
+        if (top < 8) {
+            top = Math.round(actualBarBottom + 12);
+            arrowBelow = false;
+            if (top + tooltipHeight > containerHeight - 8) {
+                top = 10;
+                showArrow = false;
+            }
+        }
+
+        // Posiciona a seta no centro horizontal exato da barra
+        const arrowEl = tooltipEl.querySelector('.tooltip-arrow');
+        if (arrowEl) {
+            const arrowX = Math.round(barCenterX - left);
+            const clampedArrowX = Math.max(16, Math.min(tooltipWidth - 16, arrowX));
+            arrowEl.style.left = clampedArrowX + 'px';
+            arrowEl.style.display = showArrow ? 'block' : 'none';
+            if (arrowBelow) {
+                arrowEl.style.bottom = '-6px';
+                arrowEl.style.top = 'auto';
+                arrowEl.style.borderTop = `6px solid ${isDark ? '#1E293B' : '#FFFFFF'}`;
+                arrowEl.style.borderBottom = 'none';
+            } else {
+                arrowEl.style.top = '-6px';
+                arrowEl.style.bottom = 'auto';
+                arrowEl.style.borderBottom = `6px solid ${isDark ? '#1E293B' : '#FFFFFF'}`;
+                arrowEl.style.borderTop = 'none';
+            }
+        }
+
+        tooltipEl.style.pointerEvents = 'none';
+        tooltipEl.style.left = left + 'px';
+        tooltipEl.style.top = top + 'px';
+        tooltipEl.style.opacity = '1';
+    }
 
     // --- GRÁFICO PRINCIPAL (BARRAS EMPILHADAS) ---
     patrimonyChart = new Chart(ctx, {
@@ -4080,32 +4735,48 @@ function renderChart() {
                     data: data.invested,
                     backgroundColor: '#2cb875',
                     hoverBackgroundColor: '#24a565',
+                    hoverBorderColor: isDark ? '#FFFFFF' : '#0F172A',
+                    hoverBorderWidth: 1.5,
                     borderRadius: 0,
                     borderSkipped: false,
                     stack: 'patrimonio',
-                    barPercentage: 0.7,
-                    categoryPercentage: 0.8
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.85,
+                    maxBarThickness: 38
                 },
                 {
                     label: 'Ganho de Capital',
                     data: gainCapital,
-                    backgroundColor: '#96e9c1',
-                    hoverBackgroundColor: '#7ddfb3',
+                    backgroundColor: gainBgColors,
+                    hoverBackgroundColor: gainHoverColors,
+                    hoverBorderColor: isDark ? '#FFFFFF' : '#0F172A',
+                    hoverBorderWidth: 1.5,
                     borderRadius: 4,
                     borderSkipped: false,
                     stack: 'patrimonio',
-                    barPercentage: 0.7,
-                    categoryPercentage: 0.8
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.85,
+                    maxBarThickness: 38
                 }
             ]
         },
+        plugins: [zeroLinePlugin, patrimonyColumnHoverPlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
             resizeDelay: 50,
             interaction: {
+                mode: 'index',
                 intersect: false,
-                mode: 'index'
+                axis: 'x'
+            },
+            layout: {
+                padding: {
+                    left: 10,
+                    right: 15,
+                    top: 10,
+                    bottom: 5
+                }
             },
             plugins: {
                 legend: {
@@ -4122,71 +4793,7 @@ function renderChart() {
                     }
                 },
                 tooltip: {
-                    enabled: false,
-                    external: function (context) {
-                        const tooltipModel = context.tooltip;
-                        const chartCanvas = context.chart.canvas;
-                        const container = chartCanvas.parentNode;
-                        let tooltipEl = container.querySelector('.custom-chart-tooltip');
-                        if (!tooltipEl) {
-                            tooltipEl = document.createElement('div');
-                            tooltipEl.className = 'custom-chart-tooltip';
-                            container.appendChild(tooltipEl);
-                        }
-
-                        if (tooltipModel.opacity === 0 || !tooltipModel.dataPoints || tooltipModel.dataPoints.length === 0) {
-                            tooltipEl.style.opacity = '0';
-                            return;
-                        }
-
-                        const idx = tooltipModel.dataPoints[0].dataIndex;
-                        const label = data.labels[idx] || '';
-                        const inv = data.invested[idx] || 0;
-                        const tot = data.total[idx] || 0;
-                        const gn = gainCapital[idx] || 0;
-                        const gnPct = inv > 0 ? ((gn / inv) * 100).toFixed(2).replace('.', ',') : '0,00';
-                        const gainIndicatorColor = gn >= 0 ? '#2cb875' : '#FF7675';
-
-                        tooltipEl.innerHTML = `
-                            <div class="tooltip-header">${label}</div>
-                            <div class="tooltip-row">
-                                <div class="tooltip-label">
-                                    <span class="tooltip-indicator" style="background: #2cb875;"></span>
-                                    <span>Valor aplicado</span>
-                                </div>
-                                <div class="tooltip-value">${formatCurrency(inv)}</div>
-                            </div>
-                            <div class="tooltip-row">
-                                <div class="tooltip-label">
-                                    <span class="tooltip-indicator" style="background: #96e9c1;"></span>
-                                    <span>Ganho de Capital</span>
-                                </div>
-                                <div class="tooltip-value" style="color: ${gainIndicatorColor}; font-weight: 600;">
-                                    ${gn < 0 ? '-' : '+'}${formatCurrency(Math.abs(gn))} (${gn < 0 ? '-' : '+'}${gnPct}%)
-                                </div>
-                            </div>
-                            <div class="tooltip-row" style="border-top: 1px solid rgba(0,0,0,0.1); margin-top: 4px; padding-top: 4px;">
-                                <div class="tooltip-label">
-                                    <span style="font-weight: 700;">Patrimônio Total</span>
-                                </div>
-                                <div class="tooltip-value" style="font-weight: 700;">${formatCurrency(tot)}</div>
-                            </div>
-                        `;
-
-                        const caretX = tooltipModel.caretX;
-                        const caretY = tooltipModel.caretY;
-                        let left = caretX + 12;
-                        let top = Math.max(8, caretY - 60);
-
-                        const tooltipWidth = 190;
-                        if (left + tooltipWidth > container.clientWidth) {
-                            left = Math.max(8, caretX - tooltipWidth - 12);
-                        }
-
-                        tooltipEl.style.left = left + 'px';
-                        tooltipEl.style.top = top + 'px';
-                        tooltipEl.style.opacity = '1';
-                    }
+                    enabled: false
                 }
             },
             scales: {
@@ -4197,8 +4804,7 @@ function renderChart() {
                         color: textColor,
                         font: { size: 10 },
                         maxRotation: 45,
-                        minRotation: 45,
-                        maxTicksLimit: 12
+                        minRotation: 45
                     }
                 },
                 y: {
@@ -4227,6 +4833,50 @@ function renderChart() {
             animation: { duration: 600 }
         }
     });
+
+    // Eventos diretos no Canvas: garantem que qualquer movimento ou clique na coluna da última barra seja detectado com exatidão
+    canvas.onmousemove = (e) => {
+        if (!patrimonyChart) return;
+        const idx = getBarIndexFromEvent(patrimonyChart, e);
+        if (idx !== null) {
+            canvas.style.cursor = 'pointer';
+            if (hoveredPatrimonyBarIndex !== idx) {
+                hoveredPatrimonyBarIndex = idx;
+                patrimonyChart.update('none');
+                renderCustomPatrimonyTooltip(patrimonyChart, idx);
+            }
+        } else {
+            canvas.style.cursor = 'default';
+            if (hoveredPatrimonyBarIndex !== null) {
+                hoveredPatrimonyBarIndex = null;
+                patrimonyChart.update('none');
+                renderCustomPatrimonyTooltip(patrimonyChart, selectedPatrimonyBarIndex);
+            }
+        }
+    };
+
+    canvas.onmouseleave = () => {
+        canvas.style.cursor = 'default';
+        if (hoveredPatrimonyBarIndex !== null) {
+            hoveredPatrimonyBarIndex = null;
+            if (patrimonyChart) patrimonyChart.update('none');
+            renderCustomPatrimonyTooltip(patrimonyChart, selectedPatrimonyBarIndex);
+        }
+    };
+
+    canvas.onclick = (e) => {
+        if (!patrimonyChart) return;
+        const idx = getBarIndexFromEvent(patrimonyChart, e);
+        if (idx !== null) {
+            if (selectedPatrimonyBarIndex === idx) {
+                selectedPatrimonyBarIndex = null;
+            } else {
+                selectedPatrimonyBarIndex = idx;
+            }
+            patrimonyChart.update('none');
+            renderCustomPatrimonyTooltip(patrimonyChart, selectedPatrimonyBarIndex);
+        }
+    };
 }
 // ============================================
 // GRÁFICO DE PIZZA
@@ -4242,12 +4892,12 @@ function renderPieChart() {
 
     const classColors = {
         'FIIs': '#0984E3',
-        'Ações': '#6C5CE7',
-        'ETFs': '#00B894',
+        'Ações': '#4338CA',
+        'ETFs': '#10B981',
         'Tesouro': '#FDCB6E'
     };
 
-    const palette = ['#0984E3', '#6C5CE7', '#00B894', '#FDCB6E', '#E17055', '#E84393', '#00CEC9', '#A29BFE'];
+    const palette = ['#0984E3', '#4338CA', '#10B981', '#FDCB6E', '#E17055', '#E84393', '#00CEC9', '#7C3AED'];
 
     const data = [];
     const labels = [];
@@ -4271,7 +4921,7 @@ function renderPieChart() {
             if (total > 0) {
                 data.push(total);
                 labels.push(cls);
-                backgroundColors.push(classColors[cls] || '#6C5CE7');
+                backgroundColors.push(classColors[cls] || '#4338CA');
             }
         });
     }
@@ -4552,11 +5202,12 @@ function renderDividendsChart() {
             resizeDelay: 50,
             interaction: {
                 mode: 'index',
-                intersect: false
+                intersect: false,
+                axis: 'x'
             },
             onClick: (event, elements) => {
-                if (elements && elements.length > 0) {
-                    const index = elements[0].index;
+                const index = getBarIndexFromEvent(dividendsChart, event.native || event) ?? (elements?.[0]?.index ?? null);
+                if (index !== null && index !== undefined && labels[index]) {
                     const clickedLabel = labels[index];
                     filterMeusProventosByChartClick(clickedLabel);
                 }
@@ -4666,7 +5317,7 @@ function renderDividendsPieChart() {
     const total12M = sorted.reduce((sum, item) => sum + item[1], 0);
 
     const colors = [
-        '#0984E3', '#00B894', '#6C5CE7', '#FDCB6E',
+        '#0984E3', '#10B981', '#4338CA', '#FDCB6E',
         '#E17055', '#D63031', '#00CEC9', '#FD79A8'
     ];
 
@@ -5051,7 +5702,13 @@ async function saveCorporateEvent(e) {
 }
 
 async function deleteCorporateEvent(id) {
-    if (!confirm('Deseja realmente remover este evento corporativo? O cálculo de preço médio e cotas será recalculado.')) return;
+    const confirmedEvent = await window.TonuConfirm({
+        title: 'Remover evento corporativo?',
+        message: 'Deseja realmente remover este evento corporativo? O cálculo de preço médio e cotas será recalculado.',
+        confirmText: 'Remover',
+        danger: true
+    });
+    if (!confirmedEvent) return;
 
     try {
         let deletedFromDb = false;
@@ -5091,7 +5748,7 @@ function renderCorporateEvents() {
         tbody.innerHTML = `
             <tr>
                 <td colspan="8" style="text-align:center; padding:35px; color:var(--color-text-muted);">
-                    <i class="fas fa-bolt" style="font-size:28px; color:var(--color-primary,#6C5CE7); margin-bottom:8px; display:block; opacity:0.6;"></i>
+                    <i class="fas fa-bolt" style="font-size:28px; color:var(--color-primary,#4338CA); margin-bottom:8px; display:block; opacity:0.6;"></i>
                     Nenhum evento corporativo registrado.<br>
                     <small>Cadastre desdobramentos, agrupamentos ou bonificações para ajustar automaticamente seu preço médio.</small>
                 </td>
@@ -5138,8 +5795,8 @@ function renderCorporateEvents() {
         return `
             <tr>
                 <td style="font-weight:600;">${dateStr}</td>
-                <td><strong style="color:var(--color-primary,#6C5CE7);">${ev.ticker}</strong></td>
-                <td><span class="badge" style="background:rgba(108,92,231,0.12); color:#6C5CE7; padding:4px 8px; border-radius:6px; font-weight:600; font-size:11px;">${evType}</span></td>
+                <td><strong style="color:var(--color-primary,#4338CA);">${ev.ticker}</strong></td>
+                <td><span class="badge" style="background:rgba(67,56,202,0.12); color:#4338CA; padding:4px 8px; border-radius:6px; font-weight:600; font-size:11px;">${evType}</span></td>
                 <td>${detail}</td>
                 <td style="font-weight:500;">${cotasImpact}</td>
                 <td style="color:#00b894; font-weight:500;">${costImpact}</td>

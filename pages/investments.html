@@ -7,32 +7,34 @@
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
 
-    <meta name="theme-color" content="#6C5CE7">
+    <meta name="theme-color" content="#4338CA">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TonuControle">
 
-    <link rel="manifest" href="../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png">
+    <link rel="manifest" href="../manifest.json?v=3.2.5">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.5">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.5">
+    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png?v=3.2.5">
+    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png?v=3.2.5">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.5">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.5">
 
     <title>Investimentos | TonuControle</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/sidebar-patch.css">
-    <link rel="stylesheet" href="../css/investments.css?v=2.3.0">
-    <link rel="stylesheet" href="../css/notifications.css">
-    <link rel="stylesheet" href="../css/sync.css">
-    <link rel="stylesheet" href="../css/sync-status.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.37">
+    <link rel="stylesheet" href="../css/sidebar-patch.css?v=3.2.37">
+    <link rel="stylesheet" href="../css/investments.css?v=3.2.37">
+    <link rel="stylesheet" href="../css/notifications.css?v=3.2.37">
+    <link rel="stylesheet" href="../css/sync.css?v=3.2.5">
+    <link rel="stylesheet" href="../css/sync-status.css?v=3.2.5">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.37">
+    <link rel="stylesheet" href="../css/post-login-transition.css?v=3.2.9">
 
     <!-- Device Router & Anti-flicker Theme Init -->
     <script src="../js/device-router.js"></script>
@@ -152,7 +154,7 @@
 
         .metric-progress-fill {
             height: 100%;
-            background: #0984E3;
+            background: var(--accent-royal, #2563EB);
             border-radius: 99px;
             transition: width 0.3s ease;
         }
@@ -346,9 +348,9 @@
         }
 
         .evolution-chart-wrap {
-            height: 250px !important;
-            min-height: 250px !important;
-            max-height: 250px !important;
+            height: 320px !important;
+            min-height: 320px !important;
+            max-height: 320px !important;
             position: relative;
             width: 100%;
             overflow: hidden;
@@ -577,11 +579,11 @@
 
         .matrix-active-cell {
             font-weight: 600;
-            color: #0984E3 !important;
+            color: var(--accent-royal, #2563EB) !important;
         }
 
         body.dark-theme .matrix-active-cell {
-            color: #74B9FF !important;
+            color: #60A5FA !important;
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -605,7 +607,7 @@
         }
 
         *:focus-visible {
-            outline: 3px solid #6C5CE7 !important;
+            outline: 3px solid #2563EB !important;
             outline-offset: 2px !important;
         }
 
@@ -615,13 +617,13 @@
             left: 50%;
             transform: translateX(-50%);
             padding: 12px 24px;
-            background: #6C5CE7;
+            background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%);
             color: #fff;
             border-radius: 8px;
             z-index: 999999;
             font-weight: 600;
             text-decoration: none;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
         }
 
         .skip-link:focus {
@@ -647,7 +649,7 @@
         <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
             <div class="sidebar-brand">
                 <div class="brand-icon">
-                    <img src="../icons/logo.png" alt="TonuControle">
+                    <img src="../icons/logo.png?v=3.2.1" alt="TonuControle">
                 </div>
                 <h2>TonuControle</h2>
             </div>
@@ -665,6 +667,14 @@
                 <li role="none"><a href="settings.html" role="menuitem"><i class="fas fa-cog" aria-hidden="true"></i>
                         Configurações</a></li>
             </ul>
+            <div class="sidebar-ambient" aria-hidden="true">
+                <svg width="46" height="46" viewBox="0 0 24 24" fill="none">
+                    <rect x="4" y="13" width="3.5" height="7" rx="1.2" fill="#2563EB"/>
+                    <rect x="10.2" y="9.5" width="3.5" height="10.5" rx="1.2" fill="#3B82F6"/>
+                    <rect x="16.4" y="6" width="3.5" height="14" rx="1.2" fill="#4338CA"/>
+                    <path d="M4 9.5 11.5 5l5 2.5L20.5 3.5" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
             <div class="sidebar-footer">
                 <a href="settings.html" class="sidebar-user-profile" id="sidebarUserProfile"
                     title="Abrir Configurações e Perfil">
@@ -727,23 +737,23 @@
                 <!-- ==========================================
                 ITEM 10: CARD DE CONQUISTA (INVESTIMENTOS)
                 ========================================== -->
-                <div class="achievement-card-banner" id="achievementCardPC" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.08) 0%, rgba(0, 206, 201, 0.06) 100%); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 16px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.03);">
+                <div class="achievement-card-banner" id="achievementCardPC" style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%); border: 1px solid rgba(37, 99, 235, 0.22); border-radius: 16px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 4px 16px rgba(23, 37, 84, 0.04);">
                     <div style="display:flex; align-items:center; gap:14px;">
-                        <div style="width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg, #6C5CE7, #a29bfe); color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 4px 12px rgba(108,92,231,0.3); flex-shrink:0;">
+                        <div style="width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%); color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 4px 12px rgba(37,99,235,0.3); flex-shrink:0;">
                             <i class="fas fa-trophy"></i>
                         </div>
                         <div>
-                            <div style="font-size:14px; font-weight:700; color:var(--color-text, #2d3436); display:flex; align-items:center; gap:8px;" id="achievementGrowthTextPC">
+                            <div style="font-size:14px; font-weight:700; color:var(--color-text, #172554); display:flex; align-items:center; gap:8px;" id="achievementGrowthTextPC">
                                 <span class="spinner" style="width:14px; height:14px;"></span> Calculando evolução dos últimos 30 dias...
                             </div>
                             <div style="font-size:12.5px; color:var(--color-text-muted, #64748b); margin-top:3px;" id="achievementDividendsTextPC">
-                                <i class="fas fa-coins" style="color:#00B894; margin-right:4px;"></i> Proventos dos últimos 90 dias: calculando...
+                                <i class="fas fa-coins" style="color:#10B981; margin-right:4px;"></i> Proventos dos últimos 90 dias: calculando...
                             </div>
                         </div>
                     </div>
                     <div style="text-align:right; flex-shrink:0;">
                         <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--color-text-muted, #64748b); font-weight:600;" id="achievementDateLabelPC">Valor até --/--/----</div>
-                        <div style="font-size:18px; font-weight:800; color:var(--color-primary, #6C5CE7);" id="achievementTotalValuePC">R$ 0,00</div>
+                        <div style="font-size:18px; font-weight:800; color:var(--accent-royal, #2563EB);" id="achievementTotalValuePC">R$ 0,00</div>
                     </div>
                 </div>
 
@@ -845,7 +855,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="chart-wrap" style="position: relative; height: 220px; max-height: 220px; width: 100%; overflow: hidden;">
+                            <div class="chart-wrap" style="position: relative; height: 370px; width: 100%;">
                                 <div id="chartLoading" class="loading-overlay hidden">
                                     <span class="spinner"></span> Carregando gráfico...
                                 </div>
@@ -868,7 +878,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="chart-wrap" style="display: flex; align-items: center; justify-content: center; position: relative; height: 220px; max-height: 220px; width: 100%; overflow: hidden;">
+                            <div class="chart-wrap" style="display: flex; align-items: center; justify-content: center; position: relative; height: 310px; width: 100%;">
                                 <canvas id="pieChart" role="img" aria-label="Gráfico de ativos na carteira"></canvas>
                             </div>
                         </div>
@@ -931,29 +941,11 @@
                                 <i class="fas fa-plus" aria-hidden="true"></i> Novo
                             </button>
                         </div>
-                        <div class="transactions-table-wrap">
-                            <table class="transactions-table" role="table">
-                                <thead role="rowgroup">
-                                    <tr role="row">
-                                        <th role="columnheader">Data</th>
-                                        <th role="columnheader">Ativo</th>
-                                        <th role="columnheader">Classe</th>
-                                        <th role="columnheader">Tipo</th>
-                                        <th role="columnheader">Qtd</th>
-                                        <th role="columnheader">Preço</th>
-                                        <th role="columnheader">Total</th>
-                                        <th role="columnheader">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="transactionsBody" role="rowgroup">
-                                    <tr role="row">
-                                        <td colspan="8"
-                                            style="text-align:center;padding:20px 0;color:#b2bec3;font-size:13px;">
-                                            <span class="spinner"></span> Carregando...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="invest-statement-container" id="transactionsBody">
+                            <div class="empty-state" style="padding:30px 16px;">
+                                <span class="empty-icon">📋</span>
+                                <p>Carregando lançamentos...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1089,11 +1081,11 @@
                                 <!-- Legend: Proventos recebidos & a receber -->
                                 <div class="evolution-legend">
                                     <div class="legend-item">
-                                        <span class="legend-box" style="background:#0984E3;"></span>
+                                        <span class="legend-box" style="background:#2563EB;"></span>
                                         <span>Proventos recebidos</span>
                                     </div>
                                     <div class="legend-item">
-                                        <span class="legend-box" style="background:#74B9FF;"></span>
+                                        <span class="legend-box" style="background:#60A5FA;"></span>
                                         <span>Proventos a receber <i class="fas fa-info-circle text-muted" title="Proventos futuros a receber no mês" aria-hidden="true"></i></span>
                                     </div>
                                 </div>
@@ -1213,10 +1205,19 @@
                                             <option value="ALL">Ativos</option>
                                         </select>
                                     </div>
+                                    <!-- Ordenação -->
+                                    <div class="select-with-icon">
+                                        <i class="fas fa-sort" aria-hidden="true"></i>
+                                        <select id="provListSortSelect" onchange="onProvListSortSelectChange(this.value)" aria-label="Ordenar proventos">
+                                            <option value="date_desc" selected>Pagamento (Recentes)</option>
+                                            <option value="date_asc">Pagamento (Antigos)</option>
+                                            <option value="dataCom_desc">Data Com (Recentes)</option>
+                                            <option value="totalValue_desc">Maior Valor</option>
+                                            <option value="ticker_asc">Ativo (A-Z)</option>
+                                            <option value="status_asc">Status</option>
+                                        </select>
+                                    </div>
                                     <!-- Botões Atualizar & Registrar -->
-                                    <button type="button" class="btn btn-ghost btn-sm" id="btnToggleProvDensity" onclick="toggleProvTableDensity()" title="Alternar densidade da tabela (Compacto / Confortável)" aria-label="Alternar densidade da tabela" style="padding: 2px 6px; height: 24px; font-size: 10px;">
-                                        <i class="fas fa-compress-alt" id="iconProvDensity" aria-hidden="true"></i>
-                                    </button>
                                     <button type="button" class="btn btn-ghost btn-sm" onclick="loadDividends()" title="Atualizar dados" aria-label="Atualizar proventos" style="padding: 2px 6px; height: 24px; font-size: 10px;">
                                         <i class="fas fa-sync-alt" aria-hidden="true"></i>
                                     </button>
@@ -1226,52 +1227,11 @@
                                 </div>
                             </div>
 
-                            <div class="table-responsive-wrapper">
-                                <table class="proventos-transactions-table" id="provTransactionsTable" role="table" aria-label="Lista de transações de proventos">
-                                    <thead role="rowgroup">
-                                        <tr role="row">
-                                            <th role="columnheader" onclick="toggleProvListSort('ticker')" style="cursor:pointer;">Ativo <i class="fas fa-sort" id="sortIconProvTicker" aria-hidden="true"></i></th>
-                                            <th role="columnheader" onclick="toggleProvListSort('class')" style="cursor:pointer;">Tipo <i class="fas fa-sort" id="sortIconProvClass" aria-hidden="true"></i></th>
-                                            <th role="columnheader" onclick="toggleProvListSort('status')" style="cursor:pointer;">Status <i class="fas fa-sort" id="sortIconProvStatus" aria-hidden="true"></i></th>
-                                            <th role="columnheader" onclick="toggleProvListSort('type')" style="cursor:pointer;">Provento <i class="fas fa-sort" id="sortIconProvType" aria-hidden="true"></i></th>
-                                            <th role="columnheader" onclick="toggleProvListSort('dataCom')" style="cursor:pointer;" class="text-center">Data Com <i class="fas fa-sort" id="sortIconProvDataCom" aria-hidden="true"></i></th>
-                                            <th role="columnheader" onclick="toggleProvListSort('date')" style="cursor:pointer;" class="text-center">Pagamento <i class="fas fa-sort" id="sortIconProvDate" aria-hidden="true"></i></th>
-                                            <th role="columnheader" onclick="toggleProvListSort('quantity')" style="cursor:pointer;" class="text-right">Qtd <i class="fas fa-sort" id="sortIconProvQty" aria-hidden="true"></i></th>
-                                            <th role="columnheader" onclick="toggleProvListSort('unitValue')" style="cursor:pointer;" class="text-right">Valor Unit. <i class="fas fa-sort" id="sortIconProvUnitVal" aria-hidden="true"></i></th>
-                                            <th role="columnheader" onclick="toggleProvListSort('totalValue')" style="cursor:pointer;" class="text-right">Total Bruto <i class="fas fa-sort" id="sortIconProvTotalVal" aria-hidden="true"></i></th>
-                                            <th role="columnheader" onclick="toggleProvListSort('netValue')" style="cursor:pointer;" class="text-right">Líquido <i class="fas fa-sort" id="sortIconProvNetVal" aria-hidden="true"></i></th>
-                                            <th role="columnheader" style="text-align:right;">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="dividendsBody" role="rowgroup">
-                                        <tr class="skeleton-row" role="row">
-                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 75%; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 60%; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 50%; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 65%; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:center;"><div class="skeleton-shimmer" style="width: 70px; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:center;"><div class="skeleton-shimmer" style="width: 70px; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 40px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 55px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 65px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 65px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 45px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
-                                        </tr>
-                                        <tr class="skeleton-row" role="row">
-                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 65%; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 55%; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 45%; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px;"><div class="skeleton-shimmer" style="width: 70%; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:center;"><div class="skeleton-shimmer" style="width: 70px; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:center;"><div class="skeleton-shimmer" style="width: 70px; height: 14px; border-radius: 4px;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 40px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 55px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 65px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 65px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
-                                            <td style="padding: 7px 8px; text-align:right;"><div class="skeleton-shimmer" style="width: 45px; height: 14px; border-radius: 4px; margin-left:auto;"></div></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                            <div class="invest-statement-container prov-statement-container" id="dividendsBody">
+                                <div class="empty-state" style="padding:28px 16px;">
+                                    <span class="empty-icon">💰</span>
+                                    <p>Carregando proventos...</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1285,7 +1245,7 @@
                         <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
                             <div>
                                 <h3 style="display:flex; align-items:center; gap:8px;">
-                                    <i class="fas fa-bolt" style="color:var(--color-primary,#6C5CE7);"></i> Eventos Corporativos Cadastrados
+                                    <i class="fas fa-bolt" style="color:var(--color-primary,#4338CA);"></i> Eventos Corporativos Cadastrados
                                 </h3>
                                 <p style="font-size:12px; color:var(--color-text-muted); margin:0;">
                                     Desdobramentos, agrupamentos, bonificações e amortizações aplicados automaticamente no cálculo de preço médio e custódia.
@@ -1641,16 +1601,16 @@
     ========================================== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
-    <script src="../js/supabase.js"></script>
-    <script src="../js/core.js"></script>
-    <script src="../js/security.js"></script>
-    <script src="../js/financial-tools.js"></script>
-    <script src="../js/sync.js"></script>
-    <script src="../js/notifications.js"></script>
-    <script src="../js/data/cnpj-base.js"></script>
-    <script src="../js/reports/ir-report.js"></script>
-    <script src="../js/investments.js?v=2.3.0"></script>
-    <script src="../js/sw-register.js?v=2.3.0"></script>
+    <script src="../js/supabase.js?v=3.2.5"></script>
+    <script src="../js/core.js?v=3.2.9"></script>
+    <script src="../js/security.js?v=3.2.5"></script>
+    <script src="../js/financial-tools.js?v=3.2.5"></script>
+    <script src="../js/sync.js?v=3.2.5"></script>
+    <script src="../js/notifications.js?v=3.2.5"></script>
+    <script src="../js/data/cnpj-base.js?v=3.2.5"></script>
+    <script src="../js/reports/ir-report.js?v=3.2.5"></script>
+    <script src="../js/investments.js?v=3.2.5"></script>
+    <script src="../js/sw-register.js?v=3.2.5"></script>
 
     <script>
         // ==========================================

@@ -4,14 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#6C5CE7">
+    <meta name="theme-color" content="#4338CA">
     <title>TonuControle - Redirecionando</title>
-    <link rel="manifest" href="./manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="./icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="./icons/icon-128x128.png">
-    <link rel="shortcut icon" href="./icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-192x192.png">
+    <link rel="manifest" href="./manifest.json?v=3.2.1">
+    <link rel="icon" type="image/svg+xml" href="./icons/favicon.svg?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon-96x96.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="16x16" href="./icons/icon-72x72.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="128x128" href="./icons/icon-128x128.png?v=3.2.1">
+    <link rel="shortcut icon" href="./icons/icon-128x128.png?v=3.2.1">
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-192x192.png?v=3.2.1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -20,8 +24,11 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: #6C5CE7;
+            font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+            background:
+                radial-gradient(circle at 82% 16%, rgba(16, 185, 129, 0.22) 0%, transparent 45%),
+                radial-gradient(circle at 18% 85%, rgba(59, 130, 246, 0.28) 0%, transparent 50%),
+                linear-gradient(145deg, #172554 0%, #3730A3 46%, #4338CA 76%, #2563EB 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -39,12 +46,13 @@
         }
 
         .loader .logo {
-            width: 72px;
-            height: 72px;
-            border-radius: 20px;
+            width: 76px;
+            height: 76px;
+            border-radius: 22px;
             overflow: hidden;
-            background: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            background: rgba(255, 255, 255, 0.14);
+            border: 2px solid rgba(255, 255, 255, 0.28);
+            box-shadow: 0 14px 36px rgba(15, 23, 42, 0.35);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -61,7 +69,7 @@
             width: 36px;
             height: 36px;
             border: 3px solid rgba(255, 255, 255, 0.2);
-            border-top-color: #FFEAA7;
+            border-top-color: #34D399;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
@@ -79,17 +87,18 @@
         }
 
         .loader h1 span {
-            color: #FFEAA7;
+            color: #34D399;
         }
 
         .loader p {
             font-size: 13px;
-            opacity: 0.8;
+            opacity: 0.84;
         }
 
         .loader .device-badge {
             font-size: 11px;
-            background: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.18);
             padding: 4px 14px;
             border-radius: 20px;
         }
@@ -99,7 +108,7 @@
 <body>
     <div class="loader">
         <div class="logo">
-            <img src="./icons/logo.png" alt="TonuControle" onerror="this.outerHTML='💰'">
+            <img src="./icons/logo.png?v=3.2.1" alt="TonuControle" onerror="this.outerHTML='💰'">
         </div>
         <div class="spinner"></div>
         <h1>Tonu<span>Controle</span></h1>
@@ -141,6 +150,15 @@
                 badge.textContent = isMobileDevice ? '📱 Versão Mobile' : '💻 Versão Desktop';
             }
             setTimeout(() => {
+                try {
+                    if (sessionStorage.getItem('tonu_user') || localStorage.getItem('tonu_offline_session')) {
+                        sessionStorage.setItem('tonu_just_logged_in', JSON.stringify({
+                            method: 'session',
+                            name: '',
+                            ts: Date.now()
+                        }));
+                    }
+                } catch (_) {}
                 const targetUrl = isMobileDevice 
                     ? basePath + '/pages/mobile/dashboard.html'
                     : basePath + '/pages/dashboard.html';

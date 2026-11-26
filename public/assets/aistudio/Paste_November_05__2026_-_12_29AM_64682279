@@ -1,0 +1,1610 @@
+// ============================================
+// INVESTIMENTOS - TonuControle
+// VERSÃO COMPLETA FINAL - CORRIGIDA
+// ============================================
+
+console.log('📈 Investments.js carregado');
+
+// ============================================
+// ANIMAÇÃO DE CARREGAMENTO
+// ============================================
+function showLoadingAnimation() {
+    const mainContent = document.getElementById('mainContent');
+    if (mainContent) {
+        mainContent.style.opacity = '0';
+        mainContent.style.transform = 'translateY(12px)';
+        mainContent.style.transition = 'all 0.4s ease';
+        setTimeout(() => {
+            mainContent.style.opacity = '1';
+            mainContent.style.transform = 'translateY(0)';
+        }, 150);
+    }
+}
+
+// ============================================
+// BRAPI CONFIG
+// ============================================
+var BRAPI_TOKEN = (typeof window !== 'undefined' && window.BRAPI_TOKEN)
+    || (window.__TONU_CONFIG__ && window.__TONU_CONFIG__.brapiToken)
+    || (window.APP_CONFIG && window.APP_CONFIG.BRAPI_TOKEN)
+    || '';
+if (typeof window !== 'undefined') window.BRAPI_TOKEN = BRAPI_TOKEN;
+
+function formatCurrency(value) {
+    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
+        return window.formatCurrency(value);
+    }
+    if (value === null || value === undefined || value === '') value = 0;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[R$\s]/g, '');
+        if (cleaned.includes(',') && cleaned.includes('.')) {
+            value = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (cleaned.includes(',')) {
+            value = cleaned.replace(',', '.');
+        }
+        value = parseFloat(value);
+    }
+    const num = Number(value) || 0;
+    try {
+        const formatted = new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+        return formatted.replace(/\u00A0/g, ' ');
+    } catch {
+        const isNegative = num < 0;
+        const parts = Math.abs(num).toFixed(2).split('.');
+        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const res = 'R$ ' + intPart + ',' + parts[1];
+        return isNegative ? '-' + res : res;
+    }
+}
+
+// ============================================
+// ESTADO
+// ============================================
+let currentUser = null;
+let allTransactions = [];
+let allDividends = [];
+let allCorporateEvents = [];
+let positions = [];
+let quotes = new Map();
+let selectedClass = 'Todos';
+let selectedPeriod = '12m';
+let selectedEvolutionClass = 'all';
+let selectedPieClass = 'all';
+let patrimonyChart = null;
+let selectedPatrimonyBarIndex = null;
+let hoveredPatrimonyBarIndex = null;
+let pieChart = null;
+let dividendsChart = null;
+let dividendsPieChart = null;
+let isUsingRealQuotes = false;
+let currentTab = 'carteira';
+let editingTransactionId = null;
+
+// ============================================
+// FUNÇÕES AUXILIARES
+// ============================================
+// Lista de Units/Ações brasileiras que terminam em 11 (mas são AÇÕES, não FIIs)
+var KNOWN_STOCK_UNITS = (typeof window !== 'undefined' && window.KNOWN_STOCK_UNITS) || (typeof globalThis !== 'undefined' && globalThis.KNOWN_STOCK_UNITS) || new Set([
+    'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
+    'SULA11', 'TIET11', 'BIDI11', 'RPMG11', 'MODL11', 'IGTI11', 'VVAR11', 'STBP11',
+    'AESB11', 'ELET11', 'PPLA11', 'ALLD11', 'ENEV11', 'BMEB11', 'BMGB11', 'BRAP11',
+    'CAMB11', 'CURY11', 'EMAE11', 'LCAM11', 'MOVI11', 'ODPV11', 'PARD11', 'RANI11',
+    'RAPT11', 'SIMH11', 'TRIS11', 'TUPY11', 'VAMO11', 'VBBR11', 'VULC11', 'WHRL11'
+]);
+
+// Lista de ETFs brasileiros negociados na B3 terminados em 11
+var KNOWN_ETFS = (typeof window !== 'undefined' && window.KNOWN_ETFS) || (typeof globalThis !== 'undefined' && globalThis.KNOWN_ETFS) || new Set([
+    'BOVA11', 'SMAL11', 'IVVB11', 'HASH11', 'XINA11', 'GOLD11', 'NASD11', 'SPXI11',
+    'WRLD11', 'DIVO11', 'MATB11', 'FIND11', 'BRAX11', 'PIBB11', 'ECOO11', 'ISUS11',
+    'GENB11', 'ACWI11', 'BBSD11', 'TECB11', 'DNAI11', 'MILL11', 'SHOT11', 'REVE11',
+    'BBOV11', 'USTK11', 'HTEK11', 'BDEF11', 'BDIV11', 'NSDV11', 'QETH11', 'QBTC11',
+    'CRPT11', 'DEFI11', 'WEB311', 'META11', 'NFTS11', 'BLOK11', 'ETHE11', 'BITH11'
+]);
+
+function getToday() {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+}
+
+function inferClass(ticker) {
+    if (!ticker) return 'Ações';
+    const raw = String(ticker).toUpperCase().trim();
+    const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
+
+    // 1. TAESA e Units de Ações terminadas em 11 (ex: TAEE11, SANB11, SAPR11, KLBN11, ALUP11)
+    if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) {
+        return 'Ações';
+    }
+
+    // 2. ETFs
+    if (KNOWN_ETFS.has(tk) || KNOWN_ETFS.has(raw) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) {
+        return 'ETFs';
+    }
+
+    // 3. Tesouro Direto
+    if (/^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC)/.test(tk)) {
+        return 'Tesouro';
+    }
+
+    // 4. BDRs
+    if (tk.endsWith('34') || tk.endsWith('35')) {
+        return 'BDRs';
+    }
+
+    // 5. Ações padrão B3 (ON, PN com finais 2, 3, 4, 5, 6 ou fracionário F)
+    if (/^[A-Z]{4}[23456]$/.test(tk)) {
+        return 'Ações';
+    }
+
+    // 6. FIIs (fundos imobiliários terminados em 11 ou 11B ou prefixos conhecidos)
+    if (/^(KN|HGLG|MXRF|GGRC|RZTR|XPLG|VISC|BTLG|CPTS|IRDM|BCFF|MALL|HFOF|XPML|KNSC|RECR|HGRE|TRXF|TGAR|VILG|RECT|RBRF|RBRP|MCCI|PVBI|VRTA|ALZR|LVBI|JSRE|PATL|DEVA|RBVA|HCTR|VINO|URPR|SNFF|BARI|HSAF|KORE|MCHF|VGIP|VGIR|RBRY|KNIP|KNRI|KNCR)/.test(tk) || tk.endsWith('11') || tk.endsWith('11B')) {
+        return 'FIIs';
+    }
+
+    // Tickers com 3 ou 4 letras
+    if (/^[A-Z]{3,4}$/.test(tk) && !/^(FII|ETF|TESOURO)/.test(tk)) {
+        return 'Ações';
+    }
+
+    return 'Ações';
+}
+
+function normalizeClass(cls) {
+    if (!cls) return 'Ações';
+    const upper = cls.toUpperCase().trim();
+    if (upper === 'FII' || upper === 'FIIS') return 'FIIs';
+    if (upper === 'ETF' || upper === 'ETFS') return 'ETFs';
+    if (upper === 'TESOURO' || upper === 'TESOURO DIRETO') return 'Tesouro';
+    if (upper === 'BDR' || upper === 'BDRS') return 'BDRs';
+    if (upper === 'AÇÃO' || upper === 'ACOES' || upper === 'AÇÕES' || upper === 'ACAO') return 'Ações';
+    if (['Ações', 'FIIs', 'ETFs', 'Tesouro', 'BDRs'].includes(cls)) return cls;
+    return 'Ações';
+}
+
+function parseBrazilianNumber(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return isNaN(value) ? 0 : value;
+
+    let str = String(value).trim();
+    str = str.replace(/[R$\s]/gi, '');
+
+    if (str.includes('.') && str.includes(',')) {
+        str = str.replace(/\./g, '').replace(',', '.');
+    } else if (str.includes(',')) {
+        str = str.replace(',', '.');
+    } else if (str.includes('.')) {
+        const parts = str.split('.');
+        if (parts.length > 2) {
+            str = parts.join('');
+        } else if (parts[1] && parts[1].length === 2) {
+            // 1 ponto com 2 casas: decimal (mantém como está)
+        } else if (parts[1] && parts[1].length === 3) {
+            const beforeDigits = parts[0].length;
+            if (beforeDigits === 1) {
+                // Decimal (ex: "1.250" -> 1.25)
+            } else {
+                // Milhar (ex: "10.500" -> 10500)
+                str = parts[0] + parts[1];
+            }
+        }
+    }
+
+    const parsed = parseFloat(str);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+function parseNumberInput(value) {
+    return parseBrazilianNumber(value);
+}
+
+function parsePriceInput(value) {
+    return parseBrazilianNumber(value);
+}
+
+// ============================================
+// MODAL CONTROLS
+// ============================================
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    document.querySelectorAll('.modal-overlay.active').forEach(m => {
+        m.classList.remove('active');
+    });
+    modal.classList.add('active');
+    document.body.classList.add('no-scroll');
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.classList.remove('active');
+    const anyOpen = document.querySelectorAll('.modal-overlay.active').length === 0;
+    if (anyOpen) {
+        document.body.classList.remove('no-scroll');
+    }
+}
+
+function closeAllModals() {
+    document.querySelectorAll('.modal-overlay.active').forEach(m => {
+        m.classList.remove('active');
+    });
+    document.body.classList.remove('no-scroll');
+}
+
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal-overlay')) {
+        closeModal(e.target.id);
+    }
+    if (selectedPatrimonyBarIndex !== null) {
+        const wrap = document.getElementById('patrimonyChart')?.closest('.chart-wrap');
+        if (wrap && !wrap.contains(e.target)) {
+            selectedPatrimonyBarIndex = null;
+            if (patrimonyChart) patrimonyChart.update('none');
+            const tooltipEl = wrap.querySelector('.custom-chart-tooltip');
+            if (tooltipEl) {
+                tooltipEl.style.opacity = '0';
+                tooltipEl.classList.remove('pinned');
+            }
+        }
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeAllModals();
+    }
+});
+
+// ============================================
+// RELATÓRIO DE IMPOSTO DE RENDA (IR)
+// ============================================
+window.openIRReportModal = function() {
+    if (window.TonuIRReport && typeof window.TonuIRReport.showIRReportModal === 'function') {
+        window.TonuIRReport.showIRReportModal(allTransactions, allDividends, allCorporateEvents);
+    } else {
+        if (typeof showToast === 'function') showToast('Carregando relatório de IR...', 'info');
+        else console.info('Carregando relatório de IR...');
+    }
+};
+
+// ============================================
+// OPERAÇÃO MODAL
+// ============================================
+function openOperationModal() {
+    editingTransactionId = null;
+    const form = document.getElementById('operationForm');
+    if (form) form.reset();
+    const dateInput = document.getElementById('opDate');
+    if (dateInput) dateInput.value = getToday();
+    const totalEl = document.getElementById('opTotalValue');
+    if (totalEl) totalEl.value = '';
+    const hint = document.getElementById('tickerHint');
+    if (hint) {
+        hint.textContent = 'Digite o código do ativo.';
+        hint.className = 'help-text';
+    }
+    const typeSelect = document.getElementById('opType');
+    if (typeSelect) typeSelect.value = 'Compra';
+    const title = document.getElementById('operationModalTitle');
+    if (title) title.textContent = '📊 Nova Operação';
+    const saveBtn = document.getElementById('saveOperationBtn');
+    if (saveBtn) {
+        saveBtn.textContent = '💾 Salvar operação';
+    }
+    const modalHeader = document.querySelector('#operationModal .modal-header');
+    if (modalHeader) {
+        modalHeader.style.borderLeftColor = '';
+    }
+    openModal('operationModal');
+}
+
+function closeOperationModal() {
+    closeModal('operationModal');
+}
+
+// ============================================
+// PROVENTO MODAL
+// ============================================
+function populateUserHeldTickers() {
+    const datalist = document.getElementById('userHeldTickersList');
+    if (!datalist) return;
+    datalist.innerHTML = '';
+
+    if (Array.isArray(positions) && positions.length > 0) {
+        positions.forEach(pos => {
+            const ticker = (pos.ticker || '').toUpperCase().trim();
+            if (!ticker) return;
+            const opt = document.createElement('option');
+            opt.value = ticker;
+            opt.label = `${pos.quantity || 0} cotas/ações em custódia`;
+            datalist.appendChild(opt);
+        });
+    }
+}
+
+function onDividendTickerInput(e) {
+    const ticker = (e.target.value || '').toUpperCase().trim();
+    const hint = document.getElementById('divTickerHint');
+    const typeSelect = document.getElementById('divType');
+    const qtyInput = document.getElementById('divQuantity');
+
+    if (!ticker) {
+        if (hint) hint.textContent = 'Digite o ticker do ativo ou selecione da sua carteira';
+        return;
+    }
+
+    const pos = Array.isArray(positions) ? positions.find(p => (p.ticker || '').toUpperCase() === ticker) : null;
+
+    if (pos) {
+        if (hint) {
+            hint.innerHTML = `<span style="color:#00B894;"><i class="fas fa-check-circle"></i> Na sua carteira: <strong>${pos.quantity} cotas/ações</strong></span>`;
+        }
+        if (qtyInput && (!qtyInput.value || qtyInput.dataset.autoFilled === 'true')) {
+            qtyInput.value = pos.quantity;
+            qtyInput.dataset.autoFilled = 'true';
+            calcDividendTotal();
+        }
+    } else {
+        if (hint) hint.textContent = 'Ativo fora da carteira atual (será registrado normalmente)';
+    }
+
+    if (typeSelect && (!typeSelect.dataset.userChanged || typeSelect.dataset.userChanged === 'false')) {
+        const cls = typeof inferClass === 'function' ? inferClass(ticker) : '';
+        if (cls === 'FIIs' || cls === 'FII') {
+            typeSelect.value = 'Rendimento';
+        } else {
+            typeSelect.value = 'Dividendo';
+        }
+    }
+}
+window.onDividendTickerInput = onDividendTickerInput;
+window.populateUserHeldTickers = populateUserHeldTickers;
+
+function openDividendModal(id = null) {
+    const form = document.getElementById('dividendForm');
+    if (form) form.reset();
+    const titleEl = document.getElementById('dividendModalTitle');
+    const submitBtn = form?.querySelector('button[type="submit"]');
+    populateUserHeldTickers();
+
+    const hint = document.getElementById('divTickerHint');
+    if (hint) hint.textContent = 'Digite o ticker do ativo ou selecione da sua carteira';
+
+    if (id) {
+        const item = allDividends.find(d => String(d.id) === String(id));
+        if (item) {
+            if (titleEl) titleEl.textContent = 'Editar Provento';
+            if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-save"></i> Atualizar Provento';
+            if (form) form.dataset.editId = id;
+            if (document.getElementById('divTicker')) document.getElementById('divTicker').value = item.ticker || '';
+            if (document.getElementById('divType')) document.getElementById('divType').value = item.type || 'Dividendo';
+            if (document.getElementById('divQuantity')) {
+                const qEl = document.getElementById('divQuantity');
+                qEl.value = getDividendQuantity(item) || '';
+                delete qEl.dataset.autoFilled;
+            }
+            if (document.getElementById('divUnitValue')) {
+                const uVal = getDividendUnitValue(item) || 0;
+                document.getElementById('divUnitValue').value = uVal.toFixed(2).replace('.', ',');
+            }
+            const dataCom = extractDataCom(item);
+            if (document.getElementById('divDateCom')) {
+                document.getElementById('divDateCom').value = dataCom || '';
+            }
+            if (document.getElementById('divDate')) {
+                document.getElementById('divDate').value = getDividendISODate(item) || item.date || '';
+            }
+            if (document.getElementById('divTotalValue')) {
+                document.getElementById('divTotalValue').value = formatCurrency(getDividendTotalValue(item));
+            }
+            if (document.getElementById('divNote')) {
+                const cleanNote = (item.note || '').replace(/\[?DataCom:\s*[^\]\s;]+\]?\s*/i, '').trim();
+                document.getElementById('divNote').value = cleanNote;
+            }
+            openModal('dividendModal');
+            return;
+        }
+    }
+
+    if (titleEl) titleEl.textContent = 'Registrar Provento';
+    if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Provento';
+    if (form) delete form.dataset.editId;
+    const dateInput = document.getElementById('divDate');
+    if (dateInput) dateInput.value = getToday();
+    const dateComInput = document.getElementById('divDateCom');
+    if (dateComInput) dateComInput.value = '';
+    const totalEl = document.getElementById('divTotalValue');
+    if (totalEl) totalEl.value = '';
+    const qInput = document.getElementById('divQuantity');
+    if (qInput) delete qInput.dataset.autoFilled;
+    openModal('dividendModal');
+}
+
+function closeDividendModal() {
+    const form = document.getElementById('dividendForm');
+    if (form) delete form.dataset.editId;
+    closeModal('dividendModal');
+}
+
+// ============================================
+// TICKER AUTO-CLASS
+// ============================================
+function onTickerInput(e) {
+    const ticker = e.target.value.toUpperCase().trim();
+    const hint = document.getElementById('tickerHint');
+    if (!hint) return;
+    if (ticker.length < 2) {
+        hint.textContent = 'Digite o código do ativo.';
+        hint.className = 'help-text';
+        return;
+    }
+    const suggested = inferClass(ticker);
+    const classSelect = document.getElementById('opClass');
+    if (suggested && classSelect) {
+        classSelect.value = suggested;
+        hint.textContent = `🔍 Classe sugerida: ${suggested}`;
+        hint.className = 'help-text success';
+    } else {
+        hint.textContent = 'Digite um ticker válido.';
+        hint.className = 'help-text error';
+    }
+}
+
+// ============================================
+// ATUALIZAR VALOR TOTAL
+// ============================================
+function updateTotalValue() {
+    const qty = parseNumberInput(document.getElementById('opQuantity')?.value);
+    const price = parsePriceInput(document.getElementById('opUnitPrice')?.value);
+    const total = qty * price;
+    const totalEl = document.getElementById('opTotalValue');
+    if (totalEl) {
+        totalEl.value = total > 0 ? total.toFixed(2).replace('.', ',') : '';
+    }
+}
+
+function calcDividendTotal() {
+    const qty = parseNumberInput(document.getElementById('divQuantity')?.value);
+    const unit = parsePriceInput(document.getElementById('divUnitValue')?.value);
+    const total = qty * unit;
+    const totalEl = document.getElementById('divTotalValue');
+    if (totalEl) {
+        totalEl.value = total > 0 ? total.toFixed(2).replace('.', ',') : '0,00';
+    }
+}
+
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+document.addEventListener('DOMContentLoaded', async () => {
+    showLoadingAnimation();
+
+    try {
+        let user = null;
+        if (window.getAuthenticatedUser) user = await window.getAuthenticatedUser();
+        if (!user && window.supabaseOffline) user = await window.supabaseOffline.isAuthenticated();
+        if (!user && supabaseClient && supabaseClient.auth) {
+            try {
+                const { data: sessData } = await supabaseClient.auth.getSession();
+                user = sessData?.session?.user;
+                if (!user) {
+                    const { data: userData } = await supabaseClient.auth.getUser();
+                    user = userData?.user;
+                }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const s = sessionStorage.getItem('tonu_user');
+                if (s) { const p = JSON.parse(s); user = p.user || p; }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const off = localStorage.getItem('tonu_offline_session');
+                if (off) { const p = JSON.parse(off); user = p.user || p; }
+            } catch (_) {}
+        }
+        if (!user) {
+            window.location.href = '../index.html';
+            return;
+        }
+        currentUser = user;
+        console.log('✅ Usuário autenticado:', currentUser.email);
+
+        // Limpeza de qualquer dado ou flag de demonstração residual
+        localStorage.removeItem('tonu_is_demo_active');
+        localStorage.removeItem('tonucontrole_is_demo_dividends');
+        localStorage.removeItem('tonucontrole_dividends_demo');
+        localStorage.removeItem('tonu_dividends_demo');
+        localStorage.removeItem('tonu_demo_transactions');
+    } catch (e) {
+        console.error('❌ Erro na autenticação:', e);
+        window.location.href = '../index.html';
+        return;
+    }
+
+    // ITEM 7: Visibilidade de Eventos Corporativos (Escondido por padrão)
+    function applyCorporateEventsVisibility() {
+        const isEnabled = localStorage.getItem('tonu_pref_corporate_events') === 'true';
+        const pcHeaderBtn = document.getElementById('btnCorpEventHeader');
+        const pcTabBtn = document.getElementById('tabBtnEventosPC');
+        const mobileTabBtn = document.getElementById('tabBtnEventos');
+        if (pcHeaderBtn) pcHeaderBtn.style.display = isEnabled ? 'inline-flex' : 'none';
+        if (pcTabBtn) pcTabBtn.style.display = isEnabled ? 'inline-flex' : 'none';
+        if (mobileTabBtn) mobileTabBtn.style.display = isEnabled ? 'inline-flex' : 'none';
+    }
+    applyCorporateEventsVisibility();
+    window.applyCorporateEventsVisibility = applyCorporateEventsVisibility;
+
+    const opDate = document.getElementById('opDate');
+    const divDate = document.getElementById('divDate');
+    if (opDate) opDate.value = getToday();
+    if (divDate) divDate.value = getToday();
+
+    const opQuantity = document.getElementById('opQuantity');
+    const opUnitPrice = document.getElementById('opUnitPrice');
+    const opTicker = document.getElementById('opTicker');
+
+    if (opQuantity) opQuantity.addEventListener('input', updateTotalValue);
+    if (opUnitPrice) opUnitPrice.addEventListener('input', updateTotalValue);
+    if (opTicker) opTicker.addEventListener('input', onTickerInput);
+
+    const divQuantity = document.getElementById('divQuantity');
+    const divUnitValue = document.getElementById('divUnitValue');
+    if (divQuantity) divQuantity.addEventListener('input', calcDividendTotal);
+    if (divUnitValue) divUnitValue.addEventListener('input', calcDividendTotal);
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            if (tab) switchTab(tab);
+        });
+    });
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cls = btn.dataset.class;
+            if (cls) filterByClass(cls);
+        });
+    });
+
+    document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const period = btn.dataset.period;
+            if (period) {
+                selectedPeriod = period;
+                renderChart();
+            }
+        });
+    });
+
+    await refreshDashboard();
+    await loadDividends();
+
+    // Restaura aba ativa caso presente na URL ou sessão
+    const hashTab = (window.location.hash || '').replace('#', '').trim();
+    if (['carteira', 'lancamentos', 'proventos'].includes(hashTab)) {
+        switchTab(hashTab);
+    }
+});
+
+// ============================================
+// SWITCH TAB
+// ============================================
+async function switchTab(tab) {
+    currentTab = tab;
+    try {
+        if (window.location.hash !== `#${tab}`) {
+            history.replaceState(null, '', `#${tab}`);
+        }
+    } catch (e) {}
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.toggle('active', content.id === `tab-${tab}`);
+    });
+    if (tab === 'proventos') {
+        if (!allDividends || allDividends.length === 0) {
+            await loadDividends();
+        } else {
+            populateProventosFilterDropdowns();
+            updateProventosSummary();
+            renderDividendsChart();
+            renderDividendsPieChart();
+            renderProventosHistoryTable();
+            renderProventosListTable();
+        }
+    }
+    if (tab === 'carteira') {
+        renderChart();
+        renderPieChart();
+        const portfolioContainer = document.querySelector('.portfolio-container');
+        if (portfolioContainer) {
+            portfolioContainer.style.opacity = '0';
+            portfolioContainer.style.transform = 'translateY(12px)';
+            portfolioContainer.style.transition = 'all 0.4s ease';
+            setTimeout(() => {
+                portfolioContainer.style.opacity = '1';
+                portfolioContainer.style.transform = 'translateY(0)';
+            }, 150);
+        }
+    }
+    if (tab === 'eventos') {
+        renderCorporateEvents();
+    }
+}
+
+// ============================================
+// FILTRO POR CLASSE
+// ============================================
+function filterByClass(cls) {
+    selectedClass = cls;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.class === cls);
+    });
+    renderTable();
+}
+
+// ============================================
+// CARREGAR DADOS
+// ============================================
+async function refreshDashboard() {
+    const chartLoading = document.getElementById('chartLoading');
+    if (chartLoading) chartLoading.classList.remove('hidden');
+
+    try {
+        await Promise.allSettled([
+            loadTransactions(),
+            loadCorporateEvents()
+        ]);
+        buildPositions();
+        await Promise.allSettled([
+            fetchQuotes(),
+            fetchHistoricalMonthlyQuotes()
+        ]);
+        decoratePositions();
+        updateSummary();
+        updateClassCounts();
+        renderTable();
+        renderTransactions();
+        renderCorporateEvents();
+        updateQuoteStatus();
+        renderChart();
+        renderPieChart();
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar investimentos:', error);
+        showToast('Erro ao carregar dados', 'error');
+    } finally {
+        if (chartLoading) chartLoading.classList.add('hidden');
+    }
+}
+
+async function loadTransactions() {
+    try {
+        let loaded = [];
+        let fetchedFromDb = false;
+
+        if (!currentUser || !currentUser.id) {
+            try {
+                if (window.getAuthenticatedUser) {
+                    currentUser = await window.getAuthenticatedUser();
+                }
+                if (!currentUser && window.supabaseClient?.auth?.getUser) {
+                    const { data } = await window.supabaseClient.auth.getUser();
+                    currentUser = data?.user || null;
+                }
+                if (!currentUser && typeof sessionStorage !== 'undefined') {
+                    const raw = sessionStorage.getItem('tonu_user');
+                    if (raw) currentUser = JSON.parse(raw).user || JSON.parse(raw);
+                }
+            } catch (_) {}
+        }
+
+        if (currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+            try {
+                let { data, error } = await supabaseClient
+                    .from('investments')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('date', { ascending: true });
+
+                if (!error && data && data.length > 0) {
+                    loaded = data;
+                    fetchedFromDb = true;
+                } else if (currentUser && currentUser.id) {
+                    const fallback = await supabaseClient
+                        .from('investments')
+                        .select('*')
+                        .eq('user_id', currentUser.id)
+                        .order('date', { ascending: true });
+                    if (!fallback.error && fallback.data && fallback.data.length > 0) {
+                        loaded = fallback.data;
+                        fetchedFromDb = true;
+                    }
+                }
+            } catch (dbErr) {
+                console.warn('⚠️ Falha ao buscar transações de investimento do Supabase:', dbErr);
+            }
+        }
+
+        if (fetchedFromDb && loaded.length > 0) {
+            allTransactions = loaded.map(inv => {
+                const tk = (inv.ticker || '').toUpperCase().trim();
+                const correctCls = typeof resolveAssetClass === 'function' ? resolveAssetClass(tk, inv.asset_class) : (KNOWN_STOCK_UNITS.has(tk) ? 'Ações' : inv.asset_class);
+                if (correctCls && correctCls !== inv.asset_class) {
+                    inv.asset_class = correctCls;
+                    if (window.supabaseClient && inv.id && !String(inv.id).startsWith('offline_')) {
+                        window.supabaseClient.from('investments').update({ asset_class: correctCls }).eq('id', inv.id).eq('user_id', currentUser.id).catch(() => {});
+                    }
+                }
+                return inv;
+            });
+            if (window.tonuSync && currentUser?.id) {
+                window.tonuSync.setCachedInvestments(currentUser.id, allTransactions);
+            }
+            localStorage.removeItem('tonu_is_demo_active');
+            updateGlobalDemoUI(false);
+            console.log('📊 Transações reais carregadas do backend:', allTransactions.length);
+            return;
+        }
+
+        // Tenta fallback para o cache canônico IndexedDB antes de considerar demo
+        if (!fetchedFromDb && window.tonuSync && currentUser?.id) {
+            const cached = await window.tonuSync.getCachedInvestments(currentUser.id);
+            if (cached && cached.length > 0) {
+                allTransactions = cached.map(inv => {
+                    const tk = (inv.ticker || '').toUpperCase().trim();
+                    const correctCls = typeof resolveAssetClass === 'function' ? resolveAssetClass(tk, inv.asset_class) : (KNOWN_STOCK_UNITS.has(tk) ? 'Ações' : inv.asset_class);
+                    if (correctCls && correctCls !== inv.asset_class) {
+                        inv.asset_class = correctCls;
+                    }
+                    return inv;
+                });
+                localStorage.removeItem('tonu_is_demo_active');
+                updateGlobalDemoUI(false);
+                console.log('📊 Transações reais carregadas do IndexedDB offline:', allTransactions.length);
+                return;
+            }
+        }
+
+        const isDemo = localStorage.getItem('tonu_is_demo_active') === 'true';
+        if (isDemo) {
+            allTransactions = generateDemoTransactions();
+            applyDemoQuotes();
+            updateGlobalDemoUI(true);
+            console.log('📊 Transações de demonstração ativas:', allTransactions.length);
+        } else {
+            allTransactions = [];
+            updateGlobalDemoUI(false);
+            console.log('📊 Nenhuma transação registrada. Pronto para novos lançamentos.');
+        }
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar transações:', error);
+        const isDemo = localStorage.getItem('tonu_is_demo_active') === 'true';
+        if (isDemo) {
+            allTransactions = generateDemoTransactions();
+            applyDemoQuotes();
+            updateGlobalDemoUI(true);
+        } else {
+            allTransactions = [];
+            updateGlobalDemoUI(false);
+        }
+    }
+}
+
+// ============================================
+// SALVAR OPERAÇÃO
+// ============================================
+async function saveOperation(e) {
+    if (e) e.preventDefault();
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Salvando...';
+
+    try {
+        const ticker = document.getElementById('opTicker')?.value.toUpperCase().trim() || '';
+        const type = document.getElementById('opType')?.value || '';
+        const quantityStr = document.getElementById('opQuantity')?.value || '0';
+        const unitPriceStr = document.getElementById('opUnitPrice')?.value || '0';
+        const date = document.getElementById('opDate')?.value || '';
+        let assetClass = document.getElementById('opClass')?.value || 'Ações';
+        const note = document.getElementById('opNote')?.value || '';
+
+        const quantity = parseNumberInput(quantityStr);
+        const unitPrice = parsePriceInput(unitPriceStr);
+        const totalValue = quantity * unitPrice;
+
+        if (!ticker) {
+            showToast('❌ Digite o ticker do ativo', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            return;
+        }
+
+        if (!type) {
+            showToast('❌ Selecione o tipo de operação', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            return;
+        }
+
+        if (!quantity || quantity <= 0) {
+            showToast('❌ Digite uma quantidade válida', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            return;
+        }
+
+        if (!unitPrice || unitPrice <= 0) {
+            showToast('❌ Digite um preço unitário válido', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            return;
+        }
+
+        if (!date) {
+            showToast('❌ Selecione a data da operação', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            return;
+        }
+
+        const cleanTk = ticker.toUpperCase().trim();
+        if (typeof resolveAssetClass === 'function') {
+            assetClass = resolveAssetClass(cleanTk, assetClass);
+        } else if (KNOWN_STOCK_UNITS.has(cleanTk)) {
+            assetClass = 'Ações';
+        } else if (!assetClass || assetClass === '') {
+            assetClass = inferClass(cleanTk) || 'Ações';
+        }
+
+        const validClasses = ['Ações', 'FIIs', 'ETFs', 'Tesouro', 'BDRs'];
+        if (!validClasses.includes(assetClass)) {
+            assetClass = 'Ações';
+        }
+
+        const data = {
+            user_id: currentUser.id,
+            ticker: ticker,
+            type: type,
+            quantity: quantity,
+            unit_price: unitPrice,
+            total_value: totalValue,
+            date: date,
+            asset_class: assetClass,
+            note: note || null
+        };
+
+        let isOnline = navigator.onLine && window.supabaseClient && currentUser?.id;
+        if (isOnline) {
+            try {
+                if (editingTransactionId) {
+                    const { error } = await supabaseClient
+                        .from('investments')
+                        .update(data)
+                        .eq('id', editingTransactionId)
+                        .eq('user_id', currentUser.id);
+
+                    if (error) throw error;
+                    showToast(`✅ Operação atualizada com sucesso!`, 'success');
+                } else {
+                    const { error } = await supabaseClient
+                        .from('investments')
+                        .insert([data]);
+
+                    if (error) throw error;
+                    showToast(`✅ ${type} de ${ticker} registrada com sucesso!`, 'success');
+                }
+            } catch (netErr) {
+                console.warn('⚠️ Falha online ao salvar operação, enfileirando offline:', netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            if (editingTransactionId) {
+                allTransactions = allTransactions.map(t => String(t.id) === String(editingTransactionId) ? { ...t, ...data } : t);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('UPDATE_INVESTMENT', { id: editingTransactionId, ...data });
+                    await window.tonuSync.setCachedInvestments(currentUser.id, allTransactions);
+                }
+            } else {
+                const offlineId = 'offline_inv_' + Date.now();
+                const newOp = { id: offlineId, ...data, created_at: new Date().toISOString() };
+                allTransactions.push(newOp);
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_INVESTMENT', data);
+                    await window.tonuSync.setCachedInvestments(currentUser.id, allTransactions);
+                }
+            }
+            showToast(`📦 ${type} de ${ticker} salva offline! Será sincronizada quando a conexão retornar.`, 'info');
+        }
+
+        closeOperationModal();
+        await refreshDashboard();
+
+    } catch (error) {
+        console.error('❌ Erro ao salvar operação:', error);
+        showToast('❌ Erro ao salvar operação', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// ============================================
+// SALVAR PROVENTO
+// ============================================
+async function saveDividend(e) {
+    if (e) e.preventDefault();
+
+    const form = document.getElementById('dividendForm') || (e?.target?.tagName === 'FORM' ? e.target : e?.target?.closest('form'));
+    const btn = (form ? form.querySelector('button[type="submit"]') : null) || e?.target?.querySelector?.('button[type="submit"]') || document.querySelector('#dividendForm button[type="submit"]');
+    const originalText = btn ? btn.innerHTML : '<i class="fas fa-check"></i> Salvar Provento';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Salvando...';
+    }
+
+    try {
+        const ticker = document.getElementById('divTicker')?.value.toUpperCase().trim() || '';
+        const quantityStr = document.getElementById('divQuantity')?.value || '0';
+        const unitValueStr = document.getElementById('divUnitValue')?.value || '0';
+        const date = document.getElementById('divDate')?.value || '';
+        const type = document.getElementById('divType')?.value || 'Dividendo';
+        const note = document.getElementById('divNote')?.value || '';
+        const dateCom = document.getElementById('divDateCom')?.value || '';
+
+        const quantity = parseNumberInput(quantityStr);
+        const unitValue = parsePriceInput(unitValueStr);
+
+        if (!ticker) {
+            showToast('❌ Digite o ticker do ativo', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            return;
+        }
+
+        if (!quantity || quantity <= 0) {
+            showToast('❌ Digite uma quantidade válida', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            return;
+        }
+
+        if (!unitValue || unitValue <= 0) {
+            showToast('❌ Digite um valor por unidade válido', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            return;
+        }
+
+        if (!date) {
+            showToast('❌ Selecione a data do recebimento', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            return;
+        }
+
+        // Validação de consistência matemática: total_value = quantity * unit_value com margem de 0.01
+        const expectedTotal = parseFloat((quantity * unitValue).toFixed(2));
+        let totalValInput = parsePriceInput(document.getElementById('divTotalValue')?.value || '0');
+        if (totalValInput <= 0) {
+            totalValInput = expectedTotal;
+        }
+
+        if (Math.abs(totalValInput - expectedTotal) > 0.01) {
+            showToast(`❌ Inconsistência de valores: Total (R$ ${totalValInput.toFixed(2)}) não confere com Quantidade × Unitário (R$ ${expectedTotal.toFixed(2)})`, 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            return;
+        }
+
+        const totalValue = expectedTotal;
+        // Cálculo de valor líquido (JCP retém IR na fonte configurado em window.TONU_JCP_TAX_RATE; Dividendos e Rendimentos são isentos)
+        const isJCP = type && String(type).toUpperCase().includes('JCP');
+        const jcpTax = (typeof window !== 'undefined' && window.TONU_JCP_TAX_RATE !== undefined) ? window.TONU_JCP_TAX_RATE : (typeof globalThis !== 'undefined' ? globalThis.TONU_JCP_TAX_RATE : 0);
+        const netValue = isJCP ? parseFloat((totalValue * (1 - jcpTax)).toFixed(2)) : totalValue;
+
+        let finalNote = note ? note.trim() : '';
+        if (dateCom) {
+            finalNote = `[DataCom: ${dateCom}] ` + finalNote;
+        }
+
+        const editId = form ? form.dataset.editId : null;
+        const newId = editId || ('div-' + Date.now());
+        const data = {
+            id: newId,
+            user_id: currentUser ? currentUser.id : 'demo-user',
+            ticker: ticker,
+            quantity: quantity,
+            unit_value: unitValue,
+            total_value: totalValue,
+            net_value: netValue,
+            date: date,
+            date_com: dateCom || null,
+            type: type,
+            note: finalNote.trim() || null
+        };
+
+        if (editId && currentUser && currentUser.id && typeof supabaseClient !== 'undefined' && !String(editId).startsWith('demo-') && !String(editId).startsWith('div-')) {
+            try {
+                const updatePayload = {
+                    ticker: ticker,
+                    quantity: quantity,
+                    unit_value: unitValue,
+                    total_value: totalValue,
+                    net_value: netValue,
+                    date: date,
+                    date_com: dateCom || null,
+                    type: type,
+                    note: finalNote.trim() || null
+                };
+
+                let res = await supabaseClient
+                    .from('dividends')
+                    .update(updatePayload)
+                    .eq('id', editId)
+                    .eq('user_id', currentUser.id);
+
+                if (res.error && res.error.code === 'PGRST204') {
+                    delete updatePayload.net_value;
+                    delete updatePayload.date_com;
+                    await supabaseClient
+                        .from('dividends')
+                        .update(updatePayload)
+                        .eq('id', editId)
+                        .eq('user_id', currentUser.id);
+                }
+            } catch (err) {
+                console.warn('⚠️ Supabase update warning:', err);
+            }
+        } else if (!editId && currentUser && currentUser.id && typeof supabaseClient !== 'undefined') {
+            try {
+                const insertPayload = {
+                    user_id: currentUser.id,
+                    ticker: ticker,
+                    quantity: quantity,
+                    unit_value: unitValue,
+                    total_value: totalValue,
+                    net_value: netValue,
+                    date: date,
+                    date_com: dateCom || null,
+                    type: type,
+                    note: finalNote.trim() || null
+                };
+
+                let { data: dbData, error } = await supabaseClient
+                    .from('dividends')
+                    .insert([insertPayload])
+                    .select();
+
+                if (error && error.code === 'PGRST204') {
+                    delete insertPayload.net_value;
+                    delete insertPayload.date_com;
+                    const retry = await supabaseClient
+                        .from('dividends')
+                        .insert([insertPayload])
+                        .select();
+                    dbData = retry.data;
+                }
+
+                if (dbData && dbData[0]) {
+                    data.id = dbData[0].id;
+                }
+            } catch (dbErr) {
+                console.warn('⚠️ Supabase insert catch, fallback local:', dbErr);
+            }
+        }
+
+        // Salva e atualiza o cache canônico IndexedDB
+        allDividends = [data, ...allDividends.filter(d => String(d.id) !== String(data.id))];
+        if (window.tonuSync && currentUser?.id) {
+            if (!navigator.onLine) {
+                await window.tonuSync.enqueue(editId ? 'UPDATE_DIVIDEND' : 'INSERT_DIVIDEND', data);
+            }
+            await window.tonuSync.setCachedDividends(currentUser.id, allDividends);
+        }
+
+        showToast(editId ? `✅ Provento de ${ticker} atualizado!` : `✅ Provento de ${ticker} registrado com sucesso!`, 'success');
+        if (form) delete form.dataset.editId;
+        closeDividendModal();
+        await loadDividends();
+        updateSummary();
+        if (typeof window.checkNotifications === 'function') {
+            window.checkNotifications();
+        }
+
+        if (typeof window.sendRealtimePush === 'function') {
+            const valFormatted = typeof formatCurrency === 'function' ? formatCurrency(netValue || totalValue) : `R$ ${netValue || totalValue}`;
+            window.sendRealtimePush({
+                title: '💰 Provento Registrado!',
+                body: `${ticker}: ${type} no valor de ${valFormatted}`,
+                url: 'pages/investments.html',
+                tag: `dividend-realtime-${Date.now()}`
+            });
+        }
+
+    } catch (error) {
+        console.error('❌ Erro ao salvar provento:', error);
+        showToast('❌ Erro ao salvar provento', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+
+// ============================================
+// EXCLUIR TRANSAÇÃO
+// ============================================
+async function deleteTransaction(id) {
+    if (!confirm('Tem certeza que deseja excluir esta transação?')) return;
+
+    try {
+        let isOnline = navigator.onLine && window.supabaseClient && currentUser?.id;
+        if (isOnline) {
+            try {
+                const { error } = await supabaseClient
+                    .from('investments')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', currentUser.id);
+
+                if (error) throw error;
+                showToast('✅ Transação excluída com sucesso!', 'success');
+            } catch (netErr) {
+                console.warn('⚠️ Falha online ao excluir transação, enfileirando offline:', netErr);
+                isOnline = false;
+            }
+        }
+
+        if (!isOnline) {
+            allTransactions = allTransactions.filter(t => String(t.id) !== String(id));
+            if (window.tonuSync && currentUser?.id) {
+                await window.tonuSync.enqueue('DELETE_INVESTMENT', { id });
+                await window.tonuSync.setCachedInvestments(currentUser.id, allTransactions);
+            }
+            showToast('📦 Transação excluída offline! Sincronizará quando a conexão retornar.', 'info');
+        }
+
+        await refreshDashboard();
+
+    } catch (error) {
+        console.error('❌ Erro ao excluir transação:', error);
+        showToast('❌ Erro ao excluir transação', 'error');
+    }
+}
+
+// ============================================
+// EXCLUIR PROVENTO
+// ============================================
+async function deleteDividend(id) {
+    if (!confirm('Tem certeza que deseja excluir este provento?')) return;
+
+    try {
+        let isOnline = navigator.onLine && window.supabaseClient && currentUser && currentUser.id && !String(id).startsWith('demo-') && !String(id).startsWith('div-');
+        if (isOnline) {
+            try {
+                await supabaseClient
+                    .from('dividends')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', currentUser.id);
+            } catch (err) {
+                console.warn('⚠️ Supabase delete warning:', err);
+                isOnline = false;
+            }
+        }
+
+        allDividends = allDividends.filter(d => String(d.id) !== String(id));
+        if (window.tonuSync && currentUser?.id) {
+            if (!isOnline) {
+                await window.tonuSync.enqueue('DELETE_DIVIDEND', { id });
+            }
+            await window.tonuSync.setCachedDividends(currentUser.id, allDividends);
+        }
+
+        showToast('✅ Provento excluído com sucesso!', 'success');
+        await loadDividends();
+        updateSummary();
+
+    } catch (error) {
+        console.error('❌ Erro ao excluir provento:', error);
+        showToast('❌ Erro ao excluir provento', 'error');
+    }
+}
+
+// ============================================
+// EDITAR TRANSAÇÃO
+// ============================================
+async function editTransaction(id) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('investments')
+            .select('*')
+            .eq('id', id)
+            .eq('user_id', currentUser.id)
+            .single();
+
+        if (error) throw error;
+
+        editingTransactionId = id;
+
+        document.getElementById('opTicker').value = data.ticker;
+        document.getElementById('opType').value = data.type;
+        document.getElementById('opQuantity').value = data.quantity;
+        document.getElementById('opUnitPrice').value = data.unit_price;
+        document.getElementById('opDate').value = data.date;
+        const cleanTk = (data.ticker || '').toUpperCase().trim();
+        const resolvedCls = typeof resolveAssetClass === 'function' ? resolveAssetClass(cleanTk, data.asset_class) : (KNOWN_STOCK_UNITS.has(cleanTk) ? 'Ações' : (data.asset_class || inferClass(cleanTk) || 'Ações'));
+        document.getElementById('opClass').value = resolvedCls;
+        document.getElementById('opNote').value = data.note || '';
+
+        updateTotalValue();
+
+        const title = document.getElementById('operationModalTitle');
+        if (title) title.textContent = '✏️ Editar Operação';
+
+        const saveBtn = document.getElementById('saveOperationBtn');
+        if (saveBtn) saveBtn.textContent = '💾 Atualizar';
+
+        const modalHeader = document.querySelector('#operationModal .modal-header');
+        if (modalHeader) {
+            modalHeader.style.borderLeftColor = '#6C5CE7';
+            modalHeader.style.borderLeftWidth = '4px';
+        }
+
+        openModal('operationModal');
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar transação para edição:', error);
+        showToast('❌ Erro ao carregar transação', 'error');
+    }
+}
+
+// ============================================
+// BUILD POSITIONS
+// ============================================
+function buildPositions() {
+    const grouped = new Map();
+
+    // 1. Prepara transações de compra/venda
+    const normalizedTx = [...allTransactions]
+        .filter(tx => tx && tx.ticker)
+        .map(tx => ({
+            ...tx,
+            isCorporateEvent: false,
+            sortDate: tx.date || '1970-01-01',
+            sortPriority: (tx.type || '').toLowerCase().includes('compra') || (tx.type || '').toLowerCase().includes('buy') ? 1 : 2
+        }));
+
+    // 2. Prepara eventos corporativos (Desdobramento, Agrupamento, Bonificação, Amortização)
+    const normalizedEvents = (allCorporateEvents || [])
+        .filter(ev => ev && ev.ticker && (ev.event_date || ev.date))
+        .map(ev => ({
+            ...ev,
+            isCorporateEvent: true,
+            sortDate: ev.event_date || ev.date || '1970-01-01',
+            sortPriority: 0 // Eventos na Data Ex têm precedência no início do pregão
+        }));
+
+    // 3. Mescla e ordena rigorosamente por cronologia
+    const timeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
+        const da = new Date(a.sortDate + 'T12:00:00').getTime();
+        const db = new Date(b.sortDate + 'T12:00:00').getTime();
+        if (da !== db) return da - db;
+        if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+        return (a.created_at || '').localeCompare(b.created_at || '');
+    });
+
+    for (const item of timeline) {
+        const ticker = item.ticker?.toUpperCase().trim() || '';
+        if (!ticker) continue;
+
+        let rawCls = item.asset_class;
+        const cleanTk = ticker.replace(/\.SA$/, '').replace(/F$/, '');
+        if (cleanTk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(cleanTk) || KNOWN_STOCK_UNITS.has(ticker)) {
+            rawCls = 'Ações';
+        } else if (KNOWN_ETFS.has(cleanTk) || KNOWN_ETFS.has(ticker)) {
+            rawCls = 'ETFs';
+        }
+        const cls = normalizeClass(rawCls || inferClass(cleanTk) || 'Ações');
+
+        if (!grouped.has(ticker)) {
+            grouped.set(ticker, {
+                ticker: ticker,
+                assetClass: cls,
+                quantity: 0,
+                costBasis: 0,
+                averageCost: 0,
+                realizedGain: 0,
+                transactions: [],
+                corporateEvents: []
+            });
+        }
+
+        const pos = grouped.get(ticker);
+
+        // SE FOR EVENTO CORPORATIVO
+        if (item.isCorporateEvent) {
+            pos.corporateEvents.push(item);
+            const evType = (item.event_type || item.type || '').trim();
+
+            if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+                const ratioFrom = parseFloat(item.ratio_from) || 1;
+                const ratioTo = parseFloat(item.ratio_to) || 1;
+                if (ratioFrom > 0 && ratioTo > 0 && pos.quantity > 0) {
+                    const factor = ratioTo / ratioFrom;
+                    pos.quantity = pos.quantity * factor;
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+                const sharesReceived = parseFloat(item.bonus_shares || item.shares_received || 0);
+                const unitCost = parseFloat(item.bonus_unit_cost || item.unit_value || 0);
+                if (sharesReceived > 0) {
+                    pos.quantity += sharesReceived;
+                    pos.costBasis += (sharesReceived * unitCost);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            } else if (evType === 'Amortização') {
+                const amortPerShare = parseFloat(item.amortization_per_share || item.unit_value || 0);
+                if (amortPerShare > 0 && pos.quantity > 0) {
+                    const totalAmort = amortPerShare * pos.quantity;
+                    pos.costBasis = Math.max(0, pos.costBasis - totalAmort);
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                }
+            }
+            continue;
+        }
+
+        // SE FOR TRANSAÇÃO NORMAL (COMPRA / VENDA)
+        const qty = parseBrazilianNumber(item.quantity);
+        let unit = parseBrazilianNumber(item.unit_price);
+        let total = parseBrazilianNumber(item.total_value);
+
+        // Auto-reparação de dados inconsistentes
+        if (total <= 0 && qty > 0 && unit > 0) {
+            total = qty * unit;
+        } else if (unit <= 0 && qty > 0 && total > 0) {
+            unit = total / qty;
+        }
+
+        const typeLower = (item.type || '').toLowerCase();
+        const isBuy = typeLower === 'compra' || typeLower === 'buy';
+
+        item.asset_class = cls;
+        pos.transactions.push(item);
+
+        if (isBuy) {
+            pos.costBasis += total;
+            pos.quantity += qty;
+            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+        } else {
+            const sellQty = Math.min(qty, pos.quantity);
+            const avgCost = pos.averageCost || 0;
+            pos.realizedGain += (unit - avgCost) * sellQty;
+            pos.costBasis -= avgCost * sellQty;
+            pos.quantity -= sellQty;
+            if (pos.quantity <= 0.0000001) {
+                pos.quantity = 0;
+                pos.costBasis = 0;
+                pos.averageCost = 0;
+            } else {
+                pos.costBasis = Math.max(0, pos.costBasis);
+                pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+            }
+        }
+    }
+
+    positions = [...grouped.values()]
+        .filter(p => p.quantity > 0.0000001)
+        .map(p => ({
+            ...p,
+            costBasis: Math.max(0, Math.round(p.costBasis * 100) / 100),
+            averageCost: Math.round(p.averageCost * 100) / 100
+        }));
+
+    console.log('📊 Posições calculadas:', positions.length);
+}
+
+// ============================================
+// AUXILIARES DE RENDA FIXA & RENDIMENTOS
+// ============================================
+function isTesouroTicker(ticker) {
+    if (!ticker) return false;
+    const tk = ticker.toUpperCase().trim();
+    return /^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC|CDB|LCI|LCA|LC|RDB)/.test(tk);
+}
+
+function getMonthsBetween(d1, d2) {
+    let months = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+    return Math.max(0, months);
+}
+
+// ============================================
+// BUSCAR COTAÇÕES (BRAPI) COM CACHE RESILIENTE
+// ============================================
+async function fetchQuotes(customPositions) {
+    // Carrega cache local prévio para evitar tela zerada se houver instabilidade na API
+    try {
+        const rawCache = localStorage.getItem('tonu_quotes_cache');
+        if (rawCache) {
+            const parsed = JSON.parse(rawCache);
+            if (parsed && parsed.quotes) {
+                for (const [k, v] of Object.entries(parsed.quotes)) {
+                    if (!quotes.has(k)) {
+                        quotes.set(k, v);
+                    }
+                }
+            }
+        }
+    } catch (cacheErr) {
+        console.warn('⚠️ Erro ao carregar cache de cotações:', cacheErr);
+    }
+
+    const posList = (customPositions && Array.isArray(customPositions) && customPositions.length > 0)
+        ? customPositions
+        : (positions && positions.length > 0 ? positions : (typeof activePositions !== 'undefined' ? activePositions : []));
+
+    const tickers = posList.map(p => p.ticker);
+    if (!tickers.length) {
+        console.log('📊 Nenhum ativo para buscar cotações');
+        return quotes;
+    }
+
+    const validTickers = tickers
+        .filter(t => t && t.length >= 3 && /^[A-Z0-9]{3,}$/.test(t) && !isTesouroTicker(t))
+        .map(t => t.toUpperCase().trim());
+
+    if (validTickers.length === 0) {
+        console.log('ℹ️ Apenas ativos de renda fixa ou tickers especiais, usando valorização inteligente');
+        if (typeof updateQuoteStatus === 'function') updateQuoteStatus();
+        return quotes;
+    }
+
+    const unique = [...new Set(validTickers)];
+    console.log('📊 Buscando cotações para:', unique.join(', '));
+
+    const activeToken = window.__TONU_CONFIG__?.brapiToken || window.APP_CONFIG?.BRAPI_TOKEN || BRAPI_TOKEN || '';
+
+    try {
+        // 1. Prioridade: Buscar cotações diretamente na tabela asset_quotes do Supabase
+        const client = window.supabaseClient || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+        if (client) {
+            try {
+                const { data: dbQuotes, error: dbErr } = await client
+                    .from('asset_quotes')
+                    .select('ticker, price, change, change_value, previous_close, updated_at')
+                    .in('ticker', unique);
+
+                if (!dbErr && Array.isArray(dbQuotes) && dbQuotes.length > 0) {
+                    console.log(`✅ ${dbQuotes.length} cotações carregadas diretamente do Supabase (asset_quotes)`);
+                    for (const q of dbQuotes) {
+                        const rawTk = q.ticker?.toUpperCase().trim();
+                        if (!rawTk || !Number.isFinite(Number(q.price)) || Number(q.price) <= 0) continue;
+
+                        const cleanTk = rawTk.replace(/\.SA$/, '');
+                        const quoteData = {
+                            price: Number(q.price),
+                            changePct: Number(q.change || 0),
+                            previousClose: Number(q.previous_close || q.price || 0),
+                            marketTime: q.updated_at || new Date().toISOString(),
+                            simulated: false,
+                            source: 'Supabase'
+                        };
+
+                        quotes.set(rawTk, quoteData);
+                        quotes.set(cleanTk, quoteData);
+                        quotes.set(`${cleanTk}.SA`, quoteData);
+                        isUsingRealQuotes = true;
+                    }
+                }
+            } catch (dbEx) {
+                console.warn('⚠️ Consulta a asset_quotes no Supabase:', dbEx);
+            }
+        }
+
+        const remainingTickers = unique.filter(t => !quotes.has(t) && !quotes.has(t.replace(/\.SA$/, '')));
+        if (remainingTickers.length === 0) {
+            console.log('✅ Todos os ativos carregados com sucesso do Supabase!');
+            try {
+                const cacheObj = {};
+                for (const [k, v] of quotes.entries()) cacheObj[k] = v;
+                localStorage.setItem('tonu_quotes_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    quotes: cacheObj
+                }));
+            } catch (saveErr) {}
+            updateQuoteStatus();
+            return quotes;
+        }
+
+        let allResults = [];
+        let hasError = false;
+
+        const batchSize = 10;
+        for (let i = 0; i < remainingTickers.length; i += batchSize) {
+            const batch = remainingTickers.slice(i, i + batchSize);
+            const tickersParam = batch.map(t => encodeURIComponent(t.trim())).join(',');
+            const url = `https://brapi.dev/api/quote/${tickersParam}`;
+
+            const finalUrl = activeToken ? `${url}?token=${encodeURIComponent(activeToken)}` : url;
+
+            console.log(`📡 Buscando lote ${i / batchSize + 1}:`, batch.join(','));
+
+            const response = await fetch(finalUrl, {
+                headers: {
+                    'Accept': 'application/json',
+                    'User-Agent': 'TonuControle/1.0'
+                },
+                cache: 'no-store'
+            });
+
+            if (!response.ok) {
+                console.warn(`⚠️ Erro na BRAPI (lote ${i / batchSize + 1}): ${response.status}`);
+                hasError = true;
+                continue;
+            }
+
+            const data = await response.json();
+            if (data.results && Array.isArray(data.results)) {
+                allResults = allResults.concat(data.results);
+            }
+        }
+
+        if (hasError || allResults.length === 0) {
+            console.log('🔄 Buscando tickers individualmente...');
+
+            for (const ticker of unique) {
+                try {
+                    const url = `https://brapi.dev/api/quote/${ticker}`;
+                    const finalUrl = activeToken ? `${url}?token=${encodeURIComponent(activeToken)}` : url;
+
+                    const response = await fetch(finalUrl, {
+                        headers: { 'Accept': 'application/json' },
+                        cache: 'no-store'
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.results && data.results.length > 0) {
+                            allResults = allResults.concat(data.results);
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`⚠️ Não foi possível buscar ${ticker}`);
+                }
+            }
+        }
+
+        if (allResults.length > 0) {
+            isUsingRealQuotes = true;
+            let foundCount = 0;
+
+            for (const q of allResults) {
+                const rawTk = q.symbol?.toUpperCase().trim();
+                if (!rawTk || !Number.isFinite(Number(q.regularMarketPric

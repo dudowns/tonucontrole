@@ -4,33 +4,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#6C5CE7">
+    <meta name="theme-color" content="#4338CA">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TonuControle">
 
-    <link rel="manifest" href="../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png">
+    <link rel="manifest" href="../manifest.json?v=3.2.3">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.3">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.3">
+    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png?v=3.2.3">
+    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png?v=3.2.3">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.3">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.3">
 
     <title>Contas a Pagar e Vencimentos | TonuControle</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/sidebar-patch.css">
-    <link rel="stylesheet" href="../css/bills.css">
-    <link rel="stylesheet" href="../css/notifications.css">
-    <link rel="stylesheet" href="../css/sync.css">
-    <link rel="stylesheet" href="../css/sync-status.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.37">
+    <link rel="stylesheet" href="../css/sidebar-patch.css?v=3.2.37">
+    <link rel="stylesheet" href="../css/bills.css?v=3.2.37">
+    <link rel="stylesheet" href="../css/notifications.css?v=3.2.37">
+    <link rel="stylesheet" href="../css/sync.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/sync-status.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.37">
+    <link rel="stylesheet" href="../css/post-login-transition.css?v=3.2.9">
 
     <!-- Device Router & Anti-flicker Theme Init -->
     <script src="../js/device-router.js"></script>
@@ -52,7 +54,7 @@
 
         <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
             <div class="sidebar-brand">
-                <div class="brand-icon"><img src="../icons/logo.png" alt="TonuControle"></div>
+                <div class="brand-icon"><img src="../icons/logo.png?v=3.2.1" alt="TonuControle"></div>
                 <h2>TonuControle</h2>
             </div>
             <ul class="sidebar-nav" role="menubar">
@@ -63,6 +65,14 @@
                 <li role="none"><a href="investments.html" role="menuitem"><i class="fas fa-chart-line"></i> Investimentos</a></li>
                 <li role="none"><a href="settings.html" role="menuitem"><i class="fas fa-cog"></i> Configurações</a></li>
             </ul>
+            <div class="sidebar-ambient" aria-hidden="true">
+                <svg width="46" height="46" viewBox="0 0 24 24" fill="none">
+                    <rect x="4" y="13" width="3.5" height="7" rx="1.2" fill="#2563EB"/>
+                    <rect x="10.2" y="9.5" width="3.5" height="10.5" rx="1.2" fill="#3B82F6"/>
+                    <rect x="16.4" y="6" width="3.5" height="14" rx="1.2" fill="#4338CA"/>
+                    <path d="M4 9.5 11.5 5l5 2.5L20.5 3.5" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
             <div class="sidebar-footer">
                 <a href="settings.html" class="sidebar-user-profile" id="sidebarUserProfile"
                     title="Abrir Configurações e Perfil">
@@ -111,21 +121,23 @@
 
             <div class="content" style="padding:20px;">
                 <!-- SELETOR DE MÊS -->
-                <div class="month-selector">
-                    <button class="month-nav" onclick="changeMonth(-1)" title="Mês anterior">
-                        <i class="fas fa-chevron-left"></i>
+                <div class="month-selector" role="group" aria-label="Selecionar mês">
+                    <button type="button" class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior" title="Mês anterior">
+                        <i class="fas fa-chevron-left" aria-hidden="true"></i>
                     </button>
-                    <span class="month-label" id="currentMonthLabel">Carregando...</span>
-                    <button class="month-nav" onclick="changeMonth(1)" title="Próximo mês">
-                        <i class="fas fa-chevron-right"></i>
+                    <div class="month-label-wrap">
+                        <i class="far fa-calendar-alt month-label-icon" aria-hidden="true"></i>
+                        <span class="month-label" id="currentMonthLabel">Carregando...</span>
+                    </div>
+                    <button type="button" class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês" title="Próximo mês">
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
                     </button>
-                    <button class="btn-today" onclick="goToCurrentMonth()">Mês Atual</button>
                 </div>
 
                 <!-- CARDS DE RESUMO (4 COLUNAS) -->
                 <div class="bills-grid">
                     <div class="card-stat">
-                        <div class="stat-icon" style="background:#e0e7ff; color:#4f46e5;">
+                        <div class="stat-icon" style="background:#DBEAFE; color:#2563EB;">
                             <i class="fas fa-file-invoice"></i>
                         </div>
                         <div class="stat-info">
@@ -175,8 +187,8 @@
                         <span><i class="fas fa-tasks" style="color:var(--color-primary);margin-right:6px;"></i> Progresso de Pagamentos</span>
                         <span class="pct" id="billsProgressPct">0%</span>
                     </div>
-                    <div class="progress" style="background:var(--color-bg,#e2e8f0); border-radius:999px; overflow:hidden; height:10px;">
-                        <div class="progress-bar" id="billsProgressBar" style="width: 0%; height:100%; background:linear-gradient(90deg, #6C5CE7, #00B894); border-radius:999px; transition: width 0.4s ease;"></div>
+                    <div class="progress" style="background:var(--bg-subtle,#EFF6FF); border-radius:999px; overflow:hidden; height:10px;">
+                        <div class="progress-bar" id="billsProgressBar" style="width: 0%; height:100%; background:linear-gradient(90deg, #2563EB, #10B981); border-radius:999px; transition: width 0.4s ease;"></div>
                     </div>
                 </div>
 
@@ -204,9 +216,9 @@
                 </div>
 
                 <!-- BANNER INFORMATIVO DE COMPRAS/CONTAS PARCELADAS -->
-                <div id="billsInstallmentBanner" style="display:none; margin-bottom:var(--space-md); padding:10px 14px; background:linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(168,85,247,0.08) 100%); border:1px solid rgba(99,102,241,0.25); border-radius:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                <div id="billsInstallmentBanner" style="display:none; margin-bottom:var(--space-md); padding:10px 14px; background:linear-gradient(135deg, rgba(37,99,235,0.08) 0%, rgba(59,130,246,0.10) 100%); border:1px solid rgba(37,99,235,0.24); border-radius:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <div style="width:36px; height:36px; border-radius:8px; background:var(--color-primary, #6c5ce7); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">
+                        <div style="width:36px; height:36px; border-radius:8px; background:var(--gradient-primary, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%)); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">
                             <i class="fas fa-layer-group"></i>
                         </div>
                         <div>
@@ -224,32 +236,30 @@
                 </div>
 
                 <!-- LISTA DE CONTAS -->
-                <div class="card" style="background:var(--color-surface,#fff); border-radius:12px; border:1px solid var(--color-border,#e2e8f0); overflow:hidden; box-shadow:var(--shadow-sm);">
-                    <div style="padding:14px 18px; border-bottom:1px solid var(--color-border,#e2e8f0); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                            <h3 style="font-size:15px; font-weight:700; margin:0; display:flex; align-items:center; gap:8px;">
-                                <i class="fas fa-list" style="color:var(--color-primary);"></i> Contas do Período
-                            </h3>
-                            <div class="status-tab-group" style="display:inline-flex; gap:4px; background:var(--color-bg,#f1f5f9); padding:3px; border-radius:8px; border:1px solid var(--color-border,#e2e8f0);">
-                                <button type="button" class="tab-status-btn active" id="tabStatusPending" data-status="pending" onclick="setStatusTab('pending')" style="border:none; background:var(--color-surface,#fff); color:var(--color-primary,#6c5ce7); font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.08); transition:all 0.2s;">Pendentes</button>
-                                <button type="button" class="tab-status-btn" id="tabStatusPaid" data-status="paid" onclick="setStatusTab('paid')" style="border:none; background:transparent; font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px; cursor:pointer; color:var(--color-text-muted,#64748b); transition:all 0.2s;">Pagas ✅</button>
-                                <button type="button" class="tab-status-btn" id="tabStatusAll" data-status="all" onclick="setStatusTab('all')" style="border:none; background:transparent; font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px; cursor:pointer; color:var(--color-text-muted,#64748b); transition:all 0.2s;">Todas</button>
-                            </div>
+                <div class="bills-list-toolbar">
+                    <div class="bills-list-toolbar-left">
+                        <h3>
+                            <i class="fas fa-list" style="color:var(--color-primary);"></i> Contas do Período
+                        </h3>
+                        <div class="status-tab-group">
+                            <button type="button" class="tab-status-btn active" id="tabStatusPending" data-status="pending" onclick="setStatusTab('pending')">Pendentes</button>
+                            <button type="button" class="tab-status-btn" id="tabStatusPaid" data-status="paid" onclick="setStatusTab('paid')">Pagas ✅</button>
+                            <button type="button" class="tab-status-btn" id="tabStatusAll" data-status="all" onclick="setStatusTab('all')">Todas</button>
                         </div>
-                        <span id="billsCountBadge" style="font-size:12px; color:var(--color-text-muted,#94a3b8);">0 registros</span>
                     </div>
-                    <div id="billsContainer" style="min-height:220px;">
-                        <div style="text-align:center;padding:40px;"><span class="spinner"></span></div>
-                    </div>
+                    <span id="billsCountBadge" style="font-size:12px; color:var(--color-text-muted,#94a3b8);">0 registros</span>
+                </div>
+                <div class="bills-statement-container" id="billsContainer" style="min-height:220px;">
+                    <div class="card" style="padding:40px; text-align:center;"><span class="spinner"></span></div>
                 </div>
             </div>
 
             <!-- RODAPÉ FIXO DE SOMA VISUAL (ITEM 9) -->
             <div id="billsSelectionFooter" class="bills-selection-footer" style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:1050; background:var(--color-surface,#ffffff); border:1px solid var(--color-border,#e2e8f0); box-shadow:0 10px 30px rgba(0,0,0,0.18); border-radius:999px; padding:10px 22px; align-items:center; gap:18px;">
                 <div style="display:flex; align-items:center; gap:8px; font-size:14px;">
-                    <span id="selectedBillsCountText" style="font-weight:600; color:var(--color-primary,#6c5ce7);">0 selecionada(s)</span>
+                    <span id="selectedBillsCountText" style="font-weight:600; color:var(--color-primary,#4338CA);">0 selecionada(s)</span>
                     <span style="color:var(--color-text-muted,#94a3b8);">·</span>
-                    <span style="color:var(--color-text,#2d3436);">Total: <strong id="selectedBillsTotalText" style="color:var(--color-primary,#6c5ce7); font-size:16px;">R$ 0,00</strong></span>
+                    <span style="color:var(--color-text,#2d3436);">Total: <strong id="selectedBillsTotalText" style="color:var(--color-primary,#4338CA); font-size:16px;">R$ 0,00</strong></span>
                 </div>
                 <button type="button" class="btn btn-outline btn-sm" onclick="cancelBillSelection()" style="border-radius:999px; padding:4px 12px; font-size:12px; font-weight:600;">
                     <i class="fas fa-times"></i> Cancelar
@@ -302,7 +312,7 @@
 
                     <!-- DETALHES DE PARCELAMENTO (Condicional) -->
                     <div id="billInstallmentFields" style="display:none; padding:10px 12px; background:var(--color-bg, #f8fafc); border:1px solid var(--color-border, #e2e8f0); border-radius:8px; margin-bottom:9px;">
-                        <div style="font-size:11.5px; font-weight:700; color:var(--color-primary, #6c5ce7); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                        <div style="font-size:11.5px; font-weight:700; color:var(--color-primary, #4338CA); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
                             <i class="fas fa-layer-group"></i> Detalhes do Pagamento Parcelado
                         </div>
                         <div class="form-row">
@@ -328,7 +338,7 @@
                                 </label>
                             </div>
                         </div>
-                        <div id="billInstallmentSummaryBox" style="font-size:11px; padding:6px 10px; border-radius:6px; background:#e0e7ff; color:#3730a3; margin-bottom:6px;">
+                        <div id="billInstallmentSummaryBox" style="font-size:11px; padding:6px 10px; border-radius:6px; background:#DBEAFE; color:#1E3A8A; margin-bottom:6px;">
                             <div style="font-weight:700;" id="billInstallmentRemainingText">Faltam 1 parcelas</div>
                             <div style="font-size:10px; opacity:0.9;" id="billInstallmentTotalRemainingText">Restam R$ 0,00 a pagar</div>
                         </div>
@@ -375,14 +385,14 @@
 
     <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="../js/supabase.js"></script>
-    <script src="../js/core.js"></script>
-    <script src="../js/security.js"></script>
-    <script src="../js/financial-tools.js"></script>
-    <script src="../js/sync.js"></script>
-    <script src="../js/notifications.js"></script>
-    <script src="../js/bills.js"></script>
-    <script src="../js/sw-register.js"></script>
+    <script src="../js/supabase.js?v=3.2.3"></script>
+    <script src="../js/core.js?v=3.2.9"></script>
+    <script src="../js/security.js?v=3.2.3"></script>
+    <script src="../js/financial-tools.js?v=3.2.3"></script>
+    <script src="../js/sync.js?v=3.2.3"></script>
+    <script src="../js/notifications.js?v=3.2.3"></script>
+    <script src="../js/bills.js?v=3.2.3"></script>
+    <script src="../js/sw-register.js?v=3.2.3"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {

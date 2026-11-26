@@ -4,22 +4,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#6C5CE7">
+    <meta name="theme-color" content="#4338CA">
     <title>Primeiros Passos | TonuControle</title>
 
-    <link rel="manifest" href="../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png">
-    <link rel="shortcut icon" href="../icons/icon-128x128.png">
+    <link rel="manifest" href="../manifest.json?v=3.2.1">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.1">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.1">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.1">
 
     <!-- Fontes e Ícones -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- CSS -->
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/dark-theme.css">
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.1">
 
     <!-- Theme Init -->
     <script>
@@ -34,9 +36,9 @@
 
     <style>
         body {
-            background: var(--color-bg, #f6f7fb);
-            color: var(--color-text, #2d3436);
-            font-family: 'Inter', sans-serif;
+            background: var(--bg-app, #F4F7FC);
+            color: var(--text-primary, #172554);
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
@@ -48,13 +50,13 @@
         }
 
         .onboarding-card {
-            background: var(--color-surface, #ffffff);
-            border: 1px solid var(--color-border, #e8ecf1);
+            background: var(--bg-surface, #ffffff);
+            border: 1px solid var(--border-hairline, #DBEAFE);
             border-radius: 20px;
             max-width: 560px;
             width: 100%;
             padding: 36px 32px;
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.06);
+            box-shadow: var(--shadow-lg, 0 16px 40px rgba(23, 37, 84, 0.08));
             box-sizing: border-box;
             position: relative;
             overflow: hidden;
@@ -67,7 +69,7 @@
             left: 0;
             right: 0;
             height: 5px;
-            background: linear-gradient(90deg, #6C5CE7, #00B894, #0984E3);
+            background: linear-gradient(90deg, #3730A3, #2563EB, #10B981);
         }
 
         .onboarding-header {
@@ -76,34 +78,36 @@
         }
 
         .onboarding-logo {
-            width: 54px;
-            height: 54px;
+            width: 58px;
+            height: 58px;
             margin: 0 auto 16px;
             display: block;
+            border-radius: 14px;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.24);
         }
 
         .onboarding-title {
             font-size: 24px;
             font-weight: 800;
-            color: var(--color-text, #2d3436);
+            color: var(--text-primary, #172554);
             margin: 0 0 8px 0;
             letter-spacing: -0.02em;
         }
 
         .onboarding-subtitle {
             font-size: 14px;
-            color: var(--color-text-muted, #64748b);
+            color: var(--text-secondary, #64748b);
             margin: 0;
             line-height: 1.5;
         }
 
         /* Barra de Progresso */
         .progress-box {
-            background: var(--color-bg, #f6f7fb);
+            background: var(--bg-subtle, #EFF6FF);
             border-radius: 12px;
             padding: 14px 16px;
             margin-bottom: 24px;
-            border: 1px solid var(--color-border-light, #edf2f7);
+            border: 1px solid var(--border-hairline, #DBEAFE);
         }
 
         .progress-labels {
@@ -113,12 +117,12 @@
             font-size: 12px;
             font-weight: 700;
             margin-bottom: 8px;
-            color: var(--color-text-light, #636e72);
+            color: var(--text-secondary, #475569);
         }
 
         .progress-track {
             height: 8px;
-            background: var(--color-border, #e2e8f0);
+            background: var(--border-hairline, #DBEAFE);
             border-radius: 999px;
             overflow: hidden;
             position: relative;
@@ -126,7 +130,7 @@
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #6C5CE7, #00B894);
+            background: linear-gradient(90deg, #3730A3, #2563EB, #10B981);
             border-radius: 999px;
             width: 0%;
             transition: width 0.4s ease;
@@ -146,22 +150,22 @@
             justify-content: space-between;
             padding: 16px;
             border-radius: 14px;
-            border: 1px solid var(--color-border, #e8ecf1);
-            background: var(--color-surface, #ffffff);
+            border: 1px solid var(--border-hairline, #DBEAFE);
+            background: var(--bg-surface, #ffffff);
             transition: all 0.2s ease;
             text-decoration: none;
             color: inherit;
         }
 
         .step-item:hover {
-            border-color: #6C5CE7;
+            border-color: #2563EB;
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(108, 92, 231, 0.08);
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.12);
         }
 
         .step-item.completed {
-            border-color: #00B894;
-            background: rgba(0, 184, 148, 0.04);
+            border-color: #10B981;
+            background: rgba(16, 185, 129, 0.05);
         }
 
         .step-left {
@@ -180,13 +184,13 @@
             font-size: 16px;
             font-weight: 700;
             flex-shrink: 0;
-            background: rgba(108, 92, 231, 0.1);
-            color: #6C5CE7;
+            background: rgba(37, 99, 235, 0.10);
+            color: #2563EB;
             transition: all 0.2s ease;
         }
 
         .step-item.completed .step-badge {
-            background: #00B894;
+            background: #10B981;
             color: #ffffff;
         }
 
@@ -194,23 +198,23 @@
             margin: 0 0 3px 0;
             font-size: 14px;
             font-weight: 700;
-            color: var(--color-text, #2d3436);
+            color: var(--text-primary, #172554);
         }
 
         .step-info p {
             margin: 0;
             font-size: 12px;
-            color: var(--color-text-muted, #64748b);
+            color: var(--text-secondary, #64748b);
         }
 
         .step-action-arrow {
-            color: var(--color-text-muted, #94a3b8);
+            color: var(--text-muted, #94a3b8);
             font-size: 14px;
             transition: transform 0.2s;
         }
 
         .step-item:hover .step-action-arrow {
-            color: #6C5CE7;
+            color: #2563EB;
             transform: translateX(3px);
         }
 
@@ -220,14 +224,14 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            border-top: 1px solid var(--color-border-light, #f1f2f6);
+            border-top: 1px solid var(--border-hairline, #DBEAFE);
             padding-top: 20px;
         }
 
         .btn-skip {
             background: none;
             border: none;
-            color: var(--color-text-muted, #64748b);
+            color: var(--text-secondary, #64748b);
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
@@ -237,12 +241,12 @@
         }
 
         .btn-skip:hover {
-            color: var(--color-text, #2d3436);
-            background: var(--color-bg, #f6f7fb);
+            color: var(--text-primary, #172554);
+            background: var(--bg-subtle, #EFF6FF);
         }
 
         .btn-finish {
-            background: #6C5CE7;
+            background: var(--gradient-primary, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%));
             color: #ffffff;
             border: none;
             padding: 10px 20px;
@@ -255,12 +259,13 @@
             gap: 8px;
             transition: all 0.2s;
             text-decoration: none;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
         }
 
         .btn-finish:hover {
-            background: #5848c7;
+            filter: brightness(1.06);
             transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(108, 92, 231, 0.3);
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.36);
         }
     </style>
 </head>
@@ -269,7 +274,7 @@
 
     <div class="onboarding-card">
         <div class="onboarding-header">
-            <img src="../icons/logo.png" alt="TonuControle" class="onboarding-logo">
+            <img src="../icons/logo.png?v=3.2.1" alt="TonuControle" class="onboarding-logo">
             <h1 class="onboarding-title">Boas-vindas ao TonuControle! 🚀</h1>
             <p class="onboarding-subtitle">Vamos configurar seu controle financeiro inteligente em apenas 3 passos:</p>
         </div>

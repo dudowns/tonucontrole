@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
+
+    <meta name="theme-color" content="#4338CA">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TonuControle">
+
+    <link rel="manifest" href="../manifest.json?v=3.2.3">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.3">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.3">
+    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png?v=3.2.3">
+    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png?v=3.2.3">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.3">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.3">
+
+    <title>Transações | TonuControle</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/sidebar-patch.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/transactions.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/notifications.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/sync.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/sync-status.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/post-login-transition.css?v=3.2.9">
+
+    <!-- Device Router & Anti-flicker Theme Init -->
+    <script src="../js/device-router.js"></script>
+    <script>
+        (function () {
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
+
+    <style>
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+
+            .spinner {
+                animation: none !important;
+            }
+
+            .card-stat:hover {
+                transform: none !important;
+            }
+
+            .transaction-card:hover {
+                transform: none !important;
+            }
+        }
+
+        *:focus-visible {
+            outline: 3px solid #4F46E5 !important;
+            outline-offset: 2px !important;
+        }
+
+        .skip-link {
+            position: absolute;
+            top: -100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: #4338CA;
+            color: #fff;
+            border-radius: 8px;
+            z-index: 999999;
+            font-weight: 600;
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .skip-link:focus {
+            top: 16px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
+
+    <div class="app-shell">
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button"
+            aria-label="Fechar menu"></div>
+
+        <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
+            <div class="sidebar-brand">
+                <div class="brand-icon"><img src="../icons/logo.png?v=3.2.1" alt="TonuControle"></div>
+                <h2>TonuControle</h2>
+            </div>
+            <ul class="sidebar-nav" role="menubar">
+                <li role="none"><a href="dashboard.html" role="menuitem"><i class="fas fa-chart-pie"
+                            aria-hidden="true"></i> Dashboard</a></li>
+                <li role="none"><a href="transactions.html" class="active" role="menuitem" aria-current="page"><i
+                            class="fas fa-exchange-alt" aria-hidden="true"></i> Transações</a></li>
+                <li role="none"><a href="bills.html" role="menuitem"><i class="fas fa-file-invoice-dollar"
+                            aria-hidden="true"></i> Contas</a></li>
+                <li role="none"><a href="goals.html" role="menuitem"><i class="fas fa-bullseye" aria-hidden="true"></i>
+                        Metas</a></li>
+                <li role="none"><a href="investments.html" role="menuitem"><i class="fas fa-chart-line"
+                            aria-hidden="true"></i> Investimentos</a></li>
+                <li role="none"><a href="settings.html" role="menuitem"><i class="fas fa-cog" aria-hidden="true"></i>
+                        Configurações</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="settings.html" class="sidebar-user-profile" id="sidebarUserProfile"
+                    title="Abrir Configurações e Perfil">
+                    <div class="avatar-circle" id="sidebarUserAvatar">U</div>
+                    <div class="sidebar-user-info">
+                        <span class="sidebar-user-name" id="sidebarUserName">Usuário</span>
+                        <span class="sidebar-user-email" id="sidebarUserEmail">Configurações</span>
+                        <div class="sidebar-user-status" id="sidebarUserStatus">
+                            <span class="status-dot"></span>
+                            <span>Ativo</span>
+                        </div>
+                    </div>
+                    <i class="fas fa-cog sidebar-user-icon" aria-hidden="true"></i>
+                </a>
+                <button class="btn-sair" onclick="logout()" aria-label="Sair da conta">
+                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content full" id="mainContent" id="main-content">
+            <header class="topbar" role="banner">
+                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu" aria-expanded="false">
+                    <i class="fas fa-bars" aria-hidden="true"></i>
+                </button>
+                <div class="topbar-title">
+                    <div class="sub">Histórico</div>
+                    <h1>Transações</h1>
+                </div>
+                <div class="topbar-actions">
+                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro"
+                        aria-label="Alternar tema">
+                        <i class="fas fa-moon" aria-hidden="true"></i>
+                    </button>
+                    <button id="notifBellBtn" class="notif-bell-btn" type="button"
+                        onclick="window.toggleNotificationDropdown(event)" title="Lembretes e Notificações de Contas"
+                        aria-label="Notificações">
+                        <i class="fas fa-bell" aria-hidden="true"></i>
+                        <span class="notif-badge hidden" id="notifBadgeCount">0</span>
+                    </button>
+                    <button class="btn btn-outline"
+                        onclick="window.TonuBankImporterInstance.selectAndImportFile(loadTransactions)"
+                        title="Importar arquivo CSV ou OFX de extrato bancário" aria-label="Importar extrato bancário">
+                        <i class="fas fa-file-import" aria-hidden="true"></i> Importar Extrato
+                    </button>
+                    <button class="btn btn-outline"
+                        onclick="window.exportTransactionsCSV && window.exportTransactionsCSV()"
+                        title="Exportar transações filtradas para CSV" aria-label="Exportar transações para CSV">
+                        <i class="fas fa-file-export" aria-hidden="true"></i> Exportar CSV
+                    </button>
+                    <button class="btn btn-primary" onclick="openModal()" aria-label="Nova transação">
+                        <i class="fas fa-plus" aria-hidden="true"></i> Nova
+                    </button>
+                </div>
+            </header>
+
+            <div class="content" id="main-content">
+                <!-- ==========================================
+                CONTEÚDO - MANTIDO IGUAL
+                ========================================== -->
+                <div class="transactions-grid">
+                    <div class="card-stat success">
+                        <div class="stat-icon success"><i class="fas fa-arrow-up" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Receitas</div>
+                            <div class="stat-value" id="totalIncome">R$ 0,00</div>
+                        </div>
+                    </div>
+                    <div class="card-stat danger">
+                        <div class="stat-icon danger"><i class="fas fa-arrow-down" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Despesas</div>
+                            <div class="stat-value" id="totalExpense">R$ 0,00</div>
+                        </div>
+                    </div>
+                    <div class="card-stat primary">
+                        <div class="stat-icon primary"><i class="fas fa-wallet" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Saldo</div>
+                            <div class="stat-value" id="totalBalance">R$ 0,00</div>
+                        </div>
+                    </div>
+                    <div class="card-stat info">
+                        <div class="stat-icon info"><i class="fas fa-receipt" aria-hidden="true"></i></div>
+                        <div class="stat-info">
+                            <div class="stat-label">Total</div>
+                            <div class="stat-value" id="totalCount">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="month-selector-container">
+                    <div class="month-selector">
+                        <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior">
+                            <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                        </button>
+                        <span class="month-label" id="selectedMonth">Agosto 2026</span>
+                        <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês">
+                            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                        </button>
+                        <button class="btn-today" onclick="goToCurrentMonth()">Hoje</button>
+                    </div>
+                </div>
+
+                <div class="filters-bar" style="flex-wrap: wrap;">
+                    <div class="search-box" style="min-width: 220px; flex: 1;">
+                        <i class="fas fa-search" aria-hidden="true"></i>
+                        <input type="text" id="searchInput" class="form-control"
+                            placeholder="Buscar por descrição ou #tag..." oninput="window._debouncedFilterTransactions ? window._debouncedFilterTransactions() : filterTransactions()"
+                            aria-label="Buscar transações">
+                    </div>
+                    <select id="filterStatus" class="form-control" onchange="filterTransactions()" style="width: auto; font-weight: 600;"
+                        aria-label="Filtrar por status de pagamento">
+                        <option value="paid" selected>✅ Apenas Pagas</option>
+                        <option value="all">📋 Todas as transações</option>
+                        <option value="pending">⏳ Apenas Pendentes</option>
+                    </select>
+                    <select id="filterType" class="form-control" onchange="filterTransactions()" style="width: auto;"
+                        aria-label="Filtrar por tipo">
+                        <option value="all">Todos os tipos</option>
+                        <option value="income">Receitas</option>
+                        <option value="expense">Despesas</option>
+                        <option value="anticipation">⚡ Antecipações</option>
+                    </select>
+                    <select id="filterRecurrence" class="form-control" onchange="filterTransactions()" style="width: auto;"
+                        aria-label="Filtrar por forma de pagamento">
+                        <option value="all">Todas as formas</option>
+                        <option value="installments">📦 Parceladas (Faltam parcelas)</option>
+                        <option value="recurring">🔁 Recorrentes (Mensal / Semestral)</option>
+                        <option value="single">⚡ Pagamento Único</option>
+                        <option value="anticipation">⚡ Antecipações</option>
+                    </select>
+                    <select id="filterCategory" class="form-control" onchange="filterTransactions()"
+                        style="width: auto;" aria-label="Filtrar por categoria">
+                        <option value="all">Todas categorias</option>
+                    </select>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="toggleAdvancedFilters()"
+                        id="btnToggleAdvFilters" title="Filtros avançados" aria-label="Alternar filtros avançados">
+                        <i class="fas fa-sliders-h" aria-hidden="true"></i> Avançado
+                    </button>
+                </div>
+
+                <div id="advancedFiltersPanel" class="card hidden"
+                    style="margin-bottom: var(--space-md); padding: 14px 18px; background: var(--color-surface); border: 1px solid var(--color-border);">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <strong style="font-size: 13px;"><i class="fas fa-filter" aria-hidden="true"></i> Filtro
+                            Avançado</strong>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="clearAdvancedFilters()"
+                            style="font-size: 12px; color: var(--color-danger);">Limpar Filtros</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+                        <div>
+                            <label style="font-size: 11px; color: var(--color-text-muted);">De:</label>
+                            <input type="date" id="filterDateStart" class="form-control"
+                                onchange="filterTransactions()">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: var(--color-text-muted);">Até:</label>
+                            <input type="date" id="filterDateEnd" class="form-control" onchange="filterTransactions()">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: var(--color-text-muted);">Valor Mín (R$):</label>
+                            <input type="number" id="filterMinAmount" class="form-control" placeholder="0,00"
+                                step="0.01" oninput="window._debouncedFilterTransactions ? window._debouncedFilterTransactions() : filterTransactions()">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: var(--color-text-muted);">Valor Máx (R$):</label>
+                            <input type="number" id="filterMaxAmount" class="form-control" placeholder="Sem limite"
+                                step="0.01" oninput="window._debouncedFilterTransactions ? window._debouncedFilterTransactions() : filterTransactions()">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: var(--color-text-muted);">Tag (#):</label>
+                            <input type="text" id="filterTag" class="form-control" placeholder="Ex: #viagem"
+                                oninput="window._debouncedFilterTransactions ? window._debouncedFilterTransactions() : filterTransactions()">
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 4px;">
+                    <span class="filter-count">
+                        <i class="fas fa-list-ul" style="margin-right:6px;" aria-hidden="true"></i>
+                        <span id="filteredCount">0</span> transações encontradas
+                    </span>
+                    <span style="font-size:11px; color:var(--color-text-muted);">
+                        Total: <strong id="totalCountDisplay">0</strong>
+                    </span>
+                </div>
+
+                <div class="transactions-statement-container" id="transactionsContainer">
+                    <div class="card">
+                        <div class="empty-state" style="padding:30px 16px;">
+                            <span class="empty-icon">📋</span>
+                            <p>Carregando transações...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==========================================
+    MODAL DE TRANSAÇÃO (NOVA / EDITAR)
+    ========================================== -->
+    <div class="modal-overlay" id="modalOverlay" onclick="if(event.target === this) closeModal()" role="dialog"
+        aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal hidden" id="transactionModal">
+            <div class="modal-header">
+                <div>
+                    <div class="sub"><i class="fas fa-arrow-right-arrow-left" style="margin-right:4px;"></i> Transação</div>
+                    <h3 id="modalTitle">Nova Transação</h3>
+                </div>
+                <button type="button" class="modal-close" onclick="closeModal()" aria-label="Fechar modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form id="transactionForm" onsubmit="saveTransaction(event)" novalidate>
+                <input type="hidden" id="editId">
+                <input type="hidden" id="csrfToken" name="_csrf">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="tDescription">Descrição *</label>
+                        <input type="text" id="tDescription" class="form-control" placeholder="Ex: Supermercado, Salário, Internet"
+                            required aria-required="true">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="tAmount">Valor (R$) *</label>
+                            <input type="number" id="tAmount" class="form-control" placeholder="0,00" step="0.01"
+                                min="0.01" required aria-required="true">
+                        </div>
+                        <div class="form-group">
+                            <label for="tDate">Data *</label>
+                            <input type="date" id="tDate" class="form-control" required aria-required="true">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="tType">Tipo de Movimentação</label>
+                            <select id="tType" class="form-control" required aria-required="true">
+                                <option value="expense">🔴 Despesa</option>
+                                <option value="income">🟢 Receita</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                                <label for="tCategory" style="margin-bottom:0;">Categoria *</label>
+                                <button type="button" onclick="window.TonuCategoryManagerInstance?.showManagerModal(loadCategories)" title="Gerenciar Categorias" style="background:none; border:none; color:var(--color-primary,#4338CA); font-size:10px; font-weight:600; cursor:pointer; padding:0; display:flex; align-items:center; gap:3px;">
+                                    <i class="fas fa-cog"></i> Ajustar
+                                </button>
+                            </div>
+                            <select id="tCategory" class="form-control" required aria-required="true">
+                                <option value="">Selecione uma categoria...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- FORMA / FREQUÊNCIA DE PAGAMENTO -->
+                    <div class="form-group">
+                        <label for="tRecurrenceType">Forma / Frequência de Pagamento *</label>
+                        <select id="tRecurrenceType" class="form-control">
+                            <option value="single">⚡ Pagamento Único (À vista)</option>
+                            <option value="installments">📦 Pagamento Parcelado (Dividido em parcelas)</option>
+                            <option value="monthly">🔁 Mensal (Recorrente todo mês - Ex: Assinatura, Salário)</option>
+                            <option value="semiannual">📅 Semestral (Recorrente a cada 6 meses)</option>
+                        </select>
+                    </div>
+
+                    <!-- DETALHES DE PARCELAMENTO (Condicional) -->
+                    <div id="tInstallmentFields" style="display:none; padding:10px 12px; background:var(--color-bg, #f8fafc); border:1px solid var(--color-border, #e2e8f0); border-radius:8px; margin-bottom:9px;">
+                        <div style="font-size:11.5px; font-weight:700; color:var(--color-primary, #4338CA); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-layer-group"></i> Detalhes do Pagamento Parcelado
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1;">
+                                <label for="tInstallmentTotal">Total de Parcelas *</label>
+                                <input type="number" id="tInstallmentTotal" class="form-control" min="2" max="120" value="2">
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <label for="tInstallmentCurrent">Parcela Atual</label>
+                                <input type="number" id="tInstallmentCurrent" class="form-control" min="1" max="120" value="1">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:6px;">
+                            <label style="font-size:10.5px; margin-bottom:3px; display:block;">O valor digitado no campo acima é:</label>
+                            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                                <label style="display:flex; align-items:center; gap:4px; font-size:11.5px; font-weight:500; cursor:pointer;">
+                                    <input type="radio" name="tAmountMode" value="per_installment" checked>
+                                    Valor de cada parcela
+                                </label>
+                                <label style="display:flex; align-items:center; gap:4px; font-size:11.5px; font-weight:500; cursor:pointer;">
+                                    <input type="radio" name="tAmountMode" value="total">
+                                    Valor total da compra
+                                </label>
+                            </div>
+                        </div>
+                        <div id="tInstallmentSummaryBox" style="font-size:11px; padding:6px 10px; border-radius:6px; background:#e0e7ff; color:#3730a3; margin-bottom:6px;">
+                            <div style="font-weight:700;" id="tInstallmentRemainingText">Faltam 1 parcelas</div>
+                            <div style="font-size:10px; opacity:0.9;" id="tInstallmentTotalRemainingText">Restam R$ 0,00 a pagar</div>
+                        </div>
+                        <div id="tGenerateFutureGroup" style="display:flex; align-items:center; gap:6px;">
+                            <input type="checkbox" id="tGenerateFuture" checked style="cursor:pointer;">
+                            <label for="tGenerateFuture" style="margin:0; font-size:11px; cursor:pointer; font-weight:500;">
+                                Gerar automaticamente os lançamentos dos próximos meses
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="tTags">Tags (opcional)</label>
+                            <input type="text" id="tTags" class="form-control"
+                                placeholder="Ex: #viagem, #reforma">
+                        </div>
+                        <div class="form-group">
+                            <label for="tNotes">Observações (opcional)</label>
+                            <input type="text" id="tNotes" class="form-control"
+                                placeholder="Ex: Anotações adicionais...">
+                        </div>
+                    </div>
+
+                    <div class="checkbox-group" style="padding: 6px 10px; background: var(--color-bg, #f8fafc); border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px;">
+                        <input type="checkbox" id="tPaid" checked>
+                        <label for="tPaid" style="margin-bottom:0; font-weight:600; cursor:pointer;">Já foi pago / recebido</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger btn-sm hidden" id="btnDelete"
+                        onclick="deleteTransaction()" aria-label="Excluir transação">
+                        <i class="fas fa-trash-can" aria-hidden="true"></i> Excluir
+                    </button>
+                    <div style="flex:1;"></div>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================
+    TOAST
+    ========================================== -->
+    <div id="toast" class="toast hidden" role="alert" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- ==========================================
+    SCRIPTS - PATHS CORRIGIDOS
+    ========================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase.js?v=3.2.3"></script>
+    <script src="../js/core.js?v=3.2.9"></script>
+    <script src="../js/security.js?v=3.2.3"></script>
+    <script src="../js/financial-tools.js?v=3.2.3"></script>
+    <script src="../js/sync.js?v=3.2.3"></script>
+    <script src="../js/notifications.js?v=3.2.3"></script>
+    <script src="../js/transactions.js?v=3.2.3"></script>
+    <script src="../js/sw-register.js?v=3.2.3"></script>
+
+    <script>
+        // ==========================================
+        // DOM READY - INICIALIZAR TEMA
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('tonu_theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.querySelector('.theme-toggle-btn i')?.classList.replace('fa-moon', 'fa-sun');
+            }
+            console.log('✅ Transactions.html refatorado com acessibilidade e PWA');
+        });
+    </script>
+
+</body>
+
+</html>

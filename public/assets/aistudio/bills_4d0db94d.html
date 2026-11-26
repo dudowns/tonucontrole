@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#4338CA">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TonuControle">
+
+    <link rel="manifest" href="../manifest.json?v=3.2.3">
+    <link rel="icon" type="image/svg+xml" href="../icons/favicon.svg?v=3.2.3">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-96x96.png?v=3.2.3">
+    <link rel="icon" type="image/png" sizes="16x16" href="../icons/icon-72x72.png?v=3.2.3">
+    <link rel="icon" type="image/png" sizes="128x128" href="../icons/icon-128x128.png?v=3.2.3">
+    <link rel="shortcut icon" href="../icons/icon-128x128.png?v=3.2.3">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/icon-192x192.png?v=3.2.3">
+
+    <title>Contas a Pagar e Vencimentos | TonuControle</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/theme.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/sidebar-patch.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/bills.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/notifications.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/sync.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/sync-status.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.3">
+    <link rel="stylesheet" href="../css/post-login-transition.css?v=3.2.9">
+
+    <!-- Device Router & Anti-flicker Theme Init -->
+    <script src="../js/device-router.js"></script>
+    <script>
+        (function () {
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
+</head>
+
+<body>
+
+    <div class="app-shell">
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button" aria-label="Fechar menu"></div>
+
+        <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
+            <div class="sidebar-brand">
+                <div class="brand-icon"><img src="../icons/logo.png?v=3.2.1" alt="TonuControle"></div>
+                <h2>TonuControle</h2>
+            </div>
+            <ul class="sidebar-nav" role="menubar">
+                <li role="none"><a href="dashboard.html" role="menuitem"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
+                <li role="none"><a href="transactions.html" role="menuitem"><i class="fas fa-exchange-alt"></i> Transações</a></li>
+                <li role="none"><a href="bills.html" class="active" role="menuitem" aria-current="page"><i class="fas fa-file-invoice-dollar"></i> Contas</a></li>
+                <li role="none"><a href="goals.html" role="menuitem"><i class="fas fa-bullseye"></i> Metas</a></li>
+                <li role="none"><a href="investments.html" role="menuitem"><i class="fas fa-chart-line"></i> Investimentos</a></li>
+                <li role="none"><a href="settings.html" role="menuitem"><i class="fas fa-cog"></i> Configurações</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="settings.html" class="sidebar-user-profile" id="sidebarUserProfile"
+                    title="Abrir Configurações e Perfil">
+                    <div class="avatar-circle" id="sidebarUserAvatar">U</div>
+                    <div class="sidebar-user-info">
+                        <span class="sidebar-user-name" id="sidebarUserName">Usuário</span>
+                        <span class="sidebar-user-email" id="sidebarUserEmail">Configurações</span>
+                        <div class="sidebar-user-status" id="sidebarUserStatus">
+                            <span class="status-dot"></span>
+                            <span>Ativo</span>
+                        </div>
+                    </div>
+                    <i class="fas fa-cog sidebar-user-icon" aria-hidden="true"></i>
+                </a>
+                <button class="btn-sair" onclick="logout()" aria-label="Sair da conta">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content full" id="mainContent">
+            <header class="topbar">
+                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="topbar-title">
+                    <div class="sub">Gestão de Vencimentos</div>
+                    <h1>Contas & Boletos</h1>
+                </div>
+                <div class="topbar-actions">
+                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button id="notifBellBtn" class="notif-bell-btn" onclick="window.toggleNotificationDropdown(event)" title="Notificações">
+                        <i class="fas fa-bell"></i>
+                        <span class="notif-badge hidden" id="notifBadgeCount">0</span>
+                    </button>
+                    <button class="btn btn-outline" id="btnToggleSelectBills" onclick="toggleBillSelectionMode()" title="Selecionar múltiplas contas">
+                        <i class="fas fa-check-square"></i> <span id="btnSelectLabel">Selecionar</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="openBillModal()">
+                        <i class="fas fa-plus"></i> Nova Conta
+                    </button>
+                </div>
+            </header>
+
+            <div class="content" style="padding:20px;">
+                <!-- SELETOR DE MÊS -->
+                <div class="month-selector">
+                    <button class="month-nav" onclick="changeMonth(-1)" title="Mês anterior">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="month-label" id="currentMonthLabel">Carregando...</span>
+                    <button class="month-nav" onclick="changeMonth(1)" title="Próximo mês">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="btn-today" onclick="goToCurrentMonth()">Mês Atual</button>
+                </div>
+
+                <!-- CARDS DE RESUMO (4 COLUNAS) -->
+                <div class="bills-grid">
+                    <div class="card-stat">
+                        <div class="stat-icon" style="background:#e0e7ff; color:#4f46e5;">
+                            <i class="fas fa-file-invoice"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Total a Pagar</div>
+                            <div class="stat-value" id="billsStatTotal">R$ 0,00</div>
+                            <div class="stat-sub" id="billsStatTotalCount">0 contas</div>
+                        </div>
+                    </div>
+
+                    <div class="card-stat">
+                        <div class="stat-icon" style="background:#dcfce7; color:#16a34a;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Pagas no Mês</div>
+                            <div class="stat-value text-success" id="billsStatPaid">R$ 0,00</div>
+                            <div class="stat-sub" id="billsStatPaidCount">0 pagas</div>
+                        </div>
+                    </div>
+
+                    <div class="card-stat">
+                        <div class="stat-icon" style="background:#fef3c7; color:#d97706;">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Pendentes</div>
+                            <div class="stat-value text-warning" id="billsStatPending">R$ 0,00</div>
+                            <div class="stat-sub" id="billsStatPendingCount">0 a vencer</div>
+                        </div>
+                    </div>
+
+                    <div class="card-stat">
+                        <div class="stat-icon" style="background:#fee2e2; color:#dc2626;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Atrasadas</div>
+                            <div class="stat-value text-danger" id="billsStatOverdue">R$ 0,00</div>
+                            <div class="stat-sub" id="billsStatOverdueCount">0 atrasadas</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BARRA DE PROGRESSO DO MÊS -->
+                <div class="progress-section">
+                    <div class="progress-header">
+                        <span><i class="fas fa-tasks" style="color:var(--color-primary);margin-right:6px;"></i> Progresso de Pagamentos</span>
+                        <span class="pct" id="billsProgressPct">0%</span>
+                    </div>
+                    <div class="progress" style="background:var(--color-bg,#e2e8f0); border-radius:999px; overflow:hidden; height:10px;">
+                        <div class="progress-bar" id="billsProgressBar" style="width: 0%; height:100%; background:linear-gradient(90deg, #4338CA, #10B981); border-radius:999px; transition: width 0.4s ease;"></div>
+                    </div>
+                </div>
+
+                <!-- BARRA DE FILTROS -->
+                <div class="filters-bar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="billFilterSearch" class="form-control" placeholder="Buscar conta por nome ou fornecedor...">
+                    </div>
+                    <select id="billFilterStatus" class="form-control">
+                        <option value="pending" selected>Apenas Pendentes / A Vencer</option>
+                        <option value="overdue">Apenas Atrasadas ⚠️</option>
+                        <option value="paid">Apenas Pagas ✅</option>
+                        <option value="all">Todas as contas</option>
+                    </select>
+                    <select id="billFilterRecurrence" class="form-control">
+                        <option value="all">Todas as formas de pagamento</option>
+                        <option value="installments">📦 Apenas Parceladas (Ver parcelas restantes)</option>
+                        <option value="recurring">🔁 Apenas Recorrentes (Mensal / Semestral)</option>
+                        <option value="single">⚡ Apenas Pagamento Único</option>
+                    </select>
+                    <select id="billFilterCategory" class="form-control">
+                        <option value="all">Todas as categorias</option>
+                    </select>
+                </div>
+
+                <!-- BANNER INFORMATIVO DE COMPRAS/CONTAS PARCELADAS -->
+                <div id="billsInstallmentBanner" style="display:none; margin-bottom:var(--space-md); padding:10px 14px; background:linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(168,85,247,0.08) 100%); border:1px solid rgba(99,102,241,0.25); border-radius:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="width:36px; height:36px; border-radius:8px; background:var(--color-primary, #4338CA); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:13px; font-weight:700; color:var(--color-text);">
+                                <span id="bannerInstallmentActiveCount">0</span> Contas Parceladas em Andamento
+                            </div>
+                            <div style="font-size:11px; color:var(--color-text-muted);" id="bannerInstallmentDetails">
+                                Total de parcelas a vencer: 0 • Saldo devedor total: R$ 0,00
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="filterByInstallmentsOnly()" style="font-size:11px; padding:4px 10px; font-weight:600;">
+                        <i class="fas fa-filter"></i> Filtrar Parceladas
+                    </button>
+                </div>
+
+                <!-- LISTA DE CONTAS -->
+                <div class="bills-list-toolbar">
+                    <div class="bills-list-toolbar-left">
+                        <h3>
+                            <i class="fas fa-list" style="color:var(--color-primary);"></i> Contas do Período
+                        </h3>
+                        <div class="status-tab-group">
+                            <button type="button" class="tab-status-btn active" id="tabStatusPending" data-status="pending" onclick="setStatusTab('pending')">Pendentes</button>
+                            <button type="button" class="tab-status-btn" id="tabStatusPaid" data-status="paid" onclick="setStatusTab('paid')">Pagas ✅</button>
+                            <button type="button" class="tab-status-btn" id="tabStatusAll" data-status="all" onclick="setStatusTab('all')">Todas</button>
+                        </div>
+                    </div>
+                    <span id="billsCountBadge" style="font-size:12px; color:var(--color-text-muted,#94a3b8);">0 registros</span>
+                </div>
+                <div class="bills-statement-container" id="billsContainer" style="min-height:220px;">
+                    <div class="card" style="padding:40px; text-align:center;"><span class="spinner"></span></div>
+                </div>
+            </div>
+
+            <!-- RODAPÉ FIXO DE SOMA VISUAL (ITEM 9) -->
+            <div id="billsSelectionFooter" class="bills-selection-footer" style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:1050; background:var(--color-surface,#ffffff); border:1px solid var(--color-border,#e2e8f0); box-shadow:0 10px 30px rgba(0,0,0,0.18); border-radius:999px; padding:10px 22px; align-items:center; gap:18px;">
+                <div style="display:flex; align-items:center; gap:8px; font-size:14px;">
+                    <span id="selectedBillsCountText" style="font-weight:600; color:var(--color-primary,#4338CA);">0 selecionada(s)</span>
+                    <span style="color:var(--color-text-muted,#94a3b8);">·</span>
+                    <span style="color:var(--color-text,#2d3436);">Total: <strong id="selectedBillsTotalText" style="color:var(--color-primary,#4338CA); font-size:16px;">R$ 0,00</strong></span>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" onclick="cancelBillSelection()" style="border-radius:999px; padding:4px 12px; font-size:12px; font-weight:600;">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL DE CONTA (NOVA / EDITAR) CENTRALIZADO -->
+    <div class="modal-overlay" id="billModalOverlay" onclick="if(event.target === this) closeBillModal()" role="dialog" aria-modal="true" aria-labelledby="billModalTitle">
+        <div class="modal hidden" id="billModal">
+            <div class="modal-header">
+                <div>
+                    <div class="sub"><i class="fas fa-file-invoice-dollar" style="margin-right:4px;"></i> Contas & Boletos</div>
+                    <h3 id="billModalTitle">Nova Conta</h3>
+                </div>
+                <button type="button" class="modal-close" onclick="closeBillModal()" aria-label="Fechar modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form id="billForm" onsubmit="saveBill(event)" novalidate>
+                <input type="hidden" id="billEditId">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="billDescription">Nome / Descrição da Conta *</label>
+                        <input type="text" id="billDescription" class="form-control" placeholder="Ex: Aluguel, Conta de Luz, Fatura Cartão" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="billAmount">Valor (R$) *</label>
+                            <input type="number" id="billAmount" class="form-control" placeholder="0,00" step="0.01" min="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="billDate">Vencimento *</label>
+                            <input type="date" id="billDate" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <!-- FORMA / FREQUÊNCIA DE PAGAMENTO -->
+                    <div class="form-group">
+                        <label for="billRecurrenceType">Forma / Frequência de Pagamento *</label>
+                        <select id="billRecurrenceType" class="form-control">
+                            <option value="single">⚡ Pagamento Único (À vista)</option>
+                            <option value="installments">📦 Pagamento Parcelado (Dividido em parcelas)</option>
+                            <option value="monthly">🔁 Mensal (Recorrente todo mês - Ex: Aluguel, Luz)</option>
+                            <option value="semiannual">📅 Semestral (Recorrente a cada 6 meses)</option>
+                        </select>
+                    </div>
+
+                    <!-- DETALHES DE PARCELAMENTO (Condicional) -->
+                    <div id="billInstallmentFields" style="display:none; padding:10px 12px; background:var(--color-bg, #f8fafc); border:1px solid var(--color-border, #e2e8f0); border-radius:8px; margin-bottom:9px;">
+                        <div style="font-size:11.5px; font-weight:700; color:var(--color-primary, #4338CA); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-layer-group"></i> Detalhes do Pagamento Parcelado
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1;">
+                                <label for="billInstallmentTotal">Total de Parcelas *</label>
+                                <input type="number" id="billInstallmentTotal" class="form-control" min="2" max="120" value="2">
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <label for="billInstallmentCurrent">Parcela Atual</label>
+                                <input type="number" id="billInstallmentCurrent" class="form-control" min="1" max="120" value="1">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:6px;">
+                            <label style="font-size:10.5px; margin-bottom:3px; display:block;">O valor digitado no campo acima é:</label>
+                            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                                <label style="display:flex; align-items:center; gap:4px; font-size:11.5px; font-weight:500; cursor:pointer;">
+                                    <input type="radio" name="billAmountMode" value="per_installment" checked>
+                                    Valor de cada parcela
+                                </label>
+                                <label style="display:flex; align-items:center; gap:4px; font-size:11.5px; font-weight:500; cursor:pointer;">
+                                    <input type="radio" name="billAmountMode" value="total">
+                                    Valor total da compra
+                                </label>
+                            </div>
+                        </div>
+                        <div id="billInstallmentSummaryBox" style="font-size:11px; padding:6px 10px; border-radius:6px; background:#e0e7ff; color:#3730a3; margin-bottom:6px;">
+                            <div style="font-weight:700;" id="billInstallmentRemainingText">Faltam 1 parcelas</div>
+                            <div style="font-size:10px; opacity:0.9;" id="billInstallmentTotalRemainingText">Restam R$ 0,00 a pagar</div>
+                        </div>
+                        <div id="billGenerateFutureGroup" style="display:flex; align-items:center; gap:6px;">
+                            <input type="checkbox" id="billGenerateFuture" checked style="cursor:pointer;">
+                            <label for="billGenerateFuture" style="margin:0; font-size:11px; cursor:pointer; font-weight:500;">
+                                Gerar automaticamente as parcelas dos próximos meses
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="billCategory">Categoria</label>
+                            <select id="billCategory" class="form-control">
+                                <option value="">Selecione uma categoria...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="billNotes">Observações / Código de Barras</label>
+                            <input type="text" id="billNotes" class="form-control" placeholder="Código, anotações...">
+                        </div>
+                    </div>
+
+                    <div class="checkbox-group" style="padding: 6px 10px; background: var(--color-bg, #f8fafc); border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0);">
+                        <input type="checkbox" id="billPaid">
+                        <label for="billPaid" style="margin:0; font-size:12px; font-weight:600; cursor:pointer;">Marcar como já paga</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger btn-sm hidden" id="btnDeleteBill" onclick="deleteBill()">
+                        <i class="fas fa-trash-can"></i> Excluir
+                    </button>
+                    <div style="flex:1;"></div>
+                    <button type="button" class="btn btn-secondary" onclick="closeBillModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSaveBill"><i class="fas fa-check"></i> Salvar Conta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase.js?v=3.2.3"></script>
+    <script src="../js/core.js?v=3.2.9"></script>
+    <script src="../js/security.js?v=3.2.3"></script>
+    <script src="../js/financial-tools.js?v=3.2.3"></script>
+    <script src="../js/sync.js?v=3.2.3"></script>
+    <script src="../js/notifications.js?v=3.2.3"></script>
+    <script src="../js/bills.js?v=3.2.3"></script>
+    <script src="../js/sw-register.js?v=3.2.3"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('tonu_theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.querySelector('.theme-toggle-btn i')?.classList.replace('fa-moon', 'fa-sun');
+            }
+        });
+    </script>
+</body>
+</html>
+

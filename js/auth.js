@@ -385,9 +385,20 @@ async function handleLogin(event) {
             ? getAppTargetUrl('dashboard.html') 
             : 'pages/dashboard.html';
 
+        try {
+            const loginUserName = data.user?.user_metadata?.full_name ||
+                data.user?.email?.split('@')[0] ||
+                '';
+            sessionStorage.setItem('tonu_just_logged_in', JSON.stringify({
+                method: 'password',
+                name: loginUserName,
+                ts: Date.now()
+            }));
+        } catch (_) {}
+
         setTimeout(() => {
             window.location.href = redirectUrl;
-        }, 600);
+        }, 450);
 
     } catch (error) {
         console.error('❌ Erro no login:', error);
@@ -510,11 +521,18 @@ async function handleRegister(event) {
 
         setTimeout(() => {
             if (data.session) {
+                try {
+                    sessionStorage.setItem('tonu_just_logged_in', JSON.stringify({
+                        method: 'register',
+                        name: name,
+                        ts: Date.now()
+                    }));
+                } catch (_) {}
                 window.location.href = 'pages/onboarding.html';
             } else {
                 window.location.href = 'index.html';
             }
-        }, 1500);
+        }, 1200);
 
     } catch (error) {
         console.error('❌ Erro no registro:', error);
@@ -571,6 +589,13 @@ async function socialLogin(provider) {
         showToast(`Redirecionando para ${provider}...`, 'info');
 
         sessionStorage.setItem('tonu_social_login', provider);
+        try {
+            sessionStorage.setItem('tonu_just_logged_in', JSON.stringify({
+                method: provider,
+                name: '',
+                ts: Date.now()
+            }));
+        } catch (_) {}
 
     } catch (error) {
         console.error(`❌ Erro no login com ${provider}:`, error);
@@ -690,7 +715,7 @@ async function createDefaultCategories(userId) {
 
         const defaultCategories = [
             { user_id: userId, name: '⚡ Contas Básicas', type: 'expense', icon: 'fa-bolt', color: '#0984E3' },
-            { user_id: userId, name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#A29BFE' },
+            { user_id: userId, name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#8B5CF6' },
             { user_id: userId, name: '❤️ Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#FF6B6B' },
             { user_id: userId, name: '📚 Educação', type: 'expense', icon: 'fa-book', color: '#0984E3' },
             { user_id: userId, name: '🤝 Empréstimos', type: 'expense', icon: 'fa-hand-holding-usd', color: '#D63031' },
@@ -775,6 +800,16 @@ async function checkAuth() {
         if (user && (path.includes('index.html') || path === '/' || path.endsWith('/'))) {
             console.log('🔀 Redirecionando para dashboard');
             sessionStorage.removeItem('tonu_logout_in_progress');
+            try {
+                if (!sessionStorage.getItem('tonu_just_logged_in')) {
+                    const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || '';
+                    sessionStorage.setItem('tonu_just_logged_in', JSON.stringify({
+                        method: 'session',
+                        name: userName,
+                        ts: Date.now()
+                    }));
+                }
+            } catch (_) {}
             const targetUrl = (typeof getAppTargetUrl === 'function') 
                 ? getAppTargetUrl('dashboard.html') 
                 : (baseUrl + '/pages/dashboard.html');
@@ -863,13 +898,20 @@ async function handleSocialLoginCallback() {
                     window.history.replaceState({}, document.title, window.location.pathname);
 
                     sessionStorage.removeItem('tonu_logout_in_progress');
+                    try {
+                        sessionStorage.setItem('tonu_just_logged_in', JSON.stringify({
+                            method: sessionStorage.getItem('tonu_social_login') || 'google',
+                            name: name,
+                            ts: Date.now()
+                        }));
+                    } catch (_) {}
 
                     // 🔥 INICIAR REFRESH AUTOMÁTICO
                     startAutoRefresh();
 
                     setTimeout(() => {
                         window.location.href = 'pages/dashboard.html';
-                    }, 500);
+                    }, 400);
                 }
             }
         } catch (error) {

@@ -51,35 +51,35 @@
 
 /* Status Offline (Sinal Vermelho) */
 .sync-signal-bottom.status-offline {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
+    color: var(--red, #F43F5E);
+    background: var(--red-soft, rgba(244, 63, 94, 0.1));
     animation: pulseSignal 2s infinite;
 }
 
 .sync-signal-bottom.status-offline .sync-signal-dot {
-    background: #ef4444;
-    box-shadow: 0 0 5px rgba(239, 68, 68, 0.8);
+    background: var(--red, #F43F5E);
+    box-shadow: 0 0 5px rgba(244, 63, 94, 0.75);
 }
 
-/* Status Sincronizando (Sinal Roxo / Girando) */
+/* Status Sincronizando (Sinal Índigo / Royal / Pulsando) */
 .sync-signal-bottom.status-syncing {
-    color: #6c5ce7;
-    background: rgba(108, 92, 231, 0.1);
+    color: var(--accent-royal, #2563EB);
+    background: rgba(37, 99, 235, 0.12);
 }
 
 .sync-signal-bottom.status-syncing .sync-signal-dot {
-    background: #6c5ce7;
+    background: var(--accent-royal, #2563EB);
     animation: pulseSignal 1s infinite;
 }
 
 /* Status Pendente (Sinal Amarelo) */
 .sync-signal-bottom.status-pending {
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.1);
+    color: var(--amber, #F59E0B);
+    background: var(--amber-soft, rgba(245, 158, 11, 0.1));
 }
 
 .sync-signal-bottom.status-pending .sync-signal-dot {
-    background: #f59e0b;
+    background: var(--amber, #F59E0B);
 }
 
 @keyframes pulseSignal {
@@ -105,10 +105,10 @@ body>.sync-signal-bottom {
     bottom: 12px;
     left: 12px;
     z-index: 9999;
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--bg-surface, rgba(255, 255, 255, 0.94));
     backdrop-filter: blur(8px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-card, 0 2px 12px rgba(23, 37, 84, 0.06));
+    border: 1px solid var(--border-hairline, #DCE6F7);
 }
 
 /* ==========================================================================
@@ -117,8 +117,8 @@ body>.sync-signal-bottom {
 .share-target-modal {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
+    background: rgba(11, 17, 32, 0.58);
+    backdrop-filter: blur(6px);
     z-index: 999999;
     display: flex;
     align-items: center;
@@ -135,14 +135,15 @@ body>.sync-signal-bottom {
 }
 
 .share-target-content {
-    background: #ffffff;
-    border-radius: 16px;
+    background: var(--bg-surface, #ffffff);
+    color: var(--text-primary, #172554);
+    border-radius: 18px;
     width: 100%;
     max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
-    border: 1px solid #e8ecf1;
+    box-shadow: 0 22px 50px rgba(23, 37, 84, 0.24);
+    border: 1px solid var(--border-hairline, #DCE6F7);
     animation: modalPopIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -157,26 +158,26 @@ body>.sync-signal-bottom {
 }
 
 .share-target-header {
-    padding: 18px 20px;
-    border-bottom: 1px solid #f1f2f6;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-hairline, #DCE6F7);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #f8f9fa;
+    background: var(--bg-subtle, #EFF6FF);
 }
 
 .share-target-header h3 {
     margin: 0;
     font-size: 16px;
     font-weight: 700;
-    color: #2d3436;
+    color: var(--text-primary, #172554);
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
 .share-target-header h3 i {
-    color: #6c5ce7;
+    color: var(--accent-royal, #2563EB);
 }
 
 .share-target-body {
@@ -184,8 +185,8 @@ body>.sync-signal-bottom {
 }
 
 .share-target-preview-box {
-    background: #f8f9fc;
-    border: 1px dashed #dcdde1;
+    background: var(--bg-subtle, #EFF6FF);
+    border: 1px dashed var(--border-hairline, #DBEAFE);
     border-radius: 12px;
     padding: 14px;
     margin-bottom: 16px;
@@ -198,25 +199,41 @@ body>.sync-signal-bottom {
     border-radius: 8px;
     margin-top: 8px;
     display: block;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-card, 0 2px 8px rgba(23, 37, 84, 0.1));
 }
 
 .share-badge {
     display: inline-block;
     padding: 3px 8px;
-    background: #e8f4fd;
-    color: #0984e3;
+    background: var(--accent-light, #DBEAFE);
+    color: var(--accent-royal, #2563EB);
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700;
     border-radius: 6px;
     margin-bottom: 6px;
 }
 
 .share-target-actions {
     padding: 14px 20px;
-    border-top: 1px solid #f1f2f6;
+    border-top: 1px solid var(--border-hairline, #DCE6F7);
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    background: #fdfdfd;
+    background: var(--bg-surface, #ffffff);
+}
+
+body.dark-theme .share-target-header,
+body.dark-theme .share-target-actions {
+    background: var(--bg-subtle, #1A2744);
+    border-color: var(--border-hairline, #223254);
+}
+
+body.dark-theme .share-target-preview-box {
+    background: var(--bg-app, #0B1120);
+    border-color: var(--border-hairline, #223254);
+}
+
+body.dark-theme .share-badge {
+    background: rgba(37, 99, 235, 0.22);
+    color: #93C5FD;
 }

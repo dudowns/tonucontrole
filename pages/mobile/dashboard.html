@@ -3,33 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#4338CA">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="TonuControle">
-    <link rel="manifest" href="../../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png">
+    <link rel="manifest" href="../../manifest.json?v=3.2.7">
+    <link rel="icon" type="image/svg+xml" href="../../icons/favicon.svg?v=3.2.7">
+    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png?v=3.2.7">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png?v=3.2.7">
+    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png?v=3.2.7">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png?v=3.2.7">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png?v=3.2.7">
     <title>TonuControle - Mobile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../css/theme.css">
-    <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css">
-    <link rel="stylesheet" href="../../css/notifications.css">
-    <link rel="stylesheet" href="../../css/sync-status.css">
+    <link rel="stylesheet" href="../../css/theme.css?v=3.2.7">
+    <link rel="stylesheet" href="../../css/dark-theme.css?v=3.2.7">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.3.2">
+    <link rel="stylesheet" href="../../css/notifications.css?v=3.2.7">
+    <link rel="stylesheet" href="../../css/sync-status.css?v=3.2.7">
+    <link rel="stylesheet" href="../../css/post-login-transition.css?v=3.2.9">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
         .skip-link {
             position: absolute; top: -100%; left: 50%; transform: translateX(-50%);
-            padding: 12px 24px; background: #6C5CE7; color: #fff; border-radius: 8px;
+            padding: 12px 24px; background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%); color: #fff; border-radius: 12px;
             z-index: 999999; font-weight: 600; text-decoration: none;
         }
         .skip-link:focus { top: 16px; }
@@ -37,14 +38,43 @@
             display: inline-block;
             width: 24px; height: 24px;
             border: 3px solid #e2e8f0;
-            border-top-color: #6C5CE7;
+            border-top-color: #4338CA;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
+    <script>
+        (function () {
+            if (localStorage.getItem('tonu_bottom_nav_labels') === 'false') {
+                document.documentElement.classList.add('nav-icons-only');
+            }
+            var t = localStorage.getItem('tonu_theme') || 'light';
+            if (t === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.documentElement.classList.add('dark-theme');
+            }
+            try {
+                var raw = sessionStorage.getItem('tonu_just_logged_in');
+                var hasRecentLogin = false;
+                if (raw) {
+                    var parsed = JSON.parse(raw);
+                    if (parsed && (!parsed.ts || (Date.now() - Number(parsed.ts)) < 120000)) {
+                        hasRecentLogin = true;
+                    }
+                }
+                var search = window.location.search || '';
+                var hash = window.location.hash || '';
+                var hasOAuth = search.indexOf('code=') !== -1 || search.indexOf('post_login=1') !== -1 || hash.indexOf('access_token=') !== -1;
+                if (hasRecentLogin || hasOAuth) {
+                    document.documentElement.classList.add('tonu-entering-dashboard');
+                }
+            } catch (_) {}
+        })();
+    </script>
 </head>
-<body>
+<body class="has-bottom-nav mobile-dashboard-page">
+<script src="../../js/post-login-transition.js?v=3.2.7"></script>
 
 <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
 
@@ -52,17 +82,29 @@
 <header class="mobile-topbar">
     <div class="topbar-header">
         <div class="topbar-left">
-            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <div class="app-icon"><img src="../../icons/logo.png?v=3.2.6" alt="TonuControle"></div>
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button onclick="toggleTheme()" title="Alternar tema">
+            <button type="button" class="topbar-btn" onclick="window.TonuMobileUI && window.TonuMobileUI.openCommandPalette()" title="Busca rápida" aria-label="Busca rápida">
+                <i class="fas fa-search"></i>
+            </button>
+            <button type="button" class="topbar-btn" data-privacy-toggle onclick="window.TonuMobileUI ? window.TonuMobileUI.togglePrivacyMode() : (window.toggleBalanceVisibility && window.toggleBalanceVisibility())" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade">
+                <i class="fas fa-eye" data-privacy-icon></i>
+            </button>
+            <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema">
                 <i class="fas fa-moon" id="themeIcon"></i>
             </button>
-            <button id="notifBellBtn" class="notif-bell-btn" onclick="window.toggleNotificationDropdown(event)" title="Notificações">
+            <button class="topbar-btn" id="notifBellBtn" onclick="window.toggleNotificationDropdown(event)" title="Lembretes e Notificações" aria-label="Notificações">
                 <i class="fas fa-bell"></i>
                 <span class="notif-badge hidden" id="notifBadgeCount">0</span>
             </button>
+            <button class="topbar-btn" onclick="window.syncMobileDashboardNow ? window.syncMobileDashboardNow() : (window.loadMobileData ? window.loadMobileData({ forceRefresh: true }) : location.reload())" title="Sincronizar" aria-label="Sincronizar">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <a href="settings.html" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
+                <span id="topbarAvatar">U</span>
+            </a>
         </div>
     </div>
     <div class="greeting" id="greetingText">Olá, Usuário 👋</div>
@@ -70,55 +112,174 @@
 
 <!-- CONTEÚDO -->
 <main class="mobile-content" id="main-content">
-    <!-- SELETOR DE MÊS (IGUAL AO DESKTOP) -->
-    <div class="mobile-month-selector-bar" style="margin-bottom: 12px;">
-        <div class="month-selector" style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 42px; padding: 4px 10px; margin-bottom: 0; box-sizing: border-box; background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e2e8f0); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-            <button class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0); background: var(--color-surface, #ffffff); color: var(--color-text, #1e293b); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
-                <i class="fas fa-chevron-left"></i>
-            </button>
-            <span class="month-label" id="selectedMonth" style="font-size: 13.5px; font-weight: 700; color: var(--color-text, #1e293b); min-width: 130px; text-align: center;">Carregando...</span>
-            <button class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--color-border, #e2e8f0); background: var(--color-surface, #ffffff); color: var(--color-text, #1e293b); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
-                <i class="fas fa-chevron-right"></i>
-            </button>
-            <button class="btn-today" onclick="goToCurrentMonth()" style="padding: 4px 12px; font-size: 11px; font-weight: 600; border-radius: 8px; background: #6C5CE7; color: #ffffff; border: none; cursor: pointer; height: 28px; transition: all 0.2s;">Hoje</button>
+    <!-- SELETOR DE MÊS -->
+    <div class="month-bar" role="group" aria-label="Selecionar mês">
+        <button type="button" class="month-btn" onclick="changeMonth(-1)" aria-label="Mês anterior">
+            <i class="fas fa-chevron-left" aria-hidden="true"></i>
+        </button>
+        <span class="month-title" id="selectedMonth">Mês atual</span>
+        <button type="button" class="month-btn" onclick="changeMonth(1)" aria-label="Próximo mês">
+            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+        </button>
+    </div>
+
+    <!-- PILL DISCRETO DE SINCRONIZAÇÃO EM BACKGROUND -->
+    <div id="mobileCacheSyncBanner" class="mob-sync-status-pill" aria-live="polite"></div>
+
+    <!-- BALANÇO HERO & CARDS (SKELETON ESTRUTURADO) -->
+    <div id="summaryContainer">
+        <div class="mobile-hero-balance mob-skeleton-hero" aria-hidden="true">
+            <div class="mob-sk-hero-top">
+                <div class="mob-skeleton mob-skeleton--hero" style="height:13px;width:44%;"></div>
+                <div class="mob-skeleton mob-skeleton--hero mob-sk-circle" style="height:30px;width:30px;"></div>
+            </div>
+            <div class="mob-skeleton mob-skeleton--hero" style="height:30px;width:58%;margin:4px 0 12px;"></div>
+            <div class="mobile-hero-footer">
+                <div class="mobile-hero-stat mob-sk-stat">
+                    <div class="mob-skeleton mob-skeleton--hero" style="height:10px;width:48%;"></div>
+                    <div class="mob-skeleton mob-skeleton--hero" style="height:15px;width:72%;"></div>
+                </div>
+                <div class="mobile-hero-stat mob-sk-stat">
+                    <div class="mob-skeleton mob-skeleton--hero" style="height:10px;width:52%;"></div>
+                    <div class="mob-skeleton mob-skeleton--hero" style="height:15px;width:72%;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="mobile-grid mobile-grid--compact" aria-hidden="true">
+            <div class="mobile-card mobile-card--compact mob-sk-kpi-card">
+                <div class="mob-skeleton" style="width:28px;height:28px;border-radius:8px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:9px;width:68%;"></div>
+                    <div class="mob-skeleton" style="height:14px;width:56%;"></div>
+                    <div class="mob-skeleton" style="height:9px;width:50%;"></div>
+                </div>
+            </div>
+            <div class="mobile-card mobile-card--compact mob-sk-kpi-card">
+                <div class="mob-skeleton" style="width:28px;height:28px;border-radius:8px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:9px;width:64%;"></div>
+                    <div class="mob-skeleton" style="height:14px;width:54%;"></div>
+                    <div class="mob-skeleton" style="height:9px;width:46%;"></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- BALANÇO HERO & CARDS -->
-    <div id="summaryContainer"></div>
-
     <!-- AÇÕES RÁPIDAS -->
-    <div class="mobile-quick-actions">
-        <button class="quick-action-btn" onclick="openQuickAddModal('expense')">
-            <i class="fas fa-arrow-down" style="color: #FF7675;"></i>
-            <span>Nova Despesa</span>
+    <div class="mobile-quick-actions" aria-label="Ações rápidas">
+        <button type="button" class="quick-action-btn qa-expense" onclick="openQuickAddModal('expense')">
+            <span class="qa-icon"><i class="fas fa-arrow-down"></i></span>
+            <span>Despesa</span>
         </button>
-        <button class="quick-action-btn" onclick="openQuickAddModal('income')">
-            <i class="fas fa-arrow-up" style="color: #00B894;"></i>
-            <span>Nova Receita</span>
+        <button type="button" class="quick-action-btn qa-income" onclick="openQuickAddModal('income')">
+            <span class="qa-icon"><i class="fas fa-arrow-up"></i></span>
+            <span>Receita</span>
         </button>
-        <a href="bills.html" class="quick-action-btn">
-            <i class="fas fa-file-invoice-dollar" style="color: #FDCB6E;"></i>
+        <a href="bills.html" class="quick-action-btn qa-bills">
+            <span class="qa-icon"><i class="fas fa-file-invoice-dollar"></i></span>
             <span>Contas</span>
         </a>
-        <a href="investments.html" class="quick-action-btn">
-            <i class="fas fa-chart-line" style="color: #6C5CE7;"></i>
+        <a href="investments.html" class="quick-action-btn qa-invest">
+            <span class="qa-icon"><i class="fas fa-chart-line"></i></span>
             <span>Investir</span>
         </a>
-        <a href="goals.html" class="quick-action-btn">
-            <i class="fas fa-bullseye" style="color: #0984E3;"></i>
+        <a href="goals.html" class="quick-action-btn qa-goals">
+            <span class="qa-icon"><i class="fas fa-bullseye"></i></span>
             <span>Metas</span>
         </a>
     </div>
 
-    <!-- GRÁFICO INTERATIVO MOBILE (FLUXO & CATEGORIAS) -->
-    <div id="mobileChartContainer"></div>
+    <!-- GRÁFICO INTERATIVO MOBILE (SKELETON ESTRUTURADO) -->
+    <div id="mobileChartContainer">
+        <div class="mobile-chart-card" aria-hidden="true">
+            <div class="mobile-chart-header">
+                <div class="mob-skeleton" style="height:15px;width:42%;"></div>
+                <div class="mob-skeleton" style="height:28px;width:38%;border-radius:10px;"></div>
+            </div>
+            <div class="mob-sk-chart-body">
+                <div class="mob-skeleton-donut-wrap">
+                    <div class="mob-skeleton mob-skeleton-donut-ring"></div>
+                    <div class="mob-skeleton-donut-center">
+                        <div class="mob-skeleton" style="height:9px;width:52px;"></div>
+                        <div class="mob-skeleton" style="height:14px;width:68px;"></div>
+                    </div>
+                </div>
+                <div class="mob-sk-bars">
+                    <div class="mob-sk-bar-row">
+                        <div class="mob-sk-bar-meta">
+                            <div class="mob-skeleton" style="height:11px;width:40%;"></div>
+                            <div class="mob-skeleton" style="height:11px;width:26%;"></div>
+                        </div>
+                        <div class="mob-skeleton" style="height:5px;width:100%;border-radius:99px;"></div>
+                    </div>
+                    <div class="mob-sk-bar-row">
+                        <div class="mob-sk-bar-meta">
+                            <div class="mob-skeleton" style="height:11px;width:34%;"></div>
+                            <div class="mob-skeleton" style="height:11px;width:22%;"></div>
+                        </div>
+                        <div class="mob-skeleton" style="height:5px;width:100%;border-radius:99px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <!-- DIAGNÓSTICO 360º & INSIGHTS MOBILE -->
-    <div id="mobileInsightsContainer"></div>
+    <!-- DIAGNÓSTICO 360º & INSIGHTS MOBILE (SKELETON ESTRUTURADO) -->
+    <div id="mobileInsightsContainer">
+        <div class="mobile-insights-card" aria-hidden="true">
+            <div class="mobile-insights-header">
+                <div class="mob-skeleton" style="height:15px;width:46%;"></div>
+                <div class="mob-skeleton" style="height:18px;width:24%;border-radius:8px;"></div>
+            </div>
+            <div class="mob-sk-insights-score">
+                <div class="mob-skeleton mob-sk-circle" style="width:54px;height:54px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:14px;width:36%;border-radius:8px;"></div>
+                    <div class="mob-skeleton" style="height:13px;width:62%;"></div>
+                    <div class="mob-skeleton" style="height:10px;width:78%;"></div>
+                </div>
+            </div>
+            <div class="mob-sk-row">
+                <div class="mob-sk-row-left">
+                    <div class="mob-skeleton" style="width:32px;height:32px;border-radius:10px;flex-shrink:0;"></div>
+                    <div class="mob-sk-kpi-info">
+                        <div class="mob-skeleton" style="height:12px;width:54%;"></div>
+                        <div class="mob-skeleton" style="height:10px;width:40%;"></div>
+                    </div>
+                </div>
+                <div class="mob-skeleton" style="height:20px;width:20%;border-radius:8px;"></div>
+            </div>
+            <div class="mob-sk-row">
+                <div class="mob-sk-row-left">
+                    <div class="mob-skeleton" style="width:32px;height:32px;border-radius:10px;flex-shrink:0;"></div>
+                    <div class="mob-sk-kpi-info">
+                        <div class="mob-skeleton" style="height:12px;width:48%;"></div>
+                        <div class="mob-skeleton" style="height:10px;width:36%;"></div>
+                    </div>
+                </div>
+                <div class="mob-skeleton" style="height:20px;width:24%;border-radius:8px;"></div>
+            </div>
+        </div>
+    </div>
 
-    <!-- METAS EM DESTAQUE MOBILE -->
-    <div id="mobileGoalsContainer"></div>
+    <!-- INSIGHTS IA MOBILE -->
+    <section class="mobile-insights-card" id="mobileAIInsightsCard" aria-label="Insights IA">
+        <div class="mobile-insights-header">
+            <div class="mobile-insights-title">
+                <span>Insights IA</span>
+                <span class="mobile-insights-pill" id="aiInsightsSourceBadge">90 dias</span>
+            </div>
+            <button type="button" class="mobile-ai-refresh-btn" id="mobileAiInsightsRefreshBtn" title="Atualizar Insights IA" aria-label="Atualizar Insights IA">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+        <div id="aiInsightsBody">
+            <p class="mobile-ai-loading">Analisando seus últimos 90 dias...</p>
+        </div>
+    </section>
+
+    <!-- METAS AGRUPADAS POR CATEGORIA (CARROSSEL) -->
+    <section id="mobileGoalsContainer" class="mobile-goals-section" aria-label="Metas por categoria"></section>
 
     <!-- ÚLTIMAS TRANSAÇÕES -->
     <div class="mobile-section-title">
@@ -126,9 +287,35 @@
         <a href="transactions.html">Ver todas →</a>
     </div>
     <div id="mobileTransactions">
-        <div style="text-align:center;padding:20px;">
-            <span class="spinner"></span>
-            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando dados...</p>
+        <div class="mob-skeleton-tx-row" aria-hidden="true">
+            <div class="tx-left">
+                <div class="mob-skeleton" style="width:35px;height:35px;border-radius:10px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:13px;width:62%;"></div>
+                    <div class="mob-skeleton" style="height:10px;width:34%;"></div>
+                </div>
+            </div>
+            <div class="mob-skeleton" style="height:14px;width:22%;"></div>
+        </div>
+        <div class="mob-skeleton-tx-row" aria-hidden="true">
+            <div class="tx-left">
+                <div class="mob-skeleton" style="width:35px;height:35px;border-radius:10px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:13px;width:54%;"></div>
+                    <div class="mob-skeleton" style="height:10px;width:38%;"></div>
+                </div>
+            </div>
+            <div class="mob-skeleton" style="height:14px;width:20%;"></div>
+        </div>
+        <div class="mob-skeleton-tx-row" aria-hidden="true">
+            <div class="tx-left">
+                <div class="mob-skeleton" style="width:35px;height:35px;border-radius:10px;flex-shrink:0;"></div>
+                <div class="mob-sk-kpi-info">
+                    <div class="mob-skeleton" style="height:13px;width:68%;"></div>
+                    <div class="mob-skeleton" style="height:10px;width:30%;"></div>
+                </div>
+            </div>
+            <div class="mob-skeleton" style="height:14px;width:24%;"></div>
         </div>
     </div>
 </main>
@@ -211,14 +398,15 @@
 
 <!-- SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../../js/supabase.js"></script>
-<script src="../../js/core.js"></script>
-<script src="../../js/security.js"></script>
-<script src="../../js/sync.js"></script>
-<script src="../../js/financial-tools.js"></script>
-<script src="../../js/notifications.js"></script>
-<script src="../../js/sw-register.js"></script>
-<script src="../../js/mobile/dashboard.js"></script>
+<script src="../../js/supabase.js?v=3.2.7"></script>
+<script src="../../js/core.js?v=3.2.9"></script>
+<script src="../../js/security.js?v=3.2.7"></script>
+<script src="../../js/sync.js?v=3.2.7"></script>
+<script src="../../js/financial-tools.js?v=3.2.7"></script>
+<script src="../../js/notifications.js?v=3.2.7"></script>
+<script src="../../js/sw-register.js?v=3.2.7"></script>
+<script src="../../js/mobile/ui.js?v=1.1.0"></script>
+<script src="../../js/mobile/dashboard.js?v=4.2.8"></script>
 
 </body>
 </html>

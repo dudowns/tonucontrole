@@ -1,0 +1,652 @@
+/* ============================================
+   TONUCONTROLE - POST-LOGIN WELCOME & REVEAL
+   Transição criativa pós-login (Aurora Indigo + Emerald)
+   ============================================ */
+
+/* Evita flash do dashboard antes do overlay assumir no carregamento inicial */
+html.tonu-entering-dashboard .app-shell,
+html.tonu-entering-dashboard .mobile-topbar,
+html.tonu-entering-dashboard .mobile-content,
+html.tonu-entering-dashboard .bottom-nav {
+    opacity: 0;
+    transform: translateY(10px) scale(0.992);
+    pointer-events: none;
+}
+
+/* Fade suave de revelação do dashboard quando o overlay abre */
+html.tonu-dashboard-revealed .app-shell,
+html.tonu-dashboard-revealed .mobile-topbar,
+html.tonu-dashboard-revealed .mobile-content,
+html.tonu-dashboard-revealed .bottom-nav {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition:
+        opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Camada fullscreen de boas-vindas pós-login */
+#tonuPostLoginOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999990;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+    background:
+        radial-gradient(circle at 18% 18%, rgba(37, 99, 235, 0.14) 0%, transparent 46%),
+        radial-gradient(circle at 84% 20%, rgba(16, 185, 129, 0.12) 0%, transparent 42%),
+        radial-gradient(circle at 52% 88%, rgba(67, 56, 202, 0.12) 0%, transparent 48%),
+        linear-gradient(155deg, #F4F7FC 0%, #EFF6FF 52%, #DBEAFE 100%);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #172554;
+    overflow: hidden;
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0px);
+    transition:
+        opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+        filter 0.85s ease;
+    will-change: opacity, transform, filter;
+}
+
+html[data-theme="dark"] #tonuPostLoginOverlay,
+html.dark-theme #tonuPostLoginOverlay,
+body.dark-theme #tonuPostLoginOverlay {
+    background:
+        radial-gradient(circle at 18% 18%, rgba(37, 99, 235, 0.24) 0%, transparent 48%),
+        radial-gradient(circle at 84% 20%, rgba(16, 185, 129, 0.15) 0%, transparent 44%),
+        radial-gradient(circle at 50% 88%, rgba(55, 48, 163, 0.24) 0%, transparent 50%),
+        linear-gradient(155deg, #070b14 0%, #0d152a 55%, #09131d 100%);
+    color: #f8fafc;
+}
+
+#tonuPostLoginOverlay.is-fading-out {
+    opacity: 0;
+    transform: scale(1.032);
+    filter: blur(5px);
+    pointer-events: none;
+}
+
+/* Esferas ambientais suaves */
+.tonu-pl-orb {
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+    filter: blur(42px);
+    opacity: 0.55;
+    animation: tonuPlFloat 7.5s ease-in-out infinite alternate;
+}
+
+.tonu-pl-orb--indigo {
+    width: 280px;
+    height: 280px;
+    top: -70px;
+    left: -60px;
+    background: rgba(37, 99, 235, 0.24);
+}
+
+.tonu-pl-orb--emerald {
+    width: 240px;
+    height: 240px;
+    bottom: -60px;
+    right: -40px;
+    background: rgba(16, 185, 129, 0.22);
+    animation-delay: -3.2s;
+}
+
+@keyframes tonuPlFloat {
+    0% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    100% {
+        transform: translate3d(18px, -16px, 0) scale(1.08);
+    }
+}
+
+/* Cartão central translúcido */
+.tonu-pl-card {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 420px;
+    padding: 34px 28px 28px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(37, 99, 235, 0.16);
+    box-shadow:
+        0 24px 60px -16px rgba(23, 37, 84, 0.16),
+        0 8px 24px -8px rgba(37, 99, 235, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    animation: tonuPlCardIn 0.52s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html[data-theme="dark"] .tonu-pl-card,
+html.dark-theme .tonu-pl-card,
+body.dark-theme .tonu-pl-card {
+    background: rgba(19, 28, 49, 0.82);
+    border-color: rgba(59, 130, 246, 0.24);
+    box-shadow:
+        0 28px 68px -16px rgba(0, 0, 0, 0.62),
+        0 8px 28px -8px rgba(37, 99, 235, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+@keyframes tonuPlCardIn {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Badge de confirmação de login bem-sucedido */
+.tonu-pl-success-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    color: #047857;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.08);
+}
+
+html[data-theme="dark"] .tonu-pl-success-pill,
+html.dark-theme .tonu-pl-success-pill,
+body.dark-theme .tonu-pl-success-pill {
+    background: rgba(16, 185, 129, 0.16);
+    border-color: rgba(52, 211, 153, 0.34);
+    color: #6ee7b7;
+}
+
+.tonu-pl-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55);
+    animation: tonuPlDotPulse 1.8s ease-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes tonuPlDotPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+/* Conjunto do círculo orbital giratório com logo central */
+.tonu-pl-orbit-stage {
+    position: relative;
+    width: 122px;
+    height: 122px;
+    margin: 6px 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tonu-pl-halo-glow {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.2) 0%, rgba(16, 185, 129, 0.1) 50%, transparent 72%);
+    animation: tonuPlGlowBreath 2.4s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+
+@keyframes tonuPlGlowBreath {
+    from {
+        transform: scale(0.95);
+        opacity: 0.65;
+    }
+    to {
+        transform: scale(1.06);
+        opacity: 1;
+    }
+}
+
+/* Círculo externo rodando suavemente com gradiente Aurora Indigo -> Emerald */
+.tonu-pl-spinner-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    padding: 4px;
+    background: conic-gradient(
+        from 0deg,
+        #3730a3 0deg,
+        #2563eb 115deg,
+        #10b981 210deg,
+        rgba(16, 185, 129, 0.14) 295deg,
+        rgba(37, 99, 235, 0.1) 360deg
+    );
+    -webkit-mask:
+        radial-gradient(farthest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px));
+    mask:
+        radial-gradient(farthest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px));
+    animation: tonuPlSpin 1.15s linear infinite;
+    transition: filter 0.35s ease;
+}
+
+/* Anel tracejado interno girando no sentido oposto */
+.tonu-pl-inner-ring {
+    position: absolute;
+    inset: 11px;
+    border-radius: 50%;
+    border: 1.5px dashed rgba(99, 102, 241, 0.28);
+    animation: tonuPlSpinReverse 5.5s linear infinite;
+    pointer-events: none;
+}
+
+html[data-theme="dark"] .tonu-pl-inner-ring,
+html.dark-theme .tonu-pl-inner-ring,
+body.dark-theme .tonu-pl-inner-ring {
+    border-color: rgba(129, 140, 248, 0.32);
+}
+
+#tonuPostLoginOverlay.is-ready .tonu-pl-spinner-ring,
+#tonuLogoutOverlay.is-ready .tonu-pl-spinner-ring {
+    background: conic-gradient(from 0deg, #10b981 0deg, #34d399 180deg, #2563eb 360deg);
+    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.45));
+}
+
+@keyframes tonuPlSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes tonuPlSpinReverse {
+    to {
+        transform: rotate(-360deg);
+    }
+}
+
+/* Núcleo com logo TonuControle */
+.tonu-pl-logo-core {
+    position: relative;
+    z-index: 2;
+    width: 78px;
+    height: 78px;
+    border-radius: 22px;
+    background: linear-gradient(145deg, #ffffff 0%, #eef2ff 100%);
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    box-shadow:
+        0 12px 26px rgba(67, 56, 202, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-theme="dark"] .tonu-pl-logo-core,
+html.dark-theme .tonu-pl-logo-core,
+body.dark-theme .tonu-pl-logo-core {
+    background: linear-gradient(145deg, #1e293b 0%, #172036 100%);
+    border-color: rgba(129, 140, 248, 0.28);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+
+#tonuPostLoginOverlay.is-ready .tonu-pl-logo-core {
+    transform: scale(1.06);
+}
+
+.tonu-pl-logo-core img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.tonu-pl-logo-fallback {
+    font-size: 32px;
+    line-height: 1;
+}
+
+/* Selo de check verde acoplado ao círculo */
+.tonu-pl-check-chip {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    z-index: 3;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 6px 14px rgba(16, 185, 129, 0.38);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+html[data-theme="dark"] .tonu-pl-check-chip,
+html.dark-theme .tonu-pl-check-chip,
+body.dark-theme .tonu-pl-check-chip {
+    border-color: #0f172a;
+}
+
+#tonuPostLoginOverlay.is-ready .tonu-pl-check-chip {
+    transform: scale(1.14);
+}
+
+/* Tipografia de boas-vindas e etapa */
+.tonu-pl-brand-kicker {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #2563eb;
+    margin-top: 2px;
+}
+
+html[data-theme="dark"] .tonu-pl-brand-kicker,
+html.dark-theme .tonu-pl-brand-kicker,
+body.dark-theme .tonu-pl-brand-kicker {
+    color: #60a5fa;
+}
+
+.tonu-pl-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1.25;
+    letter-spacing: -0.025em;
+    color: #172554;
+}
+
+html[data-theme="dark"] .tonu-pl-title,
+html.dark-theme .tonu-pl-title,
+body.dark-theme .tonu-pl-title {
+    color: #f8fafc;
+}
+
+.tonu-pl-title .tonu-pl-user-accent {
+    background: linear-gradient(135deg, #3730a3 0%, #4338ca 45%, #2563eb 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+html[data-theme="dark"] .tonu-pl-title .tonu-pl-user-accent,
+html.dark-theme .tonu-pl-title .tonu-pl-user-accent,
+body.dark-theme .tonu-pl-title .tonu-pl-user-accent {
+    background: linear-gradient(135deg, #93c5fd 0%, #6ee7b7 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.tonu-pl-status {
+    margin: 0;
+    min-height: 22px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #475569;
+    transition: opacity 0.25s ease;
+}
+
+html[data-theme="dark"] .tonu-pl-status,
+html.dark-theme .tonu-pl-status,
+body.dark-theme .tonu-pl-status {
+    color: #cbd5e1;
+}
+
+.tonu-pl-status.is-swapping {
+    opacity: 0.35;
+}
+
+/* Indicador minimalista de etapas (3 pontinhos luminosos) */
+.tonu-pl-steps {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 2px;
+}
+
+.tonu-pl-step-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.22);
+    transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.35s ease;
+}
+
+.tonu-pl-step-dot.is-active {
+    width: 24px;
+    background: linear-gradient(90deg, #3730a3, #2563eb, #10b981);
+}
+
+.tonu-pl-step-dot.is-done {
+    background: #10b981;
+}
+
+/* Dica criativa de destaque do aplicativo */
+.tonu-pl-insight {
+    width: 100%;
+    margin-top: 6px;
+    padding: 11px 14px;
+    border-radius: 14px;
+    background: rgba(37, 99, 235, 0.055);
+    border: 1px solid rgba(37, 99, 235, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: #334155;
+}
+
+html[data-theme="dark"] .tonu-pl-insight,
+html.dark-theme .tonu-pl-insight,
+body.dark-theme .tonu-pl-insight {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: rgba(96, 165, 250, 0.2);
+    color: #cbd5e1;
+}
+
+.tonu-pl-insight i {
+    color: #2563eb;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+html[data-theme="dark"] .tonu-pl-insight i,
+html.dark-theme .tonu-pl-insight i,
+body.dark-theme .tonu-pl-insight i {
+    color: #34d399;
+}
+
+@media (max-width: 480px) {
+    .tonu-pl-card {
+        padding: 28px 20px 24px;
+        border-radius: 24px;
+    }
+
+    .tonu-pl-title {
+        font-size: 20px;
+    }
+
+    .tonu-pl-orbit-stage {
+        width: 112px;
+        height: 112px;
+    }
+
+    .tonu-pl-logo-core {
+        width: 72px;
+        height: 72px;
+        border-radius: 20px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tonu-pl-orb,
+    .tonu-pl-halo-glow,
+    .tonu-pl-pulse-dot,
+    .tonu-pl-inner-ring {
+        animation: none !important;
+    }
+
+    .tonu-pl-spinner-ring {
+        animation-duration: 2.4s !important;
+    }
+
+    #tonuPostLoginOverlay,
+    #tonuLogoutOverlay,
+    html.tonu-dashboard-revealed .app-shell,
+    html.tonu-dashboard-revealed .mobile-topbar,
+    html.tonu-dashboard-revealed .mobile-content,
+    html.tonu-dashboard-revealed .bottom-nav {
+        transition-duration: 0.25s !important;
+        filter: none !important;
+        transform: none !important;
+    }
+}
+
+/* ============================================
+   TONUCONTROLE - CREATIVE LOGOUT TRANSITION
+   Transição criativa de encerramento de sessão
+   ============================================ */
+
+#tonuLogoutOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999995;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+    background:
+        radial-gradient(circle at 18% 18%, rgba(37, 99, 235, 0.14) 0%, transparent 46%),
+        radial-gradient(circle at 84% 20%, rgba(16, 185, 129, 0.12) 0%, transparent 42%),
+        radial-gradient(circle at 52% 88%, rgba(67, 56, 202, 0.12) 0%, transparent 48%),
+        linear-gradient(155deg, #F4F7FC 0%, #EFF6FF 52%, #DBEAFE 100%);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #172554;
+    overflow: hidden;
+    opacity: 0;
+    transform: scale(1.015);
+    filter: blur(0px);
+    transition:
+        opacity 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+        filter 0.55s ease;
+    will-change: opacity, transform, filter;
+}
+
+#tonuLogoutOverlay.is-visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+#tonuLogoutOverlay.is-leaving {
+    opacity: 0;
+    transform: scale(1.03);
+    filter: blur(5px);
+    pointer-events: none;
+    transition:
+        opacity 0.56s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.56s cubic-bezier(0.22, 1, 0.36, 1),
+        filter 0.56s ease;
+}
+
+html[data-theme="dark"] #tonuLogoutOverlay,
+html.dark-theme #tonuLogoutOverlay,
+body.dark-theme #tonuLogoutOverlay {
+    background:
+        radial-gradient(circle at 18% 18%, rgba(37, 99, 235, 0.24) 0%, transparent 48%),
+        radial-gradient(circle at 84% 20%, rgba(16, 185, 129, 0.15) 0%, transparent 44%),
+        radial-gradient(circle at 50% 88%, rgba(55, 48, 163, 0.24) 0%, transparent 50%),
+        linear-gradient(155deg, #070b14 0%, #0d152a 55%, #09131d 100%);
+    color: #f8fafc;
+}
+
+/* Badge durante o encerramento de sessão (Blue Finance) */
+.tonu-pl-securing-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.1);
+    border: 1px solid rgba(37, 99, 235, 0.26);
+    color: #3730a3;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+.tonu-pl-securing-pill .tonu-pl-pulse-dot {
+    background: #2563eb;
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.55);
+    animation: tonuLoDotPulse 1.6s ease-out infinite;
+}
+
+@keyframes tonuLoDotPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.55);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    }
+}
+
+html[data-theme="dark"] .tonu-pl-securing-pill,
+html.dark-theme .tonu-pl-securing-pill,
+body.dark-theme .tonu-pl-securing-pill {
+    background: rgba(37, 99, 235, 0.2);
+    border-color: rgba(96, 165, 250, 0.34);
+    color: #dbeafe;
+}
+
+/* Check chip começa oculto no logout e surge com pop suave na confirmação */
+#tonuLogoutOverlay .tonu-pl-check-chip {
+    opacity: 0;
+    transform: scale(0.45);
+    transition:
+        opacity 0.28s ease,
+        transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+#tonuLogoutOverlay.is-ready .tonu-pl-check-chip {
+    opacity: 1;
+    transform: scale(1.12);
+}
+
+#tonuLogoutOverlay.is-ready .tonu-pl-logo-core {
+    transform: scale(1.06);
+}

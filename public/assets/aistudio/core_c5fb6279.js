@@ -1,0 +1,3876 @@
+// ============================================
+// TONUCONTROLE - CORE (COM VALIDAÇÃO MELHORADA)
+// ============================================
+
+console.log('✅ Core.js carregado');
+
+// ============================================
+// 0. CONFIGURAÇÕES GLOBAIS
+// ============================================
+if (typeof window !== 'undefined') {
+    window.TONU_JCP_TAX_RATE = 0.20; // Alíquota oficial de retenção de IR na fonte sobre JCP (20% - MP 1303/2025)
+}
+if (typeof globalThis !== 'undefined') {
+    globalThis.TONU_JCP_TAX_RATE = 0.20;
+}
+if (typeof global !== 'undefined') {
+    global.TONU_JCP_TAX_RATE = 0.20;
+}
+
+function genUuid() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        try { return crypto.randomUUID(); } catch (_) {}
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16 | 0;
+        var v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+if (typeof window !== 'undefined') window.genUuid = genUuid;
+if (typeof globalThis !== 'undefined') globalThis.genUuid = genUuid;
+
+// Units de Ações brasileiras que terminam em 11 (AÇÕES ordinárias/preferenciais, NÃO FIIs)
+var KNOWN_STOCK_UNITS = (typeof window !== 'undefined' && window.KNOWN_STOCK_UNITS) || (typeof globalThis !== 'undefined' && globalThis.KNOWN_STOCK_UNITS) || new Set([
+    'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
+    'SULA11', 'TIET11', 'BIDI11', 'RPMG11', 'MODL11', 'IGTI11', 'VVAR11', 'STBP11',
+    'AESB11', 'ELET11', 'PPLA11', 'ALLD11', 'ENEV11', 'BMEB11', 'BMGB11', 'BRAP11',
+    'CAMB11', 'CURY11', 'EMAE11', 'LCAM11', 'MOVI11', 'ODPV11', 'PARD11', 'RANI11',
+    'RAPT11', 'SIMH11', 'TRIS11', 'TUPY11', 'VAMO11', 'VBBR11', 'VULC11', 'WHRL11'
+]);
+if (typeof window !== 'undefined') window.KNOWN_STOCK_UNITS = KNOWN_STOCK_UNITS;
+if (typeof globalThis !== 'undefined') globalThis.KNOWN_STOCK_UNITS = KNOWN_STOCK_UNITS;
+
+// ETFs brasileiros negociados na B3 terminados em 11
+var KNOWN_ETFS = (typeof window !== 'undefined' && window.KNOWN_ETFS) || (typeof globalThis !== 'undefined' && globalThis.KNOWN_ETFS) || new Set([
+    'BOVA11', 'SMAL11', 'IVVB11', 'HASH11', 'XINA11', 'GOLD11', 'NASD11', 'SPXI11',
+    'WRLD11', 'DIVO11', 'MATB11', 'FIND11', 'BRAX11', 'PIBB11', 'ECOO11', 'ISUS11',
+    'GENB11', 'ACWI11', 'BBSD11', 'TECB11', 'DNAI11', 'MILL11', 'SHOT11', 'REVE11',
+    'BBOV11', 'USTK11', 'HTEK11', 'BDEF11', 'BDIV11', 'NSDV11', 'QETH11', 'QBTC11',
+    'CRPT11', 'DEFI11', 'WEB311', 'META11', 'NFTS11', 'BLOK11', 'ETHE11', 'BITH11'
+]);
+if (typeof window !== 'undefined') window.KNOWN_ETFS = KNOWN_ETFS;
+if (typeof globalThis !== 'undefined') globalThis.KNOWN_ETFS = KNOWN_ETFS;
+
+function inferAssetClass(ticker) {
+    if (!ticker) return 'Ações';
+    const raw = String(ticker).toUpperCase().trim();
+    const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
+    if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) return 'Ações';
+    if (KNOWN_ETFS.has(tk) || KNOWN_ETFS.has(raw) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) return 'ETFs';
+    if (/^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC)/.test(tk)) return 'Tesouro';
+    if (tk.endsWith('34') || tk.endsWith('35')) return 'BDRs';
+    if (/^[A-Z]{4}[23456]$/.test(tk)) return 'Ações';
+    if (/^(KN|HGLG|MXRF|GGRC|RZTR|XPLG|VISC|BTLG|CPTS|IRDM|BCFF|MALL|HFOF|XPML|KNSC|RECR|HGRE|TRXF|TGAR|VILG|RECT|RBRF|RBRP|MCCI|PVBI|VRTA|ALZR|LVBI|JSRE|PATL|DEVA|RBVA|HCTR|VINO|URPR|SNFF|BARI|HSAF|KORE|MCHF|VGIP|VGIR|RBRY|KNIP|KNRI|KNCR)/.test(tk) || tk.endsWith('11') || tk.endsWith('11B')) {
+        return 'FIIs';
+    }
+    return 'Ações';
+}
+
+function resolveAssetClass(ticker, explicitClass) {
+    const raw = String(ticker || '').toUpperCase().trim();
+    const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
+    // Regra absoluta: TAESA ou Units conhecidas NUNCA são FIIs - são AÇÕES
+    if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) {
+        return 'Ações';
+    }
+    if (KNOWN_ETFS.has(tk) || KNOWN_ETFS.has(raw)) {
+        return 'ETFs';
+    }
+    if (/^[A-Z]{4}[23456]$/.test(tk)) {
+        return 'Ações';
+    }
+    if (explicitClass) {
+        const upper = String(explicitClass).toUpperCase().trim();
+        if (upper === 'FII' || upper === 'FIIS') {
+            if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) return 'Ações';
+            return 'FIIs';
+        }
+        if (upper === 'ETF' || upper === 'ETFS') return 'ETFs';
+        if (upper === 'TESOURO' || upper === 'TESOURO DIRETO') return 'Tesouro';
+        if (upper === 'BDR' || upper === 'BDRS') return 'BDRs';
+        if (upper === 'AÇÃO' || upper === 'ACOES' || upper === 'AÇÕES' || upper === 'ACAO') return 'Ações';
+        if (['Ações', 'FIIs', 'ETFs', 'Tesouro', 'BDRs'].includes(explicitClass)) return explicitClass;
+    }
+    return inferAssetClass(tk);
+}
+
+if (typeof window !== 'undefined') {
+    window.KNOWN_STOCK_UNITS = KNOWN_STOCK_UNITS;
+    window.KNOWN_ETFS = KNOWN_ETFS;
+    window.inferAssetClass = inferAssetClass;
+    window.resolveAssetClass = resolveAssetClass;
+}
+if (typeof globalThis !== 'undefined') {
+    globalThis.KNOWN_STOCK_UNITS = KNOWN_STOCK_UNITS;
+    globalThis.KNOWN_ETFS = KNOWN_ETFS;
+    globalThis.inferAssetClass = inferAssetClass;
+    globalThis.resolveAssetClass = resolveAssetClass;
+}
+
+var resolvedBrapiToken = (typeof window !== 'undefined' && window.__TONU_CONFIG__ && window.__TONU_CONFIG__.brapiToken)
+    ? window.__TONU_CONFIG__.brapiToken
+    : ((typeof window !== 'undefined' && window.ENV && window.ENV.BRAPI_TOKEN) ? window.ENV.BRAPI_TOKEN : '');
+
+if (!resolvedBrapiToken && typeof console !== 'undefined' && console.warn) {
+    console.warn('⚠️ BRAPI_TOKEN não configurado no ambiente (.env). Cotações automáticas da B3 podem ficar limitadas.');
+}
+
+window.APP_CONFIG = {
+    BRAPI_TOKEN: resolvedBrapiToken,
+    VERSION: '2.1.0',
+    MAX_AMOUNT: 999999999.99,
+    MIN_PASSWORD_LENGTH: 6,
+    MAX_DESCRIPTION_LENGTH: 200
+};
+window.BRAPI_TOKEN = resolvedBrapiToken;
+
+// ============================================
+// 1. HAPTIC FEEDBACK (VIBRAÇÃO TÁTIL PARA AÇÕES CRÍTICAS)
+// ============================================
+function triggerHaptic(type) {
+    try {
+        if (typeof navigator === 'undefined' || !('vibrate' in navigator)) return;
+        type = type || 'medium';
+        var patterns = {
+            light: 20,
+            medium: 40,
+            heavy: [50, 35, 50],
+            success: [35, 45, 35],
+            error: [60, 40, 60],
+            warning: [40, 30, 40],
+            info: 25
+        };
+        var pattern = patterns[type] !== undefined ? patterns[type] : 35;
+        navigator.vibrate(pattern);
+    } catch (e) {
+        // Fallback seguro se vibrate não for suportado ou for restrito no iframe
+    }
+}
+window.triggerHaptic = triggerHaptic;
+
+function safeHaptic(duration) {
+    try {
+        duration = typeof duration === 'number' ? duration : 20;
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+            navigator.vibrate(duration);
+        }
+    } catch (_) {}
+}
+window.safeHaptic = safeHaptic;
+
+// ============================================
+// 2. TOAST PREMIUM (COM PROGRESSO, PAUSE NO HOVER & SWIPE TO DISMISS)
+// ============================================
+function showToast(message, type, actionText, onAction) {
+    type = type || 'info';
+    var toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast hidden';
+        document.body.appendChild(toast);
+    }
+
+    // Feedback tátil automático correspondente ao tipo
+    triggerHaptic(type);
+
+    var icons = {
+        info: 'fa-info-circle',
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle'
+    };
+
+    var isMobile = (typeof window !== 'undefined' && (
+        (window.location.pathname && window.location.pathname.indexOf('/mobile/') !== -1) ||
+        window.innerWidth <= 768 ||
+        !!document.querySelector('.bottom-nav') ||
+        !!document.querySelector('.mobile-topbar')
+    ));
+
+    // Limpar estados anteriores de transform/opacidade
+    toast.style.background = '';
+    toast.style.color = '';
+    toast.style.transform = '';
+    toast.style.opacity = '';
+    toast.style.transition = '';
+    toast.className = 'toast toast-' + type + (isMobile ? ' toast-dynamic-island show' : '');
+
+    var iconClass = icons[type] || icons.info;
+    var actionHtml = '';
+    if (actionText && typeof onAction === 'function') {
+        actionHtml = '<button type="button" class="toast-action-btn" id="toastActionBtn">' + actionText + '</button>';
+    }
+
+    toast.innerHTML = 
+        '<div class="toast-body">' +
+            '<i class="fas ' + iconClass + ' toast-icon" aria-hidden="true"></i>' +
+            '<span class="toast-text">' + message + '</span>' +
+            actionHtml +
+            '<button type="button" class="toast-close-btn" aria-label="Fechar notificação" onclick="hideToast()">&times;</button>' +
+        '</div>' +
+        '<div class="toast-progress-track">' +
+            '<div class="toast-progress-bar" id="toastProgressBar" style="width: 100%;"></div>' +
+        '</div>';
+
+    if (isMobile) {
+        toast.style.transform = 'translate(-50%, 0)';
+        toast.style.opacity = '1';
+    }
+
+    if (actionText && typeof onAction === 'function') {
+        var actionBtn = document.getElementById('toastActionBtn');
+        if (actionBtn) {
+            actionBtn.onclick = function() {
+                hideToast();
+                try { onAction(); } catch(err) { console.error('Erro ao executar ação do toast:', err); }
+            };
+        }
+    }
+
+    // Controle de tempo com pausa (2.5s no mobile estilo iOS Dynamic Island)
+    var TOTAL_DURATION = isMobile ? 2500 : 3500;
+    var remainingTime = TOTAL_DURATION;
+    var startTimestamp = Date.now();
+    var isPaused = false;
+
+    clearTimeout(toast._timeout);
+
+    function startTimer(duration) {
+        clearTimeout(toast._timeout);
+        startTimestamp = Date.now();
+        toast._timeout = setTimeout(function () {
+            hideToast();
+        }, duration);
+    }
+
+    // Iniciar animação da barra de progresso
+    setTimeout(function() {
+        var bar = document.getElementById('toastProgressBar');
+        if (bar) {
+            bar.style.transition = 'width ' + (remainingTime / 1000) + 's linear';
+            bar.style.width = '0%';
+        }
+    }, 40);
+
+    startTimer(remainingTime);
+
+    // ============================================
+    // RECURSO 1: PAUSE TOAST ON HOVER
+    // ============================================
+    function pauseToast() {
+        if (isPaused) return;
+        isPaused = true;
+        clearTimeout(toast._timeout);
+        var elapsed = Date.now() - startTimestamp;
+        remainingTime = Math.max(600, remainingTime - elapsed);
+
+        var bar = document.getElementById('toastProgressBar');
+        if (bar) {
+            var currentWidth = window.getComputedStyle(bar).width;
+            bar.style.transition = 'none';
+            bar.style.width = currentWidth;
+        }
+    }
+
+    function resumeToast() {
+        if (!isPaused || toast.classList.contains('hidden')) return;
+        isPaused = false;
+
+        var bar = document.getElementById('toastProgressBar');
+        if (bar) {
+            bar.style.transition = 'width ' + (remainingTime / 1000) + 's linear';
+            bar.style.width = '0%';
+        }
+        startTimer(remainingTime);
+    }
+
+    toast.onmouseenter = pauseToast;
+    toast.onmouseleave = resumeToast;
+
+    // ============================================
+    // RECURSO 2: SWIPE TO DISMISS NO MOBILE
+    // ============================================
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var touchCurrentX = 0;
+    var isSwiping = false;
+
+    toast.ontouchstart = function(e) {
+        if (!e.touches || e.touches.length !== 1) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchCurrentX = touchStartX;
+        isSwiping = false;
+        pauseToast();
+        toast.style.transition = 'none';
+    };
+
+    toast.ontouchmove = function(e) {
+        if (!e.touches || e.touches.length !== 1) return;
+        touchCurrentX = e.touches[0].clientX;
+        var deltaX = touchCurrentX - touchStartX;
+        var deltaY = e.touches[0].clientY - touchStartY;
+
+        // Ativa o swipe apenas se o movimento for prioritariamente horizontal
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 8) {
+            isSwiping = true;
+            if (e.cancelable) e.preventDefault();
+            var opacity = Math.max(0.2, 1 - (Math.abs(deltaX) / 240));
+            toast.style.transform = isMobile
+                ? 'translateX(calc(-50% + ' + deltaX + 'px))'
+                : 'translateX(' + deltaX + 'px)';
+            toast.style.opacity = String(opacity);
+        }
+    };
+
+    toast.ontouchend = function(e) {
+        if (!isSwiping) {
+            resumeToast();
+            return;
+        }
+        var deltaX = touchCurrentX - touchStartX;
+        toast.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease';
+
+        // Limiar para descartar (65px)
+        if (Math.abs(deltaX) > 65) {
+            var direction = deltaX > 0 ? '125%' : '-125%';
+            toast.style.transform = 'translateX(' + direction + ')';
+            toast.style.opacity = '0';
+            triggerHaptic('light');
+            setTimeout(function() {
+                hideToast();
+            }, 220);
+        } else {
+            // Retorna suavemente à posição original se não atingiu o limiar
+            toast.style.transform = '';
+            toast.style.opacity = '';
+            setTimeout(function() {
+                resumeToast();
+            }, 220);
+        }
+        isSwiping = false;
+    };
+
+    toast.ontouchcancel = function() {
+        toast.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+        toast.style.transform = '';
+        toast.style.opacity = '';
+        resumeToast();
+        isSwiping = false;
+    };
+}
+
+function hideToast() {
+    var toast = document.getElementById('toast');
+    if (!toast) return;
+    clearTimeout(toast._timeout);
+    toast.onmouseenter = null;
+    toast.onmouseleave = null;
+    toast.ontouchstart = null;
+    toast.ontouchmove = null;
+    toast.ontouchend = null;
+    toast.ontouchcancel = null;
+    var isMobile = (typeof window !== 'undefined' && (
+        (window.location.pathname && window.location.pathname.indexOf('/mobile/') !== -1) ||
+        window.innerWidth <= 768 ||
+        !!document.querySelector('.bottom-nav') ||
+        !!document.querySelector('.mobile-topbar')
+    ));
+    toast.style.opacity = '0';
+    toast.style.transform = isMobile ? 'translate(-50%, -20px)' : 'translateY(15px) scale(0.95)';
+    setTimeout(function() {
+        toast.className = 'toast hidden';
+        toast.style.opacity = '';
+        toast.style.transform = '';
+        toast.style.transition = '';
+    }, 220);
+}
+window.hideToast = hideToast;
+window.showToast = showToast;
+
+// ============================================
+// 2. FORMATAÇÃO
+// ============================================
+function formatCurrency(value) {
+    if (value === null || value === undefined || value === '') {
+        value = 0;
+    }
+    if (typeof value === 'string') {
+        var cleaned = value.replace(/[R$\s]/g, '');
+        if (cleaned.includes(',') && cleaned.includes('.')) {
+            cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        } else if (cleaned.includes(',')) {
+            cleaned = cleaned.replace(',', '.');
+        }
+        value = parseFloat(cleaned);
+    }
+    var num = Number(value);
+    if (isNaN(num)) num = 0;
+    try {
+        var formatted = new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+        return formatted.replace(/\u00A0/g, ' ');
+    } catch (error) {
+        var isNegative = num < 0;
+        var parts = Math.abs(num).toFixed(2).split('.');
+        var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        var res = 'R$ ' + intPart + ',' + parts[1];
+        return isNegative ? '-' + res : res;
+    }
+}
+
+function formatNumber(value, decimals) {
+    if (decimals === undefined || decimals === null) decimals = 2;
+    if (value === null || value === undefined || value === '') value = 0;
+    var num = Number(value);
+    if (isNaN(num)) num = 0;
+    try {
+        return num.toLocaleString('pt-BR', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    } catch (e) {
+        return num.toFixed(decimals).replace('.', ',');
+    }
+}
+window.formatNumber = formatNumber;
+
+function animateValue(el, toVal, formatter) {
+    if (!el) return;
+    var target = Number(toVal);
+    if (!Number.isFinite(target)) return;
+
+    if (el._tonuRafId && typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
+        window.cancelAnimationFrame(el._tonuRafId);
+        el._tonuRafId = null;
+    }
+
+    var fmt = typeof formatter === 'function'
+        ? formatter
+        : (typeof formatCurrency === 'function' ? formatCurrency : function (v) {
+            return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
+        });
+
+    var formattedTarget = fmt(target);
+    var isHidden = false;
+    try {
+        isHidden = typeof localStorage !== 'undefined' && localStorage.getItem('tonu_hide_balance') === 'true';
+    } catch (_) {}
+
+    var maskedIds = {
+        totalBalance: true,
+        totalIncome: true,
+        totalExpense: true,
+        billsAmount: true,
+        totalInvested: true,
+        dividendsMonthAmount: true
+    };
+    var isDesktopMaskedId = !!(el.id && maskedIds[el.id]);
+
+    if (isDesktopMaskedId && el.dataset) {
+        el.dataset.realValue = formattedTarget;
+    }
+
+    if (isHidden && (isDesktopMaskedId || (el.hasAttribute && el.hasAttribute('data-sensitive')) || (el.textContent && el.textContent.indexOf('•••') !== -1))) {
+        if (isDesktopMaskedId || (el.textContent && el.textContent.indexOf('•••') !== -1)) {
+            el.textContent = '••••••';
+        } else {
+            el.textContent = formattedTarget;
+        }
+        if (el.dataset) el.dataset.animPrev = String(target);
+        return;
+    }
+
+    var reducedMotion = false;
+    try {
+        reducedMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (_) {}
+
+    if (reducedMotion || typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+        el.textContent = formattedTarget;
+        if (el.dataset) el.dataset.animPrev = String(target);
+        return;
+    }
+
+    var prev = (el.dataset && el.dataset.animPrev !== undefined) ? parseFloat(el.dataset.animPrev) : NaN;
+    if (!Number.isFinite(prev)) prev = 0;
+
+    if (Math.abs(target - prev) < 0.005) {
+        el.textContent = formattedTarget;
+        if (el.dataset) el.dataset.animPrev = String(target);
+        return;
+    }
+
+    var duration = 550;
+    var startTime = (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
+
+    function step(now) {
+        var currentNow = typeof now === 'number' ? now : ((typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now());
+        var p = Math.min(1, Math.max(0, (currentNow - startTime) / duration));
+        var eased = 1 - Math.pow(1 - p, 3);
+        var current = prev + (target - prev) * eased;
+        el.textContent = fmt(p >= 1 ? target : current);
+        if (p < 1) {
+            el._tonuRafId = window.requestAnimationFrame(step);
+        } else {
+            el._tonuRafId = null;
+            if (el.dataset) {
+                el.dataset.animPrev = String(target);
+                if (isDesktopMaskedId) el.dataset.realValue = formattedTarget;
+            }
+        }
+    }
+    el._tonuRafId = window.requestAnimationFrame(step);
+}
+if (typeof window !== 'undefined') window.animateValue = animateValue;
+if (typeof globalThis !== 'undefined') globalThis.animateValue = animateValue;
+
+function formatDate(date, format) {
+    format = format || 'short';
+    if (!date) return '--/--/----';
+
+    var str = String(date).trim();
+    var match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match && format === 'short') {
+        return match[3] + '/' + match[2] + '/' + match[1];
+    }
+
+    var d;
+    if (match) {
+        d = new Date(str.substring(0, 10) + 'T12:00:00');
+    } else {
+        d = new Date(date);
+    }
+    if (isNaN(d.getTime())) return '--/--/----';
+
+    if (format === 'short') {
+        return d.toLocaleDateString('pt-BR');
+    }
+    if (format === 'long') {
+        return d.toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+    if (format === 'month') {
+        return d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+    }
+    return d.toLocaleDateString('pt-BR');
+}
+
+function parseLocalDate(dateStr) {
+    if (!dateStr) return null;
+    if (dateStr instanceof Date) return dateStr;
+    var str = String(dateStr).trim();
+    var match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+        var year = parseInt(match[1], 10);
+        var month = parseInt(match[2], 10) - 1;
+        var day = parseInt(match[3], 10);
+        return new Date(year, month, day, 12, 0, 0);
+    }
+    return new Date(dateStr);
+}
+window.parseLocalDate = parseLocalDate;
+
+function getToday() {
+    var now = new Date();
+    try {
+        return now.toLocaleDateString('sv');
+    } catch (e) {
+        var y = now.getFullYear();
+        var m = String(now.getMonth() + 1).padStart(2, '0');
+        var d = String(now.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + d;
+    }
+}
+
+function getDaysBetween(date1, date2) {
+    var d1 = new Date(date1);
+    var d2 = new Date(date2);
+    var diffTime = Math.abs(d2 - d1);
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+// ============================================
+// NAVEGAÇÃO DE MÊS GLOBAL (FALLBACK & DISPATCHER)
+// ============================================
+function changeMonth(delta) {
+    if (typeof window.changeMonthHandler === 'function') {
+        return window.changeMonthHandler(delta);
+    }
+    var evt = new CustomEvent('tonu:changeMonth', { detail: { delta: delta } });
+    window.dispatchEvent(evt);
+}
+
+function goToCurrentMonth() {
+    if (typeof window.goToCurrentMonthHandler === 'function') {
+        return window.goToCurrentMonthHandler();
+    }
+    var evt = new CustomEvent('tonu:goToCurrentMonth');
+    window.dispatchEvent(evt);
+}
+
+window.changeMonth = changeMonth;
+window.goToCurrentMonth = goToCurrentMonth;
+
+// ============================================
+// 3. SANITIZAÇÃO E VALIDAÇÃO
+// ============================================
+function sanitizeString(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/`/g, '&#96;')
+        .replace(/=/g, '&#61;')
+        .replace(/\/\*/g, '')
+        .replace(/\*\//g, '')
+        .replace(/javascript:/gi, '')
+        .replace(/on\w+=/gi, '');
+}
+
+function stripHTML(str) {
+    if (!str) return '';
+    const temp = document.createElement('div');
+    temp.textContent = str;
+    return temp.innerHTML;
+}
+
+function validateEmail(email) {
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
+}
+
+function validatePassword(password) {
+    return password && password.length >= 6;
+}
+
+function validateAmount(amount) {
+    var num = Number(amount);
+    return num > 0 && num <= 999999999.99 && !isNaN(num);
+}
+
+function validateDate(date) {
+    if (!date) return false;
+    var d = new Date(date);
+    return d instanceof Date && !isNaN(d);
+}
+
+function isValidEmail(email) {
+    return validateEmail(email);
+}
+
+function isValidPassword(password) {
+    return validatePassword(password);
+}
+
+function validateTransaction(data) {
+    var errors = [];
+
+    if (!data.description || data.description.length < 2) {
+        errors.push('Descrição deve ter pelo menos 2 caracteres');
+    }
+    if (data.description && data.description.length > 200) {
+        errors.push('Descrição muito longa (máximo 200 caracteres)');
+    }
+    if (isNaN(data.amount) || data.amount <= 0) {
+        errors.push('Valor deve ser maior que zero');
+    }
+    if (data.amount && data.amount > 999999999.99) {
+        errors.push('Valor excede o limite máximo');
+    }
+    if (data.date && !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+        errors.push('Data inválida');
+    }
+    if (data.type && !['income', 'expense'].includes(data.type)) {
+        errors.push('Tipo inválido');
+    }
+
+    return {
+        valid: errors.length === 0,
+        errors: errors
+    };
+}
+
+function validateBill(data) {
+    var errors = [];
+
+    if (!data.description || data.description.length < 2) {
+        errors.push('Descrição deve ter pelo menos 2 caracteres');
+    }
+    if (isNaN(data.amount) || data.amount <= 0) {
+        errors.push('Valor deve ser maior que zero');
+    }
+    if (data.date && !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+        errors.push('Data inválida');
+    }
+
+    return {
+        valid: errors.length === 0,
+        errors: errors
+    };
+}
+
+function validateGoal(data) {
+    var errors = [];
+
+    if (!data.title || data.title.length < 2) {
+        errors.push('Título deve ter pelo menos 2 caracteres');
+    }
+    if (data.title && data.title.length > 100) {
+        errors.push('Título muito longo (máximo 100 caracteres)');
+    }
+    if (isNaN(data.target_amount) || data.target_amount <= 0) {
+        errors.push('Valor alvo deve ser maior que zero');
+    }
+    if (data.target_amount && data.target_amount > 999999999.99) {
+        errors.push('Valor alvo excede o limite máximo');
+    }
+    if (data.current_amount && data.current_amount < 0) {
+        errors.push('Valor atual não pode ser negativo');
+    }
+    if (data.deadline && !/^\d{4}-\d{2}-\d{2}$/.test(data.deadline)) {
+        errors.push('Data limite inválida');
+    }
+
+    return {
+        valid: errors.length === 0,
+        errors: errors
+    };
+}
+
+function debounce(fn, delay) {
+    delay = delay || 300;
+    var timer = null;
+    return function () {
+        var args = arguments;
+        var context = this;
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            fn.apply(context, args);
+        }, delay);
+    };
+}
+
+function TonuDebounce(fn, delay) {
+    delay = typeof delay === 'number' ? delay : 200;
+    var t = null;
+    return function () {
+        var args = arguments;
+        var ctx = this;
+        clearTimeout(t);
+        t = setTimeout(function () {
+            fn.apply(ctx, args);
+        }, delay);
+    };
+}
+
+function throttle(fn, limit) {
+    limit = limit || 300;
+    var inThrottle = false;
+    return function () {
+        var args = arguments;
+        var context = this;
+        if (!inThrottle) {
+            fn.apply(context, args);
+            inThrottle = true;
+            setTimeout(function () {
+                inThrottle = false;
+            }, limit);
+        }
+    };
+}
+
+// ============================================
+// 4. MONTH DISPLAY
+// ============================================
+function updateMonthDisplay(elementId, offset) {
+    offset = offset || 0;
+    var d = new Date();
+    d.setMonth(d.getMonth() + offset);
+    var months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    var el = document.getElementById(elementId);
+    if (el) {
+        el.textContent = months[d.getMonth()] + ' ' + d.getFullYear();
+    }
+    return d;
+}
+
+function getMonthName(month) {
+    var months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    return months[month] || '';
+}
+
+function getLastDayOfMonth(year, month) {
+    return new Date(year, month + 1, 0).getDate();
+}
+
+function formatDateKey(year, month, day) {
+    var m = String(month + 1).padStart(2, '0');
+    var d = String(day).padStart(2, '0');
+    return year + '-' + m + '-' + d;
+}
+
+function isTransactionPaid(t) {
+    if (!t) return false;
+    if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+    if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+    return (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+}
+
+function isTxPaid(t) {
+    return isTransactionPaid(t);
+}
+
+if (typeof window !== 'undefined') {
+    window.isTransactionPaid = isTransactionPaid;
+    window.isTxPaid = isTxPaid;
+}
+
+// ============================================
+// 5. SIDEBAR
+// ============================================
+function toggleSidebar() {
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebarOverlay');
+    var main = document.getElementById('mainContent');
+
+    if (!sidebar) return;
+
+    if (sidebar.classList.contains('hidden')) {
+        sidebar.classList.remove('hidden');
+        if (window.innerWidth <= 768 && overlay) {
+            overlay.classList.add('show');
+        }
+        if (main && window.innerWidth > 768) {
+            main.classList.remove('full');
+        }
+    } else {
+        sidebar.classList.add('hidden');
+        if (overlay) overlay.classList.remove('show');
+        if (main && window.innerWidth > 768) {
+            main.classList.add('full');
+        }
+    }
+}
+
+function closeSidebar() {
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebarOverlay');
+    var main = document.getElementById('mainContent');
+
+    if (sidebar) sidebar.classList.add('hidden');
+    if (overlay) overlay.classList.remove('show');
+    if (main && window.innerWidth > 768) {
+        main.classList.add('full');
+    }
+}
+
+// ============================================
+// 6. LOGOUT (NÃO-DESTRUTIVO PARA BIOMETRIA / COMPLETO PARA USUÁRIO COMUM)
+//    + TRANSIÇÃO CRIATIVA DE DESPEDIDA (AURORA INDIGO & EMERALD)
+// ============================================
+function _resolveUserDisplayNameForLogout() {
+    var rawName = '';
+    try {
+        var su = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('tonu_user') : null;
+        if (su) {
+            var parsed = JSON.parse(su);
+            var u = parsed.user || parsed;
+            rawName = u?.user_metadata?.full_name || u?.user_metadata?.name || u?.name || u?.email?.split('@')[0] || '';
+        }
+    } catch (_) {}
+
+    if (!rawName) {
+        try {
+            var off = typeof localStorage !== 'undefined' ? localStorage.getItem('tonu_offline_session') : null;
+            if (off) {
+                var po = JSON.parse(off);
+                var uo = po.user || po;
+                rawName = uo?.user_metadata?.full_name || uo?.user_metadata?.name || uo?.name || uo?.email?.split('@')[0] || '';
+            }
+        } catch (_) {}
+    }
+
+    if (!rawName) {
+        try {
+            var lu = typeof localStorage !== 'undefined' ? localStorage.getItem('tonu_user') : null;
+            if (lu) {
+                var pl = JSON.parse(lu);
+                var ul = pl.user || pl;
+                rawName = ul?.user_metadata?.full_name || ul?.user_metadata?.name || ul?.name || ul?.email?.split('@')[0] || '';
+            }
+        } catch (_) {}
+    }
+
+    if (!rawName && typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+        try {
+            var nameEl = document.querySelector('#sidebarUserName, #mobileUserName, .user-name');
+            if (nameEl && nameEl.textContent) {
+                rawName = nameEl.textContent;
+            }
+        } catch (_) {}
+    }
+
+    var clean = String(rawName || '').trim();
+    if (!clean || clean.toLowerCase() === 'carregando...' || clean.toLowerCase() === 'usuário') return '';
+    if (clean.indexOf('@') !== -1) clean = clean.split('@')[0];
+    var first = clean.split(/\s+/)[0] || clean;
+    return first ? (first.charAt(0).toUpperCase() + first.slice(1)) : '';
+}
+
+function _resolveLogoutAssetPrefix() {
+    if (typeof window === 'undefined' || !window.location) return './';
+    var p = window.location.pathname || '';
+    if (p.indexOf('/mobile/') !== -1) return '../../';
+    if (p.indexOf('/pages/') !== -1) return '../';
+    return './';
+}
+
+function _canRenderLogoutOverlay() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+    if (typeof navigator !== 'undefined' && navigator.userAgent === 'NodeTest') return false;
+    return Boolean(
+        document.body &&
+        typeof document.body.appendChild === 'function' &&
+        typeof document.createElement === 'function'
+    );
+}
+
+function _ensureLogoutStylesheet(assetPrefix) {
+    if (typeof document === 'undefined' || !document.head) return Promise.resolve();
+    try {
+        var existingLinks = document.querySelectorAll ? document.querySelectorAll('link[rel="stylesheet"]') : [];
+        for (var i = 0; i < existingLinks.length; i++) {
+            var href = existingLinks[i].getAttribute('href') || '';
+            if (href.indexOf('post-login-transition.css') !== -1) {
+                return Promise.resolve();
+            }
+        }
+    } catch (_) {}
+
+    return new Promise(function (resolve) {
+        var settled = false;
+        var finish = function () {
+            if (settled) return;
+            settled = true;
+            resolve();
+        };
+        try {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = assetPrefix + 'css/post-login-transition.css?v=3.2.9';
+            link.addEventListener('load', finish);
+            link.addEventListener('error', finish);
+            document.head.appendChild(link);
+            setTimeout(finish, 140);
+        } catch (_) {
+            finish();
+        }
+    });
+}
+
+function _buildLogoutOverlayElement(options) {
+    var mode = (options && options.mode) || 'standard';
+    var firstName = (options && options.firstName) || '';
+    var prefix = (options && options.assetPrefix) || './';
+
+    var existing = document.getElementById('tonuLogoutOverlay');
+    if (existing && existing.parentNode) {
+        existing.parentNode.removeChild(existing);
+    }
+
+    var el = document.createElement('div');
+    el.id = 'tonuLogoutOverlay';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('aria-label', 'Encerrando sessão com segurança.');
+
+    var orb1 = document.createElement('div');
+    orb1.className = 'tonu-pl-orb tonu-pl-orb--indigo';
+    orb1.setAttribute('aria-hidden', 'true');
+    var orb2 = document.createElement('div');
+    orb2.className = 'tonu-pl-orb tonu-pl-orb--emerald';
+    orb2.setAttribute('aria-hidden', 'true');
+    el.appendChild(orb1);
+    el.appendChild(orb2);
+
+    var card = document.createElement('div');
+    card.className = 'tonu-pl-card';
+
+    var pill = document.createElement('div');
+    pill.className = 'tonu-pl-securing-pill';
+    pill.id = 'tonuLoBadge';
+    var dot = document.createElement('span');
+    dot.className = 'tonu-pl-pulse-dot';
+    dot.setAttribute('aria-hidden', 'true');
+    var pillText = document.createElement('span');
+    pillText.id = 'tonuLoBadgeText';
+    pillText.textContent = mode === 'global'
+        ? 'Desconectando todos os dispositivos'
+        : (mode === 'biometric' ? 'Protegendo acesso biométrico' : 'Encerrando sessão com segurança');
+    pill.appendChild(dot);
+    pill.appendChild(pillText);
+    card.appendChild(pill);
+
+    var orbitStage = document.createElement('div');
+    orbitStage.className = 'tonu-pl-orbit-stage';
+    orbitStage.setAttribute('aria-hidden', 'true');
+
+    var halo = document.createElement('div');
+    halo.className = 'tonu-pl-halo-glow';
+    var spinnerRing = document.createElement('div');
+    spinnerRing.className = 'tonu-pl-spinner-ring';
+    var innerRing = document.createElement('div');
+    innerRing.className = 'tonu-pl-inner-ring';
+
+    var logoCore = document.createElement('div');
+    logoCore.className = 'tonu-pl-logo-core';
+    var logoImg = document.createElement('img');
+    logoImg.src = prefix + 'icons/logo.png?v=3.2.9';
+    logoImg.alt = 'TonuControle';
+    logoImg.addEventListener('error', function () {
+        logoCore.innerHTML = '<span class="tonu-pl-logo-fallback">🔒</span>';
+    });
+    logoCore.appendChild(logoImg);
+
+    var checkChip = document.createElement('div');
+    checkChip.className = 'tonu-pl-check-chip';
+    checkChip.innerHTML = '<i class="fas fa-check"></i>';
+
+    orbitStage.appendChild(halo);
+    orbitStage.appendChild(spinnerRing);
+    orbitStage.appendChild(innerRing);
+    orbitStage.appendChild(logoCore);
+    orbitStage.appendChild(checkChip);
+    card.appendChild(orbitStage);
+
+    var kicker = document.createElement('div');
+    kicker.className = 'tonu-pl-brand-kicker';
+    kicker.textContent = 'TonuControle';
+    card.appendChild(kicker);
+
+    var title = document.createElement('h2');
+    title.className = 'tonu-pl-title';
+    title.id = 'tonuLoTitle';
+    if (firstName) {
+        title.appendChild(document.createTextNode('Até breve, '));
+        var accent = document.createElement('span');
+        accent.className = 'tonu-pl-user-accent';
+        accent.textContent = firstName;
+        title.appendChild(accent);
+        title.appendChild(document.createTextNode('!'));
+    } else {
+        var accentOnly = document.createElement('span');
+        accentOnly.className = 'tonu-pl-user-accent';
+        accentOnly.textContent = 'Até breve!';
+        title.appendChild(accentOnly);
+    }
+    card.appendChild(title);
+
+    var status = document.createElement('p');
+    status.className = 'tonu-pl-status';
+    status.id = 'tonuLoStatus';
+    status.textContent = mode === 'global'
+        ? 'Revogando tokens ativos na nuvem...'
+        : (mode === 'biometric' ? 'Preservando login rápido por biometria...' : 'Limpando credenciais temporárias...');
+    card.appendChild(status);
+
+    var steps = document.createElement('div');
+    steps.className = 'tonu-pl-steps';
+    steps.id = 'tonuLoSteps';
+    steps.setAttribute('aria-hidden', 'true');
+    for (var i = 0; i < 3; i++) {
+        var sDot = document.createElement('span');
+        sDot.className = 'tonu-pl-step-dot' + (i === 0 ? ' is-active' : '');
+        steps.appendChild(sDot);
+    }
+    card.appendChild(steps);
+
+    var insight = document.createElement('div');
+    insight.className = 'tonu-pl-insight';
+    insight.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i>';
+    var insightSpan = document.createElement('span');
+    insightSpan.textContent = mode === 'global'
+        ? 'Todos os acessos remotos estão sendo desconectados por segurança.'
+        : (mode === 'biometric'
+            ? 'Sua biometria foi mantida para você entrar com 1 toque na próxima vez.'
+            : 'Seus dados financeiros continuam criptografados e protegidos.');
+    insight.appendChild(insightSpan);
+    card.appendChild(insight);
+
+    el.appendChild(card);
+    return el;
+}
+
+function _updateLogoutStage(text, stepIdx) {
+    var statusEl = typeof document !== 'undefined' ? document.getElementById('tonuLoStatus') : null;
+    if (statusEl && text && statusEl.textContent !== text) {
+        statusEl.classList.add('is-swapping');
+        setTimeout(function () {
+            statusEl.textContent = text;
+            statusEl.classList.remove('is-swapping');
+        }, 140);
+    }
+    if (typeof stepIdx === 'number' && typeof document !== 'undefined') {
+        var dots = document.querySelectorAll('#tonuLoSteps .tonu-pl-step-dot');
+        dots.forEach(function (dot, i) {
+            dot.classList.remove('is-active', 'is-done');
+            if (i < stepIdx) dot.classList.add('is-done');
+            else if (i === stepIdx) dot.classList.add('is-active');
+        });
+    }
+}
+
+async function _finishCreativeLogoutAndNavigate(overlay, mode, firstName, redirectUrl, startedAt) {
+    var elapsed = Date.now() - startedAt;
+    var minDisplayMs = 950;
+    var remaining = Math.max(0, minDisplayMs - elapsed);
+
+    if (remaining > 0) {
+        await new Promise(function (resolve) { setTimeout(resolve, remaining); });
+    }
+
+    if (overlay) {
+        overlay.classList.add('is-ready');
+        var badgeEl = document.getElementById('tonuLoBadge');
+        var badgeTextEl = document.getElementById('tonuLoBadgeText');
+        if (badgeEl) {
+            badgeEl.classList.remove('tonu-pl-securing-pill');
+            badgeEl.classList.add('tonu-pl-success-pill');
+        }
+        if (badgeTextEl) {
+            badgeTextEl.textContent = mode === 'global'
+                ? 'Todos os dispositivos desconectados'
+                : (mode === 'biometric' ? 'Sessão encerrada • Biometria mantida' : 'Sessão encerrada com sucesso');
+        }
+        _updateLogoutStage('Redirecionando para a tela de login...', 2);
+        var dots = document.querySelectorAll('#tonuLoSteps .tonu-pl-step-dot');
+        dots.forEach(function (dot) {
+            dot.classList.remove('is-active');
+            dot.classList.add('is-done');
+        });
+    }
+
+    try {
+        sessionStorage.setItem('tonu_just_logged_out', JSON.stringify({
+            mode: mode,
+            name: firstName || '',
+            ts: Date.now()
+        }));
+    } catch (_) {}
+
+    await new Promise(function (resolve) { setTimeout(resolve, overlay ? 480 : 80); });
+
+    if (overlay) {
+        overlay.classList.add('is-leaving');
+        await new Promise(function (resolve) { setTimeout(resolve, 560); });
+    }
+
+    try {
+        sessionStorage.removeItem('tonu_logout_in_progress');
+        sessionStorage.removeItem('tonu_logout_in_progress_time');
+    } catch (_) {}
+
+    window.location.href = redirectUrl;
+}
+
+async function logout() {
+    const logoutStartTime = sessionStorage.getItem('tonu_logout_in_progress_time');
+    const isRecent = logoutStartTime && (Date.now() - Number(logoutStartTime) < 6000);
+    if (sessionStorage.getItem('tonu_logout_in_progress') === 'true' && isRecent) {
+        console.log('🚪 Logout já em progresso');
+        return;
+    }
+
+    try {
+        console.log('🚪 Iniciando logout...');
+        sessionStorage.setItem('tonu_logout_in_progress', 'true');
+        sessionStorage.setItem('tonu_logout_in_progress_time', String(Date.now()));
+
+        if (typeof window !== 'undefined' && typeof window.stopAutoRefresh === 'function') {
+            try { window.stopAutoRefresh(); } catch (_) {}
+        }
+
+        // Determina URL de redirecionamento relativa ao caminho atual
+        const redirectUrl = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/'))
+            ? '../../index.html'
+            : ((typeof window !== 'undefined' && window.location.pathname.includes('/pages/')) ? '../index.html' : 'index.html');
+
+        // 1. Verificar se o usuário tem biometria configurada (Face ID / Digital)
+        const hasBiometrics = (typeof window !== 'undefined' && window.TonuBiometrics && typeof window.TonuBiometrics.isConfigured === 'function' && window.TonuBiometrics.isConfigured()) ||
+            (typeof localStorage !== 'undefined' && localStorage.getItem('tonu_biometrics_enabled') === 'true' && !!localStorage.getItem('tonu_biometrics_credential'));
+
+        const mode = hasBiometrics ? 'biometric' : 'standard';
+        const firstName = _resolveUserDisplayNameForLogout();
+        const startedAt = Date.now();
+        let overlay = null;
+
+        if (_canRenderLogoutOverlay()) {
+            const assetPrefix = _resolveLogoutAssetPrefix();
+            await _ensureLogoutStylesheet(assetPrefix);
+            overlay = _buildLogoutOverlayElement({ mode, firstName, assetPrefix });
+            document.body.appendChild(overlay);
+            requestAnimationFrame(function () {
+                overlay.classList.add('is-visible');
+            });
+            setTimeout(function () {
+                if (overlay && !overlay.classList.contains('is-ready')) {
+                    _updateLogoutStage(
+                        hasBiometrics
+                            ? 'Bloqueando visualização dos dados...'
+                            : 'Finalizando conexão com o servidor...',
+                        1
+                    );
+                }
+            }, 460);
+        }
+
+        // 2. Se SIM (biometria ativa):
+        //    - NÃO chamar supabaseClient.auth.signOut() para preservar o refresh_token de reautenticação
+        //    - Apenas limpar sessionStorage: 'tonu_user', 'tonu_session_unlocked', 'tonu_csrf_token'
+        //    - MANTER localStorage: 'tonu_offline_session', 'tonu_biometrics_session', 'tonu_biometrics_user_info'
+        //    - Redirecionar para o login após transição suave
+        if (hasBiometrics) {
+            console.log('🔐 Logout não-destrutivo: Biometria ativa. Mantendo tokens seguros para login instantâneo por Face ID.');
+            try {
+                sessionStorage.removeItem('tonu_user');
+                sessionStorage.removeItem('tonu_session_unlocked');
+                sessionStorage.removeItem('tonu_csrf_token');
+                sessionStorage.removeItem('tonu_just_logged_in');
+            } catch (e) {
+                console.warn('⚠️ Erro ao limpar sessionStorage no logout biométrico:', e);
+            }
+
+            await _finishCreativeLogoutAndNavigate(overlay, mode, firstName, redirectUrl, startedAt);
+            return;
+        }
+
+        // 3. Se NÃO (usuário comum sem biometria):
+        //    - Manter comportamento destrutivo total (chamar signOut e limpar tudo)
+        if (typeof window !== 'undefined' && window.supabaseOffline) {
+            try {
+                await window.supabaseOffline.logout();
+            } catch (e) {
+                console.warn('⚠️ Erro no logout offline:', e);
+            }
+        }
+
+        if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.auth) {
+            try {
+                await Promise.race([
+                    window.supabaseClient.auth.signOut(),
+                    new Promise(r => setTimeout(r, 1200))
+                ]);
+            } catch (e) {
+                console.warn('⚠️ Erro no logout Supabase:', e);
+            }
+        }
+
+        try {
+            localStorage.removeItem('tonu_secure_session_v2');
+            localStorage.removeItem('tonu_offline_session');
+            localStorage.removeItem('tonu_user');
+            localStorage.removeItem('supabase.auth.token');
+            sessionStorage.removeItem('tonu_user');
+            sessionStorage.removeItem('tonu_session_unlocked');
+            sessionStorage.removeItem('tonu_csrf_token');
+            sessionStorage.removeItem('tonu_just_logged_in');
+        } catch (e) {
+            console.warn('⚠️ Erro ao limpar storages:', e);
+        }
+
+        console.log('✅ Logout completo concluído, redirecionando...');
+        await _finishCreativeLogoutAndNavigate(overlay, mode, firstName, redirectUrl, startedAt);
+
+    } catch (error) {
+        console.error('❌ Erro ao fazer logout:', error);
+        try {
+            sessionStorage.removeItem('tonu_logout_in_progress');
+            sessionStorage.removeItem('tonu_logout_in_progress_time');
+        } catch (_) {}
+        const fallbackUrl = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
+        window.location.href = fallbackUrl;
+    }
+}
+
+// Logout real e irrestrito: desativa biometria local e revoga na nuvem
+async function logoutAllDevices() {
+    const confirmed = confirm('Deseja realmente sair de todos os dispositivos? Isso cancelará o acesso rápido por Face ID/Biometria neste aparelho e exigirá login com email e senha na próxima vez.');
+    if (!confirmed) return;
+
+    const logoutStartTime = sessionStorage.getItem('tonu_logout_in_progress_time');
+    const isRecent = logoutStartTime && (Date.now() - Number(logoutStartTime) < 6000);
+    if (sessionStorage.getItem('tonu_logout_in_progress') === 'true' && isRecent) {
+        console.log('🚪 Logout já em progresso');
+        return;
+    }
+
+    try {
+        sessionStorage.setItem('tonu_logout_in_progress', 'true');
+        sessionStorage.setItem('tonu_logout_in_progress_time', String(Date.now()));
+        console.log('🚨 Executando logout global de todos os dispositivos...');
+
+        if (typeof window !== 'undefined' && typeof window.stopAutoRefresh === 'function') {
+            try { window.stopAutoRefresh(); } catch (_) {}
+        }
+
+        const firstName = _resolveUserDisplayNameForLogout();
+        const startedAt = Date.now();
+        let overlay = null;
+
+        if (_canRenderLogoutOverlay()) {
+            const assetPrefix = _resolveLogoutAssetPrefix();
+            await _ensureLogoutStylesheet(assetPrefix);
+            overlay = _buildLogoutOverlayElement({ mode: 'global', firstName, assetPrefix });
+            document.body.appendChild(overlay);
+            requestAnimationFrame(function () {
+                overlay.classList.add('is-visible');
+            });
+            setTimeout(function () {
+                if (overlay && !overlay.classList.contains('is-ready')) {
+                    _updateLogoutStage('Removendo sessões locais e biometria...', 1);
+                }
+            }, 460);
+        }
+
+        if (typeof window !== 'undefined' && window.TonuBiometrics) {
+            try { window.TonuBiometrics.disableBiometrics(); } catch (_) {}
+        }
+
+        if (typeof window !== 'undefined' && window.supabaseOffline) {
+            try { await window.supabaseOffline.logout(); } catch (_) {}
+        }
+
+        if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.auth) {
+            try {
+                await Promise.race([
+                    window.supabaseClient.auth.signOut({ scope: 'global' }),
+                    new Promise(r => setTimeout(r, 1500))
+                ]);
+            } catch (_) {
+                try {
+                    await Promise.race([
+                        window.supabaseClient.auth.signOut(),
+                        new Promise(r => setTimeout(r, 1000))
+                    ]);
+                } catch (_) {}
+            }
+        }
+
+        // Limpeza total de biometria e sessões locais
+        try {
+            localStorage.removeItem('tonu_biometrics_enabled');
+            localStorage.removeItem('tonu_biometrics_credential');
+            localStorage.removeItem('tonu_biometrics_user');
+            localStorage.removeItem('tonu_biometrics_session');
+            localStorage.removeItem('tonu_offline_session');
+            localStorage.removeItem('tonu_secure_session_v2');
+            localStorage.removeItem('tonu_user');
+            sessionStorage.clear();
+        } catch (_) {}
+
+        const redirectUrl = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
+        await _finishCreativeLogoutAndNavigate(overlay, 'global', firstName, redirectUrl, startedAt);
+    } catch (err) {
+        console.error('❌ Erro no logoutAllDevices:', err);
+        try {
+            sessionStorage.removeItem('tonu_logout_in_progress');
+            sessionStorage.removeItem('tonu_logout_in_progress_time');
+        } catch (_) {}
+        window.location.href = (typeof window !== 'undefined' && window.location.pathname.includes('/mobile/')) ? '../../index.html' : '../index.html';
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.logout = logout;
+    window.logoutAllDevices = logoutAllDevices;
+}
+
+// ============================================
+// 7. RENDER AVATAR
+// ============================================
+function renderAvatarElement(element, photoUrl, initialText) {
+    if (!element) return;
+    if (photoUrl) {
+        element.innerHTML = `<img src="${photoUrl}" alt="Avatar" class="avatar-img-element" loading="lazy" />`;
+        element.style.background = 'transparent';
+    } else {
+        element.textContent = initialText || 'U';
+        element.style.background = '';
+    }
+}
+
+// ============================================
+// 7.5. OBTER USUÁRIO AUTENTICADO UNIFICADO (ONLINE / OFFLINE / BIOMETRIA / WEBAUTHN)
+// ============================================
+async function getAuthenticatedUser() {
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('tonu_logout_in_progress') === 'true') {
+        return null;
+    }
+
+    let user = null;
+
+    // 1. Tentar via Supabase Offline Manager
+    if (typeof window !== 'undefined' && window.supabaseOffline) {
+        try {
+            user = await window.supabaseOffline.isAuthenticated();
+            if (user && (user.id || user.email)) {
+                return normalizeUserObject(user);
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao verificar via supabaseOffline:', e);
+        }
+    }
+
+    // 2. Tentar via Supabase Client (getSession / getUser)
+    if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.auth) {
+        try {
+            const { data: sessionData } = await window.supabaseClient.auth.getSession();
+            if (sessionData && sessionData.session && sessionData.session.user) {
+                user = sessionData.session.user;
+                if (window.supabaseOffline) window.supabaseOffline.saveOfflineSession(user);
+                return normalizeUserObject(user);
+            }
+            const { data: userData } = await window.supabaseClient.auth.getUser();
+            if (userData && userData.user) {
+                user = userData.user;
+                if (window.supabaseOffline) window.supabaseOffline.saveOfflineSession(user);
+                return normalizeUserObject(user);
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao verificar via Supabase Client:', e);
+        }
+    }
+
+    // 3. Tentar via sessionStorage ('tonu_user') - sessão da aba ou login biométrico recente
+    if (typeof sessionStorage !== 'undefined') {
+        try {
+            const sessionRaw = sessionStorage.getItem('tonu_user');
+            if (sessionRaw) {
+                const parsed = JSON.parse(sessionRaw);
+                const actual = parsed.user || parsed;
+                if (actual && (actual.id || actual.email)) {
+                    return normalizeUserObject(actual);
+                }
+            }
+        } catch (_) {}
+    }
+
+    // 4. Tentar via localStorage ('tonu_offline_session')
+    if (typeof localStorage !== 'undefined') {
+        try {
+            const offRaw = localStorage.getItem('tonu_offline_session');
+            if (offRaw) {
+                const parsed = JSON.parse(offRaw);
+                const actual = parsed.user || parsed;
+                if (actual && (actual.id || actual.email)) {
+                    return normalizeUserObject(actual);
+                }
+            }
+        } catch (_) {}
+    }
+
+    // 5. Tentar via credencial de biometria salva (Face ID / WebAuthn)
+    if (typeof localStorage !== 'undefined') {
+        try {
+            const bioEnabled = localStorage.getItem('tonu_biometrics_enabled') === 'true';
+            const bioRaw = localStorage.getItem('tonu_biometrics_user_info');
+            if (bioEnabled && bioRaw) {
+                const parsed = JSON.parse(bioRaw);
+                const actual = parsed.user || parsed;
+                if (actual && (actual.id || actual.email)) {
+                    return normalizeUserObject(actual);
+                }
+            }
+        } catch (_) {}
+    }
+
+    return null;
+}
+
+function normalizeUserObject(user) {
+    if (!user) return null;
+    const name = user.user_metadata?.full_name || user.name || (user.email ? user.email.split('@')[0] : 'Usuário');
+    if (!user.user_metadata) {
+        user.user_metadata = { full_name: name };
+    } else if (!user.user_metadata.full_name) {
+        user.user_metadata.full_name = name;
+    }
+    try {
+        if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('tonu_logout_in_progress')) {
+            sessionStorage.setItem('tonu_user', JSON.stringify(user));
+        }
+    } catch (_) {}
+    return user;
+}
+
+if (typeof window !== 'undefined') {
+    window.getAuthenticatedUser = getAuthenticatedUser;
+    window.normalizeUserObject = normalizeUserObject;
+}
+
+// ============================================
+// 8. CARREGAR PERFIL DO USUÁRIO NA SIDEBAR - CORRIGIDO
+// ============================================
+async function loadGlobalUserProfile() {
+    if (!window.supabaseClient) return;
+
+    try {
+        let user = await getAuthenticatedUser();
+
+        if (!user) {
+            console.log('ℹ️ Nenhum usuário logado para carregar perfil');
+            return;
+        }
+
+        var fullName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuário';
+        var email = user.email || '';
+        var avatarUrl = localStorage.getItem('tonu_avatar_' + user.id) ||
+            user.user_metadata?.avatar_url ||
+            null;
+
+        // Tenta buscar perfil na tabela profiles
+        try {
+            const { data: profile, error } = await window.supabaseClient
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (profile) {
+                if (profile.full_name) fullName = profile.full_name;
+                if (profile.avatar_url && !avatarUrl) avatarUrl = profile.avatar_url;
+            }
+        } catch (e) {
+            // Perfil pode não existir ainda, tudo bem
+        }
+
+        if (avatarUrl) {
+            localStorage.setItem('tonu_avatar_' + user.id, avatarUrl);
+        }
+
+        var initial = fullName.charAt(0).toUpperCase();
+
+        // ATUALIZA NOME, EMAIL E AVATAR
+        var sidebarNameEl = document.getElementById('sidebarUserName');
+        var sidebarAvatarEl = document.getElementById('sidebarUserAvatar');
+        var sidebarEmailEl = document.getElementById('sidebarUserEmail');
+
+        if (sidebarNameEl) sidebarNameEl.textContent = sanitizeString(fullName);
+        if (sidebarAvatarEl) renderAvatarElement(sidebarAvatarEl, avatarUrl, initial);
+        if (sidebarEmailEl) sidebarEmailEl.textContent = sanitizeString(email) || 'Configurações';
+
+        var avatarLargeEl = document.getElementById('avatarLarge');
+        if (avatarLargeEl) renderAvatarElement(avatarLargeEl, avatarUrl, initial);
+
+        var userNameEl = document.getElementById('userName');
+        var userAvatarEl = document.getElementById('userAvatar');
+        if (userNameEl) userNameEl.textContent = sanitizeString(fullName.split(' ')[0]);
+        if (userAvatarEl) renderAvatarElement(userAvatarEl, avatarUrl, initial);
+
+        var topbarAvatarEl = document.getElementById('topbarAvatar');
+        if (topbarAvatarEl) renderAvatarElement(topbarAvatarEl, avatarUrl, initial);
+
+        console.log('✅ Perfil carregado com sucesso!');
+
+    } catch (e) {
+        console.warn('⚠️ Erro ao carregar perfil global:', e);
+    }
+}
+
+// ============================================
+// MOBILE TOPBAR ACTIONS & MORE MENU (...)
+// ============================================
+function toggleMobileMoreMenu(event) {
+    if (event) {
+        event.stopPropagation();
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+    }
+    const menu = document.getElementById('mobileMoreMenuDropdown');
+    if (!menu) return;
+    menu.classList.toggle('hidden');
+}
+
+function closeMobileMoreMenu() {
+    const menu = document.getElementById('mobileMoreMenuDropdown');
+    if (menu && !menu.classList.contains('hidden')) {
+        menu.classList.add('hidden');
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.toggleMobileMoreMenu = toggleMobileMoreMenu;
+    window.closeMobileMoreMenu = closeMobileMoreMenu;
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+        document.addEventListener('click', function(e) {
+            if (!e || !e.target || typeof e.target.closest !== 'function') return;
+            if (!e.target.closest('#mobileMoreMenuDropdown') && !e.target.closest('.topbar-more-btn')) {
+                closeMobileMoreMenu();
+            }
+        });
+    }
+}
+
+// ============================================
+// 9. CACHE DE CATEGORIAS
+// ============================================
+async function getCachedCategories(userId) {
+    try {
+        if (!window.tonuSync) return null;
+        const db = await window.tonuSync.openDatabase();
+        if (!db) return null;
+
+        const tx = db.transaction(['offline_entity_cache'], 'readonly');
+        const store = tx.objectStore('offline_entity_cache');
+        const req = store.get('categories_' + userId);
+
+        return new Promise((resolve) => {
+            req.onsuccess = () => resolve(req.result?.data || null);
+            req.onerror = () => resolve(null);
+        });
+    } catch (e) {
+        return null;
+    }
+}
+
+async function setCachedCategories(userId, categories) {
+    try {
+        if (!window.tonuSync) return;
+        const db = await window.tonuSync.openDatabase();
+        if (!db) return;
+
+        const tx = db.transaction(['offline_entity_cache'], 'readwrite');
+        const store = tx.objectStore('offline_entity_cache');
+        store.put({ key: 'categories_' + userId, data: categories, timestamp: Date.now() });
+    } catch (e) {
+        console.warn('⚠️ Erro ao cachear categorias:', e);
+    }
+}
+
+// ============================================
+// 10. LOADING
+// ============================================
+function setLoading(button, loading, text) {
+    text = text || 'Carregando...';
+    if (!button) return;
+
+    if (loading) {
+        button.disabled = true;
+        button.dataset.originalHtml = button.innerHTML;
+        button.innerHTML = '<span class="spinner"></span> ' + sanitizeString(text);
+    } else {
+        button.disabled = false;
+        if (button.dataset.originalHtml) {
+            button.innerHTML = button.dataset.originalHtml;
+        }
+    }
+}
+
+function showLoading(container) {
+    if (!container) return;
+    container.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;">
+            <span class="spinner" style="width:32px;height:32px;border-width:3px;"></span>
+            <p style="margin-top:12px;color:#b2bec3;">Carregando...</p>
+        </div>
+    `;
+}
+
+// ============================================
+// 11. MOBILE DETECT
+// ============================================
+function isMobile() {
+    return /Android|iPhone|iPad|iPod|BlackBerry|Windows Phone/i.test(navigator.userAgent);
+}
+
+function isTablet() {
+    return /iPad|Android(?!.*Mobile)/i.test(navigator.userAgent);
+}
+
+function isDesktop() {
+    return !isMobile() && !isTablet();
+}
+
+// ============================================
+// 12. CORES PARA GRÁFICOS
+// ============================================
+// 12. CORES E CONFIGURAÇÃO DE CATEGORIAS (BACKEND)
+// ============================================
+var BACKEND_CATEGORY_CONFIG = {
+    'contas basicas': { color: '#0984E3', icon: 'fa-bolt', name: '⚡ Contas Básicas' },
+    'lazer': { color: '#8B5CF6', icon: 'fa-gamepad', name: '🎮 Lazer' },
+    'saude': { color: '#FF6B6B', icon: 'fa-heartbeat', name: '❤️ Saúde' },
+    'educacao': { color: '#0984E3', icon: 'fa-book', name: '📚 Educação' },
+    'emprestimos': { color: '#D63031', icon: 'fa-hand-holding-usd', name: '🤝 Empréstimos' },
+    'outros': { color: '#B2BEC3', icon: 'fa-tag', name: '📦 Outros' },
+    'cartao de credito': { color: '#E17055', icon: 'fa-credit-card', name: '💳 Cartão de Crédito' },
+    'moradia': { color: '#E17055', icon: 'fa-home', name: '🏠 Moradia' },
+    'comunicacao': { color: '#636E72', icon: 'fa-wifi', name: '📡 Comunicação' },
+    'alimentacao': { color: '#FF6B6B', icon: 'fa-utensils', name: '🍔 Alimentação' },
+    'transporte': { color: '#FDCB6E', icon: 'fa-car', name: '🚗 Transporte' },
+    'salario': { color: '#00B894', icon: 'fa-money-bill-wave', name: '💰 Salário' },
+    'investimentos': { color: '#00CEC9', icon: 'fa-chart-line', name: '💼 Investimentos' },
+    'bico / extra': { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' },
+    'bico': { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' },
+    'extra': { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' }
+};
+
+function getBackendCategoryStyle(name, cat) {
+    if (cat && cat.color && typeof cat.color === 'string' && cat.color.startsWith('#')) {
+        return {
+            color: cat.color,
+            icon: cat.icon || 'fa-tag',
+            name: cat.name || name || 'Outros'
+        };
+    }
+
+    const n = (name || '').toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+
+    if (n.includes('contas') || n.includes('basica') || n.includes('energia') || n.includes('luz') || n.includes('agua') || n.includes('gas') || n.includes('boleto')) {
+        return { color: '#0984E3', icon: 'fa-bolt', name: '⚡ Contas Básicas' };
+    }
+    if (n.includes('lazer') || n.includes('jogo') || n.includes('game') || n.includes('cinema') || n.includes('viagem') || n.includes('passeio') || n.includes('hotel') || n.includes('festa')) {
+        return { color: '#8B5CF6', icon: 'fa-gamepad', name: '🎮 Lazer' };
+    }
+    if (n.includes('saude') || n.includes('farmacia') || n.includes('medic') || n.includes('hospital') || n.includes('drogaria') || n.includes('dentista') || n.includes('consulta')) {
+        return { color: '#FF6B6B', icon: 'fa-heartbeat', name: '❤️ Saúde' };
+    }
+    if (n.includes('educa') || n.includes('escola') || n.includes('faculdade') || n.includes('curso') || n.includes('livro') || n.includes('estudo')) {
+        return { color: '#0984E3', icon: 'fa-book', name: '📚 Educação' };
+    }
+    if (n.includes('emprestim') || n.includes('divida') || n.includes('financiamento') || n.includes('parcela')) {
+        return { color: '#D63031', icon: 'fa-hand-holding-usd', name: '🤝 Empréstimos' };
+    }
+    if (n.includes('cartao') || n.includes('credito') || n.includes('fatura') || n.includes('anuidade')) {
+        return { color: '#E17055', icon: 'fa-credit-card', name: '💳 Cartão de Crédito' };
+    }
+    if (n.includes('moradia') || n.includes('casa') || n.includes('aluguel') || n.includes('condominio') || n.includes('iptu')) {
+        return { color: '#E17055', icon: 'fa-home', name: '🏠 Moradia' };
+    }
+    if (n.includes('comunic') || n.includes('wifi') || n.includes('internet') || n.includes('celular') || n.includes('telefone') || n.includes('stream') || n.includes('assinat')) {
+        return { color: '#636E72', icon: 'fa-wifi', name: '📡 Comunicação' };
+    }
+    if (n.includes('aliment') || n.includes('comida') || n.includes('mercado') || n.includes('supermercado') || n.includes('restaurante') || n.includes('ifood') || n.includes('lanche')) {
+        return { color: '#FF6B6B', icon: 'fa-utensils', name: '🍔 Alimentação' };
+    }
+    if (n.includes('transport') || n.includes('uber') || n.includes('combustivel') || n.includes('gasolina') || n.includes('carro') || n.includes('onibus') || n.includes('veiculo')) {
+        return { color: '#FDCB6E', icon: 'fa-car', name: '🚗 Transporte' };
+    }
+    if (n.includes('salar') || n.includes('remuner') || n.includes('provento')) {
+        return { color: '#00B894', icon: 'fa-money-bill-wave', name: '💰 Salário' };
+    }
+    if (n.includes('invest') || n.includes('dividend') || n.includes('rendimento') || n.includes('acao') || n.includes('fii')) {
+        return { color: '#00CEC9', icon: 'fa-chart-line', name: '💼 Investimentos' };
+    }
+    if (n.includes('bico') || n.includes('extra') || n.includes('freela')) {
+        return { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' };
+    }
+
+    return { color: '#B2BEC3', icon: 'fa-tag', name: name || '📦 Outros' };
+}
+
+window.getBackendCategoryStyle = getBackendCategoryStyle;
+window.BACKEND_CATEGORY_CONFIG = BACKEND_CATEGORY_CONFIG;
+
+var chartColors = [
+    '#0984E3', '#8B5CF6', '#FF6B6B', '#FDCB6E', '#E17055',
+    '#D63031', '#636E72', '#00B894', '#00CEC9', '#B2BEC3'
+];
+
+function getChartColors(count) {
+    var colors = [];
+    for (var i = 0; i < count; i++) {
+        colors.push(chartColors[i % chartColors.length]);
+    }
+    return colors;
+}
+
+// ============================================
+// 13. CRIAR CATEGORIAS PADRÃO
+// ============================================
+async function createDefaultCategories(userId) {
+    try {
+        if (!window.supabaseClient) {
+            console.warn('⚠️ Supabase client não disponível');
+            return;
+        }
+
+        var { data: existing, error: checkError } = await window.supabaseClient
+            .from('categories')
+            .select('id')
+            .eq('user_id', userId)
+            .limit(1);
+
+        if (checkError) {
+            console.warn('⚠️ Erro ao verificar categorias:', checkError);
+            return;
+        }
+
+        if (existing && existing.length > 0) {
+            console.log('✅ Categorias já existem para este usuário');
+            return;
+        }
+
+        var defaultCategories = [
+            { user_id: userId, name: '⚡ Contas Básicas', type: 'expense', icon: 'fa-bolt', color: '#0984E3' },
+            { user_id: userId, name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#8B5CF6' },
+            { user_id: userId, name: '❤️ Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#FF6B6B' },
+            { user_id: userId, name: '📚 Educação', type: 'expense', icon: 'fa-book', color: '#0984E3' },
+            { user_id: userId, name: '🤝 Empréstimos', type: 'expense', icon: 'fa-hand-holding-usd', color: '#D63031' },
+            { user_id: userId, name: '💳 Cartão de Crédito', type: 'expense', icon: 'fa-credit-card', color: '#E17055' },
+            { user_id: userId, name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#E17055' },
+            { user_id: userId, name: '📡 Comunicação', type: 'expense', icon: 'fa-wifi', color: '#636E72' },
+            { user_id: userId, name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF6B6B' },
+            { user_id: userId, name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#FDCB6E' },
+            { user_id: userId, name: '💰 Salário', type: 'income', icon: 'fa-money-bill-wave', color: '#00B894' },
+            { user_id: userId, name: '💼 Investimentos', type: 'income', icon: 'fa-chart-line', color: '#00CEC9' },
+            { user_id: userId, name: '🛵 Bico / Extra', type: 'income', icon: 'fa-gift', color: '#00B894' },
+            { user_id: userId, name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#B2BEC3' }
+        ];
+
+        var { error: insertError } = await window.supabaseClient
+            .from('categories')
+            .insert(defaultCategories);
+
+        if (insertError) {
+            console.warn('⚠️ Erro ao criar categorias:', insertError);
+            return;
+        }
+
+        console.log('✅ Categorias padrão criadas!');
+
+        if (window.tonuCache?.categories) {
+            window.tonuCache.categories.clear();
+        }
+
+    } catch (e) {
+        console.warn('⚠️ Erro ao criar categorias:', e);
+    }
+}
+
+// ============================================
+// 14. TEMA ESCURO / CLARO
+// ============================================
+function initTheme() {
+    var savedTheme = localStorage.getItem('tonu_theme') || 'light';
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+        document.documentElement.classList.add('dark-theme');
+        document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+        document.body.classList.remove('dark-theme');
+        document.documentElement.classList.remove('dark-theme');
+        document.documentElement.setAttribute('data-theme', 'light');
+    }
+    updateThemeToggleIcons(savedTheme);
+}
+
+function toggleTheme() {
+    var isDark = document.body.classList.toggle('dark-theme');
+    document.documentElement.classList.toggle('dark-theme', isDark);
+    var newTheme = isDark ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('tonu_theme', newTheme);
+    updateThemeToggleIcons(newTheme);
+
+    try {
+        window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: newTheme } }));
+    } catch (e) {}
+}
+
+function updateThemeToggleIcons(theme) {
+    var btns = document.querySelectorAll('.theme-toggle-btn:not(#toggleBalanceBtn) i, #themeIcon');
+    btns.forEach(function (icon) {
+        if (icon.id === 'toggleBalanceIcon') return;
+        if (theme === 'dark') {
+            icon.className = 'fas fa-sun';
+        } else {
+            icon.className = 'fas fa-moon';
+        }
+    });
+}
+
+// ============================================
+// 15. INDICADOR OFFLINE / ONLINE
+// ============================================
+function initNetworkStatusWatcher() {
+    var banner = document.getElementById('offlineBanner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'offlineBanner';
+        banner.className = 'hidden';
+        banner.setAttribute('role', 'alert');
+        banner.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999999;
+            background: #fef3c7;
+            color: #92400e;
+            text-align: center;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.02em;
+            height: 28px;
+            transform: translateY(0);
+            opacity: 1;
+        `;
+        banner.innerHTML = `
+            <i class="fas fa-wifi-slash" style="font-size: 11px;"></i>
+            <span>⚠️ Sem conexão com a internet</span>
+        `;
+        document.body.prepend(banner);
+    }
+
+    var updateStatus = function () {
+        if (!navigator.onLine) {
+            banner.className = '';
+            banner.style.transform = 'translateY(0)';
+            banner.style.opacity = '1';
+            banner.style.background = '#fef3c7';
+            banner.style.color = '#92400e';
+            banner.innerHTML = `
+                <i class="fas fa-wifi-slash" style="font-size: 11px;"></i>
+                <span>⚠️ Sem conexão com a internet</span>
+            `;
+        } else {
+            if (!banner.classList.contains('hidden')) {
+                banner.style.background = '#d1fae5';
+                banner.style.color = '#065f46';
+                banner.innerHTML = `
+                    <i class="fas fa-check-circle" style="font-size: 11px;"></i>
+                    <span>✅ Conexão restabelecida</span>
+                `;
+                setTimeout(function () {
+                    banner.className = 'hidden';
+                    banner.style.transform = 'translateY(-100%)';
+                    banner.style.opacity = '0';
+                    if (window.tonuSync) window.tonuSync.flushQueue();
+                }, 2500);
+            }
+        }
+    };
+
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+
+    if (!navigator.onLine) updateStatus();
+}
+
+// ============================================
+// 16. VIRTUAL SCROLL ENGINE
+// ============================================
+class TonuVirtualScroller {
+    constructor(options) {
+        this.container = options.container || null;
+        this.items = options.items || [];
+        this.itemHeight = options.itemHeight || 72;
+        this.buffer = options.buffer || 6;
+        this.renderItem = options.renderItem || function (item) { return '<div>' + JSON.stringify(item) + '</div>'; };
+        this.emptyRenderer = options.emptyRenderer || function () { return '<div class="empty-state">Nenhum item</div>'; };
+        this.viewport = null;
+        this.content = null;
+        this.scrollHandler = null;
+        this.cache = new Map();
+        this.renderedItems = new Set();
+    }
+
+    mount(containerElement, items) {
+        this.container = containerElement;
+        this.items = items || [];
+        this.cache.clear();
+        this.renderedItems.clear();
+
+        if (!this.container) return;
+
+        if (this.items.length === 0) {
+            this.container.innerHTML = this.emptyRenderer();
+            return;
+        }
+
+        if (this.items.length < 25) {
+            this.container.innerHTML = this.items.map(function (item) { return this.renderItem(item); }.bind(this)).join('');
+            return;
+        }
+
+        this.setupVirtualDOM();
+        this.render();
+    }
+
+    setupVirtualDOM() {
+        this.container.innerHTML = '';
+        this.container.style.position = 'relative';
+        this.container.style.overflowY = 'auto';
+        this.container.style.maxHeight = '650px';
+        this.container.style.willChange = 'transform';
+
+        this.content = document.createElement('div');
+        this.content.className = 'virtual-scroll-content';
+        this.content.style.position = 'relative';
+        this.content.style.width = '100%';
+        this.content.style.height = (this.items.length * this.itemHeight) + 'px';
+
+        this.viewport = document.createElement('div');
+        this.viewport.className = 'virtual-scroll-viewport';
+        this.viewport.style.position = 'absolute';
+        this.viewport.style.left = '0';
+        this.viewport.style.right = '0';
+        this.viewport.style.top = '0';
+        this.viewport.style.willChange = 'transform';
+
+        this.content.appendChild(this.viewport);
+        this.container.appendChild(this.content);
+
+        if (this.scrollHandler) {
+            this.container.removeEventListener('scroll', this.scrollHandler);
+        }
+
+        var ticking = false;
+        this.scrollHandler = function () {
+            if (!ticking) {
+                window.requestAnimationFrame(function () {
+                    this.render();
+                    ticking = false;
+                }.bind(this));
+                ticking = true;
+            }
+        }.bind(this);
+
+        this.container.addEventListener('scroll', this.scrollHandler, { passive: true });
+    }
+
+    render() {
+        if (!this.container || !this.viewport || this.items.length === 0) return;
+
+        var scrollTop = this.container.scrollTop;
+        var containerHeight = this.container.clientHeight || 500;
+        var totalCount = this.items.length;
+        this.content.style.height = (totalCount * this.itemHeight) + 'px';
+
+        var startIndex = Math.max(0, Math.floor(scrollTop / this.itemHeight) - this.buffer);
+        var visibleCount = Math.ceil(containerHeight / this.itemHeight);
+        var endIndex = Math.min(totalCount, startIndex + visibleCount + (this.buffer * 2));
+
+        var offsetY = startIndex * this.itemHeight;
+        this.viewport.style.transform = 'translateY(' + offsetY + 'px)';
+
+        var fragment = document.createDocumentFragment();
+        for (var i = startIndex; i < endIndex; i++) {
+            if (!this.cache.has(i)) {
+                var element = document.createElement('div');
+                element.innerHTML = this.renderItem(this.items[i]);
+                this.cache.set(i, element.firstChild);
+            }
+            fragment.appendChild(this.cache.get(i).cloneNode(true));
+        }
+
+        this.viewport.innerHTML = '';
+        this.viewport.appendChild(fragment);
+    }
+
+    updateItems(items) {
+        this.items = items;
+        this.cache.clear();
+        this.renderedItems.clear();
+        if (this.container) {
+            this.container.innerHTML = '';
+            this.mount(this.container, items);
+        }
+    }
+
+    destroy() {
+        if (this.container && this.scrollHandler) {
+            this.container.removeEventListener('scroll', this.scrollHandler);
+        }
+        this.cache.clear();
+        this.renderedItems.clear();
+    }
+
+    scrollTo(index) {
+        if (!this.container) return;
+        var scrollTop = index * this.itemHeight;
+        this.container.scrollTop = scrollTop;
+        this.render();
+    }
+
+    getStats() {
+        return {
+            totalItems: this.items.length,
+            cachedItems: this.cache.size,
+            visibleItems: this.renderedItems.size,
+            itemHeight: this.itemHeight,
+            buffer: this.buffer
+        };
+    }
+}
+
+// ============================================
+// 17. WEB SHARE TARGET HANDLER
+// ============================================
+class WebShareTargetHandler {
+    constructor() {
+        this.init();
+    }
+
+    init() {
+        if (typeof window === 'undefined' || typeof document === 'undefined' || !window.location || !document.addEventListener) {
+            return;
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () { this.checkIncomingShare(); }.bind(this));
+        } else {
+            this.checkIncomingShare();
+        }
+    }
+
+    async checkIncomingShare() {
+        if (typeof window === 'undefined' || !window.location || !window.location.search) {
+            return;
+        }
+        var urlParams = new URLSearchParams(window.location.search);
+        var isShareTargetReceived = urlParams.get('share_target') === 'received';
+        var sharedTitle = urlParams.get('title');
+        var sharedText = urlParams.get('text');
+        var sharedUrl = urlParams.get('url');
+
+        if (isShareTargetReceived) {
+            if (window.tonuSync) {
+                var sharedData = await window.tonuSync.getLatestSharedData();
+                if (sharedData) {
+                    this.openShareModal(sharedData);
+                    await window.tonuSync.clearSharedData();
+                }
+            }
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (sharedTitle || sharedText || sharedUrl) {
+            this.openShareModal({
+                title: sharedTitle || '',
+                text: sharedText || '',
+                url: sharedUrl || '',
+                file: null
+            });
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+
+    parseSharedText(text, title) {
+        var fullContent = ((title || '') + ' ' + (text || '')).trim();
+
+        var moneyMatch = fullContent.match(/(?:R\$|\$)?\s?(\d+(?:[.,]\d{2})?)/i);
+        var amount = '';
+        if (moneyMatch && moneyMatch[1]) {
+            amount = moneyMatch[1].replace(',', '.');
+        }
+
+        var description = title || text || 'Despesa Compartilhada';
+        if (description.length > 50) {
+            description = description.substring(0, 47) + '...';
+        }
+
+        var tags = fullContent.match(/#[\w-]+/g) || [];
+
+        return {
+            amount: amount,
+            description: stripHTML(description),
+            notes: stripHTML(fullContent),
+            tags: tags.map(function (t) { return stripHTML(t); }).join(', ')
+        };
+    }
+
+    openShareModal(data) {
+        this.removeExistingModal();
+        var parsed = this.parseSharedText(data.text, data.title);
+
+        var modalHTML = `
+            <div class="share-target-modal show" id="shareTargetModal" 
+                 style="position:fixed; inset:0; background:rgba(15,23,42,0.8); z-index:999999; 
+                        display:flex; align-items:center; justify-content:center; padding:16px; 
+                        backdrop-filter:blur(6px);">
+                <div style="background:#ffffff; border-radius:18px; max-width:480px; width:100%; 
+                            padding:24px; box-shadow:0 20px 40px rgba(0,0,0,0.3); 
+                            animation:modalFadeIn 0.3s ease;"
+                     role="dialog" aria-label="Item compartilhado">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">
+                            <i class="fas fa-share-alt" style="color:#4338CA;"></i> Item Compartilhado
+                        </h3>
+                        <button type="button" onclick="window.webShareTarget.closeModal()" 
+                                style="background:none; border:none; font-size:20px; color:#94a3b8; cursor:pointer;"
+                                aria-label="Fechar modal">&times;</button>
+                    </div>
+                    <form id="shareTargetForm" onsubmit="window.webShareTarget.handleSave(event)">
+                        <div style="display:flex; flex-direction:column; gap:12px;">
+                            <div>
+                                <label style="font-size:12px; font-weight:600; color:#64748b;">Tipo</label>
+                                <div style="display:flex; gap:16px; margin-top:4px;">
+                                    <label style="font-size:13px; cursor:pointer;">
+                                        <input type="radio" name="shareType" value="expense" checked> 🔴 Despesa
+                                    </label>
+                                    <label style="font-size:13px; cursor:pointer;">
+                                        <input type="radio" name="shareType" value="income"> 🟢 Receita
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size:12px; font-weight:600; color:#64748b;">Descrição</label>
+                                <input type="text" id="shareDesc" class="form-control" 
+                                       value="` + parsed.description + `" required 
+                                       style="width:100%; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1;">
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                                <div>
+                                    <label style="font-size:12px; font-weight:600; color:#64748b;">Valor (R$)</label>
+                                    <input type="number" id="shareAmount" step="0.01" min="0.01" 
+                                           class="form-control" value="` + parsed.amount + `" required 
+                                           style="width:100%; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1;">
+                                </div>
+                                <div>
+                                    <label style="font-size:12px; font-weight:600; color:#64748b;">Data</label>
+                                    <input type="date" id="shareDate" class="form-control" 
+                                           value="` + new Date().toISOString().split('T')[0] + `" required 
+                                           style="width:100%; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1;">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size:12px; font-weight:600; color:#64748b;">Tags</label>
+                                <input type="text" id="shareTags" class="form-control" 
+                                       placeholder="#viagem, #trabalho" value="` + parsed.tags + `"
+                                       style="width:100%; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1;">
+                            </div>
+                            <div>
+                                <label style="font-size:12px; font-weight:600; color:#64748b;">Anotações</label>
+                                <textarea id="shareNotes" class="form-control" rows="2" 
+                                          style="width:100%; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1;">` + parsed.notes + `</textarea>
+                            </div>
+                        </div>
+                        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                            <button type="button" class="btn btn-outline btn-sm" 
+                                    onclick="window.webShareTarget.closeModal()">Descartar</button>
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="fas fa-save"></i> Salvar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+
+    async handleSave(e) {
+        e.preventDefault();
+        var type = document.querySelector('input[name="shareType"]:checked')?.value || 'expense';
+        var description = document.getElementById('shareDesc').value.trim();
+        var amount = parseFloat(document.getElementById('shareAmount').value);
+        var date = document.getElementById('shareDate').value;
+        var tags = document.getElementById('shareTags')?.value?.trim() || null;
+        var notes = document.getElementById('shareNotes').value.trim();
+
+        if (!description || isNaN(amount) || amount <= 0) {
+            if (window.showToast) window.showToast('Preencha os campos obrigatórios.', 'warning');
+            return;
+        }
+
+        var validation = validateTransaction({
+            description: description,
+            amount: amount,
+            date: date,
+            type: type
+        });
+
+        if (!validation.valid) {
+            if (window.showToast) window.showToast('❌ ' + validation.errors.join('\n'), 'error');
+            return;
+        }
+
+        try {
+            var userId = null;
+            if (window.supabaseOffline) {
+                var user = await window.supabaseOffline.isAuthenticated();
+                if (user) userId = user.id;
+            } else if (window.supabaseClient && window.supabaseClient.auth) {
+                var { data: { user } } = await window.supabaseClient.auth.getUser();
+                if (user) userId = user.id;
+            }
+
+            if (!userId) {
+                if (window.showToast) window.showToast('Faça login para salvar.', 'warning');
+                return;
+            }
+
+            var secureData = {
+                user_id: userId,
+                type: type,
+                description: stripHTML(description),
+                amount: amount,
+                date: date,
+                paid: true,
+                is_bill: false,
+                tags: tags ? stripHTML(tags) : null,
+                notes: notes || 'Importado via Web Share'
+            };
+
+            // Validação CSRF local sem poluir o payload do banco
+            if (window.TonuCSRF) {
+                window.TonuCSRF.validate();
+            }
+
+            delete secureData._csrf;
+            delete secureData._timestamp;
+
+            if (!navigator.onLine) {
+                if (window.tonuSync) {
+                    await window.tonuSync.enqueue('INSERT_TRANSACTION', secureData);
+                    if (window.showToast) window.showToast('Item salvo localmente! 📦', 'success');
+                }
+            } else {
+                const { error } = await window.supabaseClient
+                    .from('transactions')
+                    .insert([secureData]);
+                if (error) throw error;
+                if (window.showToast) window.showToast('Item compartilhado salvo com sucesso! 🎉', 'success');
+            }
+
+            this.closeModal();
+
+            if (window.loadTransactions) window.loadTransactions();
+            else if (window.loadDashboardData) window.loadDashboardData();
+
+        } catch (err) {
+            console.error('❌ Erro ao salvar item compartilhado:', err);
+            if (window.showToast) window.showToast('Erro ao salvar item compartilhado', 'error');
+        }
+    }
+
+    closeModal() {
+        var modal = document.getElementById('shareTargetModal');
+        if (modal) modal.remove();
+    }
+
+    removeExistingModal() {
+        var existing = document.getElementById('shareTargetModal');
+        if (existing) existing.remove();
+    }
+}
+
+// ============================================
+// 18. 🔥 TRANSIÇÕES ENTRE TELAS
+// ============================================
+
+function navigateTo(url, delay = 300) {
+    document.body.classList.add('page-leaving');
+
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        mainContent.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+        mainContent.style.opacity = '0';
+        mainContent.style.transform = 'translateY(12px) scale(0.98)';
+    }
+
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && !sidebar.classList.contains('hidden')) {
+        sidebar.style.transition = 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+        sidebar.style.transform = 'translateX(-100%)';
+    }
+
+    setTimeout(function () {
+        window.location.href = url;
+    }, delay);
+}
+
+function animatePageIn() {
+    const mainContent = document.querySelector('.main-content');
+    const content = document.querySelector('.content');
+
+    if (mainContent) {
+        mainContent.style.opacity = '0';
+        mainContent.style.transform = 'translateY(16px) scale(0.98)';
+        mainContent.style.transition = 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+
+        requestAnimationFrame(function () {
+            mainContent.style.opacity = '1';
+            mainContent.style.transform = 'translateY(0) scale(1)';
+        });
+    }
+
+    if (content) {
+        content.classList.add('page-transition');
+    }
+}
+
+function addStaggerToCards(containerSelector, cardSelector, delayBase = 50) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+
+    const cards = container.querySelectorAll(cardSelector);
+    cards.forEach(function (card, index) {
+        card.classList.add('card-stagger');
+        card.style.animationDelay = ((index * delayBase) / 1000) + 's';
+    });
+}
+
+function addStaggerToList(containerSelector, itemSelector, delayBase = 30) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+
+    const items = container.querySelectorAll(itemSelector);
+    items.forEach(function (item, index) {
+        item.classList.add('list-item-stagger');
+        item.style.animationDelay = ((index * delayBase) / 1000) + 's';
+    });
+}
+
+function applyStagger(selector, className = 'card-stagger', delayBase = 50) {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach(function (el, index) {
+        el.classList.add(className);
+        el.style.animationDelay = ((index * delayBase) / 1000) + 's';
+    });
+}
+
+// ============================================
+// 19. INICIALIZAR
+// ============================================
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('DOMContentLoaded', function () {
+        initTheme();
+        initNetworkStatusWatcher();
+
+        // 🔥 Carregar perfil com delay para evitar erro
+        setTimeout(function () {
+            loadGlobalUserProfile();
+        }, 500);
+
+        setTimeout(animatePageIn, 100);
+    });
+}
+
+// ============================================
+// 19B. EXCLUSÃO INTELIGENTE DE RECORRÊNCIA E PARCELAMENTO
+// ============================================
+function findSeriesInfo(target, list) {
+    if (!target || !Array.isArray(list)) return { target: target, fromNow: [], all: [] };
+    var targetId = String(target.id);
+    var series = [];
+
+    // 1. Vinculação por parent_transaction_id
+    if (target.parent_transaction_id) {
+        var parentId = String(target.parent_transaction_id);
+        series = list.filter(function (x) {
+            return x && (String(x.id) === parentId || String(x.parent_transaction_id) === parentId);
+        });
+    } else {
+        var children = list.filter(function (x) {
+            return x && String(x.parent_transaction_id) === targetId;
+        });
+        if (children.length > 0) {
+            series = [target].concat(children);
+        }
+    }
+
+    // 2. Se não encontrou por parent_transaction_id, correlaciona por descrição de parcelas
+    if (series.length <= 1) {
+        var match = String(target.description || '').match(/^(.*?)\s*\((\d+)\/(\d+)\)$/);
+        var hasInst = (parseInt(target.installments, 10) > 1 || parseInt(target.installment_total, 10) > 1);
+        if (match || hasInst) {
+            var cleanDesc = match ? match[1].trim().toLowerCase() : String(target.description || '').trim().toLowerCase();
+            series = list.filter(function (x) {
+                if (!x) return false;
+                var xDesc = String(x.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+                var sameDesc = (xDesc === cleanDesc);
+                var sameType = (!target.type || !x.type || x.type === target.type);
+                return sameDesc && sameType;
+            });
+        }
+    }
+
+    // Itens de toda a série (exceto o próprio target)
+    var allOther = series.filter(function (x) {
+        return x && String(x.id) !== targetId;
+    });
+
+    // Itens "desta em diante" (mesma data/parcela ou superior)
+    var targetDate = String(target.due_date || target.date || '').slice(0, 10);
+    var targetNum = parseInt(target.installment_number || target.current_installment, 10) || 0;
+
+    var fromNow = allOther.filter(function (x) {
+        var xNum = parseInt(x.installment_number || x.current_installment, 10) || 0;
+        var xDate = String(x.due_date || x.date || '').slice(0, 10);
+        if (targetNum > 0 && xNum > 0) {
+            return xNum >= targetNum;
+        }
+        if (targetDate && xDate) {
+            return xDate >= targetDate;
+        }
+        return true;
+    });
+
+    return {
+        target: target,
+        fromNow: fromNow,
+        all: allOther
+    };
+}
+
+function findRemainingSeries(target, list) {
+    var info = findSeriesInfo(target, list);
+    return info.fromNow;
+}
+
+async function getFullSeriesInfo(target, list, options) {
+    if (!target) return { target: null, fromNow: [], all: [] };
+    var opts = options || {};
+
+    var mergedList = Array.isArray(list) ? list.slice() : [];
+    var map = new Map();
+    mergedList.forEach(function (x) { if (x && x.id) map.set(String(x.id), x); });
+
+    var isSeriesCandidate = Boolean(
+        target.parent_transaction_id ||
+        (target.description && /\(\d+\/\d+\)/.test(target.description)) ||
+        (parseInt(target.installments, 10) > 1) ||
+        (parseInt(target.installment_total, 10) > 1) ||
+        target.is_recurring
+    );
+
+    if (isSeriesCandidate && typeof window !== 'undefined') {
+        var userId = opts.userId || target.user_id || (window.currentUser && window.currentUser.id);
+        if (!userId && window.supabaseClient && window.supabaseClient.auth) {
+            try {
+                var sess = (await window.supabaseClient.auth.getSession())?.data?.session;
+                userId = sess?.user?.id;
+            } catch (_) {}
+        }
+        if (!userId) {
+            try {
+                var rawOff = localStorage.getItem('tonu_cached_session') || localStorage.getItem('supabase.auth.token');
+                if (rawOff) {
+                    var parsed = JSON.parse(rawOff);
+                    userId = parsed?.user?.id || parsed?.id;
+                }
+            } catch (_) {}
+        }
+
+        // 1. Busca no Supabase (transactions com is_bill ou todas do usuário)
+        if (window.supabaseClient && userId && navigator.onLine) {
+            try {
+                var promises = [];
+                if (target.parent_transaction_id) {
+                    var pId = String(target.parent_transaction_id);
+                    promises.push(
+                        window.supabaseClient.from('transactions').select('*').eq('user_id', userId).or(`parent_transaction_id.eq.${pId},id.eq.${pId}`)
+                    );
+                }
+                if (target.id) {
+                    var tId = String(target.id);
+                    promises.push(
+                        window.supabaseClient.from('transactions').select('*').eq('user_id', userId).eq('parent_transaction_id', tId)
+                    );
+                }
+                var cleanDesc = String(target.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim();
+                if (cleanDesc.length >= 2) {
+                    promises.push(
+                        window.supabaseClient.from('transactions').select('*').eq('user_id', userId).ilike('description', `${cleanDesc}%`)
+                    );
+                }
+
+                var results = await Promise.allSettled(promises);
+                results.forEach(function (res) {
+                    if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.data)) {
+                        res.value.data.forEach(function (item) {
+                            if (item && item.id) map.set(String(item.id), item);
+                        });
+                    }
+                });
+            } catch (err) {
+                console.warn('Erro ao consultar parcelas no Supabase:', err);
+            }
+        }
+
+        // 2. Busca no cache tonuSync (IndexedDB)
+        if (window.tonuSync && userId) {
+            try {
+                var cached = target.is_bill
+                    ? await window.tonuSync.getCachedBills(userId)
+                    : await window.tonuSync.getCachedTransactions(userId);
+                if (Array.isArray(cached)) {
+                    cached.forEach(function (item) {
+                        if (item && item.id) map.set(String(item.id), item);
+                    });
+                }
+            } catch (_) {}
+        }
+    }
+
+    return findSeriesInfo(target, Array.from(map.values()));
+}
+
+async function getFullRemainingSeries(target, list, options) {
+    var info = await getFullSeriesInfo(target, list, options);
+    return info.fromNow;
+}
+
+function confirmRecurringDelete(options) {
+    var opts = options || {};
+    var countFromNow = opts.countFromNow !== undefined ? opts.countFromNow : (opts.countRemaining || 0);
+    var countAll = opts.countAll !== undefined ? opts.countAll : (opts.countRemaining || 0);
+    var itemName = opts.itemName || 'Esta conta';
+
+    return new Promise(function (resolve) {
+        if (typeof document === 'undefined') {
+            resolve('single');
+            return;
+        }
+
+        var overlay = document.createElement('div');
+        overlay.id = 'recurringDeleteModalOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;backdrop-filter:blur(3px);animation:fadeIn 0.15s ease;';
+
+        var card = document.createElement('div');
+        card.style.cssText = 'background:var(--color-surface,#ffffff);color:var(--color-text,#1e293b);border-radius:16px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);border:1px solid var(--color-border,#e2e8f0);text-align:center;display:flex;flex-direction:column;gap:14px;font-family:inherit;';
+
+        var cleanItemName = typeof sanitizeString === 'function' ? sanitizeString(itemName) : itemName;
+        var totalFromNow = countFromNow + 1;
+        var totalAll = countAll + 1;
+
+        card.innerHTML = `
+            <div style="width:48px;height:48px;border-radius:50%;background:#fee2e2;color:#dc2626;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:22px;">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <div>
+                <h3 style="margin:0 0 6px 0;font-size:17px;font-weight:700;color:var(--color-text,#1e293b);">Deseja excluir as próximas parcelas?</h3>
+                <p style="margin:0;font-size:13px;color:var(--color-text-muted,#64748b);line-height:1.45;">
+                    "${cleanItemName}" faz parte de uma série de parcelas ou recorrência. Como deseja excluir?
+                </p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+                <button id="btnDeleteFromNow" style="background:#dc2626;color:#ffffff;border:none;padding:11px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-forward"></i> Excluir a partir de agora (${totalFromNow} parcelas/meses)
+                </button>
+                ${countAll > countFromNow ? `
+                <button id="btnDeleteAllSeries" style="background:#991b1b;color:#ffffff;border:none;padding:10px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-trash-alt"></i> Excluir TODAS as parcelas da série (${totalAll})
+                </button>
+                ` : `
+                <button id="btnDeleteAllSeries" style="background:#991b1b;color:#ffffff;border:none;padding:10px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-trash-alt"></i> Excluir todas as parcelas (${totalAll})
+                </button>
+                `}
+                <button id="btnDeleteSingleRecurring" style="background:var(--color-bg,#f1f5f9);color:var(--color-text,#334155);border:1px solid var(--color-border,#cbd5e1);padding:10px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;">
+                    Excluir somente esta parcela deste mês
+                </button>
+                <button id="btnCancelRecurring" style="background:transparent;color:var(--color-text-muted,#64748b);border:none;padding:6px;font-size:13px;cursor:pointer;">
+                    Cancelar
+                </button>
+            </div>
+        `;
+
+        function cleanup(result) {
+            document.removeEventListener('keydown', onKeyDown);
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            resolve(result);
+        }
+
+        function onKeyDown(e) {
+            if (e.key === 'Escape') cleanup('cancel');
+        }
+
+        var btnFromNow = card.querySelector('#btnDeleteFromNow');
+        if (btnFromNow) btnFromNow.onclick = function () { cleanup('from_now'); };
+
+        var btnAll = card.querySelector('#btnDeleteAllSeries');
+        if (btnAll) btnAll.onclick = function () { cleanup('all_series'); };
+
+        var btnSingle = card.querySelector('#btnDeleteSingleRecurring');
+        if (btnSingle) btnSingle.onclick = function () { cleanup('single'); };
+
+        var btnCancel = card.querySelector('#btnCancelRecurring');
+        if (btnCancel) btnCancel.onclick = function () { cleanup('cancel'); };
+
+        overlay.onclick = function (e) { if (e.target === overlay) cleanup('cancel'); };
+        document.addEventListener('keydown', onKeyDown);
+
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+    });
+}
+
+// ============================================
+// 19C. ANTECIPAÇÃO E QUITAÇÃO DE PARCELAS
+// ============================================
+function checkValueMismatch(typedValue, sumValue) {
+    var typed = parseFloat(typedValue) || 0;
+    var sum = parseFloat(sumValue) || 0;
+    return Math.abs(typed - sum) > 0.01;
+}
+
+function buildAnticipationDescription(baseDescription, selectedNumbers) {
+    var cleanDesc = String(baseDescription || 'Conta').replace(/\s*\(\d+\/\d+\)$/, '').trim();
+    var sortedNums = (selectedNumbers || []).slice().sort(function (a, b) { return a - b; });
+    return `Antecipação: ${cleanDesc} (${sortedNums.join(', ')})`;
+}
+
+function createAnticipationTransaction(target, selectedBills, typedAmount, paymentDate) {
+    var motherId = target.parent_transaction_id || target.id;
+    var nums = (selectedBills || []).map(function (b) {
+        return parseInt(b.installment_number || b.current_installment, 10);
+    }).filter(Boolean);
+
+    var desc = buildAnticipationDescription(target.description, nums);
+    var totalInstallments = parseInt(target.installment_total || target.installments, 10) || null;
+    var date = paymentDate || (typeof getTodayString === 'function' ? getTodayString() : new Date().toISOString().split('T')[0]);
+
+    // Resolução segura de user_id
+    var uid = target.user_id ||
+        (typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null) ||
+        (typeof window !== 'undefined' && window.currentUser ? window.currentUser.id : null);
+    if (!uid && typeof sessionStorage !== 'undefined') {
+        try {
+            var raw = sessionStorage.getItem('tonu_user');
+            if (raw) {
+                var parsed = JSON.parse(raw);
+                uid = (parsed.user || parsed)?.id;
+            }
+        } catch (_) {}
+    }
+
+    // Validação estrita de UUID para category_id (evita erro de constraint no Supabase)
+    var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    var validCatId = (target.category_id && uuidRegex.test(String(target.category_id))) ? String(target.category_id) : null;
+    var catName = target.category || (target.categories && target.categories.name) || 'Contas / Empréstimos';
+
+    return {
+        id: genUuid(),
+        user_id: uid,
+        description: desc,
+        amount: Math.abs(parseFloat(typedAmount) || 0),
+        date: date,
+        due_date: date,
+        type: 'expense',
+        category_id: validCatId,
+        category: catName,
+        is_bill: false,
+        paid: true,
+        paid_date: date,
+        parent_transaction_id: String(motherId),
+        installments: totalInstallments,
+        installment_total: totalInstallments,
+        is_anticipation: true,
+        notes: `Quitação antecipada das parcelas: ${nums.join(', ')}`
+    };
+}
+
+function getAnticipationModal(options) {
+    var opts = options || {};
+    var target = opts.target;
+    if (!target) return;
+    var allSeries = Array.isArray(opts.allSeries) ? opts.allSeries : [target];
+    var onConfirm = opts.onConfirm || function () {};
+
+    if (typeof document === 'undefined') return;
+
+    var targetId = String(target.id);
+    var targetPId = target.parent_transaction_id ? String(target.parent_transaction_id) : targetId;
+    var currentNum = parseInt(target.installment_number || target.current_installment, 10) || 1;
+    var totalNum = parseInt(target.installment_total || target.installments, 10) || 1;
+    var cleanDesc = String(target.description || 'Conta').replace(/\s*\(\d+\/\d+\)$/, '').trim();
+    var cleanTargetDescLower = cleanDesc.toLowerCase();
+
+    // 1. FILTRAGEM ESTRITA DE LINHAGEM:
+    // Se o target possui parent_transaction_id (ou target.id é a mãe), qualquer conta com parent diferente
+    // pertence a OUTRA conta (ex: dois 'Empréstimo' separados) e é descartada imediatamente.
+    var seriesOfThisBill = allSeries.filter(function (b) {
+        if (!b) return false;
+        var bId = String(b.id);
+        if (bId === targetId) return true;
+
+        var bPId = b.parent_transaction_id ? String(b.parent_transaction_id) : null;
+        if (targetPId) {
+            if (bId === targetPId) return true;
+            if (bPId) {
+                return bPId === targetPId;
+            }
+        }
+
+        // Fallback para contas legadas sem parent_transaction_id:
+        // Exige mesma descrição, mesmo número total de parcelas, mesma categoria e sem parent divergente
+        var bClean = String(b.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+        var sameDesc = cleanTargetDescLower && bClean === cleanTargetDescLower;
+        var bTotal = parseInt(b.installment_total || b.installments, 10) || 0;
+        var sameTotal = (totalNum > 1 && bTotal > 1) ? (bTotal === totalNum) : true;
+        var sameCat = (!target.category_id || !b.category_id || String(target.category_id) === String(b.category_id));
+
+        return sameDesc && sameTotal && sameCat && !bPId;
+    });
+
+    if (seriesOfThisBill.length === 0) {
+        seriesOfThisBill = [target];
+    }
+
+    // 2. Remove duplicatas por ID
+    var seenIds = new Set();
+    var dedupedBills = [];
+    seriesOfThisBill.forEach(function (b) {
+        var idStr = String(b.id);
+        if (!seenIds.has(idStr)) {
+            seenIds.add(idStr);
+            dedupedBills.push(b);
+        }
+    });
+
+    if (totalNum < dedupedBills.length) {
+        totalNum = dedupedBills.length;
+    }
+
+    // 3. Ordena de 1 a N
+    var sortedBills = dedupedBills.slice().sort(function (a, b) {
+        var nA = parseInt(a.installment_number || a.current_installment, 10) || 0;
+        var nB = parseInt(b.installment_number || b.current_installment, 10) || 0;
+        if (nA !== nB) return nA - nB;
+        var dA = String(a.due_date || a.date || '');
+        var dB = String(b.due_date || b.date || '');
+        return dA.localeCompare(dB);
+    });
+
+    var overlay = document.createElement('div');
+    overlay.id = 'anticipationModalOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;backdrop-filter:blur(3px);animation:fadeIn 0.15s ease;';
+
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--color-surface,#ffffff);color:var(--color-text,#1e293b);border-radius:16px;padding:22px;max-width:480px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);border:1px solid var(--color-border,#e2e8f0);font-family:inherit;overflow:hidden;box-sizing:border-box;';
+
+    card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--color-border,#e2e8f0);padding-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:38px;height:38px;border-radius:10px;background:#e0f2fe;color:#0284c7;display:flex;align-items:center;justify-content:center;font-size:16px;">
+                    <i class="fas fa-forward-fast"></i>
+                </div>
+                <div>
+                    <h3 style="margin:0;font-size:16px;font-weight:700;color:var(--color-text,#1e293b);">Antecipar / Quitar Parcelas</h3>
+                    <small style="color:var(--color-text-muted,#64748b);font-size:12px;">${cleanDesc} (Parcela atual: ${currentNum}/${totalNum})</small>
+                </div>
+            </div>
+            <button id="btnCloseAnticipation" style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;padding:4px;line-height:1;">&times;</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:6px;flex-wrap:wrap;">
+            <span style="color:var(--color-text-muted,#64748b);">Selecione as parcelas para quitação:</span>
+            <div style="display:flex;gap:6px;">
+                <button id="btnSelectAllOpen" type="button" style="background:none;border:none;color:#0284c7;font-weight:700;font-size:12px;cursor:pointer;padding:2px 4px;">
+                    <i class="fas fa-check-square"></i> Todas em aberto
+                </button>
+                <button id="btnSelectLast3" type="button" style="background:none;border:none;color:#0284c7;font-weight:700;font-size:12px;cursor:pointer;padding:2px 4px;">
+                    <i class="fas fa-magic"></i> + Últimas 3
+                </button>
+            </div>
+        </div>
+        <div id="anticipationListContainer" style="overflow-y:auto;max-height:220px;display:flex;flex-direction:column;gap:6px;padding-right:4px;">
+            ${sortedBills.map(function (b) {
+                var num = parseInt(b.installment_number || b.current_installment, 10) || 0;
+                var isPaid = !!b.paid;
+                var isCurrent = (num === currentNum) || (String(b.id) === targetId);
+                // Permite selecionar a conta do mês atual e parcelas futuras em aberto!
+                var disabled = isPaid; // Apenas as já quitadas ficam desabilitadas
+                var badgeLabel = isPaid ? 'PAGA' : (isCurrent ? 'ATUAL' : (num > currentNum ? 'FUTURA' : 'PENDENTE'));
+                var badgeBg = isPaid ? '#10b981' : (isCurrent ? '#f59e0b' : (num > currentNum ? '#0284c7' : '#ef4444'));
+                var valFormatted = typeof formatCurrency === 'function' ? formatCurrency(b.amount) : 'R$ ' + (Number(b.amount) || 0).toFixed(2);
+                var dateStr = b.due_date || b.date ? (typeof formatDate === 'function' ? formatDate(b.due_date || b.date) : String(b.due_date || b.date).slice(0, 10)) : '';
+
+                return `
+                    <label style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;border:1px solid ${isCurrent ? '#f59e0b' : 'var(--color-border,#e2e8f0)'};background:${disabled ? 'var(--color-bg,#f8fafc)' : 'var(--color-surface,#ffffff)'};opacity:${disabled ? '0.6' : '1'};cursor:${disabled ? 'not-allowed' : 'pointer'};">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" class="chk-anticipate" data-id="${b.id}" data-num="${num}" data-amount="${b.amount}" ${disabled ? 'disabled' : ''} style="accent-color:#0284c7;width:17px;height:17px;cursor:${disabled ? 'not-allowed' : 'pointer'};">
+                            <span style="font-weight:600;font-size:13px;">Parcela ${num}/${totalNum}</span>
+                            <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;color:#ffffff;background:${badgeBg};">${badgeLabel}</span>
+                            ${dateStr ? `<span style="font-size:11px;color:var(--color-text-muted,#64748b);">${dateStr}</span>` : ''}
+                        </div>
+                        <span style="font-size:13px;font-weight:700;color:var(--color-text,#1e293b);">${valFormatted}</span>
+                    </label>
+                `;
+            }).join('')}
+        </div>
+        <div style="background:var(--color-bg,#f8fafc);border-radius:10px;padding:12px;border:1px solid var(--color-border,#e2e8f0);display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:var(--color-text-muted,#64748b);">Soma das parcelas selecionadas:</span>
+                <strong id="lblAnticipationSum" style="color:var(--color-text,#1e293b);font-size:14px;">R$ 0,00</strong>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:12px;font-weight:600;color:var(--color-text,#1e293b);">Valor Total Pago (com desconto ou juros):</label>
+                <input type="number" step="0.01" id="inputAnticipationPaid" placeholder="0,00" style="padding:9px 12px;border-radius:8px;border:1px solid var(--color-border,#cbd5e1);font-size:14px;font-weight:700;width:100%;box-sizing:border-box;background:var(--color-surface,#ffffff);color:var(--color-text,#1e293b);">
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:2px;">
+                <span style="font-size:11px;color:var(--color-text-muted,#64748b);margin-right:2px;">Atalhos:</span>
+                <button type="button" class="btn-discount-quick" data-pct="0" style="padding:3px 7px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--color-border,#cbd5e1);background:var(--color-surface,#ffffff);color:var(--color-text,#334155);cursor:pointer;">100%</button>
+                <button type="button" class="btn-discount-quick" data-pct="5" style="padding:3px 7px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;">-5%</button>
+                <button type="button" class="btn-discount-quick" data-pct="10" style="padding:3px 7px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;">-10%</button>
+                <button type="button" class="btn-discount-quick" data-pct="15" style="padding:3px 7px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;">-15%</button>
+                <button type="button" class="btn-discount-quick" data-pct="20" style="padding:3px 7px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;">-20%</button>
+            </div>
+            <div id="mismatchWarning" style="display:none;background:#fef3c7;color:#92400e;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;border:1px solid #fde68a;">
+                ⚠️ O valor pago é diferente da soma das parcelas selecionadas.
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+            <button id="btnCancelAnticipation" style="background:transparent;border:1px solid var(--color-border,#cbd5e1);padding:9px 16px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;color:var(--color-text,#334155);">Cancelar</button>
+            <button id="btnConfirmAnticipation" disabled style="background:#0284c7;color:#ffffff;border:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:13px;cursor:not-allowed;opacity:0.4;transition:all 0.2s;">Confirmar Quitação</button>
+        </div>
+    `;
+
+    function cleanup() {
+        document.removeEventListener('keydown', onKeyDown);
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+
+    function onKeyDown(e) {
+        if (e.key === 'Escape') cleanup();
+    }
+
+    var chks = card.querySelectorAll('.chk-anticipate:not([disabled])');
+    var lblSum = card.querySelector('#lblAnticipationSum');
+    var inputPaid = card.querySelector('#inputAnticipationPaid');
+    var warningEl = card.querySelector('#mismatchWarning');
+    var btnConfirm = card.querySelector('#btnConfirmAnticipation');
+    var currentSum = 0;
+    var userModifiedPaid = false;
+
+    function recalculate() {
+        currentSum = 0;
+        var selectedCount = 0;
+        chks.forEach(function (c) {
+            if (c.checked) {
+                currentSum += parseFloat(c.getAttribute('data-amount') || 0);
+                selectedCount++;
+            }
+        });
+
+        lblSum.textContent = typeof formatCurrency === 'function' ? formatCurrency(currentSum) : 'R$ ' + currentSum.toFixed(2).replace('.', ',');
+
+        if (!userModifiedPaid) {
+            inputPaid.value = selectedCount > 0 ? currentSum.toFixed(2) : '';
+        }
+
+        btnConfirm.disabled = (selectedCount === 0);
+        btnConfirm.style.opacity = selectedCount > 0 ? '1' : '0.4';
+        btnConfirm.style.cursor = selectedCount > 0 ? 'pointer' : 'not-allowed';
+
+        checkWarning();
+    }
+
+    function checkWarning() {
+        var typed = parseFloat(inputPaid.value) || 0;
+        if (currentSum > 0 && inputPaid.value && checkValueMismatch(typed, currentSum)) {
+            var diff = typed - currentSum;
+            var diffText = typeof formatCurrency === 'function' ? formatCurrency(Math.abs(diff)) : 'R$ ' + Math.abs(diff).toFixed(2);
+            var msg = diff < 0 ? `Desconto de ${diffText}` : `Acréscimo de ${diffText}`;
+            warningEl.innerHTML = `⚠️ O valor digitado (<strong>${typeof formatCurrency === 'function' ? formatCurrency(typed) : 'R$ ' + typed.toFixed(2)}</strong>) é diferente da soma das parcelas (<strong>${typeof formatCurrency === 'function' ? formatCurrency(currentSum) : 'R$ ' + currentSum.toFixed(2)}</strong>) — ${msg}.`;
+            warningEl.style.display = 'block';
+        } else {
+            warningEl.style.display = 'none';
+        }
+    }
+
+    chks.forEach(function (c) {
+        c.onchange = function () {
+            userModifiedPaid = false;
+            recalculate();
+        };
+    });
+
+    inputPaid.oninput = function () {
+        userModifiedPaid = true;
+        checkWarning();
+    };
+
+    card.querySelectorAll('.btn-discount-quick').forEach(function (btn) {
+        btn.onclick = function () {
+            if (!currentSum || currentSum <= 0) return;
+            var pct = parseFloat(btn.getAttribute('data-pct')) || 0;
+            var finalVal = currentSum * (1 - (pct / 100));
+            inputPaid.value = Math.max(0, finalVal).toFixed(2);
+            userModifiedPaid = true;
+            checkWarning();
+        };
+    });
+
+    var btnLast3 = card.querySelector('#btnSelectLast3');
+    if (btnLast3) {
+        btnLast3.onclick = function () {
+            var available = Array.from(chks);
+            if (available.length === 0) return;
+            available.forEach(function (c) { c.checked = false; });
+            var last3 = available.slice(-3);
+            last3.forEach(function (c) { c.checked = true; });
+            userModifiedPaid = false;
+            recalculate();
+        };
+    }
+
+    var btnAllOpen = card.querySelector('#btnSelectAllOpen');
+    if (btnAllOpen) {
+        btnAllOpen.onclick = function () {
+            var available = Array.from(chks);
+            if (available.length === 0) return;
+            var anyUnchecked = available.some(function (c) { return !c.checked; });
+            available.forEach(function (c) { c.checked = anyUnchecked; });
+            userModifiedPaid = false;
+            recalculate();
+        };
+    }
+
+    card.querySelector('#btnCloseAnticipation').onclick = cleanup;
+    card.querySelector('#btnCancelAnticipation').onclick = cleanup;
+    overlay.onclick = function (e) { if (e.target === overlay) cleanup(); };
+    document.addEventListener('keydown', onKeyDown);
+
+    btnConfirm.onclick = function () {
+        var typed = parseFloat(inputPaid.value) || 0;
+        if (!typed || typed <= 0) {
+            if (typeof showToast === 'function') showToast('❌ Informe o valor pago para quitar as parcelas.', 'error');
+            return;
+        }
+
+        var selectedBills = [];
+        chks.forEach(function (c) {
+            if (c.checked) {
+                var bId = c.getAttribute('data-id');
+                var item = allSeries.find(function (x) { return String(x.id) === String(bId); });
+                if (item) selectedBills.push(item);
+            }
+        });
+
+        if (selectedBills.length === 0) {
+            if (typeof showToast === 'function') showToast('Selecione pelo menos uma parcela.', 'warning');
+            return;
+        }
+
+        if (checkValueMismatch(typed, currentSum)) {
+            var formattedTyped = typeof formatCurrency === 'function' ? formatCurrency(typed) : 'R$ ' + typed.toFixed(2);
+            var formattedSum = typeof formatCurrency === 'function' ? formatCurrency(currentSum) : 'R$ ' + currentSum.toFixed(2);
+            var confirmMsg = `O valor pago (${formattedTyped}) é diferente da soma das parcelas (${formattedSum}).\n\nTem certeza que deseja confirmar a quitação?`;
+            if (!confirm(confirmMsg)) return;
+        }
+
+        cleanup();
+        onConfirm(selectedBills, typed, typeof getTodayString === 'function' ? getTodayString() : new Date().toISOString().split('T')[0]);
+    };
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+}
+
+// ============================================
+// REVERSÃO INTELIGENTE DE ANTECIPAÇÃO EM CONTAS
+// ============================================
+async function revertAnticipatedBills(targetTx, options = {}) {
+    if (!targetTx) return { revertedCount: 0, revertedBills: [] };
+    const isAnticipation = !!(targetTx.is_anticipation || (targetTx.description && String(targetTx.description).toLowerCase().startsWith('antecipação:')));
+    if (!isAnticipation) return { revertedCount: 0, revertedBills: [] };
+
+    // Extrai números das parcelas: "Antecipação: Nome (10, 18, 19, 20)"
+    const match = String(targetTx.description || '').match(/\(([\d,\s]+)\)$/);
+    const nums = match ? match[1].split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)) : [];
+
+    const userId = options.userId || (typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null);
+    const motherId = targetTx.parent_transaction_id ? String(targetTx.parent_transaction_id) : null;
+
+    let bills = [];
+    if (window.tonuSync && userId) {
+        try {
+            const cached = await window.tonuSync.getCachedBills(userId);
+            if (Array.isArray(cached)) bills = cached;
+        } catch (_) {}
+    }
+
+    if (bills.length === 0 && options.bills && Array.isArray(options.bills)) {
+        bills = options.bills;
+    }
+
+    const cleanDesc = String(targetTx.description || '')
+        .replace(/^antecipação:\s*/i, '')
+        .replace(/\s*\([\d,\s]+\)$/, '')
+        .trim().toLowerCase();
+
+    const revertedBills = [];
+    const numSet = new Set(nums);
+
+    bills.forEach(b => {
+        const bNum = parseInt(b.installment_number || b.current_installment, 10);
+        const bMotherId = b.parent_transaction_id ? String(b.parent_transaction_id) : String(b.id);
+        const bDesc = String(b.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+
+        let matches = false;
+        if (motherId && (bMotherId === motherId || String(b.id) === motherId)) {
+            if (numSet.size === 0 || numSet.has(bNum)) {
+                matches = true;
+            }
+        } else if (cleanDesc && bDesc === cleanDesc && numSet.has(bNum)) {
+            matches = true;
+        }
+
+        if (matches && (b.paid || b.amount_paid)) {
+            b.paid = false;
+            b.paid_date = null;
+            b.amount_paid = null;
+            revertedBills.push(b);
+        }
+    });
+
+    if (revertedBills.length > 0) {
+        if (window.tonuSync && userId) {
+            try {
+                await window.tonuSync.setCachedBills(userId, bills);
+                for (const rb of revertedBills) {
+                    await window.tonuSync.enqueue('UPDATE_BILL', {
+                        id: rb.id,
+                        paid: false,
+                        paid_date: null,
+                        amount_paid: null
+                    });
+                }
+            } catch (err) {
+                console.warn('Erro ao sincronizar reversão de contas:', err);
+            }
+        }
+
+        if (window.supabaseClient && userId && (typeof navigator === 'undefined' || navigator.onLine)) {
+            try {
+                const ids = revertedBills.map(b => b.id);
+                await window.supabaseClient
+                    .from('bills')
+                    .update({ paid: false, paid_date: null, amount_paid: null })
+                    .in('id', ids)
+                    .eq('user_id', userId);
+            } catch (supaErr) {
+                console.warn('Erro ao atualizar Supabase na reversão:', supaErr);
+            }
+        }
+    }
+
+    return {
+        revertedCount: revertedBills.length,
+        revertedBills,
+        installmentNumbers: nums
+    };
+}
+
+function colorTo15PercentAlpha(colorStr) {
+    if (!colorStr) return 'rgba(67, 56, 202, 0.15)';
+    if (colorStr.startsWith('#')) {
+        var hex = colorStr.replace('#', '');
+        if (hex.length === 3) hex = hex.split('').map(function (c) { return c + c; }).join('');
+        var num = parseInt(hex, 16);
+        var r = (num >> 16) & 255;
+        var g = (num >> 8) & 255;
+        var b = num & 255;
+        return 'rgba(' + r + ', ' + g + ', ' + b + ', 0.15)';
+    }
+    if (colorStr.startsWith('rgba')) {
+        return colorStr;
+    }
+    if (colorStr.startsWith('rgb(')) {
+        return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.15)');
+    }
+    return 'rgba(67, 56, 202, 0.15)';
+}
+
+function TonuConfirm(opts) {
+    if (typeof opts === 'string') {
+        opts = { message: opts };
+    }
+    opts = opts || {};
+    var title = opts.title || 'Confirmar ação';
+    var message = opts.message || '';
+    var confirmText = opts.confirmText || 'Confirmar';
+    var cancelText = opts.cancelText || 'Cancelar';
+    var danger = !!opts.danger;
+
+    return new Promise(function (resolve) {
+        if (typeof document === 'undefined' || !document.body) {
+            resolve(false);
+            return;
+        }
+        var safe = function (s) {
+            return typeof sanitizeString === 'function'
+                ? sanitizeString(String(s || ''))
+                : String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        };
+        var safeMessageHtml = safe(message).replace(/\n/g, '<br>');
+
+        var backdrop = document.createElement('div');
+        backdrop.className = 'tonu-confirm-backdrop';
+        backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;';
+        backdrop.innerHTML =
+            '<div class="tonu-confirm-dialog" role="alertdialog" aria-modal="true" style="background:var(--color-surface,#ffffff);color:var(--color-text,#0f172a);border-radius:18px;max-width:360px;width:100%;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,0.28);border:1px solid var(--color-border,#e2e8f0);font-family:Inter,sans-serif;">' +
+                '<h3 style="margin:0 0 8px 0;font-size:16px;font-weight:700;">' + safe(title) + '</h3>' +
+                '<p style="margin:0 0 18px 0;font-size:13.5px;color:var(--color-text-secondary,#475569);line-height:1.45;">' + safeMessageHtml + '</p>' +
+                '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+                    '<button type="button" data-action="cancel" style="padding:10px 16px;border-radius:12px;border:1px solid var(--color-border,#e2e8f0);background:transparent;color:var(--color-text,#0f172a);font-weight:600;font-size:13.5px;cursor:pointer;">' + safe(cancelText) + '</button>' +
+                    '<button type="button" data-action="confirm" style="padding:10px 16px;border-radius:12px;border:none;background:' + (danger ? '#ef4444' : '#4338CA') + ';color:#fff;font-weight:600;font-size:13.5px;cursor:pointer;">' + safe(confirmText) + '</button>' +
+                '</div>' +
+            '</div>';
+
+        var settled = false;
+        var onKeyDown = function (e) {
+            if (e.key === 'Escape') {
+                cleanup(false);
+            }
+        };
+        var cleanup = function (result) {
+            if (settled) return;
+            settled = true;
+            document.removeEventListener('keydown', onKeyDown);
+            backdrop.remove();
+            resolve(result);
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+        backdrop.querySelector('[data-action="cancel"]').addEventListener('click', function () { cleanup(false); });
+        backdrop.querySelector('[data-action="confirm"]').addEventListener('click', function () { cleanup(true); });
+        backdrop.addEventListener('click', function (e) { if (e.target === backdrop) cleanup(false); });
+        document.body.appendChild(backdrop);
+
+        var confirmBtn = backdrop.querySelector('[data-action="confirm"]');
+        if (confirmBtn && typeof confirmBtn.focus === 'function') {
+            setTimeout(function () { confirmBtn.focus(); }, 10);
+        }
+    });
+}
+
+// ============================================
+// 20. EXPORTAR PARA O ESCOPO GLOBAL
+// ============================================
+window.showToast = showToast;
+window.formatCurrency = formatCurrency;
+window.formatDate = formatDate;
+window.colorTo15PercentAlpha = colorTo15PercentAlpha;
+window.TonuConfirm = TonuConfirm;
+window.TonuDebounce = TonuDebounce;
+window.getToday = getToday;
+window.getDaysBetween = getDaysBetween;
+window.sanitizeString = sanitizeString;
+window.stripHTML = stripHTML;
+window.validateEmail = validateEmail;
+window.validatePassword = validatePassword;
+window.validateAmount = validateAmount;
+window.validateDate = validateDate;
+window.validateTransaction = validateTransaction;
+window.validateBill = validateBill;
+window.validateGoal = validateGoal;
+window.debounce = debounce;
+window.throttle = throttle;
+window.updateMonthDisplay = updateMonthDisplay;
+window.getMonthName = getMonthName;
+window.getLastDayOfMonth = getLastDayOfMonth;
+window.formatDateKey = formatDateKey;
+window.toggleSidebar = toggleSidebar;
+window.closeSidebar = closeSidebar;
+window.logout = logout;
+window.logoutAllDevices = logoutAllDevices;
+window.setLoading = setLoading;
+window.showLoading = showLoading;
+window.isMobile = isMobile;
+window.isTablet = isTablet;
+window.isDesktop = isDesktop;
+window.chartColors = chartColors;
+window.getChartColors = getChartColors;
+window.renderAvatarElement = renderAvatarElement;
+window.loadGlobalUserProfile = loadGlobalUserProfile;
+window.createDefaultCategories = createDefaultCategories;
+window.initTheme = initTheme;
+window.toggleTheme = toggleTheme;
+window.getCachedCategories = getCachedCategories;
+window.setCachedCategories = setCachedCategories;
+window.TonuVirtualScroller = TonuVirtualScroller;
+window.webShareTarget = new WebShareTargetHandler();
+window.findSeriesInfo = findSeriesInfo;
+window.findRemainingSeries = findRemainingSeries;
+window.getFullSeriesInfo = getFullSeriesInfo;
+window.getFullRemainingSeries = getFullRemainingSeries;
+window.confirmRecurringDelete = confirmRecurringDelete;
+window.checkValueMismatch = checkValueMismatch;
+window.buildAnticipationDescription = buildAnticipationDescription;
+window.createAnticipationTransaction = createAnticipationTransaction;
+window.createAnticipationPayload = createAnticipationTransaction;
+window.getAnticipationModal = getAnticipationModal;
+window.showAnticipationModal = getAnticipationModal;
+window.revertAnticipatedBills = revertAnticipatedBills;
+
+// ============================================
+// LIMPEZA AUTOMÁTICA DE DEMO E CACHES OBSOLETOS
+// ============================================
+function purgeDemoAndTemporaryStorage(force = false) {
+    try {
+        const demoKeys = [
+            'tonu_is_demo_active',
+            'tonucontrole_is_demo_dividends',
+            'tonucontrole_dividends_demo',
+            'tonu_dividends_demo',
+            'tonu_demo_transactions',
+            'tonu_demo_data'
+        ];
+        
+        let hasAuth = false;
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i) || '';
+                if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
+                    hasAuth = true;
+                    break;
+                }
+            }
+        } catch (e) {}
+
+        if (hasAuth || force) {
+            demoKeys.forEach(k => {
+                if (localStorage.getItem(k) !== null) {
+                    localStorage.removeItem(k);
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('⚠️ Falha ao verificar ou limpar cache demo:', e);
+    }
+}
+
+// Executar limpeza automática de resíduos demo ao carregar
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => purgeDemoAndTemporaryStorage());
+    } else {
+        purgeDemoAndTemporaryStorage();
+    }
+}
+
+window.purgeDemoAndTemporaryStorage = purgeDemoAndTemporaryStorage;
+window.navigateTo = navigateTo;
+window.animatePageIn = animatePageIn;
+window.addStaggerToCards = addStaggerToCards;
+window.addStaggerToList = addStaggerToList;
+window.applyStagger = applyStagger;
+
+// ============================================
+// SKELETON HELPERS (ESTADOS DE CARREGAMENTO)
+// ============================================
+function renderTableSkeleton(tbodyElement, rows = 5, cols = 6) {
+    if (!tbodyElement) return;
+    let html = '';
+    for (let r = 0; r < rows; r++) {
+        html += '<tr class="skeleton-row" role="row">';
+        for (let c = 0; c < cols; c++) {
+            const width = Math.min(95, Math.max(35, 45 + Math.floor(Math.sin((r + 1) * (c + 2)) * 30 + 20)));
+            html += `<td style="padding: 7px 8px; vertical-align: middle;"><div class="skeleton-shimmer" style="width: ${width}%; height: 14px; border-radius: 4px;"></div></td>`;
+        }
+        html += '</tr>';
+    }
+    tbodyElement.innerHTML = html;
+}
+window.renderTableSkeleton = renderTableSkeleton;
+
+// ============================================
+// FECHAMENTO UNIVERSAL DE MODAIS (ESC & CLICKS)
+// ============================================
+function closeAnyActiveModal() {
+    let closed = false;
+
+    // Fecha Quick Search se aberto
+    const quickOverlay = document.getElementById('quickCmdOverlay');
+    if (quickOverlay && quickOverlay.classList.contains('active')) {
+        closeQuickSearch();
+        closed = true;
+    }
+
+    // Procura modais visíveis
+    const modalOverlays = document.querySelectorAll('.modal-overlay:not(.hidden), .modal-overlay.active, .modal-overlay.show, .mobile-modal-overlay.active');
+    modalOverlays.forEach(overlay => {
+        if (overlay.id === 'dividendModal' && window.closeDividendModal) {
+            window.closeDividendModal();
+            closed = true;
+        } else if (overlay.id === 'operationModal' && window.closeOperationModal) {
+            window.closeOperationModal();
+            closed = true;
+        } else if (overlay.id === 'monthlyGoalModal' && window.closeMonthlyGoalModal) {
+            window.closeMonthlyGoalModal();
+            closed = true;
+        } else if (overlay.id === 'billModalOverlay' && window.closeBillModal) {
+            window.closeBillModal();
+            closed = true;
+        } else if (overlay.id === 'allTickersModal' && window.closeAllTickersModal) {
+            window.closeAllTickersModal();
+            closed = true;
+        } else if (overlay.id === 'addValueOverlay' && window.closeAddValue) {
+            window.closeAddValue();
+            closed = true;
+        } else if (overlay.id === 'withdrawOverlay' && window.closeWithdrawModal) {
+            window.closeWithdrawModal();
+            closed = true;
+        } else if (window.closeModal) {
+            window.closeModal();
+            closed = true;
+        } else {
+            overlay.classList.remove('active', 'show');
+            overlay.classList.add('hidden');
+            overlay.style.display = 'none';
+            closed = true;
+        }
+    });
+
+    return closed;
+}
+window.closeAnyActiveModal = closeAnyActiveModal;
+
+// ============================================
+// PALETA DE COMANDOS & NAVEGAÇÃO RÁPIDA (CTRL+K)
+// ============================================
+const QUICK_COMMANDS = [
+    { title: 'Visão Geral / Painel', icon: 'fa-chart-pie', badge: 'Página', action: () => navigateToPage('dashboard.html') },
+    { title: 'Transações & Extrato', icon: 'fa-exchange-alt', badge: 'Página', action: () => navigateToPage('transactions.html') },
+    { title: 'Contas a Pagar & Lembretes', icon: 'fa-file-invoice-dollar', badge: 'Página', action: () => navigateToPage('bills.html') },
+    { title: 'Metas & Sonhos', icon: 'fa-bullseye', badge: 'Página', action: () => navigateToPage('goals.html') },
+    { title: 'Investimentos & Proventos', icon: 'fa-chart-line', badge: 'Página', action: () => navigateToPage('investments.html') },
+    { title: 'Configurações do Sistema', icon: 'fa-cog', badge: 'Página', action: () => navigateToPage('settings.html') },
+    { 
+        title: 'Nova Transação', 
+        icon: 'fa-plus-circle', 
+        badge: 'Ação', 
+        action: () => {
+            if (window.openModal) {
+                window.openModal();
+            } else {
+                navigateToPage('transactions.html?action=new');
+            }
+        } 
+    },
+    { 
+        title: 'Registrar Provento', 
+        icon: 'fa-hand-holding-usd', 
+        badge: 'Ação', 
+        action: () => {
+            if (window.openDividendModal) {
+                window.openDividendModal();
+            } else {
+                navigateToPage('investments.html?action=dividend');
+            }
+        } 
+    },
+    { 
+        title: 'Alternar Modo Escuro / Claro', 
+        icon: 'fa-adjust', 
+        badge: 'Tema', 
+        action: () => {
+            if (window.toggleTheme) window.toggleTheme();
+        } 
+    }
+];
+
+function navigateToPage(target) {
+    const isInsidePages = window.location.pathname.includes('/pages/');
+    const url = isInsidePages ? target : 'pages/' + target;
+    window.location.href = url;
+}
+
+function openQuickSearch() {
+    let overlay = document.getElementById('quickCmdOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'quickCmdOverlay';
+        overlay.className = 'quick-cmd-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', 'Busca Rápida de Comandos');
+        overlay.onclick = function(e) {
+            if (e.target === overlay) closeQuickSearch();
+        };
+
+        overlay.innerHTML = `
+            <div class="quick-cmd-box" onclick="event.stopPropagation()">
+                <div class="quick-cmd-header">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    <input type="text" id="quickCmdInput" class="quick-cmd-input" placeholder="Buscar página ou ação rápida..." autocomplete="off" />
+                    <span class="quick-cmd-kbd">ESC</span>
+                </div>
+                <ul class="quick-cmd-list" id="quickCmdList"></ul>
+                <div class="quick-cmd-footer">
+                    <span>Navegue com as setas <strong style="font-size:10px;">&uarr; &darr;</strong> e pressione <strong style="font-size:10px;">Enter</strong></span>
+                    <span>Atalho: <strong>Ctrl + K</strong></span>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const input = overlay.querySelector('#quickCmdInput');
+        if (input) {
+            input.addEventListener('input', () => filterQuickCommands(input.value));
+            input.addEventListener('keydown', handleQuickCommandKeys);
+        }
+    }
+
+    renderQuickCommands(QUICK_COMMANDS);
+    overlay.classList.add('active');
+    setTimeout(() => {
+        const input = document.getElementById('quickCmdInput');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+    }, 50);
+}
+window.openQuickSearch = openQuickSearch;
+
+function closeQuickSearch() {
+    const overlay = document.getElementById('quickCmdOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+}
+window.closeQuickSearch = closeQuickSearch;
+
+let selectedCmdIndex = 0;
+let filteredCommands = [];
+
+function renderQuickCommands(commands) {
+    filteredCommands = commands;
+    selectedCmdIndex = 0;
+    const list = document.getElementById('quickCmdList');
+    if (!list) return;
+
+    if (commands.length === 0) {
+        list.innerHTML = '<li style="padding: 24px; text-align: center; color: var(--color-text-muted); font-size: 13px;">Nenhum comando encontrado</li>';
+        return;
+    }
+
+    list.innerHTML = commands.map((cmd, idx) => `
+        <li class="quick-cmd-item ${idx === 0 ? 'selected' : ''}" data-index="${idx}" onclick="executeQuickCommand(${idx})">
+            <div class="quick-cmd-item-left">
+                <span class="quick-cmd-icon"><i class="fas ${cmd.icon}"></i></span>
+                <span>${cmd.title}</span>
+            </div>
+            <span class="quick-cmd-badge">${cmd.badge}</span>
+        </li>
+    `).join('');
+}
+
+function filterQuickCommands(query) {
+    const term = (query || '').toLowerCase().trim();
+    if (!term) {
+        renderQuickCommands(QUICK_COMMANDS);
+        return;
+    }
+    const filtered = QUICK_COMMANDS.filter(c => 
+        c.title.toLowerCase().includes(term) || 
+        c.badge.toLowerCase().includes(term)
+    );
+    renderQuickCommands(filtered);
+}
+
+function handleQuickCommandKeys(e) {
+    const list = document.getElementById('quickCmdList');
+    if (!list || filteredCommands.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedCmdIndex = (selectedCmdIndex + 1) % filteredCommands.length;
+        updateSelectedCmdItem();
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedCmdIndex = (selectedCmdIndex - 1 + filteredCommands.length) % filteredCommands.length;
+        updateSelectedCmdItem();
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        executeQuickCommand(selectedCmdIndex);
+    }
+}
+
+function updateSelectedCmdItem() {
+    const items = document.querySelectorAll('.quick-cmd-item');
+    items.forEach((item, idx) => {
+        if (idx === selectedCmdIndex) {
+            item.classList.add('selected');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('selected');
+        }
+    });
+}
+
+function executeQuickCommand(index) {
+    const cmd = filteredCommands[index];
+    if (cmd && typeof cmd.action === 'function') {
+        closeQuickSearch();
+        try {
+            cmd.action();
+        } catch (err) {
+            console.error('Erro ao executar comando rápido:', err);
+        }
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.executeQuickCommand = executeQuickCommand;
+}
+
+// Ouvinte global para teclado
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeAnyActiveModal();
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+            e.preventDefault();
+            const overlay = document.getElementById('quickCmdOverlay');
+            if (overlay && overlay.classList.contains('active')) {
+                closeQuickSearch();
+            } else {
+                openQuickSearch();
+            }
+        }
+    });
+}
+
+// Busca rápida acessível via atalho Ctrl + K
+// Nota: O botão visual de busca no topo foi removido conforme solicitação do usuário.
+
+// ============================================
+// SWIPE ACTIONS COMPARTILHADO PARA DESKTOP (MOUSE DRAG + TOUCH)
+// ============================================
+(function () {
+    if (
+        typeof window === 'undefined' ||
+        typeof document === 'undefined' ||
+        typeof document.addEventListener !== 'function' ||
+        typeof window.addEventListener !== 'function'
+    ) return;
+
+    function closeSwipeRows(exceptRow) {
+        if (typeof document.querySelectorAll !== 'function') return;
+        document.querySelectorAll('[data-swipe-row].swiped-open, [data-swipe-row].is-swiping').forEach(function (row) {
+            if (row !== exceptRow) {
+                row.classList.remove('swiped-open', 'is-swiping');
+                var fg = row.querySelector('[data-swipe-content]');
+                if (fg) fg.style.transform = '';
+            }
+        });
+    }
+
+    function getSwipeActionWidth(row) {
+        if (!row) return 84;
+        var attr = Number(row.getAttribute('data-swipe-width'));
+        if (Number.isFinite(attr) && attr > 0) return attr;
+        var tray = row.querySelector('.swipe-actions-tray, .swipe-action-delete');
+        if (tray && tray.offsetWidth > 0) return tray.offsetWidth;
+        return 84;
+    }
+
+    function setupDesktopSwipe() {
+        if (window.__tonuDesktopSwipeInit || window.TonuMobileUI) return;
+        if (typeof document.addEventListener !== 'function' || typeof window.addEventListener !== 'function') return;
+        window.__tonuDesktopSwipeInit = true;
+
+        var activeRow = null;
+        var activeWidth = 84;
+        var startX = 0;
+        var startY = 0;
+        var baseOffset = 0;
+        var dragging = false;
+        var isMouseDown = false;
+        var lastTouchTime = 0;
+        var suppressClickUntil = 0;
+
+        function startDrag(target, clientX, clientY) {
+            var row = target && target.closest ? target.closest('[data-swipe-row]') : null;
+            if (!row) {
+                closeSwipeRows(null);
+                return false;
+            }
+            if (target.closest('button, a, input, select, label, textarea, [data-no-swipe]')) return false;
+            closeSwipeRows(row);
+            activeRow = row;
+            activeWidth = getSwipeActionWidth(row);
+            startX = clientX;
+            startY = clientY;
+            baseOffset = row.classList.contains('swiped-open') ? -activeWidth : 0;
+            dragging = false;
+            return true;
+        }
+
+        function moveDrag(clientX, clientY, eventObj) {
+            if (!activeRow) return;
+            var dx = clientX - startX;
+            var dy = clientY - startY;
+            if (!dragging && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 6) {
+                activeRow.classList.remove('is-swiping');
+                activeRow = null;
+                return;
+            }
+            if (!dragging && Math.abs(dx) < 8) return;
+            if (!dragging) {
+                dragging = true;
+                activeRow.classList.add('is-swiping');
+            }
+            if (eventObj && eventObj.cancelable) {
+                eventObj.preventDefault();
+            }
+            var fg = activeRow.querySelector('[data-swipe-content]');
+            if (fg) {
+                var nextOffset = Math.max(-activeWidth, Math.min(0, baseOffset + dx));
+                fg.style.transition = 'none';
+                fg.style.transform = 'translateX(' + nextOffset + 'px)';
+            }
+        }
+
+        function endDrag(clientX) {
+            if (!activeRow) return;
+            var row = activeRow;
+            var fg = row.querySelector('[data-swipe-content]');
+            var wasDragging = dragging;
+            var wasOpen = baseOffset < 0;
+            var width = activeWidth;
+            activeRow = null;
+            dragging = false;
+            row.classList.remove('is-swiping');
+
+            if (!fg) return;
+            if (!wasDragging) {
+                if (wasOpen) {
+                    suppressClickUntil = Date.now() + 260;
+                    row.classList.remove('swiped-open');
+                    fg.style.transition = '';
+                    fg.style.transform = '';
+                }
+                return;
+            }
+
+            suppressClickUntil = Date.now() + 300;
+            var dx = clientX - startX;
+            var shouldOpen = wasOpen ? (dx < 32) : (dx < -38);
+            fg.style.transition = '';
+            if (shouldOpen) {
+                row.classList.add('swiped-open');
+                fg.style.transform = 'translateX(-' + width + 'px)';
+            } else {
+                row.classList.remove('swiped-open');
+                fg.style.transform = '';
+            }
+        }
+
+        document.addEventListener('touchstart', function (e) {
+            if (!e.touches || e.touches.length !== 1) return;
+            lastTouchTime = Date.now();
+            startDrag(e.target, e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+
+        document.addEventListener('touchmove', function (e) {
+            if (!activeRow || !e.touches || e.touches.length !== 1) return;
+            moveDrag(e.touches[0].clientX, e.touches[0].clientY, e);
+        }, { passive: false });
+
+        document.addEventListener('touchend', function (e) {
+            if (!activeRow || !e.changedTouches || !e.changedTouches.length) return;
+            endDrag(e.changedTouches[0].clientX);
+        }, { passive: true });
+
+        document.addEventListener('touchcancel', function () {
+            if (!activeRow) return;
+            var row = activeRow;
+            var fg = row.querySelector('[data-swipe-content]');
+            row.classList.remove('is-swiping');
+            if (fg) {
+                fg.style.transition = '';
+                fg.style.transform = row.classList.contains('swiped-open') ? ('translateX(-' + activeWidth + 'px)') : '';
+            }
+            activeRow = null;
+            dragging = false;
+        }, { passive: true });
+
+        document.addEventListener('mousedown', function (e) {
+            if (e.button !== 0 || (Date.now() - lastTouchTime < 500)) return;
+            isMouseDown = startDrag(e.target, e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!isMouseDown || !activeRow) return;
+            moveDrag(e.clientX, e.clientY, e);
+        });
+
+        window.addEventListener('mouseup', function (e) {
+            if (!isMouseDown) return;
+            isMouseDown = false;
+            if (activeRow) endDrag(e.clientX);
+        });
+
+        window.addEventListener('blur', function () {
+            isMouseDown = false;
+            if (activeRow) {
+                activeRow.classList.remove('is-swiping');
+                activeRow = null;
+                dragging = false;
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            if (Date.now() < suppressClickUntil) {
+                e.stopPropagation();
+                e.preventDefault();
+                return;
+            }
+            if (e.target && e.target.closest && !e.target.closest('[data-swipe-row]')) {
+                closeSwipeRows(null);
+            }
+        }, true);
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeSwipeRows(null);
+            }
+        });
+    }
+
+    window.TonuSetupSwipe = setupDesktopSwipe;
+    window.TonuCloseSwipeRows = closeSwipeRows;
+    window.TonuDesktopSwipe = {
+        setup: setupDesktopSwipe,
+        closeRows: closeSwipeRows
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupDesktopSwipe);
+    } else {
+        setupDesktopSwipe();
+    }
+})();
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        checkValueMismatch,
+        buildAnticipationDescription,
+        createAnticipationTransaction,
+        getAnticipationModal,
+        revertAnticipatedBills
+    };
+}
+
+console.log('✅ Core.js configurado com transições, busca rápida e animações!');

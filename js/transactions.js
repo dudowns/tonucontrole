@@ -13,6 +13,8 @@
     let categories = [];
     let currentEditId = null;
     let currentMonthOffset = 0;
+    let _userSelectedCategory = false;
+    let _settingCategoryProgrammatically = false;
 
     const MONTH_NAMES = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -347,6 +349,16 @@
                 }
             }
 
+            // Garante que para qualquer conta ou transação paga com paid_date, o campo date reflita a data real do clique/pagamento
+            txs.forEach(t => {
+                if (t.paid && t.paid_date) {
+                    if (!t.due_date && t.date && t.date !== t.paid_date) {
+                        t.due_date = t.date;
+                    }
+                    t.date = t.paid_date;
+                }
+            });
+
             allTransactions = txs;
             // Aplica imediatamente o filtro do mês selecionado
             filterTransactions();
@@ -386,7 +398,7 @@
         }
 
         const backendStyle = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
-            ? window.getBackendCategoryStyle(t.category || cat?.name, cat)
+            ? window.getBackendCategoryStyle(t.category || cat?.name || t.description, cat)
             : null;
 
         let icon = cat?.icon || backendStyle?.icon;
@@ -438,7 +450,55 @@
         return true;
     }
 
-    // Render transactions list
+    function getDateGroupHeader(dateStr) {
+        if (!dateStr || dateStr === 'sem_data') return 'Sem data';
+        const parts = String(dateStr).split('T')[0].split('-');
+        if (parts.length < 3) return dateStr;
+        const y = Number(parts[0]);
+        const m = Number(parts[1]);
+        const d = Number(parts[2]);
+        if (!y || !m || !d) return dateStr;
+
+        const today = new Date();
+        if (today.getFullYear() === y && (today.getMonth() + 1) === m && today.getDate() === d) {
+            return 'Hoje';
+        }
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (yesterday.getFullYear() === y && (yesterday.getMonth() + 1) === m && yesterday.getDate() === d) {
+            return 'Ontem';
+        }
+
+        return `${String(d).padStart(2, '0')} de ${MONTH_NAMES[m - 1] || m}`;
+    }
+
+    function colorToSoftBg(colorStr) {
+        if (!colorStr) return 'rgba(67, 56, 202, 0.14)';
+        if (colorStr.startsWith('#')) {
+            let hex = colorStr.replace('#', '');
+            if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+            const num = parseInt(hex, 16);
+            if (!isNaN(num)) {
+                const r = (num >> 16) & 255;
+                const g = (num >> 8) & 255;
+                const b = num & 255;
+                return `rgba(${r}, ${g}, ${b}, 0.14)`;
+            }
+        }
+        if (colorStr.startsWith('rgb(')) {
+            return colorStr.replace('rgb(', 'rgba(').replace(')', ', 0.14)');
+        }
+        return 'rgba(67, 56, 202, 0.14)';
+    }
+
+    function cleanCategoryLabel(rawName) {
+        const str = String(rawName || 'Geral');
+        const cleaned = str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim();
+        return cleaned || str;
+    }
+
+    // Render transactions list (grouped by day like mobile statement)
     function renderTransactions(transactions) {
         const container = document.getElementById('transactionsList') || document.getElementById('transactionsContainer');
         if (!container) return;
@@ -450,61 +510,140 @@
             const statusVal = document.getElementById('filterStatus')?.value || 'paid';
             const statusLabel = statusVal === 'paid' ? 'pagas' : (statusVal === 'pending' ? 'pendentes' : '');
             container.innerHTML = `
-                <div class="empty-state" style="text-align:center;padding:48px 16px;">
-                    <div style="font-size:48px;margin-bottom:12px;">📅</div>
-                    <h3 style="font-size:18px;font-weight:600;margin-bottom:6px;">Nenhuma transação ${statusLabel} em ${monthName} de ${yearNum}</h3>
-                    <p style="color:var(--color-text-muted,#94a3b8);font-size:14px;margin-bottom:16px;">
-                        Não foram encontradas transações ${statusLabel} para este mês ou com os filtros aplicados.
-                    </p>
-                    <button class="btn btn-primary" onclick="openModal()">
-                        <i class="fas fa-plus"></i> Nova Transação
-                    </button>
+                <div class="card">
+                    <div class="empty-state" style="text-align:center;padding:48px 16px;">
+                        <div style="font-size:48px;margin-bottom:12px;">📅</div>
+                        <h3 style="font-size:18px;font-weight:600;margin-bottom:6px;">Nenhuma transação ${statusLabel} em ${monthName} de ${yearNum}</h3>
+                        <p style="color:var(--color-text-muted,#94a3b8);font-size:14px;margin-bottom:16px;">
+                            Não foram encontradas transações ${statusLabel} para este mês ou com os filtros aplicados.
+                        </p>
+                        <button class="btn btn-primary" onclick="openModal()">
+                            <i class="fas fa-plus"></i> Nova Transação
+                        </button>
+                    </div>
                 </div>
             `;
             return;
         }
 
-        let html = '<div class="transactions-list-grid">';
-        transactions.forEach(t => {
-            const isIncome = t.type === 'income';
-            const catInfo = getCategoryInfo(t);
-            const typeColor = isIncome ? '#00b894' : '#ff7675';
-            const amountPrefix = isIncome ? '+ ' : '- ';
-            const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
-            const isPaid = isTransactionPaid(t);
-            const statusBadge = isPaid
-                ? `<span class="badge-paid" style="font-size:10px; padding:1px 6px; background:#e6fcf5; color:#0ca678; border-radius:4px; font-weight:600;"><i class="fas fa-check" style="font-size:9px;"></i> ${isIncome ? 'Recebido' : 'Pago'}</span>`
-                : `<span class="badge-pending" style="font-size:10px; padding:1px 6px; background:#fff3cd; color:#856404; border-radius:4px; font-weight:600;"><i class="fas fa-clock" style="font-size:9px;"></i> Pendente</span>`;
+        // Agrupa transações por data (extrato diário com subtotal do dia)
+        const groups = [];
+        let currentGroup = null;
 
-            const rawDesc = t.description || 'Sem descrição';
-            const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(rawDesc) : rawDesc;
+        transactions.forEach(t => {
+            const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
+            const dateKey = effectiveDate ? String(effectiveDate).split('T')[0] : 'sem_data';
+
+            if (!currentGroup || currentGroup.dateKey !== dateKey) {
+                currentGroup = {
+                    dateKey,
+                    dateHeader: getDateGroupHeader(dateKey),
+                    items: [],
+                    dayTotal: 0
+                };
+                groups.push(currentGroup);
+            }
+
+            currentGroup.items.push(t);
+            const amt = parseFloat(t.amount) || 0;
+            currentGroup.dayTotal += (t.type === 'income' ? amt : -amt);
+        });
+
+        let html = '<div class="transactions-statement-groups">';
+        groups.forEach(g => {
+            const isDayPositive = g.dayTotal >= 0;
+            const dayTotalFormatted = (isDayPositive ? '+ ' : '- ') + formatBRL(Math.abs(g.dayTotal));
 
             html += `
-                <div class="transaction-card" onclick="openModal('${sanitize(t.id)}')">
-                    <div class="t-icon" style="background:${catInfo.color}20; color:${catInfo.color}; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:16px;" title="${sanitize(catInfo.name)}">
-                        <i class="fas ${catInfo.icon}"></i>
+                <section class="tx-day-group" aria-label="${sanitize(g.dateHeader)}">
+                    <div class="ios-section-header">
+                        <span>${sanitize(g.dateHeader)}</span>
+                        <span class="subtotal-pill">${dayTotalFormatted}</span>
                     </div>
-                    <div class="t-info" style="flex:1; min-width:0; margin-left:12px;">
-                        <div style="font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                            ${sanitize(displayDesc)}
+                    <div class="tx-day-items">
+            `;
+
+            g.items.forEach(t => {
+                const isIncome = t.type === 'income';
+                const catInfo = getCategoryInfo(t);
+                const squircleBg = colorToSoftBg(catInfo.color);
+                const amountPrefix = isIncome ? '+ ' : '- ';
+                const instInfo = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : null;
+                const isPaid = isTransactionPaid(t);
+
+                const rawDesc = t.description || 'Sem descrição';
+                const displayDesc = window.TonuDeduplicate ? window.TonuDeduplicate.cleanDisplayDescription(rawDesc) : rawDesc;
+                const isAnticipation = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+
+                let badge = '';
+                if (isAnticipation) {
+                    badge += `<span class="badge-mobile anticipation"><i class="fas fa-bolt"></i> Antecipação</span>`;
+                }
+                if (t.is_bill) {
+                    badge += `<span class="badge-mobile bill">Conta</span>`;
+                }
+                if (!isPaid) {
+                    badge += `<span class="badge-mobile pending">Pendente</span>`;
+                }
+
+                const cleanCatName = cleanCategoryLabel(catInfo.name);
+                const effectiveDate = (t.paid && t.paid_date) ? t.paid_date : (t.date || '');
+                const safeId = sanitize(String(t.id));
+
+                html += `
+                    <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
+                        <div class="swipe-actions-tray">
+                            <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); openModal('${safeId}')" aria-label="Editar transação">
+                                <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                                <span>Editar</span>
+                            </button>
+                            <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteTransaction('${safeId}')" aria-label="Apagar transação">
+                                <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                <span>Apagar</span>
+                            </button>
                         </div>
-                        ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
-                        <div style="font-size:12px; color:var(--color-text-muted,#94a3b8); display:flex; gap:8px; align-items:center; margin-top:2px;">
-                            <span>${formatDateDisplay(t.date)}</span>
-                            <span>•</span>
-                            <span>${sanitize(catInfo.name)}</span>
-                            ${statusBadge}
+                        <div class="transaction-card clean-list-card compact-tx-card" data-swipe-content onclick="openModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('${safeId}');}">
+                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catInfo.color};" title="${sanitize(cleanCatName)}">
+                                <i class="fas ${catInfo.icon}" aria-hidden="true"></i>
+                            </div>
+                            <div class="clean-card-body">
+                                <div class="clean-card-top">
+                                    <span class="clean-card-title">${sanitize(displayDesc)}</span>
+                                    <div class="clean-card-amount-wrap">
+                                        <span class="clean-card-amount ${isIncome ? 'income' : 'expense'}">
+                                            ${amountPrefix}${formatBRL(t.amount)}
+                                        </span>
+                                        <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${safeId}')" title="Excluir" aria-label="Excluir transação">
+                                            <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="clean-card-meta-line">
+                                    <span class="clean-tag category">${sanitize(cleanCatName)}</span>
+                                    ${badge}
+                                    ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
+                                    <span class="clean-card-meta-dates">
+                                        <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>${formatDateDisplay(effectiveDate)}</span>
+                                        ${(t.due_date && t.due_date !== effectiveDate) ? `<span><i class="far fa-clock" style="margin-right:3px;" aria-hidden="true"></i>Venc: ${formatDateDisplay(t.due_date)}</span>` : ''}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="t-amount" style="font-weight:700; font-size:15px; color:${typeColor}; text-align:right; flex-shrink:0;">
-                        ${amountPrefix}${formatBRL(t.amount)}
+                `;
+            });
+
+            html += `
                     </div>
-                </div>
+                </section>
             `;
         });
         html += '</div>';
 
         container.innerHTML = html;
+        if (typeof window.TonuSetupSwipe === 'function') {
+            window.TonuSetupSwipe();
+        }
     }
 
     // Update summary metrics
@@ -525,13 +664,24 @@
         const elBalance = document.getElementById('totalBalance') || document.getElementById('statBalance');
         const elCount = document.getElementById('totalCount') || document.getElementById('statCount');
 
-        if (elIncome) elIncome.textContent = formatBRL(income);
-        if (elExpense) elExpense.textContent = formatBRL(expense);
+        const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+        if (elIncome) {
+            if (anim) anim(elIncome, income, formatBRL);
+            else elIncome.textContent = formatBRL(income);
+        }
+        if (elExpense) {
+            if (anim) anim(elExpense, expense, formatBRL);
+            else elExpense.textContent = formatBRL(expense);
+        }
         if (elBalance) {
-            elBalance.textContent = formatBRL(balance);
+            if (anim) anim(elBalance, balance, formatBRL);
+            else elBalance.textContent = formatBRL(balance);
             elBalance.style.color = balance >= 0 ? 'var(--color-success,#00b894)' : 'var(--color-danger,#ff7675)';
         }
-        if (elCount) elCount.textContent = String(transactions.length);
+        if (elCount) {
+            if (anim) anim(elCount, transactions.length, v => String(Math.round(v)));
+            else elCount.textContent = String(transactions.length);
+        }
     }
 
     // Filters
@@ -545,7 +695,12 @@
 
         const apply = () => filterTransactions();
 
-        if (searchInput) searchInput.addEventListener('input', apply);
+        const debouncedApply = (typeof window.TonuDebounce === 'function')
+            ? window.TonuDebounce(filterTransactions, 180)
+            : apply;
+        window._debouncedFilterTransactions = debouncedApply;
+
+        if (searchInput) searchInput.addEventListener('input', debouncedApply);
         if (typeSelect) typeSelect.addEventListener('change', apply);
         if (recSelect) recSelect.addEventListener('change', apply);
         if (catSelect) catSelect.addEventListener('change', apply);
@@ -556,7 +711,113 @@
         if (typeFormSelect) {
             typeFormSelect.addEventListener('change', populateCategorySelects);
         }
+
+        const descFormInput = document.getElementById('tDescription');
+        if (descFormInput) {
+            descFormInput.addEventListener('input', (e) => {
+                if (!currentEditId && !_userSelectedCategory) {
+                    _debouncedAutoClassify(e.target.value);
+                }
+            });
+        }
+
+        const catFormSelect = document.getElementById('tCategory');
+        if (catFormSelect) {
+            catFormSelect.addEventListener('change', (e) => {
+                if (e.isTrusted && !_settingCategoryProgrammatically) {
+                    _userSelectedCategory = Boolean(catFormSelect.value);
+                }
+            });
+        }
     }
+
+    function _normalizeCategoryText(str) {
+        return String(str || '')
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
+    function _matchCategoryOption(selectEl, suggestedCategory) {
+        if (!selectEl || !suggestedCategory) return null;
+        const targetNorm = _normalizeCategoryText(suggestedCategory);
+        if (!targetNorm) return null;
+
+        const opts = Array.from(selectEl.options || []).filter(o => o.value);
+        for (const opt of opts) {
+            if (_normalizeCategoryText(opt.value) === targetNorm || _normalizeCategoryText(opt.textContent) === targetNorm) {
+                return opt;
+            }
+        }
+        for (const opt of opts) {
+            const vNorm = _normalizeCategoryText(opt.value);
+            const tNorm = _normalizeCategoryText(opt.textContent);
+            if ((vNorm && (vNorm.includes(targetNorm) || targetNorm.includes(vNorm))) ||
+                (tNorm && (tNorm.includes(targetNorm) || targetNorm.includes(tNorm)))) {
+                return opt;
+            }
+        }
+        for (const opt of opts) {
+            if (_normalizeCategoryText(opt.value) === 'outros' || _normalizeCategoryText(opt.textContent) === 'outros') {
+                return opt;
+            }
+        }
+        return null;
+    }
+
+    async function TonuAutoClassify(description, targetSelectId) {
+        try {
+            const desc = String(description || '').trim();
+            if (!desc || desc.length < 3) return null;
+            if (_userSelectedCategory) return null;
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
+
+            let token = null;
+            try {
+                if (window.supabaseClient?.auth) {
+                    const { data } = await window.supabaseClient.auth.getSession();
+                    token = data?.session?.access_token || null;
+                }
+            } catch (_) {}
+            if (!token) return null;
+
+            const isSubpath = (typeof window !== 'undefined' && window.location && String(window.location.pathname || '').startsWith('/tonucontrole'));
+            const endpoint = isSubpath ? '/tonucontrole/api/classify' : '/api/classify';
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ description: desc })
+            });
+            if (!res || !res.ok) return null;
+
+            const payload = await res.json();
+            const suggested = payload?.category || null;
+            if (!suggested || _userSelectedCategory) return null;
+
+            const selectEl = document.getElementById(targetSelectId || 'tCategory');
+            if (selectEl) {
+                const matched = _matchCategoryOption(selectEl, suggested);
+                if (matched) {
+                    _settingCategoryProgrammatically = true;
+                    selectEl.value = matched.value;
+                    _settingCategoryProgrammatically = false;
+                }
+            }
+            return suggested;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    const _debouncedAutoClassify = (typeof window.TonuDebounce === 'function')
+        ? window.TonuDebounce((val) => { TonuAutoClassify(val); }, 800)
+        : (val) => { TonuAutoClassify(val); };
 
     function filterTransactions() {
         const query = (document.getElementById('searchInput')?.value || document.getElementById('filterSearch')?.value || '').toLowerCase().trim();
@@ -594,14 +855,26 @@
                 if (!descMatch && !catMatch && !tagMatch) return false;
             }
 
-            if (type && type !== 'all' && t.type !== type) return false;
+            if (type && type !== 'all') {
+                if (type === 'anticipation') {
+                    const isAnt = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+                    if (!isAnt) return false;
+                } else if (t.type !== type) {
+                    return false;
+                }
+            }
 
-            // Recorrência / Parcelamento
+            // Recorrência / Parcelamento / Antecipações
             if (recurrenceFilter !== 'all') {
-                const info = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : { type: 'single' };
-                if (recurrenceFilter === 'installments' && !info.isInstallment) return false;
-                if (recurrenceFilter === 'recurring' && !info.isRecurring) return false;
-                if (recurrenceFilter === 'single' && (info.isInstallment || info.isRecurring)) return false;
+                if (recurrenceFilter === 'anticipation') {
+                    const isAnt = !!(t.is_anticipation || (t.description && String(t.description).toLowerCase().startsWith('antecipação:')));
+                    if (!isAnt) return false;
+                } else {
+                    const info = window.TonuInstallments ? window.TonuInstallments.getInstallmentInfo(t) : { type: 'single' };
+                    if (recurrenceFilter === 'installments' && !info.isInstallment) return false;
+                    if (recurrenceFilter === 'recurring' && !info.isRecurring) return false;
+                    if (recurrenceFilter === 'single' && (info.isInstallment || info.isRecurring)) return false;
+                }
             }
 
             if (cat && cat !== 'all' && cat !== '' && t.category !== cat) return false;
@@ -622,6 +895,13 @@
             }
 
             return true;
+        });
+
+        filtered.sort((a, b) => {
+            const dateA = a.date || '';
+            const dateB = b.date || '';
+            if (dateA !== dateB) return dateB.localeCompare(dateA);
+            return (b.created_at || '').localeCompare(a.created_at || '');
         });
 
         currentFilteredTransactions = filtered;
@@ -646,6 +926,7 @@
     // Modal functions
     function openModal(id = null) {
         currentEditId = id;
+        _userSelectedCategory = Boolean(id);
         const modal = document.getElementById('transactionModal');
         const overlay = document.getElementById('modalOverlay');
         const modalTitle = document.getElementById('modalTitle');
@@ -966,10 +1247,10 @@
 
             if (typeof window.sendRealtimePush === 'function') {
                 const isExpense = type === 'expense';
-                const formattedAmt = typeof formatCurrency === 'function' ? formatCurrency(Math.abs(amount)) : `R$ ${Math.abs(amount)}`;
+                const formattedAmt = typeof formatCurrency === 'function' ? formatCurrency(Math.abs(finalAmount)) : `R$ ${Math.abs(finalAmount)}`;
                 window.sendRealtimePush({
                     title: isExpense ? '💸 Despesa Registrada' : '💰 Receita Registrada',
-                    body: `${description} no valor de ${formattedAmt}`,
+                    body: `${desc} no valor de ${formattedAmt}`,
                     url: 'pages/transactions.html',
                     tag: `tx-realtime-${Date.now()}`
                 });
@@ -981,22 +1262,117 @@
         }
     }
 
-    // Delete transaction
-    async function deleteTransaction() {
-        const id = document.getElementById('editId')?.value || currentEditId;
+    // Delete transaction com paridade inteligente de parcelas e recorrência
+    async function deleteTransaction(optionalId = null) {
+        const id = optionalId || document.getElementById('editId')?.value || currentEditId;
         if (!id) return;
 
-        if (!confirm('Deseja realmente excluir esta transação?')) return;
+        const target = allTransactions.find(t => String(t.id) === String(id));
+        let seriesInfo = { fromNow: [], all: [] };
+        if (target) {
+            if (typeof window.getFullSeriesInfo === 'function') {
+                seriesInfo = await window.getFullSeriesInfo(target, allTransactions, { userId: currentUser?.id });
+            } else if (typeof window.findSeriesInfo === 'function') {
+                seriesInfo = window.findSeriesInfo(target, allTransactions);
+            } else if (typeof window.findRemainingSeries === 'function') {
+                const rem = window.findRemainingSeries(target, allTransactions);
+                seriesInfo = { fromNow: rem, all: rem };
+            }
+        }
+
+        let deleteMode = 'single';
+        const isAnticipation = !!(target && (target.is_anticipation || (target.description && String(target.description).toLowerCase().startsWith('antecipação:'))));
+        let shouldRevertBills = false;
+
+        if (isAnticipation) {
+            const match = String(target.description || '').match(/\(([\d,\s]+)\)$/);
+            const numsStr = match ? match[1] : '';
+            const confirmedAnticipation = await window.TonuConfirm({
+                title: 'Excluir antecipação?',
+                message: 'Deseja realmente excluir esta transação de antecipação?',
+                confirmText: 'Excluir',
+                danger: true
+            });
+            if (!confirmedAnticipation) return;
+            shouldRevertBills = await window.TonuConfirm({
+                title: `Reverter parcelas${numsStr ? ` (${numsStr})` : ''}?`,
+                message:
+                    `Esta transação refere-se a uma antecipação de parcelas${numsStr ? ` (${numsStr})` : ''}.\n\n` +
+                    `Deseja também REVERTER essas parcelas para o estado NÃO PAGO em Contas a Pagar?\n\n` +
+                    `• Reverter: Exclui a transação e reverte as parcelas para pendentes.\n` +
+                    `• Manter: Exclui apenas a transação do extrato mantendo as parcelas quitadas.`,
+                confirmText: 'Reverter parcelas',
+                cancelText: 'Manter quitadas',
+                danger: false
+            });
+        } else if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
+            deleteMode = await window.confirmRecurringDelete({
+                countFromNow: seriesInfo.fromNow.length,
+                countAll: seriesInfo.all.length,
+                itemName: target.description || 'Transação',
+                itemType: 'transação'
+            });
+            if (deleteMode === 'cancel') return;
+        } else {
+            const confirmedDelete = await window.TonuConfirm({
+                title: 'Excluir transação?',
+                message: 'Deseja realmente excluir esta transação?',
+                confirmText: 'Excluir',
+                danger: true
+            });
+            if (!confirmedDelete) return;
+        }
 
         try {
-            allTransactions = allTransactions.filter(t => String(t.id) !== String(id));
-
-            if (window.tonuSync && currentUser?.id) {
-                await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
-                await window.tonuSync.enqueue('DELETE_TRANSACTION', { id });
+            if (shouldRevertBills && typeof window.revertAnticipatedBills === 'function') {
+                try {
+                    const revRes = await window.revertAnticipatedBills(target, { userId: currentUser?.id });
+                    if (revRes && revRes.revertedCount > 0 && window.showToast) {
+                        window.showToast(`${revRes.revertedCount} parcelas foram revertidas para pendentes em Contas! 🔄`, 'info');
+                    }
+                } catch (revErr) {
+                    console.warn('Erro ao reverter parcelas antecipadas:', revErr);
+                }
             }
 
-            if (window.showToast) window.showToast('Transação excluída! 🗑️', 'info');
+            let idsToDelete = [String(id)];
+            if (deleteMode === 'from_now') {
+                idsToDelete = [String(id), ...seriesInfo.fromNow.map(r => String(r.id))];
+            } else if (deleteMode === 'all_series' || deleteMode === 'all') {
+                idsToDelete = [String(id), ...seriesInfo.all.map(r => String(r.id))];
+            }
+
+            const idSet = new Set(idsToDelete);
+            allTransactions = allTransactions.filter(t => !idSet.has(String(t.id)));
+
+            if (window.tonuSync && currentUser?.id) {
+                try {
+                    const cached = await window.tonuSync.getCachedTransactions(currentUser.id);
+                    if (Array.isArray(cached)) {
+                        const filteredCached = cached.filter(t => !idSet.has(String(t.id)));
+                        await window.tonuSync.setCachedTransactions(currentUser.id, filteredCached);
+                    } else {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
+                    }
+                } catch (_) {}
+
+                for (const delId of idsToDelete) {
+                    await window.tonuSync.enqueue('DELETE_TRANSACTION', { id: delId });
+                }
+            }
+
+            if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+                try {
+                    await window.supabaseClient.from('transactions').delete().in('id', idsToDelete).eq('user_id', currentUser.id);
+                } catch (supaErr) {
+                    console.warn('Erro ao remover transações do Supabase:', supaErr);
+                }
+            }
+
+            const msg = idsToDelete.length > 1
+                ? `${idsToDelete.length} transações excluídas com sucesso! 🗑️`
+                : 'Transação excluída com sucesso! 🗑️';
+            if (window.showToast) window.showToast(msg, 'info');
             closeModal();
             filterTransactions();
 
@@ -1062,7 +1438,30 @@
     window.saveTransaction = saveTransaction;
     window.deleteTransaction = deleteTransaction;
     window.filterTransactions = filterTransactions;
+    window._debouncedFilterTransactions = (typeof window.TonuDebounce === 'function')
+        ? window.TonuDebounce(filterTransactions, 180)
+        : filterTransactions;
     window.exportTransactionsCSV = exportTransactionsCSV;
     window.loadTransactions = loadTransactions;
+    window.TonuAutoClassify = TonuAutoClassify;
+
+    // Atalhos Rápidos (App Shortcuts PWA)
+    if (typeof window !== 'undefined') {
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const action = params.get('action');
+                if (action === 'new_expense' || action === 'new') {
+                    setTimeout(() => {
+                        if (typeof openModal === 'function') openModal('expense');
+                    }, 400);
+                } else if (action === 'new_income') {
+                    setTimeout(() => {
+                        if (typeof openModal === 'function') openModal('income');
+                    }, 400);
+                }
+            } catch (_) {}
+        });
+    }
 
 })();

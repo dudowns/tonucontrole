@@ -690,9 +690,9 @@
         <div id="tonuIRReportModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:999999; display:flex; align-items:center; justify-content:center; padding:12px; backdrop-filter:blur(6px); font-family:Inter,system-ui,-apple-system,sans-serif;">
             <div style="background:var(--color-surface, #ffffff); color:var(--color-text, #0f172a); border-radius:18px; max-width:880px; width:100%; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 25px 60px -15px rgba(0,0,0,0.4); border:1px solid var(--color-border, #e2e8f0); overflow:hidden;">
                 <!-- Header -->
-                <div style="padding:16px 20px; border-bottom:1px solid var(--color-border, #e2e8f0); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; background:linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(168,85,247,0.06) 100%);">
+                <div style="padding:16px 20px; border-bottom:1px solid var(--color-border, #e2e8f0); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; background:linear-gradient(135deg, rgba(55,48,163,0.06) 0%, rgba(79,70,229,0.08) 100%);">
                     <div style="display:flex; align-items:center; gap:12px;">
-                        <div style="width:40px; height:40px; border-radius:10px; background:#6c5ce7; color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">
+                        <div style="width:40px; height:40px; border-radius:10px; background:#4338CA; color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">
                             <i class="fas fa-file-invoice-dollar"></i>
                         </div>
                         <div>
@@ -720,7 +720,7 @@
 
                 <!-- Tabs -->
                 <div style="display:flex; gap:4px; padding:8px 16px; border-bottom:1px solid var(--color-border, #e2e8f0); background:var(--color-bg, #f8fafc); overflow-x:auto;">
-                    <button class="ir-tab-btn active" onclick="switchIRTab('bens', this)" style="padding:8px 14px; font-size:12px; font-weight:600; border-radius:8px; border:none; background:#6c5ce7; color:#fff; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                    <button class="ir-tab-btn active" onclick="switchIRTab('bens', this)" style="padding:8px 14px; font-size:12px; font-weight:600; border-radius:8px; border:none; background:#4338CA; color:#fff; cursor:pointer; display:flex; align-items:center; gap:6px;">
                         <i class="fas fa-cubes"></i> 1. Bens e Direitos
                     </button>
                     <button class="ir-tab-btn" onclick="switchIRTab('proventos', this)" style="padding:8px 14px; font-size:12px; font-weight:600; border-radius:8px; border:none; background:transparent; color:var(--color-text, #475569); cursor:pointer; display:flex; align-items:center; gap:6px;">
@@ -742,7 +742,7 @@
                         💡 Custo de aquisição atualizado com desdobramentos, agrupamentos e bonificações.
                     </span>
                     <div style="display:flex; gap:8px;">
-                        <button type="button" onclick="copyIRReportSummary()" style="padding:7px 14px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid #6c5ce7; background:transparent; color:#6c5ce7; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        <button type="button" onclick="copyIRReportSummary()" style="padding:7px 14px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid #4338CA; background:transparent; color:#4338CA; cursor:pointer; display:flex; align-items:center; gap:6px;">
                             <i class="fas fa-copy"></i> Copiar Resumo
                         </button>
                         <button type="button" onclick="document.getElementById('tonuIRReportModal').remove()" style="padding:7px 16px; font-size:12px; font-weight:600; border-radius:8px; border:none; background:#64748b; color:#fff; cursor:pointer;">
@@ -785,7 +785,7 @@
                             <div style="border:1px solid var(--color-border, #e2e8f0); border-radius:12px; padding:12px 14px; background:var(--color-surface, #fff);">
                                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
                                     <div style="display:flex; align-items:center; gap:8px;">
-                                        <span style="font-weight:700; font-size:14px; color:#6c5ce7; background:rgba(108,92,231,0.1); padding:2px 8px; border-radius:6px;">${item.ticker}</span>
+                                        <span style="font-weight:700; font-size:14px; color:#4338CA; background:rgba(67,56,202,0.1); padding:2px 8px; border-radius:6px;">${item.ticker}</span>
                                         <span style="font-size:11px; padding:2px 8px; border-radius:10px; background:#f1f5f9; color:#475569; font-weight:600;">${item.assetClass}</span>
                                     </div>
                                     <div style="display:flex; gap:16px; font-size:12px;">
@@ -923,7 +923,7 @@
                 b.style.color = 'var(--color-text, #475569)';
             });
             if (btn) {
-                btn.style.background = '#6c5ce7';
+                btn.style.background = '#4338CA';
                 btn.style.color = '#fff';
             }
             renderReportForYear(targetYear);

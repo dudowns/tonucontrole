@@ -1,24 +1,26 @@
 /* ============================================
    SIDEBAR PADRONIZADA - TonuControle
-   Versão: 2.3.0 - BOTÕES COM CLASSE CSS + LOGO
+   Alinhada ao Padrão Ouro (Preview) em todas as páginas
    ============================================ */
 
 /* ============================================
-   1. SIDEBAR - TAMANHO PADRONIZADO
+   1. SIDEBAR - ESTRUTURA E SUPERFÍCIE
    ============================================ */
 .sidebar {
     position: fixed !important;
     top: 0 !important;
+    bottom: 0 !important;
     left: 0 !important;
-    width: 260px !important;
+    width: 244px !important;
     height: 100vh !important;
-    background: var(--color-surface, #ffffff) !important;
-    border-right: 1px solid var(--color-border, #e9ecef) !important;
-    padding: 16px 14px !important;
+    background: var(--bg-sidebar, #FFFFFF) !important;
+    border-right: 1px solid var(--border-hairline, #DCE6F7) !important;
+    box-shadow: none !important;
+    padding: 0 !important;
     display: flex !important;
     flex-direction: column !important;
     z-index: 1000 !important;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease, border-color 0.25s ease !important;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
     transform: translateX(0) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
@@ -29,93 +31,39 @@
 }
 
 /* ============================================
-   2. SIDEBAR BRAND - COM LOGO PNG
+   2. SIDEBAR BRAND - GRADIENTE COM CANTO CURVO
    ============================================ */
 .sidebar-brand {
     display: flex !important;
     align-items: center !important;
     gap: 10px !important;
-    padding: 10px 14px !important;
-    margin-bottom: 16px !important;
-    background: linear-gradient(135deg, #6C5CE7, #A29BFE) !important;
-    border-radius: 10px !important;
-    color: white !important;
+    padding: 15px 18px !important;
+    margin: 0 !important;
+    background: var(--gradient-primary, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%)) !important;
+    border-radius: 0 0 18px 0 !important;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2) !important;
+    color: #ffffff !important;
     flex-shrink: 0 !important;
     text-decoration: none !important;
 }
 
-/* 🔥 LOGO PNG NO LUGAR DO 💰 */
 .sidebar-brand .brand-icon {
-    width: 30px !important;
-    height: 30px !important;
-    border-radius: 9px !important;
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 10px !important;
     overflow: hidden !important;
     flex-shrink: 0 !important;
-    background: rgba(255, 255, 255, 0.18) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    border: 1px solid rgba(255, 255, 255, 0.45) !important;
+    display: grid !important;
+    place-items: center !important;
     position: relative !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-    transition: transform 0.5s cubic-bezier(0.34, 1.45, 0.64, 1), box-shadow 0.35s ease !important;
-    animation: sidebarVolante90 5.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite !important;
-    transform-origin: center center !important;
-    will-change: transform !important;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.18) !important;
+    transition: transform 0.25s cubic-bezier(0.34, 1.45, 0.64, 1), box-shadow 0.25s ease !important;
 }
 
-.sidebar-brand:hover .brand-icon,
-.sidebar-brand .brand-icon:hover {
-    animation-play-state: paused !important;
-    transform: rotate(90deg) scale(1.15) !important;
-    box-shadow: 0 8px 20px rgba(108, 92, 231, 0.5) !important;
-}
-
-@keyframes sidebarVolante90 {
-    0% { transform: translateY(0px) rotate(0deg); }
-    8% { transform: translateY(0px) rotate(0deg); }
-    32% { transform: translateY(-2px) rotate(90deg); }
-    44% { transform: translateY(-2px) rotate(90deg); }
-    58% { transform: translateY(0px) rotate(0deg); }
-    66% { transform: translateY(0px) rotate(0deg); }
-    84% { transform: translateY(-2px) rotate(-90deg); }
-    92% { transform: translateY(-2px) rotate(-90deg); }
-    100% { transform: translateY(0px) rotate(0deg); }
-}
-
-.sidebar-brand .brand-icon::after {
-    content: '' !important;
-    position: absolute !important;
-    top: -50% !important;
-    left: -100% !important;
-    width: 60% !important;
-    height: 200% !important;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent) !important;
-    transform: rotate(25deg) !important;
-    pointer-events: none !important;
-    animation: brandIconGlint 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
-}
-
-@keyframes brandIconFloat {
-    0% {
-        transform: translateY(0) scale(1);
-    }
-    100% {
-        transform: translateY(-2px) scale(1.03);
-    }
-}
-
-@keyframes brandIconGlint {
-    0%, 30% {
-        transform: translateX(0) rotate(25deg);
-        opacity: 0;
-    }
-    35% {
-        opacity: 1;
-    }
-    60%, 100% {
-        transform: translateX(350%) rotate(25deg);
-        opacity: 0;
-    }
+.sidebar-brand:hover .brand-icon {
+    transform: scale(1.05) !important;
 }
 
 .sidebar-brand .brand-icon img {
@@ -123,30 +71,27 @@
     height: 100% !important;
     object-fit: cover !important;
     display: block !important;
-    transition: transform 0.3s ease !important;
-}
-
-.sidebar-brand .brand-icon:hover img {
-    transform: scale(1.08) !important;
 }
 
 .sidebar-brand h2 {
-    font-size: 16px !important;
-    font-weight: 700 !important;
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
     margin: 0 !important;
-    color: white !important;
+    color: #ffffff !important;
+    white-space: nowrap !important;
 }
 
 /* ============================================
-   3. SIDEBAR NAV - LINKS PADRONIZADOS
+   3. SIDEBAR NAV - LINKS COM PÍLULA ATIVA
    ============================================ */
 .sidebar-nav {
     list-style: none !important;
     flex: 1 !important;
     display: flex !important;
     flex-direction: column !important;
-    gap: 2px !important;
-    padding: 0 !important;
+    gap: 4px !important;
+    padding: 14px 10px 8px !important;
     margin: 0 !important;
 }
 
@@ -155,94 +100,128 @@
 }
 
 .sidebar-nav a {
+    position: relative !important;
     display: flex !important;
     align-items: center !important;
-    gap: 10px !important;
-    padding: 10px 14px !important;
-    border-radius: 8px !important;
-    color: var(--color-text-light, #636e72) !important;
-    font-weight: 500 !important;
-    font-size: 13px !important;
+    gap: 11px !important;
+    padding: 10px 13px !important;
+    border-radius: 11px !important;
+    color: var(--text-secondary, #475569) !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
     text-decoration: none !important;
-    transition: all 0.2s ease !important;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease !important;
     background: transparent !important;
     border: none !important;
+    box-shadow: none !important;
     cursor: pointer !important;
+    white-space: nowrap !important;
+}
+
+.sidebar-nav a:active {
+    transform: scale(0.985) !important;
 }
 
 .sidebar-nav a:hover {
-    background: var(--color-primary-bg, #f0edff) !important;
-    color: var(--color-primary, #6C5CE7) !important;
+    background: var(--accent-soft, #EFF6FF) !important;
+    color: var(--accent-royal, #2563EB) !important;
 }
 
 .sidebar-nav a.active {
-    background: var(--color-primary, #6C5CE7) !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.35) !important;
+    background: var(--accent-light, #DBEAFE) !important;
+    color: var(--accent-indigo, #3730A3) !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+}
+
+.sidebar-nav a.active:hover {
+    background: var(--accent-light, #DBEAFE) !important;
+    color: var(--accent-indigo, #3730A3) !important;
 }
 
 .sidebar-nav a i {
-    width: 18px !important;
+    width: 19px !important;
     text-align: center !important;
-    font-size: 14px !important;
+    font-size: 15px !important;
     color: inherit !important;
+    flex-shrink: 0 !important;
+    transition: transform 0.18s ease !important;
 }
 
 .sidebar-nav a.active i {
-    color: #ffffff !important;
+    color: var(--accent-royal, #2563EB) !important;
 }
 
 /* ============================================
-   4. SIDEBAR USER PROFILE - COM STATUS ATIVO
+   3B. SIDEBAR AMBIENT ORB
+   ============================================ */
+.sidebar-ambient {
+    margin: 12px auto 10px !important;
+    width: 158px !important;
+    height: 132px !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.16) 0%, rgba(67, 56, 202, 0.06) 55%, transparent 72%) !important;
+    display: grid !important;
+    place-items: center !important;
+    pointer-events: none !important;
+    flex-shrink: 0 !important;
+}
+
+@media (max-height: 760px) {
+    .sidebar-ambient {
+        display: none !important;
+    }
+}
+
+/* ============================================
+   4. SIDEBAR FOOTER & USER CARD
    ============================================ */
 .sidebar-footer {
     margin-top: auto !important;
-    padding-top: 10px !important;
-    border-top: 1px solid var(--color-border, #e9ecef) !important;
+    padding: 12px !important;
+    border-top: 1px solid var(--border-hairline, #DCE6F7) !important;
     flex-shrink: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    gap: 6px !important;
+    gap: 10px !important;
 }
 
 .sidebar-user-profile {
     display: flex !important;
     align-items: center !important;
-    gap: 10px !important;
-    padding: 10px 12px !important;
-    background: var(--color-bg, #f8fafc) !important;
-    border: 1px solid var(--color-border, #e2e8f0) !important;
-    border-radius: 10px !important;
+    gap: 9px !important;
+    padding: 8px 10px !important;
+    background: var(--bg-surface, #FFFFFF) !important;
+    border: 1px solid var(--border-hairline, #DCE6F7) !important;
+    border-radius: var(--radius-md, 14px) !important;
+    box-shadow: var(--shadow-card, 0 2px 12px rgba(23, 37, 84, 0.045)) !important;
     text-decoration: none !important;
     color: inherit !important;
     cursor: pointer !important;
-    transition: all 0.2s ease !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease !important;
     width: 100% !important;
     box-sizing: border-box !important;
     position: relative !important;
 }
 
 .sidebar-user-profile:hover {
-    background: var(--color-primary-bg, #f0edff) !important;
-    border-color: var(--color-primary, #6C5CE7) !important;
+    background: var(--bg-subtle, #EFF6FF) !important;
+    border-color: var(--accent-royal, #2563EB) !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 10px rgba(108, 92, 231, 0.12) !important;
 }
 
 .sidebar-user-profile .avatar-circle {
-    width: 40px !important;
-    height: 40px !important;
-    background: linear-gradient(135deg, #6C5CE7, #a29bfe) !important;
+    width: 34px !important;
+    height: 34px !important;
+    background: var(--gradient-primary, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%)) !important;
     color: #ffffff !important;
     border-radius: 50% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    display: grid !important;
+    place-items: center !important;
     font-weight: 700 !important;
-    font-size: 16px !important;
+    font-size: 13px !important;
     flex-shrink: 0 !important;
     overflow: hidden !important;
-    box-shadow: 0 2px 6px rgba(108, 92, 231, 0.25) !important;
 }
 
 .sidebar-user-profile .avatar-circle img {
@@ -261,31 +240,31 @@
 }
 
 .sidebar-user-name {
-    font-size: 13px !important;
+    font-size: 13.5px !important;
     font-weight: 700 !important;
-    color: var(--color-text, #1e293b) !important;
+    color: var(--text-primary, #172554) !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    line-height: 1.2 !important;
+    line-height: 1.25 !important;
 }
 
 .sidebar-user-email {
-    font-size: 11px !important;
-    color: var(--color-text-muted, #64748b) !important;
+    font-size: 11.5px !important;
+    color: var(--text-muted, #64748B) !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    margin-top: 2px !important;
+    margin-top: 1px !important;
 }
 
 .sidebar-user-status {
     display: flex !important;
     align-items: center !important;
-    gap: 4px !important;
-    font-size: 10px !important;
+    gap: 5px !important;
+    font-size: 11px !important;
     font-weight: 600 !important;
-    color: var(--color-success, #00B894) !important;
+    color: var(--green-text, #047857) !important;
     margin-top: 2px !important;
 }
 
@@ -293,62 +272,47 @@
     width: 6px !important;
     height: 6px !important;
     border-radius: 50% !important;
-    background: var(--color-success, #00B894) !important;
+    background: var(--green, #10B981) !important;
     display: inline-block !important;
-    animation: pulseStatus 2s ease-in-out infinite !important;
-}
-
-@keyframes pulseStatus {
-
-    0%,
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-
-    50% {
-        opacity: 0.5;
-        transform: scale(0.8);
-    }
 }
 
 .sidebar-user-icon {
     font-size: 13px !important;
-    color: var(--color-text-muted, #94a3b8) !important;
+    color: var(--text-muted, #64748B) !important;
     transition: transform 0.2s ease, color 0.2s ease !important;
     flex-shrink: 0 !important;
 }
 
 .sidebar-user-profile:hover .sidebar-user-icon {
-    color: var(--color-primary, #6C5CE7) !important;
+    color: var(--accent-royal, #2563EB) !important;
     transform: rotate(45deg) !important;
 }
 
 /* ============================================
-   5. BOTÃO SAIR - COM CLASSE CSS
+   5. BOTÃO SAIR
    ============================================ */
 .sidebar-footer .btn-sair {
     width: 100% !important;
-    padding: 8px 12px !important;
-    border-radius: 8px !important;
-    font-size: 12px !important;
+    padding: 9px 12px !important;
+    border-radius: 10px !important;
+    font-size: 13px !important;
     font-weight: 600 !important;
-    font-family: 'Inter', sans-serif !important;
-    border: 1px solid var(--color-border, #e2e8f0) !important;
-    background: transparent !important;
-    color: var(--color-text-light, #636e72) !important;
+    font-family: var(--font-sans, 'Plus Jakarta Sans', sans-serif) !important;
+    border: 1px solid var(--border-hairline, #DCE6F7) !important;
+    background: var(--bg-surface, #FFFFFF) !important;
+    color: var(--text-primary, #172554) !important;
     cursor: pointer !important;
-    transition: all 0.2s ease !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 6px !important;
+    gap: 8px !important;
 }
 
 .sidebar-footer .btn-sair:hover {
-    background: #fef2f2 !important;
-    color: #dc2626 !important;
-    border-color: #fca5a5 !important;
+    background: var(--red-soft, #FFF1F2) !important;
+    color: var(--red-text, #BE123C) !important;
+    border-color: rgba(244, 63, 94, 0.35) !important;
 }
 
 .sidebar-footer .btn-sair i {
@@ -356,13 +320,13 @@
 }
 
 /* ============================================
-   6. SIDEBAR OVERLAY
+   6. SIDEBAR OVERLAY & MAIN CONTENT
    ============================================ */
 .sidebar-overlay {
     display: none !important;
     position: fixed !important;
     inset: 0 !important;
-    background: rgba(0, 0, 0, 0.4) !important;
+    background: rgba(15, 23, 42, 0.42) !important;
     z-index: 900 !important;
 }
 
@@ -370,15 +334,13 @@
     display: block !important;
 }
 
-/* ============================================
-   7. MAIN CONTENT
-   ============================================ */
 .main-content {
-    margin-left: 260px !important;
+    margin-left: 244px !important;
     min-height: 100vh !important;
-    transition: margin 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    width: calc(100% - 260px) !important;
+    transition: margin 0.22s cubic-bezier(0.16, 1, 0.3, 1), width 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    width: calc(100% - 244px) !important;
     flex: 1 !important;
+    background: var(--bg-app, #F4F7FC) !important;
 }
 
 .main-content.full {
@@ -387,12 +349,16 @@
 }
 
 /* ============================================
-   8. RESPONSIVO
+   7. RESPONSIVO (MOBILE DRAWER)
    ============================================ */
 @media (max-width: 768px) {
     .sidebar {
         transform: translateX(-100%) !important;
-        width: 280px !important;
+        width: 268px !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        height: 100vh !important;
     }
 
     .sidebar:not(.hidden) {
@@ -403,20 +369,10 @@
         margin-left: 0 !important;
         width: 100% !important;
     }
-
-    .sidebar-overlay.show {
-        display: block !important;
-    }
-}
-
-@media (max-width: 480px) {
-    .sidebar {
-        width: 260px !important;
-    }
 }
 
 /* ============================================
-   9. FORÇA SOBREPOSIÇÃO EM TODAS AS PÁGINAS
+   8. ISOLAMENTO CONTRA REGRAS DE PÁGINA
    ============================================ */
 .settings-card .sidebar-nav a,
 .dashboard-grid .sidebar-nav a,
@@ -425,9 +381,7 @@
 .goals-grid .sidebar-nav a,
 .investments-grid .sidebar-nav a,
 .content .sidebar-nav a,
-.auth-container .sidebar-nav a,
-.card .sidebar-nav a,
-.page-content .sidebar-nav a {
+.card .sidebar-nav a {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
@@ -440,210 +394,136 @@
 .goals-grid .sidebar-nav a.active,
 .investments-grid .sidebar-nav a.active,
 .content .sidebar-nav a.active,
-.auth-container .sidebar-nav a.active,
-.card .sidebar-nav a.active,
-.page-content .sidebar-nav a.active {
-    background: #6C5CE7 !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.3) !important;
-}
-
-.settings-card .sidebar-nav a.active i,
-.dashboard-grid .sidebar-nav a.active i,
-.transactions-grid .sidebar-nav a.active i,
-.bills-grid .sidebar-nav a.active i,
-.goals-grid .sidebar-nav a.active i,
-.investments-grid .sidebar-nav a.active i,
-.content .sidebar-nav a.active i,
-.auth-container .sidebar-nav a.active i,
-.card .sidebar-nav a.active i,
-.page-content .sidebar-nav a.active i {
-    color: #ffffff !important;
-}
-
-.settings-card .sidebar-nav a:hover,
-.dashboard-grid .sidebar-nav a:hover,
-.transactions-grid .sidebar-nav a:hover,
-.bills-grid .sidebar-nav a:hover,
-.goals-grid .sidebar-nav a:hover,
-.investments-grid .sidebar-nav a:hover,
-.content .sidebar-nav a:hover,
-.auth-container .sidebar-nav a:hover,
-.card .sidebar-nav a:hover {
-    background: #f0edff !important;
-    color: #6C5CE7 !important;
-}
-
-.settings-card .sidebar-nav a.active:hover,
-.dashboard-grid .sidebar-nav a.active:hover,
-.transactions-grid .sidebar-nav a.active:hover,
-.bills-grid .sidebar-nav a.active:hover,
-.goals-grid .sidebar-nav a.active:hover,
-.investments-grid .sidebar-nav a.active:hover,
-.content .sidebar-nav a.active:hover,
-.auth-container .sidebar-nav a.active:hover,
-.card .sidebar-nav a.active:hover {
-    background: #6C5CE7 !important;
-    color: #ffffff !important;
+.card .sidebar-nav a.active {
+    background: var(--accent-light, #DBEAFE) !important;
+    color: var(--accent-indigo, #3730A3) !important;
+    font-weight: 700 !important;
 }
 
 /* ============================================
-   10. MODAL - DESIGN SYSTEM UNIFICADO
+   9. MODO ESCURO (CONSISTENTE EM TODAS AS TELAS)
    ============================================ */
-/* Os estilos principais de modal agora residem em css/theme.css e css/dark-theme.css */
-
-/* ============================================
-   11. PADRONIZAÇÃO DO TEMA ESCURO (DARK MODE)
-   Garante 100% de consistência visual no sidebar
-   ============================================ */
+html.dark .sidebar,
+html.dark-theme .sidebar,
 body.dark-theme .sidebar,
-[data-theme="dark"] .sidebar,
-html[data-theme="dark"] .sidebar {
-    background: #1E293B !important;
-    border-right: 1px solid #334155 !important;
+[data-theme="dark"] .sidebar {
+    background: var(--bg-sidebar, #0F172A) !important;
+    border-right: 1px solid var(--border-hairline, #223254) !important;
 }
 
+html.dark .sidebar-brand,
+html.dark-theme .sidebar-brand,
+body.dark-theme .sidebar-brand,
+[data-theme="dark"] .sidebar-brand {
+    background: var(--gradient-primary, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%)) !important;
+    border: none !important;
+    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.28) !important;
+}
+
+html.dark .sidebar-nav a,
+html.dark-theme .sidebar-nav a,
 body.dark-theme .sidebar-nav a,
-[data-theme="dark"] .sidebar-nav a,
-html[data-theme="dark"] .sidebar-nav a {
-    color: #CBD5E1 !important;
+[data-theme="dark"] .sidebar-nav a {
+    color: var(--text-secondary, #CBD5E1) !important;
 }
 
+html.dark .sidebar-nav a:hover,
+html.dark-theme .sidebar-nav a:hover,
 body.dark-theme .sidebar-nav a:hover,
-[data-theme="dark"] .sidebar-nav a:hover,
-html[data-theme="dark"] .sidebar-nav a:hover,
-body.dark-theme .settings-card .sidebar-nav a:hover,
-body.dark-theme .dashboard-grid .sidebar-nav a:hover,
-body.dark-theme .transactions-grid .sidebar-nav a:hover,
-body.dark-theme .bills-grid .sidebar-nav a:hover,
-body.dark-theme .goals-grid .sidebar-nav a:hover,
-body.dark-theme .investments-grid .sidebar-nav a:hover,
-body.dark-theme .content .sidebar-nav a:hover,
-body.dark-theme .auth-container .sidebar-nav a:hover,
-body.dark-theme .card .sidebar-nav a:hover,
-[data-theme="dark"] .settings-card .sidebar-nav a:hover,
-[data-theme="dark"] .dashboard-grid .sidebar-nav a:hover,
-[data-theme="dark"] .transactions-grid .sidebar-nav a:hover,
-[data-theme="dark"] .bills-grid .sidebar-nav a:hover,
-[data-theme="dark"] .goals-grid .sidebar-nav a:hover,
-[data-theme="dark"] .investments-grid .sidebar-nav a:hover,
-[data-theme="dark"] .content .sidebar-nav a:hover,
-[data-theme="dark"] .auth-container .sidebar-nav a:hover,
-[data-theme="dark"] .card .sidebar-nav a:hover {
-    background: rgba(129, 140, 248, 0.16) !important;
-    color: #A78BFA !important;
+[data-theme="dark"] .sidebar-nav a:hover {
+    background: var(--accent-soft, rgba(37, 99, 235, 0.16)) !important;
+    color: #93C5FD !important;
 }
 
+html.dark .sidebar-nav a.active,
+html.dark-theme .sidebar-nav a.active,
 body.dark-theme .sidebar-nav a.active,
-[data-theme="dark"] .sidebar-nav a.active,
-html[data-theme="dark"] .sidebar-nav a.active,
-body.dark-theme .settings-card .sidebar-nav a.active,
-body.dark-theme .dashboard-grid .sidebar-nav a.active,
-body.dark-theme .transactions-grid .sidebar-nav a.active,
-body.dark-theme .bills-grid .sidebar-nav a.active,
-body.dark-theme .goals-grid .sidebar-nav a.active,
-body.dark-theme .investments-grid .sidebar-nav a.active,
-body.dark-theme .content .sidebar-nav a.active,
-body.dark-theme .card .sidebar-nav a.active,
-[data-theme="dark"] .settings-card .sidebar-nav a.active,
-[data-theme="dark"] .dashboard-grid .sidebar-nav a.active,
-[data-theme="dark"] .transactions-grid .sidebar-nav a.active,
-[data-theme="dark"] .bills-grid .sidebar-nav a.active,
-[data-theme="dark"] .goals-grid .sidebar-nav a.active,
-[data-theme="dark"] .investments-grid .sidebar-nav a.active,
-[data-theme="dark"] .content .sidebar-nav a.active,
-[data-theme="dark"] .card .sidebar-nav a.active {
-    background: #6C5CE7 !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.45) !important;
+[data-theme="dark"] .sidebar-nav a.active {
+    background: var(--accent-soft, rgba(37, 99, 235, 0.22)) !important;
+    color: #DBEAFE !important;
 }
 
+html.dark .sidebar-nav a.active i,
+html.dark-theme .sidebar-nav a.active i,
+body.dark-theme .sidebar-nav a.active i,
+[data-theme="dark"] .sidebar-nav a.active i {
+    color: #60A5FA !important;
+}
+
+html.dark .sidebar-ambient,
+html.dark-theme .sidebar-ambient,
+body.dark-theme .sidebar-ambient,
+[data-theme="dark"] .sidebar-ambient {
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.22) 0%, rgba(67, 56, 202, 0.08) 55%, transparent 72%) !important;
+}
+
+html.dark .sidebar-footer,
+html.dark-theme .sidebar-footer,
 body.dark-theme .sidebar-footer,
-[data-theme="dark"] .sidebar-footer,
-html[data-theme="dark"] .sidebar-footer {
-    border-top: 1px solid #334155 !important;
+[data-theme="dark"] .sidebar-footer {
+    border-top-color: var(--border-hairline, #223254) !important;
 }
 
+html.dark .sidebar-user-profile,
+html.dark-theme .sidebar-user-profile,
 body.dark-theme .sidebar-user-profile,
-[data-theme="dark"] .sidebar-user-profile,
-html[data-theme="dark"] .sidebar-user-profile {
-    background: #0F172A !important;
-    border: 1px solid #334155 !important;
-    color: #E2E8F0 !important;
+[data-theme="dark"] .sidebar-user-profile {
+    background: var(--bg-surface, #131C31) !important;
+    border-color: var(--border-hairline, #223254) !important;
 }
 
+html.dark .sidebar-user-profile:hover,
+html.dark-theme .sidebar-user-profile:hover,
 body.dark-theme .sidebar-user-profile:hover,
-[data-theme="dark"] .sidebar-user-profile:hover,
-html[data-theme="dark"] .sidebar-user-profile:hover {
-    background: rgba(129, 140, 248, 0.16) !important;
-    border-color: #818CF8 !important;
-    box-shadow: 0 4px 12px rgba(129, 140, 248, 0.2) !important;
+[data-theme="dark"] .sidebar-user-profile:hover {
+    background: var(--bg-subtle, #1A2744) !important;
+    border-color: var(--accent-royal, #2563EB) !important;
 }
 
+html.dark .sidebar-user-name,
+html.dark-theme .sidebar-user-name,
 body.dark-theme .sidebar-user-name,
-[data-theme="dark"] .sidebar-user-name,
-html[data-theme="dark"] .sidebar-user-name {
-    color: #E2E8F0 !important;
+[data-theme="dark"] .sidebar-user-name {
+    color: var(--text-primary, #F1F5F9) !important;
 }
 
+html.dark .sidebar-user-email,
+html.dark-theme .sidebar-user-email,
 body.dark-theme .sidebar-user-email,
-[data-theme="dark"] .sidebar-user-email,
-html[data-theme="dark"] .sidebar-user-email {
-    color: #94A3B8 !important;
+[data-theme="dark"] .sidebar-user-email {
+    color: var(--text-muted, #94A3B8) !important;
 }
 
-body.dark-theme .sidebar-user-icon,
-[data-theme="dark"] .sidebar-user-icon,
-html[data-theme="dark"] .sidebar-user-icon {
-    color: #94A3B8 !important;
+html.dark .sidebar-user-status,
+html.dark-theme .sidebar-user-status,
+body.dark-theme .sidebar-user-status,
+[data-theme="dark"] .sidebar-user-status {
+    color: var(--green-text, #34D399) !important;
 }
 
-body.dark-theme .sidebar-user-profile:hover .sidebar-user-icon,
-[data-theme="dark"] .sidebar-user-profile:hover .sidebar-user-icon,
-html[data-theme="dark"] .sidebar-user-profile:hover .sidebar-user-icon {
-    color: #A78BFA !important;
-}
-
+html.dark .sidebar-footer .btn-sair,
+html.dark-theme .sidebar-footer .btn-sair,
 body.dark-theme .sidebar-footer .btn-sair,
-[data-theme="dark"] .sidebar-footer .btn-sair,
-html[data-theme="dark"] .sidebar-footer .btn-sair {
-    border: 1px solid #334155 !important;
-    color: #CBD5E1 !important;
-    background: transparent !important;
+[data-theme="dark"] .sidebar-footer .btn-sair {
+    background: var(--bg-surface, #131C31) !important;
+    border-color: var(--border-hairline, #223254) !important;
+    color: var(--text-primary, #F1F5F9) !important;
 }
 
+html.dark .sidebar-footer .btn-sair:hover,
+html.dark-theme .sidebar-footer .btn-sair:hover,
 body.dark-theme .sidebar-footer .btn-sair:hover,
-[data-theme="dark"] .sidebar-footer .btn-sair:hover,
-html[data-theme="dark"] .sidebar-footer .btn-sair:hover {
-    background: rgba(248, 113, 113, 0.15) !important;
-    color: #F87171 !important;
-    border-color: #F87171 !important;
+[data-theme="dark"] .sidebar-footer .btn-sair:hover {
+    background: var(--red-soft, rgba(244, 63, 94, 0.16)) !important;
+    color: var(--red-text, #FB7185) !important;
+    border-color: rgba(251, 113, 133, 0.4) !important;
 }
 
-/* ============================================
-   ITEM 5: ESCALA GERAL DESKTOP (PC) - 90%
-   Aplica exclusivamente para versão PC (>= 1024px)
-   ============================================ */
 @media (min-width: 1024px) {
-    html {
-        font-size: 14.4px !important; /* 90% de 16px */
-    }
-
-    .app-shell {
-        zoom: 0.9;
-    }
-
-    @supports not (zoom: 0.9) {
-        body {
-            font-size: 14.4px;
-        }
-    }
-
-    /* Garante que todos os 4 cards do dashboard fiquem visíveis sem corte em 100% ou 90% */
     .dashboard-grid {
         display: grid !important;
         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-        gap: 12px !important;
+        gap: 14px !important;
         width: 100% !important;
     }
 
@@ -655,5 +535,3 @@ html[data-theme="dark"] .sidebar-footer .btn-sair:hover {
         min-width: 0 !important;
     }
 }
-
-

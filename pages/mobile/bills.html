@@ -3,26 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#4338CA">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="manifest" href="../../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png">
+    <link rel="manifest" href="../../manifest.json?v=3.2.1">
+    <link rel="icon" type="image/svg+xml" href="../../icons/favicon.svg?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png?v=3.2.1">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png?v=3.2.1">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png?v=3.2.1">
     <title>Contas a Pagar | TonuControle</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../css/theme.css">
-    <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css">
-    <link rel="stylesheet" href="../../css/notifications.css">
+    <link rel="stylesheet" href="../../css/theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../../css/dark-theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.3.2">
+    <link rel="stylesheet" href="../../css/notifications.css?v=3.2.1">
     <style>
-        body { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)); background: var(--color-bg, #f8fafc); }
+        body { background: var(--bg-app, #F4F7FC); }
         
         .month-bar {
             display: flex;
@@ -56,52 +57,112 @@
         .stats-carousel {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            padding: 0 14px 12px 14px;
+            gap: 10px;
+            padding: 0 14px 14px 14px;
         }
         .stat-card-mini {
             background: var(--color-surface, #ffffff);
             border: 1px solid var(--color-border, #e2e8f0);
-            border-radius: 10px;
-            padding: 10px;
+            border-radius: 16px;
+            padding: 12px 14px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 3px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .stat-card-mini .label {
             font-size: 11px;
-            color: var(--color-text-muted, #94a3b8);
-            font-weight: 500;
+            color: var(--color-text-muted, #64748b);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
         }
         .stat-card-mini .val {
-            font-size: 15px;
-            font-weight: 700;
+            font-size: 16px;
+            font-weight: 800;
+            font-feature-settings: 'tnum';
+            color: var(--color-text, #0f172a);
         }
 
         .filter-chips {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             overflow-x: auto;
-            padding: 0 14px 12px 14px;
+            padding: 4px 14px 12px 14px;
+            margin-top: 16px !important;
+            margin-bottom: 8px !important;
             scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
         }
         .filter-chips::-webkit-scrollbar { display: none; }
         .chip {
-            padding: 6px 12px;
-            border-radius: 999px;
-            font-size: 11px;
+            position: relative;
+            padding: 6px 14px 9px;
+            border-radius: 12px;
+            font-size: 12px;
             font-weight: 600;
             background: var(--color-surface, #ffffff);
             border: 1px solid var(--color-border, #e2e8f0);
-            color: var(--color-text, #2d3436);
+            color: var(--color-text, #334155);
             white-space: nowrap;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            min-height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+            touch-action: manipulation;
         }
+        .chip:active { transform: scale(0.95); }
         .chip.active {
-            background: #6C5CE7;
-            color: #ffffff;
-            border-color: #6C5CE7;
+            background: radial-gradient(circle at 50% 40%, rgba(37, 99, 235, 0.12) 0%, rgba(59, 130, 246, 0.06) 56%, rgba(255, 255, 255, 0.96) 100%) !important;
+            color: #1E3A8A !important;
+            border-color: rgba(37, 99, 235, 0.28) !important;
+            font-weight: 700;
+            box-shadow:
+                0 3px 10px -2px rgba(37, 99, 235, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.92);
+        }
+        .chip.active::after {
+            content: "";
+            position: absolute;
+            bottom: 2.5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 2.5px;
+            border-radius: 99px;
+            background: linear-gradient(90deg, #3730A3 0%, #4338CA 34%, #2563EB 70%, #10B981 100%);
+            box-shadow: 0 0 5px rgba(37, 99, 235, 0.34), 0 0 3px rgba(59, 130, 246, 0.24);
+            animation: auroraTabBeamIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        body.dark-theme .stat-card-mini,
+        body.dark-theme .month-bar {
+            background: var(--mob-surface, #131C31) !important;
+            border-color: var(--mob-border, #223254) !important;
+            color: var(--mob-text, #F1F5F9) !important;
+        }
+        body.dark-theme .stat-card-mini .val,
+        body.dark-theme .month-title,
+        body.dark-theme .month-btn {
+            color: var(--mob-text, #F1F5F9) !important;
+        }
+        body.dark-theme .chip,
+        body.dark-theme .chip-select {
+            background: var(--mob-surface, #131C31) !important;
+            border-color: var(--mob-border, #223254) !important;
+            color: var(--mob-text-muted, #94A3B8) !important;
+        }
+        body.dark-theme .chip.active {
+            background: radial-gradient(circle at 50% 40%, rgba(59, 130, 246, 0.24) 0%, rgba(37, 99, 235, 0.10) 56%, rgba(19, 28, 49, 0.94) 100%) !important;
+            color: #DBEAFE !important;
+            border-color: rgba(96, 165, 250, 0.36) !important;
+        }
+        body.dark-theme .chip.active::after {
+            box-shadow: 0 0 7px rgba(96, 165, 250, 0.42), 0 0 4px rgba(59, 130, 246, 0.28);
         }
         .chip-select {
             padding: 5px 10px;
@@ -117,129 +178,42 @@
             flex-shrink: 0;
         }
 
-        .bill-card-mobile {
-            background: var(--color-surface, #ffffff);
-            border: 1px solid var(--color-border, #e2e8f0);
-            border-radius: 12px;
-            padding: 12px 14px;
-            margin: 0 14px 10px 14px;
+        #billsContainer {
+            padding: 0 14px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            transition: all 0.2s ease;
-        }
-        .bill-card-mobile.overdue {
-            border-left: 4px solid #dc2626;
-        }
-        .bill-top {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .bill-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-            font-size: 13px;
-            flex-shrink: 0;
-        }
-        .bill-details {
-            flex: 1;
-            min-width: 0;
-        }
-        .bill-name {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--color-text, #2d3436);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .bill-meta {
-            font-size: 11px;
-            color: var(--color-text-muted, #94a3b8);
-            margin-top: 2px;
-        }
-        .bill-price {
-            text-align: right;
-            flex-shrink: 0;
-        }
-        .bill-val {
-            font-size: 14px;
-            font-weight: 700;
-        }
-        .bill-badge {
-            font-size: 9px;
-            font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 999px;
-            display: inline-block;
-            margin-top: 2px;
-        }
-        .badge-paid { background: #dcfce7; color: #16a34a; }
-        .badge-pending { background: #fef3c7; color: #d97706; }
-        .badge-overdue { background: #fee2e2; color: #dc2626; }
-
-        .bill-bottom {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-top: 1px solid var(--color-border, #f1f5f9);
-            padding-top: 8px;
-        }
-        .btn-toggle-paid {
-            display: flex;
-            align-items: center;
             gap: 6px;
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid var(--color-border, #cbd5e1);
-            background: var(--color-surface, #ffffff);
-            padding: 5px 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            color: var(--color-text, #2d3436);
-            transition: all 0.2s;
+            box-sizing: border-box;
+            width: 100%;
         }
-        .btn-toggle-paid.is-paid {
-            background: #dcfce7;
-            border-color: #86efac;
-            color: #15803d;
-        }
-        .bill-actions-mobile {
+        .bills-day-group {
             display: flex;
-            gap: 8px;
+            flex-direction: column;
         }
-        .btn-act {
-            border: none;
-            background: none;
-            color: var(--color-text-muted, #94a3b8);
-            font-size: 13px;
-            width: 28px;
-            height: 28px;
+        .bills-day-items {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
+            flex-direction: column;
+            gap: 6px;
         }
-        .btn-act:active { background: var(--color-bg, #edf2f7); }
+        .bill-card-mobile.selected {
+            border-color: #4338CA !important;
+            box-shadow: 0 0 0 2px rgba(67, 56, 202, 0.22);
+        }
 
-        /* MODAL BOTTOM SHEET */
+        /* MODAL BOTTOM SHEET (GAVETA NATIVA iOS) */
         .bottom-sheet {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 9999;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 10000;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .bottom-sheet.show {
             opacity: 1;
@@ -247,12 +221,22 @@
         }
         .bottom-sheet-card {
             background: var(--color-surface, #ffffff);
-            border-radius: 20px 20px 0 0;
-            padding: 20px;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            border-radius: 24px 24px 0 0;
+            padding: 14px 20px calc(24px + env(safe-area-inset-bottom, 0px));
             max-height: 85vh;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            touch-action: pan-y;
             transform: translateY(100%);
             transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-sizing: border-box;
+            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
         }
         .bottom-sheet.show .bottom-sheet-card {
             transform: translateY(0);
@@ -275,17 +259,28 @@
             color: var(--color-text-muted, #94a3b8);
         }
     </style>
+    <script>
+        if (localStorage.getItem('tonu_bottom_nav_labels') === 'false') {
+            document.documentElement.classList.add('nav-icons-only');
+        }
+    </script>
 </head>
-<body>
+<body class="has-bottom-nav">
 
 <header class="mobile-topbar">
     <div class="topbar-header">
         <div class="topbar-left">
-            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <div class="app-icon"><img src="../../icons/logo.png?v=3.2.1" alt="TonuControle"></div>
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button onclick="toggleTheme()" title="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button type="button" class="topbar-btn" onclick="window.TonuMobileUI && window.TonuMobileUI.openCommandPalette()" title="Busca rápida" aria-label="Busca rápida"><i class="fas fa-search"></i></button>
+            <button type="button" class="topbar-btn" data-privacy-toggle onclick="window.TonuMobileUI && window.TonuMobileUI.togglePrivacyMode()" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade"><i class="fas fa-eye" data-privacy-icon></i></button>
+            <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button class="topbar-btn" onclick="window.tonuSync && window.tonuSync.syncPendingData ? window.tonuSync.syncPendingData() : location.reload()" title="Sincronizar" aria-label="Sincronizar"><i class="fas fa-sync-alt"></i></button>
+            <a href="settings.html" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
+                <span id="topbarAvatar">U</span>
+            </a>
         </div>
     </div>
     <div class="greeting">Gestão de Vencimentos</div>
@@ -293,40 +288,45 @@
 
 <main class="mobile-content">
     <!-- NAVEGADOR DE MÊS -->
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
-        <div class="month-bar" style="flex:1;">
-            <button class="month-btn" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+    <div class="mob-month-action-row">
+        <div class="month-bar" role="group" aria-label="Selecionar mês">
+            <button type="button" class="month-btn" onclick="changeMonth(-1)" aria-label="Mês anterior"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
             <span class="month-title" id="monthTitle">Carregando...</span>
-            <button class="month-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+            <button type="button" class="month-btn" onclick="changeMonth(1)" aria-label="Próximo mês"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
         </div>
-        <button type="button" class="btn-primary" onclick="openModal()" style="height:42px; padding:0 14px; border-radius:12px; font-weight:600; font-size:13px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; border:none; background:linear-gradient(135deg, #6C5CE7, #8B5CF6); color:#fff; cursor:pointer; box-shadow:0 3px 10px rgba(108,92,231,0.25);">
+        <button type="button" class="btn-primary mob-btn-primary-pill" onclick="openModal()">
             <i class="fas fa-plus"></i> Conta
         </button>
     </div>
 
-    <!-- CARDS DE RESUMO -->
-    <div class="stats-carousel">
-        <div class="stat-card-mini">
-            <span class="label">Total a Pagar</span>
-            <span class="val" id="statTotal">R$ 0,00</span>
+    <!-- HERO CARD CONTAS A PAGAR (DNA DASHBOARD) -->
+    <div class="mobile-hero-card" id="billsHeroCard" style="margin: 0 0 14px 0;">
+        <div class="hero-top">
+            <span class="hero-label"><i class="fas fa-file-invoice-dollar"></i> Total a Pagar</span>
+            <span class="badge-mobile" id="statMonthRefBadge" style="background: rgba(255,255,255,0.2); color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px;">
+                Carregando...
+            </span>
         </div>
-        <div class="stat-card-mini">
-            <span class="label">Pagas no Mês</span>
-            <span class="val text-success" id="statPaid">R$ 0,00</span>
-        </div>
-        <div class="stat-card-mini">
-            <span class="label">A Vencer</span>
-            <span class="val text-warning" id="statPending">R$ 0,00</span>
-        </div>
-        <div class="stat-card-mini">
-            <span class="label">Atrasadas</span>
-            <span class="val text-danger" id="statOverdue">R$ 0,00</span>
+        <div class="hero-value" id="statTotal" data-sensitive>R$ 0,00</div>
+        <div class="hero-footer">
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-clock" style="color: #fde68a;"></i> A Vencer</span>
+                <span class="hero-stat-val" id="statPending" data-sensitive style="color: #fef08a;">R$ 0,00</span>
+            </div>
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-check-circle" style="color: #6ee7b7;"></i> Pagas</span>
+                <span class="hero-stat-val income" id="statPaid" data-sensitive>R$ 0,00</span>
+            </div>
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-exclamation-triangle" style="color: #fca5a5;"></i> Atrasadas</span>
+                <span class="hero-stat-val expense" id="statOverdue" data-sensitive>R$ 0,00</span>
+            </div>
         </div>
     </div>
 
     <!-- FILTRO RÁPIDO -->
-    <div class="filter-chips">
-        <button class="chip" id="btnToggleSelectMobile" onclick="toggleBillSelectionModeMobile()" style="border-color:#6C5CE7; color:#6C5CE7; font-weight:700;">
+    <div class="filter-chips" style="padding: 4px 0 12px 0;">
+        <button class="chip" id="btnToggleSelectMobile" onclick="toggleBillSelectionModeMobile()" style="border-color:var(--mob-primary, #4338CA); color:var(--mob-primary, #4338CA); font-weight:700;">
             <i class="fas fa-check-square"></i> <span id="labelSelectMobile">Selecionar</span>
         </button>
         <button class="chip active" onclick="setFilter('pending', this)">Pendentes</button>
@@ -339,40 +339,39 @@
     </div>
 
     <!-- BANNER DE CONTAS PARCELADAS (MOBILE) -->
-    <div id="billsInstallmentBannerMobile" style="display:none; margin: 0 14px 12px 14px; padding: 10px 12px; background: linear-gradient(135deg, rgba(108,92,231,0.12) 0%, rgba(168,85,247,0.1) 100%); border: 1px solid rgba(108,92,231,0.25); border-radius: 12px; align-items: center; justify-content: space-between; gap: 8px;">
+    <div id="billsInstallmentBannerMobile" style="display:none; margin: 0 0 12px 0; padding: 10px 12px; background: linear-gradient(135deg, rgba(37,99,235,0.09) 0%, rgba(59,130,246,0.13) 100%); border: 1px solid rgba(37,99,235,0.24); border-radius: 14px; align-items: center; justify-content: space-between; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 32px; height: 32px; border-radius: 8px; background: #6C5CE7; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+            <div style="width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
                 <i class="fas fa-layer-group"></i>
             </div>
             <div>
-                <div style="font-size: 12px; font-weight: 700; color: var(--color-text, #2d3436);">
+                <div style="font-size: 12px; font-weight: 700; color: var(--mob-text, #0F172A);">
                     <span id="bannerInstallmentActiveCountMobile">0</span> Parceladas em Aberto
                 </div>
-                <div style="font-size: 10px; color: var(--color-text-muted, #636e72);" id="bannerInstallmentDetailsMobile">
+                <div style="font-size: 10.5px; color: var(--mob-text-muted, #475569);" id="bannerInstallmentDetailsMobile">
                     Parcelas a vencer: 0 • Saldo: R$ 0,00
                 </div>
             </div>
         </div>
-        <button type="button" onclick="toggleOnlyInstallmentsMobile(this)" class="chip" style="font-size: 10px; padding: 4px 8px; flex-shrink: 0;" title="Filtrar contas parceladas">
+        <button type="button" onclick="toggleOnlyInstallmentsMobile(this)" class="chip" style="font-size: 10.5px; padding: 4px 10px; flex-shrink: 0; min-height: 34px;" title="Filtrar contas parceladas">
             <i class="fas fa-filter"></i> Ver
         </button>
     </div>
 
     <!-- LISTA DE CONTAS -->
-    <div id="billsContainer">
-        <div style="text-align:center;padding:30px;">
-            <span class="spinner"></span>
-            <p style="margin-top:8px;font-size:12px;color:#94a3b8;">Carregando contas...</p>
-        </div>
+    <div id="billsContainer" style="padding:0;">
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:36%;"></div></div></div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:68%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:44%;"></div></div></div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:50%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:30%;"></div></div></div>
     </div>
 
     <!-- RODAPÉ FIXO DE SOMA VISUAL (ITEM 9 - MOBILE) -->
-    <div id="billsSelectionFooterMobile" style="display:none; position:fixed; bottom:72px; left:14px; right:14px; z-index:1050; background:var(--color-surface,#ffffff); border:1px solid var(--color-border,#e2e8f0); box-shadow:0 8px 24px rgba(0,0,0,0.18); border-radius:14px; padding:10px 16px; align-items:center; justify-content:space-between; gap:12px;">
+    <div id="billsSelectionFooterMobile" style="display:none; position:fixed; bottom:84px; left:14px; right:14px; z-index:1050; background:var(--mob-surface,#ffffff); border:1px solid var(--mob-border,#e2e8f0); box-shadow:0 12px 28px rgba(15,23,42,0.18); border-radius:16px; padding:12px 16px; align-items:center; justify-content:space-between; gap:12px;">
         <div style="display:flex; flex-direction:column; gap:2px;">
-            <span id="selectedBillsCountTextMobile" style="font-size:12px; font-weight:600; color:#6C5CE7;">0 selecionada(s)</span>
-            <span style="font-size:13px; color:var(--color-text,#2d3436);">Total: <strong id="selectedBillsTotalTextMobile" style="color:#6C5CE7; font-size:15px;">R$ 0,00</strong></span>
+            <span id="selectedBillsCountTextMobile" style="font-size:12px; font-weight:700; color:var(--mob-primary, #4338CA);">0 selecionada(s)</span>
+            <span style="font-size:13px; color:var(--mob-text,#0F172A);">Total: <strong id="selectedBillsTotalTextMobile" data-sensitive style="color:var(--mob-primary, #4338CA); font-size:15px;">R$ 0,00</strong></span>
         </div>
-        <button type="button" class="chip" onclick="cancelBillSelectionMobile()" style="border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; background:var(--color-bg,#f1f5f9); border:none; cursor:pointer;">
+        <button type="button" class="chip" onclick="cancelBillSelectionMobile()" style="border-radius:10px; padding:6px 12px; font-size:12px; font-weight:600; min-height:36px;">
             <i class="fas fa-times"></i> Cancelar
         </button>
     </div>
@@ -381,6 +380,7 @@
 <!-- BOTTOM SHEET MODAL -->
 <div id="billSheet" class="bottom-sheet" onclick="if(event.target===this)closeModal()">
     <div class="bottom-sheet-card">
+        <div class="sheet-drag-handle"></div>
         <div class="sheet-header">
             <h3 id="modalTitle">Nova Conta</h3>
             <button class="sheet-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
@@ -417,7 +417,7 @@
 
                 <!-- DETALHES DE PARCELAMENTO (Condicional) -->
                 <div id="billInstallmentFields" style="display:none; padding:10px 12px; background:var(--color-bg, #f8fafc); border:1px solid var(--color-border, #e2e8f0); border-radius:8px;">
-                    <div style="font-size:11.5px; font-weight:700; color:var(--color-primary, #6c5ce7); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                    <div style="font-size:11.5px; font-weight:700; color:var(--mob-primary, #4338CA); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
                         <i class="fas fa-layer-group"></i> Detalhes do Pagamento Parcelado
                     </div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
@@ -443,12 +443,12 @@
                             </label>
                         </div>
                     </div>
-                    <div id="billInstallmentSummaryBox" style="font-size:11px; padding:6px 10px; border-radius:6px; background:#e0e7ff; color:#3730a3; margin-bottom:6px;">
+                    <div id="billInstallmentSummaryBox" style="font-size:11px; padding:6px 10px; border-radius:6px; background:#DBEAFE; color:#1E3A8A; margin-bottom:6px;">
                         <div style="font-weight:700;" id="billInstallmentRemainingText">Faltam 1 parcelas</div>
                         <div style="font-size:10px; opacity:0.9;" id="billInstallmentTotalRemainingText">Restam R$ 0,00 a pagar</div>
                     </div>
                     <div id="billGenerateFutureGroup" style="display:flex; align-items:center; gap:6px;">
-                        <input type="checkbox" id="billGenerateFuture" checked style="cursor:pointer; width:16px; height:16px; accent-color:#6C5CE7;">
+                        <input type="checkbox" id="billGenerateFuture" checked style="cursor:pointer; width:16px; height:16px; accent-color:#4338CA;">
                         <label for="billGenerateFuture" style="margin:0; font-size:11px; cursor:pointer; font-weight:500;">
                             Gerar automaticamente as parcelas futuras
                         </label>
@@ -467,8 +467,8 @@
                     <input type="text" id="inputNotes" class="form-control" placeholder="Código de barras, anotação..." style="width:100%;">
                 </div>
 
-                <div style="background:var(--color-bg,#f8fafc); padding:10px 12px; border-radius:8px; display:flex; align-items:center; gap:8px;">
-                    <input type="checkbox" id="inputPaid" style="width:18px; height:18px; accent-color:#6C5CE7;">
+                <div style="background:var(--mob-surface-2,#f1f5f9); padding:10px 12px; border-radius:10px; display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="inputPaid" style="width:18px; height:18px; accent-color:#4338CA;">
                     <label for="inputPaid" style="font-size:12px; font-weight:600; margin:0; cursor:pointer;">Conta já está paga</label>
                 </div>
 
@@ -510,14 +510,32 @@
 <script src="../../js/sync.js"></script>
 <script src="../../js/notifications.js"></script>
 <script src="../../js/sw-register.js"></script>
+<script src="../../js/mobile/ui.js?v=1.1.0"></script>
 
 <script>
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+
 let currentUser = null;
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 let allBills = [];
 let categories = [];
 let currentFilter = 'pending';
+
+function getTodayString() {
+    if (typeof window.getToday === 'function') {
+        const t = window.getToday();
+        if (t && typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+    }
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
 
 // ITEM 9: Estado de Seleção Múltipla & Soma Visual (Mobile)
 let isSelectionModeMobile = false;
@@ -562,6 +580,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (!user) { window.location.href = "../../index.html"; return; }
         currentUser = user;
+        if (typeof window !== 'undefined') window.currentUser = user;
 
         updateMonthLabel();
         await loadCategories();
@@ -582,7 +601,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function updateMonthLabel() {
-    document.getElementById("monthTitle").textContent = `${MONTHS[currentMonth]} ${currentYear}`;
+    const monthName = MONTHS[currentMonth];
+    document.getElementById("monthTitle").textContent = `${monthName} ${currentYear}`;
+    const badge = document.getElementById("statMonthRefBadge");
+    if (badge) badge.textContent = `${monthName}/${currentYear}`;
 }
 
 function changeMonth(delta) {
@@ -606,12 +628,12 @@ async function loadCategories() {
         if (!categories || categories.length === 0) {
             categories = [
                 { id: "default-1", name: "Alimentação", color: "#FF7675", icon: "fa-utensils" },
-                { id: "default-2", name: "Moradia", color: "#6C5CE7", icon: "fa-home" },
+                { id: "default-2", name: "Moradia", color: "#4338CA", icon: "fa-home" },
                 { id: "default-3", name: "Transporte", color: "#0984E3", icon: "fa-car" },
                 { id: "default-4", name: "Saúde", color: "#00B894", icon: "fa-heartbeat" },
                 { id: "default-5", name: "Educação", color: "#FDCB6E", icon: "fa-graduation-cap" },
                 { id: "default-6", name: "Lazer", color: "#E17055", icon: "fa-gamepad" },
-                { id: "default-7", name: "Contas Básicas", color: "#A29BFE", icon: "fa-file-invoice" },
+                { id: "default-7", name: "Contas Básicas", color: "#7C3AED", icon: "fa-file-invoice" },
                 { id: "default-8", name: "Outros", color: "#B2BEC3", icon: "fa-ellipsis-h" }
             ];
         }
@@ -634,7 +656,7 @@ async function loadCategories() {
 
 async function loadBills() {
     const container = document.getElementById("billsContainer");
-    container.innerHTML = '<div style="text-align:center;padding:24px;"><span class="spinner"></span></div>';
+    container.innerHTML = '<div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:36%;"></div></div></div><div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:68%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:44%;"></div></div></div>';
 
     const mStr = String(currentMonth + 1).padStart(2, "0");
     const firstDay = `${currentYear}-${mStr}-01`;
@@ -695,7 +717,7 @@ async function loadBills() {
 
 function updateStats() {
     let paid = 0, pending = 0, overdue = 0;
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayString();
 
     allBills.forEach(b => {
         const amt = parseFloat(b.amount) || 0;
@@ -711,12 +733,31 @@ function updateStats() {
 
     const normalPending = Math.max(0, pending - overdue);
 
-    // Total a pagar é estritamente o restante pendente/atrasado
-    document.getElementById("statTotal").textContent = formatCurrency(pending);
-    document.getElementById("statPaid").textContent = formatCurrency(paid);
-    document.getElementById("statPending").textContent = formatCurrency(normalPending);
-    document.getElementById("statOverdue").textContent = formatCurrency(overdue);
+    // Total a pagar é estritamente a soma das contas pendentes/a vencer do mês
+    const statTotalEl = document.getElementById("statTotal");
+    const statPaidEl = document.getElementById("statPaid");
+    const statPendingEl = document.getElementById("statPending");
+    const statOverdueEl = document.getElementById("statOverdue");
+
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(statTotalEl, pending, formatCurrency);
+        window.TonuMobileUI.animateValue(statPaidEl, paid, formatCurrency);
+        window.TonuMobileUI.animateValue(statPendingEl, normalPending, formatCurrency);
+        window.TonuMobileUI.animateValue(statOverdueEl, overdue, formatCurrency);
+    } else {
+        if (statTotalEl) statTotalEl.textContent = formatCurrency(pending);
+        if (statPaidEl) statPaidEl.textContent = formatCurrency(paid);
+        if (statPendingEl) statPendingEl.textContent = formatCurrency(normalPending);
+        if (statOverdueEl) statOverdueEl.textContent = formatCurrency(overdue);
+    }
+
+    const statMonthRefBadge = document.getElementById("statMonthRefBadge");
+    if (statMonthRefBadge && typeof MONTHS !== 'undefined') {
+        statMonthRefBadge.textContent = `${MONTHS[currentMonth]}/${currentYear}`;
+    }
+
     updateInstallmentsBannerMobile();
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 }
 
 let onlyInstallmentsFilterMobile = false;
@@ -761,9 +802,14 @@ function updateInstallmentsBannerMobile() {
         banner.style.display = "flex";
         const countEl = document.getElementById("bannerInstallmentActiveCountMobile");
         const detailsEl = document.getElementById("bannerInstallmentDetailsMobile");
-        if (countEl) countEl.textContent = activeCount;
-        if (detailsEl) {
-            detailsEl.textContent = `A vencer: ${totalRemainingInstallments} • Saldo: ${formatCurrency(totalRemainingDebt)}`;
+        if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+            window.TonuMobileUI.animateValue(countEl, activeCount, v => String(Math.round(v)));
+            window.TonuMobileUI.animateValue(detailsEl, totalRemainingDebt, v => `A vencer: ${totalRemainingInstallments} • Saldo: ${formatCurrency(v)}`);
+        } else {
+            if (countEl) countEl.textContent = activeCount;
+            if (detailsEl) {
+                detailsEl.textContent = `A vencer: ${totalRemainingInstallments} • Saldo: ${formatCurrency(totalRemainingDebt)}`;
+            }
         }
     } else {
         banner.style.display = "none";
@@ -783,13 +829,118 @@ function filterBillsByCategory(catId) {
     renderBills();
 }
 
+// Resolução inteligente e resiliente de metadados de parcelas para mobile
+function getMobileBillInstallmentInfo(b) {
+    if (!b) return null;
+    if (window.TonuInstallments && typeof window.TonuInstallments.getInstallmentInfo === 'function') {
+        const info = window.TonuInstallments.getInstallmentInfo(b);
+        if (info && (info.isInstallment || info.isRecurring)) return info;
+    }
+
+    let recType = b.recurrence_type || null;
+    let total = parseInt(b.installments || b.installment_total, 10);
+    let current = parseInt(b.current_installment || b.installment_number || b.installment_current, 10);
+
+    // Detecção direta via texto caso ainda não esteja categorizado nas colunas
+    const desc = (b.description || '') + ' ' + (b.notes || '');
+    const match = desc.match(/\b(\d+)\s*(?:\/|de)\s*(\d+)\b/i);
+    if (match && (!total || total <= 1)) {
+        current = parseInt(match[1], 10);
+        total = parseInt(match[2], 10);
+        recType = 'installments';
+    }
+
+    if (recType === 'monthly' || (b.is_recurring && recType !== 'semiannual')) {
+        return { isInstallment: false, isRecurring: true, type: 'monthly', label: 'Mensal', icon: 'fa-rotate' };
+    }
+    if (recType === 'semiannual') {
+        return { isInstallment: false, isRecurring: true, type: 'semiannual', label: 'Semestral', icon: 'fa-calendar-days' };
+    }
+
+    if (recType === 'installments' || (total && total > 1)) {
+        total = Math.max(2, total || 2);
+        current = Math.max(1, Math.min(total, current || 1));
+        const remaining = Math.max(0, total - current);
+        const unitAmount = parseFloat(b.amount) || 0;
+        const remainingAmount = remaining * unitAmount;
+        let remainingText = '';
+        if (remaining === 0) {
+            remainingText = b.paid ? 'Quitada 🎉' : 'Última parcela!';
+        } else if (remaining === 1) {
+            remainingText = 'Falta 1 parcela';
+        } else {
+            remainingText = `Faltam ${remaining} parcelas`;
+        }
+        return {
+            type: 'installments',
+            isInstallment: true,
+            isRecurring: false,
+            current: current,
+            total: total,
+            remaining: remaining,
+            remainingText: remainingText,
+            remainingAmount: remainingAmount
+        };
+    }
+
+    return null;
+}
+
+// colorTo15PercentAlpha provido globalmente por js/core.js
+
+function escapeBillHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function cleanBillCategoryLabel(rawName) {
+    const str = String(rawName || 'Geral');
+    const cleaned = str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim();
+    return cleaned || str;
+}
+
+function getBillDateGroupHeader(dateStr) {
+    if (!dateStr || dateStr === 'sem_data') return 'Sem data';
+    const parts = String(dateStr).split('T')[0].split('-');
+    if (parts.length < 3) return dateStr;
+    const y = Number(parts[0]);
+    const m = Number(parts[1]);
+    const d = Number(parts[2]);
+    if (!y || !m || !d) return dateStr;
+
+    const today = new Date();
+    if (today.getFullYear() === y && (today.getMonth() + 1) === m && today.getDate() === d) {
+        return 'Hoje';
+    }
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (yesterday.getFullYear() === y && (yesterday.getMonth() + 1) === m && yesterday.getDate() === d) {
+        return 'Ontem';
+    }
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (tomorrow.getFullYear() === y && (tomorrow.getMonth() + 1) === m && tomorrow.getDate() === d) {
+        return 'Amanhã';
+    }
+
+    return `${String(d).padStart(2, '0')} de ${MONTHS[m - 1] || m}`;
+}
+
 function renderBills() {
     const container = document.getElementById("billsContainer");
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayString();
     const selectedCat = document.getElementById("filterCategory")?.value || "all";
 
     const filtered = allBills.filter(b => {
-        const isOverdue = !b.paid && b.date && b.date < today;
+        const dueVal = b.due_date || b.date;
+        const isOverdue = !b.paid && dueVal && dueVal < today;
         if (currentFilter === 'paid' && !b.paid) return false;
         if (currentFilter === 'pending' && b.paid) return false;
         if (currentFilter === 'overdue' && !isOverdue) return false;
@@ -802,10 +953,8 @@ function renderBills() {
             if (!matchesCat) return false;
         }
         if (onlyInstallmentsFilterMobile) {
-            const isInst = window.TonuInstallments
-                ? window.TonuInstallments.getInstallmentInfo(b).isInstallment
-                : (Number(b.installment_total) > 1);
-            if (!isInst) return false;
+            const inst = getMobileBillInstallmentInfo(b);
+            if (!inst || !inst.isInstallment) return false;
         }
         return true;
     });
@@ -813,63 +962,185 @@ function renderBills() {
     if (filtered.length === 0) {
         const label = currentFilter === 'pending' ? 'pendentes' : (currentFilter === 'paid' ? 'pagas' : '');
         container.innerHTML = `
-            <div style="text-align:center;padding:36px 14px;">
-                <span style="font-size:36px;">📋</span>
-                <p style="font-size:14px;font-weight:600;margin:8px 0 2px 0;">Nenhuma conta ${label} no período</p>
-                <p style="font-size:12px;color:#94a3b8;margin:0;">Toque no botão central "+" para cadastrar</p>
+            <div class="mobile-empty-friendly">
+                <div class="empty-icon-box"><i class="fas fa-file-invoice-dollar"></i></div>
+                <h3>Tudo em dia!</h3>
+                <p>Nenhuma conta ${label ? label + ' ' : ''}encontrada no período. Toque no botão para cadastrar uma nova conta.</p>
+                <button type="button" class="btn-empty-action" onclick="openModal()">
+                    <i class="fas fa-plus"></i> Nova Conta
+                </button>
             </div>
         `;
         return;
     }
 
-    container.innerHTML = filtered.map(b => {
-        const cat = b.categories || categories.find(c => c.id === b.category_id) || {};
-        const color = cat.color || "#6C5CE7";
-        const icon = cat.icon || "fa-file-invoice-dollar";
-        const isPaid = !!b.paid;
-        const isOverdue = !isPaid && b.date && b.date < today;
+    // Ordena cronologicamente por data de vencimento (mantendo ordem estável no mesmo dia)
+    const sorted = [...filtered].sort((a, b) => {
+        const dA = (a.due_date || a.date || '9999-12-31').split('T')[0];
+        const dB = (b.due_date || b.date || '9999-12-31').split('T')[0];
+        if (dA !== dB) return dA.localeCompare(dB);
+        return String(a.description || '').localeCompare(String(b.description || ''));
+    });
 
-        let badge = '<span class="bill-badge badge-pending">PENDENTE</span>';
-        if (isPaid) badge = '<span class="bill-badge badge-paid">PAGA</span>';
-        else if (isOverdue) badge = '<span class="bill-badge badge-overdue">ATRASADA</span>';
+    // Agrupa contas por dia com subtotal diário
+    const groups = [];
+    let currentGroup = null;
 
-        const isSelected = selectedBillIdsMobile.has(String(b.id));
+    sorted.forEach(b => {
+        const dueDateVal = b.due_date || b.date || '';
+        const dateKey = dueDateVal ? String(dueDateVal).split('T')[0] : 'sem_data';
+
+        if (!currentGroup || currentGroup.dateKey !== dateKey) {
+            currentGroup = {
+                dateKey,
+                dateHeader: getBillDateGroupHeader(dateKey),
+                items: [],
+                dayTotal: 0
+            };
+            groups.push(currentGroup);
+        }
+
+        currentGroup.items.push(b);
+        currentGroup.dayTotal += parseFloat(b.amount) || 0;
+    });
+
+    let cardIdx = 0;
+    const todayParts = today.split('-');
+    const todayLocalDate = todayParts.length === 3
+        ? new Date(Number(todayParts[0]), Number(todayParts[1]) - 1, Number(todayParts[2]), 12, 0, 0)
+        : new Date();
+
+    container.innerHTML = groups.map(g => {
+        const cardsHtml = g.items.map(b => {
+            const cat = b.categories || categories.find(c => c.id === b.category_id) || {};
+            const backendCat = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
+                ? window.getBackendCategoryStyle(b.category || cat.name || b.description, cat)
+                : null;
+            const color = cat.color || backendCat?.color || "#4338CA";
+            let icon = cat.icon || backendCat?.icon || "fa-file-invoice-dollar";
+            if (icon && !icon.startsWith('fa-')) icon = 'fa-' + icon;
+            const isPaid = !!b.paid;
+            const dueDateVal = b.due_date || b.date;
+            const isOverdue = !isPaid && dueDateVal && dueDateVal < today;
+
+            let statusTagHtml = '<span class="clean-card-tag-inline pending">Pendente</span>';
+            if (isPaid) statusTagHtml = '<span class="clean-card-tag-inline paid">Paga</span>';
+            else if (isOverdue) statusTagHtml = '<span class="clean-card-tag-inline overdue">Atrasada</span>';
+
+            let statusText = 'Em aberto';
+            let statusClass = '';
+            if (isPaid) {
+                statusText = 'Pago';
+                statusClass = 'is-paid';
+            } else if (dueDateVal) {
+                const p = String(dueDateVal).split('T')[0].split('-');
+                if (p.length === 3) {
+                    const dueObj = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), 12, 0, 0);
+                    const diffDays = Math.round((dueObj - todayLocalDate) / 86400000);
+                    if (diffDays < 0) {
+                        statusText = `Vencida há ${Math.abs(diffDays)}d`;
+                        statusClass = 'is-overdue';
+                    } else if (diffDays === 0) {
+                        statusText = 'Vence hoje!';
+                        statusClass = 'is-today';
+                    } else if (diffDays === 1) {
+                        statusText = 'Vence amanhã';
+                        statusClass = 'is-soon';
+                    } else if (diffDays <= 5) {
+                        statusText = `Vence em ${diffDays}d`;
+                        statusClass = 'is-soon';
+                    }
+                }
+            }
+
+            const isSelected = selectedBillIdsMobile.has(String(b.id));
+            const instInfo = getMobileBillInstallmentInfo(b);
+            let metaExtraHtml = '';
+            if (instInfo && instInfo.isInstallment) {
+                const remainingCount = instInfo.remaining;
+                metaExtraHtml = `<span class="clean-card-tag-inline installment">${instInfo.current}/${instInfo.total}</span>`;
+                if (!isPaid && remainingCount > 0) {
+                    statusText = `Restam ${remainingCount}x · ${statusText}`;
+                } else if (remainingCount === 0 && isPaid) {
+                    statusText = 'Quitada';
+                }
+            } else if (instInfo && instInfo.isRecurring) {
+                metaExtraHtml = `<span class="clean-card-tag-inline recurring">${instInfo.label || 'Recorrente'}</span>`;
+            }
+
+            const squircleBg = colorTo15PercentAlpha(color);
+            const cleanCatName = escapeBillHtml(cleanBillCategoryLabel(cat.name || b.category || 'Geral'));
+            const safeDesc = escapeBillHtml(b.description || 'Conta');
+            const delay = (Math.min(cardIdx++, 10) * 0.03).toFixed(2);
+
+            return `
+                <div class="stagger-card" data-swipe-row data-swipe-width="136" style="animation-delay: ${delay}s;">
+                    <div class="swipe-actions-tray" aria-label="Ações da conta">
+                        <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); openModal('${b.id}')" aria-label="Editar conta">
+                            <i class="fas fa-pen"></i>
+                            <span>Editar</span>
+                        </button>
+                        <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuMobileUI && window.TonuMobileUI.closeSwipeRows && window.TonuMobileUI.closeSwipeRows(); deleteBillDirect('${b.id}')" aria-label="Apagar conta">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>Apagar</span>
+                        </button>
+                    </div>
+                    <div class="bill-card-mobile clean-list-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" data-swipe-content id="bill_card_mobile_${b.id}">
+                        <div class="compact-card-main">
+                            ${isSelectionModeMobile ? `
+                                <input type="checkbox" class="bill-check-mobile" ${isSelected ? 'checked' : ''} onchange="toggleSelectBillMobile('${b.id}', this.checked)" style="width:18px; height:18px; accent-color:#4338CA; cursor:pointer; flex-shrink:0;">
+                            ` : ''}
+                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color};">
+                                <i class="fas ${icon}"></i>
+                            </div>
+                            <div class="clean-card-body">
+                                <div class="clean-card-top">
+                                    <span class="clean-card-title">${safeDesc}</span>
+                                    <span class="clean-card-amount ${isPaid ? 'income' : (isOverdue ? 'expense' : 'warning')}" data-sensitive>
+                                        ${formatCurrency(b.amount)}
+                                    </span>
+                                </div>
+                                <div class="clean-card-meta-line">
+                                    <span class="clean-card-cat-text">${cleanCatName}</span>
+                                    <span class="clean-card-meta-sep" aria-hidden="true">·</span>
+                                    <span class="clean-card-date-text">${formatDate(dueDateVal)}</span>
+                                    ${statusTagHtml}
+                                    ${metaExtraHtml}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bill-compact-footer">
+                            <span class="bill-compact-status ${statusClass}">${escapeBillHtml(statusText)}</span>
+                            <div class="bill-compact-actions">
+                                ${(instInfo && instInfo.isInstallment && !isPaid) ? `
+                                    <button type="button" class="btn-bill-compact-anticipate" onclick="openAnticipationModal('${b.id}')" title="Antecipar / Quitar">
+                                        <i class="fas fa-forward-step"></i> Antecipar
+                                    </button>
+                                ` : ''}
+                                <button type="button" class="btn-bill-compact-pay ${isPaid ? 'is-paid' : ''}" onclick="togglePaid('${b.id}')">
+                                    <i class="fas ${isPaid ? 'fa-undo' : 'fa-check'}"></i>
+                                    ${isPaid ? 'Reabrir' : 'Pagar'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
 
         return `
-            <div class="bill-card-mobile ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_card_mobile_${b.id}">
-                <div class="bill-top" style="align-items:center;">
-                    ${isSelectionModeMobile ? `
-                        <div style="margin-right:10px; display:flex; align-items:center;">
-                            <input type="checkbox" class="bill-check-mobile" ${isSelected ? 'checked' : ''} onchange="toggleSelectBillMobile('${b.id}', this.checked)" style="width:20px; height:20px; accent-color:#6C5CE7; cursor:pointer;">
-                        </div>
-                    ` : ''}
-                    <div class="bill-icon" style="background:${color};">
-                        <i class="fas ${icon}"></i>
-                    </div>
-                    <div class="bill-details">
-                        <div class="bill-name">${b.description}</div>
-                        <div class="bill-meta">${formatDate(b.date)} • ${cat.name || 'Geral'}</div>
-                    </div>
-                    <div class="bill-price">
-                        <div class="bill-val ${isPaid ? 'text-success' : (isOverdue ? 'text-danger' : 'text-warning')}">
-                            ${formatCurrency(b.amount)}
-                        </div>
-                        <div>${badge}</div>
-                    </div>
+            <section class="bills-day-group" aria-label="${escapeBillHtml(g.dateHeader)}">
+                <div class="ios-section-header">
+                    <span>${escapeBillHtml(g.dateHeader)}</span>
+                    <span class="subtotal-pill" data-sensitive>${formatCurrency(g.dayTotal)}</span>
                 </div>
-                <div class="bill-bottom">
-                    <button class="btn-toggle-paid ${isPaid ? 'is-paid' : ''}" onclick="togglePaid('${b.id}')">
-                        <i class="fas ${isPaid ? 'fa-check-circle' : 'fa-check'}"></i>
-                        ${isPaid ? 'Marcar Pendente' : 'Pagar'}
-                    </button>
-                    <div class="bill-actions-mobile">
-                        <button class="btn-act" onclick="openModal('${b.id}')" title="Editar"><i class="fas fa-pencil-alt"></i></button>
-                        <button class="btn-act" onclick="deleteBillDirect('${b.id}')" style="color:#ef4444;" title="Excluir"><i class="fas fa-trash"></i></button>
-                    </div>
+                <div class="bills-day-items">
+                    ${cardsHtml}
                 </div>
-            </div>
+            </section>
         `;
-    }).join("");
+    }).join('');
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 }
 
 // ============================================
@@ -944,28 +1215,90 @@ function toggleSelectBillMobile(id, checked) {
     }
 }
 
-async function togglePaid(id) {
+async function togglePaid(id, targetStatus = undefined) {
     const bill = allBills.find(b => String(b.id) === String(id));
     if (!bill) return;
 
-    const newStatus = !bill.paid;
-    const paidDate = newStatus ? new Date().toISOString().split("T")[0] : null;
+    // Guarda 1: Previne cliques duplos rápidos concorrentes
+    if (bill._updating) return;
 
-    bill.paid = newStatus;
-    bill.paid_date = paidDate;
-    updateStats();
-    renderBills();
+    const newStatus = (targetStatus !== undefined) ? !!targetStatus : !bill.paid;
 
-    // Persiste no IndexedDB canônico e enfileira para sincronização
-    if (window.tonuSync && currentUser?.id) {
-        await window.tonuSync.setCachedBills(currentUser.id, allBills);
-        await window.tonuSync.enqueue('UPDATE_BILL', {
-            id: id,
-            paid: newStatus,
-            paid_date: paidDate
-        });
+    // Guarda 3: Se já está no estado desejado (ex: pagar já pago), não faz nada
+    if (bill.paid === newStatus) return;
+
+    if (window.safeHaptic) window.safeHaptic(25);
+
+    bill._updating = true;
+
+    try {
+        const paidDate = newStatus ? getTodayString() : null;
+
+        // Ao pagar: preserva vencimento em due_date e atualiza date para a data real de pagamento (extrato)
+        if (newStatus) {
+            if (!bill.due_date) {
+                bill.due_date = bill.date;
+            }
+            bill.date = paidDate;
+        } else {
+            // Ao reverter: restaura o campo date para o vencimento original
+            if (bill.due_date) {
+                bill.date = bill.due_date;
+            }
+        }
+
+        bill.paid = newStatus;
+        bill.paid_date = paidDate;
+        updateStats();
+        renderBills();
+
+        // Persiste no IndexedDB canônico e enfileira para sincronização
+        if (window.tonuSync && currentUser?.id) {
+            await window.tonuSync.setCachedBills(currentUser.id, allBills);
+            try {
+                const cachedTx = await window.tonuSync.getCachedTransactions(currentUser.id);
+                if (Array.isArray(cachedTx)) {
+                    const targetTx = cachedTx.find(t => String(t.id) === String(id));
+                    if (targetTx) {
+                        targetTx.paid = newStatus;
+                        targetTx.paid_date = paidDate;
+                        targetTx.date = bill.date;
+                        targetTx.due_date = bill.due_date || targetTx.due_date;
+                        await window.tonuSync.setCachedTransactions(currentUser.id, cachedTx);
+                    }
+                }
+            } catch (_) {}
+
+            await window.tonuSync.enqueue('UPDATE_BILL', {
+                id: id,
+                paid: newStatus,
+                paid_date: paidDate,
+                date: bill.date,
+                due_date: bill.due_date || undefined
+            });
+        }
+
+        // Atualiza diretamente no Supabase se online
+        if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+            try {
+                await window.supabaseClient
+                    .from('transactions')
+                    .update({
+                        paid: newStatus,
+                        paid_date: paidDate,
+                        date: bill.date,
+                        due_date: bill.due_date || null
+                    })
+                    .eq('id', id)
+                    .eq('user_id', currentUser.id);
+            } catch (supaErr) {
+                console.warn('Erro ao atualizar Supabase ao pagar conta no mobile:', supaErr);
+            }
+        }
+        if (window.checkNotifications) window.checkNotifications();
+    } finally {
+        bill._updating = false;
     }
-    if (window.checkNotifications) window.checkNotifications();
 }
 
 function openModal(id = null) {
@@ -1056,6 +1389,8 @@ async function saveBill(event) {
         return;
     }
 
+    if (window.safeHaptic) window.safeHaptic(20);
+
     const recurrenceType = document.getElementById("billRecurrenceType")?.value || 'single';
     let installmentsTotal = 1;
     let installmentCurrent = 1;
@@ -1089,7 +1424,7 @@ async function saveBill(event) {
         category_id: catId,
         notes: notes,
         paid: paid,
-        paid_date: paid ? new Date().toISOString().split("T")[0] : null,
+        paid_date: paid ? getTodayString() : null,
         recurrence_type: recurrenceType,
         is_recurring: isRecurring,
         installments: recurrenceType === 'installments' ? installmentsTotal : 1,
@@ -1175,7 +1510,7 @@ async function saveBill(event) {
                         installment_total: installmentsTotal,
                         installment_number: i,
                         paid: itemPaid,
-                        paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
+                        paid_date: itemPaid ? getTodayString() : null
                     };
                     batch.push(billItem);
                     allBills.push(billItem);
@@ -1199,7 +1534,7 @@ async function saveBill(event) {
                         is_recurring: true,
                         recurrence_type: 'monthly',
                         paid: itemPaid,
-                        paid_date: itemPaid ? (new Date().toISOString().split("T")[0]) : null
+                        paid_date: itemPaid ? getTodayString() : null
                     };
                     batch.push(billItem);
                     allBills.push(billItem);
@@ -1230,14 +1565,79 @@ async function saveBill(event) {
 }
 
 async function deleteBillDirect(id) {
-    if (!confirm("Deseja excluir esta conta?")) return;
-    try {
-        allBills = allBills.filter(b => String(b.id) !== String(id));
-        if (window.tonuSync && currentUser?.id) {
-            await window.tonuSync.setCachedBills(currentUser.id, allBills);
-            await window.tonuSync.enqueue('DELETE_BILL', { id });
+    const target = allBills.find(b => String(b.id) === String(id));
+    let seriesInfo = { fromNow: [], all: [] };
+    if (target) {
+        if (typeof window.getFullSeriesInfo === 'function') {
+            seriesInfo = await window.getFullSeriesInfo(target, allBills, { userId: currentUser?.id });
+        } else if (typeof window.findSeriesInfo === 'function') {
+            seriesInfo = window.findSeriesInfo(target, allBills);
+        } else if (typeof window.findRemainingSeries === 'function') {
+            const rem = window.findRemainingSeries(target, allBills);
+            seriesInfo = { fromNow: rem, all: rem };
         }
-        showToast("Conta excluída!", "info");
+    }
+
+    let deleteMode = 'single';
+    if ((seriesInfo.fromNow.length > 0 || seriesInfo.all.length > 0) && typeof window.confirmRecurringDelete === 'function') {
+        deleteMode = await window.confirmRecurringDelete({
+            countFromNow: seriesInfo.fromNow.length,
+            countAll: seriesInfo.all.length,
+            itemName: target.description || 'Conta',
+            itemType: 'conta'
+        });
+        if (deleteMode === 'cancel') return;
+    } else {
+        const ok = await window.TonuConfirm({
+            title: "Excluir conta",
+            message: "Deseja realmente excluir esta conta?",
+            confirmText: "Excluir",
+            danger: true
+        });
+        if (!ok) return;
+    }
+
+    try {
+        let idsToDelete = [String(id)];
+        if (deleteMode === 'from_now') {
+            idsToDelete = [String(id), ...seriesInfo.fromNow.map(r => String(r.id))];
+        } else if (deleteMode === 'all_series' || deleteMode === 'all') {
+            idsToDelete = [String(id), ...seriesInfo.all.map(r => String(r.id))];
+        }
+
+        const idSet = new Set(idsToDelete);
+        allBills = allBills.filter(b => !idSet.has(String(b.id)));
+
+        // Remove do cache canônico IndexedDB e enfileira exclusão
+        if (window.tonuSync && currentUser?.id) {
+            try {
+                const cached = await window.tonuSync.getCachedBills(currentUser.id);
+                if (Array.isArray(cached)) {
+                    const filteredCached = cached.filter(b => !idSet.has(String(b.id)));
+                    await window.tonuSync.setCachedBills(currentUser.id, filteredCached);
+                } else {
+                    await window.tonuSync.setCachedBills(currentUser.id, allBills);
+                }
+            } catch (_) {}
+
+            for (const delId of idsToDelete) {
+                await window.tonuSync.enqueue('DELETE_BILL', { id: delId });
+            }
+        }
+
+        // Remove diretamente do Supabase em transactions (com is_bill = true)
+        if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+            try {
+                await window.supabaseClient.from('transactions').delete().in('id', idsToDelete).eq('user_id', currentUser.id);
+            } catch (supaErr) {
+                console.warn('Erro ao remover contas do Supabase:', supaErr);
+            }
+        }
+
+        const msg = idsToDelete.length > 1
+            ? `${idsToDelete.length} contas excluídas com sucesso! 🗑️`
+            : "Conta excluída!";
+        showToast(msg, "info");
 
         await loadBills();
         if (window.checkNotifications) window.checkNotifications();
@@ -1254,51 +1654,182 @@ function deleteCurrentBill() {
     }
 }
 
-function formatCurrency(val) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(val);
-    }
-    if (val === null || val === undefined || val === '') val = 0;
-    if (typeof val === 'string') {
-        const cleaned = val.replace(/[R$\s]/g, '');
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-            val = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (cleaned.includes(',')) {
-            val = cleaned.replace(',', '.');
-        }
-        val = parseFloat(val);
-    }
-    const n = Number(val) || 0;
+async function openAnticipationModal(billId) {
+    const target = allBills.find(b => String(b.id) === String(billId));
+    if (!target) return;
+
+    let series = [target];
     try {
-        return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n).replace(/\u00A0/g, ' ');
-    } catch {
-        const isNegative = n < 0;
-        const parts = Math.abs(n).toFixed(2).split('.');
-        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const res = 'R$ ' + intPart + ',' + parts[1];
-        return isNegative ? '-' + res : res;
+        if (typeof window.getFullSeriesInfo === 'function') {
+            const info = await window.getFullSeriesInfo(target, allBills, { userId: currentUser?.id });
+            if (info && (info.all?.length > 0 || info.fromNow?.length > 0)) {
+                series = [info.target, ...(info.all || [])].filter(Boolean);
+            }
+        }
+    } catch (e) {
+        console.warn('Erro ao consultar getFullSeriesInfo:', e);
+    }
+
+    // Se ainda tem apenas o target (meses futuros não carregados na tela), busca no IndexedDB local completo
+    if (series.length <= 1 && window.tonuSync && currentUser?.id) {
+        try {
+            const allCached = await window.tonuSync.getCachedBills(currentUser.id);
+            if (Array.isArray(allCached) && allCached.length > 0) {
+                const cleanDesc = String(target.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+                const pId = target.parent_transaction_id ? String(target.parent_transaction_id) : String(target.id);
+                const matched = allCached.filter(b => {
+                    if (!b) return false;
+                    if (String(b.id) === String(target.id)) return true;
+                    if (b.parent_transaction_id && (String(b.parent_transaction_id) === pId || String(b.id) === pId)) return true;
+                    if (target.parent_transaction_id && String(b.parent_transaction_id) === String(target.parent_transaction_id)) return true;
+                    const bDesc = String(b.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+                    return cleanDesc && bDesc === cleanDesc;
+                });
+                if (matched.length > 1) {
+                    series = matched;
+                }
+            }
+        } catch (_) {}
+    }
+
+    // Garante que APENAS parcelas desta conta estão na lista enviada ao modal (isolamento estrito)
+    const cleanTargetDesc = String(target.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+    const targetPId = target.parent_transaction_id ? String(target.parent_transaction_id) : String(target.id);
+    const filteredSeries = series.filter(b => {
+        if (!b) return false;
+        const bId = String(b.id);
+        if (bId === String(target.id)) return true;
+
+        const bPId = b.parent_transaction_id ? String(b.parent_transaction_id) : null;
+        if (targetPId) {
+            if (bId === targetPId) return true;
+            if (bPId) return bPId === targetPId;
+        }
+
+        const bDesc = String(b.description || '').replace(/\s*\(\d+\/\d+\)$/, '').trim().toLowerCase();
+        return cleanTargetDesc && bDesc === cleanTargetDesc && !bPId;
+    });
+
+    const modalFn = window.getAnticipationModal || window.showAnticipationModal;
+    if (typeof modalFn === 'function') {
+        modalFn({
+            target: target,
+            allSeries: filteredSeries.length > 0 ? filteredSeries : [target],
+            onConfirm: async function (selectedBills, typedAmount, paymentDate) {
+                await processAnticipationMobile(target, selectedBills, typedAmount, paymentDate);
+            }
+        });
     }
 }
 
-function formatDate(d) {
-    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
-        return window.formatDate(d);
+async function processAnticipationMobile(target, selectedBills, typedAmount, paymentDate) {
+    // Guarda obrigatória
+    if (!typedAmount || typedAmount <= 0) {
+        showToast('❌ Informe o valor pago para quitar as parcelas.', 'error');
+        return;
     }
-    if (!d) return "--/--/----";
-    const parts = d.split("T")[0].split("-");
-    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    return d;
+
+    const today = paymentDate || getTodayString();
+    const selectedIds = selectedBills.map(b => String(b.id));
+    const idSet = new Set(selectedIds);
+
+    // 1. Marca as parcelas como pagas mantendo datas de vencimento e amount original intactos
+    allBills.forEach(b => {
+        if (idSet.has(String(b.id))) {
+            b.paid = true;
+            b.paid_date = today;
+            if (!b.amount_paid) b.amount_paid = b.amount;
+        }
+    });
+
+    // 2. Cria 1 única transação de extrato
+    const createFn = window.createAnticipationTransaction || window.createAnticipationPayload;
+    const txPayload = typeof createFn === 'function'
+        ? createFn(target, selectedBills, typedAmount, today)
+        : {
+            id: (typeof genUuid === 'function' ? genUuid() : (window.genUuid ? window.genUuid() : '00000000-0000-4000-8000-000000000000')),
+            user_id: currentUser?.id || target.user_id,
+            description: `Antecipação: ${(target.description || 'Conta').replace(/\s*\(\d+\/\d+\)$/, '').trim()}`,
+            amount: typedAmount,
+            date: today,
+            due_date: today,
+            type: 'expense',
+            category_id: target.category_id || null,
+            category: target.category || 'Contas / Empréstimos',
+            is_bill: false,
+            paid: true,
+            paid_date: today,
+            parent_transaction_id: String(target.parent_transaction_id || target.id),
+            is_anticipation: true
+        };
+
+    if (currentUser?.id && !txPayload.user_id) {
+        txPayload.user_id = currentUser.id;
+    }
+
+    // 3. Atualiza cache local IndexedDB e enfileira
+    if (window.tonuSync && currentUser?.id) {
+        try {
+            const cached = await window.tonuSync.getCachedBills(currentUser.id);
+            if (Array.isArray(cached)) {
+                cached.forEach(b => {
+                    if (idSet.has(String(b.id))) {
+                        b.paid = true;
+                        b.paid_date = today;
+                        if (!b.amount_paid) b.amount_paid = b.amount;
+                    }
+                });
+                await window.tonuSync.setCachedBills(currentUser.id, cached);
+            } else {
+                await window.tonuSync.setCachedBills(currentUser.id, allBills);
+            }
+        } catch (_) {}
+
+        // Atualiza cache de transações também para aparecer imediatamente no extrato
+        try {
+            const cachedTx = await window.tonuSync.getCachedTransactions(currentUser.id);
+            const txList = Array.isArray(cachedTx) ? cachedTx : [];
+            txList.forEach(t => {
+                if (idSet.has(String(t.id))) {
+                    t.paid = true;
+                    t.paid_date = today;
+                    if (!t.amount_paid) t.amount_paid = t.amount;
+                }
+            });
+            if (!txList.some(t => String(t.id) === String(txPayload.id))) {
+                txList.unshift(txPayload);
+            }
+            await window.tonuSync.setCachedTransactions(currentUser.id, txList);
+        } catch (_) {}
+
+        for (const bId of selectedIds) {
+            const matchingBill = selectedBills.find(b => String(b.id) === String(bId));
+            await window.tonuSync.enqueue('UPDATE_BILL', { id: bId, paid: true, paid_date: today, amount_paid: matchingBill?.amount });
+        }
+        await window.tonuSync.enqueue('INSERT_TRANSACTION', txPayload);
+    }
+
+    // 4. Grava no Supabase
+    if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            await window.supabaseClient.from('transactions').update({ paid: true, paid_date: today }).in('id', selectedIds).eq('user_id', currentUser.id);
+            const { error: insErr } = await window.supabaseClient.from('transactions').insert(txPayload);
+            if (insErr) {
+                console.error('❌ Erro ao salvar antecipação no Supabase (mobile):', insErr);
+            } else {
+                console.log('✅ Antecipação registrada com sucesso no Supabase (mobile)');
+            }
+        } catch (err) {
+            console.warn('Erro ao salvar antecipação no Supabase:', err);
+        }
+    }
+
+    showToast(`✅ ${selectedBills.length} parcela(s) quitada(s) por ${formatCurrency(typedAmount)}!`, 'success');
+    renderBills();
+    updateStats();
 }
 
-function toggleTheme() {
-    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
-        return window.toggleTheme();
-    }
-    const isDark = document.body.classList.toggle("dark-theme");
-    localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
-    const icon = document.querySelector("#themeIcon");
-    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
-}
+// formatCurrency, formatDate e toggleTheme providos globalmente por js/core.js
 </script>
 
 </body>

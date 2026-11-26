@@ -3,26 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#4338CA">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="manifest" href="../../manifest.json">
-    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png">
-    <link rel="shortcut icon" href="../../icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png">
+    <link rel="manifest" href="../../manifest.json?v=3.2.1">
+    <link rel="icon" type="image/svg+xml" href="../../icons/favicon.svg?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon-96x96.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="16x16" href="../../icons/icon-72x72.png?v=3.2.1">
+    <link rel="icon" type="image/png" sizes="128x128" href="../../icons/icon-128x128.png?v=3.2.1">
+    <link rel="shortcut icon" href="../../icons/icon-128x128.png?v=3.2.1">
+    <link rel="apple-touch-icon" sizes="180x180" href="../../icons/icon-192x192.png?v=3.2.1">
     <title>TonuControle - Metas Mobile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../css/theme.css">
-    <link rel="stylesheet" href="../../css/dark-theme.css">
-    <link rel="stylesheet" href="../../css/mobile.css">
+    <link rel="stylesheet" href="../../css/theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../../css/dark-theme.css?v=3.2.1">
+    <link rel="stylesheet" href="../../css/mobile.css?v=4.3.0">
+    <link rel="stylesheet" href="../../css/notifications.css?v=3.2.1">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <style>
-        body { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)); background: var(--color-bg, #f8fafc); }
+        html, body {
+            overflow-x: hidden !important;
+            max-width: 100vw;
+        }
+        body { 
+            background: var(--bg-app, #F4F7FC) !important; 
+            overflow-x: hidden !important;
+        }
 
         /* HERO STATS */
         .goals-hero-grid {
@@ -32,176 +41,263 @@
             margin-bottom: 14px;
         }
         .goals-hero-card {
-            background: var(--color-surface, #ffffff);
-            border-radius: 14px;
-            padding: 12px 14px;
-            border: 1px solid var(--color-border, #e2e8f0);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            background: var(--mob-surface, #ffffff);
+            border-radius: 18px;
+            padding: 14px 16px;
+            border: 1px solid var(--mob-border, #e2e8f0);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .goals-hero-card.full-width {
             grid-column: span 2;
-            background: linear-gradient(135deg, rgba(108, 92, 231, 0.08), rgba(162, 155, 254, 0.12));
-            border-color: rgba(108, 92, 231, 0.2);
+            background: linear-gradient(135deg, rgba(55, 48, 163, 0.10), rgba(37, 99, 235, 0.16));
+            border-color: rgba(37, 99, 235, 0.24);
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.12);
         }
         .goals-hero-card .hero-label {
-            font-size: 10px;
+            font-size: 10.5px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--color-text-muted, #64748b);
-            margin-bottom: 4px;
+            letter-spacing: 0.6px;
+            color: var(--mob-text-muted, #475569);
+            margin-bottom: 5px;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
         }
         .goals-hero-card .hero-value {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 800;
-            color: var(--color-text, #0f172a);
-            letter-spacing: -0.3px;
+            color: var(--mob-text, #172554);
+            letter-spacing: -0.4px;
+            font-feature-settings: 'tnum';
         }
         .goals-hero-card.full-width .hero-value {
-            font-size: 24px;
-            color: #6C5CE7;
+            font-size: 26px;
+            color: #2563EB;
         }
 
         /* FILTROS */
         .chip-filters {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             overflow-x: auto;
             padding-bottom: 6px;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
             scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
         }
         .chip-filters::-webkit-scrollbar { display: none; }
         .chip-btn {
-            border: 1px solid var(--color-border, #e2e8f0);
-            background: var(--color-surface, #ffffff);
-            color: var(--color-text-muted, #64748b);
-            font-size: 11px;
+            position: relative;
+            border: 1px solid var(--mob-border, #e2e8f0);
+            background: var(--mob-surface, #ffffff);
+            color: var(--mob-text-muted, #475569);
+            font-size: 12px;
             font-weight: 600;
-            padding: 6px 12px;
+            padding: 6px 14px 9px;
+            min-height: 38px;
             border-radius: 999px;
             white-space: nowrap;
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+            touch-action: manipulation;
         }
+        .chip-btn:active { transform: scale(0.95); }
         .chip-btn.active {
-            background: #6C5CE7;
-            color: #ffffff;
-            border-color: #6C5CE7;
+            background: radial-gradient(circle at 50% 40%, rgba(37, 99, 235, 0.14) 0%, rgba(16, 185, 129, 0.05) 56%, rgba(255, 255, 255, 0.96) 100%) !important;
+            color: #3730A3 !important;
+            border-color: rgba(37, 99, 235, 0.28) !important;
+            font-weight: 700;
+            box-shadow:
+                0 3px 10px -2px rgba(37, 99, 235, 0.18),
+                inset 0 1px 0 rgba(255, 255, 255, 0.92);
+        }
+        body.dark-theme .goals-hero-card {
+            background: var(--bg-surface, #131C31) !important;
+            border-color: var(--border-hairline, #223254) !important;
+        }
+        body.dark-theme .goals-hero-card.full-width {
+            background: linear-gradient(135deg, rgba(55, 48, 163, 0.24), rgba(37, 99, 235, 0.20)) !important;
+            border-color: rgba(59, 130, 246, 0.36) !important;
+        }
+        body.dark-theme .goals-hero-card .hero-value {
+            color: var(--text-primary, #F1F5F9) !important;
+        }
+        body.dark-theme .chip-btn {
+            background: var(--bg-surface, #131C31) !important;
+            border-color: var(--border-hairline, #223254) !important;
+            color: var(--text-muted, #94A3B8) !important;
+        }
+        body.dark-theme .chip-btn.active {
+            background: radial-gradient(circle at 50% 40%, rgba(59, 130, 246, 0.24) 0%, rgba(37, 99, 235, 0.10) 56%, rgba(19, 28, 49, 0.94) 100%) !important;
+            color: #DBEAFE !important;
+            border-color: rgba(59, 130, 246, 0.38) !important;
+        }
+        body.dark-theme .goal-card,
+        body.dark-theme .cdi-yield-card-mobile,
+        body.dark-theme .temporal-control-mobile {
+            background: var(--bg-surface, #131C31) !important;
+            border-color: var(--border-hairline, #223254) !important;
+        }
+        body.dark-theme .goal-title-group h3 {
+            color: var(--text-primary, #F1F5F9) !important;
         }
 
-        /* CARD DA META */
+        /* CARD DA META (COMPACTO) */
         .goal-card {
-            background: var(--color-surface, #ffffff);
-            border-radius: 14px;
-            padding: 14px;
-            border: 1px solid var(--color-border, #e2e8f0);
-            margin-bottom: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-            border-left: 5px solid #6C5CE7;
-            transition: transform 0.15s ease;
+            background: var(--mob-surface, #ffffff) !important;
+            border-radius: 14px !important;
+            padding: 10px 12px !important;
+            border: 1px solid var(--mob-border, #e2e8f0);
+            margin: 0 0 8px 0 !important;
+            box-shadow: var(--mob-shadow-sm, 0 2px 8px rgba(15, 23, 42, 0.04)) !important;
+            border-left: 3px solid #4338CA !important;
+            transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        .goal-card:active {
+            transform: scale(0.985);
         }
         .goal-card.completed {
             border-left-color: #00B894 !important;
-            opacity: 0.95;
+            border-left-width: 3px !important;
+            opacity: 0.98;
         }
         .goal-card-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 8px;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            gap: 8px !important;
+            margin-bottom: 6px !important;
+            width: 100% !important;
         }
         .goal-title-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            display: flex !important;
+            align-items: center !important;
+            gap: 9px !important;
+            min-width: 0 !important;
+            flex: 1 !important;
+        }
+        .goal-card .mobile-icon-squircle {
+            width: 34px !important;
+            height: 34px !important;
+            border-radius: 10px !important;
+            font-size: 13px !important;
         }
         .goal-category-icon {
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 13px;
             color: #ffffff;
             flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
         }
         .goal-title-group h3 {
-            font-size: 14px;
+            font-size: 13.5px;
             font-weight: 700;
             color: var(--color-text, #0f172a);
             margin: 0;
+            line-height: 1.22;
+            letter-spacing: -0.2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .goal-title-group small {
-            font-size: 10px;
-            color: var(--color-text-muted, #94a3b8);
+            font-size: 10.5px;
+            color: var(--color-text-muted, #64748b);
+            margin-top: 1px;
+            display: block;
         }
         .goal-badge {
             font-size: 10px;
             font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 999px;
+            padding: 2px 7px;
+            border-radius: 7px;
             display: flex;
             align-items: center;
             gap: 4px;
+            flex-shrink: 0;
+            white-space: nowrap;
         }
         .goal-badge.ongoing {
-            background: rgba(108, 92, 231, 0.1);
-            color: #6C5CE7;
+            background: rgba(67, 56, 202, 0.1);
+            color: #4338CA;
         }
         .goal-badge.done {
             background: rgba(0, 184, 148, 0.12);
             color: #00B894;
         }
 
-        /* VALORES E PROGRESSO */
+        /* VALORES E PROGRESSO - LINHA CONTÍNUA SEM SLIDER */
         .goal-values-row {
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
-            margin: 10px 0 6px 0;
-            font-size: 12px;
+            margin: 4px 0 3px 0;
+            font-size: 11.5px;
         }
         .goal-current-val {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 800;
             color: var(--color-text, #0f172a);
+            font-variant-numeric: tabular-nums;
         }
         .goal-target-val {
-            font-size: 11px;
+            font-size: 10.5px;
             color: var(--color-text-muted, #64748b);
+            font-variant-numeric: tabular-nums;
         }
         .goal-progress-bar {
-            height: 8px;
-            background: var(--color-border, #e2e8f0);
-            border-radius: 999px;
-            overflow: hidden;
-            position: relative;
+            height: 5px !important;
+            background: var(--color-bg, #f1f5f9) !important;
+            border-radius: 3px !important;
+            overflow: hidden !important;
+            position: relative !important;
+            border: none !important;
+            box-shadow: none !important;
+            margin: 5px 0 !important;
         }
         .goal-progress-fill {
-            height: 100%;
-            border-radius: 999px;
+            height: 100% !important;
+            border-radius: 3px !important;
+            box-shadow: none !important;
             transition: width 0.4s ease;
+        }
+        .goal-progress-bar::before,
+        .goal-progress-bar::after,
+        .goal-progress-fill::before,
+        .goal-progress-fill::after {
+            display: none !important;
+            content: none !important;
         }
         .goal-footer-info {
             display: flex;
             justify-content: space-between;
             font-size: 10.5px;
             color: var(--color-text-muted, #94a3b8);
-            margin-top: 6px;
+            margin-top: 3px;
         }
 
         /* BARRA DE AÇÕES DO CARD */
         .goal-actions-grid {
             display: grid;
             grid-template-columns: 1fr 1fr auto auto;
-            gap: 6px;
-            margin-top: 12px;
-            padding-top: 10px;
+            gap: 5px;
+            margin-top: 7px;
+            padding-top: 7px;
             border-top: 1px solid var(--color-border, #f1f5f9);
         }
         .btn-goal-act {
@@ -209,7 +305,8 @@
             border-radius: 8px;
             font-size: 11px;
             font-weight: 700;
-            padding: 7px 6px;
+            padding: 5px 6px;
+            min-height: 29px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -229,8 +326,8 @@
         }
         .btn-goal-act.withdraw:hover { background: #e17055; color: #fff; }
         .btn-goal-icon {
-            width: 32px;
-            height: 32px;
+            width: 29px;
+            height: 29px;
             border: 1px solid var(--color-border, #e2e8f0);
             background: var(--color-bg, #f8fafc);
             color: var(--color-text-muted, #64748b);
@@ -239,10 +336,283 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 11px;
         }
-        .btn-goal-icon:hover { color: #6C5CE7; border-color: #6C5CE7; }
+        .btn-goal-icon:hover { color: #4338CA; border-color: #4338CA; }
         .btn-goal-icon.del:hover { color: #ef4444; border-color: #ef4444; }
+
+        /* ========================================================
+           CONTROLE TEMPORAL MOBILE (Ano vs Longo Prazo)
+           ======================================================== */
+        .temporal-control-mobile {
+            background: var(--mob-surface, #ffffff);
+            border: 1px solid var(--mob-border, #e2e8f0);
+            border-radius: 16px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .year-stepper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--color-bg, #f8fafc);
+            padding: 3px 6px;
+            border-radius: 999px;
+            border: 1px solid var(--color-border, #e2e8f0);
+        }
+        .step-btn {
+            background: transparent;
+            border: none;
+            color: var(--color-text-muted, #64748b);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 11px;
+        }
+        .step-btn:hover { background: rgba(67, 56, 202, 0.1); color: #4338CA; }
+        .current-year-label {
+            font-size: 14px;
+            font-weight: 800;
+            padding: 0 6px;
+            font-family: monospace;
+            color: var(--color-text, #0f172a);
+        }
+        .year-badge-status {
+            font-size: 9.5px;
+            padding: 3px 7px;
+            border-radius: 999px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+        }
+        .status-current { background: rgba(67, 56, 202, 0.15); color: #4338CA; }
+        .status-past { background: rgba(100, 116, 139, 0.15); color: #64748B; }
+        .status-future { background: rgba(245, 158, 11, 0.15); color: #D97706; }
+
+        .view-mode-toggle {
+            display: flex;
+            background: var(--color-bg, #f8fafc);
+            padding: 3px;
+            border-radius: 999px;
+            border: 1px solid var(--color-border, #e2e8f0);
+        }
+        .view-mode-btn {
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: none;
+            background: transparent;
+            color: var(--color-text-muted, #64748b);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .view-mode-btn.active {
+            background: var(--gradient-primary, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%));
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+        }
+
+        /* BANNER DO CICLO MOBILE */
+        .cycle-summary-mobile {
+            background: linear-gradient(135deg, rgba(55, 48, 163, 0.08) 0%, rgba(37, 99, 235, 0.12) 100%);
+            border: 1px solid rgba(37, 99, 235, 0.22);
+            border-radius: 16px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .cycle-summary-mobile::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, #3730A3, #2563EB);
+        }
+        .cycle-summary-mobile .cycle-info h3 {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--color-text, #0f172a);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .cycle-summary-mobile .cycle-info p {
+            font-size: 10.5px;
+            color: var(--color-text-muted, #64748b);
+            margin: 2px 0 0 0;
+        }
+        .cycle-summary-mobile .cycle-score {
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .cycle-summary-mobile .cycle-score .score-value {
+            font-size: 17px;
+            font-weight: 800;
+            color: #00B894;
+            font-family: monospace;
+        }
+        .cycle-summary-mobile .cycle-score .score-label {
+            font-size: 9.5px;
+            color: var(--color-text-muted, #64748b);
+            text-transform: uppercase;
+        }
+
+        /* PROJETO / HÁBITO TOGGLE (CHECKLIST DIRECT ACTION) */
+        .project-toggle-mobile {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 2px solid var(--color-border, #cbd5e1);
+            background: var(--color-bg, #f8fafc);
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            flex-shrink: 0;
+            color: transparent;
+        }
+        .project-toggle-mobile:active { transform: scale(0.92); }
+        .project-toggle-mobile.checked {
+            background: #00B894;
+            border-color: #00B894;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(0, 184, 148, 0.4);
+        }
+
+        .auto-sync-tag-mobile {
+            font-size: 11px !important;
+            color: #4338CA !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 6px !important;
+            background: var(--mob-surface, #ffffff) !important;
+            border: 1px solid var(--mob-border, rgba(226, 232, 240, 0.9)) !important;
+            padding: 4px 8px !important;
+            border-radius: 10px !important;
+            font-weight: 600 !important;
+            margin-top: 8px !important;
+            white-space: nowrap !important;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02) !important;
+        }
+        .auto-sync-tag-mobile span {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            min-width: 0 !important;
+        }
+        .auto-sync-tag-mobile button {
+            background: none !important;
+            border: none !important;
+            color: #4338CA !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            cursor: pointer !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            padding: 2px 4px !important;
+            transition: opacity 0.15s ease;
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
+        }
+        .auto-sync-tag-mobile button:active {
+            opacity: 0.7;
+        }
+        body.dark-theme .auto-sync-tag-mobile {
+            background: var(--bg-subtle, #1A2744) !important;
+            border-color: var(--border-hairline, #223254) !important;
+            color: #93C5FD !important;
+        }
+        body.dark-theme .auto-sync-tag-mobile button {
+            color: #93C5FD !important;
+        }
+        .btn-goal-act.btn-proventos-outline {
+            background: transparent;
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #059669;
+            font-weight: 700;
+        }
+        body.dark-theme .btn-goal-act.btn-proventos-outline {
+            background: transparent;
+            border-color: rgba(52, 211, 153, 0.4);
+            color: #34d399;
+        }
+
+        .btn-postpone-mobile {
+            background: rgba(100, 116, 139, 0.12);
+            color: #475569;
+            border: 1px solid rgba(100, 116, 139, 0.25);
+            padding: 5px 8px;
+            border-radius: 8px;
+            font-size: 10.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-postpone-mobile:hover { background: rgba(100, 116, 139, 0.2); }
+
+        /* MODAL TYPE GRID (MOBILE) */
+        .type-selector-mobile-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .type-card-mobile-opt {
+            background: var(--color-bg, #f8fafc);
+            border: 2px solid var(--color-border, #e2e8f0);
+            border-radius: 12px;
+            padding: 10px 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s ease;
+        }
+        .type-card-mobile-opt:active { transform: scale(0.97); }
+        .type-card-mobile-opt.selected {
+            border-color: #4338CA;
+            background: rgba(67, 56, 202, 0.08);
+        }
+        .type-card-mobile-opt i {
+            font-size: 16px;
+            margin-bottom: 4px;
+            display: block;
+        }
+        .type-card-mobile-opt .type-title {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--color-text, #0f172a);
+        }
+        .type-card-mobile-opt .type-desc {
+            font-size: 9.5px;
+            color: var(--color-text-muted, #94a3b8);
+            margin-top: 1px;
+        }
 
         .tab-action-bar {
             display: flex;
@@ -251,24 +621,25 @@
             margin-bottom: 12px;
         }
         .tab-action-bar h2 {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 700;
-            color: var(--color-text, #0f172a);
+            color: var(--mob-text, #0f172a);
             margin: 0;
         }
         .btn-add-primary {
-            background: #6C5CE7;
+            background: var(--gradient-primary, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%));
             color: #ffffff;
             border: none;
-            border-radius: 8px;
-            font-size: 11px;
+            border-radius: 12px;
+            font-size: 12px;
             font-weight: 700;
-            padding: 6px 12px;
+            padding: 8px 14px;
+            min-height: 38px;
             display: flex;
             align-items: center;
             gap: 5px;
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(108, 92, 231, 0.3);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
         }
         .btn-add-primary:active { transform: scale(0.96); }
 
@@ -333,7 +704,7 @@
             position: absolute;
             inset: -12px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(255, 215, 0, 0.45) 0%, rgba(108, 92, 231, 0.2) 60%, transparent 80%);
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.45) 0%, rgba(67, 56, 202, 0.2) 60%, transparent 80%);
             animation: celebrationPulse 2s infinite ease-in-out;
         }
 
@@ -388,7 +759,7 @@
         .celebration-goal-name {
             font-size: 15px;
             font-weight: 700;
-            color: var(--color-primary, #6C5CE7);
+            color: var(--mob-primary, #4338CA);
             margin: 0 0 10px 0;
             display: flex;
             align-items: center;
@@ -425,15 +796,15 @@
         }
 
         .celebration-btn-primary {
-            background: linear-gradient(135deg, #6C5CE7 0%, #a363d9 100%);
+            background: var(--gradient-primary, linear-gradient(135deg, #3730A3 0%, #4338CA 52%, #2563EB 100%));
             color: #ffffff;
             border: none;
-            border-radius: 10px;
-            padding: 10px 20px;
+            border-radius: 12px;
+            padding: 12px 20px;
             font-size: 13px;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35);
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -470,85 +841,141 @@
             to { transform: rotate(360deg); }
         }
     </style>
+    <script>
+        if (localStorage.getItem('tonu_bottom_nav_labels') === 'false') {
+            document.documentElement.classList.add('nav-icons-only');
+        }
+    </script>
 </head>
-<body>
+<body class="has-bottom-nav">
 
 <!-- TOPBAR -->
 <header class="mobile-topbar">
     <div class="topbar-header">
         <div class="topbar-left">
-            <div class="app-icon"><img src="../../icons/logo.png" alt="TonuControle"></div>
+            <div class="app-icon"><img src="../../icons/logo.png?v=3.2.1" alt="TonuControle"></div>
             <h1>Tonu<span>Controle</span></h1>
         </div>
         <div class="topbar-actions">
-            <button onclick="toggleTheme()" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
-            <button onclick="window.history.back()" title="Voltar" aria-label="Voltar"><i class="fas fa-arrow-left"></i></button>
+            <button type="button" class="topbar-btn" onclick="window.TonuMobileUI && window.TonuMobileUI.openCommandPalette()" title="Busca rápida" aria-label="Busca rápida"><i class="fas fa-search"></i></button>
+            <button type="button" class="topbar-btn" data-privacy-toggle onclick="window.TonuMobileUI && window.TonuMobileUI.togglePrivacyMode()" title="Ocultar ou mostrar valores" aria-label="Modo Privacidade"><i class="fas fa-eye" data-privacy-icon></i></button>
+            <button class="topbar-btn theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema"><i class="fas fa-moon" id="themeIcon"></i></button>
+            <button class="topbar-btn" onclick="window.tonuSync && window.tonuSync.syncPendingData ? window.tonuSync.syncPendingData() : location.reload()" title="Sincronizar" aria-label="Sincronizar"><i class="fas fa-sync-alt"></i></button>
+            <a href="settings.html" id="mobileTopAvatar" class="mobile-topbar-avatar" title="Perfil e Status de Sincronização" aria-label="Perfil">
+                <span id="topbarAvatar">U</span>
+            </a>
         </div>
     </div>
-    <div class="greeting">🎯 Metas & Sonhos</div>
+    <div class="greeting">Metas & Sonhos</div>
 </header>
 
-<main class="mobile-content" style="padding: 12px 14px;">
+<main class="mobile-content">
 
-    <!-- RESUMO HERO -->
-    <div class="goals-hero-grid">
-        <div class="goals-hero-card full-width">
-            <div class="hero-label"><i class="fas fa-piggy-bank"></i> Total Acumulado em Metas</div>
-            <div class="hero-value" id="heroTotalAcumulado">R$ 0,00</div>
+    <!-- BARRA DE CONTROLE TEMPORAL (Ano vs Contínuo) -->
+    <div class="temporal-control-mobile">
+        <div id="mobileYearStepperWrapper" style="display:flex; align-items:center; gap:8px;">
+            <div class="year-stepper">
+                <button type="button" class="step-btn" onclick="changeMobileYear(-1)" title="Ano anterior">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="current-year-label">
+                    <span id="mobileLabelCurrentYear">----</span>
+                </div>
+                <button type="button" class="step-btn" onclick="changeMobileYear(1)" title="Próximo ano">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <span id="mobileYearStatusBadge" class="year-badge-status status-current">Ciclo Atual</span>
         </div>
-        <div class="goals-hero-card">
-            <div class="hero-label"><i class="fas fa-bullseye"></i> Alvo Total</div>
-            <div class="hero-value" id="heroTotalAlvo">R$ 0,00</div>
+        <div class="view-mode-toggle">
+            <button type="button" id="btnMobileViewYear" class="view-mode-btn active" onclick="setMobileTemporalMode('year')">
+                <i class="fas fa-calendar-alt"></i> Anual
+            </button>
+            <button type="button" id="btnMobileViewContinuous" class="view-mode-btn" onclick="setMobileTemporalMode('continuous')">
+                <i class="fas fa-infinity"></i> Longo Prazo
+            </button>
         </div>
-        <div class="goals-hero-card">
-            <div class="hero-label"><i class="fas fa-trophy"></i> Metas Concluídas</div>
-            <div class="hero-value" id="heroMetasConcluidas" style="color:#00B894;">0 de 0</div>
+    </div>
+
+    <!-- BANNER DE RESUMO DO CICLO -->
+    <div class="cycle-summary-mobile" id="mobileCycleSummaryBanner">
+        <div class="cycle-info">
+            <h3 id="mobileCycleTitle"><i class="fas fa-trophy" style="color:#F59E0B;"></i> Checklist Anual</h3>
+            <p id="mobileCycleSubtitle">Objetivos prioritários para este ano</p>
+        </div>
+        <div class="cycle-score">
+            <div class="score-value" id="mobileCycleScoreText">0 / 0</div>
+            <div class="score-label" id="mobileCycleScoreLabel">Conquistadas (0%)</div>
+        </div>
+    </div>
+
+    <!-- HERO CARD METAS (DNA DASHBOARD) -->
+    <div class="mobile-hero-card" id="goalsHeroCard" style="margin-bottom: 14px;">
+        <div class="hero-top">
+            <span class="hero-label"><i class="fas fa-bullseye"></i> Total Acumulado em Metas</span>
+            <span class="badge-mobile" style="background: rgba(255,255,255,0.2); color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px;">
+                METAS
+            </span>
+        </div>
+        <div class="hero-value" id="heroTotalAcumulado" data-sensitive>R$ 0,00</div>
+        <div class="hero-footer">
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-flag-checkered" style="color: #c7d2fe;"></i> Alvo Total</span>
+                <span class="hero-stat-val" id="heroTotalAlvo" data-sensitive style="color: #e0e7ff;">R$ 0,00</span>
+            </div>
+            <div class="hero-stat">
+                <span class="hero-stat-label"><i class="fas fa-trophy" style="color: #6ee7b7;"></i> Concluídas</span>
+                <span class="hero-stat-val income" id="heroMetasConcluidas">0 de 0</span>
+            </div>
         </div>
     </div>
 
     <!-- ITEM 12: CDI & RENDIMENTOS AUTOMÁTICOS DAS METAS (MOBILE) -->
-    <div class="cdi-yield-card-mobile" style="background:var(--color-surface, #ffffff); border:1px solid var(--color-border, #e2e8f0); border-radius:14px; padding:12px 14px; margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--color-border, #f1f5f9); padding-bottom:8px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <div style="width:28px; height:28px; border-radius:8px; background:rgba(0,184,148,0.12); color:#00b894; display:flex; align-items:center; justify-content:center; font-size:13px;">
+    <div class="cdi-yield-card-mobile">
+        <div class="cdi-card-header">
+            <div class="cdi-card-title-wrap">
+                <div class="cdi-card-icon">
                     <i class="fas fa-chart-line"></i>
                 </div>
                 <div>
-                    <strong style="font-size:12px; color:var(--color-text, #0f172a); display:block;">Rendimento CDI</strong>
-                    <span style="font-size:10px; color:var(--color-text-muted, #64748b);" id="mobileCdiStatusText">Taxa: ~10,65% a.a. (BCB Série 12)</span>
+                    <strong>Rendimento CDI</strong>
+                    <span class="cdi-card-sub" id="mobileCdiStatusText">Taxa: ~10,65% a.a. (BCB Série 12)</span>
+                    <span class="cdi-card-sub"><i class="fas fa-calendar-day"></i> Apurado dia a dia útil</span>
                 </div>
             </div>
-            <span style="font-size:10px; color:#00b894; font-weight:700; background:rgba(0,184,148,0.1); padding:2px 8px; border-radius:6px;">100% CDI</span>
+            <span class="cdi-card-pill">100% CDI</span>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
-                <span style="font-size:10px; color:var(--color-text-muted, #64748b);">Aportado</span>
-                <strong style="display:block; font-size:13px; color:var(--color-text, #0f172a);" id="mobileCdiAportado">R$ 0,00</strong>
+        <div class="cdi-card-grid">
+            <div class="cdi-sub-box">
+                <span class="cdi-sub-label">Aportado</span>
+                <strong class="cdi-sub-val" id="mobileCdiAportado" data-sensitive>R$ 0,00</strong>
             </div>
-            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
-                <span style="font-size:10px; color:#00b894;">Rend. Bruto</span>
-                <strong style="display:block; font-size:13px; color:#00b894;" id="mobileCdiBruto">+ R$ 0,00</strong>
+            <div class="cdi-sub-box">
+                <span class="cdi-sub-label">Rend. Bruto</span>
+                <strong class="cdi-sub-val pos" id="mobileCdiBruto" data-sensitive>+ R$ 0,00</strong>
             </div>
-            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
-                <span style="font-size:10px; color:#ef4444;">IOF Estimado</span>
-                <strong style="display:block; font-size:13px; color:#ef4444;" id="mobileCdiIOF">- R$ 0,00</strong>
+            <div class="cdi-sub-box">
+                <span class="cdi-sub-label">IOF Estimado</span>
+                <strong class="cdi-sub-val neg" id="mobileCdiIOF" data-sensitive>- R$ 0,00</strong>
             </div>
-            <div style="background:var(--color-bg, #f8fafc); padding:8px 10px; border-radius:8px;">
-                <span style="font-size:10px; color:#f59e0b;">IR Estimado</span>
-                <strong style="display:block; font-size:13px; color:#f59e0b;" id="mobileCdiIR">- R$ 0,00</strong>
+            <div class="cdi-sub-box">
+                <span class="cdi-sub-label">IR Estimado</span>
+                <strong class="cdi-sub-val warn" id="mobileCdiIR" data-sensitive>- R$ 0,00</strong>
             </div>
-            <div style="grid-column:1/-1; background:rgba(0,184,148,0.08); padding:8px 10px; border-radius:8px; border:1px solid rgba(0,184,148,0.2); display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size:11px; font-weight:700; color:#00b894;">Saldo Líquido</span>
-                <strong style="font-size:14px; font-weight:800; color:#00b894;" id="mobileCdiLiquido">R$ 0,00</strong>
+            <div class="cdi-net-row">
+                <span>Saldo Líquido</span>
+                <strong id="mobileCdiLiquido" data-sensitive>R$ 0,00</strong>
             </div>
         </div>
     </div>
 
     <!-- FILTROS -->
     <div class="chip-filters">
-        <button class="chip-btn active" onclick="filterGoals('all', this)">Todas</button>
-        <button class="chip-btn" onclick="filterGoals('ongoing', this)">Em Andamento</button>
-        <button class="chip-btn" onclick="filterGoals('completed', this)">Concluídas 🏆</button>
+        <button class="chip-btn active" onclick="filterGoals('all', this)"><i class="fas fa-layer-group"></i> Todas</button>
+        <button class="chip-btn" onclick="filterGoals('project', this)"><i class="fas fa-check-circle" style="color:#38BDF8;"></i> Projetos</button>
+        <button class="chip-btn" onclick="filterGoals('money', this)"><i class="fas fa-piggy-bank" style="color:#F59E0B;"></i> Dinheiro</button>
+        <button class="chip-btn" onclick="filterGoals('auto', this)"><i class="fas fa-bolt" style="color:#10B981;"></i> Automáticas</button>
+        <button class="chip-btn" onclick="filterGoals('completed', this)"><i class="fas fa-star" style="color:#10B981;"></i> Concluídas</button>
     </div>
 
     <div class="tab-action-bar">
@@ -560,10 +987,9 @@
 
     <!-- LISTA DE METAS -->
     <div id="goalsContainer">
-        <div style="text-align:center;padding:24px;">
-            <span class="spinner"></span>
-            <p style="margin-top:8px;font-size:13px;color:#94a3b8;">Carregando metas...</p>
-        </div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:58%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:36%;"></div></div></div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:68%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:44%;"></div></div></div>
+        <div class="mob-skeleton-card"><div class="mob-skeleton" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;"><div class="mob-skeleton" style="height:14px;width:50%;margin-bottom:8px;"></div><div class="mob-skeleton" style="height:11px;width:30%;"></div></div></div>
     </div>
 
 </main>
@@ -579,11 +1005,46 @@
         <form id="goalForm" onsubmit="handleGoalSubmit(event)">
             <input type="hidden" id="goalEditId" value="">
 
+            <!-- Seletor dos 4 Tipos de Meta -->
+            <div class="type-selector-mobile-grid">
+                <div class="type-card-mobile-opt selected" data-type="project" onclick="selectMobileGoalType('project', this)">
+                    <i class="fas fa-tasks" style="color:#38BDF8;"></i>
+                    <div class="type-title">📌 Projeto</div>
+                    <div class="type-desc">Checklist sim/não</div>
+                </div>
+                <div class="type-card-mobile-opt" data-type="financial" onclick="selectMobileGoalType('financial', this)">
+                    <i class="fas fa-piggy-bank" style="color:#F59E0B;"></i>
+                    <div class="type-title">💰 Dinheiro</div>
+                    <div class="type-desc">Aportes manuais</div>
+                </div>
+                <div class="type-card-mobile-opt" data-type="dividends" onclick="selectMobileGoalType('dividends', this)">
+                    <i class="fas fa-hand-holding-usd" style="color:#10B981;"></i>
+                    <div class="type-title">📈 Proventos</div>
+                    <div class="type-desc">Auto da carteira</div>
+                </div>
+                <div class="type-card-mobile-opt" data-type="wealth" onclick="selectMobileGoalType('wealth', this)">
+                    <i class="fas fa-chart-pie" style="color:#2563EB;"></i>
+                    <div class="type-title">🏦 Patrimônio</div>
+                    <div class="type-desc">Auto da custódia</div>
+                </div>
+            </div>
+            <input type="hidden" id="goalType" value="project">
+
             <div class="sheet-form-group">
-                <label>Título da Meta (Ex: Reserva de Emergência, Viagem Europa)</label>
+                <label>Título da Meta (Ex: Motor de correr no portão, Reserva de Emergência)</label>
                 <div class="sheet-input-wrapper">
                     <i class="fas fa-bullseye"></i>
-                    <input type="text" id="goalTitle" class="sheet-input" placeholder="Ex: Reserva de Emergência" required>
+                    <input type="text" id="goalTitle" class="sheet-input" placeholder="Ex: Motor de correr no portão" required>
+                </div>
+            </div>
+
+            <div class="sheet-form-group">
+                <label>Alocação Temporal</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-clock"></i>
+                    <select id="goalCycleSelect" class="sheet-input">
+                        <option value="continuous">♾️ Meta Contínua (Longo Prazo)</option>
+                    </select>
                 </div>
             </div>
 
@@ -604,15 +1065,15 @@
                 </div>
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                <div class="sheet-form-group">
-                    <label>Valor Alvo (R$)</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;" id="mobileGoalAmountRow">
+                <div class="sheet-form-group" id="mobileGoalTargetGroup">
+                    <label id="lblMobileGoalTarget">Valor Alvo (R$)</label>
                     <div class="sheet-input-wrapper">
                         <i class="fas fa-flag-checkered"></i>
                         <input type="number" step="0.01" min="1" id="goalTarget" class="sheet-input" placeholder="10.000,00" required>
                     </div>
                 </div>
-                <div class="sheet-form-group">
+                <div class="sheet-form-group" id="mobileGoalCurrentGroup">
                     <label>Saldo Já Acumulado</label>
                     <div class="sheet-input-wrapper">
                         <i class="fas fa-wallet"></i>
@@ -629,24 +1090,24 @@
                         <input type="date" id="goalDeadline" class="sheet-input">
                     </div>
                 </div>
-                    <div class="sheet-form-group">
-                        <label>Cor do Card</label>
-                        <div class="sheet-input-wrapper">
-                            <i class="fas fa-palette"></i>
-                            <input type="color" id="goalColor" class="sheet-input" value="#6C5CE7" style="height:42px; padding:2px 4px; cursor:pointer;">
-                        </div>
-                    </div>
-                </div>
-
                 <div class="sheet-form-group">
-                    <label>% do CDI da Meta</label>
+                    <label>Cor do Card</label>
                     <div class="sheet-input-wrapper">
-                        <i class="fas fa-percentage"></i>
-                        <input type="number" step="1" min="1" max="500" id="goalCdiPercent" class="sheet-input" placeholder="100" value="100">
+                        <i class="fas fa-palette"></i>
+                        <input type="color" id="goalColor" class="sheet-input" value="#4338CA" style="height:42px; padding:2px 4px; cursor:pointer;">
                     </div>
                 </div>
+            </div>
 
-                <button type="submit" class="sheet-submit-btn" id="goalSubmitBtn">Salvar Meta</button>
+            <div class="sheet-form-group" id="mobileGoalCdiGroup">
+                <label>% do CDI da Meta</label>
+                <div class="sheet-input-wrapper">
+                    <i class="fas fa-percentage"></i>
+                    <input type="number" step="1" min="1" max="500" id="goalCdiPercent" class="sheet-input" placeholder="100" value="100">
+                </div>
+            </div>
+
+            <button type="submit" class="sheet-submit-btn" id="goalSubmitBtn">Salvar Meta</button>
             </form>
         </div>
     </div>
@@ -661,7 +1122,7 @@
         </div>
         <div style="background:var(--color-bg,#f8fafc); border-radius:10px; padding:10px 12px; margin-bottom:12px; border:1px solid var(--color-border,#e2e8f0);">
             <strong id="depositGoalTitle" style="font-size:13px; color:var(--color-text,#0f172a); display:block;">Nome da Meta</strong>
-            <small style="color:var(--color-text-muted,#64748b);">Saldo atual: <span id="depositCurrentVal" style="font-weight:700; color:#6C5CE7;">R$ 0,00</span></small>
+            <small style="color:var(--color-text-muted,#64748b);">Saldo atual: <span id="depositCurrentVal" data-sensitive style="font-weight:700; color:#4338CA;">R$ 0,00</span></small>
         </div>
         <form id="depositForm" onsubmit="handleDepositSubmit(event)">
             <input type="hidden" id="depositGoalId" value="">
@@ -757,19 +1218,19 @@
         <div class="sheet-drag-handle"></div>
         <div class="sheet-header">
             <div>
-                <span style="font-size:11px; text-transform:uppercase; font-weight:700; color:#6C5CE7; letter-spacing:0.04em;">Rentabilidade</span>
+                <span style="font-size:11px; text-transform:uppercase; font-weight:700; color:#4338CA; letter-spacing:0.04em;">Rentabilidade</span>
                 <h3 id="mobileYieldGoalTitle" style="font-size:15px; margin:0;">Extrato da Meta</h3>
             </div>
             <button class="sheet-close-btn" onclick="closeMobileYieldModal()"><i class="fas fa-times"></i></button>
         </div>
         <div style="overflow-y:auto; padding: 12px 16px; flex:1;">
             <!-- CDI % da Meta -->
-            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(108,92,231,0.08); padding:8px 12px; border-radius:10px; margin-bottom:12px; border:1px solid rgba(108,92,231,0.2);">
+            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(67,56,202,0.08); padding:8px 12px; border-radius:10px; margin-bottom:12px; border:1px solid rgba(67,56,202,0.2);">
                 <span style="font-size:11px; font-weight:700; color:var(--color-text);">Taxa da Meta:</span>
                 <div style="display:flex; align-items:center; gap:6px;">
                     <input type="number" id="mobileYieldCdiInput" value="100" min="1" max="500" style="width:60px; padding:3px 6px; font-size:11px; font-weight:700; border-radius:6px; border:1px solid var(--color-border); text-align:center;">
                     <span style="font-size:11px; font-weight:700; color:var(--color-text);">% CDI</span>
-                    <button type="button" class="btn-goal-act" onclick="saveMobileGoalCdi()" style="padding:4px 8px; font-size:10px; background:#6C5CE7; color:#fff; border-radius:6px;">Salvar</button>
+                    <button type="button" class="btn-goal-act" onclick="saveMobileGoalCdi()" style="padding:4px 8px; font-size:10px; background:linear-gradient(135deg, #3730A3 0%, #2563EB 100%); color:#fff; border-radius:6px;">Salvar</button>
                 </div>
             </div>
 
@@ -828,25 +1289,773 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../../js/supabase.js"></script>
 <script src="../../js/core.js"></script>
+<script src="../../js/security.js"></script>
+<script src="../../js/financial-tools.js"></script>
+<script src="../../js/notifications.js"></script>
 <script src="../../js/sync.js"></script>
 <script src="../../js/sw-register.js"></script>
+<script src="../../js/mobile/ui.js?v=1.1.0"></script>
 <script>
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+
 let currentUser = null;
 let goals = [];
 let currentFilter = 'all';
+let currentCycleYear = new Date().getFullYear();
+let currentCycleYearMobile = currentCycleYear;
+let currentTemporalMode = 'year'; // 'year' | 'continuous'
+let selectedMobileType = 'project';
+
+// colorTo15PercentAlpha provido globalmente por js/core.js
 
 const CATEGORY_ICONS = {
-    emergency: { icon: 'fa-shield-alt', color: '#00B894', label: 'Reserva de Emergência' },
-    travel: { icon: 'fa-plane-departure', color: '#0984E3', label: 'Viagem & Lazer' },
-    vehicle: { icon: 'fa-car', color: '#E17055', label: 'Veículo' },
-    home: { icon: 'fa-home', color: '#6C5CE7', label: 'Imóvel / Casa' },
-    education: { icon: 'fa-graduation-cap', color: '#A29BFE', label: 'Educação' },
+    emergency: { icon: 'fa-shield-alt', color: '#10B981', label: 'Reserva de Emergência' },
+    travel: { icon: 'fa-plane-departure', color: '#0284C7', label: 'Viagem & Lazer' },
+    vehicle: { icon: 'fa-car', color: '#EA580C', label: 'Veículo' },
+    home: { icon: 'fa-home', color: '#4338CA', label: 'Imóvel / Casa' },
+    education: { icon: 'fa-graduation-cap', color: '#7C3AED', label: 'Educação' },
     investment: { icon: 'fa-chart-line', color: '#10B981', label: 'Investimentos' },
-    purchase: { icon: 'fa-shopping-bag', color: '#FDCB6E', label: 'Compras' },
-    other: { icon: 'fa-bullseye', color: '#6C5CE7', label: 'Objetivo Geral' }
+    purchase: { icon: 'fa-shopping-bag', color: '#F59E0B', label: 'Compras' },
+    other: { icon: 'fa-bullseye', color: '#4338CA', label: 'Objetivo Geral' }
 };
 
-document.addEventListener("DOMContentLoaded", async () => {
+// ============================================
+// RESOLUÇÃO DE ANO E CONTROLE TEMPORAL
+// ============================================
+function resolveGoalYear(g) {
+    if (!g) return currentCycleYear;
+    if (g.year === 'continuous' || g.target_year === 'continuous' || g.temporal_mode === 'continuous') {
+        return 'continuous';
+    }
+    if (g.target_year && !isNaN(parseInt(g.target_year))) {
+        return parseInt(g.target_year);
+    }
+    if (g.year && !isNaN(parseInt(g.year))) {
+        return parseInt(g.year);
+    }
+    if (g.deadline && typeof g.deadline === 'string' && g.deadline.length >= 4) {
+        const y = parseInt(g.deadline.slice(0, 4));
+        if (!isNaN(y) && y >= 2020 && y <= 2040) return y;
+    }
+    if (g.created_at && typeof g.created_at === 'string' && g.created_at.length >= 4) {
+        const y = parseInt(g.created_at.slice(0, 4));
+        if (!isNaN(y) && y >= 2020 && y <= 2040) return y;
+    }
+    return currentCycleYear;
+}
+
+function changeMobileYear(delta) {
+    currentCycleYear += delta;
+    currentCycleYearMobile = currentCycleYear;
+    updateMobileTemporalHeader();
+    renderGoals();
+}
+window.changeMobileYear = changeMobileYear;
+
+function setMobileTemporalMode(mode) {
+    currentTemporalMode = mode;
+    const btnYear = document.getElementById('btnMobileViewYear');
+    const btnContinuous = document.getElementById('btnMobileViewContinuous');
+    if (btnYear) btnYear.classList.toggle('active', mode === 'year');
+    if (btnContinuous) btnContinuous.classList.toggle('active', mode === 'continuous');
+    updateMobileTemporalHeader();
+    renderGoals();
+}
+window.setMobileTemporalMode = setMobileTemporalMode;
+
+function updateMobileTemporalHeader() {
+    const stepper = document.getElementById('mobileYearStepperWrapper');
+    const labelYear = document.getElementById('mobileLabelCurrentYear');
+    const badge = document.getElementById('mobileYearStatusBadge');
+    const title = document.getElementById('mobileCycleTitle');
+    const subtitle = document.getElementById('mobileCycleSubtitle');
+
+    if (currentTemporalMode === 'continuous') {
+        if (stepper) {
+            stepper.style.opacity = '0.4';
+            stepper.style.pointerEvents = 'none';
+        }
+        if (badge) {
+            badge.textContent = 'Permanente';
+            badge.className = 'year-badge-status status-current';
+        }
+        if (title) title.innerHTML = '<i class="fas fa-infinity" style="color:#4338CA;"></i> Metas de Longo Prazo';
+        if (subtitle) subtitle.textContent = 'Objetivos perenes sem ciclo anual fixo';
+    } else {
+        if (stepper) {
+            stepper.style.opacity = '1';
+            stepper.style.pointerEvents = 'auto';
+        }
+        if (labelYear) labelYear.textContent = currentCycleYear;
+        if (badge) {
+            const realCurrentYear = new Date().getFullYear();
+            if (currentCycleYear === realCurrentYear) {
+                badge.textContent = 'Ciclo Atual';
+                badge.className = 'year-badge-status status-current';
+            } else if (currentCycleYear < realCurrentYear) {
+                badge.textContent = 'Histórico';
+                badge.className = 'year-badge-status status-past';
+            } else {
+                badge.textContent = 'Planejamento';
+                badge.className = 'year-badge-status status-future';
+            }
+        }
+        if (title) title.innerHTML = `<i class="fas fa-trophy" style="color:#F59E0B;"></i> Checklist ${currentCycleYear}`;
+        if (subtitle) subtitle.textContent = `Objetivos prioritários para ${currentCycleYear}`;
+    }
+
+    // Calcula progresso do ciclo
+    let inCycle = goals.filter(g => {
+        const y = resolveGoalYear(g);
+        return currentTemporalMode === 'continuous' ? y === 'continuous' : y === currentCycleYear;
+    });
+
+    const total = inCycle.length;
+    const done = inCycle.filter(isGoalCompleteMobile).length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    const scoreText = document.getElementById('mobileCycleScoreText');
+    const scoreLabel = document.getElementById('mobileCycleScoreLabel');
+    if (scoreText) scoreText.textContent = `${done} / ${total}`;
+    if (scoreLabel) scoreLabel.textContent = `Conquistadas (${pct}%)`;
+}
+window.updateMobileTemporalHeader = updateMobileTemporalHeader;
+
+let cachedTotalEquityMobile = 0;
+let cachedTotalInvestedMobile = 0;
+let cachedEquityGainMobile = 0;
+let cachedEquityReturnPctMobile = 0;
+let cachedTotalEquityUpdatedAtMobile = null;
+let isEquityLoadedMobile = false;
+
+let cachedDividendsListMobile = [];
+let isDividendsLoadedMobile = false;
+let cachedDividendsUpdatedAtMobile = null;
+
+function parseBrazilianNumberMobile(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return isNaN(value) ? 0 : value;
+    let str = String(value).trim().replace(/[R$\s]/gi, '');
+    if (str.includes('.') && str.includes(',')) {
+        str = str.replace(/\./g, '').replace(',', '.');
+    } else if (str.includes(',')) {
+        str = str.replace(',', '.');
+    }
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+}
+
+function getDividendISODateMobile(d) {
+    if (!d) return '';
+    let s = String(d.payment_date || d.date || d.paymentDate || d.created_at || '').trim();
+    if (!s) return '';
+    if (s.includes('T')) s = s.split('T')[0];
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const parts = s.split('/');
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) {
+        const parts = s.split('-');
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    }
+    return s;
+}
+
+function getDividendTotalValueMobile(d) {
+    if (!d) return 0;
+    if (d.total_value !== undefined && d.total_value !== null && d.total_value !== '') {
+        const val = parseBrazilianNumberMobile(d.total_value);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    if (d.net_value !== undefined && d.net_value !== null && d.net_value !== '') {
+        const val = parseBrazilianNumberMobile(d.net_value);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    if (d.amount !== undefined && d.amount !== null && d.amount !== '') {
+        const val = parseBrazilianNumberMobile(d.amount);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    const qty = parseBrazilianNumberMobile(d.quantity);
+    const unit = parseBrazilianNumberMobile(d.unit_value);
+    const calc = qty * unit;
+    return (!isNaN(calc) && calc > 0) ? calc : 0;
+}
+
+async function loadDividendsForGoalsMobile(force = false) {
+    if (!force && isDividendsLoadedMobile && cachedDividendsListMobile.length > 0) {
+        return cachedDividendsListMobile;
+    }
+
+    let loaded = [];
+    if (Array.isArray(window.allDividends) && window.allDividends.length > 0) {
+        loaded = [...window.allDividends];
+    }
+
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('dividends')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('date', { ascending: false });
+            if (!error && data && data.length > 0) {
+                loaded = data;
+                window.allDividends = data;
+            }
+        } catch (_) {}
+    }
+
+    if (loaded.length === 0) {
+        try {
+            const uid = currentUser?.id || 'demo';
+            const keys = [
+                'tonucontrole_dividends_' + uid,
+                'tonu_dividends_' + uid,
+                'tonucontrole_dividends_demo',
+                'tonu_dividends',
+                'tonu_dividends_current'
+            ];
+            for (const k of keys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+
+    cachedDividendsListMobile = loaded;
+    isDividendsLoadedMobile = true;
+    cachedDividendsUpdatedAtMobile = new Date().toISOString();
+    return cachedDividendsListMobile;
+}
+window.loadDividendsForGoalsMobile = loadDividendsForGoalsMobile;
+
+async function refreshMobileDividends() {
+    showToast('Atualizando proventos da carteira...', 'info');
+    await loadDividendsForGoalsMobile(true);
+    renderGoals();
+    updateHeroStats();
+    showToast('Proventos atualizados!', 'success');
+}
+window.refreshMobileDividends = refreshMobileDividends;
+
+function getDividendGoalAnalysisMobile(targetMonthlyAmount, targetYear) {
+    const yr = Number(targetYear) || currentCycleYear || new Date().getFullYear();
+    const now = new Date();
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const divs = (cachedDividendsListMobile && cachedDividendsListMobile.length > 0)
+        ? cachedDividendsListMobile
+        : (Array.isArray(window.allDividends) ? window.allDividends : []);
+
+    const monthlyMap = new Map();
+    let totalYear = 0;
+
+    divs.forEach(d => {
+        const iso = getDividendISODateMobile(d);
+        if (!iso) return;
+        const val = getDividendTotalValueMobile(d);
+        if (val <= 0) return;
+
+        const ym = iso.substring(0, 7);
+        const itemYear = parseInt(iso.substring(0, 4), 10);
+
+        if (itemYear === yr) {
+            totalYear += val;
+        }
+
+        monthlyMap.set(ym, (monthlyMap.get(ym) || 0) + val);
+    });
+
+    const currentMonthVal = monthlyMap.get(currentYM) || 0;
+    const tgt = Number(targetMonthlyAmount) || 0;
+
+    let monthsOnTarget = 0;
+    let monthsWithDividendsInYear = 0;
+
+    for (let m = 1; m <= 12; m++) {
+        const key = `${yr}-${String(m).padStart(2, '0')}`;
+        const val = monthlyMap.get(key) || 0;
+        if (val > 0) monthsWithDividendsInYear++;
+        if (tgt > 0 && val >= tgt) {
+            monthsOnTarget++;
+        }
+    }
+
+    const avgYear = monthsWithDividendsInYear > 0 ? (totalYear / monthsWithDividendsInYear) : 0;
+
+    return {
+        currentMonthVal,
+        targetMonthlyAmount: tgt,
+        percentMonth: tgt > 0 ? Math.min(100, Math.round((currentMonthVal / tgt) * 100)) : 0,
+        rawPercentMonth: tgt > 0 ? Math.round((currentMonthVal / tgt) * 100) : 0,
+        monthsOnTarget,
+        totalYear,
+        avgYear,
+        monthsWithDividendsInYear
+    };
+}
+window.getDividendGoalAnalysisMobile = getDividendGoalAnalysisMobile;
+
+function formatEquityTimestampMobile(ts) {
+    if (!ts) return 'Atualizado';
+    try {
+        const d = new Date(ts);
+        if (isNaN(d.getTime())) return 'Atualizado';
+        const hours = String(d.getHours()).padStart(2, '0');
+        const mins = String(d.getMinutes()).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const today = new Date();
+        const isToday = d.toDateString() === today.toDateString();
+        return isToday ? `Hoje às ${hours}:${mins}` : `${day}/${month} às ${hours}:${mins}`;
+    } catch (_) {
+        return 'Atualizado';
+    }
+}
+window.formatEquityTimestampMobile = formatEquityTimestampMobile;
+
+function isGoalCompleteMobile(g) {
+    if (!g) return false;
+    const type = g.type || 'financial';
+    if (type === 'habit' || type === 'project') return !!g.completed;
+    if (type === 'dividends') {
+        const tgt = Number(g.target_amount) || 0;
+        return tgt > 0 && getMonthlyDividendsTotalMobile() >= tgt;
+    }
+    if (type === 'wealth' || type === 'net_worth') {
+        const tgt = Number(g.target_amount) || 0;
+        const eq = cachedTotalEquityMobile > 0 ? cachedTotalEquityMobile : (Number(g.current_amount) || 0);
+        return !!g.completed || (tgt > 0 && eq >= tgt);
+    }
+    const cur = Number(g.current_amount) || 0;
+    const tgt = Number(g.target_amount) || 0;
+    return !!g.completed || (tgt > 0 && cur >= tgt);
+}
+window.isGoalCompleteMobile = isGoalCompleteMobile;
+
+async function getLatestPortfolioValueMobile(options = {}) {
+    const force = !!(options && options.forceRefresh);
+    if (!force && isEquityLoadedMobile && cachedTotalEquityMobile > 0) {
+        return cachedTotalEquityMobile;
+    }
+
+    const uid = currentUser?.id || 'demo';
+
+    // 1. TENTA PRIMEIRO: Leitura de dados ao vivo de investimentos (mesmo motor de Carteira/Custódia)
+    try {
+        let invList = [];
+        let corpList = [];
+
+        // Verifica cache de investimentos do tonuSync ou localStorage
+        if (window.tonuSync && currentUser?.id) {
+            try {
+                invList = await window.tonuSync.getCachedInvestments(currentUser.id);
+                corpList = await window.tonuSync.getCachedCorporateEvents(currentUser.id);
+            } catch (_) {}
+        }
+
+        // Se offline/não sincronizado, busca também no Supabase se online
+        if ((!invList || invList.length === 0) && navigator.onLine && window.supabaseClient && currentUser?.id) {
+            try {
+                const { data: invData } = await window.supabaseClient
+                    .from("investments")
+                    .select("*")
+                    .eq("user_id", currentUser.id)
+                    .order("date", { ascending: true });
+                if (invData && invData.length > 0) {
+                    invList = invData;
+                    if (window.tonuSync) {
+                        window.tonuSync.setCachedInvestments(currentUser.id, invList).catch(() => {});
+                    }
+                }
+
+                const { data: corpData } = await window.supabaseClient
+                    .from("corporate_events")
+                    .select("*")
+                    .eq("user_id", currentUser.id);
+                if (corpData && corpData.length > 0) corpList = corpData;
+            } catch (_) {}
+        }
+
+        // Se temos lista de investimentos, calcula a custódia exata usando o motor oficial
+        if (Array.isArray(invList) && invList.length > 0) {
+            // Carrega cotações mais recentes do cache local (BRAPI)
+            let quoteMap = new Map();
+            try {
+                const rawQ = localStorage.getItem('tonu_quotes_cache');
+                if (rawQ) {
+                    const parsedQ = JSON.parse(rawQ);
+                    if (parsedQ && parsedQ.quotes) {
+                        for (const [tk, val] of Object.entries(parsedQ.quotes)) {
+                            quoteMap.set(tk.toUpperCase().trim(), val);
+                        }
+                    }
+                }
+            } catch (_) {}
+
+            // Normaliza transações e eventos corporativos
+            const normalizedTx = invList.map(t => ({
+                ...t,
+                isCorporateEvent: false,
+                sortDate: t.date || '1970-01-01',
+                sortPriority: (t.type || '').toLowerCase().includes('compra') ? 1 : 2
+            }));
+
+            const normalizedEvents = (corpList || []).map(ev => ({
+                ...ev,
+                isCorporateEvent: true,
+                sortDate: ev.event_date || ev.date || '1970-01-01',
+                sortPriority: 0
+            }));
+
+            const timeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
+                const da = new Date(a.sortDate + 'T12:00:00').getTime();
+                const db = new Date(b.sortDate + 'T12:00:00').getTime();
+                if (da !== db) return da - db;
+                if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+                return (a.created_at || '').localeCompare(b.created_at || '');
+            });
+
+            const posMap = new Map();
+            timeline.forEach(item => {
+                const ticker = (item.ticker || '').toUpperCase().trim();
+                if (!ticker) return;
+                const cleanTk = ticker.replace(/\.SA$/, '').replace(/F$/, '');
+                if (!posMap.has(cleanTk)) {
+                    posMap.set(cleanTk, { quantity: 0, costBasis: 0, averageCost: 0 });
+                }
+                const pos = posMap.get(cleanTk);
+
+                if (item.isCorporateEvent) {
+                    const evType = (item.event_type || item.type || '').trim();
+                    if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+                        const rf = parseFloat(item.ratio_from) || 1;
+                        const rt = parseFloat(item.ratio_to) || 1;
+                        if (rf > 0 && rt > 0 && pos.quantity > 0) {
+                            pos.quantity = pos.quantity * (rt / rf);
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+                        const bShares = parseFloat(item.bonus_shares || item.quantity || 0);
+                        const bCost = parseFloat(item.unit_cost || item.unit_price || 0);
+                        if (bShares > 0) {
+                            pos.quantity += bShares;
+                            pos.costBasis += (bShares * bCost);
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    } else if (evType === 'Amortização') {
+                        const amort = parseFloat(item.amortization_per_share || item.unit_value || 0);
+                        if (amort > 0 && pos.quantity > 0) {
+                            pos.costBasis = Math.max(0, pos.costBasis - (amort * pos.quantity));
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    }
+                    return;
+                }
+
+                const qty = parseFloat(item.quantity) || 0;
+                const total = parseFloat(item.total_value || item.amount || (qty * (parseFloat(item.unit_price) || 0))) || 0;
+                const type = (item.type || '').toLowerCase();
+
+                if (type.includes('compra') || type.includes('buy')) {
+                    pos.costBasis += total;
+                    pos.quantity += qty;
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                } else if (type.includes('venda') || type.includes('sell')) {
+                    const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                    const costOfSold = avg * qty;
+                    pos.costBasis = Math.max(0, pos.costBasis - costOfSold);
+                    pos.quantity = Math.max(0, pos.quantity - qty);
+                    if (pos.quantity <= 0.0001) {
+                        pos.quantity = 0;
+                        pos.costBasis = 0;
+                        pos.averageCost = 0;
+                    } else {
+                        pos.averageCost = pos.costBasis / pos.quantity;
+                    }
+                }
+            });
+
+            let computedPatrimonio = 0;
+            let computedInvestido = 0;
+            for (const [tk, p] of posMap.entries()) {
+                if (p.quantity > 0.0001) {
+                    computedInvestido += (p.costBasis || 0);
+                    const qData = quoteMap.get(tk) || quoteMap.get(`${tk}.SA`);
+                    const quotePrice = (qData && Number.isFinite(qData.price) && qData.price > 0) ? qData.price : p.averageCost;
+                    const val = p.quantity * quotePrice;
+                    computedPatrimonio += (val > 0 ? val : (p.costBasis || 0));
+                }
+            }
+
+            if (computedPatrimonio > 0) {
+                cachedTotalEquityMobile = Math.round(computedPatrimonio * 100) / 100;
+                cachedTotalInvestedMobile = Math.round(computedInvestido * 100) / 100;
+                cachedEquityGainMobile = Math.round((cachedTotalEquityMobile - cachedTotalInvestedMobile) * 100) / 100;
+                cachedEquityReturnPctMobile = cachedTotalInvestedMobile > 0 ? (cachedEquityGainMobile / cachedTotalInvestedMobile) * 100 : 0;
+                cachedTotalEquityUpdatedAtMobile = new Date().toISOString();
+                isEquityLoadedMobile = true;
+                try {
+                    localStorage.setItem('tonu_total_equity_' + uid, String(cachedTotalEquityMobile));
+                    localStorage.setItem('tonu_total_invested_' + uid, String(cachedTotalInvestedMobile));
+                    localStorage.setItem('tonu_unrealized_gain_' + uid, String(cachedEquityGainMobile));
+                    localStorage.setItem('tonu_return_pct_' + uid, String(cachedEquityReturnPctMobile));
+                    localStorage.setItem('tonu_total_equity_updated_at_' + uid, cachedTotalEquityUpdatedAtMobile);
+                } catch (_) {}
+                checkMobileWealthGoalsCompletion();
+                return cachedTotalEquityMobile;
+            }
+        }
+    } catch (calcErr) {
+        console.warn('⚠️ Falha ao recalcular custódia direta em metas mobile:', calcErr);
+    }
+
+    // 2. TENTA SNAPSHOTS DO SUPABASE (se houver snapshot mais recente com valor válido)
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            const { data } = await window.supabaseClient
+                .from('portfolio_snapshots')
+                .select('total_equity, total_invested, date, created_at')
+                .eq('user_id', currentUser.id)
+                .order('date', { ascending: false })
+                .limit(1);
+            if (data && data[0]?.total_equity && Number(data[0].total_equity) > 0) {
+                cachedTotalEquityMobile = Number(data[0].total_equity);
+                cachedTotalInvestedMobile = Number(data[0].total_invested) || cachedTotalEquityMobile;
+                cachedEquityGainMobile = Math.round((cachedTotalEquityMobile - cachedTotalInvestedMobile) * 100) / 100;
+                cachedEquityReturnPctMobile = cachedTotalInvestedMobile > 0 ? (cachedEquityGainMobile / cachedTotalInvestedMobile) * 100 : 0;
+                cachedTotalEquityUpdatedAtMobile = data[0].created_at || data[0].date || new Date().toISOString();
+                isEquityLoadedMobile = true;
+                try {
+                    localStorage.setItem('tonu_total_equity_' + uid, String(cachedTotalEquityMobile));
+                    localStorage.setItem('tonu_total_invested_' + uid, String(cachedTotalInvestedMobile));
+                    localStorage.setItem('tonu_unrealized_gain_' + uid, String(cachedEquityGainMobile));
+                    localStorage.setItem('tonu_return_pct_' + uid, String(cachedEquityReturnPctMobile));
+                    localStorage.setItem('tonu_total_equity_updated_at_' + uid, cachedTotalEquityUpdatedAtMobile);
+                } catch (_) {}
+                checkMobileWealthGoalsCompletion();
+                return cachedTotalEquityMobile;
+            }
+        }
+    } catch (_) {}
+
+    // 3. FALLBACK: user_stats
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            const { data: uStat } = await window.supabaseClient
+                .from('user_stats')
+                .select('patrimony, updated_at')
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+            if (uStat && Number(uStat.patrimony) > 0) {
+                cachedTotalEquityMobile = Number(uStat.patrimony);
+                cachedTotalInvestedMobile = cachedTotalEquityMobile;
+                cachedTotalEquityUpdatedAtMobile = uStat.updated_at || new Date().toISOString();
+                isEquityLoadedMobile = true;
+                checkMobileWealthGoalsCompletion();
+                return cachedTotalEquityMobile;
+            }
+        }
+    } catch (_) {}
+
+    // 4. FALLBACK: LocalStorage Cache
+    try {
+        const cached = localStorage.getItem('tonu_total_equity_' + uid) || 
+                       localStorage.getItem('tonu_portfolio_equity_' + uid) ||
+                       localStorage.getItem('tonu_total_equity');
+        const rawInv = localStorage.getItem('tonu_total_invested_' + uid) ||
+                       localStorage.getItem('tonu_total_invested');
+        if (cached) {
+            const val = Number(cached);
+            const valInv = rawInv ? Number(rawInv) : val;
+            if (!isNaN(val) && val > 0) {
+                cachedTotalEquityMobile = val;
+                cachedTotalInvestedMobile = !isNaN(valInv) ? valInv : val;
+                cachedEquityGainMobile = Math.round((cachedTotalEquityMobile - cachedTotalInvestedMobile) * 100) / 100;
+                cachedEquityReturnPctMobile = cachedTotalInvestedMobile > 0 ? (cachedEquityGainMobile / cachedTotalInvestedMobile) * 100 : 0;
+                cachedTotalEquityUpdatedAtMobile = localStorage.getItem('tonu_total_equity_updated_at_' + uid) || null;
+                isEquityLoadedMobile = true;
+                checkMobileWealthGoalsCompletion();
+                return cachedTotalEquityMobile;
+            }
+        }
+    } catch (_) {}
+
+    isEquityLoadedMobile = true;
+    return cachedTotalEquityMobile;
+}
+window.getLatestPortfolioValueMobile = getLatestPortfolioValueMobile;
+
+async function refreshMobilePortfolioValue() {
+    showToast('Atualizando patrimônio em custódia...', 'info');
+    isEquityLoadedMobile = false;
+    cachedTotalEquityMobile = 0;
+    await getLatestPortfolioValueMobile({ forceRefresh: true });
+    updateHeroStats();
+    renderGoals();
+    showToast('Patrimônio atualizado com sucesso!', 'success');
+}
+window.refreshMobilePortfolioValue = refreshMobilePortfolioValue;
+
+function checkMobileWealthGoalsCompletion() {
+    if (!cachedTotalEquityMobile || cachedTotalEquityMobile <= 0) return;
+    const wealthGoals = (goals || []).filter(g => (g.type === 'wealth' || g.type === 'net_worth') && !g.completed);
+    wealthGoals.forEach(g => {
+        const tgt = Number(g.target_amount) || 1;
+        if (cachedTotalEquityMobile >= tgt) {
+            g.completed = true;
+            g.completed_at = new Date().toISOString();
+            if (typeof triggerCelebrationModal === 'function') {
+                triggerCelebrationModal(g.title, cachedTotalEquityMobile);
+            }
+            if (typeof window.sendRealtimePush === 'function') {
+                try {
+                    window.sendRealtimePush({
+                        title: `🏆 Meta de Patrimônio Conquistada!`,
+                        body: `Parabéns! Você alcançou ${formatCurrency(cachedTotalEquityMobile)} na meta "${g.title}"!`,
+                        url: 'pages/mobile/goals.html',
+                        tag: `goal-wealth-100-${g.id}`
+                    });
+                } catch (pushErr) {
+                    console.warn('⚠️ Erro push wealth mobile:', pushErr);
+                }
+            }
+            if (window.supabaseClient && currentUser?.id) {
+                window.supabaseClient.from('goals').update({
+                    completed: true,
+                    completed_at: g.completed_at,
+                    updated_at: new Date().toISOString()
+                }).eq('id', g.id).eq('user_id', currentUser.id).then(() => {}).catch(() => {});
+            }
+        }
+    });
+}
+window.checkMobileWealthGoalsCompletion = checkMobileWealthGoalsCompletion;
+
+// Seletor de Tipo no Modal (Mobile)
+function selectMobileGoalType(type, elem) {
+    selectedMobileType = type;
+    const inputType = document.getElementById('goalType');
+    if (inputType) inputType.value = type;
+
+    document.querySelectorAll('.type-card-mobile-opt').forEach(c => c.classList.remove('selected'));
+    if (elem) elem.classList.add('selected');
+
+    toggleMobileGoalTypeFields();
+}
+window.selectMobileGoalType = selectMobileGoalType;
+
+// Adiar / Mover meta para o próximo ciclo sem digitação
+async function postponeMobileGoal(id, nextYear) {
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+
+    const targetYear = nextYear || (currentCycleYear + 1);
+    goal.target_year = targetYear;
+    goal.postponed_to = targetYear;
+    goal.year = targetYear;
+    goal.deadline = `${targetYear}-12-31`;
+    goal.updated_at = new Date().toISOString();
+
+    showToast(`🎯 Meta "${goal.title}" reprogramada para o Ciclo ${targetYear}!`, 'success');
+    updateHeroStats();
+    renderGoals();
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', {
+            id: goal.id,
+            target_year: targetYear,
+            postponed_to: targetYear,
+            deadline: goal.deadline,
+            updated_at: goal.updated_at
+        });
+        await window.tonuSync.setCachedGoals(currentUser.id, goals);
+    }
+
+    if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            const res = await window.supabaseClient.from('goals').update({
+                target_year: targetYear,
+                deadline: goal.deadline,
+                updated_at: goal.updated_at
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            if (res.error && (res.error.code === 'PGRST204' || res.error.message.includes('target_year'))) {
+                await window.supabaseClient.from('goals').update({
+                    deadline: goal.deadline,
+                    updated_at: goal.updated_at
+                }).eq('id', goal.id).eq('user_id', currentUser.id);
+            }
+        } catch (e) {
+            console.warn('Erro ao mover meta no Supabase:', e);
+        }
+    }
+}
+window.postponeMobileGoal = postponeMobileGoal;
+
+// Aporte Rápido (+ R$ 500)
+async function quickAddMobileAmount(id, amt) {
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+
+    if (window.safeHaptic) window.safeHaptic(25);
+
+    const newAmount = (Number(goal.current_amount) || 0) + amt;
+    const isCompleted = newAmount >= (Number(goal.target_amount) || 0);
+    goal.current_amount = newAmount;
+    goal.completed = isCompleted;
+
+    if (typeof checkMilestonesMobile === 'function') {
+        await checkMilestonesMobile(goal, newAmount);
+    } else if (isCompleted) {
+        triggerCelebrationModal(goal.title, Math.max(goal.target_amount || 0, newAmount));
+    } else {
+        showToast(`Aporte rápido de ${formatCurrency(amt)} adicionado!`, 'success');
+    }
+
+    updateHeroStats();
+    renderGoals();
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', { id: goal.id, current_amount: newAmount, completed: isCompleted });
+        await window.tonuSync.setCachedGoals(currentUser.id, goals);
+    }
+
+    if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            await window.supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: isCompleted,
+                updated_at: new Date().toISOString()
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            const todayStr = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+            await window.supabaseClient.from('goal_deposits').insert([{
+                goal_id: goal.id,
+                user_id: currentUser.id,
+                amount: amt,
+                deposit_date: todayStr
+            }]);
+        } catch (e) {
+            console.warn('Erro no aporte rápido online:', e);
+        }
+    }
+}
+window.quickAddMobileAmount = quickAddMobileAmount;
+
+async function initMobileGoalsPage() {
     const savedTheme = localStorage.getItem("tonu_theme") || "light";
     if (savedTheme === "dark") {
         document.body.classList.add("dark-theme");
@@ -880,13 +2089,77 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (off) { const p = JSON.parse(off); user = p.user || p; }
             } catch (_) {}
         }
-        if (!user) { window.location.href = "../../index.html"; return; }
+        if (!user) {
+            console.warn("⚠️ Usuário não autenticado em metas mobile, redirecionando para login...");
+            window.location.href = "../../index.html";
+            return;
+        }
+
         currentUser = user;
-        await loadGoals();
+        if (typeof window !== 'undefined') window.currentUser = user;
+
+        updateMobileTemporalHeader();
+        populateMobileCycleSelectOptions();
+
+        try {
+            await loadGoals();
+        } catch (loadErr) {
+            console.error("Erro ao carregar dados de metas mobile:", loadErr);
+        }
     } catch (e) {
         console.error("Erro auth mobile metas:", e);
-        window.location.href = "../../index.html";
+        if (!currentUser) {
+            window.location.href = "../../index.html";
+        }
     }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", initMobileGoalsPage);
+} else {
+    initMobileGoalsPage();
+}
+
+// Sincronização automática de patrimônio ao retornar à tela (visibilidade, foco ou evento de custódia)
+let _goalsRefreshTimer = null;
+function debouncedRefreshGoalsPortfolio() {
+    if (!currentUser) return;
+    clearTimeout(_goalsRefreshTimer);
+    _goalsRefreshTimer = setTimeout(() => {
+        if (!currentUser) return;
+        getLatestPortfolioValueMobile({ forceRefresh: true }).then(() => {
+            updateHeroStats();
+            renderGoals();
+        }).catch(() => {});
+    }, 800);
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && currentUser) {
+        debouncedRefreshGoalsPortfolio();
+    }
+});
+
+window.addEventListener("focus", () => {
+    if (currentUser) {
+        debouncedRefreshGoalsPortfolio();
+    }
+});
+
+window.addEventListener("storage", (e) => {
+    if (e.key && (e.key.includes("tonu_total_equity") || e.key.includes("tonu_investments"))) {
+        getLatestPortfolioValueMobile({ forceRefresh: true }).then(() => {
+            updateHeroStats();
+            renderGoals();
+        }).catch(() => {});
+    }
+});
+
+window.addEventListener("tonu_portfolio_updated", () => {
+    getLatestPortfolioValueMobile({ forceRefresh: true }).then(() => {
+        updateHeroStats();
+        renderGoals();
+    }).catch(() => {});
 });
 
 // ============================================
@@ -923,6 +2196,10 @@ async function loadGoals() {
             }
         }
 
+        await Promise.allSettled([
+            getLatestPortfolioValueMobile(),
+            loadDividendsForGoalsMobile()
+        ]);
         updateHeroStats();
         renderGoals();
     } catch (error) {
@@ -953,104 +2230,336 @@ function updateHeroStats() {
         const tgt = Number(g.target_amount) || 0;
         totalAcumulado += cur;
         totalAlvo += tgt;
-        if (g.completed || (tgt > 0 && cur >= tgt)) {
+        if (isGoalCompleteMobile(g)) {
             concluidas++;
         }
     });
 
-    document.getElementById("heroTotalAcumulado").textContent = formatCurrency(totalAcumulado);
-    document.getElementById("heroTotalAlvo").textContent = formatCurrency(totalAlvo);
-    document.getElementById("heroMetasConcluidas").textContent = `${concluidas} de ${goals.length}`;
+    const elTot = document.getElementById("heroTotalAcumulado");
+    const elAlv = document.getElementById("heroTotalAlvo");
+    const elCon = document.getElementById("heroMetasConcluidas");
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(elTot, totalAcumulado, formatCurrency);
+        window.TonuMobileUI.animateValue(elAlv, totalAlvo, formatCurrency);
+        window.TonuMobileUI.animateValue(elCon, concluidas, v => `${Math.round(v)} de ${goals.length}`);
+    } else {
+        if (elTot) elTot.textContent = formatCurrency(totalAcumulado);
+        if (elAlv) elAlv.textContent = formatCurrency(totalAlvo);
+        if (elCon) elCon.textContent = `${concluidas} de ${goals.length}`;
+    }
+    
+    updateMobileTemporalHeader();
     if (typeof updateMobileCdiGlobalCard === 'function') updateMobileCdiGlobalCard();
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 }
 
 // ============================================
 // RENDERIZAR LISTA DE METAS COM CARDS & AÇÕES
 // ============================================
-function renderGoals() {
-    const container = document.getElementById("goalsContainer");
-    if (!container) return;
+function _filterVisibleGoals() {
+    let visible = goals.filter(g => {
+        const y = resolveGoalYear(g);
+        if (currentTemporalMode === 'continuous') {
+            return y === 'continuous';
+        }
+        return y === currentCycleYear;
+    });
 
-    let filtered = goals;
-    if (currentFilter === 'ongoing') {
-        filtered = goals.filter(g => !g.completed && (Number(g.current_amount) || 0) < (Number(g.target_amount) || 0));
+    if (currentFilter === 'project') {
+        visible = visible.filter(g => g.type === 'habit' || g.type === 'project');
+    } else if (currentFilter === 'money') {
+        visible = visible.filter(g => !g.type || g.type === 'financial');
+    } else if (currentFilter === 'auto') {
+        visible = visible.filter(g => g.type === 'dividends' || g.type === 'wealth' || g.type === 'net_worth');
     } else if (currentFilter === 'completed') {
-        filtered = goals.filter(g => g.completed || (Number(g.current_amount) || 0) >= (Number(g.target_amount) || 0));
+        visible = visible.filter(isGoalCompleteMobile);
+    } else if (currentFilter === 'ongoing') {
+        visible = visible.filter(g => !isGoalCompleteMobile(g));
     }
 
-    if (filtered.length === 0) {
-        container.innerHTML = `
-            <div style="text-align:center; padding:32px 16px; background:var(--color-surface,#fff); border-radius:14px; border:1px solid var(--color-border,#e2e8f0);">
-                <i class="fas fa-bullseye" style="font-size:36px; color:#a29bfe; margin-bottom:10px; display:block;"></i>
-                <h3 style="font-size:14px; font-weight:700; color:var(--color-text,#0f172a); margin-bottom:4px;">Nenhuma meta encontrada</h3>
-                <p style="font-size:12px; color:#94a3b8; margin-bottom:14px;">Defina um objetivo financeiro e acompanhe seu progresso!</p>
-                <button class="btn-add-primary" style="margin:0 auto;" onclick="openGoalModal()">
-                    <i class="fas fa-plus"></i> Criar Primeira Meta
+    return visible;
+}
+
+function _emptyStateHtml() {
+    return `
+        <div class="mobile-empty-friendly">
+            <div class="empty-icon-box"><i class="fas fa-bullseye"></i></div>
+            <h3>Nenhuma meta encontrada</h3>
+            <p>${currentTemporalMode === 'continuous' ? 'Você ainda não cadastrou metas contínuas.' : `Nenhuma meta ativa para o Ciclo ${currentCycleYear}. Comece seu planejamento!`}</p>
+            <button type="button" class="btn-empty-action" onclick="openGoalModal()">
+                <i class="fas fa-plus"></i> Criar Nova Meta
+            </button>
+        </div>
+    `;
+}
+
+function _renderProjectCard(g, idx) {
+    const isCompleted = isGoalCompleteMobile(g);
+    const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+    const completedDateText = g.completed_at ? formatDate(g.completed_at) : (g.deadline ? formatDate(g.deadline) : null);
+    const goalYear = resolveGoalYear(g);
+    const isPostponed = !isCompleted && (g.postponed_to || (g.target_year && g.target_year > currentCycleYear) || (typeof goalYear === 'number' && goalYear < currentCycleYear));
+    const postponedYear = g.postponed_to || g.target_year || (currentCycleYear + 1);
+
+    return `
+        <div class="goal-card stagger-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${isCompleted ? '#00B894' : '#38BDF8'}; animation-delay: ${delay}s;">
+            <div class="goal-card-top">
+                <div class="goal-title-group">
+                    <button type="button" class="project-toggle-mobile ${isCompleted ? 'checked' : ''}" onclick="toggleMobileHabitStatus('${g.id}')" title="Marcar como Concluído">
+                        <i class="fas fa-check" style="font-size:12px;"></i>
+                    </button>
+                    <div>
+                        <h3 style="${isCompleted ? 'text-decoration: line-through; opacity:0.85;' : ''}">${g.title}</h3>
+                        <small style="color:#38BDF8; font-weight:600;"><i class="fas fa-tasks"></i> Projeto / Checklist</small>
+                    </div>
+                </div>
+                <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}" style="${isPostponed ? 'background:rgba(100,116,139,0.15); color:#64748B;' : ''}">
+                    <i class="fas ${isCompleted ? 'fa-check' : (isPostponed ? 'fa-redo' : 'fa-hourglass-half')}"></i>
+                    ${isCompleted ? 'Concluído' : (isPostponed ? `Para ${postponedYear}` : 'Em andamento')}
+                </span>
+            </div>
+
+            <div class="clean-card-meta-line" style="justify-content:space-between; margin: 2px 0;">
+                <span style="font-size:11px; font-weight:700; color:${isCompleted ? '#00B894' : (isPostponed ? '#64748B' : '#F59E0B')};">
+                    ${isCompleted ? `🏆 Concluído ${completedDateText ? '('+completedDateText+')' : ''}` : (isPostponed ? `🔄 Reprogramada p/ ${postponedYear}` : '⏳ Em Andamento')}
+                </span>
+                <span style="font-size:10.5px; font-weight:600; color:var(--mob-text-muted, #64748b);">${g.target_year ? `Ciclo ${g.target_year}` : (g.deadline ? formatDate(g.deadline) : 'Ciclo Atual')}</span>
+            </div>
+
+            <!-- AÇÕES DO PROJETO / HÁBITO -->
+            <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto auto;">
+                <button type="button" class="btn-goal-act" style="background:${isCompleted ? '#d1fae5' : 'rgba(56,189,248,0.12)'}; color:${isCompleted ? '#047857' : '#0284C7'}; font-weight:700;" onclick="toggleMobileHabitStatus('${g.id}')">
+                    <i class="fas ${isCompleted ? 'fa-undo' : 'fa-check'}"></i> ${isCompleted ? 'Reabrir' : 'Concluir'}
+                </button>
+                ${!isCompleted ? `
+                    <button type="button" class="btn-postpone-mobile" onclick="postponeMobileGoal('${g.id}', ${currentCycleYear + 1})" title="Mover para o próximo ano">
+                        <i class="fas fa-arrow-right"></i> Mover p/ ${currentCycleYear + 1}
+                    </button>
+                ` : ''}
+                <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                    <i class="fas fa-trash-alt"></i>
                 </button>
             </div>
-        `;
-        return;
+        </div>
+    `;
+}
+
+function _renderDividendsCard(g, idx) {
+    const isCompleted = isGoalCompleteMobile(g);
+    const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+    const tgt = Number(g.target_amount) || 1;
+    const analysis = getDividendGoalAnalysisMobile(tgt, g.target_year || currentCycleYear || new Date().getFullYear());
+    const monthlyDivs = analysis.currentMonthVal;
+    const percent = analysis.percentMonth;
+    const isMonthlyTargetMet = tgt > 0 && monthlyDivs >= tgt;
+
+    let consistencyText = '';
+    if (analysis.monthsOnTarget > 0) {
+        consistencyText = `🎯 <strong>${analysis.monthsOnTarget} ${analysis.monthsOnTarget === 1 ? 'mês bateu' : 'meses bateram'}</strong> o alvo de ${formatCurrency(tgt)}`;
+    } else if (analysis.totalYear > 0) {
+        consistencyText = `📊 Acumulado no ano: <strong>${formatCurrency(analysis.totalYear)}</strong>`;
+    } else {
+        consistencyText = `Aguardando primeiros proventos registrados`;
     }
 
-    container.innerHTML = filtered.map(g => {
-        const cur = Number(g.current_amount) || 0;
-        const tgt = Number(g.target_amount) || 0;
-        const percent = tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : 0;
-        const isCompleted = g.completed || percent >= 100;
-        const remaining = Math.max(0, tgt - cur);
-
-        const catInfo = CATEGORY_ICONS[g.category] || CATEGORY_ICONS.other;
-        const color = g.color || catInfo.color;
-
-        return `
-            <div class="goal-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${color};">
-                <div class="goal-card-top">
-                    <div class="goal-title-group">
-                        <div class="goal-category-icon" style="background:${color};">
-                            <i class="fas ${catInfo.icon}"></i>
-                        </div>
-                        <div>
-                            <h3>${g.title}</h3>
-                            <small>${catInfo.label}</small>
-                        </div>
+    return `
+        <div class="goal-card stagger-card ${isCompleted || isMonthlyTargetMet ? 'completed' : ''}" style="border-left-color:#10B981; animation-delay: ${delay}s;">
+            <div class="goal-card-top">
+                <div class="goal-title-group">
+                    <div class="mobile-icon-squircle" style="background:rgba(16,185,129,0.15); color:#10B981; width:38px; height:38px;">
+                        <i class="fas fa-hand-holding-usd"></i>
                     </div>
-                    <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
-                        <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-spinner fa-spin'}"></i>
-                        ${isCompleted ? 'Concluída' : `${percent}%`}
+                    <div>
+                        <h3>${g.title}</h3>
+                        <small style="color:#10B981; font-weight:600;">📈 Proventos da Carteira</small>
+                    </div>
+                </div>
+                <span class="goal-badge ${isCompleted || isMonthlyTargetMet ? 'done' : 'ongoing'}">
+                    <i class="fas ${isCompleted || isMonthlyTargetMet ? 'fa-trophy' : 'fa-chart-line'}"></i>
+                    ${isCompleted ? 'Atingido!' : (isMonthlyTargetMet ? 'Meta do Mês! 🏆' : `${percent}%`)}
+                </span>
+            </div>
+
+            <div class="goal-values-row">
+                <div>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">Recebido este Mês</span>
+                    <span class="goal-current-val" data-sensitive style="color:#10B981;">${formatCurrency(monthlyDivs)}</span>
+                </div>
+                <div style="text-align:right;">
+                    <span class="goal-target-val" data-sensitive>Alvo Mensal: <strong>${formatCurrency(tgt)}</strong></span>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">
+                        ${isMonthlyTargetMet ? 'Meta batida! 🎉' : `Falta: ${formatCurrency(Math.max(0, tgt - monthlyDivs))}`}
                     </span>
                 </div>
+            </div>
 
-                <div class="goal-values-row">
+            <div class="goal-progress-bar">
+                <div class="goal-progress-fill" style="width: ${percent}%; background: #10B981;"></div>
+            </div>
+
+            <div style="font-size:10.5px; color:#64748b; margin-top:5px;">
+                ${consistencyText}
+            </div>
+
+            <div class="auto-sync-tag-mobile">
+                <span><i class="fas fa-wallet"></i> Proventos da Carteira</span>
+                <button type="button" onclick="refreshMobileDividends()">
+                    <i class="fas fa-redo-alt"></i> Atualizar
+                </button>
+            </div>
+
+            <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
+                <button type="button" class="btn-goal-act btn-proventos-outline" onclick="window.location.href='investments.html#proventos'">
+                    <i class="fas fa-chart-line"></i> Ver Proventos
+                </button>
+                <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function _renderWealthCard(g, idx) {
+    const isCompleted = isGoalCompleteMobile(g);
+    const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+    const cur = cachedTotalEquityMobile > 0 ? cachedTotalEquityMobile : (Number(g.current_amount) || 0);
+    const inv = cachedTotalInvestedMobile > 0 ? cachedTotalInvestedMobile : cur;
+    const tgt = Number(g.target_amount) || 1;
+    const percent = Math.min(100, Math.round((cur / tgt) * 100));
+    const formattedTime = formatEquityTimestampMobile(cachedTotalEquityUpdatedAtMobile);
+    const diffReturn = cur - inv;
+    const returnPct = inv > 0 ? (diffReturn / inv) * 100 : 0;
+    const sign = diffReturn >= 0 ? '+' : '';
+
+    let detailsReturn = '';
+    if (inv > 0 && Math.abs(diffReturn) > 0.01) {
+        const colorRet = diffReturn >= 0 ? '#10B981' : '#F59E0B';
+        detailsReturn = `<span style="font-size:10px; color:${colorRet}; font-weight:600;">Aplicado: ${formatCurrency(inv)} (${sign}${returnPct.toFixed(2)}%)</span>`;
+    }
+
+    return `
+        <div class="goal-card stagger-card ${isCompleted ? 'completed' : ''}" style="border-left-color:#4338CA; animation-delay: ${delay}s;">
+            <div class="goal-card-top">
+                <div class="goal-title-group">
+                    <div class="mobile-icon-squircle" style="background:rgba(67,56,202,0.14); color:#4338CA; width:38px; height:38px;">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
                     <div>
-                        <span style="font-size:10px; color:#94a3b8; display:block;">Acumulado</span>
-                        <span class="goal-current-val">${formatCurrency(cur)}</span>
-                    </div>
-                    <div style="text-align:right;">
-                        <span class="goal-target-val">Alvo: <strong>${formatCurrency(tgt)}</strong></span>
-                        <span style="font-size:10px; color:#94a3b8; display:block;">
-                            ${isCompleted ? 'Meta atingida! 🎉' : `Falta: ${formatCurrency(remaining)}`}
-                        </span>
+                        <h3>${g.title}</h3>
+                        <small style="color:#4338CA; font-weight:600;">🏦 Patrimônio Total</small>
                     </div>
                 </div>
+                <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
+                    <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-gem'}"></i>
+                    ${isCompleted ? 'Conquistado!' : (isEquityLoadedMobile ? `${percent}%` : '—')}
+                </span>
+            </div>
 
-                <div class="goal-progress-bar">
-                    <div class="goal-progress-fill" style="width: ${percent}%; background: ${color};"></div>
+            <div class="goal-values-row">
+                <div>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">Patrimônio Atual em Ativos</span>
+                    <span class="goal-current-val" data-sensitive style="color:#4338CA;">${isEquityLoadedMobile ? formatCurrency(cur) : '—'}</span>
+                    ${detailsReturn ? `<div style="margin-top:2px;">${detailsReturn}</div>` : ''}
                 </div>
-
-                <div class="goal-footer-info">
-                    <span>${percent}% concluído</span>
-                    <span>${g.deadline ? '📅 ' + formatDate(g.deadline) : 'Sem prazo'}</span>
+                <div style="text-align:right;">
+                    <span class="goal-target-val" data-sensitive>Alvo: <strong>${formatCurrency(tgt)}</strong></span>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">
+                        ${isCompleted ? 'Meta atingida! 🏆' : (isEquityLoadedMobile ? `Faltam: ${formatCurrency(Math.max(0, tgt - cur))}` : 'Carregando custódia...')}
+                    </span>
                 </div>
+            </div>
 
-                <!-- AÇÕES: CDI, APORTAR, RESGATAR, EDITAR, EXCLUIR -->
-                <div class="goal-actions-grid" style="grid-template-columns: auto 1fr 1fr auto auto;">
-                    <button type="button" class="btn-goal-act" style="background:rgba(108,92,231,0.12); color:#6C5CE7; font-weight:700;" onclick="openMobileYieldModal('${g.id}')">
-                        <i class="fas fa-chart-line"></i> CDI
-                    </button>
-                    <button type="button" class="btn-goal-act deposit" onclick="openDepositModal('${g.id}')">
+            <div class="goal-progress-bar">
+                <div class="goal-progress-fill" style="width: ${isEquityLoadedMobile ? percent : 0}%; background: linear-gradient(90deg, #3730A3, #2563EB);"></div>
+            </div>
+
+            <div class="auto-sync-tag-mobile">
+                <span><i class="fas fa-sync-alt"></i> Custódia • ${formattedTime}</span>
+                <button type="button" onclick="refreshMobilePortfolioValue()">
+                    <i class="fas fa-redo-alt"></i> Atualizar
+                </button>
+            </div>
+
+            <div class="goal-actions-grid" style="grid-template-columns: 1fr auto auto;">
+                <button type="button" class="btn-goal-act" style="background:rgba(67,56,202,0.12); color:#4338CA; font-weight:700;" onclick="window.location.href='investments.html'">
+                    <i class="fas fa-chart-pie"></i> Carteira
+                </button>
+                <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn-goal-icon del" onclick="deleteGoal('${g.id}')" title="Excluir Meta">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function _renderFinancialCard(g, idx) {
+    const isCompleted = isGoalCompleteMobile(g);
+    const catInfo = CATEGORY_ICONS[g.category] || CATEGORY_ICONS.other;
+    const color = g.color || catInfo.color;
+    const delay = (Math.min(idx, 10) * 0.04).toFixed(2);
+    const cur = Number(g.current_amount) || 0;
+    const tgt = Number(g.target_amount) || 0;
+    const percent = tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : 0;
+    const remaining = Math.max(0, tgt - cur);
+    const squircleBg = typeof colorTo15PercentAlpha === 'function' ? colorTo15PercentAlpha(color) : 'rgba(67, 56, 202, 0.15)';
+
+    return `
+        <div class="goal-card stagger-card ${isCompleted ? 'completed' : ''}" style="border-left-color:${color}; animation-delay: ${delay}s;">
+            <div class="goal-card-top">
+                <div class="goal-title-group">
+                    <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${color}; width:38px; height:38px;">
+                        <i class="fas ${catInfo.icon}"></i>
+                    </div>
+                    <div>
+                        <h3>${g.title}</h3>
+                        <small>${catInfo.label}</small>
+                    </div>
+                </div>
+                <span class="goal-badge ${isCompleted ? 'done' : 'ongoing'}">
+                    <i class="fas ${isCompleted ? 'fa-trophy' : 'fa-piggy-bank'}"></i>
+                    ${isCompleted ? 'Concluída' : `${percent}%`}
+                </span>
+            </div>
+
+            <div class="goal-values-row">
+                <div>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">Acumulado</span>
+                    <span class="goal-current-val" data-sensitive>${formatCurrency(cur)}</span>
+                </div>
+                <div style="text-align:right;">
+                    <span class="goal-target-val" data-sensitive>Alvo: <strong>${formatCurrency(tgt)}</strong></span>
+                    <span style="font-size:10px; color:#94a3b8; display:block;">
+                        ${isCompleted ? 'Meta atingida! 🎉' : `Falta: ${formatCurrency(remaining)}`}
+                    </span>
+                </div>
+            </div>
+
+            <div class="goal-progress-bar">
+                <div class="goal-progress-fill" style="width: ${percent}%; background: ${color};"></div>
+            </div>
+
+            <div class="goal-footer-info">
+                <span>${percent}% concluído</span>
+                <span>${g.target_year ? 'Ciclo ' + g.target_year : (g.deadline ? '📅 ' + formatDate(g.deadline) : 'Sem prazo')}</span>
+            </div>
+
+            <!-- AÇÕES COMPACTAS -->
+            <div class="goal-actions-wrap" style="display:flex; flex-direction:column; gap:5px; margin-top:7px; padding-top:7px; border-top:1px solid var(--mob-border,#f1f5f9);">
+                <div style="display:flex; gap:5px; align-items:center;">
+                    <button type="button" class="btn-goal-act deposit" style="flex:1;" onclick="openDepositModal('${g.id}')">
                         <i class="fas fa-plus"></i> Aportar
                     </button>
-                    <button type="button" class="btn-goal-act withdraw" onclick="openWithdrawModal('${g.id}')">
+                    <button type="button" class="btn-goal-act withdraw" style="flex:1;" onclick="openWithdrawModal('${g.id}')">
                         <i class="fas fa-minus"></i> Resgatar
                     </button>
                     <button type="button" class="btn-goal-icon" onclick="openEditGoalModal('${g.id}')" title="Editar Meta">
@@ -1060,9 +2569,41 @@ function renderGoals() {
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
+                <div style="display:flex; gap:5px; align-items:center;">
+                    ${!isCompleted ? `
+                        <button type="button" class="btn-goal-act" style="flex:1; background:rgba(245,158,11,0.15); color:#D97706; font-weight:700;" onclick="quickAddMobileAmount('${g.id}', 500)">
+                            <i class="fas fa-bolt"></i> + R$ 500
+                        </button>
+                    ` : ''}
+                    <button type="button" class="btn-goal-act" style="flex:1; background:rgba(67,56,202,0.12); color:#4338CA; font-weight:700;" onclick="openMobileYieldModal('${g.id}')">
+                        <i class="fas fa-chart-line"></i> Simular CDI
+                    </button>
+                </div>
             </div>
-        `;
-    }).join("");
+        </div>
+    `;
+}
+
+function _renderGoalCard(g, idx) {
+    const goalType = g.type || 'financial';
+    if (goalType === 'habit' || goalType === 'project') return _renderProjectCard(g, idx);
+    if (goalType === 'dividends') return _renderDividendsCard(g, idx);
+    if (goalType === 'wealth' || goalType === 'net_worth') return _renderWealthCard(g, idx);
+    return _renderFinancialCard(g, idx);
+}
+
+function renderGoals() {
+    const container = document.getElementById("goalsContainer");
+    if (!container) return;
+
+    const visible = _filterVisibleGoals();
+    if (visible.length === 0) {
+        container.innerHTML = _emptyStateHtml();
+        return;
+    }
+
+    container.innerHTML = visible.map((g, idx) => _renderGoalCard(g, idx)).join("");
+    if (window.TonuMobileUI) window.TonuMobileUI.applyPrivacyState();
 }
 
 // ============================================
@@ -1085,16 +2626,167 @@ function applyCategoryColor(cat) {
 // ============================================
 // MODAL & HANDLER: CRIAR / EDITAR META
 // ============================================
+function toggleMobileGoalTypeFields() {
+    const type = selectedMobileType || document.getElementById('goalType')?.value || 'project';
+    const amountRow = document.getElementById('mobileGoalAmountRow');
+    const targetGroup = document.getElementById('mobileGoalTargetGroup');
+    const currentGroup = document.getElementById('mobileGoalCurrentGroup');
+    const cdiGroup = document.getElementById('mobileGoalCdiGroup');
+    const lblTarget = document.getElementById('lblMobileGoalTarget');
+    const targetInput = document.getElementById('goalTarget');
+    const currentInput = document.getElementById('goalCurrent');
+
+    if (type === 'project' || type === 'habit') {
+        if (amountRow) amountRow.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (targetInput) { targetInput.required = false; targetInput.value = '1'; }
+        if (currentInput) currentInput.value = '0';
+    } else if (type === 'dividends') {
+        if (amountRow) {
+            amountRow.style.display = 'grid';
+            amountRow.style.gridTemplateColumns = '1fr';
+        }
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (lblTarget) lblTarget.textContent = 'Alvo Mensal de Proventos (R$/mês)';
+        if (targetInput) { targetInput.required = true; targetInput.placeholder = '50,00'; }
+        if (currentInput) currentInput.value = '0';
+    } else if (type === 'wealth') {
+        if (amountRow) {
+            amountRow.style.display = 'grid';
+            amountRow.style.gridTemplateColumns = '1fr';
+        }
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (lblTarget) lblTarget.textContent = 'Alvo de Patrimônio Total (R$)';
+        if (targetInput) { targetInput.required = true; targetInput.placeholder = '10.000,00'; }
+        if (currentInput) currentInput.value = '0';
+    } else { // 'financial'
+        if (amountRow) {
+            amountRow.style.display = 'grid';
+            amountRow.style.gridTemplateColumns = '1fr 1fr';
+        }
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'block';
+        if (cdiGroup) cdiGroup.style.display = 'block';
+        if (lblTarget) lblTarget.textContent = 'Valor Alvo (R$)';
+        if (targetInput) { targetInput.required = true; targetInput.placeholder = '10.000,00'; }
+    }
+}
+window.toggleMobileGoalTypeFields = toggleMobileGoalTypeFields;
+
+function getMonthlyDividendsTotalMobile(targetMonthStr) {
+    const ym = targetMonthStr || (new Date().toISOString().substring(0, 7));
+    const divs = (cachedDividendsListMobile && cachedDividendsListMobile.length > 0)
+        ? cachedDividendsListMobile
+        : (Array.isArray(window.allDividends) ? window.allDividends : []);
+
+    return (divs || [])
+        .filter(d => {
+            const iso = getDividendISODateMobile(d);
+            return iso && iso.startsWith(ym);
+        })
+        .reduce((sum, d) => sum + getDividendTotalValueMobile(d), 0);
+}
+window.getMonthlyDividendsTotalMobile = getMonthlyDividendsTotalMobile;
+
+async function toggleMobileHabitStatus(id) {
+    const goal = goals.find(g => String(g.id) === String(id));
+    if (!goal) return;
+
+    if (window.safeHaptic) window.safeHaptic(25);
+
+    const newStatus = !goal.completed;
+    goal.completed = newStatus;
+    goal.current_amount = newStatus ? 1 : 0;
+    goal.target_amount = 1;
+    goal.updated_at = new Date().toISOString();
+    if (newStatus) goal.completed_at = new Date().toISOString();
+    else delete goal.completed_at;
+
+    renderGoals();
+    updateHeroStats();
+
+    if (newStatus && typeof triggerCelebrationModal === 'function') {
+        triggerCelebrationModal(goal.title, 0);
+    }
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', {
+            id: goal.id,
+            completed: newStatus,
+            current_amount: goal.current_amount,
+            target_amount: 1,
+            completed_at: goal.completed_at || null,
+            updated_at: goal.updated_at
+        });
+        await window.tonuSync.setCachedGoals(currentUser.id, goals);
+    }
+
+    if (window.supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            await window.supabaseClient.from('goals').update({
+                completed: newStatus,
+                current_amount: goal.current_amount,
+                target_amount: 1,
+                completed_at: goal.completed_at || null,
+                updated_at: goal.updated_at
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+        } catch (e) {
+            console.warn('Erro ao atualizar hábito no Supabase:', e);
+        }
+    }
+
+    showToast(newStatus ? '🎉 Projeto/Hábito concluído!' : '⏳ Hábito retornado para Pendente', 'info');
+}
+window.toggleMobileHabitStatus = toggleMobileHabitStatus;
+
+function populateMobileCycleSelectOptions(extraYear) {
+    const select = document.getElementById("goalCycleSelect");
+    if (!select) return;
+    const baseYear = new Date().getFullYear();
+    const years = [baseYear, baseYear + 1, baseYear - 1];
+    if (typeof extraYear === 'number' && !isNaN(extraYear) && !years.includes(extraYear)) {
+        years.push(extraYear);
+    }
+    const prevVal = select.value;
+    select.innerHTML = years.map(yr => {
+        const tag = yr === baseYear ? 'Atual' : (yr > baseYear ? 'Planejamento' : 'Histórico');
+        return `<option value="${yr}">Ciclo ${yr} (${tag})</option>`;
+    }).join('') + '<option value="continuous">♾️ Meta Contínua (Longo Prazo)</option>';
+    if (prevVal) select.value = prevVal;
+}
+window.populateMobileCycleSelectOptions = populateMobileCycleSelectOptions;
+
 function openGoalModal() {
     document.getElementById("goalModalTitle").textContent = "Nova Meta";
     document.getElementById("goalEditId").value = "";
+    
+    // Default: Projeto (Checklist)
+    selectedMobileType = 'project';
+    if (document.getElementById("goalType")) document.getElementById("goalType").value = "project";
+    
+    // Atualiza cards de seleção de tipo
+    document.querySelectorAll('.type-card-mobile-opt').forEach((card, idx) => {
+        card.classList.toggle('selected', idx === 0);
+    });
+
     document.getElementById("goalTitle").value = "";
     document.getElementById("goalTarget").value = "";
     document.getElementById("goalCurrent").value = "";
     document.getElementById("goalDeadline").value = "";
+    
+    populateMobileCycleSelectOptions();
+    const cycleSelect = document.getElementById("goalCycleSelect");
+    if (cycleSelect) cycleSelect.value = currentTemporalMode === 'continuous' ? 'continuous' : String(currentCycleYear);
+
     document.getElementById("goalCategory").value = "emergency";
     document.getElementById("goalColor").value = CATEGORY_ICONS.emergency.color;
     if (document.getElementById("goalCdiPercent")) document.getElementById("goalCdiPercent").value = "100";
+    
+    toggleMobileGoalTypeFields();
     document.getElementById("modalGoal").classList.add("active");
 }
 
@@ -1104,13 +2796,42 @@ function openEditGoalModal(id) {
 
     document.getElementById("goalModalTitle").textContent = "Editar Meta";
     document.getElementById("goalEditId").value = goal.id;
+    
+    selectedMobileType = goal.type || "financial";
+    if (document.getElementById("goalType")) document.getElementById("goalType").value = selectedMobileType;
+
+    // Atualiza visualização dos cards de tipo
+    document.querySelectorAll('.type-card-mobile-opt').forEach(card => {
+        const cType = card.dataset.type || card.getAttribute('data-type');
+        const isSel = cType === selectedMobileType || 
+                     ((selectedMobileType === 'habit' || selectedMobileType === 'project') && cType === 'project') ||
+                     ((selectedMobileType === 'wealth' || selectedMobileType === 'net_worth') && cType === 'wealth');
+        card.classList.toggle('selected', !!isSel);
+    });
+
     document.getElementById("goalTitle").value = goal.title;
     document.getElementById("goalTarget").value = goal.target_amount;
     document.getElementById("goalCurrent").value = goal.current_amount || 0;
     document.getElementById("goalDeadline").value = goal.deadline || "";
+
+    const goalYear = resolveGoalYear(goal);
+    populateMobileCycleSelectOptions(goalYear);
+    const cycleSelect = document.getElementById("goalCycleSelect");
+    if (cycleSelect) {
+        if (goal.target_year === 'continuous' || goal.temporal_mode === 'continuous') {
+            cycleSelect.value = 'continuous';
+        } else if (goal.target_year) {
+            cycleSelect.value = String(goal.target_year);
+        } else {
+            cycleSelect.value = String(currentCycleYear);
+        }
+    }
+
     document.getElementById("goalCategory").value = goal.category || "other";
-    document.getElementById("goalColor").value = goal.color || "#6C5CE7";
+    document.getElementById("goalColor").value = goal.color || "#4338CA";
     if (document.getElementById("goalCdiPercent")) document.getElementById("goalCdiPercent").value = goal.cdi_percent || 100;
+    
+    toggleMobileGoalTypeFields();
     document.getElementById("modalGoal").classList.add("active");
 }
 
@@ -1126,25 +2847,61 @@ async function handleGoalSubmit(e) {
     btn.textContent = "Salvando...";
 
     const editId = document.getElementById("goalEditId").value;
+    const type = selectedMobileType || document.getElementById("goalType")?.value || "project";
     const title = document.getElementById("goalTitle").value.trim();
     const category = document.getElementById("goalCategory").value;
-    const target = parseFloat(document.getElementById("goalTarget").value) || 0;
-    const current = parseFloat(document.getElementById("goalCurrent").value) || 0;
-    const deadline = document.getElementById("goalDeadline").value || null;
+    let target = parseFloat(document.getElementById("goalTarget").value) || 0;
+    let current = parseFloat(document.getElementById("goalCurrent").value) || 0;
+    let deadline = document.getElementById("goalDeadline").value || null;
     const color = document.getElementById("goalColor").value;
     const cdiPercent = parseFloat(document.getElementById("goalCdiPercent")?.value) || 100;
-    const completed = current >= target && target > 0;
+    const cycle = document.getElementById("goalCycleSelect")?.value || String(currentCycleYear);
+
+    const targetYear = cycle === 'continuous' ? null : parseInt(cycle);
+    if (!deadline && targetYear) {
+        deadline = `${targetYear}-12-31`;
+    }
+
+    let completed = false;
+    if (type === 'project' || type === 'habit') {
+        target = 1;
+        current = 0;
+        completed = false;
+    } else if (type === 'dividends') {
+        current = getMonthlyDividendsTotalMobile();
+        completed = target > 0 ? (current >= target) : false;
+        if (target <= 0) {
+            showToast("Informe o valor mensal esperado de dividendos!", "error");
+            btn.disabled = false;
+            btn.textContent = "Salvar Meta";
+            return;
+        }
+    } else if (type === 'wealth') {
+        current = await getLatestPortfolioValueMobile();
+        completed = target > 0 ? (current >= target) : false;
+        if (target <= 0) {
+            showToast("Informe o valor alvo de patrimônio!", "error");
+            btn.disabled = false;
+            btn.textContent = "Salvar Meta";
+            return;
+        }
+    } else {
+        completed = current >= target && target > 0;
+    }
 
     const payload = {
         user_id: currentUser.id,
+        type: type,
         title: title,
         category: category,
         target_amount: target,
         current_amount: current,
+        target_year: targetYear,
         deadline: deadline,
         color: color,
         cdi_percent: cdiPercent,
-        completed: completed
+        completed: completed,
+        updated_at: new Date().toISOString()
     };
 
     try {
@@ -1164,12 +2921,14 @@ async function handleGoalSubmit(e) {
                         .insert([payload]);
                 }
 
-                if (res.error && res.error.message && res.error.message.includes("category")) {
-                    delete payload.category;
+                if (res.error && (res.error.code === 'PGRST204' || (res.error.message && (res.error.message.includes("category") || res.error.message.includes("target_year"))))) {
+                    const fallbackPayload = { ...payload };
+                    delete fallbackPayload.category;
+                    delete fallbackPayload.target_year;
                     if (editId) {
-                        await supabaseClient.from("goals").update(payload).eq("id", editId).eq("user_id", currentUser.id);
+                        await supabaseClient.from("goals").update(fallbackPayload).eq("id", editId).eq("user_id", currentUser.id);
                     } else {
-                        await supabaseClient.from("goals").insert([payload]);
+                        await supabaseClient.from("goals").insert([fallbackPayload]);
                     }
                 } else if (res.error) {
                     throw res.error;
@@ -1251,6 +3010,8 @@ async function handleDepositSubmit(e) {
 
     const goal = goals.find(g => String(g.id) === String(id));
     if (!goal) return;
+
+    if (window.safeHaptic) window.safeHaptic(25);
 
     const newAmount = (Number(goal.current_amount) || 0) + amount;
     const isCompleted = newAmount >= (Number(goal.target_amount) || 0);
@@ -1403,7 +3164,13 @@ async function deleteGoal(id) {
     const goal = goals.find(g => String(g.id) === String(id));
     if (!goal) return;
 
-    if (!confirm(`Deseja realmente excluir a meta "${goal.title}"?`)) return;
+    const ok = await window.TonuConfirm({
+        title: "Excluir meta",
+        message: `Deseja realmente excluir a meta "${goal.title}"?`,
+        confirmText: "Excluir",
+        danger: true
+    });
+    if (!ok) return;
 
     try {
         let isOnline = navigator.onLine && window.supabaseClient;
@@ -1442,33 +3209,19 @@ async function deleteGoal(id) {
 // ============================================
 // UTILITÁRIOS
 // ============================================
-function formatCurrency(val) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(val);
+function showToast(msg, type = 'info') {
+    if (typeof window.showToast === 'function' && window.showToast !== showToast) {
+        return window.showToast(msg, type);
     }
-    const num = parseFloat(val) || 0;
-    return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const t = document.getElementById("toast");
+    if (!t) return;
+    t.innerHTML = `<div class="toast-body"><i class="fas ${type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle')} toast-icon"></i><span class="toast-text">${msg}</span></div>`;
+    t.className = `toast show ${type} toast-${type}`;
+    setTimeout(() => { t.className = "toast hidden"; }, 2500);
 }
+if (!window.showToast) window.showToast = showToast;
 
-function formatDate(dStr) {
-    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
-        return window.formatDate(dStr);
-    }
-    if (!dStr) return "--/--/----";
-    const parts = dStr.split("T")[0].split("-");
-    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    return new Date(dStr).toLocaleDateString("pt-BR");
-}
-
-function toggleTheme() {
-    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
-        return window.toggleTheme();
-    }
-    const isDark = document.body.classList.toggle("dark-theme");
-    localStorage.setItem("tonu_theme", isDark ? "dark" : "light");
-    const icon = document.querySelector("#themeIcon");
-    if (icon) icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
-}
+// formatCurrency, formatDate e toggleTheme providos globalmente por js/core.js
 
 let celebrationAutoDismissTimer = null;
 
@@ -1557,9 +3310,11 @@ function dismissCelebration() {
 function triggerGoalConfetti() {
     try {
         if (typeof confetti === 'function') {
+            const auroraColors = ['#3730A3', '#4338CA', '#2563EB', '#10B981', '#FFFFFF'];
             confetti({
                 particleCount: 110,
                 spread: 75,
+                colors: auroraColors,
                 origin: { y: 0.6 }
             });
             setTimeout(() => {
@@ -1567,12 +3322,14 @@ function triggerGoalConfetti() {
                     particleCount: 60,
                     angle: 60,
                     spread: 60,
+                    colors: auroraColors,
                     origin: { x: 0 }
                 });
                 confetti({
                     particleCount: 60,
                     angle: 120,
                     spread: 60,
+                    colors: auroraColors,
                     origin: { x: 1 }
                 });
             }, 300);
@@ -1581,6 +3338,547 @@ function triggerGoalConfetti() {
         console.log('Confetti trigger skipped', e);
     }
 }
+
+// ============================================
+// ITEM 12: RENDIMENTO CDI, IOF, IR & MARCOS (MOBILE)
+// ============================================
+const IOF_TABLE_MOBILE = {
+    1: 0.96, 2: 0.93, 3: 0.90, 4: 0.86, 5: 0.83,
+    6: 0.80, 7: 0.76, 8: 0.73, 9: 0.70, 10: 0.66,
+    11: 0.63, 12: 0.60, 13: 0.56, 14: 0.53, 15: 0.50,
+    16: 0.46, 17: 0.43, 18: 0.40, 19: 0.36, 20: 0.33,
+    21: 0.30, 22: 0.26, 23: 0.23, 24: 0.20, 25: 0.16,
+    26: 0.13, 27: 0.10, 28: 0.06, 29: 0.03
+};
+
+function getIOFRateMobile(daysPassed) {
+    if (daysPassed <= 0) return 0.96;
+    if (daysPassed >= 30) return 0;
+    return IOF_TABLE_MOBILE[daysPassed] !== undefined ? IOF_TABLE_MOBILE[daysPassed] : 0;
+}
+
+function getIRRateMobile(daysPassed) {
+    if (daysPassed <= 180) return 0.225; // 22,5%
+    if (daysPassed <= 360) return 0.200; // 20,0%
+    if (daysPassed <= 720) return 0.175; // 17,5%
+    return 0.150; // 15,0%
+}
+
+let cachedMobileCDIDailyRate = 0.040169; // ~10.65% a.a.
+
+async function fetchMobileCDIRate() {
+    try {
+        if (window.supabaseClient && window.supabaseClient.functions) {
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
+            const invokePromise = window.supabaseClient.functions.invoke('get-cdi');
+            const res = await Promise.race([invokePromise, timeoutPromise]);
+            if (res && !res.error && res.data?.cdi?.daily_rate) {
+                cachedMobileCDIDailyRate = res.data.cdi.daily_rate;
+                return cachedMobileCDIDailyRate;
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ Falha ou timeout ao buscar CDI via Edge Function (Mobile):', e);
+    }
+    return cachedMobileCDIDailyRate;
+}
+
+async function checkMilestonesMobile(goal, newAmount) {
+    try {
+        if (!goal) return;
+        const target = Number(goal.target_amount) || 0;
+        if (target <= 0) return;
+
+        const amt = Number(newAmount) || 0;
+        const pct = Math.min(100, Math.floor((amt / target) * 100));
+        const milestones = [25, 50, 75, 90, 100];
+
+        let fired = [];
+        if (Array.isArray(goal.milestones_fired)) {
+            fired = [...goal.milestones_fired];
+        } else if (typeof goal.milestones_fired === 'string') {
+            try {
+                const parsed = JSON.parse(goal.milestones_fired);
+                if (Array.isArray(parsed)) fired = parsed;
+            } catch (e) {
+                fired = [];
+            }
+        }
+
+        let newFired = [];
+        for (const m of milestones) {
+            if (pct >= m && !fired.includes(m)) {
+                fired.push(m);
+                newFired.push(m);
+            }
+        }
+
+        if (newFired.length > 0) {
+            goal.milestones_fired = fired;
+            const uid = (typeof currentUser !== 'undefined' && currentUser?.id) || window.currentUser?.id;
+            if (window.supabaseClient && uid) {
+                try {
+                    await window.supabaseClient
+                        .from('goals')
+                        .update({ milestones_fired: fired })
+                        .eq('id', goal.id)
+                        .eq('user_id', uid);
+                } catch (err) {
+                    console.warn('⚠️ Erro ao persistir milestones_fired (Mobile):', err);
+                }
+            }
+
+            const highestMilestone = newFired[newFired.length - 1];
+            if (highestMilestone === 100) {
+                if (typeof triggerCelebrationModal === 'function') {
+                    triggerCelebrationModal(goal.title || 'Meta', amt);
+                } else if (typeof showToast === 'function') {
+                    showToast(`🎉 Parabéns! Meta "${goal.title || ''}" concluída 100%!`, 'success');
+                }
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast(`🎯 Marco de ${highestMilestone}% alcançado na meta "${goal.title || ''}"! 🚀`, 'success');
+                }
+                if (typeof triggerGoalConfetti === 'function') {
+                    triggerGoalConfetti();
+                }
+            }
+
+            if (typeof window.sendRealtimePush === 'function') {
+                try {
+                    window.sendRealtimePush({
+                        title: `🎯 Marco alcançado: ${highestMilestone}% da meta!`,
+                        body: `Você conquistou ${highestMilestone}% da sua meta "${goal.title}"! Continue firme.`,
+                        url: 'pages/mobile/goals.html',
+                        tag: `goal-milestone-${goal.id}-${highestMilestone}`
+                    });
+                } catch (pushErr) {
+                    console.warn('⚠️ Erro ao enviar push notification de marco:', pushErr);
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('⚠️ Erro não impeditivo em checkMilestonesMobile:', err);
+    }
+}
+
+let currentMobileYieldGoalId = null;
+
+async function openMobileYieldModal(goalId) {
+    const goal = goals.find(g => String(g.id) === String(goalId));
+    if (!goal) return;
+
+    currentMobileYieldGoalId = goal.id;
+
+    const overlay = document.getElementById('modalMobileYield');
+    if (overlay) overlay.classList.add('active');
+
+    const titleEl = document.getElementById('mobileYieldGoalTitle');
+    if (titleEl) titleEl.textContent = goal.title;
+
+    const cdiInput = document.getElementById('mobileYieldCdiInput');
+    if (cdiInput) cdiInput.value = goal.cdi_percent || 100;
+
+    const qDate = document.getElementById('mobileQuickDepositDate');
+    if (qDate) qDate.value = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+
+    const qAmt = document.getElementById('mobileQuickDepositAmt');
+    if (qAmt) qAmt.value = '';
+
+    await renderMobileYieldDetails(goal);
+}
+
+function closeMobileYieldModal(e) {
+    if (e && e.target && e.target !== e.currentTarget && !e.target.closest('.sheet-close-btn')) return;
+    const overlay = document.getElementById('modalMobileYield');
+    if (overlay) overlay.classList.remove('active');
+    currentMobileYieldGoalId = null;
+}
+
+async function renderMobileYieldDetails(goal) {
+    const listEl = document.getElementById('mobileGoalDepositsList');
+    if (listEl) {
+        listEl.innerHTML = '<div style="text-align:center; padding:12px; font-size:11px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Calculando rendimento CDI...</div>';
+    }
+
+    const cdiDaily = await fetchMobileCDIRate();
+    const cdiPercent = parseFloat(goal.cdi_percent) || 100;
+
+    let deposits = [];
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data } = await window.supabaseClient
+                .from('goal_deposits')
+                .select('*')
+                .eq('goal_id', goal.id)
+                .order('deposit_date', { ascending: false });
+            if (data && data.length > 0) deposits = data;
+        } catch (err) {
+            console.warn('⚠️ Erro ao buscar goal_deposits (Mobile):', err);
+        }
+    }
+
+    if (deposits.length === 0 && (Number(goal.current_amount) || 0) > 0) {
+        deposits = [{
+            id: 'initial',
+            amount: Number(goal.current_amount),
+            deposit_date: (goal.created_at ? goal.created_at.slice(0, 10) : ((typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv'))),
+            is_initial: true
+        }];
+    }
+
+    const todayDate = new Date();
+    let totalDeposited = 0;
+    let totalGrossYield = 0;
+    let totalIOF = 0;
+    let totalIR = 0;
+    let totalNetYield = 0;
+
+    const itemsHtml = deposits.map(dep => {
+        const amt = parseFloat(dep.amount) || 0;
+        const depDate = dep.deposit_date ? new Date(dep.deposit_date + 'T12:00:00') : todayDate;
+        const diffDays = Math.max(0, Math.floor((todayDate.getTime() - depDate.getTime()) / 86400000));
+        const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+        const ratePerDay = (cdiDaily / 100) * (cdiPercent / 100);
+        const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+        const grossYield = Math.max(0, amt * factor);
+
+        const iofRate = getIOFRateMobile(diffDays);
+        const iof = grossYield * iofRate;
+
+        const baseForIR = Math.max(0, grossYield - iof);
+        const irRate = getIRRateMobile(diffDays);
+        const ir = baseForIR * irRate;
+
+        const netYield = Math.max(0, grossYield - iof - ir);
+
+        totalDeposited += amt;
+        totalGrossYield += grossYield;
+        totalIOF += iof;
+        totalIR += ir;
+        totalNetYield += netYield;
+
+        const dateFormatted = typeof formatDate === 'function' ? formatDate(dep.deposit_date) : dep.deposit_date;
+
+        return `
+            <div style="background:var(--color-surface, #ffffff); border:1px solid var(--color-border, #e2e8f0); border-radius:8px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <strong style="font-size:12px; color:var(--color-text, #0f172a); display:block;">${formatCurrency(amt)} ${dep.is_initial ? '<span style="font-size:9.5px; color:#4338CA;">(Inicial)</span>' : ''}</strong>
+                    <span style="font-size:10px; color:var(--color-text-muted, #94a3b8);">${dateFormatted} • ${diffDays} dia(s)</span>
+                </div>
+                <div style="text-align:right; display:flex; align-items:center; gap:8px;">
+                    <div>
+                        <strong style="font-size:11.5px; color:#00b894; display:block;">+${formatCurrency(netYield)}</strong>
+                        <span style="font-size:9.5px; color:#ef4444;">IOF/IR: -${formatCurrency(iof + ir)}</span>
+                    </div>
+                    ${!dep.is_initial ? `
+                        <button type="button" onclick="deleteMobileGoalDeposit('${dep.id}', ${amt})" style="background:none; border:none; color:#ef4444; font-size:12px; padding:4px;" title="Remover Aporte">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    if (listEl) {
+        listEl.innerHTML = itemsHtml || '<div style="text-align:center; padding:12px; font-size:11px; color:#94a3b8;">Nenhum aporte registrado.</div>';
+    }
+
+    const grossTotal = totalDeposited + totalGrossYield;
+    const netTotal = totalDeposited + totalNetYield;
+
+    const elAportado = document.getElementById('mobileYieldStatAportado');
+    const elBruto = document.getElementById('mobileYieldStatBruto');
+    const elSaldoBruto = document.getElementById('mobileYieldStatSaldoBruto');
+    const elIOF = document.getElementById('mobileYieldStatIOF');
+    const elIR = document.getElementById('mobileYieldStatIR');
+    const elLiquido = document.getElementById('mobileYieldStatLiquido');
+
+    if (elAportado) elAportado.textContent = formatCurrency(totalDeposited);
+    if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
+    if (elSaldoBruto) elSaldoBruto.textContent = formatCurrency(grossTotal);
+    if (elIOF) elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
+    if (elIR) elIR.textContent = `- ${formatCurrency(totalIR)}`;
+    if (elLiquido) elLiquido.textContent = formatCurrency(netTotal);
+}
+
+async function saveMobileGoalCdi() {
+    if (!currentMobileYieldGoalId) return;
+    const input = document.getElementById('mobileYieldCdiInput');
+    const val = parseFloat(input?.value) || 100;
+
+    const goal = goals.find(g => String(g.id) === String(currentMobileYieldGoalId));
+    if (!goal) return;
+
+    goal.cdi_percent = val;
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            await window.supabaseClient.from('goals').update({ cdi_percent: val }).eq('id', goal.id).eq('user_id', currentUser.id);
+            showToast(`Taxa atualizada para ${val}% do CDI! 📈`, 'success');
+        } catch (err) {
+            console.warn('⚠️ Erro ao atualizar taxa CDI da meta (Mobile):', err);
+            showToast('Erro ao atualizar taxa', 'error');
+        }
+    }
+    await renderMobileYieldDetails(goal);
+    updateMobileCdiGlobalCard();
+}
+
+async function handleMobileQuickDeposit(e) {
+    e.preventDefault();
+    if (!currentMobileYieldGoalId) return;
+
+    const goal = goals.find(g => String(g.id) === String(currentMobileYieldGoalId));
+    if (!goal) return;
+
+    const amtInput = document.getElementById('mobileQuickDepositAmt');
+    const dateInput = document.getElementById('mobileQuickDepositDate');
+
+    const amount = parseFloat(amtInput?.value) || 0;
+    const depDate = dateInput?.value || ((typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv'));
+
+    if (amount <= 0) {
+        showToast('Digite um valor válido de aporte!', 'warning');
+        return;
+    }
+
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            await window.supabaseClient.from('goal_deposits').insert([{
+                goal_id: goal.id,
+                user_id: currentUser.id,
+                amount: amount,
+                deposit_date: depDate
+            }]);
+
+            const newAmount = (Number(goal.current_amount) || 0) + amount;
+            const completed = newAmount >= (Number(goal.target_amount) || 0);
+
+            await window.supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: completed,
+                updated_at: new Date().toISOString()
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            goal.current_amount = newAmount;
+            goal.completed = completed;
+            await checkMilestonesMobile(goal, newAmount);
+        }
+
+        if (amtInput) amtInput.value = '';
+        showToast(`Aporte de ${formatCurrency(amount)} registrado! 💰`, 'success');
+        await renderMobileYieldDetails(goal);
+        updateHeroStats();
+        renderGoals();
+    } catch (err) {
+        console.error('❌ Erro no aporte rápido (Mobile):', err);
+        showToast('Erro ao salvar aporte', 'error');
+    }
+}
+
+async function deleteMobileGoalDeposit(depId, amt) {
+    if (!currentMobileYieldGoalId) return;
+    const ok = await window.TonuConfirm({
+        title: "Remover aporte",
+        message: `Remover este aporte de ${formatCurrency(amt)}? O saldo da meta será recalculado.`,
+        confirmText: "Remover",
+        danger: true
+    });
+    if (!ok) return;
+
+    const goal = goals.find(g => String(g.id) === String(currentMobileYieldGoalId));
+    if (!goal) return;
+
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            await window.supabaseClient.from('goal_deposits').delete().eq('id', depId).eq('user_id', currentUser.id);
+
+            const newAmount = Math.max(0, (Number(goal.current_amount) || 0) - (Number(amt) || 0));
+            const completed = newAmount >= (Number(goal.target_amount) || 0);
+
+            await window.supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: completed,
+                updated_at: new Date().toISOString()
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            goal.current_amount = newAmount;
+            goal.completed = completed;
+        }
+
+        showToast('Aporte removido com sucesso!', 'success');
+        await renderMobileYieldDetails(goal);
+        updateHeroStats();
+        renderGoals();
+    } catch (err) {
+        console.error('❌ Erro ao remover aporte (Mobile):', err);
+        showToast('Erro ao remover aporte', 'error');
+    }
+}
+
+async function updateMobileCdiGlobalCard() {
+    const cdiDaily = await fetchMobileCDIRate();
+    const annualizedRate = ((Math.pow(1 + (cdiDaily / 100), 252) - 1) * 100).toFixed(2);
+
+    const statusEl = document.getElementById('mobileCdiStatusText');
+    if (statusEl) {
+        statusEl.textContent = `Taxa: ~${annualizedRate.replace('.', ',')}% a.a. (BCB Série 12)`;
+    }
+
+    let allDeposits = [];
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data } = await window.supabaseClient
+                .from('goal_deposits')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('deposit_date', { ascending: false });
+            if (data && data.length > 0) {
+                allDeposits = data;
+            }
+        } catch (err) {
+            console.warn('⚠️ Erro ao buscar goal_deposits global (Mobile):', err);
+        }
+    }
+
+    let totalAportado = 0;
+    let totalGrossYield = 0;
+    let totalIOF = 0;
+    let totalIR = 0;
+    let totalNetYield = 0;
+
+    const todayDate = new Date();
+
+    goals.forEach(g => {
+        const cur = Number(g.current_amount) || 0;
+        if (cur <= 0) return;
+
+        const cdiPct = parseFloat(g.cdi_percent) || 100;
+        const ratePerDay = (cdiDaily / 100) * (cdiPct / 100);
+
+        const goalDeps = allDeposits.filter(d => String(d.goal_id) === String(g.id));
+
+        if (goalDeps.length > 0) {
+            let sumDeps = 0;
+            goalDeps.forEach(dep => {
+                const amt = parseFloat(dep.amount) || 0;
+                sumDeps += amt;
+                const depDate = dep.deposit_date ? new Date(dep.deposit_date + 'T12:00:00') : todayDate;
+                const diffDays = Math.max(0, Math.floor((todayDate.getTime() - depDate.getTime()) / 86400000));
+                const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+                const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+                const grossYield = amt * factor;
+
+                const iofRate = getIOFRateMobile(diffDays);
+                const iof = grossYield * iofRate;
+
+                const baseForIR = Math.max(0, grossYield - iof);
+                const irRate = getIRRateMobile(diffDays);
+                const ir = baseForIR * irRate;
+
+                const netYield = Math.max(0, grossYield - iof - ir);
+
+                totalAportado += amt;
+                totalGrossYield += grossYield;
+                totalIOF += iof;
+                totalIR += ir;
+                totalNetYield += netYield;
+            });
+
+            if (cur > sumDeps) {
+                const remAmt = cur - sumDeps;
+                const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
+                const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
+                const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+                const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+                const grossYield = remAmt * factor;
+
+                const iofRate = getIOFRateMobile(diffDays);
+                const iof = grossYield * iofRate;
+
+                const baseForIR = Math.max(0, grossYield - iof);
+                const irRate = getIRRateMobile(diffDays);
+                const ir = baseForIR * irRate;
+
+                const netYield = Math.max(0, grossYield - iof - ir);
+
+                totalAportado += remAmt;
+                totalGrossYield += grossYield;
+                totalIOF += iof;
+                totalIR += ir;
+                totalNetYield += netYield;
+            }
+        } else {
+            const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
+            const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
+            const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+            const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+            const grossYield = cur * factor;
+
+            const iofRate = getIOFRateMobile(diffDays);
+            const iof = grossYield * iofRate;
+
+            const baseForIR = Math.max(0, grossYield - iof);
+            const irRate = getIRRateMobile(diffDays);
+            const ir = baseForIR * irRate;
+
+            const netYield = Math.max(0, grossYield - iof - ir);
+
+            totalAportado += cur;
+            totalGrossYield += grossYield;
+            totalIOF += iof;
+            totalIR += ir;
+            totalNetYield += netYield;
+        }
+    });
+
+    const totalNet = totalAportado + totalNetYield;
+
+    const elAportado = document.getElementById('mobileCdiAportado');
+    const elBruto = document.getElementById('mobileCdiBruto');
+    const elIOF = document.getElementById('mobileCdiIOF');
+    const elIR = document.getElementById('mobileCdiIR');
+    const elLiquido = document.getElementById('mobileCdiLiquido');
+
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(elAportado, totalAportado, formatCurrency);
+        window.TonuMobileUI.animateValue(elBruto, totalGrossYield, v => `+ ${formatCurrency(v)}`);
+        window.TonuMobileUI.animateValue(elIOF, totalIOF, v => `- ${formatCurrency(v)}`);
+        window.TonuMobileUI.animateValue(elIR, totalIR, v => `- ${formatCurrency(v)}`);
+        window.TonuMobileUI.animateValue(elLiquido, totalNet, formatCurrency);
+    } else {
+        if (elAportado) elAportado.textContent = formatCurrency(totalAportado);
+        if (elBruto) elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
+        if (elIOF) elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
+        if (elIR) elIR.textContent = `- ${formatCurrency(totalIR)}`;
+        if (elLiquido) elLiquido.textContent = formatCurrency(totalNet);
+    }
+}
+
+window.openMobileYieldModal = openMobileYieldModal;
+window.closeMobileYieldModal = closeMobileYieldModal;
+window.saveMobileGoalCdi = saveMobileGoalCdi;
+window.handleMobileQuickDeposit = handleMobileQuickDeposit;
+window.deleteMobileGoalDeposit = deleteMobileGoalDeposit;
+window.updateMobileCdiGlobalCard = updateMobileCdiGlobalCard;
+window.checkMilestonesMobile = checkMilestonesMobile;
+window.openDepositModal = openDepositModal;
+window.closeDepositModal = closeDepositModal;
+window.openWithdrawModal = openWithdrawModal;
+window.closeWithdrawModal = closeWithdrawModal;
+window.openGoalModal = openGoalModal;
+window.openEditGoalModal = openEditGoalModal;
+window.closeGoalModal = closeGoalModal;
+window.deleteGoal = deleteGoal;
+window.filterGoals = filterGoals;
+window.toggleMobileHabitStatus = toggleMobileHabitStatus;
+window.postponeMobileGoal = postponeMobileGoal;
+window.quickAddMobileAmount = quickAddMobileAmount;
 </script>
 
 </body>

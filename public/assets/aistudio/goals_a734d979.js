@@ -1,0 +1,2935 @@
+// ============================================
+// METAS - TonuControle (VERSÃO SEGURA)
+// ============================================
+
+console.log('🎯 Goals.js carregado');
+
+// Aliases de helpers globais (definidos em js/core.js)
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+var getToday = window.getToday;
+var sanitizeString = window.sanitizeString;
+
+// ============================================
+// ESTADO
+// ============================================
+let currentUser = null;
+let allGoals = [];
+let isProcessing = false;
+let currentFilter = 'all';
+let currentSearch = '';
+
+// Variáveis de Ciclo Temporal e Conquistas
+let currentCycleYear = new Date().getFullYear();
+let currentTemporalMode = 'year'; // 'year' | 'continuous'
+let selectedModalType = 'financial';
+let cachedTotalEquity = 0;
+let cachedTotalInvested = 0;
+let cachedEquityGain = 0;
+let cachedEquityReturnPct = 0;
+let cachedTotalEquityUpdatedAt = null;
+let isEquityLoaded = false;
+
+let cachedDividendsList = [];
+let isDividendsLoaded = false;
+let cachedDividendsUpdatedAt = null;
+
+// ============================================
+// AUXILIARES DE NÚMEROS E PROVENTOS DA CARTEIRA
+// ============================================
+function parseBrazilianNumber(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return isNaN(value) ? 0 : value;
+    let str = String(value).trim().replace(/[R$\s]/gi, '');
+    if (str.includes('.') && str.includes(',')) {
+        str = str.replace(/\./g, '').replace(',', '.');
+    } else if (str.includes(',')) {
+        str = str.replace(',', '.');
+    }
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+}
+window.parseBrazilianNumber = parseBrazilianNumber;
+
+function getDividendISODate(d) {
+    if (!d) return '';
+    let s = String(d.payment_date || d.date || d.paymentDate || d.created_at || '').trim();
+    if (!s) return '';
+    if (s.includes('T')) s = s.split('T')[0];
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const parts = s.split('/');
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) {
+        const parts = s.split('-');
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    }
+    return s;
+}
+window.getDividendISODate = getDividendISODate;
+
+function getDividendTotalValue(d) {
+    if (!d) return 0;
+    if (d.total_value !== undefined && d.total_value !== null && d.total_value !== '') {
+        const val = parseBrazilianNumber(d.total_value);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    if (d.net_value !== undefined && d.net_value !== null && d.net_value !== '') {
+        const val = parseBrazilianNumber(d.net_value);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    if (d.amount !== undefined && d.amount !== null && d.amount !== '') {
+        const val = parseBrazilianNumber(d.amount);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    const qty = parseBrazilianNumber(d.quantity);
+    const unit = parseBrazilianNumber(d.unit_value);
+    const calc = qty * unit;
+    return (!isNaN(calc) && calc > 0) ? calc : 0;
+}
+window.getDividendTotalValue = getDividendTotalValue;
+
+async function loadDividendsForGoals(forceRefresh = false) {
+    if (!forceRefresh && isDividendsLoaded && cachedDividendsList.length > 0) {
+        return cachedDividendsList;
+    }
+
+    let loaded = [];
+    if (Array.isArray(window.allDividends) && window.allDividends.length > 0) {
+        loaded = [...window.allDividends];
+    }
+
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('dividends')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('date', { ascending: false });
+            if (!error && data && data.length > 0) {
+                loaded = data;
+                window.allDividends = data;
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao buscar proventos para metas:', e);
+        }
+    }
+
+    if (loaded.length === 0) {
+        try {
+            const uid = currentUser?.id || 'demo';
+            const keys = [
+                'tonucontrole_dividends_' + uid,
+                'tonu_dividends_' + uid,
+                'tonucontrole_dividends_demo',
+                'tonu_dividends',
+                'tonu_dividends_current'
+            ];
+            for (const k of keys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+
+    cachedDividendsList = loaded;
+    isDividendsLoaded = true;
+    cachedDividendsUpdatedAt = new Date().toISOString();
+    return cachedDividendsList;
+}
+window.loadDividendsForGoals = loadDividendsForGoals;
+
+async function refreshDividendsForGoals() {
+    showToast('Atualizando proventos da carteira...', 'info');
+    await loadDividendsForGoals(true);
+    renderFilteredGoals();
+    updateGoalsStats(allGoals);
+    showToast('Proventos da carteira atualizados!', 'success');
+}
+window.refreshDividendsForGoals = refreshDividendsForGoals;
+
+function getMonthlyDividendsTotal(targetMonthStr) {
+    const ym = targetMonthStr || (new Date().toISOString().substring(0, 7));
+    const divs = (cachedDividendsList && cachedDividendsList.length > 0)
+        ? cachedDividendsList
+        : (Array.isArray(window.allDividends) ? window.allDividends : []);
+
+    return (divs || [])
+        .filter(d => {
+            const iso = getDividendISODate(d);
+            return iso && iso.startsWith(ym);
+        })
+        .reduce((sum, d) => sum + getDividendTotalValue(d), 0);
+}
+window.getMonthlyDividendsTotal = getMonthlyDividendsTotal;
+
+function getDividendGoalAnalysis(targetMonthlyAmount, targetYear) {
+    const yr = Number(targetYear) || currentCycleYear;
+    const now = new Date();
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const divs = (cachedDividendsList && cachedDividendsList.length > 0)
+        ? cachedDividendsList
+        : (Array.isArray(window.allDividends) ? window.allDividends : []);
+
+    const monthlyMap = new Map();
+    let totalYear = 0;
+
+    divs.forEach(d => {
+        const iso = getDividendISODate(d);
+        if (!iso) return;
+        const val = getDividendTotalValue(d);
+        if (val <= 0) return;
+
+        const ym = iso.substring(0, 7);
+        const itemYear = parseInt(iso.substring(0, 4), 10);
+
+        if (itemYear === yr) {
+            totalYear += val;
+        }
+
+        monthlyMap.set(ym, (monthlyMap.get(ym) || 0) + val);
+    });
+
+    const currentMonthVal = monthlyMap.get(currentYM) || 0;
+    const tgt = Number(targetMonthlyAmount) || 0;
+
+    let monthsOnTarget = 0;
+    let monthsWithDividendsInYear = 0;
+
+    for (let m = 1; m <= 12; m++) {
+        const key = `${yr}-${String(m).padStart(2, '0')}`;
+        const val = monthlyMap.get(key) || 0;
+        if (val > 0) monthsWithDividendsInYear++;
+        if (tgt > 0 && val >= tgt) {
+            monthsOnTarget++;
+        }
+    }
+
+    const avgYear = monthsWithDividendsInYear > 0 ? (totalYear / monthsWithDividendsInYear) : 0;
+
+    return {
+        currentMonthVal,
+        targetMonthlyAmount: tgt,
+        percentMonth: tgt > 0 ? Math.min(100, Math.round((currentMonthVal / tgt) * 100)) : 0,
+        rawPercentMonth: tgt > 0 ? Math.round((currentMonthVal / tgt) * 100) : 0,
+        monthsOnTarget,
+        totalYear,
+        avgYear,
+        monthsWithDividendsInYear
+    };
+}
+window.getDividendGoalAnalysis = getDividendGoalAnalysis;
+
+// Formata timestamp da última sincronização de patrimônio
+function formatEquityTimestamp(ts) {
+    if (!ts) return 'Atualizado';
+    try {
+        const d = new Date(ts);
+        if (isNaN(d.getTime())) return 'Atualizado';
+        const hours = String(d.getHours()).padStart(2, '0');
+        const mins = String(d.getMinutes()).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const today = new Date();
+        const isToday = d.toDateString() === today.toDateString();
+        return isToday ? `Hoje às ${hours}:${mins}` : `${day}/${month} às ${hours}:${mins}`;
+    } catch (_) {
+        return 'Atualizado';
+    }
+}
+window.formatEquityTimestamp = formatEquityTimestamp;
+
+// Resolve o ano de uma meta (para histórico, ano atual ou longo prazo)
+function resolveGoalYear(g) {
+    if (!g) return currentCycleYear;
+    if (g.target_year === 'continuous' || g.year === 'continuous' || g.is_continuous === true || g.temporal_mode === 'continuous') return 'continuous';
+    if (g.target_year && !isNaN(parseInt(g.target_year))) return parseInt(g.target_year);
+    if (g.year && !isNaN(parseInt(g.year))) return parseInt(g.year);
+    if (g.deadline) {
+        const y = parseInt(String(g.deadline).substring(0, 4));
+        if (!isNaN(y) && y > 1900 && y < 2200) return y;
+    }
+    const t = (g.title || '').toLowerCase();
+    if (t.includes('longo prazo') || t.includes('reserva de emergência')) return 'continuous';
+    if (g.created_at) {
+        const y = parseInt(String(g.created_at).substring(0, 4));
+        if (!isNaN(y) && y > 1900 && y < 2200) return y;
+    }
+    return currentCycleYear;
+}
+window.resolveGoalYear = resolveGoalYear;
+
+// Busca o patrimônio total atual da carteira de investimentos (portfolio_snapshots / user_stats / local cache)
+async function getLatestPortfolioValue(options = {}) {
+    const forceRefresh = !!(options && options.forceRefresh);
+    if (!forceRefresh && isEquityLoaded && cachedTotalEquity > 0) return cachedTotalEquity;
+
+    const uid = currentUser?.id || 'demo';
+
+    // 1. Tenta carregar do Supabase portfolio_snapshots (patrimônio em ativos e valor aplicado)
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            const { data } = await window.supabaseClient
+                .from('portfolio_snapshots')
+                .select('total_equity, total_invested, date, created_at')
+                .eq('user_id', currentUser.id)
+                .order('date', { ascending: false })
+                .limit(1);
+            if (data && data.length > 0 && Number(data[0].total_equity) > 0) {
+                cachedTotalEquity = Number(data[0].total_equity);
+                cachedTotalInvested = Number(data[0].total_invested) || cachedTotalEquity;
+                cachedEquityGain = Math.round((cachedTotalEquity - cachedTotalInvested) * 100) / 100;
+                cachedEquityReturnPct = cachedTotalInvested > 0 ? (cachedEquityGain / cachedTotalInvested) * 100 : 0;
+                cachedTotalEquityUpdatedAt = data[0].created_at || data[0].date || new Date().toISOString();
+                isEquityLoaded = true;
+                try {
+                    localStorage.setItem('tonu_total_equity_' + uid, String(cachedTotalEquity));
+                    localStorage.setItem('tonu_total_invested_' + uid, String(cachedTotalInvested));
+                    localStorage.setItem('tonu_unrealized_gain_' + uid, String(cachedEquityGain));
+                    localStorage.setItem('tonu_return_pct_' + uid, String(cachedEquityReturnPct));
+                    localStorage.setItem('tonu_total_equity_updated_at_' + uid, cachedTotalEquityUpdatedAt);
+                } catch (_) {}
+                checkWealthGoalsCompletion();
+                return cachedTotalEquity;
+            }
+        }
+    } catch (_) {}
+
+    // 2. Consulta user_stats como fallback secundário
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            const { data: uStat } = await window.supabaseClient
+                .from('user_stats')
+                .select('patrimony, updated_at')
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+            if (uStat && Number(uStat.patrimony) > 0) {
+                cachedTotalEquity = Number(uStat.patrimony);
+                cachedTotalInvested = cachedTotalEquity;
+                cachedTotalEquityUpdatedAt = uStat.updated_at || new Date().toISOString();
+                isEquityLoaded = true;
+                checkWealthGoalsCompletion();
+                return cachedTotalEquity;
+            }
+        }
+    } catch (_) {}
+
+    // 3. Fallback no localStorage
+    try {
+        const rawEq = localStorage.getItem('tonu_total_equity_' + uid) || 
+                      localStorage.getItem('tonu_total_equity') ||
+                      localStorage.getItem('tonu_investments_equity');
+        const rawInv = localStorage.getItem('tonu_total_invested_' + uid) ||
+                       localStorage.getItem('tonu_total_invested');
+        if (rawEq) {
+            const valEq = parseFloat(rawEq);
+            const valInv = rawInv ? parseFloat(rawInv) : valEq;
+            if (!isNaN(valEq) && valEq > 0) {
+                cachedTotalEquity = valEq;
+                cachedTotalInvested = !isNaN(valInv) ? valInv : valEq;
+                cachedEquityGain = Math.round((cachedTotalEquity - cachedTotalInvested) * 100) / 100;
+                cachedEquityReturnPct = cachedTotalInvested > 0 ? (cachedEquityGain / cachedTotalInvested) * 100 : 0;
+                cachedTotalEquityUpdatedAt = localStorage.getItem('tonu_total_equity_updated_at_' + uid) || null;
+                isEquityLoaded = true;
+                checkWealthGoalsCompletion();
+                return cachedTotalEquity;
+            }
+        }
+    } catch (_) {}
+
+    isEquityLoaded = true;
+    return cachedTotalEquity;
+}
+window.getLatestPortfolioValue = getLatestPortfolioValue;
+
+// Força a atualização do patrimônio total para as metas
+async function refreshPortfolioValueForGoals() {
+    showToast('Atualizando patrimônio em custódia...', 'info');
+    await getLatestPortfolioValue({ forceRefresh: true });
+    renderFilteredGoals();
+    showToast('Patrimônio atualizado com sucesso!', 'success');
+}
+window.refreshPortfolioValueForGoals = refreshPortfolioValueForGoals;
+
+// Dispara celebração e notificação push quando meta de patrimônio atinge 100%
+function checkWealthGoalsCompletion() {
+    if (!cachedTotalEquity || cachedTotalEquity <= 0) return;
+    const wealthGoals = (allGoals || []).filter(g => (g.type === 'wealth' || g.type === 'net_worth') && !g.completed);
+    wealthGoals.forEach(g => {
+        const tgt = Number(g.target_amount) || 1;
+        if (cachedTotalEquity >= tgt) {
+            g.completed = true;
+            g.completed_at = new Date().toISOString();
+            if (typeof triggerCelebration === 'function') {
+                triggerCelebration(g.title, cachedTotalEquity);
+            }
+            if (typeof window.sendRealtimePush === 'function') {
+                try {
+                    window.sendRealtimePush({
+                        title: `🏆 Meta de Patrimônio Conquistada!`,
+                        body: `Parabéns! Você alcançou ${formatCurrency(cachedTotalEquity)} na meta "${g.title}"!`,
+                        url: 'pages/goals.html',
+                        tag: `goal-wealth-100-${g.id}`
+                    });
+                } catch (pushErr) {
+                    console.warn('⚠️ Erro ao enviar push de patrimônio:', pushErr);
+                }
+            }
+            if (window.supabaseClient && currentUser?.id) {
+                window.supabaseClient.from('goals').update({
+                    completed: true,
+                    completed_at: g.completed_at,
+                    updated_at: new Date().toISOString()
+                }).eq('id', g.id).eq('user_id', currentUser.id).then(() => {}).catch(() => {});
+            }
+        }
+    });
+}
+window.checkWealthGoalsCompletion = checkWealthGoalsCompletion;
+
+// Altera o ano selecionado no stepper
+function changeYear(delta) {
+    currentCycleYear += delta;
+    updateTemporalHeader();
+    renderFilteredGoals();
+}
+window.changeYear = changeYear;
+
+// Alterna entre Ciclo Anual e Metas de Longo Prazo
+function setTemporalMode(mode) {
+    currentTemporalMode = mode;
+    const btnYear = document.getElementById('btnViewYear');
+    const btnCont = document.getElementById('btnViewContinuous');
+    if (btnYear) btnYear.classList.toggle('active', mode === 'year');
+    if (btnCont) btnCont.classList.toggle('active', mode === 'continuous');
+    updateTemporalHeader();
+    renderFilteredGoals();
+}
+window.setTemporalMode = setTemporalMode;
+
+// Atualiza cabeçalhos temporais e badges de status
+function updateTemporalHeader() {
+    const labelYear = document.getElementById('labelCurrentYear');
+    const badgeStatus = document.getElementById('yearStatusBadge');
+    const stepper = document.getElementById('yearStepperWrapper');
+    const cycleTitle = document.getElementById('cycleTitle');
+    const cycleSubtitle = document.getElementById('cycleSubtitle');
+
+    if (currentTemporalMode === 'continuous') {
+        if (stepper) {
+            stepper.style.opacity = '0.4';
+            stepper.style.pointerEvents = 'none';
+        }
+        if (badgeStatus) {
+            badgeStatus.textContent = 'Permanente';
+            badgeStatus.className = 'year-badge-status status-badge-current';
+        }
+        if (cycleTitle) {
+            cycleTitle.innerHTML = '<i class="fas fa-infinity" style="color: #4338CA;"></i> Metas de Longo Prazo';
+        }
+        if (cycleSubtitle) {
+            cycleSubtitle.textContent = 'Objetivos perenes e patrimônio que ultrapassam o ciclo de 1 ano';
+        }
+    } else {
+        if (stepper) {
+            stepper.style.opacity = '1';
+            stepper.style.pointerEvents = 'auto';
+        }
+        if (labelYear) labelYear.textContent = currentCycleYear;
+
+        if (badgeStatus) {
+            const realCurrentYear = new Date().getFullYear();
+            if (currentCycleYear === realCurrentYear) {
+                badgeStatus.textContent = 'Ciclo Atual';
+                badgeStatus.className = 'year-badge-status status-badge-current';
+            } else if (currentCycleYear < realCurrentYear) {
+                badgeStatus.textContent = 'Histórico';
+                badgeStatus.className = 'year-badge-status status-badge-past';
+            } else {
+                badgeStatus.textContent = 'Planejamento';
+                badgeStatus.className = 'year-badge-status status-badge-future';
+            }
+        }
+
+        if (cycleTitle) {
+            cycleTitle.innerHTML = `<i class="fas fa-trophy" style="color: #F59E0B;"></i> Checklist de Conquistas ${currentCycleYear}`;
+        }
+        if (cycleSubtitle) {
+            cycleSubtitle.textContent = `Objetivos prioritários definidos para ${currentCycleYear}`;
+        }
+    }
+}
+window.updateTemporalHeader = updateTemporalHeader;
+
+// Adia / reprograma uma meta não concluída para o próximo ano com 1 clique
+async function postponeGoal(goalId, targetYear) {
+    const goal = allGoals.find(g => String(g.id) === String(goalId));
+    if (!goal) return;
+    const nextYear = targetYear || (currentCycleYear + 1);
+    goal.target_year = nextYear;
+    goal.postponed_to = nextYear;
+    goal.deadline = `${nextYear}-12-31`;
+    goal.updated_at = new Date().toISOString();
+
+    renderFilteredGoals();
+    updateGoalsStats(allGoals);
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', {
+            id: goal.id,
+            target_year: nextYear,
+            postponed_to: nextYear,
+            deadline: goal.deadline,
+            updated_at: goal.updated_at
+        });
+    }
+
+    if (supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            const { error } = await supabaseClient.from('goals').update({
+                deadline: goal.deadline,
+                target_year: nextYear,
+                updated_at: goal.updated_at
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            if (error && error.message && error.message.includes('target_year')) {
+                await supabaseClient.from('goals').update({
+                    deadline: goal.deadline,
+                    updated_at: goal.updated_at
+                }).eq('id', goal.id).eq('user_id', currentUser.id);
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao adiar meta no Supabase:', e);
+        }
+    }
+
+    showToast(`🔄 Meta "${goal.title}" reprogramada para ${nextYear}!`, 'info');
+}
+window.postponeGoal = postponeGoal;
+
+// Aporte rápido na meta (+ R$ 500 ou valor rápido)
+async function quickAddAmount(goalId, amount) {
+    const goal = allGoals.find(g => String(g.id) === String(goalId));
+    if (!goal) return;
+    const cur = Number(goal.current_amount) || 0;
+    const tgt = Number(goal.target_amount) || 0;
+    const newAmount = cur + amount;
+    const isCompleted = tgt > 0 && newAmount >= tgt;
+
+    goal.current_amount = newAmount;
+    goal.completed = isCompleted;
+    if (isCompleted) goal.completed_at = new Date().toISOString();
+    goal.updated_at = new Date().toISOString();
+
+    renderFilteredGoals();
+    updateGoalsStats(allGoals);
+
+    if (typeof checkMilestones === 'function') {
+        await checkMilestones(goal, newAmount);
+    } else if (isCompleted && typeof triggerCelebration === 'function') {
+        triggerCelebration(goal.title, newAmount);
+    }
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', {
+            id: goal.id,
+            current_amount: newAmount,
+            completed: isCompleted,
+            completed_at: goal.completed_at || null,
+            updated_at: goal.updated_at
+        });
+    }
+
+    if (supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            await supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: isCompleted,
+                completed_at: goal.completed_at || null,
+                updated_at: goal.updated_at
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            const todayStr = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+            await supabaseClient.from('goal_deposits').insert([{
+                goal_id: goal.id,
+                user_id: currentUser.id,
+                amount: amount,
+                deposit_date: todayStr
+            }]).catch(() => {});
+        } catch (e) {
+            console.warn('⚠️ Erro no aporte rápido:', e);
+        }
+    }
+
+    showToast(`💰 Aporte de ${formatCurrency(amount)} adicionado a "${goal.title}"!`, 'success');
+}
+window.quickAddAmount = quickAddAmount;
+
+// Mapeamento de categorias visuais para metas
+const GOAL_CATEGORY_MAP = {
+    emergency: { label: 'Reserva de Emergência', icon: 'fa-shield-alt', emoji: '🛡️', color: '#00B894' },
+    travel: { label: 'Viagem & Lazer', icon: 'fa-plane-departure', emoji: '✈️', color: '#0984E3' },
+    vehicle: { label: 'Veículo', icon: 'fa-car', emoji: '🚗', color: '#E17055' },
+    home: { label: 'Imóvel / Casa', icon: 'fa-home', emoji: '🏠', color: '#4338CA' },
+    education: { label: 'Educação', icon: 'fa-graduation-cap', emoji: '🎓', color: '#7C3AED' },
+    investment: { label: 'Investimentos', icon: 'fa-chart-line', emoji: '📈', color: '#10B981' },
+    purchase: { label: 'Compras', icon: 'fa-shopping-bag', emoji: '📱', color: '#FDCB6E' },
+    other: { label: 'Objetivo Geral', icon: 'fa-bullseye', emoji: '🎯', color: '#4338CA' }
+};
+
+// Tenta inferir categoria com base no título se não estiver explícito
+function resolveGoalCategory(goal) {
+    if (goal.category && GOAL_CATEGORY_MAP[goal.category]) {
+        return { key: goal.category, ...GOAL_CATEGORY_MAP[goal.category] };
+    }
+    const t = (goal.title || '').toLowerCase();
+    if (t.includes('reserva') || t.includes('emergência') || t.includes('segurança')) return { key: 'emergency', ...GOAL_CATEGORY_MAP.emergency };
+    if (t.includes('viagem') || t.includes('férias') || t.includes('praia') || t.includes('euro') || t.includes('dólar') || t.includes('passagem')) return { key: 'travel', ...GOAL_CATEGORY_MAP.travel };
+    if (t.includes('carro') || t.includes('moto') || t.includes('veículo') || t.includes('cnh') || t.includes('auto')) return { key: 'vehicle', ...GOAL_CATEGORY_MAP.vehicle };
+    if (t.includes('portão') || t.includes('casa') || t.includes('apê') || t.includes('apartamento') || t.includes('imóvel') || t.includes('reforma') || t.includes('obra')) return { key: 'home', ...GOAL_CATEGORY_MAP.home };
+    if (t.includes('curso') || t.includes('faculdade') || t.includes('pós') || t.includes('estudo') || t.includes('livro') || t.includes('mba')) return { key: 'education', ...GOAL_CATEGORY_MAP.education };
+    if (t.includes('invest') || t.includes('ação') || t.includes('fii') || t.includes('aposentadoria') || t.includes('renda passiva') || t.includes('patrimônio') || t.includes('dividendo')) return { key: 'investment', ...GOAL_CATEGORY_MAP.investment };
+    if (t.includes('celular') || t.includes('iphone') || t.includes('macbook') || t.includes('notebook') || t.includes('compra') || t.includes('tv')) return { key: 'purchase', ...GOAL_CATEGORY_MAP.purchase };
+    return { key: 'other', ...GOAL_CATEGORY_MAP.other };
+}
+
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Inicializando Metas...');
+
+    try {
+        let user = null;
+        if (window.getAuthenticatedUser) user = await window.getAuthenticatedUser();
+        if (!user && window.supabaseOffline) {
+            user = await window.supabaseOffline.isAuthenticated();
+        }
+
+        if (!user && supabaseClient && supabaseClient.auth) {
+            try {
+                const { data: sessData } = await supabaseClient.auth.getSession();
+                user = sessData?.session?.user;
+                if (!user) {
+                    const { data: { user: authUser } } = await supabaseClient.auth.getUser();
+                    user = authUser;
+                }
+            } catch (_) {}
+        }
+
+        if (!user) {
+            try {
+                const s = sessionStorage.getItem('tonu_user');
+                if (s) { const p = JSON.parse(s); user = p.user || p; }
+            } catch (_) {}
+        }
+
+        if (!user) {
+            try {
+                const off = localStorage.getItem('tonu_offline_session');
+                if (off) { const p = JSON.parse(off); user = p.user || p; }
+            } catch (_) {}
+        }
+
+        if (!user) {
+            window.location.href = '../index.html';
+            return;
+        }
+
+        currentUser = user;
+        console.log('✅ Usuário autenticado:', currentUser.email);
+    } catch (e) {
+        console.error('❌ Erro na autenticação:', e);
+        window.location.href = '../index.html';
+        return;
+    }
+
+    updateTemporalHeader();
+    populateCycleSelectOptions();
+    await loadGoals();
+    console.log('✅ Metas inicializado!');
+});
+
+// ============================================
+// CARREGAR METAS
+// ============================================
+async function loadGoals() {
+    try {
+        if (!navigator.onLine && window.tonuSync) {
+            const cached = await window.tonuSync.getCachedGoals?.();
+            if (cached && cached.length > 0) {
+                allGoals = cached;
+                updateGoalsStats(allGoals);
+                renderFilteredGoals();
+                return;
+            }
+        }
+
+        const { data, error } = await supabaseClient
+            .from('goals')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            if (error.code === '42P01') {
+                document.getElementById('goalsContainer').innerHTML = `
+                    <div class="empty-state" style="grid-column:1/-1;padding:40px 16px;">
+                        <span class="empty-icon">⚠️</span>
+                        <h3>Erro de configuração</h3>
+                        <p>A tabela de metas não foi encontrada. Execute o SQL de criação.</p>
+                    </div>
+                `;
+                return;
+            }
+            throw error;
+        }
+
+        allGoals = data || [];
+        updateGoalsStats(allGoals);
+        renderFilteredGoals();
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar metas:', error);
+        showToast('Erro ao carregar metas', 'error');
+    }
+}
+
+// ============================================
+// ATUALIZAR ESTATÍSTICAS E CONTADORES DO TOPO
+// ============================================
+function updateGoalsStats(goals) {
+    // Metas visíveis no ciclo atual ou longo prazo
+    const cycleGoals = (goals || []).filter(g => {
+        if (currentTemporalMode === 'continuous') {
+            return resolveGoalYear(g) === 'continuous';
+        }
+        return resolveGoalYear(g) === currentCycleYear;
+    });
+
+    // Score do Ciclo de Conquistas
+    const cycleTotal = cycleGoals.length;
+    const cycleCompleted = cycleGoals.filter(isGoalComplete).length;
+    const cyclePct = cycleTotal > 0 ? Math.round((cycleCompleted / cycleTotal) * 100) : 0;
+
+    const elCycleScore = document.getElementById('cycleScoreText');
+    const elCyclePct = document.getElementById('cycleScorePct');
+    if (elCycleScore) elCycleScore.textContent = `${cycleCompleted} / ${cycleTotal}`;
+    if (elCyclePct) elCyclePct.textContent = `${cyclePct}% Conquistadas`;
+
+    // Métricas Globais (Todas as metas cadastradas)
+    const totalAccumulated = goals.reduce((acc, g) => acc + (Number(g.current_amount) || 0), 0);
+    const globalTarget = goals.reduce((acc, g) => acc + (Number(g.target_amount) || 0), 0);
+    const completedCount = goals.filter(isGoalComplete).length;
+
+    const globalPct = globalTarget > 0 ? Math.min(100, Math.round((totalAccumulated / globalTarget) * 100)) : 0;
+    const remainingGlobal = Math.max(0, globalTarget - totalAccumulated);
+
+    // Elementos do DOM do Hero
+    const elAccumulated = document.getElementById('statsTotalAccumulated');
+    const elTarget = document.getElementById('statsGlobalTarget');
+    const elCompleted = document.getElementById('statsCompletedCount');
+    const elPct = document.getElementById('statsGlobalProgressPct');
+    const elBar = document.getElementById('statsGlobalProgressBar');
+    const elRem = document.getElementById('statsRemainingGlobal');
+
+    const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+    if (elAccumulated) {
+        if (anim) anim(elAccumulated, totalAccumulated, formatCurrency);
+        else elAccumulated.textContent = formatCurrency(totalAccumulated);
+    }
+    if (elTarget) {
+        if (anim) anim(elTarget, globalTarget, formatCurrency);
+        else elTarget.textContent = formatCurrency(globalTarget);
+    }
+    if (elCompleted) {
+        if (anim) anim(elCompleted, completedCount, v => `${Math.round(v)} de ${goals.length}`);
+        else elCompleted.textContent = `${completedCount} de ${goals.length}`;
+    }
+    if (elPct) {
+        if (anim) anim(elPct, globalPct, v => `${Math.round(v)}%`);
+        else elPct.textContent = `${globalPct}%`;
+    }
+    if (elBar) elBar.style.width = `${globalPct}%`;
+    if (elRem) {
+        elRem.textContent = remainingGlobal > 0
+            ? `Faltam ${formatCurrency(remainingGlobal)} para alcançar todos os sonhos`
+            : `🏆 Parabéns! Todos os objetivos globais foram atingidos!`;
+    }
+
+    // Contadores das Abas de Filtro dentro do ciclo selecionado
+    const projectCount = cycleGoals.filter(g => g.type === 'habit' || g.type === 'project').length;
+    const financialCount = cycleGoals.filter(g => g.type === 'financial' || !g.type).length;
+    const autoCount = cycleGoals.filter(g => g.type === 'dividends' || g.type === 'wealth' || g.type === 'net_worth').length;
+    const completedInCycle = cycleGoals.filter(isGoalComplete).length;
+
+    const bAll = document.getElementById('badgeFilterAll');
+    const bProject = document.getElementById('badgeFilterProject');
+    const bFinancial = document.getElementById('badgeFilterFinancial');
+    const bAuto = document.getElementById('badgeFilterAuto');
+    const bCompleted = document.getElementById('badgeFilterCompleted');
+
+    if (bAll) bAll.textContent = cycleGoals.length;
+    if (bProject) bProject.textContent = projectCount;
+    if (bFinancial) bFinancial.textContent = financialCount;
+    if (bAuto) bAuto.textContent = autoCount;
+    if (bCompleted) bCompleted.textContent = completedInCycle;
+
+    // Atualiza o Card de Rendimento CDI no Topo
+    if (typeof updateCdiGlobalCard === 'function') {
+        updateCdiGlobalCard(goals);
+    }
+}
+
+// Verifica se a meta está concluída independente do tipo
+function isGoalComplete(g) {
+    if (!g) return false;
+    if (g.type === 'habit' || g.type === 'project') return !!g.completed;
+    if (g.type === 'dividends') {
+        const divs = getMonthlyDividendsTotal();
+        const tgt = Number(g.target_amount) || 1;
+        return divs >= tgt;
+    }
+    if (g.type === 'wealth' || g.type === 'net_worth') {
+        const tgt = Number(g.target_amount) || 1;
+        return (cachedTotalEquity > 0 && cachedTotalEquity >= tgt) || !!g.completed;
+    }
+    const tgt = Number(g.target_amount) || 0;
+    const cur = Number(g.current_amount) || 0;
+    return g.completed || (tgt > 0 && cur >= tgt);
+}
+window.isGoalComplete = isGoalComplete;
+
+// ============================================
+// CONTROLES DE FILTRO E PESQUISA
+// ============================================
+function setGoalsFilter(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.goal-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+    });
+    renderFilteredGoals();
+}
+window.setGoalsFilter = setGoalsFilter;
+
+const _debouncedRenderFilteredGoals = (typeof window !== 'undefined' && typeof window.TonuDebounce === 'function')
+    ? window.TonuDebounce(() => renderFilteredGoals(), 180)
+    : () => renderFilteredGoals();
+
+function handleGoalsSearch(event) {
+    currentSearch = (event.target.value || '').trim().toLowerCase();
+    const clearBtn = document.getElementById('goalsSearchClearBtn');
+    if (clearBtn) {
+        clearBtn.classList.toggle('hidden', currentSearch.length === 0);
+    }
+    _debouncedRenderFilteredGoals();
+}
+window.handleGoalsSearch = handleGoalsSearch;
+
+function clearGoalsSearch() {
+    const input = document.getElementById('goalsSearchInput');
+    if (input) {
+        input.value = '';
+        currentSearch = '';
+    }
+    const clearBtn = document.getElementById('goalsSearchClearBtn');
+    if (clearBtn) clearBtn.classList.add('hidden');
+    renderFilteredGoals();
+}
+window.clearGoalsSearch = clearGoalsSearch;
+
+function _filterVisibleGoals() {
+    let list = [...allGoals];
+
+    // 1. Filtro Temporal (Ano Selecionado vs Metas de Longo Prazo)
+    list = list.filter(g => {
+        const goalYear = resolveGoalYear(g);
+        if (currentTemporalMode === 'continuous') {
+            return goalYear === 'continuous';
+        }
+        return goalYear === currentCycleYear;
+    });
+
+    // 2. Filtro de Categorias / Abas
+    if (currentFilter === 'project') {
+        list = list.filter(g => g.type === 'habit' || g.type === 'project');
+    } else if (currentFilter === 'financial') {
+        list = list.filter(g => g.type === 'financial' || !g.type);
+    } else if (currentFilter === 'auto') {
+        list = list.filter(g => g.type === 'dividends' || g.type === 'wealth' || g.type === 'net_worth');
+    } else if (currentFilter === 'completed') {
+        list = list.filter(isGoalComplete);
+    }
+
+    // 3. Filtro de Busca por Texto
+    if (currentSearch) {
+        list = list.filter(g => {
+            const titleMatch = (g.title || '').toLowerCase().includes(currentSearch);
+            const targetMatch = String(g.target_amount || '').includes(currentSearch);
+            const currentMatch = String(g.current_amount || '').includes(currentSearch);
+            return titleMatch || targetMatch || currentMatch;
+        });
+    }
+
+    return list;
+}
+
+function renderFilteredGoals() {
+    renderGoals(_filterVisibleGoals());
+}
+window.renderFilteredGoals = renderFilteredGoals;
+
+// ============================================
+// RENDERIZAÇÃO DOS CARDS REDESENHADOS
+// ============================================
+function _emptyStateHtml() {
+    if (allGoals.length > 0) {
+        return `
+            <div class="empty-state" style="grid-column:1/-1;padding:40px 16px;">
+                <span class="empty-icon">📅</span>
+                <h3>Nenhuma meta neste filtro ou ciclo</h3>
+                <p>Você não tem metas cadastradas para ${currentTemporalMode === 'continuous' ? 'Longo Prazo' : 'o ciclo de ' + currentCycleYear}.</p>
+                <button class="btn btn-primary" onclick="openModal()" style="margin-top:10px; font-size:12.5px;">
+                    <i class="fas fa-plus"></i> Criar meta para este ciclo
+                </button>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="empty-state" style="grid-column:1/-1;padding:40px 16px;">
+            <span class="empty-icon">🎯</span>
+            <h3>Nenhuma meta ainda</h3>
+            <p>Defina seus objetivos e acompanhe seu progresso ano após ano!</p>
+            <button class="btn btn-primary" onclick="openModal()" style="margin-top:10px; font-size:13px;"
+                aria-label="Criar primeira meta">
+                <i class="fas fa-plus"></i> Criar primeira meta
+            </button>
+        </div>
+    `;
+}
+
+function _renderProjectCard(g, isComplete, goalYear) {
+    const completedDateText = g.completed_at ? formatDate(g.completed_at) : (g.deadline ? formatDate(g.deadline) : null);
+    const isPostponed = !isComplete && (g.postponed_to || (g.target_year && g.target_year > currentCycleYear) || (typeof goalYear === 'number' && goalYear < currentCycleYear));
+    const postponedYear = g.postponed_to || g.target_year || (currentCycleYear + 1);
+
+    return `
+        <div class="goal-card ${isComplete ? 'completed' : ''}" 
+             style="--goal-accent-color: #38BDF8;"
+             onclick="editGoal('${g.id}')">
+            
+            <div class="goal-card-top">
+                <button type="button" class="project-toggle-btn ${isComplete ? 'checked' : ''}" 
+                        onclick="event.stopPropagation(); toggleHabitStatus('${g.id}')" 
+                        title="${isComplete ? 'Reabrir meta' : 'Marcar como Concluído!'}">
+                    <i class="fas fa-check"></i>
+                </button>
+
+                <div class="goal-title-wrap">
+                    <div class="goal-category-tag">
+                        <span style="color:#0284c7; font-weight:700;"><i class="fas fa-tasks"></i> 📌 Projeto / Realização</span>
+                    </div>
+                    <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
+                </div>
+
+                <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}" style="${!isComplete && isPostponed ? 'background:rgba(100,116,139,0.15); color:#64748B;' : ''}">
+                    ${isComplete ? '🏆 Concluído' : (isPostponed ? `🔄 Para ${postponedYear}` : '⏳ Em andamento')}
+                </span>
+            </div>
+
+            <div class="goal-finance-row" style="background: var(--color-bg, #f8fafc); border-radius: 8px; padding: 10px 12px; margin: 10px 0; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <span class="goal-val-label">Status da Conquista</span>
+                    <strong style="font-size: 13px; color:${isComplete ? '#10b981' : (isPostponed ? '#64748B' : '#d97706')}; display:block;">
+                        ${isComplete ? '✅ Conquistado com sucesso' : (isPostponed ? `🔄 Reprogramada para ${postponedYear}` : '⏳ Em andamento')}
+                    </strong>
+                </div>
+                <div style="text-align: right;">
+                    <span class="goal-val-label">${isComplete ? 'Concluído em' : 'Alocação'}</span>
+                    <span class="goal-val-target" style="font-size: 12px; font-weight:600;">
+                        ${isComplete ? (completedDateText || 'Hoje') : (goalYear === 'continuous' ? 'Longo Prazo' : `Ciclo ${goalYear}`)}
+                    </span>
+                </div>
+            </div>
+
+            <div class="goal-progress-box">
+                <div class="goal-progress-meta">
+                    <span>${isComplete ? '100% Conquistado' : 'Checklist de Ação'}</span>
+                    <span class="goal-progress-pct" style="color:${isComplete ? '#10b981' : '#64748b'};">${isComplete ? '100%' : '0%'}</span>
+                </div>
+                <div class="goal-progress-track">
+                    <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${isComplete ? '100%' : '0%'}; background:${isComplete ? '#10b981' : '#38BDF8'};"></div>
+                </div>
+            </div>
+
+            <div class="goal-actions-bar" onclick="event.stopPropagation();">
+                <button type="button" class="btn-card-action" onclick="toggleHabitStatus('${g.id}')" style="background:${isComplete ? '#d1fae5' : '#e0f2fe'}; color:${isComplete ? '#047857' : '#0369a1'}; font-weight:700; flex:1;">
+                    <i class="fas ${isComplete ? 'fa-undo' : 'fa-check'}"></i> ${isComplete ? 'Reabrir Meta' : 'Concluir Agora'}
+                </button>
+                ${!isComplete && currentCycleYear <= new Date().getFullYear() ? `
+                    <button type="button" class="btn-postpone-action" onclick="postponeGoal('${g.id}', ${currentCycleYear + 1})" title="Mover meta para o próximo ciclo">
+                        <i class="fas fa-arrow-right"></i> Mover p/ ${currentCycleYear + 1}
+                    </button>
+                ` : ''}
+                <button type="button" class="btn-card-icon-only" onclick="editGoal('${g.id}')" title="Editar detalhes">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn-card-icon-only danger" onclick="deleteGoal('${g.id}')" title="Excluir meta">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function _renderDividendsCard(g, isComplete, goalYear) {
+    const targetAmount = Number(g.target_amount) || 1;
+    const analysis = getDividendGoalAnalysis(targetAmount, goalYear);
+    const monthlyDivs = analysis.currentMonthVal;
+    const percent = analysis.percentMonth;
+    const isMonthlyTargetMet = targetAmount > 0 && monthlyDivs >= targetAmount;
+
+    let consistencyText = '';
+    if (analysis.monthsOnTarget > 0) {
+        consistencyText = `<span>🎯 <strong>${analysis.monthsOnTarget} ${analysis.monthsOnTarget === 1 ? 'mês atingiu' : 'meses atingiram'}</strong> o alvo de ${formatCurrency(targetAmount)}</span>`;
+    } else if (analysis.totalYear > 0) {
+        consistencyText = `<span>📊 Acumulado em ${goalYear}: <strong>${formatCurrency(analysis.totalYear)}</strong> (Média: ${formatCurrency(analysis.avgYear)}/mês)</span>`;
+    } else {
+        consistencyText = `<span>Aguardando primeiros proventos registrados em ${goalYear}</span>`;
+    }
+
+    return `
+        <div class="goal-card ${isComplete || isMonthlyTargetMet ? 'completed' : ''}" 
+             style="--goal-accent-color: #10B981;"
+             onclick="editGoal('${g.id}')">
+            
+            <div class="goal-card-top">
+                <div class="goal-badge-icon" style="background: rgba(16, 185, 129, 0.15); color: #10B981;">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </div>
+                <div class="goal-title-wrap">
+                    <div class="goal-category-tag">
+                        <span style="color:#059669; font-weight:700;"><i class="fas fa-chart-line"></i> 📈 Proventos da Carteira</span>
+                    </div>
+                    <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
+                </div>
+                <span class="goal-status-badge ${isComplete || isMonthlyTargetMet ? 'completed-badge' : 'in-progress'}">
+                    ${isComplete ? '🏆 Atingido' : (isMonthlyTargetMet ? `🏆 Meta do Mês!` : `${percent}%`)}
+                </span>
+            </div>
+
+            <div class="goal-finance-row">
+                <div class="goal-val-box">
+                    <span class="goal-val-label">Recebido este Mês</span>
+                    <span class="goal-val-current" style="color:#10b981;">${formatCurrency(monthlyDivs)}</span>
+                </div>
+                <div class="goal-val-box" style="text-align: right;">
+                    <span class="goal-val-label">Meta Mensal</span>
+                    <span class="goal-val-target">${formatCurrency(targetAmount)}/mês</span>
+                </div>
+            </div>
+
+            <div class="goal-progress-box">
+                <div class="goal-progress-meta">
+                    <span>Progresso: <strong>${formatCurrency(monthlyDivs)} de ${formatCurrency(targetAmount)}</strong></span>
+                    <span class="goal-progress-pct" style="color:#10b981;">${analysis.rawPercentMonth}%</span>
+                </div>
+                <div class="goal-progress-track">
+                    <div class="goal-progress-fill ${isComplete || isMonthlyTargetMet ? 'completed' : ''}" style="width: ${percent}%; background:#10B981;"></div>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary, #64748B); margin-top: 6px; display: flex; align-items: center; gap: 5px;">
+                    ${consistencyText}
+                </div>
+            </div>
+
+            <div class="auto-sync-tag dividends" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <span><i class="fas fa-wallet"></i> Sincronizado com os proventos da carteira TonuControle</span>
+                <button type="button" onclick="event.stopPropagation(); refreshDividendsForGoals();" title="Recarregar proventos agora" style="background:transparent; border:none; color:#059669; cursor:pointer; font-size:11.5px; font-weight:700; display:flex; align-items:center; gap:4px; padding:2px 6px; border-radius:4px;">
+                    <i class="fas fa-redo-alt"></i> Atualizar agora
+                </button>
+            </div>
+
+            <div class="goal-actions-bar" onclick="event.stopPropagation();">
+                <button type="button" class="btn-card-action" onclick="window.location.href='investments.html#proventos'" style="background:rgba(16,185,129,0.12); color:#047857; font-weight:700; flex:1;">
+                    <i class="fas fa-chart-line"></i> Ver Proventos
+                </button>
+                <button type="button" class="btn-card-icon-only" onclick="editGoal('${g.id}')" title="Editar detalhes">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn-card-icon-only danger" onclick="deleteGoal('${g.id}')" title="Excluir meta">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function _renderWealthCard(g, isComplete) {
+    const currentEquity = cachedTotalEquity || 0;
+    const currentInvested = cachedTotalInvested || currentEquity;
+    const targetAmount = Number(g.target_amount) || 1;
+    const percent = Math.min(100, Math.round((currentEquity / targetAmount) * 100));
+    const formattedTime = formatEquityTimestamp(cachedTotalEquityUpdatedAt);
+    const diffReturn = currentEquity - currentInvested;
+    const returnPct = currentInvested > 0 ? (diffReturn / currentInvested) * 100 : 0;
+    const sign = diffReturn >= 0 ? '+' : '';
+
+    let detailsReturn = '';
+    if (currentInvested > 0 && Math.abs(diffReturn) > 0.01) {
+        const colorRet = diffReturn >= 0 ? '#10B981' : '#F59E0B';
+        detailsReturn = `<span style="font-size:11px; color:${colorRet}; font-weight:600;">Aplicado: ${formatCurrency(currentInvested)} (${sign}${returnPct.toFixed(2)}%)</span>`;
+    }
+
+    return `
+        <div class="goal-card ${isComplete ? 'completed' : ''}" 
+             style="--goal-accent-color: #4338CA;"
+             onclick="editGoal('${g.id}')">
+            
+            <div class="goal-card-top">
+                <div class="goal-badge-icon" style="background: rgba(67, 56, 202, 0.14); color: #4338CA;">
+                    <i class="fas fa-university"></i>
+                </div>
+                <div class="goal-title-wrap">
+                    <div class="goal-category-tag">
+                        <span style="color:#4338CA; font-weight:700;"><i class="fas fa-chart-pie"></i> 🏦 Patrimônio Total</span>
+                    </div>
+                    <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
+                </div>
+                <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}" style="${isComplete ? '' : 'background:rgba(67, 56, 202, 0.12); color:#4338CA;'}">
+                    ${isComplete ? '🏆 Conquistado' : (isEquityLoaded ? `${percent}%` : '—')}
+                </span>
+            </div>
+
+            <div class="goal-finance-row">
+                <div class="goal-val-box">
+                    <span class="goal-val-label">Patrimônio Atual em Ativos</span>
+                    <span class="goal-val-current" style="color:#4338CA;">${isEquityLoaded ? formatCurrency(currentEquity) : '—'}</span>
+                    ${detailsReturn ? `<div style="margin-top:2px;">${detailsReturn}</div>` : ''}
+                </div>
+                <div class="goal-val-box" style="text-align: right;">
+                    <span class="goal-val-label">Meta de Patrimônio</span>
+                    <span class="goal-val-target">${formatCurrency(targetAmount)}</span>
+                    <div style="font-size:11px; color:var(--text-secondary, #64748B); margin-top:2px;">
+                        ${isComplete ? 'Meta alcançada!' : `Faltam: ${formatCurrency(Math.max(0, targetAmount - currentEquity))}`}
+                    </div>
+                </div>
+            </div>
+
+            <div class="goal-progress-box">
+                <div class="goal-progress-meta">
+                    <span>${isComplete ? '🎉 Conquista de Patrimônio Batida!' : (isEquityLoaded ? `Progresso: <strong>${formatCurrency(currentEquity)} de ${formatCurrency(targetAmount)}</strong>` : 'Carregando custódia...')}</span>
+                    <span class="goal-progress-pct" style="color:#4338CA;">${isEquityLoaded ? percent + '%' : '—'}</span>
+                </div>
+                <div class="goal-progress-track">
+                    <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${isEquityLoaded ? percent : 0}%; background:#4338CA;"></div>
+                </div>
+            </div>
+
+            <div class="auto-sync-tag wealth" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <span><i class="fas fa-sync-alt"></i> Custódia • ${formattedTime}</span>
+                <button type="button" onclick="event.stopPropagation(); refreshPortfolioValueForGoals();" title="Forçar atualização da custódia agora" style="background:transparent; border:none; color:#4338CA; cursor:pointer; font-size:11.5px; font-weight:700; display:flex; align-items:center; gap:4px; padding:2px 6px; border-radius:4px;">
+                    <i class="fas fa-redo-alt"></i> Atualizar agora
+                </button>
+            </div>
+
+            <div class="goal-actions-bar" onclick="event.stopPropagation();">
+                <button type="button" class="btn-card-action" onclick="window.location.href='investments.html'" style="background:rgba(67,56,202,0.12); color:#4338CA; font-weight:700; flex:1;">
+                    <i class="fas fa-chart-pie"></i> Ver Carteira
+                </button>
+                <button type="button" class="btn-card-icon-only" onclick="editGoal('${g.id}')" title="Editar detalhes">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn-card-icon-only danger" onclick="deleteGoal('${g.id}')" title="Excluir meta">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function _renderFinancialCard(g, isComplete, goalYear, catInfo, color) {
+    const percent = g.target_amount > 0
+        ? Math.min(100, (g.current_amount / g.target_amount) * 100)
+        : 0;
+    const pctDisplay = Math.round(percent);
+    const remaining = Math.max(0, (g.target_amount || 0) - (g.current_amount || 0));
+
+    let deadlineLabel = 'Sem prazo definido';
+    if (g.deadline) {
+        const now = new Date();
+        const targetDate = new Date(g.deadline);
+        const daysDiff = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24));
+        if (isComplete) {
+            deadlineLabel = `🏆 Concluída`;
+        } else if (daysDiff > 0) {
+            deadlineLabel = `⏰ ${daysDiff} dias restantes (${formatDate(g.deadline)})`;
+        } else {
+            deadlineLabel = `Ciclo ${goalYear}`;
+        }
+    }
+
+    return `
+        <div class="goal-card ${isComplete ? 'completed' : ''}" 
+             style="--goal-accent-color: ${color};"
+             onclick="editGoal('${g.id}')">
+            
+            <div class="goal-card-top">
+                <div class="goal-badge-icon" style="background: ${color}20; color: ${color};">
+                    <i class="fas ${catInfo.icon}"></i>
+                </div>
+                <div class="goal-title-wrap">
+                    <div class="goal-category-tag">
+                        <span>${catInfo.emoji} ${catInfo.label}</span>
+                    </div>
+                    <h3 class="goal-card-title" title="${stripHTML(g.title)}">${stripHTML(g.title)}</h3>
+                </div>
+                <span class="goal-status-badge ${isComplete ? 'completed-badge' : 'in-progress'}">
+                    ${isComplete ? '🏆 Concluída' : `${pctDisplay}%`}
+                </span>
+            </div>
+
+            <div class="goal-finance-row">
+                <div class="goal-val-box">
+                    <span class="goal-val-label">Valor Poupado</span>
+                    <span class="goal-val-current">${formatCurrency(g.current_amount)}</span>
+                </div>
+                <div class="goal-val-box" style="text-align: right;">
+                    <span class="goal-val-label">Meta Total</span>
+                    <span class="goal-val-target">${formatCurrency(g.target_amount)}</span>
+                </div>
+            </div>
+
+            <div class="goal-progress-box">
+                <div class="goal-progress-meta">
+                    <span>${isComplete ? '🎉 100% atingido!' : `Faltam ${formatCurrency(remaining)}`}</span>
+                    <span class="goal-progress-pct">${pctDisplay}%</span>
+                </div>
+                <div class="goal-progress-track">
+                    <div class="goal-progress-fill ${isComplete ? 'completed' : ''}" style="width: ${pctDisplay}%;"></div>
+                </div>
+            </div>
+
+            <div class="goal-insight-pill">
+                <div style="display:flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>${deadlineLabel}</span>
+                </div>
+            </div>
+
+            <div class="goal-actions-bar" onclick="event.stopPropagation();">
+                <button type="button" class="btn-card-action" onclick="openGoalYieldModal('${g.id}')" title="Extrato e Rendimento CDI" style="background:rgba(67,56,202,0.1); color:#4338CA; font-weight:700;">
+                    <i class="fas fa-chart-line"></i> CDI
+                </button>
+                ${!isComplete ? `
+                    <button type="button" class="btn-card-action" onclick="quickAddAmount('${g.id}', 500)" style="background:rgba(245,158,11,0.15); color:#D97706; font-weight:700;" title="Aporte rápido de R$ 500">
+                        <i class="fas fa-plus"></i> + R$ 500
+                    </button>
+                    <button type="button" class="btn-card-action btn-deposit" onclick="openAddValue('${g.id}')" title="Fazer um aporte nesta meta">
+                        <i class="fas fa-plus"></i> Aportar
+                    </button>
+                    <button type="button" class="btn-card-action btn-withdraw" onclick="openWithdrawModal('${g.id}')" title="Resgatar ou ajustar valor">
+                        <i class="fas fa-minus"></i> Resgatar
+                    </button>
+                ` : `
+                    <button type="button" class="btn-card-action btn-withdraw" onclick="openWithdrawModal('${g.id}')" title="Ajustar ou reabrir meta com resgate">
+                        <i class="fas fa-hand-holding-usd"></i> Movimentar
+                    </button>
+                `}
+                <button type="button" class="btn-card-icon-only" onclick="editGoal('${g.id}')" title="Editar detalhes">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn-card-icon-only danger" onclick="deleteGoal('${g.id}')" title="Excluir meta">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function _renderGoalCard(g) {
+    const goalType = g.type || 'financial';
+    const catInfo = resolveGoalCategory(g);
+    const color = g.color || catInfo.color || '#4338CA';
+    const isComplete = isGoalComplete(g);
+    const goalYear = resolveGoalYear(g);
+
+    if (goalType === 'habit' || goalType === 'project') {
+        return _renderProjectCard(g, isComplete, goalYear);
+    }
+    if (goalType === 'dividends') {
+        return _renderDividendsCard(g, isComplete, goalYear);
+    }
+    if (goalType === 'wealth' || goalType === 'net_worth') {
+        return _renderWealthCard(g, isComplete);
+    }
+    return _renderFinancialCard(g, isComplete, goalYear, catInfo, color);
+}
+
+async function renderGoals(goals) {
+    const container = document.getElementById('goalsContainer');
+    if (!container) return;
+
+    // Atualiza patrimônio e proventos em cache para metas automáticas
+    await Promise.allSettled([
+        getLatestPortfolioValue(),
+        loadDividendsForGoals()
+    ]);
+
+    if (goals.length === 0) {
+        container.innerHTML = _emptyStateHtml();
+        return;
+    }
+
+    container.innerHTML = goals.map(g => _renderGoalCard(g)).join('');
+}
+
+// ============================================
+// MODAL PRINCIPAL & SELEÇÃO DE TIPOS
+// ============================================
+function selectModalGoalType(type) {
+    selectedModalType = type;
+    const typeInput = document.getElementById('gType');
+    if (typeInput) typeInput.value = type;
+
+    document.querySelectorAll('.type-card-opt').forEach(el => el.classList.remove('selected'));
+    if (type === 'habit' || type === 'project') {
+        document.getElementById('typeOptProject')?.classList.add('selected');
+    } else if (type === 'dividends') {
+        document.getElementById('typeOptDividends')?.classList.add('selected');
+    } else if (type === 'wealth' || type === 'net_worth') {
+        document.getElementById('typeOptWealth')?.classList.add('selected');
+    } else {
+        document.getElementById('typeOptFinancial')?.classList.add('selected');
+    }
+
+    const amountRow = document.getElementById('goalAmountRow');
+    const targetGroup = document.getElementById('goalTargetGroup');
+    const currentGroup = document.getElementById('goalCurrentGroup');
+    const cdiGroup = document.getElementById('goalCdiGroup');
+    const lblTarget = document.getElementById('lblTarget');
+    const gTarget = document.getElementById('gTarget');
+    const gCurrent = document.getElementById('gCurrent');
+
+    if (type === 'habit' || type === 'project') {
+        if (amountRow) amountRow.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (gTarget) { gTarget.required = false; gTarget.value = '1'; }
+        if (gCurrent) gCurrent.value = '0';
+    } else if (type === 'dividends') {
+        if (amountRow) amountRow.style.display = 'flex';
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (lblTarget) lblTarget.innerHTML = 'Meta Mensal de Proventos (R$/mês) *';
+        if (gTarget) { gTarget.required = true; gTarget.placeholder = '1,00'; }
+        if (gCurrent) gCurrent.value = '0';
+    } else if (type === 'wealth' || type === 'net_worth') {
+        if (amountRow) amountRow.style.display = 'flex';
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'none';
+        if (cdiGroup) cdiGroup.style.display = 'none';
+        if (lblTarget) lblTarget.innerHTML = 'Meta de Patrimônio Total (R$) *';
+        if (gTarget) { gTarget.required = true; gTarget.placeholder = '10.000,00'; }
+        if (gCurrent) gCurrent.value = '0';
+    } else { // financial
+        if (amountRow) amountRow.style.display = 'flex';
+        if (targetGroup) targetGroup.style.display = 'block';
+        if (currentGroup) currentGroup.style.display = 'block';
+        if (cdiGroup) cdiGroup.style.display = 'block';
+        if (lblTarget) lblTarget.innerHTML = 'Valor Total (R$) *';
+        if (gTarget) { gTarget.required = true; gTarget.placeholder = '10.000,00'; }
+    }
+}
+window.selectModalGoalType = selectModalGoalType;
+
+function handleCycleSelectChange() {
+    const cycleVal = document.getElementById('gCycleSelect')?.value;
+    const deadlineInput = document.getElementById('gDeadline');
+    if (!deadlineInput) return;
+    if (cycleVal === 'continuous') {
+        deadlineInput.value = '';
+    } else if (cycleVal && !deadlineInput.value) {
+        deadlineInput.value = `${cycleVal}-12-31`;
+    }
+}
+window.handleCycleSelectChange = handleCycleSelectChange;
+
+function openModal(id = null) {
+    if (isProcessing) {
+        showToast('Aguarde a operação atual terminar...', 'warning');
+        return;
+    }
+
+    const overlay = document.getElementById('modalOverlay');
+    const modal = document.getElementById('goalModal');
+    const form = document.getElementById('goalForm');
+    const title = document.getElementById('modalTitle');
+    const deleteBtn = document.getElementById('btnDelete');
+
+    document.body.classList.add('no-scroll');
+
+    form.reset();
+    document.getElementById('editId').value = '';
+    document.getElementById('gCurrent').value = '';
+    document.getElementById('gDeadline').value = '';
+    document.getElementById('gCategory').value = 'home';
+    document.getElementById('gColor').value = '#4338CA';
+    if (document.getElementById('gCdiPercent')) document.getElementById('gCdiPercent').value = '100';
+    document.getElementById('gCompleted').checked = false;
+    deleteBtn.classList.add('hidden');
+    title.textContent = 'Nova Meta';
+
+    populateCycleSelectOptions();
+    const cycleSelect = document.getElementById('gCycleSelect');
+    if (cycleSelect) {
+        cycleSelect.value = currentTemporalMode === 'continuous' ? 'continuous' : String(currentCycleYear);
+    }
+
+    selectModalGoalType('financial');
+
+    if (window.TonuCSRF) {
+        let csrfInput = document.getElementById('csrfTokenGoal');
+        if (!csrfInput) {
+            csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.id = 'csrfTokenGoal';
+            csrfInput.name = '_csrf';
+            form.appendChild(csrfInput);
+        }
+        csrfInput.value = window.TonuCSRF.get();
+    }
+
+    if (id) {
+        const goal = allGoals.find(g => g.id === id);
+        if (goal) {
+            document.getElementById('editId').value = goal.id;
+            document.getElementById('gTitle').value = goal.title;
+            document.getElementById('gTarget').value = formatNumberInput(goal.target_amount);
+            document.getElementById('gCurrent').value = formatNumberInput(goal.current_amount || 0);
+            document.getElementById('gDeadline').value = goal.deadline || '';
+            const catInfo = resolveGoalCategory(goal);
+            const catElem = document.getElementById('gCategory');
+            if (catElem) catElem.value = goal.category || catInfo.key || 'other';
+            document.getElementById('gColor').value = goal.color || '#4338CA';
+            if (document.getElementById('gCdiPercent')) {
+                document.getElementById('gCdiPercent').value = goal.cdi_percent || 100;
+            }
+            document.getElementById('gCompleted').checked = goal.completed || false;
+
+            const goalYear = resolveGoalYear(goal);
+            populateCycleSelectOptions(goalYear);
+            if (cycleSelect) {
+                cycleSelect.value = goalYear === 'continuous' ? 'continuous' : String(goalYear);
+            }
+
+            selectModalGoalType(goal.type || 'financial');
+            title.textContent = 'Editar Meta';
+            deleteBtn.classList.remove('hidden');
+        }
+    }
+
+    overlay.classList.add('active');
+    modal.classList.remove('hidden');
+
+    setTimeout(() => {
+        document.getElementById('gTitle')?.focus();
+    }, 100);
+}
+window.openModal = openModal;
+
+function populateCycleSelectOptions(extraYear) {
+    const select = document.getElementById('gCycleSelect');
+    if (!select) return;
+    const baseYear = new Date().getFullYear();
+    const years = [baseYear, baseYear + 1, baseYear - 1];
+    if (typeof extraYear === 'number' && !isNaN(extraYear) && !years.includes(extraYear)) {
+        years.push(extraYear);
+    }
+    const prevVal = select.value;
+    select.innerHTML = years.map(yr => {
+        const tag = yr === baseYear ? 'Atual' : (yr > baseYear ? 'Planejamento' : 'Histórico');
+        return `<option value="${yr}">📅 Ciclo ${yr} (${tag})</option>`;
+    }).join('') + '<option value="continuous">♾️ Meta Contínua (Longo Prazo)</option>';
+    if (prevVal) select.value = prevVal;
+}
+window.populateCycleSelectOptions = populateCycleSelectOptions;
+
+function toggleGoalTypeFields() {
+    selectModalGoalType(document.getElementById('gType')?.value || 'financial');
+}
+window.toggleGoalTypeFields = toggleGoalTypeFields;
+
+
+async function toggleHabitStatus(goalId) {
+    const goal = allGoals.find(g => String(g.id) === String(goalId));
+    if (!goal) return;
+    const newStatus = !goal.completed;
+    goal.completed = newStatus;
+    goal.current_amount = newStatus ? 1 : 0;
+    goal.target_amount = 1;
+    goal.updated_at = new Date().toISOString();
+    if (newStatus) {
+        goal.completed_at = new Date().toISOString();
+    } else {
+        delete goal.completed_at;
+    }
+
+    renderFilteredGoals();
+    updateGoalsStats(allGoals);
+
+    if (newStatus && typeof triggerCelebration === 'function') {
+        triggerCelebration(goal.title, 0);
+    }
+
+    if (window.tonuSync && currentUser?.id) {
+        await window.tonuSync.enqueue('UPDATE_GOAL', {
+            id: goal.id,
+            completed: newStatus,
+            current_amount: goal.current_amount,
+            target_amount: 1,
+            completed_at: goal.completed_at || null,
+            updated_at: goal.updated_at
+        });
+    }
+
+    if (supabaseClient && currentUser?.id && navigator.onLine) {
+        try {
+            await supabaseClient.from('goals').update({
+                completed: newStatus,
+                current_amount: goal.current_amount,
+                target_amount: 1,
+                completed_at: goal.completed_at || null,
+                updated_at: goal.updated_at
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+        } catch (e) {
+            console.warn('⚠️ Erro ao atualizar status do hábito no Supabase:', e);
+        }
+    }
+
+    if (typeof showToast === 'function') {
+        showToast(newStatus ? '🎉 Projeto/Hábito concluído com sucesso!' : '⏳ Hábito retornado para Pendente', 'info');
+    }
+}
+window.toggleHabitStatus = toggleHabitStatus;
+
+function formatNumberInput(value) {
+    if (value === null || value === undefined || isNaN(value)) return '';
+    return Number(value).toFixed(2).replace('.', ',');
+}
+
+function parseNumberInput(value) {
+    if (!value) return 0;
+    return parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+function closeModal() {
+    document.body.classList.remove('no-scroll');
+    document.getElementById('modalOverlay').classList.remove('active');
+    document.getElementById('goalModal').classList.add('hidden');
+}
+window.closeModal = closeModal;
+
+function editGoal(id) {
+    openModal(id);
+}
+window.editGoal = editGoal;
+
+// ============================================
+// SALVAR META
+// ============================================
+async function saveGoal(event) {
+    event.preventDefault();
+
+    if (isProcessing) {
+        showToast('Aguarde a operação atual terminar...', 'warning');
+        return;
+    }
+
+    const editId = document.getElementById('editId').value;
+    const prevGoal = editId ? allGoals.find(g => g.id === editId) : null;
+    const wasCompleted = prevGoal ? isGoalComplete(prevGoal) : false;
+
+    const type = document.getElementById('gType')?.value || selectedModalType || 'financial';
+    const title = document.getElementById('gTitle').value.trim();
+    let target = parseNumberInput(document.getElementById('gTarget')?.value);
+    let current = parseNumberInput(document.getElementById('gCurrent')?.value);
+    let deadline = document.getElementById('gDeadline')?.value || null;
+    const cycle = document.getElementById('gCycleSelect')?.value || String(currentCycleYear);
+    const category = document.getElementById('gCategory') ? document.getElementById('gCategory').value : 'other';
+    const color = document.getElementById('gColor').value;
+
+    if (!title) {
+        showToast('Informe o título da meta!', 'error');
+        return;
+    }
+
+    const targetYear = cycle === 'continuous' ? null : parseInt(cycle);
+    if (!deadline && targetYear) {
+        deadline = `${targetYear}-12-31`;
+    }
+
+    let completed = false;
+    if (type === 'habit' || type === 'project') {
+        target = 1;
+        completed = document.getElementById('gCompleted')?.checked || false;
+        current = completed ? 1 : 0;
+    } else if (type === 'dividends') {
+        current = getMonthlyDividendsTotal();
+        completed = target > 0 ? (current >= target) : false;
+        if (target <= 0) {
+            showToast('Informe a meta mensal esperada de proventos!', 'error');
+            return;
+        }
+    } else if (type === 'wealth' || type === 'net_worth') {
+        current = await getLatestPortfolioValue();
+        completed = target > 0 ? (current >= target) : false;
+        if (target <= 0) {
+            showToast('Informe o valor alvo de patrimônio!', 'error');
+            return;
+        }
+    } else { // financial
+        completed = document.getElementById('gCompleted').checked || (current >= target);
+        const validation = window.validateGoal({
+            title: title,
+            target_amount: target,
+            current_amount: current,
+            deadline: deadline
+        });
+        if (!validation.valid) {
+            showToast('❌ ' + validation.errors.join('\n'), 'error');
+            return;
+        }
+        if (current > target) {
+            showToast('O valor atual não pode ser maior que a meta!', 'error');
+            return;
+        }
+    }
+
+    const cdiPercent = parseFloat(document.getElementById('gCdiPercent')?.value) || 100;
+
+    const data = {
+        user_id: currentUser.id,
+        type: type,
+        title: stripHTML(title),
+        target_amount: target,
+        current_amount: current,
+        target_year: targetYear,
+        deadline: deadline,
+        category: category,
+        color: color,
+        cdi_percent: cdiPercent,
+        completed: completed,
+        updated_at: new Date().toISOString()
+    };
+
+    const payload = { ...data };
+    delete payload._csrf;
+    delete payload._timestamp;
+
+    const btn = event.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    isProcessing = true;
+    btn.innerHTML = '<span class="spinner"></span> Salvando...';
+
+    try {
+        let result;
+
+        if (!navigator.onLine && window.tonuSync) {
+            if (editId) {
+                await window.tonuSync.enqueue('UPDATE_GOAL', { id: editId, ...payload });
+            } else {
+                payload.created_at = new Date().toISOString();
+                await window.tonuSync.enqueue('INSERT_GOAL', payload);
+            }
+            showToast('📦 Meta salva localmente! Sincronização pendente.', 'success');
+            closeModal();
+            await loadGoals();
+            if (completed && !wasCompleted) {
+                triggerCelebration(title, Math.max(target, current));
+            }
+            btn.disabled = false;
+            isProcessing = false;
+            btn.innerHTML = originalText;
+            return;
+        }
+
+        if (editId) {
+            result = await supabaseClient
+                .from('goals')
+                .update(payload)
+                .eq('id', editId)
+                .eq('user_id', currentUser.id);
+        } else {
+            payload.created_at = new Date().toISOString();
+            result = await supabaseClient
+                .from('goals')
+                .insert([payload]);
+        }
+
+        // Se o banco remoto não tiver target_year ou category, faz fallback seguro
+        if (result.error && (result.error.code === 'PGRST204' || (result.error.message && (result.error.message.includes('target_year') || result.error.message.includes('category'))))) {
+            const fallbackData = { ...payload };
+            delete fallbackData.target_year;
+            delete fallbackData.category;
+            if (editId) {
+                result = await supabaseClient
+                    .from('goals')
+                    .update(fallbackData)
+                    .eq('id', editId)
+                    .eq('user_id', currentUser.id);
+            } else {
+                result = await supabaseClient
+                    .from('goals')
+                    .insert([fallbackData]);
+            }
+        }
+
+        if (result.error) {
+            console.error('❌ Erro Supabase:', result.error);
+            showToast(`Erro ao salvar meta: ${result.error.message}`, 'error');
+        } else {
+            showToast(editId ? 'Meta atualizada com sucesso!' : '🎯 Nova meta criada!', 'success');
+            closeModal();
+            await loadGoals();
+            if (completed && !wasCompleted) {
+                triggerCelebration(title, Math.max(target, current));
+                if (typeof window.sendRealtimePush === 'function') {
+                    const amtFormatted = typeof formatCurrency === 'function' ? formatCurrency(Math.max(target, current)) : `R$ ${Math.max(target, current)}`;
+                    window.sendRealtimePush({
+                        title: `🎯 Meta Concluída: ${title}!`,
+                        body: `Parabéns! Você bateu 100% da sua meta no valor de ${amtFormatted}.`,
+                        url: 'pages/goals.html',
+                        tag: `goal-complete-${Date.now()}`
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        console.error('❌ Erro inesperado em saveGoal:', err);
+        showToast('Erro inesperado ao salvar meta', 'error');
+    } finally {
+        btn.disabled = false;
+        isProcessing = false;
+        btn.innerHTML = originalText;
+    }
+}
+window.saveGoal = saveGoal;
+
+// ============================================
+// EXCLUIR META
+// ============================================
+async function deleteGoal(id = null) {
+    const editId = id || document.getElementById('editId').value;
+    if (!editId) return;
+
+    if (isProcessing) {
+        showToast('Aguarde a operação atual terminar...', 'warning');
+        return;
+    }
+
+    const confirmedDelete = await window.TonuConfirm({
+        title: 'Excluir meta?',
+        message: 'Excluir esta meta permanentemente?',
+        confirmText: 'Excluir',
+        danger: true
+    });
+    if (!confirmedDelete) return;
+
+    isProcessing = true;
+    const btn = document.getElementById('btnDelete');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>';
+    }
+
+    try {
+        if (!navigator.onLine && window.tonuSync) {
+            await window.tonuSync.enqueue('DELETE_GOAL', { id: editId });
+            showToast('🗑️ Exclusão agendada para sincronização.', 'warning');
+            closeModal();
+            await loadGoals();
+            isProcessing = false;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash"></i> Excluir';
+            }
+            return;
+        }
+
+        const { error } = await supabaseClient
+            .from('goals')
+            .delete()
+            .eq('id', editId)
+            .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+
+        showToast('Meta excluída! 🗑️', 'success');
+        closeModal();
+        await loadGoals();
+
+    } catch (error) {
+        console.error('❌ Erro ao excluir:', error);
+        showToast('Erro ao excluir meta', 'error');
+    } finally {
+        isProcessing = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-trash"></i> Excluir';
+        }
+    }
+}
+
+// ============================================
+// ADICIONAR VALOR
+// ============================================
+function openAddValue(id) {
+    if (isProcessing) {
+        showToast('Aguarde a operação atual terminar...', 'warning');
+        return;
+    }
+
+    const goal = allGoals.find(g => g.id === id);
+    if (!goal) return;
+
+    document.getElementById('addValueGoalId').value = id;
+    document.getElementById('addValueGoalTitle').textContent = goal.title;
+    document.getElementById('addValueCurrent').textContent = formatCurrency(goal.current_amount);
+    document.getElementById('addValueTarget').textContent = formatCurrency(goal.target_amount);
+    document.getElementById('addValueAmount').value = '';
+    document.getElementById('addValueAmount').focus();
+
+    if (window.TonuCSRF) {
+        let csrfInput = document.getElementById('csrfTokenAddValue');
+        if (!csrfInput) {
+            const form = document.getElementById('addValueForm');
+            csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.id = 'csrfTokenAddValue';
+            csrfInput.name = '_csrf';
+            form.appendChild(csrfInput);
+        }
+        csrfInput.value = window.TonuCSRF.get();
+    }
+
+    document.getElementById('addValueOverlay').classList.add('active');
+    document.getElementById('addValueModal').classList.remove('hidden');
+}
+
+function closeAddValue() {
+    document.body.classList.remove('no-scroll');
+    document.getElementById('addValueOverlay')?.classList.remove('active');
+    document.getElementById('addValueModal')?.classList.add('hidden');
+}
+
+// ============================================
+// MODAL DE RESGATE / AJUSTE DE VALOR DA META
+// ============================================
+function openWithdrawModal(id) {
+    if (isProcessing) {
+        showToast('Aguarde a operação atual terminar...', 'warning');
+        return;
+    }
+
+    const goal = allGoals.find(g => g.id === id);
+    if (!goal) return;
+
+    if (!goal.current_amount || goal.current_amount <= 0) {
+        showToast('Esta meta não possui saldo acumulado para resgate.', 'info');
+        return;
+    }
+
+    document.body.classList.add('no-scroll');
+
+    const form = document.getElementById('withdrawForm');
+    form.reset();
+
+    document.getElementById('withdrawGoalId').value = goal.id;
+    document.getElementById('withdrawGoalTitle').textContent = goal.title;
+    document.getElementById('withdrawCurrent').textContent = formatCurrency(goal.current_amount);
+    document.getElementById('withdrawAmount').value = '';
+    document.getElementById('withdrawAmount').focus();
+
+    if (window.TonuCSRF) {
+        let csrfInput = document.getElementById('csrfTokenWithdraw');
+        if (!csrfInput) {
+            csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.id = 'csrfTokenWithdraw';
+            csrfInput.name = '_csrf';
+            form.appendChild(csrfInput);
+        }
+        csrfInput.value = window.TonuCSRF.get();
+    }
+
+    document.getElementById('withdrawOverlay').classList.add('active');
+    document.getElementById('withdrawModal').classList.remove('hidden');
+}
+
+function closeWithdrawModal() {
+    document.body.classList.remove('no-scroll');
+    document.getElementById('withdrawOverlay')?.classList.remove('active');
+    document.getElementById('withdrawModal')?.classList.add('hidden');
+}
+
+async function submitWithdraw(event) {
+    event.preventDefault();
+
+    if (isProcessing) {
+        showToast('Aguarde a operação atual terminar...', 'warning');
+        return;
+    }
+
+    const id = document.getElementById('withdrawGoalId').value;
+    const amount = parseNumberInput(document.getElementById('withdrawAmount').value);
+
+    if (!amount || amount <= 0) {
+        showToast('Digite um valor de resgate válido!', 'error');
+        return;
+    }
+
+    const goal = allGoals.find(g => g.id === id);
+    if (!goal) return;
+
+    if (amount > goal.current_amount) {
+        showToast(`O valor não pode ser maior que o saldo atual (${formatCurrency(goal.current_amount)})!`, 'error');
+        return;
+    }
+
+    const newAmount = Math.max(0, goal.current_amount - amount);
+    const completed = newAmount >= goal.target_amount;
+
+    const btn = event.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    isProcessing = true;
+    btn.innerHTML = '<span class="spinner"></span> Processando...';
+
+    try {
+        const payload = {
+            current_amount: newAmount,
+            completed: completed,
+            updated_at: new Date().toISOString()
+        };
+
+        if (!navigator.onLine && window.tonuSync) {
+            await window.tonuSync.enqueue('UPDATE_GOAL', { id: id, ...payload });
+            showToast('📦 Resgate efetuado localmente! Sincronização pendente.', 'success');
+            closeWithdrawModal();
+            await loadGoals();
+            btn.disabled = false;
+            isProcessing = false;
+            btn.innerHTML = originalText;
+            return;
+        }
+
+        const { error } = await supabaseClient
+            .from('goals')
+            .update(payload)
+            .eq('id', id)
+            .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+
+        showToast(`💸 Resgate de ${formatCurrency(amount)} realizado com sucesso!`, 'success');
+        closeWithdrawModal();
+        await loadGoals();
+
+    } catch (error) {
+        console.error('❌ Erro ao resgatar valor:', error);
+        showToast('Erro ao resgatar valor', 'error');
+    } finally {
+        btn.disabled = false;
+        isProcessing = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// Ouvinte global para tecla ESC fechar modais de metas e overlay de comemoração
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+        const celebrationOverlay = document.getElementById('celebrationOverlay');
+        if (celebrationOverlay && celebrationOverlay.classList.contains('active')) {
+            dismissCelebration();
+            return;
+        }
+        const addOverlay = document.getElementById('addValueOverlay');
+        if (addOverlay && addOverlay.classList.contains('active')) {
+            closeAddValue();
+            return;
+        }
+        const withdrawOverlay = document.getElementById('withdrawOverlay');
+        if (withdrawOverlay && withdrawOverlay.classList.contains('active')) {
+            closeWithdrawModal();
+            return;
+        }
+        const goalOverlay = document.getElementById('modalOverlay');
+        if (goalOverlay && goalOverlay.classList.contains('active')) {
+            closeModal();
+        }
+    }
+});
+
+async function submitAddValue(event) {
+    event.preventDefault();
+
+    if (isProcessing) {
+        showToast('Aguarde a operação atual terminar...', 'warning');
+        return;
+    }
+
+    const id = document.getElementById('addValueGoalId').value;
+    const amount = parseNumberInput(document.getElementById('addValueAmount').value);
+
+    if (!amount || amount <= 0) {
+        showToast('Digite um valor válido!', 'error');
+        return;
+    }
+
+    const goal = allGoals.find(g => g.id === id);
+    if (!goal) return;
+
+    const newAmount = goal.current_amount + amount;
+    const completed = newAmount >= goal.target_amount;
+
+    const btn = event.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    isProcessing = true;
+    btn.innerHTML = '<span class="spinner"></span> Salvando...';
+
+    try {
+        const payload = {
+            current_amount: newAmount,
+            completed: completed,
+            updated_at: new Date().toISOString()
+        };
+
+        if (!navigator.onLine && window.tonuSync) {
+            await window.tonuSync.enqueue('UPDATE_GOAL', { id: id, ...payload });
+            showToast('📦 Valor adicionado localmente! Sincronização pendente.', 'success');
+            closeAddValue();
+            await loadGoals();
+            if (completed) {
+                triggerCelebration(goal.title, newAmount);
+            }
+            btn.disabled = false;
+            isProcessing = false;
+            btn.innerHTML = originalText;
+            return;
+        }
+
+        const { error } = await supabaseClient
+            .from('goals')
+            .update(payload)
+            .eq('id', id)
+            .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+
+        // Registra aporte histórico em goal_deposits
+        try {
+            const todayStr = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+            await supabaseClient.from('goal_deposits').insert([{
+                goal_id: id,
+                user_id: currentUser.id,
+                amount: amount,
+                deposit_date: todayStr
+            }]);
+        } catch (depErr) {
+            console.warn('⚠️ Erro ao registrar goal_deposits:', depErr);
+        }
+
+        const msg = completed ? '🎉 Meta concluída! Parabéns!' : `💰 ${formatCurrency(amount)} adicionado!`;
+        showToast(msg, 'success');
+        if (window.triggerHaptic) window.triggerHaptic(completed ? 'heavy' : 'success');
+        closeAddValue();
+        await loadGoals();
+        await checkMilestones(goal, newAmount);
+
+    } catch (error) {
+        console.error('❌ Erro ao adicionar valor:', error);
+        showToast('Erro ao adicionar valor', 'error');
+    } finally {
+        btn.disabled = false;
+        isProcessing = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// ============================================
+// CONCLUIR META RAPIDAMENTE (QUICK COMPLETE)
+// ============================================
+async function quickCompleteGoal(id) {
+    if (isProcessing) {
+        showToast('Aguarde a operação atual terminar...', 'warning');
+        return;
+    }
+
+    const goal = allGoals.find(g => g.id === id);
+    if (!goal) return;
+
+    const confirmedComplete = await window.TonuConfirm({
+        title: 'Concluir meta?',
+        message: `Deseja marcar a meta "${goal.title}" como 100% concluída?`,
+        confirmText: 'Concluir',
+        danger: false
+    });
+    if (!confirmedComplete) {
+        return;
+    }
+
+    isProcessing = true;
+
+    try {
+        const payload = {
+            current_amount: goal.target_amount,
+            completed: true,
+            updated_at: new Date().toISOString()
+        };
+
+        if (!navigator.onLine && window.tonuSync) {
+            await window.tonuSync.enqueue('UPDATE_GOAL', { id: id, ...payload });
+            showToast('📦 Meta concluída localmente! Sincronização pendente.', 'success');
+            await loadGoals();
+            triggerCelebration(goal.title, goal.target_amount);
+            isProcessing = false;
+            return;
+        }
+
+        const { error } = await supabaseClient
+            .from('goals')
+            .update(payload)
+            .eq('id', id)
+            .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+
+        showToast('🎉 Meta concluída com sucesso!', 'success');
+        await loadGoals();
+        triggerCelebration(goal.title, goal.target_amount);
+
+    } catch (error) {
+        console.error('❌ Erro ao concluir meta:', error);
+        showToast('Erro ao concluir meta', 'error');
+    } finally {
+        isProcessing = false;
+    }
+}
+
+// ============================================
+// SISTEMA DE COMEMORAÇÃO EM TELA INTEIRA (CONFETTI & FANFARRA)
+// ============================================
+let celebrationAnimId = null;
+let celebrationParticles = [];
+let celebrationAutoDismissTimer = null;
+
+function playCelebrationSound() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+
+        const notes = [
+            { freq: 523.25, time: 0.00, dur: 0.22 }, // C5
+            { freq: 659.25, time: 0.12, dur: 0.22 }, // E5
+            { freq: 783.99, time: 0.24, dur: 0.22 }, // G5
+            { freq: 1046.50, time: 0.38, dur: 0.45 }, // C6
+            { freq: 1318.51, time: 0.48, dur: 0.55 }  // E6
+        ];
+
+        notes.forEach(n => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(n.freq, ctx.currentTime + n.time);
+
+            gain.gain.setValueAtTime(0.001, ctx.currentTime + n.time);
+            gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + n.time + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n.time + n.dur);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(ctx.currentTime + n.time);
+            osc.stop(ctx.currentTime + n.time + n.dur + 0.05);
+        });
+    } catch (e) {
+        // Áudio é um aprimoramento progressivo; ignora se a política do navegador bloquear
+    }
+}
+
+function createConfettiParticles(count = 140, origin = 'cannons') {
+    const colors = [
+        '#FFD700', '#FFA500', '#4338CA', '#10B981', 
+        '#0984E3', '#FF7675', '#FD79A8', '#FDCB6E', '#7C3AED'
+    ];
+    const shapes = ['rect', 'circle', 'ribbon', 'star'];
+    const particles = [];
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    for (let i = 0; i < count; i++) {
+        const fromLeft = i % 2 === 0;
+        let x, y, vx, vy;
+
+        if (origin === 'cannons') {
+            x = fromLeft ? Math.random() * (width * 0.25) : width * 0.75 + Math.random() * (width * 0.25);
+            y = height + 10;
+            vx = fromLeft ? (Math.random() * 8 + 3) : -(Math.random() * 8 + 3);
+            vy = -(Math.random() * 14 + 14);
+        } else {
+            // Explosão central
+            x = width * 0.5 + (Math.random() - 0.5) * 80;
+            y = height * 0.45 + (Math.random() - 0.5) * 60;
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 15 + 5;
+            vx = Math.cos(angle) * speed;
+            vy = Math.sin(angle) * speed - 6;
+        }
+
+        particles.push({
+            x,
+            y,
+            vx,
+            vy,
+            size: Math.random() * 8 + 6,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            shape: shapes[Math.floor(Math.random() * shapes.length)],
+            rotation: Math.random() * 360,
+            rotationSpeed: (Math.random() - 0.5) * 12,
+            wobble: Math.random() * 10,
+            wobbleSpeed: Math.random() * 0.1 + 0.05,
+            opacity: 1,
+            gravity: 0.32 + Math.random() * 0.12,
+            drag: 0.982
+        });
+    }
+    return particles;
+}
+
+function startCelebrationCanvas() {
+    const canvas = document.getElementById('celebrationCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    celebrationParticles = createConfettiParticles(160, 'cannons');
+
+    // Explosão central complementar após 300ms
+    setTimeout(() => {
+        if (celebrationParticles.length > 0) {
+            celebrationParticles.push(...createConfettiParticles(70, 'center'));
+        }
+    }, 350);
+
+    if (celebrationAnimId) {
+        cancelAnimationFrame(celebrationAnimId);
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = celebrationParticles.length - 1; i >= 0; i--) {
+            const p = celebrationParticles[i];
+
+            p.vx *= p.drag;
+            p.vy *= p.drag;
+            p.vy += p.gravity;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rotation += p.rotationSpeed;
+            p.wobble += p.wobbleSpeed;
+
+            // Se cair abaixo da tela
+            if (p.y > canvas.height + 40) {
+                celebrationParticles.splice(i, 1);
+                continue;
+            }
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rotation * Math.PI) / 180);
+            ctx.globalAlpha = p.opacity;
+            ctx.fillStyle = p.color;
+
+            if (p.shape === 'circle') {
+                ctx.beginPath();
+                ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (p.shape === 'star') {
+                drawStar(ctx, 0, 0, 5, p.size, p.size / 2);
+            } else if (p.shape === 'ribbon') {
+                ctx.fillRect(-p.size / 2, -p.size * 1.5, p.size * Math.cos(p.wobble), p.size * 2);
+            } else {
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size * Math.cos(p.wobble), p.size);
+            }
+
+            ctx.restore();
+        }
+
+        if (celebrationParticles.length > 0) {
+            celebrationAnimId = requestAnimationFrame(render);
+        } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    celebrationAnimId = requestAnimationFrame(render);
+}
+
+function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+    let rot = (Math.PI / 2) * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - outerRadius);
+    for (let i = 0; i < spikes; i++) {
+        x = cx + Math.cos(rot) * outerRadius;
+        y = cy + Math.sin(rot) * outerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
+
+        x = cx + Math.cos(rot) * innerRadius;
+        y = cy + Math.sin(rot) * innerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
+    }
+    ctx.lineTo(cx, cy - outerRadius);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function triggerCelebration(title, amount) {
+    const overlay = document.getElementById('celebrationOverlay');
+    if (!overlay) return;
+
+    const titleEl = document.getElementById('celebrationGoalTitle');
+    const amountEl = document.getElementById('celebrationGoalAmount');
+
+    if (titleEl) titleEl.textContent = title || 'Sua Meta';
+    if (amountEl) amountEl.textContent = formatCurrency(amount || 0);
+
+    overlay.classList.add('active');
+    document.body.classList.add('no-scroll');
+
+    if (window.triggerHaptic) {
+        window.triggerHaptic('heavy');
+    }
+
+    playCelebrationSound();
+    startCelebrationCanvas();
+
+    if (celebrationAutoDismissTimer) {
+        clearTimeout(celebrationAutoDismissTimer);
+    }
+    celebrationAutoDismissTimer = setTimeout(() => {
+        dismissCelebration();
+    }, 8500);
+}
+
+function dismissCelebration() {
+    const overlay = document.getElementById('celebrationOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+    document.body.classList.remove('no-scroll');
+
+    if (celebrationAutoDismissTimer) {
+        clearTimeout(celebrationAutoDismissTimer);
+        celebrationAutoDismissTimer = null;
+    }
+
+    if (celebrationAnimId) {
+        cancelAnimationFrame(celebrationAnimId);
+        celebrationAnimId = null;
+    }
+    celebrationParticles = [];
+
+    const canvas = document.getElementById('celebrationCanvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+function retriggerConfetti() {
+    playCelebrationSound();
+    if (celebrationParticles.length < 50) {
+        startCelebrationCanvas();
+    } else {
+        celebrationParticles.push(...createConfettiParticles(100, 'cannons'));
+    }
+}
+
+window.addEventListener('resize', () => {
+    const canvas = document.getElementById('celebrationCanvas');
+    if (canvas && celebrationAnimId) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+});
+
+// ============================================
+// ITEM 12: RENDIMENTO CDI, IOF, IR & MARCOS (25, 50, 75, 90, 100%)
+// ============================================
+const IOF_TABLE = {
+    1: 0.96, 2: 0.93, 3: 0.90, 4: 0.86, 5: 0.83,
+    6: 0.80, 7: 0.76, 8: 0.73, 9: 0.70, 10: 0.66,
+    11: 0.63, 12: 0.60, 13: 0.56, 14: 0.53, 15: 0.50,
+    16: 0.46, 17: 0.43, 18: 0.40, 19: 0.36, 20: 0.33,
+    21: 0.30, 22: 0.26, 23: 0.23, 24: 0.20, 25: 0.16,
+    26: 0.13, 27: 0.10, 28: 0.06, 29: 0.03
+};
+
+function getIOFRate(daysPassed) {
+    if (daysPassed <= 0) return 0.96;
+    if (daysPassed >= 30) return 0;
+    return IOF_TABLE[daysPassed] !== undefined ? IOF_TABLE[daysPassed] : 0;
+}
+
+function getIRRate(daysPassed) {
+    if (daysPassed <= 180) return 0.225; // 22,5%
+    if (daysPassed <= 360) return 0.200; // 20,0%
+    if (daysPassed <= 720) return 0.175; // 17,5%
+    return 0.150; // 15,0%
+}
+
+let cachedCDIDailyRate = 0.040169; // ~10.65% a.a.
+
+async function fetchCDIRate() {
+    try {
+        if (window.supabaseClient && window.supabaseClient.functions) {
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
+            const invokePromise = window.supabaseClient.functions.invoke('get-cdi');
+            const res = await Promise.race([invokePromise, timeoutPromise]);
+            if (res && !res.error && res.data?.cdi?.daily_rate) {
+                cachedCDIDailyRate = res.data.cdi.daily_rate;
+                return cachedCDIDailyRate;
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ Falha ou timeout ao buscar CDI via Edge Function:', e);
+    }
+    return cachedCDIDailyRate;
+}
+
+async function checkMilestones(goal, newAmount) {
+    if (!goal || !goal.target_amount || goal.target_amount <= 0) return;
+    const pct = Math.min(100, Math.floor((newAmount / goal.target_amount) * 100));
+    const milestones = [25, 50, 75, 90, 100];
+    let fired = Array.isArray(goal.milestones_fired) ? [...goal.milestones_fired] : [];
+    let newFired = [];
+
+    for (const m of milestones) {
+        if (pct >= m && !fired.includes(m)) {
+            fired.push(m);
+            newFired.push(m);
+        }
+    }
+
+    if (newFired.length > 0) {
+        goal.milestones_fired = fired;
+        if (window.supabaseClient && currentUser?.id) {
+            try {
+                await window.supabaseClient
+                    .from('goals')
+                    .update({ milestones_fired: fired })
+                    .eq('id', goal.id)
+                    .eq('user_id', currentUser.id);
+            } catch (err) {
+                console.warn('⚠️ Erro ao persistir milestones_fired:', err);
+            }
+        }
+
+        const highestMilestone = newFired[newFired.length - 1];
+        if (highestMilestone === 100) {
+            triggerCelebration(goal.title, newAmount);
+        } else {
+            showToast(`🎯 Marco de ${highestMilestone}% alcançado na meta "${goal.title}"! 🚀`, 'success');
+            if (typeof confetti === 'function') {
+                try { confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } }); } catch (_) {}
+            }
+        }
+
+        if (typeof window.sendRealtimePush === 'function') {
+            window.sendRealtimePush({
+                title: `🎯 Marco alcançado: ${highestMilestone}% da meta!`,
+                body: `Você conquistou ${highestMilestone}% da sua meta "${goal.title}"! Continue firme.`,
+                url: 'pages/goals.html',
+                tag: `goal-milestone-${goal.id}-${highestMilestone}`
+            });
+        }
+    }
+}
+
+// ============================================
+// ITEM 12: CARD GLOBAL DE RENDIMENTO CDI (DESKTOP)
+// ============================================
+async function updateCdiGlobalCard(goals) {
+    const goalsList = Array.isArray(goals) ? goals : (allGoals || []);
+    const cdiDaily = await fetchCDIRate();
+    const annualizedRate = ((Math.pow(1 + (cdiDaily / 100), 252) - 1) * 100).toFixed(2);
+
+    const statusEl = document.getElementById('cdiStatusText');
+    if (statusEl) {
+        statusEl.textContent = `Taxa CDI Atual: ~${annualizedRate.replace('.', ',')}% a.a. (BCB SGS 12) • 100% CDI`;
+    }
+
+    let allDeposits = [];
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data } = await window.supabaseClient
+                .from('goal_deposits')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('deposit_date', { ascending: false });
+            if (data && data.length > 0) {
+                allDeposits = data;
+            }
+        } catch (err) {
+            console.warn('⚠️ Erro ao buscar goal_deposits global:', err);
+        }
+    }
+
+    const todayDate = new Date();
+    let totalAportado = 0;
+    let totalGrossYield = 0;
+    let totalIOF = 0;
+    let totalIR = 0;
+    let totalNetYield = 0;
+
+    goalsList.forEach(g => {
+        const cur = Number(g.current_amount) || 0;
+        if (cur <= 0) return;
+
+        const cdiPct = parseFloat(g.cdi_percent) || 100;
+        const ratePerDay = (cdiDaily / 100) * (cdiPct / 100);
+
+        const goalDeps = allDeposits.filter(d => String(d.goal_id) === String(g.id));
+
+        if (goalDeps.length > 0) {
+            let sumDeps = 0;
+            goalDeps.forEach(dep => {
+                const amt = parseFloat(dep.amount) || 0;
+                sumDeps += amt;
+                const depDate = dep.deposit_date ? new Date(dep.deposit_date + 'T12:00:00') : todayDate;
+                const diffDays = Math.max(0, Math.floor((todayDate.getTime() - depDate.getTime()) / 86400000));
+                const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+                const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+                const grossYield = amt * factor;
+
+                const iofRate = getIOFRate(diffDays);
+                const iof = grossYield * iofRate;
+
+                const baseForIR = Math.max(0, grossYield - iof);
+                const irRate = getIRRate(diffDays);
+                const ir = baseForIR * irRate;
+
+                const netYield = Math.max(0, grossYield - iof - ir);
+
+                totalAportado += amt;
+                totalGrossYield += grossYield;
+                totalIOF += iof;
+                totalIR += ir;
+                totalNetYield += netYield;
+            });
+
+            if (cur > sumDeps) {
+                const remAmt = cur - sumDeps;
+                const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
+                const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
+                const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+                const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+                const grossYield = remAmt * factor;
+
+                const iofRate = getIOFRate(diffDays);
+                const iof = grossYield * iofRate;
+
+                const baseForIR = Math.max(0, grossYield - iof);
+                const irRate = getIRRate(diffDays);
+                const ir = baseForIR * irRate;
+
+                const netYield = Math.max(0, grossYield - iof - ir);
+
+                totalAportado += remAmt;
+                totalGrossYield += grossYield;
+                totalIOF += iof;
+                totalIR += ir;
+                totalNetYield += netYield;
+            }
+        } else {
+            const createdDate = g.created_at ? new Date(g.created_at.slice(0, 10) + 'T12:00:00') : todayDate;
+            const diffDays = Math.max(0, Math.floor((todayDate.getTime() - createdDate.getTime()) / 86400000));
+            const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+            const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+            const grossYield = cur * factor;
+
+            const iofRate = getIOFRate(diffDays);
+            const iof = grossYield * iofRate;
+
+            const baseForIR = Math.max(0, grossYield - iof);
+            const irRate = getIRRate(diffDays);
+            const ir = baseForIR * irRate;
+
+            const netYield = Math.max(0, grossYield - iof - ir);
+
+            totalAportado += cur;
+            totalGrossYield += grossYield;
+            totalIOF += iof;
+            totalIR += ir;
+            totalNetYield += netYield;
+        }
+    });
+
+    const totalNet = totalAportado + totalNetYield;
+
+    const elAportado = document.getElementById('cdiStatAportado');
+    const elBruto = document.getElementById('cdiStatBruto');
+    const elIOF = document.getElementById('cdiStatIOF');
+    const elIR = document.getElementById('cdiStatIR');
+    const elLiquido = document.getElementById('cdiStatLiquido');
+
+    const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+    if (elAportado) {
+        if (anim) anim(elAportado, totalAportado, formatCurrency);
+        else elAportado.textContent = formatCurrency(totalAportado);
+    }
+    if (elBruto) {
+        if (anim) anim(elBruto, totalGrossYield, v => `+ ${formatCurrency(v)}`);
+        else elBruto.textContent = `+ ${formatCurrency(totalGrossYield)}`;
+    }
+    if (elIOF) {
+        if (anim) anim(elIOF, totalIOF, v => `- ${formatCurrency(v)}`);
+        else elIOF.textContent = `- ${formatCurrency(totalIOF)}`;
+    }
+    if (elIR) {
+        if (anim) anim(elIR, totalIR, v => `- ${formatCurrency(v)}`);
+        else elIR.textContent = `- ${formatCurrency(totalIR)}`;
+    }
+    if (elLiquido) {
+        if (anim) anim(elLiquido, totalNet, formatCurrency);
+        else elLiquido.textContent = formatCurrency(totalNet);
+    }
+}
+
+let currentYieldGoalId = null;
+
+async function openGoalYieldModal(goalId) {
+    const goal = allGoals.find(g => String(g.id) === String(goalId));
+    if (!goal) return;
+
+    currentYieldGoalId = goal.id;
+    document.body.classList.add('no-scroll');
+
+    const overlay = document.getElementById('goalYieldOverlay');
+    const modal = document.getElementById('goalYieldModal');
+    if (overlay) overlay.classList.add('active');
+    if (modal) modal.classList.remove('hidden');
+
+    const titleEl = document.getElementById('yieldGoalTitle');
+    if (titleEl) titleEl.textContent = goal.title;
+
+    const cdiInput = document.getElementById('yieldModalCdiPercentInput');
+    if (cdiInput) cdiInput.value = goal.cdi_percent || 100;
+
+    const qGoalId = document.getElementById('quickDepositGoalId');
+    if (qGoalId) qGoalId.value = goal.id;
+
+    const qDate = document.getElementById('quickDepositDate');
+    if (qDate) qDate.value = (typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv');
+
+    await renderGoalYieldDetails(goal);
+}
+
+function closeGoalYieldModal() {
+    document.body.classList.remove('no-scroll');
+    const overlay = document.getElementById('goalYieldOverlay');
+    const modal = document.getElementById('goalYieldModal');
+    if (overlay) overlay.classList.remove('active');
+    if (modal) modal.classList.add('hidden');
+    currentYieldGoalId = null;
+}
+
+async function renderGoalYieldDetails(goal) {
+    const tbody = document.getElementById('goalDepositsTableBody');
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:16px;"><span class="spinner"></span> Carregando aportes e calculando rendimentos...</td></tr>';
+    }
+
+    const cdiDaily = await fetchCDIRate();
+    const cdiPercent = parseFloat(goal.cdi_percent) || 100;
+
+    let deposits = [];
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            const { data } = await window.supabaseClient
+                .from('goal_deposits')
+                .select('*')
+                .eq('goal_id', goal.id)
+                .order('deposit_date', { ascending: false });
+            if (data && data.length > 0) deposits = data;
+        } catch (err) {
+            console.warn('⚠️ Erro ao buscar goal_deposits:', err);
+        }
+    }
+
+    if (deposits.length === 0 && (Number(goal.current_amount) || 0) > 0) {
+        deposits = [{
+            id: 'initial',
+            amount: Number(goal.current_amount),
+            deposit_date: (goal.created_at ? goal.created_at.slice(0, 10) : ((typeof getToday === 'function') ? getToday() : new Date().toLocaleDateString('sv'))),
+            is_initial: true
+        }];
+    }
+
+    const todayDate = new Date();
+    let totalDeposited = 0;
+    let totalGrossYield = 0;
+    let totalIOF = 0;
+    let totalIR = 0;
+    let totalNetYield = 0;
+
+    const rowsHtml = deposits.map(dep => {
+        const amt = parseFloat(dep.amount) || 0;
+        const depDate = dep.deposit_date ? new Date(dep.deposit_date + 'T12:00:00') : todayDate;
+        const diffDays = Math.max(0, Math.floor((todayDate.getTime() - depDate.getTime()) / 86400000));
+        const workDays = diffDays > 0 ? Math.max(1, Math.round(diffDays * (252 / 365))) : 0;
+
+        const ratePerDay = (cdiDaily / 100) * (cdiPercent / 100);
+        const factor = Math.max(0, Math.pow(1 + ratePerDay, workDays) - 1);
+        const grossYield = Math.max(0, amt * factor);
+
+        const iofRate = getIOFRate(diffDays);
+        const iof = grossYield * iofRate;
+
+        const baseForIR = Math.max(0, grossYield - iof);
+        const irRate = getIRRate(diffDays);
+        const ir = baseForIR * irRate;
+
+        const netYield = Math.max(0, grossYield - iof - ir);
+
+        totalDeposited += amt;
+        totalGrossYield += grossYield;
+        totalIOF += iof;
+        totalIR += ir;
+        totalNetYield += netYield;
+
+        const dateFormatted = typeof formatDate === 'function' ? formatDate(dep.deposit_date) : dep.deposit_date;
+
+        return `
+            <tr style="border-bottom: 1px solid var(--color-border); padding: 8px 10px;">
+                <td style="padding: 8px 10px; font-weight: 600;">${dateFormatted} ${dep.is_initial ? '<span style="font-size:9.5px; color:var(--color-primary);">(Inicial)</span>' : ''}</td>
+                <td style="padding: 8px 10px; font-weight: 700;">${formatCurrency(amt)}</td>
+                <td style="padding: 8px 10px; color:var(--color-text-muted);">${diffDays} dia(s)</td>
+                <td style="padding: 8px 10px; color:#00B894; font-weight: 700;">+${formatCurrency(grossYield)}</td>
+                <td style="padding: 8px 10px; color:#ef4444;">-${formatCurrency(iof + ir)}</td>
+                <td style="padding: 8px 10px; color:#4338CA; font-weight: 700;">+${formatCurrency(netYield)}</td>
+                <td style="padding: 8px 10px; text-align:right;">
+                    ${!dep.is_initial ? `<button type="button" class="btn btn-sm" onclick="deleteGoalDeposit('${dep.id}', ${amt})" style="color:#ef4444; background:none; border:none; padding:2px 6px; cursor:pointer;" title="Remover Aporte"><i class="fas fa-trash"></i></button>` : '-'}
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    if (tbody) {
+        tbody.innerHTML = rowsHtml || '<tr><td colspan="7" style="text-align:center; padding:16px; color:var(--color-text-muted);">Nenhum aporte registrado ainda.</td></tr>';
+    }
+
+    const grossTotal = totalDeposited + totalGrossYield;
+    const netTotal = totalDeposited + totalNetYield;
+
+    const elDep = document.getElementById('yieldStatDeposited');
+    const elGrossYield = document.getElementById('yieldStatGrossYield');
+    const elGrossTotal = document.getElementById('yieldStatGrossTotal');
+    const elIOF = document.getElementById('yieldStatIOF');
+    const elIR = document.getElementById('yieldStatIR');
+    const elNetTotal = document.getElementById('yieldStatNetTotal');
+
+    const anim = typeof window.animateValue === 'function' ? window.animateValue : null;
+    if (elDep) {
+        if (anim) anim(elDep, totalDeposited, formatCurrency);
+        else elDep.textContent = formatCurrency(totalDeposited);
+    }
+    if (elGrossYield) {
+        if (anim) anim(elGrossYield, totalGrossYield, v => `+${formatCurrency(v)}`);
+        else elGrossYield.textContent = `+${formatCurrency(totalGrossYield)}`;
+    }
+    if (elGrossTotal) {
+        if (anim) anim(elGrossTotal, grossTotal, formatCurrency);
+        else elGrossTotal.textContent = formatCurrency(grossTotal);
+    }
+    if (elIOF) {
+        if (anim) anim(elIOF, totalIOF, v => `-${formatCurrency(v)}`);
+        else elIOF.textContent = `-${formatCurrency(totalIOF)}`;
+    }
+    if (elIR) {
+        if (anim) anim(elIR, totalIR, v => `-${formatCurrency(v)}`);
+        else elIR.textContent = `-${formatCurrency(totalIR)}`;
+    }
+    if (elNetTotal) {
+        if (anim) anim(elNetTotal, netTotal, formatCurrency);
+        else elNetTotal.textContent = formatCurrency(netTotal);
+    }
+}
+
+async function saveGoalCdiPercentDirect() {
+    if (!currentYieldGoalId) return;
+    const input = document.getElementById('yieldModalCdiPercentInput');
+    const val = parseFloat(input?.value) || 100;
+
+    const goal = allGoals.find(g => g.id === currentYieldGoalId);
+    if (!goal) return;
+
+    goal.cdi_percent = val;
+    if (window.supabaseClient && currentUser?.id) {
+        try {
+            await window.supabaseClient.from('goals').update({ cdi_percent: val }).eq('id', goal.id).eq('user_id', currentUser.id);
+            showToast(`Percentual atualizado para ${val}% do CDI! ✅`, 'success');
+        } catch (e) {
+            console.error(e);
+            showToast('Erro ao salvar % do CDI', 'error');
+        }
+    }
+    await renderGoalYieldDetails(goal);
+}
+
+async function submitQuickDeposit(event) {
+    if (event) event.preventDefault();
+    if (!currentYieldGoalId) return;
+
+    const goal = allGoals.find(g => g.id === currentYieldGoalId);
+    if (!goal) return;
+
+    const amtInput = document.getElementById('quickDepositAmount');
+    const dateInput = document.getElementById('quickDepositDate');
+    const rawVal = parseNumberInput(amtInput?.value || '');
+    const depDate = dateInput?.value || (typeof getToday === 'function' ? getToday() : new Date().toLocaleDateString('sv'));
+
+    if (!rawVal || rawVal <= 0) {
+        showToast('Digite um valor de aporte válido!', 'warning');
+        return;
+    }
+
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            await window.supabaseClient.from('goal_deposits').insert([{
+                goal_id: goal.id,
+                user_id: currentUser.id,
+                amount: rawVal,
+                deposit_date: depDate
+            }]);
+
+            const newAmount = (Number(goal.current_amount) || 0) + rawVal;
+            const completed = newAmount >= goal.target_amount;
+
+            await window.supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: completed,
+                updated_at: new Date().toISOString()
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+
+            goal.current_amount = newAmount;
+            goal.completed = completed;
+            await checkMilestones(goal, newAmount);
+        }
+
+        if (amtInput) amtInput.value = '';
+        showToast(`Aporte de ${formatCurrency(rawVal)} registrado com sucesso! 💰`, 'success');
+        await renderGoalYieldDetails(goal);
+        await loadGoals();
+    } catch (err) {
+        console.error('Erro ao adicionar aporte:', err);
+        showToast('Erro ao registrar aporte', 'error');
+    }
+}
+
+async function deleteGoalDeposit(depId, amount) {
+    const confirmedDeleteDeposit = await window.TonuConfirm({
+        title: 'Excluir aporte?',
+        message: 'Deseja excluir este aporte do histórico?',
+        confirmText: 'Excluir',
+        danger: true
+    });
+    if (!confirmedDeleteDeposit) return;
+    if (!currentYieldGoalId) return;
+
+    const goal = allGoals.find(g => g.id === currentYieldGoalId);
+    if (!goal) return;
+
+    try {
+        if (window.supabaseClient && currentUser?.id) {
+            await window.supabaseClient.from('goal_deposits').delete().eq('id', depId).eq('user_id', currentUser.id);
+            const newAmount = Math.max(0, (Number(goal.current_amount) || 0) - amount);
+            await window.supabaseClient.from('goals').update({
+                current_amount: newAmount,
+                completed: newAmount >= goal.target_amount,
+                updated_at: new Date().toISOString()
+            }).eq('id', goal.id).eq('user_id', currentUser.id);
+            goal.current_amount = newAmount;
+            goal.completed = newAmount >= goal.target_amount;
+        }
+        showToast('Aporte removido com sucesso!', 'info');
+        await renderGoalYieldDetails(goal);
+        await loadGoals();
+    } catch (err) {
+        console.error('Erro ao excluir aporte:', err);
+        showToast('Erro ao excluir aporte', 'error');
+    }
+}
+
+// ============================================
+// EXPORTAR FUNÇÕES GLOBAIS
+// ============================================
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.editGoal = editGoal;
+window.saveGoal = saveGoal;
+window.deleteGoal = deleteGoal;
+window.openAddValue = openAddValue;
+window.closeAddValue = closeAddValue;
+window.submitAddValue = submitAddValue;
+window.openWithdrawModal = openWithdrawModal;
+window.closeWithdrawModal = closeWithdrawModal;
+window.submitWithdraw = submitWithdraw;
+window.setGoalsFilter = setGoalsFilter;
+window.handleGoalsSearch = handleGoalsSearch;
+window.clearGoalsSearch = clearGoalsSearch;
+window.quickCompleteGoal = quickCompleteGoal;
+window.triggerCelebration = triggerCelebration;
+window.dismissCelebration = dismissCelebration;
+window.retriggerConfetti = retriggerConfetti;
+window.loadGoals = loadGoals;
+window.openGoalYieldModal = openGoalYieldModal;
+window.closeGoalYieldModal = closeGoalYieldModal;
+window.saveGoalCdiPercentDirect = saveGoalCdiPercentDirect;
+window.submitQuickDeposit = submitQuickDeposit;
+window.deleteGoalDeposit = deleteGoalDeposit;
+window.updateCdiGlobalCard = updateCdiGlobalCard;
+
+console.log('✅ Goals.js carregado com sucesso (versão segura com CDI, marcos e celebração)!');

@@ -4,16 +4,67 @@
 
 console.log("📱 Mobile Dashboard carregado");
 
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+
 let currentUser = null;
 let allTransactions = [];
 let categories = [];
 let allBills = [];
 let allDividends = [];
+let allInvestments = [];
 let allGoals = [];
+
+window.allDividends = window.allDividends || [];
+window.allInvestments = window.allInvestments || [];
+window.extraIncome = 0;
+window.totalAportes = 0;
+window.totalDividends = 0;
 let mobileChartInstance = null;
 let currentChartMode = 'categories';
 let isBalanceHidden = localStorage.getItem('tonu_hide_balance') === 'true';
 let currentMonthOffset = 0;
+let cachedDashboardEquity = 0;
+let isDashboardEquityLoaded = false;
+const _cache = { key: null, ts: 0, payload: null };
+const CACHE_TTL_MS = 45 * 1000;
+const MOBILE_REMOTE_SYNC_TIMEOUT_MS = 5000;
+let _mobileLoadSeq = 0;
+
+const DEFAULT_MOBILE_CATEGORIES = [
+    { id: 'cat_contas', name: '⚡ Contas Básicas', type: 'expense', icon: 'fa-bolt', color: '#0984E3' },
+    { id: 'cat_lazer', name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#8B5CF6' },
+    { id: 'cat_saude', name: '❤️ Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#FF6B6B' },
+    { id: 'cat_educacao', name: '📚 Educação', type: 'expense', icon: 'fa-book', color: '#0984E3' },
+    { id: 'cat_emprestimos', name: '🤝 Empréstimos', type: 'expense', icon: 'fa-hand-holding-usd', color: '#D63031' },
+    { id: 'cat_cartao', name: '💳 Cartão de Crédito', type: 'expense', icon: 'fa-credit-card', color: '#E17055' },
+    { id: 'cat_moradia', name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#E17055' },
+    { id: 'cat_comunicacao', name: '📡 Comunicação', type: 'expense', icon: 'fa-wifi', color: '#636E72' },
+    { id: 'cat_alimentacao', name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF6B6B' },
+    { id: 'cat_transporte', name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#FDCB6E' },
+    { id: 'cat_salario', name: '💰 Salário', type: 'income', icon: 'fa-money-bill-wave', color: '#00B894' },
+    { id: 'cat_investimentos', name: '💼 Investimentos', type: 'both', icon: 'fa-chart-line', color: '#00CEC9' },
+    { id: 'cat_bico', name: '🛵 Bico / Extra', type: 'income', icon: 'fa-gift', color: '#00B894' },
+    { id: 'cat_outros', name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#B2BEC3' }
+];
+
+function withMobileTimeout(promise, ms, fallbackValue) {
+    let timerId = null;
+    const timeoutPromise = new Promise((resolve) => {
+        timerId = setTimeout(() => resolve({ timedOut: true, value: fallbackValue }), ms);
+    });
+    return Promise.race([
+        Promise.resolve(promise).then(
+            (value) => ({ timedOut: false, value }),
+            (error) => ({ timedOut: false, error, value: fallbackValue })
+        ),
+        timeoutPromise
+    ]).finally(() => {
+        if (timerId !== null) clearTimeout(timerId);
+    });
+}
 
 // ============================================
 // NAVEGAÇÃO DE MÊS NO MOBILE
@@ -26,6 +77,7 @@ function getSelectedMonthDate() {
 }
 
 function updateMobileMonthDisplay() {
+    if (typeof document === 'undefined') return;
     const el = document.getElementById("selectedMonth");
     if (!el) return;
     const d = getSelectedMonthDate();
@@ -39,13 +91,13 @@ function updateMobileMonthDisplay() {
 function changeMonth(delta) {
     currentMonthOffset += Number(delta) || 0;
     updateMobileMonthDisplay();
-    loadMobileData();
+    loadMobileData({ forceRefresh: true });
 }
 
 function goToCurrentMonth() {
     currentMonthOffset = 0;
     updateMobileMonthDisplay();
-    loadMobileData();
+    loadMobileData({ forceRefresh: true });
 }
 
 window.changeMonth = changeMonth;
@@ -53,10 +105,226 @@ window.goToCurrentMonth = goToCurrentMonth;
 window.changeMonthHandler = changeMonth;
 window.goToCurrentMonthHandler = goToCurrentMonth;
 
+// Atualiza o mês imediatamente ao carregar o script (antes mesmo de auth/DB)
+try {
+    if (typeof document !== 'undefined' && document.readyState !== 'loading') {
+        updateMobileMonthDisplay();
+    }
+} catch (_) {}
+
+// ============================================
+// PERFIL, SAUDAÇÃO & CALLBACK OAUTH MOBILE
+// ============================================
+function hydrateMobileHeaderUser(user) {
+    if (!user || typeof document === 'undefined') return;
+    const rawName = user.user_metadata?.full_name || user.user_metadata?.name || user.name || user.email?.split("@")[0] || "Usuário";
+    const safeName = String(rawName).trim() || "Usuário";
+
+    const greetingEl = document.getElementById("greetingText");
+    if (greetingEl) {
+        greetingEl.textContent = `Olá, ${safeName} 👋`;
+    }
+
+    const avatarEl = document.getElementById("topbarAvatar");
+    if (avatarEl) {
+        const parts = safeName.split(/\s+/).filter(Boolean);
+        const initials = parts.length >= 2
+            ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+            : safeName.slice(0, 2).toUpperCase();
+        avatarEl.textContent = initials || "U";
+    }
+}
+
+async function ensureMobileProfileAndDefaults(user) {
+    if (!user || !user.id || !window.supabaseClient) return;
+    const fullName = user.user_metadata?.full_name || user.user_metadata?.name || user.name || user.email?.split("@")[0] || "Usuário";
+    const safeName = typeof sanitizeString === 'function' ? sanitizeString(fullName) : fullName;
+
+    try {
+        const { data: existingProfile } = await window.supabaseClient
+            .from('profiles')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (!existingProfile) {
+            await window.supabaseClient.from('profiles').insert([{
+                id: user.id,
+                full_name: safeName || 'Usuário',
+                currency: 'BRL',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }]);
+        }
+    } catch (_) {}
+
+    try {
+        const { data: existingCats, error: catCheckErr } = await window.supabaseClient
+            .from('categories')
+            .select('id')
+            .eq('user_id', user.id)
+            .limit(1);
+
+        if (!catCheckErr && (!existingCats || existingCats.length === 0)) {
+            const seed = DEFAULT_MOBILE_CATEGORIES.map(c => ({
+                user_id: user.id,
+                name: c.name,
+                type: c.type === 'both' ? 'income' : c.type,
+                icon: c.icon,
+                color: c.color
+            }));
+            await window.supabaseClient.from('categories').insert(seed);
+        }
+    } catch (_) {}
+}
+
+function cleanMobileOAuthUrl() {
+    try {
+        if (window.history && typeof window.history.replaceState === 'function') {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    } catch (_) {}
+}
+
+async function waitForOAuthHashSession(timeoutMs) {
+    const client = window.supabaseClient;
+    if (!client?.auth?.onAuthStateChange) return null;
+
+    return new Promise((resolve) => {
+        let settled = false;
+        let sub = null;
+        const finish = (u) => {
+            if (settled) return;
+            settled = true;
+            try { sub?.unsubscribe?.(); } catch (_) {}
+            clearTimeout(timer);
+            resolve(u || null);
+        };
+        const timer = setTimeout(() => finish(null), timeoutMs || 2500);
+        try {
+            const { data } = client.auth.onAuthStateChange((event, session) => {
+                if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+                    finish(session.user);
+                }
+            });
+            sub = data?.subscription;
+        } catch (_) {
+            finish(null);
+        }
+    });
+}
+
+async function resolveMobileOAuthSession() {
+    const search = window.location.search || '';
+    const hash = window.location.hash || '';
+    const urlParams = new URLSearchParams(search);
+    const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+
+    const oauthError = urlParams.get('error') || hashParams.get('error');
+    const oauthCode = urlParams.get('code');
+    const hasHashToken = hashParams.has('access_token') || hash.includes('access_token=');
+    const hadOAuthParams = Boolean(oauthError || oauthCode || hasHashToken || urlParams.has('state'));
+
+    if (oauthError) {
+        cleanMobileOAuthUrl();
+    }
+
+    let user = null;
+
+    // 1. Tenta getSession primeiro (processa detectSessionInUrl automaticamente no SDK v2)
+    if (window.supabaseClient?.auth?.getSession) {
+        const sessRes = await withMobileTimeout(window.supabaseClient.auth.getSession(), 4000, null);
+        user = sessRes?.value?.data?.session?.user || null;
+    }
+
+    // 2. Se veio ?code= (PKCE) e getSession ainda não resolveu a sessão, troca explicitamente
+    if (!user && oauthCode && window.supabaseClient?.auth?.exchangeCodeForSession) {
+        try {
+            const exRes = await withMobileTimeout(window.supabaseClient.auth.exchangeCodeForSession(oauthCode), 4500, null);
+            user = exRes?.value?.data?.user || exRes?.value?.data?.session?.user || null;
+        } catch (_) {}
+    }
+
+    // 3. Se veio #access_token= no hash, aguarda brevemente o evento SIGNED_IN
+    if (!user && hasHashToken) {
+        user = await waitForOAuthHashSession(2500);
+        if (!user && window.supabaseClient?.auth?.getSession) {
+            const retrySess = await withMobileTimeout(window.supabaseClient.auth.getSession(), 2000, null);
+            user = retrySess?.value?.data?.session?.user || null;
+        }
+    }
+
+    // 4. Fluxo padrão de sessão autenticada / offline (com timeout para nunca travar)
+    if (!user) {
+        if (typeof window.getAuthenticatedUser === 'function') {
+            const authRes = await withMobileTimeout(window.getAuthenticatedUser(), 3500, null);
+            user = authRes?.value || null;
+        } else if (window.supabaseOffline?.isAuthenticated) {
+            const offRes = await withMobileTimeout(window.supabaseOffline.isAuthenticated(), 3500, null);
+            user = offRes?.value || null;
+        }
+    }
+
+    if (!user && window.supabaseClient?.auth?.getUser && navigator.onLine !== false) {
+        const uRes = await withMobileTimeout(window.supabaseClient.auth.getUser(), 3000, null);
+        user = uRes?.value?.data?.user || null;
+    }
+
+    if (!user) {
+        try {
+            const s = sessionStorage.getItem("tonu_user");
+            if (s) {
+                const p = JSON.parse(s);
+                user = p.user || p;
+            }
+        } catch (_) {}
+    }
+
+    if (!user) {
+        try {
+            const off = localStorage.getItem("tonu_offline_session");
+            if (off) {
+                const p = JSON.parse(off);
+                user = p.user || p;
+            }
+        } catch (_) {}
+    }
+
+    if (!user && oauthError) {
+        return { user: null, oauthError, hadOAuthParams };
+    }
+
+    if (user) {
+        if (hadOAuthParams) {
+            cleanMobileOAuthUrl();
+        }
+        try {
+            sessionStorage.removeItem('tonu_logout_in_progress');
+            sessionStorage.setItem('tonu_user', JSON.stringify(user));
+        } catch (_) {}
+
+        if (window.supabaseOffline?.saveOfflineSession) {
+            try { await window.supabaseOffline.saveOfflineSession(user); } catch (_) {}
+        }
+        if (window.TonuSecureSession?.save) {
+            try { await window.TonuSecureSession.save(user); } catch (_) {}
+        }
+        if (hadOAuthParams) {
+            // Garante perfil e categorias padrão em background sem bloquear a renderização
+            ensureMobileProfileAndDefaults(user).catch(() => {});
+        }
+    }
+
+    return { user, oauthError: null, hadOAuthParams };
+}
+
 // ============================================
 // INICIALIZAÇÃO
 // ============================================
 document.addEventListener("DOMContentLoaded", async () => {
+    // Atualiza o mês imediatamente (zero "Carregando..." preso)
+    updateMobileMonthDisplay();
+
     // Tema
     const savedTheme = localStorage.getItem("tonu_theme") || "light";
     if (savedTheme === "dark") {
@@ -66,47 +334,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (icon) icon.classList.replace("fa-moon", "fa-sun");
     }
 
-    // Autenticação
+    // Autenticação + tratamento OAuth mobile
     try {
-        let user = null;
-        if (window.getAuthenticatedUser) {
-            user = await window.getAuthenticatedUser();
-        } else if (window.supabaseOffline) {
-            user = await window.supabaseOffline.isAuthenticated();
-        }
-
-        if (!user && window.supabaseClient && window.supabaseClient.auth) {
-            try {
-                const { data: sessData } = await supabaseClient.auth.getSession();
-                user = sessData?.session?.user;
-                if (!user) {
-                    const { data: userData } = await supabaseClient.auth.getUser();
-                    user = userData?.user;
-                }
-            } catch (_) {}
-        }
+        const { user, oauthError } = await resolveMobileOAuthSession();
 
         if (!user) {
-            try {
-                const s = sessionStorage.getItem("tonu_user");
-                if (s) {
-                    const p = JSON.parse(s);
-                    user = p.user || p;
-                }
-            } catch (_) {}
-        }
-
-        if (!user) {
-            try {
-                const off = localStorage.getItem("tonu_offline_session");
-                if (off) {
-                    const p = JSON.parse(off);
-                    user = p.user || p;
-                }
-            } catch (_) {}
-        }
-
-        if (!user) {
+            if (oauthError) {
+                showMobileToast("Erro na autenticação social. Faça login novamente.", "error");
+                setTimeout(() => { window.location.href = "../../index.html"; }, 900);
+                return;
+            }
             console.warn("⚠️ Nenhum usuário autenticado encontrado no Mobile Dashboard, redirecionando...");
             window.location.href = "../../index.html";
             return;
@@ -115,304 +352,732 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentUser = user;
         console.log("✅ Mobile: Usuário autenticado:", currentUser.email);
 
-        const name = user.user_metadata?.full_name || user.name || user.email?.split("@")[0] || "Usuário";
-        document.getElementById("greetingText").textContent = `Olá, ${name} 👋`;
+        hydrateMobileHeaderUser(currentUser);
+        window.TonuPostLoginTransition?.updateUser(currentUser);
+        window.TonuPostLoginTransition?.setStage("Sincronizando seu resumo financeiro...");
 
-        await loadCategories();
+        // Inicia carregamento progressivo sem bloquear em loadCategories remoto
+        loadCategories({ cacheOnly: true }).catch(() => {});
         await loadMobileData();
     } catch (e) {
         console.error("❌ Erro na autenticação mobile:", e);
+        window.TonuPostLoginTransition?.complete({ forceImmediate: true });
         window.location.href = "../../index.html";
     }
 });
 
 // ============================================
-// CARREGAR CATEGORIAS
+// CARREGAR CATEGORIAS (CACHE-FIRST + TIMEOUT)
 // ============================================
-async function loadCategories() {
-    try {
-        let loaded = null;
-        try {
-            const { data, error } = await supabaseClient
-                .from("categories")
-                .select("*")
-                .or(`user_id.eq.${currentUser.id},is_default.eq.true,user_id.is.null`)
-                .order("name");
-            if (!error && data && data.length > 0) loaded = data;
-        } catch (_) {
-            const { data, error } = await supabaseClient
-                .from("categories")
-                .select("*")
-                .eq("user_id", currentUser.id);
-            if (!error && data && data.length > 0) loaded = data;
-        }
+function normalizeMobileCategoriesList(list) {
+    const out = Array.isArray(list) ? list.slice() : [];
+    if (!out.some(c => (c.name && c.name.toLowerCase().includes('invest')) || c.id === 'cat_investimentos')) {
+        out.push({ id: 'cat_investimentos', name: '💼 Investimentos', type: 'both', icon: 'fa-chart-line', color: '#00CEC9' });
+    }
+    return out;
+}
 
-        if (loaded && loaded.length > 0) {
-            categories = loaded;
-        } else {
-            categories = [
-                { id: 'cat_contas', name: '⚡ Contas Básicas', type: 'expense', icon: 'fa-bolt', color: '#0984E3' },
-                { id: 'cat_lazer', name: '🎮 Lazer', type: 'expense', icon: 'fa-gamepad', color: '#A29BFE' },
-                { id: 'cat_saude', name: '❤️ Saúde', type: 'expense', icon: 'fa-heartbeat', color: '#FF6B6B' },
-                { id: 'cat_educacao', name: '📚 Educação', type: 'expense', icon: 'fa-book', color: '#0984E3' },
-                { id: 'cat_emprestimos', name: '🤝 Empréstimos', type: 'expense', icon: 'fa-hand-holding-usd', color: '#D63031' },
-                { id: 'cat_cartao', name: '💳 Cartão de Crédito', type: 'expense', icon: 'fa-credit-card', color: '#E17055' },
-                { id: 'cat_moradia', name: '🏠 Moradia', type: 'expense', icon: 'fa-home', color: '#E17055' },
-                { id: 'cat_comunicacao', name: '📡 Comunicação', type: 'expense', icon: 'fa-wifi', color: '#636E72' },
-                { id: 'cat_alimentacao', name: '🍔 Alimentação', type: 'expense', icon: 'fa-utensils', color: '#FF6B6B' },
-                { id: 'cat_transporte', name: '🚗 Transporte', type: 'expense', icon: 'fa-car', color: '#FDCB6E' },
-                { id: 'cat_salario', name: '💰 Salário', type: 'income', icon: 'fa-money-bill-wave', color: '#00B894' },
-                { id: 'cat_investimentos', name: '💼 Investimentos', type: 'income', icon: 'fa-chart-line', color: '#00CEC9' },
-                { id: 'cat_bico', name: '🛵 Bico / Extra', type: 'income', icon: 'fa-gift', color: '#00B894' },
-                { id: 'cat_outros', name: '📦 Outros', type: 'expense', icon: 'fa-tag', color: '#B2BEC3' }
-            ];
+async function loadCategories(options = {}) {
+    const cacheOnly = !!(options && options.cacheOnly);
+    const uid = currentUser?.id;
+
+    // 1. Cache local rápido (IndexedDB / localStorage) ou fallback imediato
+    if (categories.length === 0 && uid) {
+        let cachedCats = null;
+        if (window.tonuSync?.getEntityCache) {
+            try {
+                const res = await withMobileTimeout(window.tonuSync.getEntityCache(`categories_${uid}`), 400, null);
+                if (Array.isArray(res?.value) && res.value.length > 0) cachedCats = res.value;
+            } catch (_) {}
+        }
+        if (!cachedCats) {
+            try {
+                const raw = localStorage.getItem(`tonu_categories_${uid}`);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) cachedCats = parsed;
+                }
+            } catch (_) {}
+        }
+        categories = normalizeMobileCategoriesList(cachedCats || DEFAULT_MOBILE_CATEGORIES);
+    } else if (categories.length === 0) {
+        categories = normalizeMobileCategoriesList(DEFAULT_MOBILE_CATEGORIES);
+    }
+
+    if (cacheOnly || !uid || !window.supabaseClient || navigator.onLine === false) {
+        return categories;
+    }
+
+    // 2. Atualização remota com timeout seguro
+    try {
+        const fetchCatsPromise = (async () => {
+            try {
+                const { data, error } = await supabaseClient
+                    .from("categories")
+                    .select("*")
+                    .or(`user_id.eq.${uid},is_default.eq.true,user_id.is.null`)
+                    .order("name");
+                if (!error && Array.isArray(data) && data.length > 0) return data;
+            } catch (_) {}
+            const { data, error } = await supabaseClient
+                .from("categories")
+                .select("*")
+                .eq("user_id", uid);
+            if (!error && Array.isArray(data) && data.length > 0) return data;
+            return null;
+        })();
+
+        const remoteRes = await withMobileTimeout(fetchCatsPromise, 3500, null);
+        const loaded = remoteRes?.value;
+        if (Array.isArray(loaded) && loaded.length > 0) {
+            categories = normalizeMobileCategoriesList(loaded);
+            if (window.tonuSync?.setEntityCache) {
+                window.tonuSync.setEntityCache(`categories_${uid}`, categories).catch(() => {});
+            }
+            try {
+                localStorage.setItem(`tonu_categories_${uid}`, JSON.stringify(categories));
+            } catch (_) {}
         }
         console.log("✅ Categorias carregadas:", categories.length);
     } catch (e) {
         console.error("❌ Erro ao carregar categorias:", e);
-        categories = [];
+        if (categories.length === 0) {
+            categories = normalizeMobileCategoriesList(DEFAULT_MOBILE_CATEGORIES);
+        }
     }
+    return categories;
 }
 
 // ============================================
-// CARREGAR DADOS MOBILE UNIFICADOS
+// 📈 CARREGADORES DE PROVENTOS E INVESTIMENTOS (MOBILE)
 // ============================================
-async function loadMobileData() {
+async function loadDividends() {
+    if (!currentUser || !currentUser.id) return [];
+    let loaded = [];
+    if (supabaseClient) {
+        try {
+            const { data, error } = await supabaseClient
+                .from("dividends")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .order("date", { ascending: false });
+            if (!error && Array.isArray(data)) {
+                loaded = data;
+            }
+        } catch (e) {
+            console.warn("⚠️ Erro ao carregar proventos mobile:", e);
+        }
+    }
+    if (loaded.length === 0 && window.tonuSync) {
+        try {
+            const cachedDivs = await window.tonuSync.getCachedDividends(currentUser.id);
+            if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
+                loaded = cachedDivs;
+            }
+        } catch (_) {}
+    }
+    if (loaded.length === 0) {
+        try {
+            const localKeys = [
+                `tonucontrole_dividends_${currentUser.id}`,
+                `tonu_dividends_${currentUser.id}`,
+                'tonucontrole_dividends_demo',
+                'tonu_dividends'
+            ];
+            for (const k of localKeys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+    allDividends = loaded;
+    window.allDividends = loaded;
+    return loaded;
+}
+
+async function loadInvestments() {
+    if (!currentUser || !currentUser.id) return [];
+    let loaded = [];
+    if (supabaseClient) {
+        try {
+            const { data, error } = await supabaseClient
+                .from("investments")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .order("date", { ascending: true });
+            if (!error && Array.isArray(data)) {
+                loaded = data;
+            }
+        } catch (e) {
+            console.warn("⚠️ Erro ao carregar investimentos mobile:", e);
+        }
+    }
+    if (loaded.length === 0 && window.tonuSync) {
+        try {
+            const cachedInv = await window.tonuSync.getCachedInvestments(currentUser.id);
+            if (Array.isArray(cachedInv) && cachedInv.length > 0) {
+                loaded = cachedInv;
+            }
+        } catch (_) {}
+    }
+    if (loaded.length === 0) {
+        try {
+            const localKeys = [
+                `tonucontrole_investments_${currentUser.id}`,
+                `tonu_investments_${currentUser.id}`,
+                'tonucontrole_investments_demo',
+                'tonu_investments'
+            ];
+            for (const k of localKeys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+    allInvestments = loaded;
+    window.allInvestments = loaded;
+    return loaded;
+}
+
+window.loadDividends = loadDividends;
+window.loadInvestments = loadInvestments;
+
+// ============================================
+// 💼 CÁLCULO DO CUSTO DE CUSTÓDIA ATUAL (OPÇÃO A)
+// ============================================
+function calculateCurrentCustodyCost(investments = []) {
+    if (!Array.isArray(investments) || investments.length === 0) return 0;
+
+    const parseVal = (val) => {
+        if (val === null || val === undefined || val === '') return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        let s = String(val).replace(/[R$\s]/gi, '').trim();
+        if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
+        else if (s.includes(',')) s = s.replace(',', '.');
+        const n = parseFloat(s);
+        return isNaN(n) ? 0 : n;
+    };
+
+    const sorted = [...investments].sort((a, b) => {
+        const da = new Date((a.date || '1970-01-01') + 'T12:00:00').getTime();
+        const db = new Date((b.date || '1970-01-01') + 'T12:00:00').getTime();
+        if (da !== db) return da - db;
+        const typeA = (a.type || '').toLowerCase();
+        const typeB = (b.type || '').toLowerCase();
+        const prioA = typeA.includes('compra') || typeA.includes('buy') ? 1 : 2;
+        const prioB = typeB.includes('compra') || typeB.includes('buy') ? 1 : 2;
+        return prioA - prioB;
+    });
+
+    const positionsMap = new Map();
+
+    sorted.forEach(item => {
+        const ticker = (item.ticker || '').toUpperCase().trim();
+        if (!ticker) return;
+
+        if (!positionsMap.has(ticker)) {
+            positionsMap.set(ticker, {
+                quantity: 0,
+                costBasis: 0,
+                averageCost: 0
+            });
+        }
+
+        const pos = positionsMap.get(ticker);
+        const qty = parseVal(item.quantity);
+        let unit = parseVal(item.unit_price || item.price);
+        let total = parseVal(item.total_value || item.amount);
+        if (total <= 0 && qty > 0 && unit > 0) total = qty * unit;
+        if (unit <= 0 && qty > 0 && total > 0) unit = total / qty;
+
+        const type = (item.type || '').toLowerCase();
+        if (type.includes('compra') || type.includes('buy')) {
+            pos.costBasis += total;
+            pos.quantity += qty;
+            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+        } else if (type.includes('venda') || type.includes('sell')) {
+            const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+            const sellQty = Math.min(qty, pos.quantity);
+            pos.costBasis = Math.max(0, pos.costBasis - (avg * sellQty));
+            pos.quantity = Math.max(0, pos.quantity - sellQty);
+            if (pos.quantity <= 0.0000001) {
+                pos.quantity = 0;
+                pos.costBasis = 0;
+                pos.averageCost = 0;
+            } else {
+                pos.averageCost = pos.costBasis / pos.quantity;
+            }
+        }
+    });
+
+    let totalCustody = 0;
+    for (const pos of positionsMap.values()) {
+        if (pos.quantity > 0.0000001) {
+            const cost = pos.quantity * (pos.averageCost || 0);
+            totalCustody += (cost > 0 ? cost : (pos.costBasis > 0 ? pos.costBasis : 0));
+        }
+    }
+
+    return Math.round(totalCustody * 100) / 100;
+}
+
+window.calculateCurrentCustodyCost = calculateCurrentCustodyCost;
+
+// ============================================
+// CARREGAR DADOS MOBILE UNIFICADOS (CACHE-FIRST + TIMEOUT 5S)
+// ============================================
+function renderAllMobileWidgets() {
+    renderSummary();
+    renderMobileChart();
+    renderMobileInsights();
+    renderMobileGoals();
+    renderCategoryBars();
+    renderTransactions();
+}
+
+function computeMobileDataFingerprint() {
+    const txHead = allTransactions.length > 0 ? `${allTransactions[0]?.id || ''}:${allTransactions[0]?.amount || ''}` : '';
+    const txSum = allTransactions.reduce((acc, t) => acc + Math.abs(Number(t?.amount || 0)), 0);
+    const billsSum = allBills.reduce((acc, b) => acc + Math.abs(Number(b?.amount || 0)), 0);
+    return [
+        currentMonthOffset,
+        allTransactions.length,
+        txHead,
+        Math.round(txSum * 100),
+        allBills.length,
+        Math.round(billsSum * 100),
+        allDividends.length,
+        allGoals.length,
+        allInvestments.length,
+        Math.round(Number(cachedDashboardEquity || 0) * 100),
+        categories.length
+    ].join('|');
+}
+
+async function hydrateMobileFromCache(userId, firstDay, lastDay, monthPrefix) {
+    const emptyResult = {
+        found: false,
+        allTransactions: [],
+        allBills: [],
+        allGoals: [],
+        allDividends: [],
+        allInvestments: []
+    };
+    if (!userId) return emptyResult;
+
+    let found = false;
+    let cachedTxList = [];
+    let cachedBillsList = [];
+    let cachedGoalsList = [];
+    let cachedDivsList = [];
+    let cachedInvList = [];
+
+    if (window.tonuSync) {
+        const readCachePromise = Promise.all([
+            window.tonuSync.getCachedTransactions(userId).catch(() => []),
+            window.tonuSync.getCachedBills(userId).catch(() => []),
+            window.tonuSync.getCachedGoals(userId).catch(() => []),
+            window.tonuSync.getCachedDividends(userId).catch(() => []),
+            window.tonuSync.getCachedInvestments(userId).catch(() => [])
+        ]);
+        const cacheRes = await withMobileTimeout(readCachePromise, 650, [[], [], [], [], []]);
+        const [txRaw, billsRaw, goalsRaw, divsRaw, invRaw] = Array.isArray(cacheRes?.value) ? cacheRes.value : [[], [], [], [], []];
+
+        if (Array.isArray(txRaw) && txRaw.length > 0) {
+            cachedTxList = txRaw.filter(t => {
+                const dt = String(t?.date || '').substring(0, 10);
+                return dt >= firstDay && dt <= lastDay;
+            });
+            found = true;
+        }
+        if (Array.isArray(billsRaw) && billsRaw.length > 0) {
+            cachedBillsList = billsRaw.filter(b => {
+                const dt = String(b?.date || b?.due_date || '').substring(0, 10);
+                if (!dt) return true;
+                return (dt >= firstDay && dt <= lastDay) || dt.substring(0, 7) === monthPrefix;
+            });
+            found = true;
+        }
+        if (Array.isArray(goalsRaw) && goalsRaw.length > 0) {
+            cachedGoalsList = goalsRaw;
+            found = true;
+        }
+        if (Array.isArray(divsRaw) && divsRaw.length > 0) {
+            cachedDivsList = divsRaw;
+            found = true;
+        }
+        if (Array.isArray(invRaw) && invRaw.length > 0) {
+            cachedInvList = invRaw;
+            found = true;
+        }
+    }
+
+    // Migração transparente de legado de localStorage para IndexedDB
+    try {
+        const legacyMap = [
+            ['tonu_transactions_', 'setCachedTransactions', (arr) => {
+                if (cachedTxList.length === 0) {
+                    cachedTxList = arr.filter(t => {
+                        const dt = String(t?.date || '').substring(0, 10);
+                        return !dt || (dt >= firstDay && dt <= lastDay);
+                    });
+                }
+            }],
+            ['tonu_bills_', 'setCachedBills', (arr) => {
+                if (cachedBillsList.length === 0) cachedBillsList = arr;
+            }],
+            ['tonu_goals_', 'setCachedGoals', (arr) => {
+                if (cachedGoalsList.length === 0) cachedGoalsList = arr;
+            }],
+            ['tonu_dividends_', 'setCachedDividends', (arr) => {
+                if (cachedDivsList.length === 0) cachedDivsList = arr;
+            }],
+            ['tonu_investments_', 'setCachedInvestments', (arr) => {
+                if (cachedInvList.length === 0) cachedInvList = arr;
+            }]
+        ];
+        for (const [prefix, setter, assignFn] of legacyMap) {
+            const raw = localStorage.getItem(prefix + userId);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    if (window.tonuSync?.[setter]) {
+                        window.tonuSync[setter](userId, parsed).catch(() => {});
+                    }
+                    assignFn(parsed);
+                    found = true;
+                }
+                localStorage.removeItem(prefix + userId);
+            }
+        }
+    } catch (_) {}
+
+    if (window.TonuDeduplicate && cachedTxList.length > 0) {
+        try {
+            cachedTxList = window.TonuDeduplicate.deduplicate(cachedTxList, {
+                autoCleanRemote: false,
+                userId
+            }).cleanList;
+        } catch (_) {}
+    }
+
+    return {
+        found,
+        allTransactions: cachedTxList,
+        allBills: cachedBillsList,
+        allGoals: cachedGoalsList,
+        allDividends: cachedDivsList,
+        allInvestments: cachedInvList
+    };
+}
+
+function persistCanonicalMobileCache(userId, txList, billsList, goalsList, divsList, invList) {
+    if (!userId) return;
+    try { localStorage.setItem(`tonu_has_synced_${userId}`, '1'); } catch (_) {}
+    if (window.tonuSync) {
+        if (txList.length > 0) window.tonuSync.setCachedTransactions(userId, txList).catch(() => {});
+        if (billsList.length > 0) window.tonuSync.setCachedBills(userId, billsList).catch(() => {});
+        if (goalsList.length > 0) window.tonuSync.setCachedGoals(userId, goalsList).catch(() => {});
+        if (divsList.length > 0) window.tonuSync.setCachedDividends(userId, divsList).catch(() => {});
+        if (invList.length > 0) window.tonuSync.setCachedInvestments(userId, invList).catch(() => {});
+    }
+    try {
+        localStorage.removeItem('tonu_transactions_' + userId);
+        localStorage.removeItem('tonu_bills_' + userId);
+        localStorage.removeItem('tonu_goals_' + userId);
+        localStorage.removeItem('tonu_dividends_' + userId);
+        localStorage.removeItem('tonu_investments_' + userId);
+    } catch (_) {}
+}
+
+async function fetchRemoteMobileBundle(year, month, firstDay, lastDay) {
+    // Atualiza categorias e busca todas as entidades em paralelo
+    const catPromise = loadCategories({ cacheOnly: false });
+
+    const txPromise = supabaseClient
+        .from("transactions")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .gte("date", firstDay)
+        .lte("date", lastDay)
+        .order("date", { ascending: false });
+
+    const billsPromise = (async () => {
+        try {
+            const { data, error } = await supabaseClient
+                .from("transactions")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .eq("type", "expense")
+                .eq("is_bill", true)
+                .gte("date", firstDay)
+                .lte("date", lastDay);
+            if (!error && data && data.length > 0) return { data, error: null };
+        } catch (_) {}
+        try {
+            return await supabaseClient
+                .from("bills")
+                .select("*")
+                .eq("user_id", currentUser.id);
+        } catch (e) {
+            return { data: [], error: e };
+        }
+    })();
+
+    const divPromise = loadDividends();
+    const goalsPromise = supabaseClient
+        .from("goals")
+        .select("*")
+        .eq("user_id", currentUser.id);
+    const invPromise = loadInvestments();
+
+    const [, txRes, billsRes, divData, goalsRes, invData] = await Promise.all([
+        catPromise,
+        txPromise,
+        billsPromise,
+        divPromise,
+        goalsPromise,
+        invPromise
+    ]);
+
+    return {
+        txRes: txRes || { data: [] },
+        billsRes: billsRes || { data: [] },
+        divData: Array.isArray(divData) ? divData : [],
+        goalsRes: goalsRes || { data: [] },
+        invData: Array.isArray(invData) ? invData : []
+    };
+}
+
+async function applyRemoteBundle(remote, seq, cacheKey, renderedFingerprint) {
+    if (seq !== _mobileLoadSeq || !remote) return;
+
+    const { txRes, billsRes, divData, goalsRes, invData } = remote;
+    const hadRemoteError = Boolean(txRes?.error && billsRes?.error && goalsRes?.error);
+
+    let nextTx = Array.isArray(txRes?.data) ? txRes.data : allTransactions;
+    if (Array.isArray(txRes?.data) && window.TonuDeduplicate) {
+        nextTx = window.TonuDeduplicate.deduplicate(nextTx, {
+            autoCleanRemote: true,
+            userId: currentUser?.id
+        }).cleanList;
+    }
+
+    const nextBills = Array.isArray(billsRes?.data) ? billsRes.data : allBills;
+    let nextGoals = Array.isArray(goalsRes?.data) ? goalsRes.data : allGoals;
+    const nextDivs = Array.isArray(divData) ? divData : allDividends;
+    const nextInv = Array.isArray(invData) ? invData : allInvestments;
+
+    // Se metas vieram vazias por erro/offline parcial, preserva metas cacheadas
+    if ((!nextGoals || nextGoals.length === 0) && currentUser?.id && window.tonuSync) {
+        try {
+            const cachedGoals = await withMobileTimeout(window.tonuSync.getCachedGoals(currentUser.id), 450, []);
+            if (Array.isArray(cachedGoals?.value) && cachedGoals.value.length > 0) {
+                nextGoals = cachedGoals.value;
+            }
+        } catch (_) {}
+    }
+
+    if (!hadRemoteError) {
+        allTransactions = nextTx;
+        allBills = nextBills;
+        allGoals = nextGoals;
+        allDividends = nextDivs;
+        allInvestments = nextInv;
+        window.allDividends = allDividends;
+        window.allInvestments = allInvestments;
+
+        await withMobileTimeout(loadSyncedPortfolioEquity({ forceRefresh: true }), 2500, cachedDashboardEquity);
+        persistCanonicalMobileCache(currentUser?.id, allTransactions, allBills, allGoals, allDividends, allInvestments);
+
+        _cache.key = cacheKey;
+        _cache.ts = Date.now();
+        _cache.payload = {
+            allTransactions,
+            allBills,
+            allDividends,
+            allGoals,
+            allInvestments
+        };
+    }
+
+    if (seq !== _mobileLoadSeq) return;
+
+    setMobileCacheBanner(navigator.onLine === false && renderedFingerprint ? 'cache' : 'hidden');
+
+    const newFingerprint = computeMobileDataFingerprint();
+    if (!renderedFingerprint || newFingerprint !== renderedFingerprint) {
+        renderAllMobileWidgets();
+    }
+
+    loadAIInsights().catch(() => {});
+    if (typeof window.checkNotifications === 'function') {
+        window.checkNotifications();
+    }
+}
+
+async function loadMobileData(options = {}) {
+    const seq = ++_mobileLoadSeq;
     try {
         updateMobileMonthDisplay();
+        const forceRefresh = !!(options && options.forceRefresh);
+        const cacheKey = `${currentUser?.id || 'anon'}:${currentMonthOffset}`;
+        const now = Date.now();
+
+        if (!forceRefresh && _cache.payload && _cache.key === cacheKey && (now - _cache.ts) < CACHE_TTL_MS) {
+            const p = _cache.payload;
+            allTransactions = p.allTransactions;
+            allBills = p.allBills;
+            allDividends = p.allDividends;
+            allGoals = p.allGoals;
+            allInvestments = p.allInvestments;
+            window.allDividends = allDividends;
+            window.allInvestments = allInvestments;
+
+            setMobileCacheBanner('hidden');
+            await loadSyncedPortfolioEquity({ cacheOnly: true });
+            renderAllMobileWidgets();
+            window.TonuPostLoginTransition?.complete();
+            loadAIInsights().catch(() => {});
+            return;
+        }
+
         const targetDate = getSelectedMonthDate();
         const year = targetDate.getFullYear();
         const month = String(targetDate.getMonth() + 1).padStart(2, "0");
         const lastDayNum = new Date(year, targetDate.getMonth() + 1, 0).getDate();
         const firstDay = `${year}-${month}-01`;
         const lastDay = `${year}-${month}-${String(lastDayNum).padStart(2, "0")}`;
+        const monthPrefix = `${year}-${month}`;
 
-        // 1. Transações
-        const txPromise = supabaseClient
-            .from("transactions")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .gte("date", firstDay)
-            .lte("date", lastDay)
-            .order("date", { ascending: false });
+        // 1. RENDERIZAÇÃO PROGRESSIVA (CACHE-FIRST NO INDEXEDDB)
+        const cached = await hydrateMobileFromCache(currentUser?.id, firstDay, lastDay, monthPrefix);
+        if (seq !== _mobileLoadSeq) return;
 
-        // 2. Contas (busca transações do tipo conta ou tabela bills se existir)
-        const billsPromise = (async () => {
-            try {
-                const { data } = await supabaseClient
-                    .from("transactions")
-                    .select("*")
-                    .eq("user_id", currentUser.id)
-                    .eq("type", "expense")
-                    .eq("is_bill", true)
-                    .gte("date", firstDay)
-                    .lte("date", lastDay);
-                if (data && data.length > 0) return { data };
-            } catch (e) {}
-            try {
-                return await supabaseClient
-                    .from("bills")
-                    .select("*")
-                    .eq("user_id", currentUser.id);
-            } catch (e) {
-                return { data: [] };
-            }
+        let renderedFingerprint = null;
+        const hasPreviousSync = (() => {
+            try { return Boolean(currentUser?.id && localStorage.getItem(`tonu_has_synced_${currentUser.id}`)); } catch (_) { return false; }
         })();
 
-        // 3. Proventos
-        const divPromise = supabaseClient
-            .from("dividends")
-            .select("*")
-            .eq("user_id", currentUser.id);
+        if (cached.found || hasPreviousSync) {
+            allTransactions = cached.allTransactions;
+            allBills = cached.allBills;
+            allGoals = cached.allGoals;
+            allDividends = cached.allDividends;
+            allInvestments = cached.allInvestments;
+            window.allDividends = allDividends;
+            window.allInvestments = allInvestments;
 
-        // 4. Metas
-        const goalsPromise = supabaseClient
-            .from("goals")
-            .select("*")
-            .eq("user_id", currentUser.id);
+            await loadSyncedPortfolioEquity({ cacheOnly: true });
+            renderAllMobileWidgets();
+            renderedFingerprint = computeMobileDataFingerprint();
+            window.TonuPostLoginTransition?.complete();
+            loadAIInsights(false).catch(() => {});
 
-        const [txRes, billsRes, divRes, goalsRes] = await Promise.all([
-            txPromise,
-            billsPromise,
-            divPromise,
-            goalsPromise
-        ]);
-
-        let loadedData = txRes.data || [];
-        if (window.TonuDeduplicate) {
-            loadedData = window.TonuDeduplicate.deduplicate(loadedData, {
-                autoCleanRemote: true,
-                userId: currentUser?.id
-            }).cleanList;
-        }
-        allTransactions = loadedData;
-
-        allBills = billsRes?.data || [];
-        allDividends = divRes?.data || [];
-        allGoals = goalsRes?.data || [];
-
-        // ==================================================================
-        // CANONICAL INDEXEDDB CACHE NO DASHBOARD MOBILE
-        // ==================================================================
-        const isRemoteEmpty = (allTransactions.length === 0 && allBills.length === 0 && allDividends.length === 0 && allGoals.length === 0);
-
-        if (isRemoteEmpty && currentUser && currentUser.id) {
-            console.log("ℹ️ Dados remotos vazios, consultando cache canônico IndexedDB...");
-            let cacheFound = false;
-
-            if (window.tonuSync) {
-                try {
-                    const cachedTx = await window.tonuSync.getCachedTransactions(currentUser.id);
-                    if (Array.isArray(cachedTx) && cachedTx.length > 0) {
-                        allTransactions = cachedTx.filter(t => t.date >= firstDay && t.date <= lastDay);
-                        cacheFound = true;
-                    }
-                } catch (_) {}
-
-                try {
-                    const cachedBills = await window.tonuSync.getCachedBills(currentUser.id);
-                    if (Array.isArray(cachedBills) && cachedBills.length > 0) {
-                        allBills = cachedBills.filter(b => b.date >= firstDay && b.date <= lastDay);
-                        cacheFound = true;
-                    }
-                } catch (_) {}
-
-                try {
-                    const cachedGoals = await window.tonuSync.getCachedGoals(currentUser.id);
-                    if (Array.isArray(cachedGoals) && cachedGoals.length > 0) {
-                        allGoals = cachedGoals;
-                        cacheFound = true;
-                    }
-                } catch (_) {}
-
-                try {
-                    const cachedDivs = await window.tonuSync.getCachedDividends(currentUser.id);
-                    if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
-                        allDividends = cachedDivs;
-                        cacheFound = true;
-                    }
-                } catch (_) {}
-            }
-
-            // Migração transparente de legado de localStorage para IndexedDB
-            try {
-                const legacyTx = localStorage.getItem('tonu_transactions_' + currentUser.id);
-                if (legacyTx && window.tonuSync) {
-                    const parsed = JSON.parse(legacyTx);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        await window.tonuSync.setCachedTransactions(currentUser.id, parsed);
-                        if (allTransactions.length === 0) allTransactions = parsed;
-                        cacheFound = true;
-                    }
-                    localStorage.removeItem('tonu_transactions_' + currentUser.id);
-                }
-                const legacyBills = localStorage.getItem('tonu_bills_' + currentUser.id);
-                if (legacyBills && window.tonuSync) {
-                    const parsed = JSON.parse(legacyBills);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        await window.tonuSync.setCachedBills(currentUser.id, parsed);
-                        if (allBills.length === 0) allBills = parsed;
-                        cacheFound = true;
-                    }
-                    localStorage.removeItem('tonu_bills_' + currentUser.id);
-                }
-                const legacyGoals = localStorage.getItem('tonu_goals_' + currentUser.id);
-                if (legacyGoals && window.tonuSync) {
-                    const parsed = JSON.parse(legacyGoals);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        await window.tonuSync.setCachedGoals(currentUser.id, parsed);
-                        if (allGoals.length === 0) allGoals = parsed;
-                        cacheFound = true;
-                    }
-                    localStorage.removeItem('tonu_goals_' + currentUser.id);
-                }
-                const legacyDivs = localStorage.getItem('tonu_dividends_' + currentUser.id);
-                if (legacyDivs && window.tonuSync) {
-                    const parsed = JSON.parse(legacyDivs);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        await window.tonuSync.setCachedDividends(currentUser.id, parsed);
-                        if (allDividends.length === 0) allDividends = parsed;
-                        cacheFound = true;
-                    }
-                    localStorage.removeItem('tonu_dividends_' + currentUser.id);
-                }
-            } catch (_) {}
-
-            if (cacheFound) {
-                console.log("📶 Usando dados do cache IndexedDB:", {
-                    transacoes: allTransactions.length,
-                    contas: allBills.length,
-                    proventos: allDividends.length,
-                    metas: allGoals.length
-                });
-                setMobileCacheBanner(true);
-            } else {
-                setMobileCacheBanner(false);
-            }
+            setMobileCacheBanner(navigator.onLine === false ? 'cache' : 'syncing');
         } else {
-            setMobileCacheBanner(false);
-            // Atualiza cache canônico IndexedDB para consultas offline futuras
-            if (currentUser && currentUser.id && window.tonuSync) {
-                try {
-                    if (allTransactions.length > 0) {
-                        await window.tonuSync.setCachedTransactions(currentUser.id, allTransactions);
-                    }
-                    if (allBills.length > 0) {
-                        await window.tonuSync.setCachedBills(currentUser.id, allBills);
-                    }
-                    if (allGoals.length > 0) {
-                        await window.tonuSync.setCachedGoals(currentUser.id, allGoals);
-                    }
-                    if (allDividends.length > 0) {
-                        await window.tonuSync.setCachedDividends(currentUser.id, allDividends);
-                    }
-                } catch (_) {}
-            }
-            // Limpa chaves financeiras concorrentes antigas do localStorage
-            if (currentUser && currentUser.id) {
-                try {
-                    localStorage.removeItem('tonu_transactions_' + currentUser.id);
-                    localStorage.removeItem('tonu_bills_' + currentUser.id);
-                    localStorage.removeItem('tonu_goals_' + currentUser.id);
-                    localStorage.removeItem('tonu_dividends_' + currentUser.id);
-                } catch (_) {}
-            }
+            setMobileCacheBanner('hidden');
         }
+
+        // Se estiver offline, não tenta aguardar chamadas remotas
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            if (!renderedFingerprint) renderAllMobileWidgets();
+            setMobileCacheBanner(cached.found ? 'cache' : 'hidden');
+            window.TonuPostLoginTransition?.complete();
+            return;
+        }
+
+        // 2. SINCRONIZAÇÃO EM BACKGROUND COM TIMEOUT DE SEGURANÇA (5s)
+        const remotePromise = fetchRemoteMobileBundle(year, month, firstDay, lastDay);
+        const raceResult = await withMobileTimeout(remotePromise, MOBILE_REMOTE_SYNC_TIMEOUT_MS, { __timedOut: true });
+
+        if (seq !== _mobileLoadSeq) return;
+
+        if (raceResult?.timedOut || raceResult?.value?.__timedOut) {
+            console.warn("⏱️ Sincronização mobile excedeu 5s; exibindo dados em cache/disponíveis.");
+            setMobileCacheBanner(renderedFingerprint ? 'cache' : 'hidden');
+            if (!renderedFingerprint) {
+                renderAllMobileWidgets();
+            }
+            window.TonuPostLoginTransition?.complete();
+            showMobileToast("Sincronização lenta. Exibindo dados disponíveis...", "warning");
+
+            // Se responder em segundo plano logo depois no mesmo mês, atualiza silenciosamente
+            remotePromise.then(async (lateRemote) => {
+                if (seq !== _mobileLoadSeq || !lateRemote) return;
+                await applyRemoteBundle(lateRemote, seq, cacheKey, computeMobileDataFingerprint());
+            }).catch(() => {});
+            return;
+        }
+
+        if (raceResult?.error || !raceResult?.value) {
+            setMobileCacheBanner(renderedFingerprint ? 'cache' : 'hidden');
+            if (!renderedFingerprint) {
+                renderAllMobileWidgets();
+            }
+            window.TonuPostLoginTransition?.complete();
+            return;
+        }
+
+        await applyRemoteBundle(raceResult.value, seq, cacheKey, renderedFingerprint);
+        window.TonuPostLoginTransition?.complete();
 
         console.log("📊 Mobile: Dados unificados prontos:", {
             transacoes: allTransactions.length,
             contas: allBills.length,
             proventos: allDividends.length,
+            investimentos: allInvestments.length,
             metas: allGoals.length
         });
-
-        renderSummary();
-        renderMobileChart();
-        renderMobileInsights();
-        renderMobileGoals();
-        renderCategoryBars();
-        renderTransactions();
     } catch (error) {
         console.error("❌ Erro ao carregar dados mobile:", error);
+        setMobileCacheBanner('hidden');
+        renderAllMobileWidgets();
+        window.TonuPostLoginTransition?.complete();
     }
 }
 
-function setMobileCacheBanner(show) {
-    let banner = document.getElementById("mobileCacheSyncBanner");
-    if (!banner) {
-        banner = document.createElement("div");
-        banner.id = "mobileCacheSyncBanner";
-        banner.style.cssText = "display:none; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:10px; padding:8px 12px; margin:0 16px 12px 16px; font-size:12px; font-weight:600; text-align:center;";
-        const container = document.getElementById("summaryContainer") || document.getElementById("main-content");
-        if (container && container.parentNode) {
-            container.parentNode.insertBefore(banner, container);
+async function syncMobileDashboardNow() {
+    try {
+        if (window.tonuSync && typeof window.tonuSync.flushQueue === 'function') {
+            await withMobileTimeout(window.tonuSync.flushQueue(), 4000, null);
         }
+        await loadMobileData({ forceRefresh: true });
+        showMobileToast("Dados sincronizados! ☁️", "success");
+    } catch (e) {
+        console.warn("Erro ao sincronizar dashboard mobile:", e);
+        await loadMobileData({ forceRefresh: true });
     }
-    if (show) {
-        banner.innerHTML = '<i class="fas fa-wifi" style="margin-right:6px;"></i> 📶 Exibindo dados em cache — sincronizando...';
-        banner.style.display = "block";
+}
+
+window.loadMobileData = loadMobileData;
+window.syncMobileDashboardNow = syncMobileDashboardNow;
+
+function setMobileCacheBanner(mode) {
+    const banner = document.getElementById("mobileCacheSyncBanner");
+    if (!banner) return;
+
+    if (mode === true || mode === 'cache') {
+        banner.className = "mob-sync-status-pill is-visible is-cache";
+        banner.innerHTML = '<i class="fas fa-wifi" aria-hidden="true"></i> <span>Exibindo dados em cache — sincronizando...</span>';
+    } else if (mode === 'syncing') {
+        banner.className = "mob-sync-status-pill is-visible";
+        banner.innerHTML = '<i class="fas fa-sync-alt fa-spin" aria-hidden="true"></i> <span>Sincronizando dados em segundo plano...</span>';
     } else {
-        banner.style.display = "none";
+        banner.className = "mob-sync-status-pill";
+        banner.innerHTML = '';
     }
 }
 
@@ -427,8 +1092,19 @@ function isTxPaid(t) {
 function toggleBalanceVisibility() {
     isBalanceHidden = !isBalanceHidden;
     localStorage.setItem('tonu_hide_balance', isBalanceHidden ? 'true' : 'false');
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.applyPrivacyState === 'function') {
+        window.TonuMobileUI.applyPrivacyState(isBalanceHidden);
+        window.TonuMobileUI.haptic('light');
+    }
     renderSummary();
 }
+window.addEventListener('tonu:privacyChanged', (e) => {
+    const nextHidden = Boolean(e?.detail?.hidden);
+    if (isBalanceHidden !== nextHidden) {
+        isBalanceHidden = nextHidden;
+        renderSummary();
+    }
+});
 
 // ============================================
 // RENDER RESUMO HERO + GRID
@@ -439,8 +1115,10 @@ function renderSummary() {
     allTransactions.forEach(t => {
         if (!isTxPaid(t)) return;
         paidCount++;
-        if (t.type === "income") income += Number(t.amount);
-        else if (t.type === "expense") expense += Number(t.amount);
+        const amt = Math.abs(Number(t.amount || 0));
+        if (isNaN(amt) || amt <= 0) return;
+        if (t.type === "income") income += amt;
+        else if (t.type === "expense") expense += amt;
     });
     const balance = income - expense;
 
@@ -476,69 +1154,86 @@ function renderSummary() {
     });
 
     const displayMonthDivs = monthPaidDivs > 0 ? monthPaidDivs : (monthPendingDivs > 0 ? monthPendingDivs : 0);
-    const divValueColor = monthPaidDivs > 0 ? '#8b5cf6' : (monthPendingDivs > 0 ? '#0284c7' : '#8b5cf6');
+    const divValueColor = monthPaidDivs > 0 ? '#4338CA' : (monthPendingDivs > 0 ? '#0284c7' : '#4338CA');
 
     const mask = (val) => isBalanceHidden ? '••••••' : val;
 
     const container = document.getElementById("summaryContainer");
     if (!container) return;
 
+    const billsSubText = pendingBills.length > 0
+        ? `${pendingBills.length} ${pendingBills.length === 1 ? 'conta aberta' : 'contas abertas'}`
+        : 'Tudo em dia';
+
+    const divsSubText = monthPendingDivs > 0
+        ? `A receber: ${mask(formatCurrency(monthPendingDivs))}`
+        : (totalFutureDivs > 0 ? `Previsto: ${mask(formatCurrency(totalFutureDivs))}` : 'No mês atual');
+
     container.innerHTML = `
-        <!-- HERO CARD FINTECH -->
+        <!-- HERO CARD FINTECH AURORA -->
         <div class="mobile-hero-balance">
             <div class="mobile-hero-top">
                 <span class="label"><i class="fas fa-wallet"></i> Saldo Operacional</span>
-                <button class="eye-toggle-btn" onclick="toggleBalanceVisibility()" title="${isBalanceHidden ? 'Mostrar Saldo' : 'Ocultar Saldo'}" aria-label="Alternar visibilidade do saldo">
+                <button type="button" class="eye-toggle-btn" onclick="toggleBalanceVisibility()" title="${isBalanceHidden ? 'Mostrar Saldo' : 'Ocultar Saldo'}" aria-label="Alternar visibilidade do saldo">
                     <i class="fas ${isBalanceHidden ? 'fa-eye-slash' : 'fa-eye'}"></i>
                 </button>
             </div>
-            <div class="mobile-hero-value">
+            <div class="mobile-hero-value" id="heroBalanceVal" data-sensitive>
                 ${mask(formatCurrency(balance))}
             </div>
             <div class="mobile-hero-footer">
                 <div class="mobile-hero-stat">
                     <span class="stat-label"><i class="fas fa-arrow-up" style="color:#4ade80;"></i> Entradas</span>
-                    <span class="stat-value income">${mask(formatCurrency(income))}</span>
+                    <span class="stat-value income" id="heroIncomeVal" data-sensitive>${mask(formatCurrency(income))}</span>
                 </div>
                 <div class="mobile-hero-stat">
                     <span class="stat-label"><i class="fas fa-arrow-down" style="color:#fca5a5;"></i> Saídas Pagas</span>
-                    <span class="stat-value expense">${mask(formatCurrency(expense))}</span>
-                    ${pendingBillsAmount > 0 ? `<span style="font-size:9px; color:#fbbf24; margin-top:2px; display:block;">Falta pagar: ${mask(formatCurrency(pendingBillsAmount))}</span>` : ''}
+                    <span class="stat-value expense" id="heroExpenseVal" data-sensitive>${mask(formatCurrency(expense))}</span>
+                    ${pendingBillsAmount > 0 ? `<span class="hero-pending-note">Falta pagar: <span id="heroPendingNoteVal" data-sensitive>${mask(formatCurrency(pendingBillsAmount))}</span></span>` : ''}
                 </div>
             </div>
         </div>
 
-        <!-- GRID DE INDICADORES RÁPIDOS -->
-        <div class="mobile-grid">
-            <div class="mobile-card">
-                <div class="card-icon bills"><i class="fas fa-file-invoice-dollar"></i></div>
+        <!-- GRID DE INDICADORES COMPACTOS -->
+        <div class="mobile-grid mobile-grid--compact">
+            <a href="bills.html" class="mobile-card mobile-card--compact" aria-label="Contas Pendentes: ${formatCurrency(pendingBillsAmount)}">
+                <div class="card-icon bills ${pendingBills.length > 0 ? 'has-pending' : 'all-clear'}">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
                 <div class="card-info">
                     <div class="card-label">Contas Pendentes</div>
-                    <div class="card-value" style="color: ${pendingBills.length > 0 ? '#d97706' : '#10b981'}">
+                    <div class="card-value ${pendingBills.length > 0 ? 'is-warning' : 'is-success'}" id="kpiPendingBillsVal" data-sensitive>
                         ${mask(formatCurrency(pendingBillsAmount))}
                     </div>
+                    <div class="card-sub-meta">${billsSubText}</div>
                 </div>
-            </div>
-            <div class="mobile-card">
-                <div class="card-icon balance" style="background:#8b5cf6;"><i class="fas fa-coins"></i></div>
+            </a>
+            <a href="investments.html" class="mobile-card mobile-card--compact" aria-label="Proventos do Mês: ${formatCurrency(displayMonthDivs)}">
+                <div class="card-icon balance">
+                    <i class="fas fa-coins"></i>
+                </div>
                 <div class="card-info">
                     <div class="card-label">Proventos Mês</div>
-                    <div class="card-value" style="color: ${divValueColor};">
+                    <div class="card-value" id="kpiMonthDivsVal" data-sensitive style="color: ${divValueColor};">
                         ${mask(formatCurrency(displayMonthDivs))}
                     </div>
-                    ${monthPendingDivs > 0 ? `
-                        <div style="font-size:9.5px; color:#0284c7; font-weight:600; margin-top:2px;">
-                            <i class="far fa-clock"></i> A receber: ${mask(formatCurrency(monthPendingDivs))}
-                        </div>
-                    ` : (totalFutureDivs > 0 ? `
-                        <div style="font-size:9.5px; color:#0284c7; font-weight:600; margin-top:2px;">
-                            <i class="far fa-clock"></i> Previsto: ${mask(formatCurrency(totalFutureDivs))}
-                        </div>
-                    ` : '')}
+                    <div class="card-sub-meta ${monthPendingDivs > 0 || totalFutureDivs > 0 ? 'is-info' : ''}" data-sensitive>${divsSubText}</div>
                 </div>
-            </div>
+            </a>
         </div>
     `;
+
+    if (!isBalanceHidden && window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(document.getElementById('heroBalanceVal'), balance, formatCurrency);
+        window.TonuMobileUI.animateValue(document.getElementById('heroIncomeVal'), income, formatCurrency);
+        window.TonuMobileUI.animateValue(document.getElementById('heroExpenseVal'), expense, formatCurrency);
+        window.TonuMobileUI.animateValue(document.getElementById('heroPendingNoteVal'), pendingBillsAmount, formatCurrency);
+        window.TonuMobileUI.animateValue(document.getElementById('kpiPendingBillsVal'), pendingBillsAmount, formatCurrency);
+        window.TonuMobileUI.animateValue(document.getElementById('kpiMonthDivsVal'), displayMonthDivs, formatCurrency);
+    }
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.applyPrivacyState === 'function') {
+        window.TonuMobileUI.applyPrivacyState(isBalanceHidden);
+    }
 }
 
 // ============================================
@@ -577,33 +1272,71 @@ function renderMobileChart() {
             });
         }
 
-        const name = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : "Outros");
+        const normalizeCatKey = (val) => {
+            if (!val) return 'outros';
+            const clean = String(val)
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+                .trim();
+            if (clean.includes('outro') || clean.includes('outra') || clean.includes('sem categoria') || clean === '' || clean === 'diversos' || clean === 'geral') {
+                return 'outros';
+            }
+            return clean;
+        };
+
+        const rawName = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : "Outros");
+        const normKey = normalizeCatKey(rawName);
+        const displayName = normKey === 'outros' ? 'Outros' : rawName;
+
         const style = (typeof window !== 'undefined' && window.getBackendCategoryStyle)
-            ? window.getBackendCategoryStyle(name, cat)
-            : { color: cat?.color || '#0984E3', icon: cat?.icon || 'fa-tag', name: name };
+            ? window.getBackendCategoryStyle(displayName, cat)
+            : { color: normKey === 'outros' ? '#94a3b8' : (cat?.color || '#0984E3'), icon: normKey === 'outros' ? 'fa-ellipsis-h' : (cat?.icon || 'fa-tag'), name: displayName };
 
-        const groupKey = cat?.id || name;
-        const amt = Number(t.amount) || 0;
+        const amt = Math.abs(Number(t.amount || 0));
+        if (isNaN(amt) || amt <= 0) return;
 
-        if (!catMap[groupKey]) {
-            catMap[groupKey] = {
-                id: groupKey,
-                name: name,
-                icon: style.icon,
-                color: style.color,
+        if (!catMap[normKey]) {
+            catMap[normKey] = {
+                id: normKey,
+                name: displayName,
+                icon: normKey === 'outros' ? 'fa-ellipsis-h' : style.icon,
+                color: normKey === 'outros' ? '#94a3b8' : style.color,
                 amount: 0
             };
         }
-        catMap[groupKey].amount += amt;
-        if (style.color) catMap[groupKey].color = style.color;
-        if (style.icon) catMap[groupKey].icon = style.icon;
+        catMap[normKey].amount += amt;
     });
 
-    const sorted = Object.values(catMap)
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 6);
+    // Todas as categorias unificadas por nome normalizado
+    const allCategories = Object.values(catMap).sort((a, b) => b.amount - a.amount);
+    const totalExpensesAmount = allCategories.reduce((sum, item) => sum + item.amount, 0);
 
-    const totalExpensesAmount = sorted.reduce((sum, item) => sum + item.amount, 0);
+    // OPÇÃO A: Se até 8 categorias, mostra TODAS no gráfico sem esconder cauda em Outros
+    let sorted = [];
+    if (allCategories.length <= 8) {
+        sorted = [...allCategories];
+    } else {
+        // Se houver mais de 8 categorias, top 8 + cauda em Outros
+        const regularCategories = allCategories.filter(item => item.id !== 'outros');
+        const existingOutros = allCategories.find(item => item.id === 'outros');
+        const top8 = regularCategories.slice(0, 8);
+        const tail = regularCategories.slice(8);
+        const tailAmount = tail.reduce((sum, item) => sum + item.amount, 0);
+        const combinedOutrosTotal = (existingOutros ? existingOutros.amount : 0) + tailAmount;
+
+        sorted = [...top8];
+        if (combinedOutrosTotal > 0) {
+            sorted.push({
+                id: 'outros',
+                name: 'Outros',
+                icon: 'fa-ellipsis-h',
+                color: '#94a3b8',
+                amount: combinedOutrosTotal
+            });
+        }
+    }
 
     // Gera lista de categorias integrada abaixo do gráfico
     let categoriesHtml = "";
@@ -612,13 +1345,17 @@ function renderMobileChart() {
             <div class="mobile-chart-categories">
                 ${sorted.map(item => {
                     const pct = totalExpensesAmount > 0 ? Math.round((item.amount / totalExpensesAmount) * 100) : 0;
+                    const rawNameStr = String(item.name || '');
+                    // Remove all emoji characters so only the clean text remains beside FontAwesome icon
+                    const cleanedName = rawNameStr.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim() || rawNameStr;
+                    const safeName = typeof sanitizeString === 'function' ? sanitizeString(cleanedName) : cleanedName;
+                    const hasIcon = !!item.icon;
                     return `
                         <div class="mobile-cat-row">
                             <div class="cat-row-top">
                                 <span class="cat-row-name">
-                                    <span class="cat-dot" style="background:${item.color};"></span>
-                                    <i class="fas ${item.icon}" style="color:${item.color}; font-size:11px; margin-right:2px;"></i>
-                                    ${typeof sanitizeString === 'function' ? sanitizeString(item.name || '') : (item.name || '')}
+                                    ${hasIcon ? `<i class="fas ${item.icon}" style="color:${item.color}; font-size:12px; width:14px; text-align:center; margin-right:4px;"></i>` : `<span class="cat-dot" style="background:${item.color};"></span>`}
+                                    ${safeName}
                                 </span>
                                 <span class="cat-row-amount">
                                     <strong>${formatCurrency(item.amount)}</strong>
@@ -639,7 +1376,7 @@ function renderMobileChart() {
         <div class="mobile-chart-card">
             <div class="mobile-chart-header">
                 <div class="mobile-chart-title">
-                    <i class="fas fa-chart-pie" style="color:#6C5CE7;"></i> Visão Gráfica de Gastos
+                    <i class="fas fa-chart-pie" style="color:#4338CA;"></i> Visão de Gastos
                 </div>
                 <div class="mobile-chart-toggle">
                     <button class="mobile-chart-btn ${currentChartMode === 'categories' ? 'active' : ''}" onclick="setMobileChartMode('categories')">
@@ -650,18 +1387,22 @@ function renderMobileChart() {
                     </button>
                 </div>
             </div>
-            <div class="mobile-chart-container" style="position:relative; height: 190px;">
+            <div class="mobile-chart-container" style="position:relative; height: 215px; margin-bottom: 8px;">
                 <canvas id="mobileChartCanvas"></canvas>
                 ${currentChartMode === 'categories' && sorted.length > 0 ? `
                     <div class="chart-center-total">
                         <span class="center-label">Total Gasto</span>
-                        <span class="center-value">${formatCurrency(totalExpensesAmount)}</span>
+                        <span class="center-value" id="mobileDonutCenterVal" data-sensitive>${isBalanceHidden ? '••••••' : formatCurrency(totalExpensesAmount)}</span>
                     </div>
                 ` : ''}
             </div>
             ${categoriesHtml}
         </div>
     `;
+
+    if (currentChartMode === 'categories' && sorted.length > 0 && !isBalanceHidden && window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(document.getElementById('mobileDonutCenterVal'), totalExpensesAmount, formatCurrency);
+    }
 
     const canvas = document.getElementById("mobileChartCanvas");
     if (!canvas) return;
@@ -685,7 +1426,10 @@ function renderMobileChart() {
         mobileChartInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: sorted.map(s => s.name),
+                labels: sorted.map(s => {
+                    const rName = String(s.name || '');
+                    return rName.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '').trim() || rName;
+                }),
                 datasets: [{
                     data: sorted.map(s => s.amount),
                     backgroundColor: sorted.map(s => s.color),
@@ -716,8 +1460,10 @@ function renderMobileChart() {
         let inc = 0, exp = 0;
         allTransactions.forEach(t => {
             if (!isTxPaid(t)) return;
-            if (t.type === 'income') inc += Number(t.amount);
-            else if (t.type === 'expense') exp += Number(t.amount);
+            const amt = Math.abs(Number(t.amount || 0));
+            if (isNaN(amt) || amt <= 0) return;
+            if (t.type === 'income') inc += amt;
+            else if (t.type === 'expense') exp += amt;
         });
 
         mobileChartInstance = new Chart(ctx, {
@@ -726,13 +1472,18 @@ function renderMobileChart() {
                 labels: ['Entradas', 'Saídas', 'Líquido'],
                 datasets: [{
                     data: [inc, exp, Math.max(0, inc - exp)],
-                    backgroundColor: ['#10b981', '#ef4444', '#6c5ce7'],
+                    backgroundColor: ['#10B981', '#EF4444', '#4338CA'],
                     borderRadius: 6
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                    axis: 'x'
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -822,6 +1573,7 @@ function renderMobileInsights() {
         }
     });
 
+    window.extraIncome = extraIncome;
     const savings = income - expense;
     const savingsRate = income > 0 ? Math.round((savings / income) * 100) : 0;
     const extraIncomePercent = income > 0 ? Math.round((extraIncome / income) * 100) : 0;
@@ -864,9 +1616,20 @@ function renderMobileInsights() {
     const pendingBills = monthBills.filter(b => !isTxPaid(b));
     const pendingBillsAmount = pendingBills.reduce((a, b) => a + (Number(b.amount) || 0), 0);
 
-    // Proventos
-    const monthDivs = allDividends.filter(d => (d.payment_date || d.date || '').substring(0, 7) === currentMonthPrefix);
-    const totalDivs = monthDivs.reduce((a, d) => a + (Number(d.total_value || d.net_value || d.amount || d.total_amount) || 0), 0);
+    // Aportes & Investimentos (Custo de Custódia Atual - Opção A)
+    let totalAportes = calculateCurrentCustodyCost(window.allInvestments || allInvestments);
+    const mobUid = currentUser?.id || 'demo';
+    const mobSavedInvested = parseFloat(localStorage.getItem('tonu_total_invested_' + mobUid) || '0');
+    if (totalAportes === 0 && mobSavedInvested > 0) {
+        totalAportes = mobSavedInvested;
+    }
+    window.totalAportes = totalAportes;
+
+    // Proventos Recebidos no Mês
+    const monthDivs = (window.allDividends || allDividends || []).filter(d => (d.payment_date || d.date || '').substring(0, 7) === currentMonthPrefix);
+    const totalDividends = monthDivs.reduce((a, d) => a + (Number(d.total_value || d.net_value || d.amount || d.total_amount) || (Number(d.unit_value || 0) * Number(d.quantity || 0))), 0);
+    const totalDivs = totalDividends;
+    window.totalDividends = totalDividends;
 
     // Badge Poupança
     let rateClass = "info";
@@ -882,13 +1645,180 @@ function renderMobileInsights() {
         rateLabel = `${savingsRate}% Déficit`;
     }
 
+    // ============================================
+    // CÁLCULO DO SCORE 360º MOBILE (0 A 100)
+    // ============================================
+    const safeFreeCashMob = income - (expense + pendingBillsAmount);
+    const todayStrMob = today.toISOString().split('T')[0];
+    const overdueBillsMob = pendingBills.filter(b => {
+        const d = (b.date || b.due_date || '').substring(0, 10);
+        return d && d < todayStrMob;
+    });
+
+    let nearestGoalMob = null;
+    let highestProgMob = -1;
+    (allGoals || []).filter(g => !g.completed).forEach(g => {
+        const cur = Number(g.current_amount || 0);
+        const tgt = Number(g.target_amount || 0);
+        if (tgt > 0) {
+            const pct = (cur / tgt) * 100;
+            if (pct > highestProgMob) {
+                highestProgMob = pct;
+                nearestGoalMob = { title: g.title, pct: Math.round(pct), current: cur, target: tgt };
+            }
+        }
+    });
+
+    let budgetAlertMob = null;
+    if (window.TonuBudget && currentUser) {
+        try {
+            const progress = window.TonuBudget.calculateCategoryProgress(currentUser.id, allTransactions, categories || []);
+            const exceeded = progress.filter(b => b.isExceeded);
+            if (exceeded.length > 0) {
+                budgetAlertMob = { type: 'danger', text: `${exceeded[0].name} estourou o teto` };
+            }
+        } catch (_) {}
+    }
+
+    const mobilePillars = [];
+    // Pilar 1: Equilíbrio (30%)
+    if (income > 0) {
+        let eqScore = 0;
+        if (savingsRate >= 20) eqScore = 100;
+        else if (savingsRate > 0) eqScore = Math.round((savingsRate / 20) * 100);
+        else if (savingsRate >= -10) eqScore = 25;
+        mobilePillars.push({ weight: 30, score: eqScore });
+    }
+    // Pilar 2: Pontualidade & Contas (30%)
+    if (monthBills.length > 0) {
+        let pScore = 0;
+        if (overdueBillsMob.length > 0) pScore = Math.max(0, 100 - (overdueBillsMob.length * 35));
+        else if (pendingBills.length === 0) pScore = 100;
+        else if (safeFreeCashMob >= 0) pScore = 90;
+        else pScore = 60;
+        mobilePillars.push({ weight: 30, score: pScore });
+    }
+    // Pilar 3: Endividamento (20%)
+    if (income > 0) {
+        const debtPct = (loansPaid / income) * 100;
+        let dScore = 100;
+        if (debtPct > 30) dScore = Math.max(10, Math.round(50 - (debtPct - 30) * 2));
+        else if (debtPct > 15) dScore = 65;
+        else if (debtPct > 0) dScore = 85;
+        mobilePillars.push({ weight: 20, score: dScore });
+    }
+    // Pilar 4: Futuros & Metas / Proventos (20%)
+    let futScoreMobile = 0;
+    let futActiveMobile = false;
+    if (totalDividends > 0 || totalAportes > 0) { futScoreMobile += 50; futActiveMobile = true; }
+    if (nearestGoalMob && nearestGoalMob.pct > 0) { futScoreMobile += 50; futActiveMobile = true; }
+    if (futActiveMobile) mobilePillars.push({ weight: 20, score: Math.min(100, futScoreMobile) });
+
+    const totalWeightMob = mobilePillars.reduce((a, b) => a + b.weight, 0);
+    const finalScoreMob = totalWeightMob > 0 
+        ? Math.round(mobilePillars.reduce((a, b) => a + (b.score * b.weight), 0) / totalWeightMob)
+        : 70;
+
+    let mobBadge = { label: 'Bom', color: '#3B82F6', toneClass: 'info' };
+    if (finalScoreMob >= 80) mobBadge = { label: 'Excelente', color: '#10B981', toneClass: 'success' };
+    else if (finalScoreMob < 40) mobBadge = { label: 'Atenção', color: '#EF4444', toneClass: 'danger' };
+    else if (finalScoreMob < 60) mobBadge = { label: 'Regular', color: '#F59E0B', toneClass: 'warning' };
+
+    const circMob = 2 * Math.PI * 30;
+    const offsetMob = circMob - (finalScoreMob / 100) * circMob;
+
+    // CHECKLIST RÁPIDO MOBILE ("O QUE FAZER HOJE?")
+    const mobActionCards = [];
+    const urgentMobBill = overdueBillsMob[0] || pendingBills.find(b => {
+        const bDate = (b.date || b.due_date || '').substring(0, 10);
+        if (!bDate) return false;
+        const diffDays = Math.ceil((new Date(bDate) - new Date(todayStrMob)) / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 && diffDays <= 2;
+    });
+    if (urgentMobBill) {
+        const isOverdue = overdueBillsMob.includes(urgentMobBill);
+        mobActionCards.push(`
+            <div class="mob-action-card" data-href="bills.html" role="button" tabindex="0">
+                <span class="mob-action-icon tone-danger"><i class="fas ${isOverdue ? 'fa-exclamation-triangle' : 'fa-clock'}"></i></span>
+                <div class="mob-action-desc">
+                    <strong>Pagar: ${typeof sanitizeString === 'function' ? sanitizeString(urgentMobBill.description || 'Conta') : (urgentMobBill.description || 'Conta')}</strong>
+                    <small>${isOverdue ? 'Conta atrasada' : 'Vence em até 48h'} · ${formatCurrency(urgentMobBill.amount)}</small>
+                </div>
+                <span class="mob-action-tag tone-danger">Pagar</span>
+            </div>
+        `);
+    }
+    if (budgetAlertMob && budgetAlertMob.type === 'danger') {
+        mobActionCards.push(`
+            <div class="mob-action-card" data-href="transactions.html" role="button" tabindex="0">
+                <span class="mob-action-icon tone-warning"><i class="fas fa-chart-pie"></i></span>
+                <div class="mob-action-desc">
+                    <strong>Ver Gastos: Limite Estourado</strong>
+                    <small>${budgetAlertMob.text}</small>
+                </div>
+                <span class="mob-action-tag tone-warning">Revisar</span>
+            </div>
+        `);
+    } else if (topCatPercent > 35 && topCatName && topCatName !== 'Nenhum gasto') {
+        mobActionCards.push(`
+            <div class="mob-action-card" data-href="transactions.html" role="button" tabindex="0">
+                <span class="mob-action-icon tone-warning"><i class="fas fa-fire"></i></span>
+                <div class="mob-action-desc">
+                    <strong>${typeof sanitizeString === 'function' ? sanitizeString(topCatName) : topCatName}: ${topCatPercent}% da renda</strong>
+                    <small>Maior centro de custo</small>
+                </div>
+                <span class="mob-action-tag tone-warning">Ver</span>
+            </div>
+        `);
+    }
+
+    const displayedMobActionCards = mobActionCards.slice(0, 2);
+    const rateTone = rateClass === 'success' ? 'success' : (rateClass === 'danger' ? 'danger' : 'warning');
+
     container.innerHTML = `
-        <div class="mobile-insights-card">
+        <!-- CARD 1: O QUE FAZER HOJE? -->
+        <div class="mobile-insights-card mob-quick-actions-card ${displayedMobActionCards.length === 0 ? 'is-all-clear' : ''}">
             <div class="mobile-insights-header">
                 <div class="mobile-insights-title">
-                    <i class="fas fa-compass" style="color:#6C5CE7;"></i> Diagnóstico 360º
+                    <i class="fas fa-bolt mob-title-icon-warn"></i> O que fazer hoje?
                 </div>
-                <span class="mobile-insights-pill">Inteligência Financeira</span>
+                <span class="mob-status-badge ${displayedMobActionCards.length > 0 ? 'tone-danger' : 'tone-success'}">
+                    ${displayedMobActionCards.length > 0 ? `${displayedMobActionCards.length} ${displayedMobActionCards.length === 1 ? 'pendência' : 'pendências'}` : 'Tudo em dia'}
+                </span>
+            </div>
+            ${displayedMobActionCards.length > 0 ? `
+                <div class="mob-checklist-wrap">${displayedMobActionCards.join('')}</div>
+            ` : `
+                <p class="mob-today-ok-note"><i class="fas fa-check-circle"></i> Sem contas urgentes ou alertas críticos para hoje.</p>
+            `}
+        </div>
+
+        <!-- CARD 2: SAÚDE FINANCEIRA (DIAGNÓSTICO 360º) -->
+        <div class="mobile-insights-card mob-health-score-card">
+            <div class="mobile-insights-header">
+                <div class="mobile-insights-title">
+                    <i class="fas fa-heart-pulse mob-title-icon-primary"></i> Saúde Financeira
+                </div>
+                <span class="mob-header-kicker">Diagnóstico 360º</span>
+            </div>
+
+            <!-- ANEL DO SCORE 360º NO MOBILE -->
+            <div class="mob-score-container">
+                <div class="mob-score-ring-wrap">
+                    <svg viewBox="0 0 72 72" class="mob-score-svg">
+                        <circle cx="36" cy="36" r="30" fill="none" stroke="var(--mob-border-strong)" stroke-width="6" />
+                        <circle cx="36" cy="36" r="30" fill="none" stroke="${mobBadge.color}" stroke-width="6" stroke-dasharray="${circMob.toFixed(1)}" stroke-dashoffset="${offsetMob.toFixed(1)}" stroke-linecap="round" />
+                    </svg>
+                    <div class="mob-score-center">
+                        <span class="mob-score-val" id="mobHealthScoreVal">${finalScoreMob}</span>
+                        <span class="mob-score-sub">/100</span>
+                    </div>
+                </div>
+                <div class="mob-score-meta">
+                    <span class="mob-status-badge tone-${mobBadge.toneClass}">${mobBadge.label}</span>
+                    <h4>Diagnóstico Geral</h4>
+                    <p>Equilíbrio · Contas · Dívidas · Futuro</p>
+                </div>
             </div>
 
             <!-- 1. Taxa de Poupança -->
@@ -899,10 +1829,10 @@ function renderMobileInsights() {
                     </div>
                     <div class="mobile-insight-text">
                         <span class="title">Taxa de Poupança</span>
-                        <span class="detail">${formatCurrency(Math.max(0, savings))} poupados</span>
+                        <span class="detail"><span id="mobInsightSavingsVal" data-sensitive>${formatCurrency(Math.max(0, savings))}</span> poupados</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:${rateClass === 'success' ? '#dcfce7' : (rateClass === 'danger' ? '#fee2e2' : '#fef3c7')}; color:${rateClass === 'success' ? '#15803d' : (rateClass === 'danger' ? '#b91c1c' : '#b45309')}">
+                <span class="mobile-insight-badge tone-${rateTone}">
                     ${rateLabel}
                 </span>
             </div>
@@ -915,10 +1845,10 @@ function renderMobileInsights() {
                     </div>
                     <div class="mobile-insight-text">
                         <span class="title">Maior Despesa</span>
-                        <span class="detail">${typeof sanitizeString === 'function' ? sanitizeString(topCatName || '') : (topCatName || '')} (${formatCurrency(topCatAmount)})</span>
+                        <span class="detail">${typeof sanitizeString === 'function' ? sanitizeString(topCatName || '') : (topCatName || '')} (<span id="mobInsightTopCatVal" data-sensitive>${formatCurrency(topCatAmount)}</span>)</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#fef3c7; color:#b45309;">
+                <span class="mobile-insight-badge tone-warning">
                     ${topCatPercent}% do total
                 </span>
             </div>
@@ -934,24 +1864,24 @@ function renderMobileInsights() {
                         <span class="detail">${paidBills.length} de ${monthBills.length || 0} pagas</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#ede9fe; color:#6d28d9;">
-                    ${pendingBillsAmount > 0 ? `${formatCurrency(pendingBillsAmount)} pendente` : 'Tudo em dia! ✨'}
+                <span class="mobile-insight-badge tone-purple">
+                    ${pendingBillsAmount > 0 ? `<span id="mobInsightPendingBillsVal" data-sensitive>${formatCurrency(pendingBillsAmount)}</span> pendente` : 'Em dia'}
                 </span>
             </div>
 
-            <!-- 4. Renda Passiva / Proventos -->
+            <!-- 4. Investimentos & Proventos -->
             <div class="mobile-insight-row">
                 <div class="mobile-insight-left">
                     <div class="mobile-insight-icon purple">
                         <i class="fas fa-coins"></i>
                     </div>
                     <div class="mobile-insight-text">
-                        <span class="title">Renda Passiva</span>
-                        <span class="detail">${monthDivs.length} proventos recebidos</span>
+                        <span class="title">Investimentos & Proventos</span>
+                        <span class="detail">${formatCurrency(totalDividends)} proventos · ${formatCurrency(totalAportes)} aportes</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:#f3e8ff; color:#7e22ce;">
-                    ${formatCurrency(totalDivs)}
+                <span class="mobile-insight-badge tone-purple" id="mobInsightInvestTotalVal" data-sensitive>
+                    ${formatCurrency(totalAportes + totalDividends)}
                 </span>
             </div>
 
@@ -966,7 +1896,7 @@ function renderMobileInsights() {
                         <span class="detail">${extraIncomeCount} lançamento${extraIncomeCount === 1 ? '' : 's'} (${extraIncomePercent}% da renda)</span>
                     </div>
                 </div>
-                <span class="mobile-insight-badge" style="background:${extraIncome > 0 ? '#ffedd5' : '#f1f5f9'}; color:${extraIncome > 0 ? '#c2410c' : '#64748b'};">
+                <span class="mobile-insight-badge ${extraIncome > 0 ? 'tone-orange' : 'tone-neutral'}" id="mobInsightExtraVal" data-sensitive>
                     ${formatCurrency(extraIncome)}
                 </span>
             </div>
@@ -985,11 +1915,387 @@ function renderMobileInsights() {
             </div>
         </div>
     `;
+
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        window.TonuMobileUI.animateValue(document.getElementById('mobHealthScoreVal'), finalScoreMob, v => String(Math.round(v)));
+        if (!isBalanceHidden) {
+            window.TonuMobileUI.animateValue(document.getElementById('mobInsightSavingsVal'), Math.max(0, savings), formatCurrency);
+            window.TonuMobileUI.animateValue(document.getElementById('mobInsightTopCatVal'), topCatAmount, formatCurrency);
+            if (pendingBillsAmount > 0) {
+                window.TonuMobileUI.animateValue(document.getElementById('mobInsightPendingBillsVal'), pendingBillsAmount, formatCurrency);
+            }
+            window.TonuMobileUI.animateValue(document.getElementById('mobInsightInvestTotalVal'), totalAportes + totalDividends, formatCurrency);
+            window.TonuMobileUI.animateValue(document.getElementById('mobInsightExtraVal'), extraIncome, formatCurrency);
+        }
+    }
 }
 
 // ============================================
-// RENDER METAS NO MOBILE
+// SINCRONIZAÇÃO DE PATRIMÔNIO PARA METAS NO DASHBOARD
 // ============================================
+async function loadSyncedPortfolioEquity(options = {}) {
+    const force = !!(options && options.forceRefresh);
+    const cacheOnly = !!(options && options.cacheOnly);
+    if (!force && isDashboardEquityLoaded && cachedDashboardEquity > 0) {
+        return cachedDashboardEquity;
+    }
+
+    const uid = currentUser?.id || 'demo';
+
+    // 1. Cálculo ao vivo da custódia (investimentos + eventos corporativos + cotações)
+    try {
+        let invList = Array.isArray(allInvestments) && allInvestments.length > 0 ? allInvestments : [];
+        let corpList = [];
+
+        if (window.tonuSync && currentUser?.id) {
+            try {
+                if (invList.length === 0) invList = await window.tonuSync.getCachedInvestments(currentUser.id);
+                corpList = await window.tonuSync.getCachedCorporateEvents(currentUser.id);
+            } catch (_) {}
+        }
+
+        if (!cacheOnly && (!corpList || corpList.length === 0) && navigator.onLine && window.supabaseClient && currentUser?.id) {
+            try {
+                const { data: corpData } = await window.supabaseClient
+                    .from("corporate_events")
+                    .select("*")
+                    .eq("user_id", currentUser.id);
+                if (Array.isArray(corpData) && corpData.length > 0) corpList = corpData;
+            } catch (_) {}
+        }
+
+        if (Array.isArray(invList) && invList.length > 0) {
+            const quoteMap = new Map();
+            try {
+                const rawQ = localStorage.getItem('tonu_quotes_cache');
+                if (rawQ) {
+                    const parsedQ = JSON.parse(rawQ);
+                    if (parsedQ && parsedQ.quotes) {
+                        for (const [tk, val] of Object.entries(parsedQ.quotes)) {
+                            quoteMap.set(tk.toUpperCase().trim(), val);
+                        }
+                    }
+                }
+            } catch (_) {}
+
+            const normalizedTx = invList.map(t => ({
+                ...t,
+                isCorporateEvent: false,
+                sortDate: t.date || '1970-01-01',
+                sortPriority: (t.type || '').toLowerCase().includes('compra') ? 1 : 2
+            }));
+
+            const normalizedEvents = (corpList || []).map(ev => ({
+                ...ev,
+                isCorporateEvent: true,
+                sortDate: ev.event_date || ev.date || '1970-01-01',
+                sortPriority: 0
+            }));
+
+            const timeline = [...normalizedTx, ...normalizedEvents].sort((a, b) => {
+                const da = new Date(a.sortDate + 'T12:00:00').getTime();
+                const db = new Date(b.sortDate + 'T12:00:00').getTime();
+                if (da !== db) return da - db;
+                if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
+                return (a.created_at || '').localeCompare(b.created_at || '');
+            });
+
+            const posMap = new Map();
+            timeline.forEach(item => {
+                const ticker = (item.ticker || '').toUpperCase().trim();
+                if (!ticker) return;
+                const cleanTk = ticker.replace(/\.SA$/, '').replace(/F$/, '');
+                if (!posMap.has(cleanTk)) {
+                    posMap.set(cleanTk, { quantity: 0, costBasis: 0, averageCost: 0 });
+                }
+                const pos = posMap.get(cleanTk);
+
+                if (item.isCorporateEvent) {
+                    const evType = (item.event_type || item.type || '').trim();
+                    if (evType === 'Desdobramento' || evType === 'Agrupamento' || evType === 'Split' || evType === 'Inplit') {
+                        const rf = parseFloat(item.ratio_from) || 1;
+                        const rt = parseFloat(item.ratio_to) || 1;
+                        if (rf > 0 && rt > 0 && pos.quantity > 0) {
+                            pos.quantity = pos.quantity * (rt / rf);
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    } else if (evType === 'Bonificação' || evType === 'Subscrição') {
+                        const bShares = parseFloat(item.bonus_shares || item.quantity || 0);
+                        const bCost = parseFloat(item.unit_cost || item.unit_price || 0);
+                        if (bShares > 0) {
+                            pos.quantity += bShares;
+                            pos.costBasis += (bShares * bCost);
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    } else if (evType === 'Amortização') {
+                        const amort = parseFloat(item.amortization_per_share || item.unit_value || 0);
+                        if (amort > 0 && pos.quantity > 0) {
+                            pos.costBasis = Math.max(0, pos.costBasis - (amort * pos.quantity));
+                            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                        }
+                    }
+                    return;
+                }
+
+                const qty = parseFloat(item.quantity) || 0;
+                const total = parseFloat(item.total_value || item.amount || (qty * (parseFloat(item.unit_price) || 0))) || 0;
+                const type = (item.type || '').toLowerCase();
+
+                if (type.includes('compra') || type.includes('buy')) {
+                    pos.costBasis += total;
+                    pos.quantity += qty;
+                    pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                } else if (type.includes('venda') || type.includes('sell')) {
+                    const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+                    pos.costBasis = Math.max(0, pos.costBasis - (avg * qty));
+                    pos.quantity = Math.max(0, pos.quantity - qty);
+                    if (pos.quantity <= 0.0001) {
+                        pos.quantity = 0;
+                        pos.costBasis = 0;
+                        pos.averageCost = 0;
+                    } else {
+                        pos.averageCost = pos.costBasis / pos.quantity;
+                    }
+                }
+            });
+
+            let computedPatrimonio = 0;
+            for (const [tk, p] of posMap.entries()) {
+                if (p.quantity > 0.0001) {
+                    const qData = quoteMap.get(tk) || quoteMap.get(`${tk}.SA`);
+                    const quotePrice = (qData && Number.isFinite(qData.price) && qData.price > 0) ? qData.price : p.averageCost;
+                    const val = p.quantity * quotePrice;
+                    computedPatrimonio += (val > 0 ? val : (p.costBasis || 0));
+                }
+            }
+
+            if (computedPatrimonio > 0) {
+                cachedDashboardEquity = Math.round(computedPatrimonio * 100) / 100;
+                isDashboardEquityLoaded = true;
+                try { localStorage.setItem('tonu_total_equity_' + uid, String(cachedDashboardEquity)); } catch (_) {}
+                return cachedDashboardEquity;
+            }
+        }
+    } catch (_) {}
+
+    // 2. Fallback: portfolio_snapshots no Supabase
+    if (!cacheOnly) {
+        try {
+            if (navigator.onLine && window.supabaseClient && currentUser?.id) {
+                const { data } = await window.supabaseClient
+                    .from('portfolio_snapshots')
+                    .select('total_equity')
+                    .eq('user_id', currentUser.id)
+                    .order('date', { ascending: false })
+                    .limit(1);
+                if (data && data[0]?.total_equity && Number(data[0].total_equity) > 0) {
+                    cachedDashboardEquity = Number(data[0].total_equity);
+                    isDashboardEquityLoaded = true;
+                    try { localStorage.setItem('tonu_total_equity_' + uid, String(cachedDashboardEquity)); } catch (_) {}
+                    return cachedDashboardEquity;
+                }
+            }
+        } catch (_) {}
+
+        // 3. Fallback: user_stats no Supabase
+        try {
+            if (navigator.onLine && window.supabaseClient && currentUser?.id) {
+                const { data: uStat } = await window.supabaseClient
+                    .from('user_stats')
+                    .select('patrimony')
+                    .eq('user_id', currentUser.id)
+                    .maybeSingle();
+                if (uStat && Number(uStat.patrimony) > 0) {
+                    cachedDashboardEquity = Number(uStat.patrimony);
+                    isDashboardEquityLoaded = true;
+                    return cachedDashboardEquity;
+                }
+            }
+        } catch (_) {}
+    }
+
+    // 4. Fallback: localStorage sincronizado com metas/investimentos
+    try {
+        const cached =
+            localStorage.getItem('tonu_total_equity_' + uid) ||
+            localStorage.getItem('tonu_portfolio_equity_' + uid) ||
+            localStorage.getItem('tonu_total_equity') ||
+            localStorage.getItem('tonu_investments_equity') ||
+            localStorage.getItem('tonu_cached_equity_val');
+        if (cached) {
+            const val = Number(cached);
+            if (!isNaN(val) && val > 0) {
+                cachedDashboardEquity = val;
+                isDashboardEquityLoaded = true;
+                return cachedDashboardEquity;
+            }
+        }
+    } catch (_) {}
+
+    isDashboardEquityLoaded = true;
+    return cachedDashboardEquity;
+}
+
+// ============================================
+// RENDER METAS AGRUPADAS POR TIPO (CARROSSEL)
+// ============================================
+function normalizeDashboardGoalType(goal) {
+    const raw = String(goal?.type || goal?.goal_type || goal?.category || '').toLowerCase().trim();
+    if (raw === 'wealth' || raw === 'net_worth' || raw === 'patrimonio') return 'wealth';
+    if (raw === 'dividends' || raw === 'proventos') return 'dividends';
+    if (raw === 'project' || raw === 'habit' || raw === 'projeto') return 'project';
+    if (raw === 'financial' || raw === 'money' || raw === 'dinheiro' || !raw) return 'financial';
+    return raw;
+}
+
+function getMonthlyDividendsTotalForDashboard() {
+    const targetDate = getSelectedMonthDate();
+    const curY = targetDate.getFullYear();
+    const curM = targetDate.getMonth();
+    return (allDividends || []).filter(d => {
+        const dt = (d.payment_date || d.date || '').substring(0, 10);
+        if (!dt) return false;
+        const parts = dt.split('-');
+        return parseInt(parts[0], 10) === curY && (parseInt(parts[1], 10) - 1) === curM;
+    }).reduce((acc, d) => {
+        const val = parseFloat(d.total_value || d.net_value || d.amount || d.total_amount);
+        if (!isNaN(val) && val > 0) return acc + val;
+        const q = parseFloat(d.quantity) || 0;
+        const u = parseFloat(d.unit_value) || 0;
+        return acc + (q * u);
+    }, 0);
+}
+
+function buildGoalTypeSummaryCard(typeKey, items) {
+    const esc = (str) => (typeof sanitizeString === 'function' ? sanitizeString(str || '') : String(str || ''));
+    const count = items.length;
+    const countLabel = `${count} ${count === 1 ? 'meta' : 'metas'}`;
+
+    if (typeKey === 'wealth') {
+        const maxStored = items.reduce((mx, g) => Math.max(mx, Number(g.current_amount || g.current || 0)), 0);
+        const current = cachedDashboardEquity > 0 ? cachedDashboardEquity : maxStored;
+        const pending = items
+            .filter(g => !g.completed && Number(g.target_amount || g.target || 0) > current)
+            .sort((a, b) => Number(a.target_amount || a.target || 0) - Number(b.target_amount || b.target || 0));
+        const rep = pending[0] || items.slice().sort((a, b) => Number(b.target_amount || b.target || 0) - Number(a.target_amount || a.target || 0))[0];
+        const target = Number(rep?.target_amount || rep?.target || 0);
+        const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+        const repName = esc(rep?.title || rep?.name || 'Reserva Patrimonial');
+        return {
+            typeKey,
+            title: 'Patrimônio',
+            subtitle: `${countLabel} · ${repName}`,
+            icon: 'fa-chart-pie',
+            color: '#4338CA',
+            iconBg: 'rgba(67, 56, 202, 0.14)',
+            percent,
+            currentLabel: 'Em custódia',
+            currentValue: formatCurrency(current),
+            currentNum: current,
+            targetLabel: pending.length > 0 ? 'Próximo alvo' : 'Alvo',
+            targetValue: formatCurrency(target),
+            targetNum: target,
+            isMoney: true
+        };
+    }
+
+    if (typeKey === 'financial') {
+        const current = items.reduce((acc, g) => acc + (Number(g.current_amount || g.current || 0)), 0);
+        const target = items.reduce((acc, g) => acc + (Number(g.target_amount || g.target || 0)), 0);
+        const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+        const activeFirst = items.find(g => !g.completed) || items[0];
+        const repName = esc(activeFirst?.title || activeFirst?.name || 'Reserva Financeira');
+        return {
+            typeKey,
+            title: 'Dinheiro',
+            subtitle: count > 1 ? `${countLabel} · ${repName}` : repName,
+            icon: 'fa-dollar-sign',
+            color: '#F59E0B',
+            iconBg: 'rgba(245, 158, 11, 0.14)',
+            percent,
+            currentLabel: 'Acumulado',
+            currentValue: formatCurrency(current),
+            currentNum: current,
+            targetLabel: 'Alvo total',
+            targetValue: formatCurrency(target),
+            targetNum: target,
+            isMoney: true
+        };
+    }
+
+    if (typeKey === 'dividends') {
+        const current = getMonthlyDividendsTotalForDashboard();
+        const pending = items
+            .filter(g => !g.completed && Number(g.target_amount || g.target || 0) > current)
+            .sort((a, b) => Number(a.target_amount || a.target || 0) - Number(b.target_amount || b.target || 0));
+        const rep = pending[0] || items.slice().sort((a, b) => Number(b.target_amount || b.target || 0) - Number(a.target_amount || a.target || 0))[0];
+        const target = Number(rep?.target_amount || rep?.target || 0);
+        const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+        const repName = esc(rep?.title || rep?.name || 'Renda Passiva');
+        return {
+            typeKey,
+            title: 'Proventos',
+            subtitle: `${countLabel} · ${repName}`,
+            icon: 'fa-hand-holding-usd',
+            color: '#10B981',
+            iconBg: 'rgba(16, 185, 129, 0.14)',
+            percent,
+            currentLabel: 'Recebido no mês',
+            currentValue: formatCurrency(current),
+            currentNum: current,
+            targetLabel: 'Alvo mensal',
+            targetValue: formatCurrency(target),
+            targetNum: target,
+            isMoney: true
+        };
+    }
+
+    if (typeKey === 'project') {
+        const doneCount = items.filter(g => !!g.completed).length;
+        const percent = count > 0 ? Math.min(100, Math.round((doneCount / count) * 100)) : 0;
+        const nextPending = items.find(g => !g.completed) || items[0];
+        const nextTitle = esc(nextPending?.title || nextPending?.name || 'Checklist');
+        return {
+            typeKey,
+            title: 'Projetos',
+            subtitle: doneCount === count ? `${countLabel} concluídos` : `Próximo: ${nextTitle}`,
+            icon: 'fa-tasks',
+            color: '#0EA5E9',
+            iconBg: 'rgba(14, 165, 233, 0.14)',
+            percent,
+            currentLabel: 'Concluídos',
+            currentValue: `${doneCount} de ${count}`,
+            currentNum: doneCount,
+            targetLabel: 'Restantes',
+            targetValue: `${Math.max(0, count - doneCount)}`,
+            targetNum: Math.max(0, count - doneCount),
+            totalCount: count,
+            isMoney: false
+        };
+    }
+
+    const current = items.reduce((acc, g) => acc + (Number(g.current_amount || g.current || 0)), 0);
+    const target = items.reduce((acc, g) => acc + (Number(g.target_amount || g.target || 0)), 0);
+    const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+    const repName = esc(items[0]?.title || items[0]?.name || 'Metas');
+    return {
+        typeKey,
+        title: esc(typeKey.charAt(0).toUpperCase() + typeKey.slice(1)),
+        subtitle: `${countLabel} · ${repName}`,
+        icon: 'fa-bullseye',
+        color: '#4338CA',
+        iconBg: 'rgba(67, 56, 202, 0.14)',
+        percent,
+        currentLabel: 'Atual',
+        currentValue: formatCurrency(current),
+        currentNum: current,
+        targetLabel: 'Alvo',
+        targetValue: formatCurrency(target),
+        targetNum: target,
+        isMoney: true
+    };
+}
+
 function renderMobileGoals() {
     const container = document.getElementById("mobileGoalsContainer");
     if (!container) return;
@@ -999,35 +2305,73 @@ function renderMobileGoals() {
         return;
     }
 
-    const goal = allGoals[0]; // Primeira meta
-    const target = Number(goal.target_amount || goal.target || 0);
-    const current = Number(goal.current_amount || goal.current || 0);
-    const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
-    const remaining = Math.max(0, target - current);
-    const goalTitle = goal.title || goal.name || 'Minha Meta';
-    const safeGoalTitle = typeof sanitizeString === 'function' ? sanitizeString(goalTitle) : goalTitle;
+    const grouped = new Map();
+    allGoals.forEach(g => {
+        const typeKey = normalizeDashboardGoalType(g);
+        if (!grouped.has(typeKey)) grouped.set(typeKey, []);
+        grouped.get(typeKey).push(g);
+    });
+
+    const preferredOrder = ['wealth', 'financial', 'dividends', 'project'];
+    const orderedKeys = [
+        ...preferredOrder.filter(k => grouped.has(k)),
+        ...[...grouped.keys()].filter(k => !preferredOrder.includes(k))
+    ];
+
+    const summaryCards = orderedKeys.map(k => buildGoalTypeSummaryCard(k, grouped.get(k)));
+    if (summaryCards.length === 0) {
+        container.innerHTML = "";
+        return;
+    }
+
+    const isSingle = summaryCards.length === 1;
+    const cardsHtml = summaryCards.map((card, idx) => `
+        <a href="goals.html" class="goal-type-card" aria-label="${card.title}: ${card.percent}% concluído">
+            <div class="goal-type-card-top">
+                <div class="goal-type-icon" style="background:${card.iconBg}; color:${card.color};">
+                    <i class="fas ${card.icon}"></i>
+                </div>
+                <div class="goal-type-meta">
+                    <div class="goal-type-name">${card.title}</div>
+                    <div class="goal-type-sub">${card.subtitle}</div>
+                </div>
+                <span class="goal-type-pct" id="mobGoalCardPct_${idx}" style="color:${card.color};">${card.percent}%</span>
+            </div>
+            <div class="goal-type-progress-track">
+                <div class="goal-type-progress-fill" style="width:${card.percent}%; background:${card.color};"></div>
+            </div>
+            <div class="goal-type-values">
+                <div class="goal-type-val-block">
+                    <span class="goal-type-val-label">${card.currentLabel}</span>
+                    <span class="goal-type-val-num" id="mobGoalCardCur_${idx}" ${card.isMoney ? 'data-sensitive' : ''}>${card.currentValue}</span>
+                </div>
+                <div class="goal-type-val-block right">
+                    <span class="goal-type-val-label">${card.targetLabel}</span>
+                    <span class="goal-type-val-num" id="mobGoalCardTgt_${idx}" ${card.isMoney ? 'data-sensitive' : ''}>${card.targetValue}</span>
+                </div>
+            </div>
+        </a>
+    `).join('');
 
     container.innerHTML = `
-        <div class="category-bars-card" style="margin-bottom:14px;">
-            <div class="category-bars-header">
-                <h3><i class="fas fa-bullseye" style="color:#0984E3; margin-right:6px;"></i> Meta Prioritária</h3>
-                <a href="goals.html" style="font-size:11px; color:#6C5CE7; font-weight:600; text-decoration:none;">Ver todas →</a>
-            </div>
-            <div class="category-bar-item" style="margin-top:6px;">
-                <div class="category-bar-info">
-                    <span class="cat-name"><strong>${safeGoalTitle}</strong></span>
-                    <span class="cat-amount">${percent}%</span>
-                </div>
-                <div class="category-bar-track" style="height:8px; border-radius:4px; margin:6px 0;">
-                    <div class="category-bar-fill" style="width: ${percent}%; background: linear-gradient(90deg, #0984E3, #6C5CE7); border-radius:4px;"></div>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--color-text-muted, #94a3b8);">
-                    <span>Atual: ${formatCurrency(current)}</span>
-                    <span>Falta: ${formatCurrency(remaining)}</span>
-                </div>
-            </div>
+        <div class="goals-carousel-header">
+            <h2 class="goals-carousel-title"><i class="fas fa-bullseye"></i> Metas por Categoria</h2>
+            <a href="goals.html" class="goals-carousel-all-link">Ver todas →</a>
+        </div>
+        <div class="goals-carousel-track ${isSingle ? 'single-card' : ''}">
+            ${cardsHtml}
         </div>
     `;
+
+    if (window.TonuMobileUI && typeof window.TonuMobileUI.animateValue === 'function') {
+        summaryCards.forEach((card, idx) => {
+            window.TonuMobileUI.animateValue(document.getElementById(`mobGoalCardPct_${idx}`), card.percent, v => `${Math.round(v)}%`);
+            if (card.isMoney && !isBalanceHidden) {
+                window.TonuMobileUI.animateValue(document.getElementById(`mobGoalCardCur_${idx}`), card.currentNum, formatCurrency);
+                window.TonuMobileUI.animateValue(document.getElementById(`mobGoalCardTgt_${idx}`), card.targetNum, formatCurrency);
+            }
+        });
+    }
 }
 
 // ============================================
@@ -1043,6 +2387,7 @@ function renderCategoryBars() {
 // ============================================
 function renderTransactions() {
     const container = document.getElementById("mobileTransactions");
+    if (!container) return;
 
     const recent = allTransactions.filter(t => isTxPaid(t)).slice(0, 10);
 
@@ -1156,7 +2501,11 @@ function populateCategoryOptions() {
     const select = document.getElementById("quickCategory");
     if (!select) return;
 
-    const filtered = categories.filter(c => !c.type || c.type === currentQuickType);
+    const filtered = categories.filter(c => {
+        if (!c.type || c.type === 'both') return true;
+        if (c.name && c.name.toLowerCase().includes('invest')) return true;
+        return c.type === currentQuickType;
+    });
     select.innerHTML = '<option value="">Selecione a categoria...</option>' +
         (filtered.length > 0 ? filtered : categories).map(c => {
             const safeId = typeof sanitizeString === 'function' ? sanitizeString(c.id || '') : (c.id || '');
@@ -1215,7 +2564,7 @@ async function handleQuickAddSubmit(event) {
         closeQuickAddModal();
         document.getElementById("quickAddForm").reset();
 
-        await loadMobileData();
+        await loadMobileData({ forceRefresh: true });
     } catch (err) {
         console.error("Erro ao salvar transação rápida:", err);
         showMobileToast("Erro ao salvar: " + (err.message || "Tente novamente"), "error");
@@ -1240,60 +2589,673 @@ function showMobileToast(message, type) {
 }
 
 // ============================================
-// FUNÇÕES AUXILIARES
+// FUNÇÕES AUXILIARES (formatCurrency, formatDate, toggleTheme via js/core.js)
 // ============================================
-function formatCurrency(value) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(value);
+
+// ============================================
+// ✨ INSIGHTS IA MOBILE (GEMINI - HORIZONTE 2 ITEM 2)
+// ============================================
+var AI_INSIGHTS_CLIENT_TTL_MS = 6 * 60 * 60 * 1000;
+var AI_INSIGHTS_FETCH_TIMEOUT_MS = 35000;
+var AI_INSIGHTS_FAILURE_COOLDOWN_MS = 5 * 60 * 1000;
+var _mobileAiInsightsFetchInFlight = false;
+var _mobileAiInsightsRequestSeq = 0;
+var _mobileAiInsightsAbortController = null;
+
+function _escapeMobileAiInsightHtml(str) {
+    if (typeof sanitizeString === 'function') {
+        return sanitizeString(String(str || ''));
     }
-    if (value === null || value === undefined || value === '') value = 0;
-    if (typeof value === 'string') {
-        const cleaned = value.replace(/[R$\s]/g, '');
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-            value = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (cleaned.includes(',')) {
-            value = cleaned.replace(',', '.');
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _resolveMobileAiFailureMeta(meta) {
+    const reason = String(meta?.reason || '').toLowerCase();
+    switch (reason) {
+        case 'offline':
+            return {
+                badge: 'Offline',
+                text: 'Sem conexão no momento. Diagnóstico 360º segue ativo.'
+            };
+        case 'no_token':
+        case 'unauthorized':
+            return {
+                badge: 'Sessão expirada',
+                text: 'Faça login novamente para atualizar os Insights IA.'
+            };
+        case 'api_key_invalid':
+        case 'not_configured':
+            return {
+                badge: 'Config. pendente',
+                text: meta?.errorMessage || 'Chave de IA não configurada ou inválida no servidor.'
+            };
+        case 'edge_not_deployed':
+            return {
+                badge: 'Config. pendente',
+                text: 'Edge Function "insights" ainda não foi publicada no seu projeto Supabase.'
+            };
+        case 'quota_exceeded':
+        case 'rate_limit':
+            return {
+                badge: 'Limite atingido',
+                text: meta?.errorMessage || 'Cota de consultas IA atingida. Tente novamente mais tarde.'
+            };
+        case 'overloaded':
+            return {
+                badge: 'Alta demanda',
+                text: meta?.errorMessage || 'Os modelos de IA estão com alta demanda agora. Toque no ícone acima para tentar.'
+            };
+        case 'timeout':
+            return {
+                badge: 'Tempo esgotado',
+                text: 'A IA demorou para responder. Toque no ícone acima para tentar novamente.'
+            };
+        default:
+            return {
+                badge: 'Indisponível',
+                text: meta?.errorMessage || 'Não foi possível gerar os insights agora. Toque no ícone acima para tentar.'
+            };
+    }
+}
+
+function _resolveMobileInsightTopic(safeType, rawText) {
+    const normalized = String(rawText || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+    let iconClass = 'fas fa-compass';
+    let tag = 'Orientação';
+    let fallbackTitle = 'Visão estratégica';
+
+    if (safeType === 'warning') {
+        iconClass = 'fas fa-triangle-exclamation';
+        tag = 'Atenção';
+        fallbackTitle = 'Ponto de atenção';
+    } else if (safeType === 'success') {
+        iconClass = 'fas fa-circle-check';
+        tag = 'Positivo';
+        fallbackTitle = 'Destaque positivo';
+    }
+
+    let title = fallbackTitle;
+    if (/atrasad|pendenc|contas? a pagar|vencid|fatura|quitacao|passivo/.test(normalized)) {
+        title = 'Prioridade de contas';
+    } else if (/consumo real|fluxo|saldo operacional|superavit|deficit|poupanca|poupou/.test(normalized)) {
+        title = 'Fluxo real do mês';
+    } else if (/invest|aporte|renda passiva|provento|dividend|reserva/.test(normalized)) {
+        title = 'Aportes e reservas';
+    } else if (/meta|objetivo|progresso/.test(normalized)) {
+        title = 'Avanço nas metas';
+    } else if (/concentra|centro de custo|categoria|emprest|maior gasto|orcamento/.test(normalized)) {
+        title = 'Foco nos gastos';
+    } else if (/receita|renda extra|bico|freela/.test(normalized)) {
+        title = 'Alavanca de renda';
+    }
+
+    return { iconClass, tag, title };
+}
+
+function _formatMobileInsightRichHtml(rawText) {
+    const normalizedText = String(rawText || '').replace(
+        /(\d+(?:\.\d{3})*(?:,\d{1,2})?)\s+(?:reais|real)\b/gi,
+        (full, numStr) => {
+            const parsed = Number(String(numStr).replace(/\./g, '').replace(',', '.'));
+            if (!Number.isFinite(parsed) || parsed < 0) return full;
+            const fixed = parsed.toFixed(2).split('.');
+            const intPart = fixed[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return `R$ ${intPart},${fixed[1]}`;
         }
-        value = parseFloat(value);
+    );
+
+    const escaped = _escapeMobileAiInsightHtml(normalizedText);
+    return escaped.replace(
+        /-?R\$\s*\d+(?:\.\d{3})*(?:,\d{1,2})?|-?R\$\s*\d+(?:,\d{1,2})?|\d+(?:[.,]\d+)?%/g,
+        (match) => `<strong class="mobile-ai-num">${match}</strong>`
+    );
+}
+
+function renderAIInsights(insights, meta) {
+    const body = document.getElementById('aiInsightsBody');
+    const card = document.getElementById('mobileAIInsightsCard');
+    if (!body) return;
+
+    const list = Array.isArray(insights) ? insights.slice(0, 3) : [];
+    const badgeEl = document.getElementById('aiInsightsSourceBadge');
+    if (badgeEl && meta && meta.source) {
+        badgeEl.textContent = meta.source === 'cache' || meta.source === 'session' ? '90d · Cache' : '90d · IA';
     }
-    const num = Number(value) || 0;
+
+    if (list.length === 0) {
+        const failure = _resolveMobileAiFailureMeta(meta);
+        if (card) card.classList.add('is-unavailable');
+        if (badgeEl) badgeEl.textContent = failure.badge;
+        body.innerHTML = `<p class="mobile-ai-empty">${_escapeMobileAiInsightHtml(failure.text)}</p>`;
+        return;
+    }
+
+    if (card) card.classList.remove('is-unavailable');
+
+    body.innerHTML = `<div class="mobile-ai-insights-list">${list.map(item => {
+        const rawType = String(item?.type || 'info').toLowerCase().trim();
+        const safeType = (rawType === 'warning' || rawType === 'success' || rawType === 'info') ? rawType : 'info';
+        const rawText = String(item?.text || '');
+        const topic = _resolveMobileInsightTopic(safeType, rawText);
+        const richHtml = _formatMobileInsightRichHtml(rawText);
+        return `<div class="mobile-ai-insight-item ${safeType}"><span class="mobile-ai-icon-wrap" aria-hidden="true"><i class="${topic.iconClass}"></i></span><div class="mobile-ai-content"><div class="mobile-ai-head"><span class="mobile-ai-title">${_escapeMobileAiInsightHtml(topic.title)}</span><span class="mobile-ai-sep" aria-hidden="true">·</span><span class="mobile-ai-tag">${_escapeMobileAiInsightHtml(topic.tag)}</span></div><span class="mobile-ai-text">${richHtml}</span></div></div>`;
+    }).join('')}</div>`;
+}
+
+function _getMobileAiSessionKey(userId) {
+    return `tonu_ai_insights_v3_${userId || 'anon'}`;
+}
+
+function _getMobileAiCooldownKey(userId) {
+    return `tonu_ai_insights_cd_v1_${userId || 'anon'}`;
+}
+
+function _readMobileAiInsightsCache(userId) {
+    const key = _getMobileAiSessionKey(userId);
+    for (const storage of [typeof sessionStorage !== 'undefined' ? sessionStorage : null, typeof localStorage !== 'undefined' ? localStorage : null]) {
+        if (!storage) continue;
+        try {
+            const raw = storage.getItem(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.insights) && parsed.insights.length > 0 && parsed.ts && (Date.now() - Number(parsed.ts)) < AI_INSIGHTS_CLIENT_TTL_MS) {
+                return parsed;
+            }
+        } catch (_) {}
+    }
+    return null;
+}
+
+function _writeMobileAiInsightsCache(userId, payload) {
+    const key = _getMobileAiSessionKey(userId);
+    const json = JSON.stringify(payload);
+    try { sessionStorage.setItem(key, json); } catch (_) {}
+    try { localStorage.setItem(key, json); } catch (_) {}
+    try { localStorage.removeItem(_getMobileAiCooldownKey(userId)); } catch (_) {}
+}
+
+function _readMobileAiInsightsCooldown(userId) {
     try {
-        const formatted = new Intl.NumberFormat("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(num);
-        return formatted.replace(/\u00A0/g, ' ');
+        const raw = localStorage.getItem(_getMobileAiCooldownKey(userId));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.ts && (Date.now() - Number(parsed.ts)) < AI_INSIGHTS_FAILURE_COOLDOWN_MS) {
+            return parsed;
+        }
+        localStorage.removeItem(_getMobileAiCooldownKey(userId));
+    } catch (_) {}
+    return null;
+}
+
+function _writeMobileAiInsightsCooldown(userId, failureMeta) {
+    const reason = String(failureMeta?.reason || '').toLowerCase();
+    if (!['quota_exceeded', 'rate_limit', 'overloaded', 'api_key_invalid', 'not_configured', 'edge_not_deployed'].includes(reason)) {
+        return;
+    }
+    try {
+        localStorage.setItem(_getMobileAiCooldownKey(userId), JSON.stringify({
+            reason,
+            errorMessage: failureMeta?.errorMessage || '',
+            ts: Date.now()
+        }));
+    } catch (_) {}
+}
+
+function _isMobileAiCacheExpired(userId) {
+    return !_readMobileAiInsightsCache(userId) && !_readMobileAiInsightsCooldown(userId);
+}
+
+function _buildMobileClientSummary() {
+    try {
+        const txs = Array.isArray(allTransactions) ? allTransactions : [];
+        let totalIncome = 0;
+        let totalExpense = 0;
+        let pendingBillsCount = 0;
+        let pendingBillsTotal = 0;
+        const catTotals = new Map();
+
+        const now = new Date();
+        const start90d = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const endOfCurrentMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+
+        txs.forEach(t => {
+            if (!t) return;
+            const txDate = String(t.date || '').slice(0, 10);
+            if (txDate && (txDate < start90d || txDate > endOfCurrentMonth)) return;
+            const amt = Math.abs(Number(t.amount || 0));
+            if (!Number.isFinite(amt) || amt <= 0) return;
+            if (!isTxPaid(t)) {
+                if (t.type === 'expense') {
+                    pendingBillsCount += 1;
+                    pendingBillsTotal += amt;
+                }
+                return;
+            }
+            if (t.type === 'income') {
+                totalIncome += amt;
+            } else if (t.type === 'expense') {
+                totalExpense += amt;
+                const matchedCat = t.category_id && Array.isArray(categories)
+                    ? categories.find(c => String(c.id) === String(t.category_id))
+                    : null;
+                const catName = matchedCat?.name || t.category || 'Outros';
+                catTotals.set(catName, (catTotals.get(catName) || 0) + amt);
+            }
+        });
+
+        const topCategories = Array.from(catTotals.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([category, total]) => ({
+                category: String(category).slice(0, 40),
+                total: Math.round(total * 100) / 100,
+                pct_of_expenses: totalExpense > 0 ? Math.round((total / totalExpense) * 100) : 0,
+                ...(totalIncome > 0 ? { pct_of_income: Math.round((total / totalIncome) * 100) } : {})
+            }));
+
+        const goalsList = Array.isArray(allGoals) ? allGoals : [];
+        const goalsProgress = goalsList.slice(0, 5).map(g => {
+            const cur = Math.max(0, Number(g.current_amount || 0));
+            const tgt = Math.max(0, Number(g.target_amount || 0));
+            return {
+                title: String(g.title || 'Meta').slice(0, 40),
+                current_amount: Math.round(cur * 100) / 100,
+                target_amount: Math.round(tgt * 100) / 100,
+                progress_pct: tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : (g.completed ? 100 : 0)
+            };
+        });
+
+        return {
+            total_income: Math.round(totalIncome * 100) / 100,
+            total_expense: Math.round(totalExpense * 100) / 100,
+            transactions_count: txs.length,
+            pending_bills_count: pendingBillsCount,
+            pending_bills_total: Math.round(pendingBillsTotal * 100) / 100,
+            top_categories: topCategories,
+            goals_count: goalsList.length,
+            goals_progress: goalsProgress
+        };
     } catch {
-        const isNegative = num < 0;
-        const parts = Math.abs(num).toFixed(2).split('.');
-        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const res = 'R$ ' + intPart + ',' + parts[1];
-        return isNegative ? '-' + res : res;
+        return null;
     }
 }
 
-function formatDate(date) {
-    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
-        return window.formatDate(date);
-    }
-    if (!date) return "--/--/----";
-    const d = new Date(typeof date === 'string' && date.length === 10 ? date + 'T12:00:00' : date);
-    return d.toLocaleDateString("pt-BR");
+async function _resolveMobileSupabaseAccessToken(forceRefreshSession) {
+    const client = (typeof window !== 'undefined' && window.supabaseClient)
+        || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+    if (!client?.auth) return '';
+
+    try {
+        if (!forceRefreshSession && typeof client.auth.getSession === 'function') {
+            const { data } = await client.auth.getSession();
+            if (data?.session?.access_token) {
+                return data.session.access_token;
+            }
+        }
+        if (typeof client.auth.refreshSession === 'function') {
+            const { data } = await client.auth.refreshSession();
+            if (data?.session?.access_token) {
+                return data.session.access_token;
+            }
+        }
+    } catch (_) {}
+    return '';
 }
 
-function toggleTheme() {
-    if (typeof window.toggleTheme === 'function' && window.toggleTheme !== toggleTheme) {
-        return window.toggleTheme();
+function _isMobileStaticOnlyHost() {
+    if (typeof window === 'undefined' || !window.location) return false;
+    const proto = String(window.location.protocol || '').toLowerCase();
+    const host = String(window.location.hostname || '').toLowerCase();
+    return proto === 'file:' || host.endsWith('.github.io');
+}
+
+function _resolveMobileInsightsSupabaseConfig() {
+    const url = String(
+        (typeof window !== 'undefined' && window.__TONU_CONFIG__?.supabaseUrl) ||
+        (typeof window !== 'undefined' && window.APP_CONFIG?.SUPABASE_URL) ||
+        (typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '') ||
+        ''
+    ).replace(/\/+$/, '');
+    const anonKey = String(
+        (typeof window !== 'undefined' && window.__TONU_CONFIG__?.supabaseAnonKey) ||
+        (typeof window !== 'undefined' && window.APP_CONFIG?.SUPABASE_ANON_KEY) ||
+        (typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : '') ||
+        ''
+    );
+    return { url, anonKey };
+}
+
+async function loadAIInsights(forceRefresh) {
+    const body = document.getElementById('aiInsightsBody');
+    if (!body) return;
+
+    const force = forceRefresh === true;
+    const uid = currentUser?.id;
+    if (!uid) {
+        renderAIInsights([], { reason: 'unauthorized' });
+        return;
     }
-    const isDark = document.body.classList.toggle("dark-theme");
-    const theme = isDark ? "dark" : "light";
-    localStorage.setItem("tonu_theme", theme);
-    const icon = document.querySelector("#themeIcon");
-    if (icon) {
-        icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+
+    if (!force) {
+        const cached = _readMobileAiInsightsCache(uid);
+        if (cached) {
+            renderAIInsights(cached.insights, { source: 'session' });
+            return;
+        }
+        const cooldown = _readMobileAiInsightsCooldown(uid);
+        if (cooldown) {
+            renderAIInsights([], cooldown);
+            return;
+        }
+    } else {
+        try { localStorage.removeItem(_getMobileAiCooldownKey(uid)); } catch (_) {}
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        renderAIInsights([], { reason: 'offline' });
+        return;
+    }
+
+    if (_mobileAiInsightsFetchInFlight && !force) return;
+    if (force && _mobileAiInsightsAbortController) {
+        try { _mobileAiInsightsAbortController.abort(); } catch (_) {}
+    }
+
+    const reqSeq = ++_mobileAiInsightsRequestSeq;
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    _mobileAiInsightsAbortController = controller;
+    let timedOut = false;
+    const abortTimer = controller ? setTimeout(() => {
+        timedOut = true;
+        try { controller.abort(); } catch (_) {}
+    }, AI_INSIGHTS_FETCH_TIMEOUT_MS) : null;
+
+    _mobileAiInsightsFetchInFlight = true;
+
+    const refreshBtn = document.getElementById('mobileAiInsightsRefreshBtn');
+    const refreshIcon = refreshBtn ? refreshBtn.querySelector('i') : null;
+    if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
+    if (force) {
+        body.innerHTML = '<p class="mobile-ai-loading">Atualizando insights com IA...</p>';
+    }
+
+    try {
+        let token = await _resolveMobileSupabaseAccessToken(false);
+        if (reqSeq !== _mobileAiInsightsRequestSeq) return;
+        if (!token) {
+            renderAIInsights([], { reason: 'no_token' });
+            return;
+        }
+
+        const base = (typeof window.getBaseUrl === 'function')
+            ? String(window.getBaseUrl() || '').replace(/\/+$/, '')
+            : '';
+        const clientSummary = _buildMobileClientSummary();
+        const isStaticHost = _isMobileStaticOnlyHost();
+        const supaCfg = _resolveMobileInsightsSupabaseConfig();
+
+        const postWithRetry = async (url, extraHeaders) => {
+            const send = (bearer) => fetch(url, {
+                method: 'POST',
+                headers: Object.assign({
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${bearer}`
+                }, extraHeaders || {}),
+                body: JSON.stringify({
+                    forceRefresh: force,
+                    clientSummary
+                }),
+                ...(controller ? { signal: controller.signal } : {})
+            });
+
+            const parseJsonSafe = async (response) => {
+                try {
+                    return await response.json();
+                } catch (_) {
+                    return null;
+                }
+            };
+
+            let res = await send(token);
+            if (reqSeq !== _mobileAiInsightsRequestSeq) return { aborted: true };
+            let data = await parseJsonSafe(res);
+            if (reqSeq !== _mobileAiInsightsRequestSeq) return { aborted: true };
+
+            if (res.status === 401 && data?.code !== 'INVALID_API_KEY') {
+                const refreshedToken = await _resolveMobileSupabaseAccessToken(true);
+                if (reqSeq !== _mobileAiInsightsRequestSeq) return { aborted: true };
+                if (refreshedToken && refreshedToken !== token) {
+                    token = refreshedToken;
+                    res = await send(token);
+                    if (reqSeq !== _mobileAiInsightsRequestSeq) return { aborted: true };
+                    data = await parseJsonSafe(res);
+                    if (reqSeq !== _mobileAiInsightsRequestSeq) return { aborted: true };
+                }
+            }
+
+            return { res, data };
+        };
+
+        let primaryFailure = null;
+        let shouldTryEdge = isStaticHost;
+
+        if (!isStaticHost) {
+            try {
+                const apiResult = await postWithRetry(`${base}/api/insights`);
+                if (apiResult.aborted) return;
+
+                const { res, data } = apiResult;
+                const insights = Array.isArray(data?.insights) ? data.insights : [];
+                if (res.ok && insights.length > 0) {
+                    _writeMobileAiInsightsCache(uid, {
+                        insights,
+                        generated_at: data.generated_at || new Date().toISOString(),
+                        ts: Date.now()
+                    });
+                    renderAIInsights(insights, { source: data?.source || 'ai' });
+                    return;
+                }
+
+                if (res.status === 401 || res.status === 429) {
+                    console.warn('[Insights IA Mobile] HTTP error:', res.status, data?.code || '', data?.error || data?.message || data);
+                    const failureMeta = {
+                        reason: data?.reason || (res.status === 401 ? 'unauthorized' : 'rate_limit'),
+                        errorMessage: data?.error || ''
+                    };
+                    _writeMobileAiInsightsCooldown(uid, failureMeta);
+                    renderAIInsights([], failureMeta);
+                    return;
+                }
+
+                primaryFailure = {
+                    status: res.status,
+                    reason: data?.reason || (data?.gemini_configured === false ? 'not_configured' : 'error'),
+                    errorMessage: data?.error || (res.status >= 500
+                        ? 'Servidor temporariamente indisponível. Toque no ícone acima para tentar.'
+                        : (data === null ? 'Rota /api/insights não retornou JSON válido neste endereço.' : ''))
+                };
+                shouldTryEdge = (
+                    res.status === 404 ||
+                    res.status >= 500 ||
+                    data === null ||
+                    data?.reason === 'not_configured' ||
+                    data?.gemini_configured === false
+                );
+            } catch (apiErr) {
+                if (reqSeq !== _mobileAiInsightsRequestSeq) return;
+                if (timedOut || apiErr?.name === 'AbortError') throw apiErr;
+                console.warn('[Insights IA Mobile] Backend local indisponível, tentando Supabase Edge Function:', apiErr);
+                shouldTryEdge = true;
+            }
+        }
+
+        if (shouldTryEdge && supaCfg.url) {
+            try {
+                // Projetos Supabase com chaves assimétricas/publishable rejeitam chaves legacy JWT no header apikey do Edge Gateway.
+                // Enviamos apikey apenas quando for sb_publishable_...; caso contrário, apenas Authorization: Bearer <userJwt>.
+                const edgeHeaders = (supaCfg.anonKey && supaCfg.anonKey.startsWith('sb_publishable_'))
+                    ? { apikey: supaCfg.anonKey }
+                    : {};
+                const edgeResult = await postWithRetry(
+                    `${supaCfg.url}/functions/v1/insights`,
+                    edgeHeaders
+                );
+                if (edgeResult.aborted) return;
+
+                const { res, data } = edgeResult;
+                const insights = Array.isArray(data?.insights) ? data.insights : [];
+                if (res.ok && insights.length > 0) {
+                    _writeMobileAiInsightsCache(uid, {
+                        insights,
+                        generated_at: data.generated_at || new Date().toISOString(),
+                        ts: Date.now()
+                    });
+                    renderAIInsights(insights, { source: data?.source || 'ai' });
+                    return;
+                }
+
+                if (res.status === 404) {
+                    const failMeta = (primaryFailure && primaryFailure.status !== 404 && primaryFailure.errorMessage)
+                        ? primaryFailure
+                        : { reason: 'edge_not_deployed' };
+                    _writeMobileAiInsightsCooldown(uid, failMeta);
+                    renderAIInsights([], failMeta);
+                    return;
+                }
+
+                console.warn('[Insights IA Mobile] Edge Function error:', res.status, data?.code || '', data?.error || data?.message || data);
+                const isInvalidApiKey = data?.code === 'INVALID_API_KEY';
+                const edgeFailureMeta = {
+                    reason: isInvalidApiKey
+                        ? 'not_configured'
+                        : (data?.reason || (res.status === 401 ? 'unauthorized' : (res.status === 503 ? 'overloaded' : (data?.gemini_configured === false ? 'not_configured' : 'error')))),
+                    errorMessage: data?.error || data?.message || (res.status >= 500 ? 'Edge Function temporariamente indisponível. Toque no ícone acima para tentar.' : '')
+                };
+                _writeMobileAiInsightsCooldown(uid, edgeFailureMeta);
+                renderAIInsights([], edgeFailureMeta);
+                return;
+            } catch (edgeErr) {
+                if (reqSeq !== _mobileAiInsightsRequestSeq) return;
+                if (timedOut || edgeErr?.name === 'AbortError') throw edgeErr;
+                console.warn('[Insights IA Mobile] Falha ao chamar Edge Function:', edgeErr);
+                if (primaryFailure && primaryFailure.status !== 404 && primaryFailure.errorMessage) {
+                    _writeMobileAiInsightsCooldown(uid, primaryFailure);
+                    renderAIInsights([], primaryFailure);
+                } else if (isStaticHost) {
+                    const failMeta = { reason: 'edge_not_deployed' };
+                    _writeMobileAiInsightsCooldown(uid, failMeta);
+                    renderAIInsights([], failMeta);
+                } else {
+                    renderAIInsights([], { reason: 'error' });
+                }
+                return;
+            }
+        }
+
+        console.warn('[Insights IA Mobile] Falha:', primaryFailure);
+        if (primaryFailure) _writeMobileAiInsightsCooldown(uid, primaryFailure);
+        renderAIInsights([], primaryFailure || { reason: 'error' });
+    } catch (err) {
+        if (reqSeq !== _mobileAiInsightsRequestSeq) return;
+        console.warn('[Insights IA Mobile] Erro de rede:', err);
+        const isTimeout = timedOut || err?.name === 'AbortError' || err?.name === 'TimeoutError';
+        renderAIInsights([], {
+            reason: (typeof navigator !== 'undefined' && navigator.onLine === false)
+                ? 'offline'
+                : (isTimeout ? 'timeout' : 'error')
+        });
+    } finally {
+        if (abortTimer) clearTimeout(abortTimer);
+        if (_mobileAiInsightsAbortController === controller) {
+            _mobileAiInsightsAbortController = null;
+        }
+        if (reqSeq === _mobileAiInsightsRequestSeq) {
+            _mobileAiInsightsFetchInFlight = false;
+            if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+        }
     }
 }
+
+function _bindMobileInsightsInteractions() {
+    const refreshBtn = document.getElementById('mobileAiInsightsRefreshBtn');
+    if (refreshBtn && !refreshBtn.dataset.boundClick) {
+        refreshBtn.dataset.boundClick = '1';
+        refreshBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadAIInsights(true);
+        });
+    }
+    if (!document.body?.dataset?.mobInsightsDelegated) {
+        if (document.body) document.body.dataset.mobInsightsDelegated = '1';
+        document.addEventListener('click', (e) => {
+            const card = e.target.closest?.('.mob-action-card[data-href]');
+            if (card) {
+                const href = card.getAttribute('data-href');
+                if (href) window.location.href = href;
+            }
+        });
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _bindMobileInsightsInteractions);
+} else {
+    _bindMobileInsightsInteractions();
+}
+
+window.renderMobileInsights = renderMobileInsights;
+window.renderMobileGoals = renderMobileGoals;
+window.loadAIInsights = loadAIInsights;
+window.renderAIInsights = renderAIInsights;
+
+// Atualiza patrimônio e metas ao retornar ao Dashboard ou alterar carteira em outra aba
+async function refreshDashboardGoalsSync() {
+    if (!currentUser) return;
+    await loadSyncedPortfolioEquity({ forceRefresh: true });
+    renderMobileGoals();
+    if (_isMobileAiCacheExpired(currentUser.id)) {
+        loadAIInsights(false).catch(() => {});
+    }
+}
+
+let _refreshTimer = null;
+function debouncedRefreshDashboard() {
+    clearTimeout(_refreshTimer);
+    _refreshTimer = setTimeout(() => {
+        refreshDashboardGoalsSync().catch(() => {});
+    }, 800);
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && currentUser) {
+        debouncedRefreshDashboard();
+    }
+});
+
+window.addEventListener("focus", () => {
+    if (currentUser) {
+        debouncedRefreshDashboard();
+    }
+});
+
+window.addEventListener("storage", (e) => {
+    if (e.key && (e.key.includes("tonu_total_equity") || e.key.includes("tonu_investments") || e.key.includes("tonu_goals"))) {
+        refreshDashboardGoalsSync().catch(() => {});
+    }
+});
+
+window.addEventListener("tonu_portfolio_updated", () => {
+    refreshDashboardGoalsSync().catch(() => {});
+});
 
 console.log("✅ Mobile Dashboard pronto!");

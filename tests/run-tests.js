@@ -80,6 +80,24 @@ async function main() {
         }
     });
 
+    console.log('');
+
+    // 5. Colisões de escopo global
+    console.log('🛡️ [5/5] Executando Testes de Colisão de Escopo Global...');
+    const { runTest: runGlobalScopeTest } = require('./global-scope.test');
+    const gsResults = runGlobalScopeTest();
+    gsResults.forEach(r => {
+        totalTests++;
+        if (r.passed) {
+            passedTests++;
+            console.log(`   ✅ PASS: ${r.name}`);
+        } else {
+            failedTests++;
+            console.error(`   ❌ FAIL: ${r.name} - ${r.error}`);
+        }
+    });
+    console.log('');
+
     const duration = Date.now() - startTime;
 
     console.log('\n------------------------------------------------------');

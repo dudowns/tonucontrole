@@ -779,7 +779,7 @@
             const modalHtml = `
             <div id="tonuPinLockModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.92); z-index:99999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(10px); font-family:'Inter',sans-serif;">
                 <div style="background:#ffffff; border-radius:24px; max-width:360px; width:100%; padding:32px 24px; text-align:center; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
-                    <div style="width:64px; height:64px; border-radius:50%; background:rgba(108,92,231,0.12); color:#6c5ce7; display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 16px auto;">
+                    <div style="width:64px; height:64px; border-radius:50%; background:rgba(67,56,202,0.12); color:#4338CA; display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 16px auto;">
                         <i class="fas fa-lock"></i>
                     </div>
                     <h2 style="font-size:20px; font-weight:800; color:#0f172a; margin:0 0 6px 0;">Aplicativo Bloqueado</h2>
@@ -798,7 +798,7 @@
                                 ${num}
                             </button>
                         `).join('')}
-                        <button type="button" onclick="TonuSecurity.handleBiometricQuickUnlock()" style="height:54px; font-size:18px; border-radius:14px; border:1px solid #e2e8f0; background:#f0edff; color:#6c5ce7; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Desbloquear com Biometria">
+                        <button type="button" onclick="TonuSecurity.handleBiometricQuickUnlock()" style="height:54px; font-size:18px; border-radius:14px; border:1px solid #C7D2FE; background:#EEF2FF; color:#4338CA; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Desbloquear com Biometria">
                             <i class="fas fa-fingerprint"></i>
                         </button>
                         <button type="button" onclick="TonuSecurity.handlePinInput('0')" style="height:54px; font-size:20px; font-weight:700; border-radius:14px; border:1px solid #e2e8f0; background:#f8fafc; color:#0f172a; cursor:pointer;">
@@ -884,8 +884,8 @@
             const dots = document.querySelectorAll('#pinDotsDisplay .pin-dot');
             dots.forEach((dot, index) => {
                 if (index < this.enteredPin.length) {
-                    dot.style.background = '#6c5ce7';
-                    dot.style.borderColor = '#6c5ce7';
+                    dot.style.background = '#4338CA';
+                    dot.style.borderColor = '#4338CA';
                     dot.style.transform = 'scale(1.2)';
                 } else {
                     dot.style.background = 'transparent';

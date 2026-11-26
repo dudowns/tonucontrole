@@ -61,8 +61,33 @@ if ('serviceWorker' in navigator && window.location.protocol.startsWith('http'))
           });
         }
       });
+
+      // Limpeza forçada do app badge no iOS ao registrar
+      if ('clearAppBadge' in navigator) {
+        navigator.clearAppBadge().catch(() => {});
+      }
+      if (registration.active) {
+        registration.active.postMessage({ type: 'CLEAR_APP_BADGE' });
+      }
     }).catch((err) => {
       console.warn('⚠️ Falha ao registrar ServiceWorker:', err);
     });
+  });
+
+  // Forçar limpeza do App Badge ao abrir o app ou voltar ao primeiro plano (iOS / Safari PWA)
+  function forceClearPwaBadge() {
+    if ('clearAppBadge' in navigator) {
+      navigator.clearAppBadge().catch(() => {});
+    }
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_APP_BADGE' });
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', forceClearPwaBadge);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      forceClearPwaBadge();
+    }
   });
 }

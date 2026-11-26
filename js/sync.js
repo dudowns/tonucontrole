@@ -29,13 +29,160 @@
                 this.setupNetworkListeners();
                 this.setupServiceWorkerSync();
                 this.setupVisibilityListeners();
+                this.ensureSyncStyles();
+
+                if (typeof document !== 'undefined') {
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', () => this.updateSyncBadgeUI());
+                    } else {
+                        setTimeout(() => this.updateSyncBadgeUI(), 200);
+                    }
+                }
 
                 if (this.isOnline) {
                     setTimeout(() => this.flushQueue(), 1500);
+                } else {
+                    this.updateSyncBadgeUI();
                 }
             } catch (err) {
                 console.error('❌ Erro ao inicializar TonuSyncManager:', err);
             }
+        }
+
+        ensureSyncStyles() {
+            if (typeof document === 'undefined') return;
+            if (!document.querySelector('link[href*="sync-status.css"]')) {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                const pathname = (typeof window !== 'undefined' && window.location.pathname) ? window.location.pathname : '';
+                let prefix = './css/';
+                if (pathname.includes('/pages/mobile/')) {
+                    prefix = '../../css/';
+                } else if (pathname.includes('/pages/')) {
+                    prefix = '../css/';
+                }
+                link.href = prefix + 'sync-status.css';
+                document.head.appendChild(link);
+            }
+        }
+
+        async updateSyncBadgeUI() {
+            if (typeof document === 'undefined') return;
+            this.ensureSyncStyles();
+
+            let pendingCount = 0;
+            try {
+                pendingCount = await this.getPendingCount();
+            } catch (_) {}
+
+            // Garante que a fila de sincronização NUNCA sobrescreva o badge do ícone do SO
+            if (typeof navigator !== 'undefined') {
+                try {
+                    if ('clearAppBadge' in navigator && pendingCount === 0) {
+                        navigator.clearAppBadge().catch(() => {});
+                        if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('tonu:sync-queue-empty'));
+                        }
+                    }
+                } catch (_) {}
+            }
+
+            // Limpar botão antigo de 36x36 se existir
+            const oldBtn = document.getElementById('tonuSyncIndicator');
+            if (oldBtn) oldBtn.remove();
+
+            // Garantir avatar no mobile topbar se não houver avatar na tela
+            const mobileActions = document.querySelector('.mobile-topbar .topbar-actions');
+            if (mobileActions && !document.getElementById('mobileTopAvatar')) {
+                const mobAvatar = document.createElement('div');
+                mobAvatar.id = 'mobileTopAvatar';
+                mobAvatar.className = 'mobile-topbar-avatar';
+                mobAvatar.title = 'Perfil e Status de Sincronização';
+                mobAvatar.style.cssText = 'width:30px; height:30px; border-radius:50%; background:var(--color-primary-bg, #EEF2FF); color:#4338CA; font-weight:700; font-size:12px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; position:relative; margin-left:4px;';
+                mobAvatar.textContent = 'U';
+                mobAvatar.onclick = (e) => this.showStatusToast(e);
+                mobileActions.appendChild(mobAvatar);
+            }
+
+            // Selecionar todos os avatares / ícones de perfil presentes (PC e Mobile)
+            const targets = document.querySelectorAll('#sidebarUserAvatar, #mobileTopAvatar, #mobileUserAvatar, .avatar-circle, .mobile-avatar-wrapper, #sidebarUserProfile');
+            if (!targets || targets.length === 0) return;
+
+            let statusClass = 'online';
+            let titleText = '100% Sincronizado com a nuvem';
+
+            if (this.isSyncing) {
+                statusClass = 'syncing';
+                titleText = 'Sincronizando com a nuvem...';
+            } else if (pendingCount > 0) {
+                statusClass = 'pending';
+                titleText = `${pendingCount} alteração(ões) pendente(s) (Clique para sincronizar)`;
+            } else if (!this.isOnline) {
+                statusClass = 'offline';
+                titleText = 'Modo Offline (Alterações salvas localmente)';
+            }
+
+            targets.forEach(container => {
+                // Aplica posição relativa
+                if (window.getComputedStyle(container).position === 'static') {
+                    container.style.position = 'relative';
+                }
+
+                let dot = container.querySelector('.sync-dot-badge');
+                if (!dot) {
+                    dot = document.createElement('span');
+                    dot.className = 'sync-dot-badge';
+                    container.appendChild(dot);
+                }
+
+                dot.className = `sync-dot-badge ${statusClass}`;
+                dot.title = titleText;
+                dot.onclick = (e) => this.showStatusToast(e);
+
+                // Permite clicar no próprio avatar para exibir o toast de status
+                if (!container.dataset.syncClickAttached) {
+                    container.dataset.syncClickAttached = 'true';
+                    container.addEventListener('click', (e) => {
+                        // Se for clique no avatar, exibe toast discreto
+                        if (e.target === container || e.target.classList?.contains('sync-dot-badge') || e.target.closest?.('.sync-dot-badge')) {
+                            this.showStatusToast(e);
+                        }
+                    });
+                }
+            });
+        }
+
+        async showStatusToast(e) {
+            if (e) {
+                e.stopPropagation();
+            }
+            try {
+                const pendingCount = await this.getPendingCount();
+                if (this.isSyncing) {
+                    if (typeof showToast === 'function') {
+                        showToast('🔄 Sincronizando dados com a nuvem...', 'info');
+                    }
+                } else if (pendingCount > 0) {
+                    if (this.isOnline) {
+                        this.flushQueue();
+                        if (typeof showToast === 'function') {
+                            showToast(`⚡ ${pendingCount} alteração(ões) pendente(s). Sincronizando agora...`, 'info');
+                        }
+                    } else {
+                        if (typeof showToast === 'function') {
+                            showToast(`📶 Modo Offline: ${pendingCount} alteração(ões) salva(s) no aparelho.`, 'warning');
+                        }
+                    }
+                } else if (!this.isOnline) {
+                    if (typeof showToast === 'function') {
+                        showToast('📶 Modo Offline: alterações salvas no aparelho.', 'error');
+                    }
+                } else {
+                    if (typeof showToast === 'function') {
+                        showToast('✅ Tudo em dia! Dados 100% sincronizados.', 'success');
+                    }
+                }
+            } catch (_) {}
         }
 
         // ==================================================================
@@ -75,6 +222,26 @@
         async enqueue(action, data) {
             if (!this.db) await this.openDatabase();
 
+            // Guarda 2: Idempotência para UPDATE_BILL
+            // Se já existe um UPDATE_BILL pendente para o mesmo bill.id, substitui em vez de empilhar
+            let existingQueueId = null;
+            if (action === 'UPDATE_BILL' && data && data.id) {
+                try {
+                    const queue = await this.getQueue();
+                    const existing = queue.find(q =>
+                        q.action === 'UPDATE_BILL' &&
+                        q.status === 'pending' &&
+                        q.data &&
+                        String(q.data.id) === String(data.id)
+                    );
+                    if (existing && existing.id) {
+                        existingQueueId = existing.id;
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Erro ao verificar idempotência na fila de sync:', e);
+                }
+            }
+
             let payloadToStore = data;
             if (window.TonuCrypto && typeof window.TonuCrypto.encrypt === 'function') {
                 try {
@@ -92,15 +259,20 @@
                 status: 'pending'
             };
 
+            if (existingQueueId !== null) {
+                item.id = existingQueueId;
+            }
+
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction([QUEUE_STORE], 'readwrite');
                 const store = tx.objectStore(QUEUE_STORE);
-                const req = store.add(item);
+                const req = existingQueueId !== null ? store.put(item) : store.add(item);
 
                 req.onsuccess = (e) => {
                     item.id = e.target.result;
-                    console.log(`📥 Operação offline enfileirada e protegida [ID: ${item.id}]:`, action);
+                    console.log(`📥 Operação offline ${existingQueueId !== null ? 'substituída (idempotente)' : 'enfileirada e protegida'} [ID: ${item.id}]:`, action);
                     this.requestBackgroundSync();
+                    this.updateSyncBadgeUI();
 
                     if (typeof showToast === 'function') {
                         if (!navigator.onLine) {
@@ -160,6 +332,17 @@
             });
         }
 
+        async updateQueueItem(item) {
+            if (!this.db || !item || !item.id) return;
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction([QUEUE_STORE], 'readwrite');
+                const store = tx.objectStore(QUEUE_STORE);
+                const req = store.put(item);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
         async clearQueue() {
             if (!this.db) return;
             return new Promise((resolve, reject) => {
@@ -183,6 +366,7 @@
 
             this.isSyncing = true;
             console.log(`🔄 Iniciando sincronização de ${pending.length} itens pendentes...`);
+            this.updateSyncBadgeUI();
 
             let successCount = 0;
             let failureCount = 0;
@@ -196,14 +380,28 @@
                     } else {
                         item.retries = (item.retries || 0) + 1;
                         failureCount++;
+                        if (item.retries >= 3) {
+                            console.warn(`⚠️ Item #${item.id} (${item.action}) atingiu limite de tentativas e foi removido da fila.`);
+                            await this.removeQueueItem(item.id);
+                        } else {
+                            await this.updateQueueItem(item);
+                        }
                     }
                 } catch (err) {
-                    console.error(`❌ Erro ao sincronizar item #${item.id}:`, err);
+                    console.error(`❌ Erro ao sincronizar item #${item.id}:`, err?.message || err);
                     failureCount++;
+                    item.retries = (item.retries || 0) + 1;
+                    if (item.retries >= 3) {
+                        console.warn(`⚠️ Item #${item.id} (${item.action}) falhou permanentemente e foi desempilhado da fila.`);
+                        await this.removeQueueItem(item.id);
+                    } else {
+                        await this.updateQueueItem(item);
+                    }
                 }
             }
 
             this.isSyncing = false;
+            this.updateSyncBadgeUI();
 
             if (successCount > 0) {
                 console.log(`✅ Sincronização concluída: ${successCount} ações sincronizadas`);
@@ -213,12 +411,13 @@
                         window.billNotificationManager.playChime();
                     }
                 }
-                if (typeof window.loadDashboard === 'function') window.loadDashboard();
+                if (typeof window.loadDashboard === 'function') window.loadDashboard({ forceRefresh: true });
                 if (typeof window.loadTransactions === 'function') window.loadTransactions();
                 if (typeof window.loadBills === 'function') window.loadBills();
                 if (typeof window.loadGoals === 'function') window.loadGoals();
                 if (typeof window.refreshDashboard === 'function') window.refreshDashboard();
                 if (typeof window.loadAllInvestmentData === 'function') window.loadAllInvestmentData();
+                if (typeof window.loadMobileData === 'function') window.loadMobileData({ forceRefresh: true });
             }
         }
 
@@ -233,6 +432,40 @@
                 delete copy.id;
             }
             return copy;
+        }
+
+        // Helper para sanitizar colunas enviadas para a tabela transactions do Supabase
+        _filterTransactionColumns(record) {
+            if (!record || typeof record !== 'object') return record;
+            // Campos canônicos aceitos pela tabela transactions no Supabase
+            const allowed = [
+                'id', 'user_id', 'description', 'amount', 'type', 'date',
+                'category_id', 'paid', 'paid_date', 'is_bill', 'due_date',
+                'parent_transaction_id', 'is_anticipation', 'amount_paid',
+                'notes', 'tags', 'created_at'
+            ];
+            const filtered = {};
+            for (const key of allowed) {
+                if (record[key] !== undefined) {
+                    filtered[key] = record[key];
+                }
+            }
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (filtered.category_id && !uuidRegex.test(String(filtered.category_id))) {
+                delete filtered.category_id;
+            }
+            return filtered;
+        }
+
+        // Helper para extrair nome da coluna inexistente em erros 400/42703/PGRST104
+        _extractMissingColumn(error) {
+            if (!error) return null;
+            const msg = ((error.message || '') + ' ' + (error.details || '') + ' ' + (error.hint || ''));
+            const match1 = msg.match(/column ["']?([a-zA-Z0-9_]+)["']? of relation/i);
+            if (match1 && match1[1]) return match1[1];
+            const match2 = msg.match(/Could not find the ['"]?([a-zA-Z0-9_]+)['"]? column/i);
+            if (match2 && match2[1]) return match2[1];
+            return null;
         }
 
         // Helper para identificar erros de chave duplicada / conflito no banco (409 / 23505)
@@ -284,38 +517,68 @@
                 case 'INSERT_BILL': {
                     const cleanData = this._sanitizeForInsert(data);
                     const rawPayload = Array.isArray(cleanData) ? cleanData : [cleanData];
-                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                    const payload = rawPayload.map(item => {
-                        const copy = { ...item };
-                        if (copy.category_id && !uuidRegex.test(String(copy.category_id))) {
-                            delete copy.category_id;
+                    let payload = rawPayload.map(item => this._filterTransactionColumns(item));
+
+                    let insertSucceeded = false;
+                    for (let attempt = 0; attempt < 4; attempt++) {
+                        const { error } = await window.supabaseClient.from('transactions').insert(payload);
+                        if (!error) {
+                            insertSucceeded = true;
+                            break;
                         }
-                        return copy;
-                    });
-                    const { error } = await window.supabaseClient.from('transactions').insert(payload);
-                    if (error) {
                         if (this._isDuplicateOrConflictError(error)) {
                             console.warn('⚠️ Transação já cadastrada na nuvem (409/23505). Marcando como sincronizada.');
-                            return true;
+                            insertSucceeded = true;
+                            break;
                         }
+
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol) {
+                            console.warn(`⚠️ Coluna '${missingCol}' ausente no Supabase. Removendo do payload e retentando...`);
+                            payload = payload.map(item => {
+                                const copy = { ...item };
+                                delete copy[missingCol];
+                                return copy;
+                            });
+                            continue;
+                        }
+
+                        console.error('❌ Erro Supabase insert:', error.message || error.details || error);
                         throw error;
                     }
-                    return true;
+                    return insertSucceeded;
                 }
                 case 'UPDATE_TRANSACTION':
                 case 'UPDATE_BILL': {
                     const { id, ...updates } = data;
-                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                    if (updates.category_id && !uuidRegex.test(String(updates.category_id))) {
-                        delete updates.category_id;
+                    let filteredUpdates = this._filterTransactionColumns(updates);
+                    delete filteredUpdates.id;
+                    delete filteredUpdates.user_id;
+                    delete filteredUpdates.created_at;
+
+                    let updateSucceeded = false;
+                    for (let attempt = 0; attempt < 4; attempt++) {
+                        const { error } = await window.supabaseClient
+                            .from('transactions')
+                            .update(filteredUpdates)
+                            .eq('id', id)
+                            .eq('user_id', userId);
+
+                        if (!error) {
+                            updateSucceeded = true;
+                            break;
+                        }
+
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol && filteredUpdates[missingCol] !== undefined) {
+                            console.warn(`⚠️ Coluna '${missingCol}' ausente no Supabase para update. Removendo e retentando...`);
+                            delete filteredUpdates[missingCol];
+                            continue;
+                        }
+
+                        throw error;
                     }
-                    const { error } = await window.supabaseClient
-                        .from('transactions')
-                        .update(updates)
-                        .eq('id', id)
-                        .eq('user_id', userId);
-                    if (error) throw error;
-                    return true;
+                    return updateSucceeded;
                 }
                 case 'DELETE_TRANSACTION':
                 case 'DELETE_BILL': {
@@ -339,7 +602,8 @@
 
                     if (paymentData) {
                         const cleanPayment = this._sanitizeForInsert(paymentData);
-                        const { error: insertErr } = await window.supabaseClient.from('transactions').insert([cleanPayment]);
+                        const filteredPayment = this._filterTransactionColumns(cleanPayment);
+                        const { error: insertErr } = await window.supabaseClient.from('transactions').insert([filteredPayment]);
                         if (insertErr && !this._isDuplicateOrConflictError(insertErr)) {
                             throw insertErr;
                         }
@@ -347,26 +611,51 @@
                     return true;
                 }
                 case 'INSERT_GOAL': {
-                    const cleanData = this._sanitizeForInsert(data);
-                    const { error } = await window.supabaseClient.from('goals').insert(Array.isArray(cleanData) ? cleanData : [cleanData]);
-                    if (error) {
-                        if (this._isDuplicateOrConflictError(error)) {
-                            console.warn('⚠️ Meta já cadastrada na nuvem (409/23505). Marcando como sincronizada.');
-                            return true;
+                    let cleanData = this._sanitizeForInsert(data);
+                    let payload = Array.isArray(cleanData) ? cleanData : [cleanData];
+                    let insertSucceeded = false;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        const { error } = await window.supabaseClient.from('goals').insert(payload);
+                        if (!error || this._isDuplicateOrConflictError(error)) {
+                            insertSucceeded = true;
+                            break;
+                        }
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol) {
+                            payload = payload.map(item => {
+                                const copy = { ...item };
+                                delete copy[missingCol];
+                                return copy;
+                            });
+                            continue;
                         }
                         throw error;
                     }
-                    return true;
+                    return insertSucceeded;
                 }
+                case 'RENEW_GOAL':
                 case 'UPDATE_GOAL': {
                     const { id, ...updates } = data;
-                    const { error } = await window.supabaseClient
-                        .from('goals')
-                        .update(updates)
-                        .eq('id', id)
-                        .eq('user_id', userId);
-                    if (error) throw error;
-                    return true;
+                    let payload = { ...updates };
+                    let updateSucceeded = false;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        const { error } = await window.supabaseClient
+                            .from('goals')
+                            .update(payload)
+                            .eq('id', id)
+                            .eq('user_id', userId);
+                        if (!error) {
+                            updateSucceeded = true;
+                            break;
+                        }
+                        const missingCol = this._extractMissingColumn(error);
+                        if (missingCol) {
+                            delete payload[missingCol];
+                            continue;
+                        }
+                        throw error;
+                    }
+                    return updateSucceeded;
                 }
                 case 'DELETE_GOAL': {
                     const targetId = data.id || data;
@@ -484,7 +773,7 @@
         // 4. CANONICAL INDEXEDDB ENTITY CACHE (PARTE 4, 7, 8)
         // ==================================================================
         async setEntityCache(key, data) {
-            if (!this.db) await this.openDatabase();
+            if (!this.db) this.db = await this.openDatabase();
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction([CACHE_STORE], 'readwrite');
                 const store = tx.objectStore(CACHE_STORE);
@@ -495,7 +784,7 @@
         }
 
         async getEntityCache(key) {
-            if (!this.db) await this.openDatabase();
+            if (!this.db) this.db = await this.openDatabase();
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction([CACHE_STORE], 'readonly');
                 const store = tx.objectStore(CACHE_STORE);
@@ -617,6 +906,7 @@
             window.addEventListener('online', () => {
                 this.isOnline = true;
                 console.log('🌐 Conexão de rede restaurada! Online.');
+                this.updateSyncBadgeUI();
                 if (typeof showToast === 'function') {
                     showToast('🌐 Conexão restaurada! Sincronizando...', 'info');
                 }
@@ -626,6 +916,7 @@
             window.addEventListener('offline', () => {
                 this.isOnline = false;
                 console.log('📶 Você está offline no momento.');
+                this.updateSyncBadgeUI();
                 if (typeof showToast === 'function') {
                     showToast('📶 Modo Offline ativo. Todas as alterações serão salvas localmente.', 'warning');
                 }

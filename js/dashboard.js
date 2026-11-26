@@ -4,6 +4,17 @@
 
 console.log('📊 Dashboard.js carregado');
 
+// Aliases de helpers globais (definidos em js/core.js)
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+var getToday = window.getToday;
+var sanitizeString = window.sanitizeString;
+
+const _dashCache = { key: null, ts: 0, payload: null };
+const DASH_CACHE_TTL_MS = 90 * 1000;
+
 // BRAPI_TOKEN
 var BRAPI_TOKEN = (typeof window !== 'undefined' && window.BRAPI_TOKEN)
     || (window.__TONU_CONFIG__ && window.__TONU_CONFIG__.brapiToken)
@@ -83,40 +94,6 @@ function getMonthName(month) {
     return months[month];
 }
 
-function formatCurrency(value) {
-    if (typeof window.formatCurrency === 'function' && window.formatCurrency !== formatCurrency) {
-        return window.formatCurrency(value);
-    }
-    if (value === null || value === undefined || value === '') {
-        value = 0;
-    }
-    if (typeof value === 'string') {
-        const cleaned = value.replace(/[R$\s]/g, '');
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-            value = cleaned.replace(/\./g, '').replace(',', '.');
-        } else if (cleaned.includes(',')) {
-            value = cleaned.replace(',', '.');
-        }
-        value = parseFloat(value);
-    }
-    const num = Number(value) || 0;
-    try {
-        const formatted = new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(num);
-        return formatted.replace(/\u00A0/g, ' ');
-    } catch {
-        const isNegative = num < 0;
-        const parts = Math.abs(num).toFixed(2).split('.');
-        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const res = 'R$ ' + intPart + ',' + parts[1];
-        return isNegative ? '-' + res : res;
-    }
-}
-
 function parseBrazilianNumber(value) {
     if (value === null || value === undefined || value === '') return 0;
     if (typeof value === 'number') return isNaN(value) ? 0 : value;
@@ -141,26 +118,6 @@ function parseBrazilianNumber(value) {
     return isNaN(parsed) ? 0 : parsed;
 }
 
-function formatDate(date, format = 'short') {
-    if (typeof window.formatDate === 'function' && window.formatDate !== formatDate) {
-        return window.formatDate(date, format);
-    }
-    if (!date) return '--/--/----';
-    const str = String(date).trim();
-    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-        const parts = str.substring(0, 10).split('-');
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return str || '--/--/----';
-    return d.toLocaleDateString('pt-BR');
-}
-
-function getToday() {
-    const now = new Date();
-    return (typeof now.toLocaleDateString === 'function') ? now.toLocaleDateString('sv') : now.toISOString().split('T')[0];
-}
-
 function stripHTML(str) {
     if (!str) return '';
     const temp = document.createElement('div');
@@ -176,9 +133,25 @@ function updateMonthDisplay(elementId, offset) {
     const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
     ];
+    const label = `${months[d.getMonth()]} de ${d.getFullYear()}`;
     const el = document.getElementById(elementId);
     if (el) {
-        el.textContent = months[d.getMonth()] + ' ' + d.getFullYear();
+        el.textContent = label;
+    }
+    const catBadge = document.getElementById('categoryMonthBadge');
+    if (catBadge) {
+        catBadge.textContent = label;
+    }
+    const insBadge = document.getElementById('insightsMonthBadge');
+    if (insBadge) {
+        insBadge.textContent = label;
+    }
+    const todayBtn = document.getElementById('goCurrentMonthBtn');
+    if (todayBtn && todayBtn.classList) {
+        todayBtn.classList.toggle('visible', Number(offset) !== 0);
+    }
+    if (typeof _syncMonthYearPickerView === 'function') {
+        _syncMonthYearPickerView();
     }
     return d;
 }
@@ -832,6 +805,19 @@ function updateBalanceVisibilityUI() {
             el.textContent = el.dataset.realValue;
         }
     });
+
+    if (typeof document.querySelectorAll === 'function') {
+        document.querySelectorAll('.sensitive-goal-amount').forEach(el => {
+            if (isHidden) {
+                if (!el.dataset.realHtml && !el.textContent.includes('•••')) {
+                    el.dataset.realHtml = el.innerHTML;
+                }
+                el.textContent = 'R$ ••••••';
+            } else if (el.dataset.realHtml) {
+                el.innerHTML = el.dataset.realHtml;
+            }
+        });
+    }
 }
 
 function toggleBalanceVisibility() {
@@ -889,6 +875,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Inicializando Dashboard...');
 
     try {
+        initMonthYearPicker();
+        updateMonthDisplay('selectedMonth', currentMonthOffset);
+    } catch (_) {}
+
+    const urlSearch = window.location.search || '';
+    const urlHash = window.location.hash || '';
+    const searchParams = new URLSearchParams(urlSearch);
+    const oauthCode = searchParams.get('code');
+    const hadOAuthParams = Boolean(oauthCode || urlHash.includes('access_token=') || searchParams.get('error'));
+
+    try {
         let user = null;
         if (window.getAuthenticatedUser) {
             user = await window.getAuthenticatedUser();
@@ -899,6 +896,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const { data: sessData } = await supabaseClient.auth.getSession();
                 user = sessData?.session?.user;
+                if (!user && oauthCode && supabaseClient.auth.exchangeCodeForSession) {
+                    const { data: exData } = await supabaseClient.auth.exchangeCodeForSession(oauthCode);
+                    user = exData?.user || exData?.session?.user;
+                }
                 if (!user) {
                     const { data: userData } = await supabaseClient.auth.getUser();
                     user = userData?.user;
@@ -921,10 +922,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         if (!user) {
+            window.TonuPostLoginTransition?.complete({ forceImmediate: true });
             window.location.href = '../index.html';
             return;
         }
+        if (hadOAuthParams && window.history?.replaceState) {
+            try { window.history.replaceState({}, document.title, window.location.pathname); } catch (_) {}
+        }
         currentUser = user;
+        window.TonuPostLoginTransition?.updateUser(currentUser);
+        window.TonuPostLoginTransition?.setStage('Sincronizando suas contas e lançamentos...');
         console.log('✅ Usuario autenticado:', currentUser.email);
     } catch (e) {
         console.error('❌ Erro na autenticacao:', e);
@@ -936,16 +943,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (_) {}
         }
         if (!currentUser) {
+            window.TonuPostLoginTransition?.complete({ forceImmediate: true });
             window.location.href = '../index.html';
             return;
         }
+        window.TonuPostLoginTransition?.updateUser(currentUser);
     }
 
-    await loadUserProfile();
-    await loadCategories();
-    updateMonthDisplay('selectedMonth', currentMonthOffset);
-    await loadDashboard();
-    updateBalanceVisibilityUI();
+    try {
+        await loadUserProfile();
+        await loadCategories();
+        updateMonthDisplay('selectedMonth', currentMonthOffset);
+        await loadDashboard();
+        updateBalanceVisibilityUI();
+    } catch (err) {
+        console.warn('⚠️ Erro parcial ao carregar dashboard:', err);
+    } finally {
+        window.TonuPostLoginTransition?.complete();
+    }
 
     // 🔥 LAZY LOADING DOS GRÁFICOS
     loadChartsLazy();
@@ -956,28 +971,135 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ============================================
-// MÊS
+// MÊS & ANO UNIFICADOS
 // ============================================
-function changeMonth(dir) {
-    currentMonthOffset += Number(dir) || 0;
+let _monthPickerYear = new Date().getFullYear();
+let _monthPickerBound = false;
+
+function _renderMonthYearGrid() {
+    const yearLabel = document.getElementById('pickerYearLabel');
+    const grid = document.getElementById('monthsGrid12');
+    if (yearLabel) yearLabel.textContent = String(_monthPickerYear);
+    if (!grid) return;
+
+    const now = new Date();
+    const sel = new Date(now.getFullYear(), now.getMonth() + currentMonthOffset, 1);
+    const shortMonths = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+    grid.innerHTML = '';
+    shortMonths.forEach((label, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'month-grid-item';
+        if (_monthPickerYear === sel.getFullYear() && idx === sel.getMonth()) {
+            btn.classList.add('active');
+        }
+        btn.textContent = label;
+        btn.addEventListener('click', () => {
+            const targetOffset = (_monthPickerYear - now.getFullYear()) * 12 + (idx - now.getMonth());
+            _closeMonthYearPopover();
+            setMonthOffset(targetOffset);
+        });
+        grid.appendChild(btn);
+    });
+}
+
+function _syncMonthYearPickerView() {
+    const now = new Date();
+    const sel = new Date(now.getFullYear(), now.getMonth() + currentMonthOffset, 1);
+    _monthPickerYear = sel.getFullYear();
+    _renderMonthYearGrid();
+}
+
+function _closeMonthYearPopover() {
+    const pop = document.getElementById('monthYearPopover');
+    const trig = document.getElementById('monthYearTrigger');
+    if (pop && pop.classList) pop.classList.remove('open');
+    if (trig && trig.setAttribute) trig.setAttribute('aria-expanded', 'false');
+}
+
+function initMonthYearPicker() {
+    if (_monthPickerBound) return;
+    _monthPickerBound = true;
+
+    const trigger = document.getElementById('monthYearTrigger');
+    const popover = document.getElementById('monthYearPopover');
+    const prevY = document.getElementById('prevYearBtn');
+    const nextY = document.getElementById('nextYearBtn');
+
+    if (trigger && popover) {
+        trigger.addEventListener('click', (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            const isOpen = popover.classList.contains('open');
+            if (isOpen) {
+                _closeMonthYearPopover();
+            } else {
+                _syncMonthYearPickerView();
+                popover.classList.add('open');
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+        });
+    }
+
+    if (prevY) {
+        prevY.addEventListener('click', (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            _monthPickerYear -= 1;
+            _renderMonthYearGrid();
+        });
+    }
+
+    if (nextY) {
+        nextY.addEventListener('click', (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            _monthPickerYear += 1;
+            _renderMonthYearGrid();
+        });
+    }
+
+    if (popover) {
+        popover.addEventListener('click', (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!e?.target?.closest?.('.month-selector-capsule')) {
+            _closeMonthYearPopover();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e && e.key === 'Escape') {
+            _closeMonthYearPopover();
+        }
+    });
+
+    _syncMonthYearPickerView();
+}
+
+function setMonthOffset(offset) {
+    currentMonthOffset = Number(offset) || 0;
     updateMonthDisplay('selectedMonth', currentMonthOffset);
-    loadDashboard();
+    loadDashboard({ forceRefresh: true });
     if (typeof loadCategoryChart === 'function') loadCategoryChart();
     if (typeof loadMonthlyChart === 'function') loadMonthlyChart();
     loadInsights();
 }
 
+function changeMonth(dir) {
+    _closeMonthYearPopover();
+    setMonthOffset(currentMonthOffset + (Number(dir) || 0));
+}
+
 function goToCurrentMonth() {
-    currentMonthOffset = 0;
-    updateMonthDisplay('selectedMonth', currentMonthOffset);
-    loadDashboard();
-    if (typeof loadCategoryChart === 'function') loadCategoryChart();
-    if (typeof loadMonthlyChart === 'function') loadMonthlyChart();
-    loadInsights();
+    _closeMonthYearPopover();
+    setMonthOffset(0);
 }
 
 window.changeMonth = changeMonth;
 window.goToCurrentMonth = goToCurrentMonth;
+window.setMonthOffset = setMonthOffset;
 
 // ============================================
 // AUXILIARES DE TRANSAÇÕES UNIFICADAS & SYNC
@@ -1126,8 +1248,180 @@ async function syncLocalTransactionsToSupabase() {
 // ============================================
 // CARREGAR DASHBOARD
 // ============================================
-async function loadDashboard() {
+function _applyDashboardSummaryCards(currentTxs, prevTxs) {
+    let currentIncome = 0;
+    let currentExpense = 0;
+    let prevIncome = 0;
+    let prevExpense = 0;
+    const bills = [];
+
+    (currentTxs || []).forEach(t => {
+        if (!t) return;
+        const amt = Math.abs(Number(t.amount || 0));
+        if (isNaN(amt) || amt <= 0) return;
+        const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+
+        if (t.type === 'income') {
+            if (isPaid) {
+                currentIncome += amt;
+            }
+        } else if (t.type === 'expense') {
+            if (isPaid) {
+                currentExpense += amt;
+            } else {
+                bills.push(t);
+            }
+        }
+    });
+
+    (prevTxs || []).forEach(t => {
+        if (!t) return;
+        const amt = Math.abs(Number(t.amount || 0));
+        if (isNaN(amt) || amt <= 0) return;
+        const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+
+        if (t.type === 'income') {
+            if (isPaid) prevIncome += amt;
+        } else if (t.type === 'expense' && isPaid) {
+            prevExpense += amt;
+        }
+    });
+
+    const balance = currentIncome - currentExpense;
+
+    // CALCULAR CONTAS A PAGAR DO MÊS
+    const billsCount = bills.length;
+    const billsTotal = bills.reduce((s, t) => s + (t ? Math.abs(Number(t.amount || 0)) : 0), 0);
+    const todayStr = getToday();
+    const overdueBills = bills.filter(b => b && b.date && normalizeDateOnly(b.date) < todayStr);
+    const overdueCount = overdueBills.length;
+
+    console.log(`📋 Resumo do mês: Receitas: R$ ${currentIncome} | Despesas: R$ ${currentExpense} | Saldo: R$ ${balance} | Contas a pagar: ${billsCount} (R$ ${billsTotal})`);
+
+    // ATUALIZAR CARDS
+    const incomeEl = document.getElementById('totalIncome');
+    const expenseEl = document.getElementById('totalExpense');
+    const balanceEl = document.getElementById('totalBalance') || document.getElementById('monthBalance');
+    const billsCountEl = document.getElementById('billsCount');
+    const billsAmountEl = document.getElementById('billsAmount');
+
+    if (incomeEl) {
+        incomeEl.textContent = formatCurrency(currentIncome);
+        incomeEl.dataset.realValue = formatCurrency(currentIncome);
+    }
+    if (expenseEl) {
+        expenseEl.textContent = formatCurrency(currentExpense);
+        expenseEl.dataset.realValue = formatCurrency(currentExpense);
+    }
+    if (balanceEl) {
+        balanceEl.textContent = formatCurrency(balance);
+        balanceEl.dataset.realValue = formatCurrency(balance);
+        balanceEl.style.color = balance >= 0 ? '#00B894' : '#FF7675';
+    }
+
+    // CARD CONTAS A PAGAR E INVESTIMENTOS
+    if (billsAmountEl) {
+        billsAmountEl.textContent = formatCurrency(billsTotal);
+        billsAmountEl.dataset.realValue = formatCurrency(billsTotal);
+        billsAmountEl.style.color = billsTotal > 0 ? (overdueCount > 0 ? '#FF7675' : '#F59E0B') : '#00B894';
+    }
+
+    if (billsCountEl) {
+        if (billsCount > 0) {
+            if (overdueCount > 0) {
+                billsCountEl.innerHTML = `<span style="color:#FF7675; font-weight:700;"><i class="fas fa-exclamation-circle"></i> ${overdueCount} atraso</span>`;
+            } else {
+                billsCountEl.innerHTML = `<span style="color:#F59E0B; font-weight:600;"><i class="fas fa-clock"></i> ${billsCount} pend.</span>`;
+            }
+        } else {
+            billsCountEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-check-circle"></i> Tudo pago</span>`;
+        }
+    }
+
+    // TENDÊNCIAS
+    const incomeTrend = prevIncome > 0 ? ((currentIncome - prevIncome) / prevIncome * 100) : 0;
+    const expenseTrend = prevExpense > 0 ? ((currentExpense - prevExpense) / prevExpense * 100) : 0;
+
+    const incomeTrendEl = document.getElementById('incomeTrend');
+    const expenseTrendEl = document.getElementById('expenseTrend');
+    const balanceStatusEl = document.getElementById('balanceStatus');
+
+    if (incomeTrendEl) {
+        if (prevIncome > 0) {
+            const sign = incomeTrend >= 0 ? '+' : '';
+            incomeTrendEl.textContent = sign + incomeTrend.toFixed(0) + '% vs anterior';
+            incomeTrendEl.className = 'stat-sub ' + (incomeTrend >= 0 ? 'text-success' : 'text-danger');
+        } else {
+            incomeTrendEl.textContent = 'Mês de referência';
+            incomeTrendEl.className = 'stat-sub';
+        }
+    }
+
+    const expensePendingSubEl = document.getElementById('expensePendingSub');
+    if (expenseTrendEl) {
+        const trendText = prevExpense > 0 
+            ? (expenseTrend >= 0 ? '+' : '') + expenseTrend.toFixed(0) + '% vs anterior'
+            : 'Mês de referência';
+        const trendClass = prevExpense > 0 
+            ? (expenseTrend <= 0 ? 'text-success' : 'text-danger')
+            : '';
+
+        if (expensePendingSubEl) {
+            const trendSpan = expenseTrendEl.querySelector('span');
+            if (trendSpan) {
+                trendSpan.textContent = trendText;
+                trendSpan.className = trendClass;
+            }
+            if (billsTotal > 0) {
+                expensePendingSubEl.innerHTML = `<i class="fas fa-clock" style="margin-right:2px;"></i> Falta pagar: <strong>${formatCurrency(billsTotal)}</strong>`;
+                expensePendingSubEl.style.color = '#F59E0B';
+            } else {
+                expensePendingSubEl.innerHTML = `<i class="fas fa-check-circle" style="margin-right:2px;"></i> Nenhuma pendência`;
+                expensePendingSubEl.style.color = '#00B894';
+            }
+        } else {
+            expenseTrendEl.textContent = trendText;
+            expenseTrendEl.className = 'stat-sub ' + trendClass;
+        }
+    }
+
+    if (balanceStatusEl) {
+        const projected = balance - billsTotal;
+        if (billsTotal > 0) {
+            balanceStatusEl.innerHTML = `<span>Previsto pós-contas: <strong style="color:${projected >= 0 ? '#00B894' : '#FF7675'}">${formatCurrency(projected)}</strong></span>`;
+        } else {
+            if (balance > 0) {
+                balanceStatusEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-arrow-trend-up"></i> Positivo</span>`;
+            } else if (balance < 0) {
+                balanceStatusEl.innerHTML = `<span style="color:#FF7675; font-weight:600;"><i class="fas fa-arrow-trend-down"></i> Negativo</span>`;
+            } else {
+                balanceStatusEl.textContent = 'Zerado';
+            }
+        }
+    }
+}
+
+async function loadDashboard(options = {}) {
     console.log('📊 Carregando dashboard...');
+
+    const force = options && options.forceRefresh === true;
+    const key = `${currentUser?.id || 'anon'}__${currentMonthOffset}`;
+    const isFresh = !force && _dashCache.key === key &&
+        (Date.now() - _dashCache.ts) < DASH_CACHE_TTL_MS &&
+        _dashCache.payload;
+
+    if (isFresh) {
+        const p = _dashCache.payload;
+        window.allInvestments = Array.isArray(p.investments) ? p.investments.slice() : [];
+        window.allDividends = Array.isArray(p.dividends) ? p.dividends.slice() : [];
+        _applyDashboardSummaryCards(p.currentTxs || [], p.prevTxs || []);
+        try {
+            await generateDashboardInsights();
+        } catch (_) {}
+        updateBalanceVisibilityUI();
+        loadAIInsights().catch(() => {});
+        return;
+    }
 
     const d = new Date();
     d.setDate(1);
@@ -1154,162 +1448,13 @@ async function loadDashboard() {
         const currentTxs = (await getUnifiedTransactions(firstDay, lastDayStr)) || [];
         const prevTxs = (await getUnifiedTransactions(firstDayPrev, lastDayPrevStr)) || [];
 
-        let currentIncome = 0;
-        let currentExpense = 0;
-        let prevIncome = 0;
-        let prevExpense = 0;
-        const bills = [];
-
-        currentTxs.forEach(t => {
-            if (!t) return;
-            const amt = Math.abs(Number(t.amount || 0));
-            if (isNaN(amt) || amt <= 0) return;
-            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
-
-            if (t.type === 'income') {
-                if (isPaid) {
-                    currentIncome += amt;
-                }
-            } else if (t.type === 'expense') {
-                if (isPaid) {
-                    currentExpense += amt;
-                } else {
-                    bills.push(t);
-                }
-            }
-        });
-
-        prevTxs.forEach(t => {
-            if (!t) return;
-            const amt = Math.abs(Number(t.amount || 0));
-            if (isNaN(amt) || amt <= 0) return;
-            const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
-
-            if (t.type === 'income') {
-                if (isPaid) prevIncome += amt;
-            } else if (t.type === 'expense' && isPaid) {
-                prevExpense += amt;
-            }
-        });
-
-        const balance = currentIncome - currentExpense;
-
-        // CALCULAR CONTAS A PAGAR DO MÊS
-        const billsCount = bills.length;
-        const billsTotal = bills.reduce((s, t) => s + (t ? Math.abs(Number(t.amount || 0)) : 0), 0);
-        const todayStr = getToday();
-        const overdueBills = bills.filter(b => b && b.date && normalizeDateOnly(b.date) < todayStr);
-        const overdueCount = overdueBills.length;
-
-        console.log(`📋 Resumo do mês: Receitas: R$ ${currentIncome} | Despesas: R$ ${currentExpense} | Saldo: R$ ${balance} | Contas a pagar: ${billsCount} (R$ ${billsTotal})`);
-
-        // ATUALIZAR CARDS
-        const incomeEl = document.getElementById('totalIncome');
-        const expenseEl = document.getElementById('totalExpense');
-        const balanceEl = document.getElementById('totalBalance') || document.getElementById('monthBalance');
-        const billsCountEl = document.getElementById('billsCount');
-        const billsAmountEl = document.getElementById('billsAmount');
-
-        if (incomeEl) {
-            incomeEl.textContent = formatCurrency(currentIncome);
-            incomeEl.dataset.realValue = formatCurrency(currentIncome);
-        }
-        if (expenseEl) {
-            expenseEl.textContent = formatCurrency(currentExpense);
-            expenseEl.dataset.realValue = formatCurrency(currentExpense);
-        }
-        if (balanceEl) {
-            balanceEl.textContent = formatCurrency(balance);
-            balanceEl.dataset.realValue = formatCurrency(balance);
-            balanceEl.style.color = balance >= 0 ? '#00B894' : '#FF7675';
-        }
-
-        // CARD CONTAS A PAGAR E INVESTIMENTOS
-        if (billsAmountEl) {
-            billsAmountEl.textContent = formatCurrency(billsTotal);
-            billsAmountEl.dataset.realValue = formatCurrency(billsTotal);
-            billsAmountEl.style.color = billsTotal > 0 ? (overdueCount > 0 ? '#FF7675' : '#F59E0B') : '#00B894';
-        }
-
-        if (billsCountEl) {
-            if (billsCount > 0) {
-                if (overdueCount > 0) {
-                    billsCountEl.innerHTML = `<span style="color:#FF7675; font-weight:700;"><i class="fas fa-exclamation-circle"></i> ${overdueCount} atraso</span>`;
-                } else {
-                    billsCountEl.innerHTML = `<span style="color:#F59E0B; font-weight:600;"><i class="fas fa-clock"></i> ${billsCount} pend.</span>`;
-                }
-            } else {
-                billsCountEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-check-circle"></i> Tudo pago</span>`;
-            }
-        }
+        _applyDashboardSummaryCards(currentTxs, prevTxs);
 
         // CARREGA INVESTIMENTOS NO CARD 4
         try {
             await loadInvestedSummary();
         } catch (invErr) {
             console.warn('Erro ao carregar resumo de investimentos:', invErr);
-        }
-
-        // TENDÊNCIAS
-        const incomeTrend = prevIncome > 0 ? ((currentIncome - prevIncome) / prevIncome * 100) : 0;
-        const expenseTrend = prevExpense > 0 ? ((currentExpense - prevExpense) / prevExpense * 100) : 0;
-
-        const incomeTrendEl = document.getElementById('incomeTrend');
-        const expenseTrendEl = document.getElementById('expenseTrend');
-        const balanceStatusEl = document.getElementById('balanceStatus');
-
-        if (incomeTrendEl) {
-            if (prevIncome > 0) {
-                const sign = incomeTrend >= 0 ? '+' : '';
-                incomeTrendEl.textContent = sign + incomeTrend.toFixed(0) + '% vs anterior';
-                incomeTrendEl.className = 'stat-sub ' + (incomeTrend >= 0 ? 'text-success' : 'text-danger');
-            } else {
-                incomeTrendEl.textContent = 'Mês de referência';
-                incomeTrendEl.className = 'stat-sub';
-            }
-        }
-
-        const expensePendingSubEl = document.getElementById('expensePendingSub');
-        if (expenseTrendEl) {
-            const trendText = prevExpense > 0 
-                ? (expenseTrend >= 0 ? '+' : '') + expenseTrend.toFixed(0) + '% vs anterior'
-                : 'Mês de referência';
-            const trendClass = prevExpense > 0 
-                ? (expenseTrend <= 0 ? 'text-success' : 'text-danger')
-                : '';
-
-            if (expensePendingSubEl) {
-                const trendSpan = expenseTrendEl.querySelector('span');
-                if (trendSpan) {
-                    trendSpan.textContent = trendText;
-                    trendSpan.className = trendClass;
-                }
-                if (billsTotal > 0) {
-                    expensePendingSubEl.innerHTML = `<i class="fas fa-clock" style="margin-right:2px;"></i> Falta pagar: <strong>${formatCurrency(billsTotal)}</strong>`;
-                    expensePendingSubEl.style.color = '#F59E0B';
-                } else {
-                    expensePendingSubEl.innerHTML = `<i class="fas fa-check-circle" style="margin-right:2px;"></i> Nenhuma pendência`;
-                    expensePendingSubEl.style.color = '#00B894';
-                }
-            } else {
-                expenseTrendEl.textContent = trendText;
-                expenseTrendEl.className = 'stat-sub ' + trendClass;
-            }
-        }
-
-        if (balanceStatusEl) {
-            const projected = balance - billsTotal;
-            if (billsTotal > 0) {
-                balanceStatusEl.innerHTML = `<span>Previsto pós-contas: <strong style="color:${projected >= 0 ? '#00B894' : '#FF7675'}">${formatCurrency(projected)}</strong></span>`;
-            } else {
-                if (balance > 0) {
-                    balanceStatusEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-arrow-trend-up"></i> Positivo</span>`;
-                } else if (balance < 0) {
-                    balanceStatusEl.innerHTML = `<span style="color:#FF7675; font-weight:600;"><i class="fas fa-arrow-trend-down"></i> Negativo</span>`;
-                } else {
-                    balanceStatusEl.textContent = 'Zerado';
-                }
-            }
         }
 
         try {
@@ -1325,12 +1470,31 @@ async function loadDashboard() {
         }
 
         try {
+            await Promise.all([
+                loadInvestments(currentUser?.id),
+                loadDividends(currentUser?.id)
+            ]);
             await generateDashboardInsights();
         } catch (gErr) {
             console.warn('Erro ao gerar insights:', gErr);
         }
 
         updateBalanceVisibilityUI();
+
+        loadAIInsights().catch(() => {});
+
+        if (typeof window.checkNotifications === 'function') {
+            window.checkNotifications();
+        }
+
+        _dashCache.key = key;
+        _dashCache.ts = Date.now();
+        _dashCache.payload = {
+            currentTxs: Array.isArray(currentTxs) ? currentTxs.slice() : [],
+            prevTxs: Array.isArray(prevTxs) ? prevTxs.slice() : [],
+            investments: Array.isArray(window.allInvestments) ? window.allInvestments.slice() : [],
+            dividends: Array.isArray(window.allDividends) ? window.allDividends.slice() : []
+        };
 
         console.log('✅ Dashboard atualizado!');
 
@@ -1505,6 +1669,358 @@ async function loadRecentTransactions() {
 }
 
 // ============================================
+// 📈 VARIÁVEIS GLOBAIS DE INVESTIMENTOS & INSIGHTS
+// ============================================
+window.allDividends = window.allDividends || [];
+window.allInvestments = window.allInvestments || [];
+window.extraIncome = 0;
+window.totalAportes = 0;
+window.totalDividends = 0;
+
+// ============================================
+// 📈 CARREGADORES DE INVESTIMENTOS & PROVENTOS
+// ============================================
+async function loadInvestments(userId = currentUser?.id) {
+    if (!userId && currentUser?.id) userId = currentUser.id;
+    let loaded = [];
+    if (typeof supabaseClient !== 'undefined' && supabaseClient && userId) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('investments')
+                .select('*')
+                .eq('user_id', userId)
+                .order('date', { ascending: true });
+            if (!error && data && Array.isArray(data)) {
+                loaded = data;
+                if (window.tonuSync) {
+                    window.tonuSync.setCachedInvestments(userId, data);
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao consultar investimentos do Supabase:', e);
+        }
+    }
+    if (loaded.length === 0 && userId && window.tonuSync) {
+        try {
+            const cachedInv = await window.tonuSync.getCachedInvestments(userId);
+            if (Array.isArray(cachedInv) && cachedInv.length > 0) {
+                loaded = cachedInv;
+            }
+        } catch (_) {}
+    }
+    if (loaded.length === 0) {
+        try {
+            const localKeys = [
+                `tonucontrole_investments_${userId}`,
+                `tonu_investments_${userId}`,
+                'tonucontrole_investments_demo',
+                'tonu_investments'
+            ];
+            for (const k of localKeys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+    window.allInvestments = loaded;
+    return loaded;
+}
+
+async function loadDividends(userId = currentUser?.id) {
+    if (!userId && currentUser?.id) userId = currentUser.id;
+    let loaded = [];
+    if (typeof supabaseClient !== 'undefined' && supabaseClient && userId) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('dividends')
+                .select('*')
+                .eq('user_id', userId)
+                .order('date', { ascending: false });
+            if (!error && data && Array.isArray(data)) {
+                loaded = data;
+                if (window.tonuSync) {
+                    window.tonuSync.setCachedDividends(userId, data);
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao consultar proventos do Supabase:', e);
+        }
+    }
+    if (loaded.length === 0 && userId && window.tonuSync) {
+        try {
+            const cachedDivs = await window.tonuSync.getCachedDividends(userId);
+            if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
+                loaded = cachedDivs;
+            }
+        } catch (_) {}
+    }
+    if (loaded.length === 0) {
+        try {
+            const localKeys = [
+                `tonucontrole_dividends_${userId}`,
+                `tonu_dividends_${userId}`,
+                'tonucontrole_dividends_demo',
+                'tonu_dividends'
+            ];
+            for (const k of localKeys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+    window.allDividends = loaded;
+    return loaded;
+}
+
+// ============================================
+// 💼 CÁLCULO DO CUSTO DE CUSTÓDIA ATUAL (OPÇÃO A)
+// ============================================
+function calculateCurrentCustodyCost(investments = []) {
+    if (!Array.isArray(investments) || investments.length === 0) return 0;
+
+    const parseVal = (val) => {
+        if (val === null || val === undefined || val === '') return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        let s = String(val).replace(/[R$\s]/gi, '').trim();
+        if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
+        else if (s.includes(',')) s = s.replace(',', '.');
+        const n = parseFloat(s);
+        return isNaN(n) ? 0 : n;
+    };
+
+    const sorted = [...investments].sort((a, b) => {
+        const da = new Date((a.date || '1970-01-01') + 'T12:00:00').getTime();
+        const db = new Date((b.date || '1970-01-01') + 'T12:00:00').getTime();
+        if (da !== db) return da - db;
+        const typeA = (a.type || '').toLowerCase();
+        const typeB = (b.type || '').toLowerCase();
+        const prioA = typeA.includes('compra') || typeA.includes('buy') ? 1 : 2;
+        const prioB = typeB.includes('compra') || typeB.includes('buy') ? 1 : 2;
+        return prioA - prioB;
+    });
+
+    const positionsMap = new Map();
+
+    sorted.forEach(item => {
+        const ticker = (item.ticker || '').toUpperCase().trim();
+        if (!ticker) return;
+
+        if (!positionsMap.has(ticker)) {
+            positionsMap.set(ticker, {
+                quantity: 0,
+                costBasis: 0,
+                averageCost: 0
+            });
+        }
+
+        const pos = positionsMap.get(ticker);
+        const qty = parseVal(item.quantity);
+        let unit = parseVal(item.unit_price || item.price);
+        let total = parseVal(item.total_value || item.amount);
+        if (total <= 0 && qty > 0 && unit > 0) total = qty * unit;
+        if (unit <= 0 && qty > 0 && total > 0) unit = total / qty;
+
+        const type = (item.type || '').toLowerCase();
+        if (type.includes('compra') || type.includes('buy')) {
+            pos.costBasis += total;
+            pos.quantity += qty;
+            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+        } else if (type.includes('venda') || type.includes('sell')) {
+            const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+            const sellQty = Math.min(qty, pos.quantity);
+            pos.costBasis = Math.max(0, pos.costBasis - (avg * sellQty));
+            pos.quantity = Math.max(0, pos.quantity - sellQty);
+            if (pos.quantity <= 0.0000001) {
+                pos.quantity = 0;
+                pos.costBasis = 0;
+                pos.averageCost = 0;
+            } else {
+                pos.averageCost = pos.costBasis / pos.quantity;
+            }
+        }
+    });
+
+    let totalCustody = 0;
+    for (const pos of positionsMap.values()) {
+        if (pos.quantity > 0.0000001) {
+            const cost = pos.quantity * (pos.averageCost || 0);
+            totalCustody += (cost > 0 ? cost : (pos.costBasis > 0 ? pos.costBasis : 0));
+        }
+    }
+
+    return Math.round(totalCustody * 100) / 100;
+}
+
+window.calculateCurrentCustodyCost = calculateCurrentCustodyCost;
+window.loadInvestments = loadInvestments;
+window.loadDividends = loadDividends;
+
+// ============================================
+// 🎯 METAS FINANCEIRAS NO DASHBOARD DESKTOP
+// ============================================
+function _resolveDashboardGoalVisual(goal) {
+    const rawCat = String(goal?.category || '').toLowerCase();
+    const rawTitle = String(goal?.title || '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    if (rawCat === 'travel' || /viag|ferias|euro|disney|passeio|praia/.test(rawTitle)) {
+        return {
+            img: '../icons/preview/goal-travel.jpg',
+            alt: 'Imagem ilustrativa da meta de viagem',
+            icon: 'fa-plane',
+            stroke: '#2563EB',
+            barBg: 'linear-gradient(90deg, #3B82F6, #2563EB)'
+        };
+    }
+    if (rawCat === 'vehicle' || /carro|moto|veiculo|automovel|suv/.test(rawTitle)) {
+        return {
+            img: '../icons/preview/goal-car.jpg',
+            alt: 'Imagem ilustrativa da meta de veículo',
+            icon: 'fa-car',
+            stroke: '#F59E0B',
+            barBg: 'linear-gradient(90deg, #F59E0B, #2563EB)'
+        };
+    }
+    if (rawCat === 'home' || /casa|apartamento|imovel|moradia|terreno|reforma/.test(rawTitle)) {
+        return {
+            img: '../icons/preview/goal-house.jpg',
+            alt: 'Imagem ilustrativa da meta de imóvel',
+            icon: 'fa-house',
+            stroke: '#4338CA',
+            barBg: 'linear-gradient(90deg, #4338CA, #10B981)'
+        };
+    }
+    if (rawCat === 'emergency' || /reserva|emergenc/.test(rawTitle)) {
+        return {
+            img: null,
+            icon: 'fa-shield-halved',
+            stroke: '#10B981',
+            barBg: 'linear-gradient(90deg, #10B981, #059669)'
+        };
+    }
+    if (rawCat === 'education' || /estud|faculdade|curso|pos/.test(rawTitle)) {
+        return {
+            img: null,
+            icon: 'fa-graduation-cap',
+            stroke: '#0EA5E9',
+            barBg: 'linear-gradient(90deg, #0EA5E9, #2563EB)'
+        };
+    }
+    if (rawCat === 'investment' || /invest|aposent|patrimon|renda/.test(rawTitle)) {
+        return {
+            img: null,
+            icon: 'fa-chart-line',
+            stroke: '#0EA5E9',
+            barBg: 'linear-gradient(90deg, #0EA5E9, #4338CA)'
+        };
+    }
+    return {
+        img: null,
+        icon: 'fa-bullseye',
+        stroke: '#2563EB',
+        barBg: 'linear-gradient(90deg, #3730A3, #2563EB)'
+    };
+}
+
+function renderDashboardGoals(allGoals) {
+    const body = document.getElementById('dashboardGoalsBody');
+    const badge = document.getElementById('dashboardGoalsBadge');
+    if (!body) return;
+
+    const list = Array.isArray(allGoals) ? allGoals : [];
+    const active = list.filter(g => !g.completed && (Number(g.current_amount) || 0) < (Number(g.target_amount) || 0));
+    const ordered = (active.length > 0 ? active : list).slice().sort((a, b) => {
+        const pa = Number(a.target_amount) > 0 ? (Number(a.current_amount) || 0) / Number(a.target_amount) : 0;
+        const pb = Number(b.target_amount) > 0 ? (Number(b.current_amount) || 0) / Number(b.target_amount) : 0;
+        return pb - pa;
+    });
+
+    if (badge) {
+        if (active.length > 0) {
+            badge.textContent = `${active.length} ${active.length === 1 ? 'ativa' : 'ativas'}`;
+        } else if (list.length > 0) {
+            badge.textContent = `${list.length} concluída(s)`;
+        } else {
+            badge.textContent = 'Sem metas';
+        }
+    }
+
+    if (ordered.length === 0) {
+        body.innerHTML = `
+            <div class="goal-empty-state">
+                <i class="fas fa-bullseye" style="font-size:22px;color:#2563EB;"></i>
+                <p>Você ainda não possui metas financeiras cadastradas. Crie sua primeira meta para acompanhar o progresso aqui.</p>
+                <a href="goals.html" class="goal-empty-cta"><i class="fas fa-plus"></i> Criar Meta</a>
+            </div>
+        `;
+        return;
+    }
+
+    const topGoals = ordered.slice(0, 3);
+    const circ = 150.8;
+
+    body.innerHTML = `<div class="goals-preview-stack">${topGoals.map(g => {
+        const cur = Math.max(0, Number(g.current_amount || 0));
+        const tgt = Math.max(0, Number(g.target_amount || 0));
+        const pct = tgt > 0 ? Math.min(100, Math.round((cur / tgt) * 100)) : 0;
+        const dashOffset = (circ * (1 - pct / 100)).toFixed(2);
+        const vis = _resolveDashboardGoalVisual(g);
+        const safeTitle = stripHTML(g.title || 'Meta Financeira');
+        const curStr = formatCurrency(cur);
+        const tgtStr = formatCurrency(tgt);
+
+        const mediaHtml = vis.img
+            ? `<img src="${vis.img}" alt="${stripHTML(vis.alt)}" class="goal-preview-img">
+               <div class="goal-media-fallback hidden-fallback"><i class="fas ${vis.icon}" aria-hidden="true"></i></div>`
+            : `<div class="goal-media-fallback"><i class="fas ${vis.icon}" aria-hidden="true"></i></div>`;
+
+        return `
+            <a href="goals.html" class="goal-preview-card" title="Abrir ${safeTitle} em Metas">
+                <div class="goal-preview-ring">
+                    <svg viewBox="0 0 60 60" width="58" height="58" aria-hidden="true">
+                        <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(148,163,184,0.22)" stroke-width="5.5"/>
+                        <circle cx="30" cy="30" r="24" fill="none" stroke="${vis.stroke}" stroke-width="5.5" stroke-linecap="round"
+                            stroke-dasharray="${circ}" stroke-dashoffset="${dashOffset}" transform="rotate(-90 30 30)"/>
+                    </svg>
+                    <div class="goal-preview-ring-pct">${pct}%</div>
+                </div>
+                <div class="goal-preview-info">
+                    <div class="goal-preview-title">${safeTitle}</div>
+                    <div class="goal-preview-amounts sensitive-goal-amount">${curStr} <span>/ ${tgtStr}</span></div>
+                    <div class="goal-preview-track"><div class="goal-preview-fill" style="width:${pct}%;background:${vis.barBg};"></div></div>
+                </div>
+                <div class="goal-preview-media">${mediaHtml}</div>
+            </a>
+        `;
+    }).join('')}</div>`;
+
+    if (typeof body.querySelectorAll === 'function') {
+        body.querySelectorAll('.goal-preview-img').forEach(img => {
+            img.addEventListener('error', () => {
+                img.style.display = 'none';
+                const fb = img.nextElementSibling;
+                if (fb && fb.classList) fb.classList.remove('hidden-fallback');
+            });
+        });
+    }
+
+    updateBalanceVisibilityUI();
+}
+window.renderDashboardGoals = renderDashboardGoals;
+
+// ============================================
 // 💡 DIAGNÓSTICO FINANCEIRO 360º DO DASHBOARD (MÊS A MÊS - TODAS AS ABAS)
 // ============================================
 async function generateDashboardInsights() {
@@ -1518,8 +2034,10 @@ async function generateDashboardInsights() {
         const year = d.getFullYear();
         const month = d.getMonth();
         const mStr = String(month + 1).padStart(2, '0');
-        const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-        const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+        const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ];
+        const capitalizedMonth = `${months[month]} de ${year}`;
         const firstDay = formatDateKey(year, month, 1);
         const lastDayNum = getLastDayOfMonth(year, month);
         const lastDayStr = formatDateKey(year, month, lastDayNum);
@@ -1568,8 +2086,10 @@ async function generateDashboardInsights() {
         };
 
         const extraIncomeTxs = paidIncomeTxs.filter(isExtraIncomeTx);
-        const totalExtraIncome = extraIncomeTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
-        const extraIncomePct = totalIncome > 0 ? Math.round((totalExtraIncome / totalIncome) * 100) : 0;
+        const extraIncome = extraIncomeTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+        const totalExtraIncome = extraIncome;
+        window.extraIncome = extraIncome;
+        const extraIncomePct = totalIncome > 0 ? Math.round((extraIncome / totalIncome) * 100) : 0;
 
         // 1.0.1 DETECÇÃO DE EMPRÉSTIMOS E DÍVIDAS NO MÊS
         const isLoanOrDebtTx = (t) => {
@@ -1625,7 +2145,10 @@ async function generateDashboardInsights() {
         const categoryMap = {};
         paidExpenseTxs.forEach(t => {
             const amt = Math.abs(Number(t.amount || 0));
-            const catName = t.categories?.name || 'Outros';
+            const matchedCat = t.category_id && Array.isArray(categories)
+                ? categories.find(c => String(c.id) === String(t.category_id))
+                : null;
+            const catName = t.categories?.name || t.category || matchedCat?.name || 'Outros';
             categoryMap[catName] = (categoryMap[catName] || 0) + amt;
         });
 
@@ -1666,82 +2189,32 @@ async function generateDashboardInsights() {
             return bDate && bDate < todayStr;
         });
 
-        // 3. CARREGAR INVESTIMENTOS E PROVENTOS DO MÊS
-        let monthInvestments = [];
-        if (supabaseClient && currentUser) {
-            try {
-                const { data } = await supabaseClient
-                    .from('investments')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .gte('date', firstDay)
-                    .lte('date', lastDayStr);
-                if (data && Array.isArray(data)) {
-                    monthInvestments = data;
-                    if (window.tonuSync) {
-                        window.tonuSync.setCachedInvestments(currentUser.id, data);
-                    }
-                }
-            } catch (e) {
-                console.warn('Erro ao consultar investimentos do mês:', e);
-            }
+        // 3. CARREGAR INVESTIMENTOS E PROVENTOS (CUSTÓDIA ATUAL E PROVENTOS DO MÊS)
+        if (!window.allInvestments || window.allInvestments.length === 0) {
+            await loadInvestments(currentUser?.id);
         }
-        if (monthInvestments.length === 0 && currentUser && window.tonuSync) {
-            try {
-                const cachedInv = await window.tonuSync.getCachedInvestments(currentUser.id);
-                if (Array.isArray(cachedInv) && cachedInv.length > 0) {
-                    monthInvestments = cachedInv.filter(i => {
-                        const iDate = normalizeDateOnly(i.date);
-                        return iDate >= firstDay && iDate <= lastDayStr;
-                    });
-                }
-            } catch (_) {}
+        if (!window.allDividends || window.allDividends.length === 0) {
+            await loadDividends(currentUser?.id);
         }
 
-        const buyInvs = monthInvestments.filter(i => {
-            const t = String(i.type || '').toUpperCase();
-            return t === 'BUY' || t === 'COMPRA';
+        // Custo de Custódia Atual (Opção A: Valor Aplicado das posições ativas)
+        let totalAportes = calculateCurrentCustodyCost(window.allInvestments);
+        const uid = currentUser?.id || 'demo';
+        const savedInvested = parseFloat(localStorage.getItem('tonu_total_invested_' + uid) || '0');
+        if (totalAportes === 0 && savedInvested > 0) {
+            totalAportes = savedInvested;
+        }
+        window.totalAportes = totalAportes;
+
+        const monthDividends = (window.allDividends || []).filter(d => {
+            const dDate = normalizeDateOnly(d.payment_date || d.date);
+            return dDate >= firstDay && dDate <= lastDayStr && !d.is_demo && !String(d.id || '').startsWith('demo-');
         });
-        const totalAportes = buyInvs.reduce((s, i) => {
-            const val = Number(i.total_value) || (Number(i.price || 0) * Number(i.quantity || 0));
-            return s + (val > 0 ? val : 0);
-        }, 0);
-
-        let monthDividends = [];
-        if (supabaseClient && currentUser) {
-            try {
-                const { data } = await supabaseClient
-                    .from('dividends')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .gte('date', firstDay)
-                    .lte('date', lastDayStr);
-                if (data && Array.isArray(data)) {
-                    monthDividends = data;
-                    if (window.tonuSync) {
-                        window.tonuSync.setCachedDividends(currentUser.id, data);
-                    }
-                }
-            } catch (e) {
-                console.warn('Erro ao consultar proventos do mês:', e);
-            }
-        }
-        if (monthDividends.length === 0 && currentUser && window.tonuSync) {
-            try {
-                const cachedDivs = await window.tonuSync.getCachedDividends(currentUser.id);
-                if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
-                    monthDividends = cachedDivs.filter(d => {
-                        const dDate = normalizeDateOnly(d.payment_date || d.date);
-                        return dDate >= firstDay && dDate <= lastDayStr && !d.is_demo && !String(d.id || '').startsWith('demo-');
-                    });
-                }
-            } catch (_) {}
-        }
-
         const totalDividends = monthDividends.reduce((s, d) => {
-            const val = Number(d.total_value) || (Number(d.unit_value || 0) * Number(d.quantity || 0));
+            const val = Number(d.total_value || d.net_value || d.amount || d.total_amount) || (Number(d.unit_value || 0) * Number(d.quantity || 0));
             return s + (val > 0 ? val : 0);
         }, 0);
+        window.totalDividends = totalDividends;
 
         let passiveCoveragePct = 0;
         if (totalBillsAmount > 0) {
@@ -1777,6 +2250,8 @@ async function generateDashboardInsights() {
                 }
             } catch (_) {}
         }
+
+        renderDashboardGoals(allGoals);
 
         const activeGoals = allGoals.filter(g => !g.completed && (Number(g.current_amount) || 0) < (Number(g.target_amount) || 0));
 
@@ -1848,7 +2323,7 @@ async function generateDashboardInsights() {
         } else {
             savingTipHTML = `
                 <div class="insight-strategy-item">
-                    <i class="fas fa-receipt" style="color:#6c5ce7;"></i>
+                    <i class="fas fa-receipt" style="color:#2563EB;"></i>
                     <div>
                         <strong>Controle de despesas:</strong>
                         Cadastre suas despesas diárias para identificar os centros de custo com maior potencial de economia.
@@ -1881,7 +2356,7 @@ async function generateDashboardInsights() {
         } else {
             capacityTipHTML = `
                 <div class="insight-strategy-item">
-                    <i class="fas fa-wallet" style="color:#6c5ce7;"></i>
+                    <i class="fas fa-wallet" style="color:#2563EB;"></i>
                     <div>
                         <strong>Fluxo equilibrado:</strong>
                         Sem contas pendentes para o período. Mantenha os custos sob controle para preservar seu superávit.
@@ -1894,7 +2369,7 @@ async function generateDashboardInsights() {
         if (totalDividends > 0 && totalBillsAmount > 0) {
             passiveTipHTML = `
                 <div class="insight-strategy-item">
-                    <i class="fas fa-coins" style="color:#8b5cf6;"></i>
+                    <i class="fas fa-coins" style="color:#4338CA;"></i>
                     <div>
                         <strong>Liberdade Financeira:</strong>
                         Seus proventos do mês cobrem <strong>${passiveCoveragePct}%</strong> das suas contas fixas. Reinvestir seus proventos acelerará a independência financeira.
@@ -1904,7 +2379,7 @@ async function generateDashboardInsights() {
         } else if (totalDividends > 0) {
             passiveTipHTML = `
                 <div class="insight-strategy-item">
-                    <i class="fas fa-coins" style="color:#8b5cf6;"></i>
+                    <i class="fas fa-coins" style="color:#4338CA;"></i>
                     <div>
                         <strong>Renda Passiva ativa:</strong>
                         Você recebeu <strong>${formatCurrency(totalDividends)}</strong> em proventos neste mês. Cada novo aporte amplia os rendimentos futuros.
@@ -1939,11 +2414,11 @@ async function generateDashboardInsights() {
                 : `aproveitar para lazer com a família ou investir em ferramentas que aumentem sua renda`;
 
             extraIncomeTipHTML = `
-                <div class="insight-strategy-item" style="background: rgba(234, 88, 12, 0.06); padding: 8px 10px; border-radius: 8px; border-left: 3px solid #ea580c;">
-                    <i class="fas fa-motorcycle" style="color:#ea580c; font-size:12px;"></i>
+                <div class="insight-strategy-item strategy-extra-box">
+                    <i class="fas fa-motorcycle strategy-extra-icon"></i>
                     <div>
-                        <strong style="color:#c2410c;">Estratégia para Bicos e Extras (${formatCurrency(totalExtraIncome)}):</strong>
-                        <div style="margin-top: 4px; display: flex; flex-direction: column; gap: 3px; font-size: 10.5px;">
+                        <strong class="strategy-extra-title">Estratégia para Bicos e Extras (${formatCurrency(totalExtraIncome)}):</strong>
+                        <div class="strategy-extra-list">
                             <span>• <strong>40% (${formatCurrency(partAdiantar)})</strong> ➔ <em>Adiantar empréstimos/dívidas:</em> ${loanAdvice}.</span>
                             <span>• <strong>30% (${formatCurrency(partFazerAlgo)})</strong> ➔ <em>Fazer alguma coisa:</em> ${doingAdvice}.</span>
                             <span>• <strong>30% (${formatCurrency(partGuardar)})</strong> ➔ <em>Guardar e investir:</em> aportar em reserva de emergência ou ativos geradores de renda.</span>
@@ -1963,8 +2438,192 @@ async function generateDashboardInsights() {
             `;
         }
 
-        // RENDERIZAÇÃO COMPLETA DO DIAGNÓSTICO
+        // ============================================
+        // 9. CÁLCULO DO SCORE 360º (0 a 100) & REDISTRIBUIÇÃO DE PESOS
+        // ============================================
+        const scorePillars = [];
+
+        // Pilar 1: Equilíbrio Orçamentário (Peso base: 30%)
+        if (totalIncome > 0) {
+            let eqScore = 0;
+            if (savingsRate >= 20) eqScore = 100;
+            else if (savingsRate > 0) eqScore = Math.round((savingsRate / 20) * 100);
+            else if (savingsRate >= -10) eqScore = 25;
+            else eqScore = 0;
+            scorePillars.push({ name: 'Equilíbrio', weight: 30, score: eqScore });
+        }
+
+        // Pilar 2: Pontualidade & Contas (Peso base: 30%)
+        if (totalBillsCount > 0) {
+            let pontScore = 0;
+            if (overdueBills.length > 0) pontScore = Math.max(0, 100 - (overdueBills.length * 35));
+            else if (pendingBills.length === 0) pontScore = 100;
+            else if (safeFreeCash >= 0) pontScore = 90;
+            else pontScore = 60;
+            scorePillars.push({ name: 'Pontualidade', weight: 30, score: pontScore });
+        }
+
+        // Pilar 3: Endividamento & Dívidas (Peso base: 20%)
+        if (totalIncome > 0) {
+            const debtRatio = (totalLoansPaid / totalIncome) * 100;
+            let debtScore = 100;
+            if (debtRatio > 30) debtScore = Math.max(10, Math.round(50 - (debtRatio - 30) * 2));
+            else if (debtRatio > 15) debtScore = 65;
+            else if (debtRatio > 0) debtScore = 85;
+            scorePillars.push({ name: 'Endividamento', weight: 20, score: debtScore });
+        }
+
+        // Pilar 4: Futuros & Investimentos (Peso base: 20%)
+        let futScore = 0;
+        let futActive = false;
+        if (totalDividends > 0) { futScore += 40; futActive = true; }
+        if (nearestGoal && nearestGoal.pct > 0) { futScore += 30; futActive = true; }
+        if (totalAportes > 0) { futScore += 30; futActive = true; }
+        if (futActive) scorePillars.push({ name: 'Futuro', weight: 20, score: Math.min(100, futScore) });
+
+        // Redistribuição proporcional caso falte dados em algum pilar
+        const totalWeight = scorePillars.reduce((acc, p) => acc + p.weight, 0);
+        const finalScore = totalWeight > 0
+            ? Math.round(scorePillars.reduce((acc, p) => acc + (p.score * p.weight), 0) / totalWeight)
+            : 70;
+
+        let scoreBadge = { label: 'Bom', color: '#3B82F6', bg: '#EFF6FF' };
+        if (finalScore >= 80) scoreBadge = { label: 'Excelente', color: '#10B981', bg: '#ECFDF5' };
+        else if (finalScore < 40) scoreBadge = { label: 'Atenção', color: '#EF4444', bg: '#FEF2F2' };
+        else if (finalScore < 60) scoreBadge = { label: 'Regular', color: '#F59E0B', bg: '#FFFBEB' };
+
+        const circumference = 2 * Math.PI * 38;
+        const strokeOffset = circumference - (finalScore / 100) * circumference;
+
+        // ============================================
+        // 10. CHECKLIST DE AÇÕES RÁPIDAS ("O QUE FAZER HOJE?")
+        // ============================================
+        const actionCards = [];
+
+        // Ação 1: Contas vencendo em até 48h ou atrasadas (🔴 Pagar Agora)
+        const urgentBill = overdueBills[0] || pendingBills.find(b => {
+            const bDate = normalizeDateOnly(b.date);
+            if (!bDate) return false;
+            const diffDays = Math.ceil((new Date(bDate) - new Date(todayStr)) / (1000 * 60 * 60 * 24));
+            return diffDays >= 0 && diffDays <= 2;
+        });
+        if (urgentBill) {
+            const isOverdue = overdueBills.includes(urgentBill);
+            actionCards.push(`
+                <div class="action-card urgent" data-href="bills.html" role="button" tabindex="0" title="Ir para Contas a Pagar">
+                    <div class="action-icon action-icon-urgent"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="action-info">
+                        <strong>Pagar Agora: ${stripHTML(urgentBill.description || 'Conta')}</strong>
+                        <span>${isOverdue ? 'Conta atrasada' : 'Vence em até 48h'} · ${formatCurrency(urgentBill.amount)}</span>
+                    </div>
+                    <span class="action-btn-pill action-btn-urgent">Pagar</span>
+                </div>
+            `);
+        }
+
+        // Ação 2: Teto orçamentário estourado ou maior gasto elevado (🟡 Ver Gastos)
+        if (budgetAlert && budgetAlert.type === 'danger') {
+            actionCards.push(`
+                <div class="action-card warning" data-href="transactions.html" role="button" tabindex="0" title="Ver Transações">
+                    <div class="action-icon action-icon-warning"><i class="fas fa-chart-pie"></i></div>
+                    <div class="action-info">
+                        <strong>Ver Gastos: Limite Estourado</strong>
+                        <span>${stripHTML(budgetAlert.text)}</span>
+                    </div>
+                    <span class="action-btn-pill action-btn-warning">Revisar</span>
+                </div>
+            `);
+        } else if (topCatPct > 35 && topCategory && topCategory !== 'Nenhuma') {
+            actionCards.push(`
+                <div class="action-card warning" data-href="transactions.html" role="button" tabindex="0" title="Ver Transações da Categoria">
+                    <div class="action-icon action-icon-warning"><i class="fas fa-fire"></i></div>
+                    <div class="action-info">
+                        <strong>Ver Gastos: ${stripHTML(topCategory)}</strong>
+                        <span>${topCatPct}% das despesas do mês</span>
+                    </div>
+                    <span class="action-btn-pill action-btn-warning">Ver</span>
+                </div>
+            `);
+        }
+
+        // Checklist acionável limitado estritamente a "Pagar Agora" e "Ver Gastos"
+        const displayedActionCards = actionCards.slice(0, 2);
+
+        // RENDERIZAÇÃO DO CARD DEDICADO: "O QUE FAZER HOJE?" (DESKTOP)
+        const quickActionsBody = document.getElementById('dashboardQuickActionsBody');
+        const quickActionsBadge = document.getElementById('quickActionsBadge');
+        if (quickActionsBody) {
+            if (displayedActionCards.length > 0) {
+                if (quickActionsBadge) {
+                    quickActionsBadge.textContent = `${displayedActionCards.length} ${displayedActionCards.length === 1 ? 'pendência' : 'pendências'}`;
+                    quickActionsBadge.classList.remove('badge-ok');
+                    quickActionsBadge.classList.add('badge-urgent');
+                }
+                quickActionsBody.innerHTML = `
+                    <div class="quick-actions-grid">
+                        ${displayedActionCards.join('')}
+                    </div>
+                `;
+            } else {
+                if (quickActionsBadge) {
+                    quickActionsBadge.textContent = 'Em dia';
+                    quickActionsBadge.classList.remove('badge-urgent');
+                    quickActionsBadge.classList.add('badge-ok');
+                }
+                quickActionsBody.innerHTML = `
+                    <div class="action-card all-good">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Tudo em dia! Contas quitadas e orçamento sob controle.</span>
+                    </div>
+                `;
+            }
+        }
+
+        const scoreBreakdownHTML = scorePillars.length > 0
+            ? `<div class="score-pillars-breakdown">${scorePillars.map(p => {
+                const tier = p.score >= 80 ? 'good' : (p.score >= 55 ? 'mid' : 'low');
+                return `<span class="score-pillar-chip ${tier}">${stripHTML(p.name)} <strong>${p.score}</strong></span>`;
+            }).join('')}</div>`
+            : `<p class="score-subtitle-line">Equilíbrio · Pontualidade · Dívidas · Futuro</p>`;
+
+        // RENDERIZAÇÃO COMPLETA DO CARD DE SAÚDE FINANCEIRA (DIAGNÓSTICO 360º)
         container.innerHTML = `
+            <!-- ANEL VELOCÍMETRO DO SCORE 360º -->
+            <div class="score-ring-card">
+                <div class="score-ring-wrap">
+                    <svg class="score-svg" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="38" class="score-ring-bg" />
+                        <circle cx="50" cy="50" r="38" class="score-ring-fg" stroke="${scoreBadge.color}" stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="${strokeOffset.toFixed(1)}" />
+                    </svg>
+                    <div class="score-text-inner">
+                        <span class="score-num">${finalScore}</span>
+                        <span class="score-total">/100</span>
+                    </div>
+                </div>
+                <div class="score-header-text">
+                    <div class="score-header-top-row">
+                        <h4>Saúde Financeira 360º</h4>
+                        <span class="score-badge-pill" style="background:${scoreBadge.bg}; color:${scoreBadge.color};">${scoreBadge.label}</span>
+                    </div>
+                    ${scoreBreakdownHTML}
+                </div>
+            </div>
+
+            ${!quickActionsBody ? `
+                <!-- FALLBACK CHECKLIST SE NÃO HOUVER CARD DEDICADO -->
+                <div class="quick-actions-section">
+                    <div class="quick-actions-title"><i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?</div>
+                    <div class="quick-actions-grid">
+                        ${displayedActionCards.length > 0 ? displayedActionCards.join('') : `
+                            <div class="action-card all-good">
+                                <i class="fas fa-check-circle" style="color:#10b981; font-size:18px;"></i>
+                                <span>Tudo em dia! Suas contas estão pagas e o orçamento equilibrado. ✨</span>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            ` : ''}
+
             <!-- PILARES DO APLICATIVO -->
             <div class="insight-pillars-list">
                 <!-- Pilar 1: Renda Poupada & Taxa de Poupança -->
@@ -1974,7 +2633,7 @@ async function generateDashboardInsights() {
                             <i class="fas ${savingsClass === 'success' ? 'fa-piggy-bank' : (savingsClass === 'danger' ? 'fa-triangle-exclamation' : 'fa-chart-pie')}"></i>
                         </div>
                         <div class="insight-metric-text">
-                            <span class="label">Renda Poupada (${capitalizedMonth})</span>
+                            <span class="label">Renda Poupada no Mês</span>
                             <span class="val">${formatCurrency(netBalance)}</span>
                         </div>
                     </div>
@@ -2072,7 +2731,7 @@ async function generateDashboardInsights() {
                             <span class="val" style="font-size: 12px;">${budgetAlert.text}</span>
                         </div>
                     </div>
-                    <a href="settings.html" onclick="localStorage.setItem('tonu_settings_active_tab', 'budgets');" class="btn btn-ghost-sm" style="font-size: 10px; text-decoration: none;" title="Gerenciar em Configurações">
+                    <a href="settings.html" data-settings-tab="budgets" class="btn btn-ghost-sm" style="font-size: 10px; text-decoration: none;" title="Gerenciar em Configurações">
                         Ajustar
                     </a>
                 </div>
@@ -2094,12 +2753,12 @@ async function generateDashboardInsights() {
 
             <!-- NAVEGAÇÃO RÁPIDA ENTRE ABAS -->
             <div class="insight-quick-nav">
-                <span style="font-size:10.5px; color:var(--color-text-muted); font-weight:600; margin-right:2px;">Acesso:</span>
+                <span style="font-size:12px; color:var(--color-text-muted); font-weight:600; margin-right:2px;">Acesso:</span>
                 <a href="transactions.html"><i class="fas fa-exchange-alt"></i> Transações</a>
                 <a href="bills.html"><i class="fas fa-file-invoice"></i> Contas</a>
                 <a href="investments.html"><i class="fas fa-chart-line"></i> Investimentos</a>
                 <a href="goals.html"><i class="fas fa-bullseye"></i> Metas</a>
-                <a href="settings.html" onclick="localStorage.setItem('tonu_settings_active_tab', 'budgets');"><i class="fas fa-sliders-h"></i> Tetos</a>
+                <a href="settings.html" data-settings-tab="budgets"><i class="fas fa-sliders-h"></i> Tetos</a>
             </div>
         `;
 
@@ -2181,46 +2840,46 @@ function getCategoryStyle(name, index, cat) {
     const n = (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
     if (n.includes('contas') || n.includes('basica') || n.includes('energia') || n.includes('luz') || n.includes('agua') || n.includes('gas') || n.includes('boleto')) {
-        return { color: '#0984E3', icon: 'fa-bolt', name: '⚡ Contas Básicas' };
+        return { color: '#0EA5E9', icon: 'fa-bolt', name: '⚡ Contas Básicas' };
     }
     if (n.includes('lazer') || n.includes('jogo') || n.includes('game') || n.includes('cinema') || n.includes('viagem') || n.includes('passeio') || n.includes('hotel') || n.includes('festa')) {
-        return { color: '#A29BFE', icon: 'fa-gamepad', name: '🎮 Lazer' };
+        return { color: '#8B5CF6', icon: 'fa-gamepad', name: '🎮 Lazer' };
     }
     if (n.includes('saude') || n.includes('farmacia') || n.includes('medic') || n.includes('hospital') || n.includes('drogaria') || n.includes('dentista') || n.includes('consulta')) {
-        return { color: '#FF6B6B', icon: 'fa-heartbeat', name: '❤️ Saúde' };
+        return { color: '#EC4899', icon: 'fa-heartbeat', name: '❤️ Saúde' };
     }
     if (n.includes('educa') || n.includes('escola') || n.includes('faculdade') || n.includes('curso') || n.includes('livro') || n.includes('estudo')) {
-        return { color: '#0984E3', icon: 'fa-book', name: '📚 Educação' };
+        return { color: '#2563EB', icon: 'fa-book', name: '📚 Educação' };
     }
     if (n.includes('emprestim') || n.includes('divida') || n.includes('financiamento') || n.includes('parcela')) {
-        return { color: '#D63031', icon: 'fa-hand-holding-usd', name: '🤝 Empréstimos' };
+        return { color: '#DC2626', icon: 'fa-hand-holding-usd', name: '🤝 Empréstimos' };
     }
     if (n.includes('cartao') || n.includes('credito') || n.includes('fatura') || n.includes('anuidade')) {
-        return { color: '#E17055', icon: 'fa-credit-card', name: '💳 Cartão de Crédito' };
+        return { color: '#E11D48', icon: 'fa-credit-card', name: '💳 Cartão de Crédito' };
     }
     if (n.includes('moradia') || n.includes('casa') || n.includes('aluguel') || n.includes('condominio') || n.includes('iptu')) {
-        return { color: '#E17055', icon: 'fa-home', name: '🏠 Moradia' };
+        return { color: '#4F46E5', icon: 'fa-home', name: '🏠 Moradia' };
     }
     if (n.includes('comunic') || n.includes('wifi') || n.includes('internet') || n.includes('celular') || n.includes('telefone') || n.includes('stream') || n.includes('assinat')) {
-        return { color: '#636E72', icon: 'fa-wifi', name: '📡 Comunicação' };
+        return { color: '#64748B', icon: 'fa-wifi', name: '📡 Comunicação' };
     }
     if (n.includes('aliment') || n.includes('comida') || n.includes('mercado') || n.includes('supermercado') || n.includes('restaurante') || n.includes('ifood') || n.includes('lanche')) {
-        return { color: '#FF6B6B', icon: 'fa-utensils', name: '🍔 Alimentação' };
+        return { color: '#F97316', icon: 'fa-utensils', name: '🍔 Alimentação' };
     }
     if (n.includes('transport') || n.includes('uber') || n.includes('combustivel') || n.includes('gasolina') || n.includes('carro') || n.includes('onibus') || n.includes('veiculo')) {
-        return { color: '#FDCB6E', icon: 'fa-car', name: '🚗 Transporte' };
+        return { color: '#F59E0B', icon: 'fa-car', name: '🚗 Transporte' };
     }
     if (n.includes('salar') || n.includes('remuner') || n.includes('provento')) {
-        return { color: '#00B894', icon: 'fa-money-bill-wave', name: '💰 Salário' };
+        return { color: '#10B981', icon: 'fa-money-bill-wave', name: '💰 Salário' };
     }
     if (n.includes('invest') || n.includes('dividend') || n.includes('rendimento') || n.includes('acao') || n.includes('fii')) {
-        return { color: '#00CEC9', icon: 'fa-chart-line', name: '💼 Investimentos' };
+        return { color: '#06B6D4', icon: 'fa-chart-line', name: '💼 Investimentos' };
     }
     if (n.includes('bico') || n.includes('extra') || n.includes('freela')) {
-        return { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' };
+        return { color: '#14B8A6', icon: 'fa-gift', name: '🛵 Bico / Extra' };
     }
 
-    const defaultBackendColors = ['#0984E3', '#A29BFE', '#FF6B6B', '#FDCB6E', '#E17055', '#D63031', '#636E72', '#00B894', '#00CEC9', '#B2BEC3'];
+    const defaultBackendColors = ['#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#EC4899', '#F97316', '#8B5CF6', '#14B8A6', '#E11D48', '#2563EB'];
     return {
         color: defaultBackendColors[(index || 0) % defaultBackendColors.length],
         icon: 'fa-tag',
@@ -2245,6 +2904,14 @@ async function loadCategoryChart() {
     const lastDay = getLastDayOfMonth(year, month);
     const firstDay = formatDateKey(year, month, 1);
     const lastDayStr = formatDateKey(year, month, lastDay);
+
+    const catMonthBadge = document.getElementById('categoryMonthBadge');
+    if (catMonthBadge) {
+        const monthsList = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ];
+        catMonthBadge.textContent = `${monthsList[month]} de ${year}`;
+    }
 
     try {
         const txs = await getUnifiedTransactions(firstDay, lastDayStr);
@@ -2311,31 +2978,89 @@ async function loadCategoryChart() {
                     }
                 }
 
-                const name = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : 'Outros');
-                const style = getCategoryStyle(name, 0, cat);
+                const normalizeCatKey = (val) => {
+                    if (!val) return 'outros';
+                    const clean = String(val)
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+                        .trim();
+                    if (clean.includes('outro') || clean.includes('outra') || clean.includes('sem categoria') || clean === '' || clean === 'diversos' || clean === 'geral') {
+                        return 'outros';
+                    }
+                    return clean;
+                };
 
-                if (!groups[name]) {
-                    groups[name] = { total: 0, color: style.color, icon: style.icon, name: name };
+                const rawName = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : 'Outros');
+                const normKey = normalizeCatKey(rawName);
+                const displayName = normKey === 'outros' ? 'Outros' : rawName;
+
+                const style = getCategoryStyle(displayName, 0, cat);
+                const amt = Math.abs(Number(t.amount || 0));
+                if (isNaN(amt) || amt <= 0) return;
+
+                if (!groups[normKey]) {
+                    groups[normKey] = {
+                        total: 0,
+                        color: normKey === 'outros' ? '#94a3b8' : style.color,
+                        icon: normKey === 'outros' ? 'fa-ellipsis-h' : style.icon,
+                        name: displayName
+                    };
                 }
-                groups[name].total += Number(t.amount);
-                if (style.color) groups[name].color = style.color;
-                if (style.icon) groups[name].icon = style.icon;
+                groups[normKey].total += amt;
             });
         }
 
-        const sortedEntries = Object.entries(groups)
-            .sort((a, b) => b[1].total - a[1].total);
+        const allCategories = Object.values(groups).sort((a, b) => b.total - a.total);
+
+        // OPÇÃO A: Se até 8 categorias, mostra TODAS no gráfico
+        let consolidatedEntries = [];
+        if (allCategories.length <= 8) {
+            consolidatedEntries = allCategories.map(item => [item.name, item]);
+        } else {
+            // Se > 8 categorias, top 8 + cauda em Outros
+            const regularCategories = allCategories.filter(item => item.name !== 'Outros' && !String(item.name).toLowerCase().includes('outro'));
+            const existingOutros = allCategories.find(item => item.name === 'Outros' || String(item.name).toLowerCase().includes('outro'));
+            const top8 = regularCategories.slice(0, 8);
+            const tail = regularCategories.slice(8);
+            const tailSum = tail.reduce((sum, item) => sum + item.total, 0);
+            const combinedOutrosTotal = (existingOutros ? existingOutros.total : 0) + tailSum;
+
+            consolidatedEntries = top8.map(item => [item.name, item]);
+            if (combinedOutrosTotal > 0) {
+                consolidatedEntries.push([
+                    'Outros',
+                    { total: combinedOutrosTotal, color: '#94a3b8', icon: 'fa-ellipsis-h', name: 'Outros' }
+                ]);
+            }
+        }
 
         const labels = [];
         const values = [];
         const colors = [];
         const icons = [];
 
-        sortedEntries.forEach(([key, valObj], idx) => {
+        const distinctPalette = [
+            '#4F46E5', '#0EA5E9', '#F97316', '#EC4899', '#10B981',
+            '#F59E0B', '#8B5CF6', '#E11D48', '#14B8A6', '#2563EB', '#84CC16', '#64748B'
+        ];
+        const usedColorSet = new Set();
+
+        consolidatedEntries.forEach(([key, valObj], idx) => {
             const fallbackStyle = getCategoryStyle(key, idx);
+            let chosenColor = String(valObj.color || fallbackStyle.color || '#2563EB').toUpperCase();
+            if (key === 'Outros') {
+                chosenColor = '#94A3B8';
+            } else if (usedColorSet.has(chosenColor)) {
+                const unused = distinctPalette.find(c => !usedColorSet.has(c.toUpperCase()));
+                chosenColor = unused || distinctPalette[idx % distinctPalette.length];
+            }
+            usedColorSet.add(chosenColor.toUpperCase());
+
             labels.push(key);
             values.push(valObj.total);
-            colors.push(valObj.color || fallbackStyle.color);
+            colors.push(chosenColor);
             icons.push(valObj.icon || fallbackStyle.icon);
         });
 
@@ -2344,62 +3069,36 @@ async function loadCategoryChart() {
         if (legendContainer) {
             if (labels.length === 0) {
                 legendContainer.innerHTML = `
-                    <div style="text-align:center;color:var(--color-text-muted,#94a3b8);font-size:11px;padding:8px 0;">
+                    <div class="expense-legend-empty">
                         <i class="fas fa-inbox" style="font-size:16px;display:block;margin-bottom:4px;opacity:0.5;"></i>
                         Nenhuma despesa
                     </div>
                 `;
             } else {
-                const maxDisplay = 5;
-                const displayLabels = labels.slice(0, maxDisplay);
-                const displayValues = values.slice(0, maxDisplay);
-                const displayColors = colors.slice(0, maxDisplay);
-                const displayIcons = icons.slice(0, maxDisplay);
-
-                legendContainer.innerHTML = displayLabels.map((label, idx) => {
-                    const val = displayValues[idx];
+                legendContainer.innerHTML = labels.map((label, idx) => {
+                    const val = values[idx];
                     const pct = total > 0 ? Math.round((val / total) * 100) : 0;
-                    const color = displayColors[idx];
-                    const icon = displayIcons[idx];
+                    const color = colors[idx];
+                    const icon = icons[idx];
 
                     return `
-                        <div style="display:flex;flex-direction:column;gap:3px;padding:4px 4px;font-size:11px;border-bottom:1px solid var(--color-border-light,#f1f5f9);">
-                            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-                                <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-                                    <span style="color:${color};font-size:10px;flex-shrink:0;width:14px;text-align:center;">
-                                        <i class="fas ${icon}"></i>
-                                    </span>
-                                    <span style="font-weight:600;color:var(--color-text,#1e293b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85px;font-size:11px;">${stripHTML(label)}</span>
+                        <div class="expense-legend-item-row">
+                            <div class="expense-legend-item-top">
+                                <div class="expense-legend-item-left">
+                                    <span class="expense-legend-item-dot" style="background:${color};"></span>
+                                    <span class="expense-legend-item-name" title="${stripHTML(label)}">${stripHTML(label)}</span>
                                 </div>
-                                <span style="font-weight:700;color:var(--color-text,#1e293b);font-size:11px;flex-shrink:0;">${pct}%</span>
+                                <div class="expense-legend-item-nums">
+                                    <span class="expense-legend-item-val">${formatCurrency(val)}</span>
+                                    <span class="expense-legend-item-pct">${pct}%</span>
+                                </div>
                             </div>
-                            <div style="width:100%;height:4px;background:rgba(148,163,184,0.18);border-radius:3px;overflow:hidden;">
-                                <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;transition:width 0.4s ease;"></div>
+                            <div class="expense-legend-bar-track">
+                                <div class="expense-legend-bar-fill" style="width:${pct}%;background:${color};"></div>
                             </div>
                         </div>
                     `;
                 }).join('');
-
-                if (labels.length > maxDisplay) {
-                    const otherTotal = values.slice(maxDisplay).reduce((a, b) => a + b, 0);
-                    const otherPct = total > 0 ? Math.round((otherTotal / total) * 100) : 0;
-                    legendContainer.innerHTML += `
-                        <div style="display:flex;flex-direction:column;gap:3px;padding:4px 4px;font-size:10px;border-top:1px solid var(--color-border-light,#f1f5f9);margin-top:2px;">
-                            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-                                <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-                                    <span style="color:#94a3b8;font-size:9px;flex-shrink:0;width:14px;text-align:center;">
-                                        <i class="fas fa-ellipsis-h"></i>
-                                    </span>
-                                    <span style="color:#94a3b8;font-size:10px;font-weight:500;">Outros (${labels.length - maxDisplay})</span>
-                                </div>
-                                <span style="color:#94a3b8;font-size:10px;font-weight:700;">${otherPct}%</span>
-                            </div>
-                            <div style="width:100%;height:3px;background:rgba(148,163,184,0.15);border-radius:2px;overflow:hidden;">
-                                <div style="width:${otherPct}%;height:100%;background:#94a3b8;border-radius:2px;"></div>
-                            </div>
-                        </div>
-                    `;
-                }
             }
         }
 
@@ -2475,21 +3174,26 @@ async function loadCategoryChart() {
                 ctx.textBaseline = 'middle';
 
                 const totalFormatted = formatCurrency(total);
-                const valueFontSize = Math.min(22, Math.max(15, Math.floor(innerRadius * 0.28)));
-                const labelFontSize = Math.min(13, Math.max(10, Math.floor(valueFontSize * 0.62)));
+                const maxInnerWidth = Math.max(48, innerRadius * 2 - 16);
+                let valueFontSize = Math.min(20, Math.max(11, Math.floor(innerRadius * 0.34)));
+                ctx.font = "800 " + valueFontSize + "px 'Plus Jakarta Sans', 'Inter', sans-serif";
+                while (ctx.measureText(totalFormatted).width > maxInnerWidth && valueFontSize > 10.5) {
+                    valueFontSize -= 0.5;
+                    ctx.font = "800 " + valueFontSize + "px 'Plus Jakarta Sans', 'Inter', sans-serif";
+                }
+                const labelFontSize = Math.min(12, Math.max(9.5, Math.floor(valueFontSize * 0.68)));
 
-                ctx.font = "800 " + valueFontSize + "px 'Inter', sans-serif";
                 ctx.fillStyle = primaryTextColor;
-                ctx.fillText(totalFormatted, centerX, centerY - labelFontSize * 0.7);
+                ctx.fillText(totalFormatted, centerX, centerY - labelFontSize * 0.65);
 
-                ctx.font = "500 " + labelFontSize + "px 'Inter', sans-serif";
+                ctx.font = "600 " + labelFontSize + "px 'Plus Jakarta Sans', 'Inter', sans-serif";
                 ctx.fillStyle = mutedTextColor;
-                ctx.fillText('Total Gasto', centerX, centerY + valueFontSize * 0.75);
+                ctx.fillText('Total Gasto', centerX, centerY + valueFontSize * 0.72);
 
                 meta.data.forEach((element, i) => {
                     const val = values[i];
                     const pct = total > 0 ? (val / total) * 100 : 0;
-                    if (pct < 5.0) return;
+                    if (pct < 5.5) return;
 
                     const startAngle = element.startAngle;
                     const endAngle = element.endAngle;
@@ -2504,23 +3208,23 @@ async function loadCategoryChart() {
                     ctx.textBaseline = 'middle';
                     ctx.fillStyle = '#FFFFFF';
 
-                    const pctFontSize = Math.min(13, Math.max(10, Math.floor((outerRadius - innerRadius) *
-                        0.28)));
-                    const valFontSize = Math.max(8, Math.floor(pctFontSize * 0.78));
+                    const ringThickness = Math.max(20, outerRadius - innerRadius);
+                    const pctFontSize = Math.min(12.5, Math.max(9.5, Math.floor(ringThickness * 0.3)));
+                    const valFontSize = Math.max(8, Math.floor(pctFontSize * 0.76));
 
                     ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
                     ctx.shadowBlur = 4;
                     ctx.shadowOffsetX = 0;
                     ctx.shadowOffsetY = 1;
 
-                    if (pct >= 9 && (outerRadius - innerRadius) > 36) {
-                        ctx.font = "700 " + pctFontSize + "px 'Inter', sans-serif";
-                        ctx.fillText(Math.round(pct) + '%', textX, textY - valFontSize * 0.75);
+                    if (pct >= 11 && ringThickness >= 38) {
+                        ctx.font = "700 " + pctFontSize + "px 'Plus Jakarta Sans', 'Inter', sans-serif";
+                        ctx.fillText(Math.round(pct) + '%', textX, textY - valFontSize * 0.72);
 
-                        ctx.font = "600 " + valFontSize + "px 'Inter', sans-serif";
-                        ctx.fillText(formatCurrency(val), textX, textY + pctFontSize * 0.75);
+                        ctx.font = "600 " + valFontSize + "px 'Plus Jakarta Sans', 'Inter', sans-serif";
+                        ctx.fillText(formatCurrency(val), textX, textY + pctFontSize * 0.72);
                     } else {
-                        ctx.font = "700 " + pctFontSize + "px 'Inter', sans-serif";
+                        ctx.font = "700 " + pctFontSize + "px 'Plus Jakarta Sans', 'Inter', sans-serif";
                         ctx.fillText(Math.round(pct) + '%', textX, textY);
                     }
                     ctx.restore();
@@ -2548,13 +3252,13 @@ async function loadCategoryChart() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '60%',
+                cutout: '62%',
                 layout: {
                     padding: {
-                        top: 20,
-                        bottom: 20,
-                        left: 30,
-                        right: 30
+                        top: 4,
+                        bottom: 4,
+                        left: 4,
+                        right: 4
                     }
                 },
                 plugins: {
@@ -2563,8 +3267,8 @@ async function loadCategoryChart() {
                     },
                     tooltip: {
                         backgroundColor: 'rgba(15, 23, 42, 0.94)',
-                        titleFont: { size: 11, weight: '600' },
-                        bodyFont: { size: 10 },
+                        titleFont: { size: 12.5, weight: '700' },
+                        bodyFont: { size: 11.5 },
                         padding: 8,
                         cornerRadius: 8,
                         callbacks: {
@@ -2605,21 +3309,8 @@ window.setMonthlyPeriod = function (period) {
     const badge = document.getElementById('monthlyPeriodBadge');
 
     if (btn6 && btn12) {
-        if (monthlyChartPeriod === 6) {
-            btn6.style.background = '#6C5CE7';
-            btn6.style.color = '#ffffff';
-            btn6.style.fontWeight = '700';
-            btn12.style.background = 'transparent';
-            btn12.style.color = 'var(--color-text-muted, #64748b)';
-            btn12.style.fontWeight = '600';
-        } else {
-            btn12.style.background = '#6C5CE7';
-            btn12.style.color = '#ffffff';
-            btn12.style.fontWeight = '700';
-            btn6.style.background = 'transparent';
-            btn6.style.color = 'var(--color-text-muted, #64748b)';
-            btn6.style.fontWeight = '600';
-        }
+        btn6.classList.toggle('active', monthlyChartPeriod === 6);
+        btn12.classList.toggle('active', monthlyChartPeriod !== 6);
     }
 
     if (badge) {
@@ -2772,7 +3463,8 @@ async function loadMonthlyChart() {
                 barPercentage: 0.85,
                 interaction: {
                     mode: 'index',
-                    intersect: false
+                    intersect: false,
+                    axis: 'x'
                 },
                 plugins: {
                     legend: {
@@ -2780,7 +3472,7 @@ async function loadMonthlyChart() {
                         align: 'end',
                         labels: {
                             color: textColor,
-                            font: { size: 11, weight: '600', family: "'Inter', sans-serif" },
+                            font: { size: 12, weight: '600', family: "'Plus Jakarta Sans', 'Inter', sans-serif" },
                             usePointStyle: true,
                             pointStyle: 'circle',
                             padding: 14,
@@ -2796,8 +3488,8 @@ async function loadMonthlyChart() {
                         borderWidth: 1,
                         padding: 10,
                         cornerRadius: 10,
-                        titleFont: { size: 12, weight: '700' },
-                        bodyFont: { size: 11 },
+                        titleFont: { size: 12.5, weight: '700' },
+                        bodyFont: { size: 11.5 },
                         callbacks: {
                             title: function (items) {
                                 if (!items.length) return '';
@@ -2820,7 +3512,7 @@ async function loadMonthlyChart() {
                         },
                         ticks: {
                             color: textColor,
-                            font: { size: 10 },
+                            font: { size: 11 },
                             callback: function (value) {
                                 return formatCurrency(value);
                             }
@@ -2830,7 +3522,7 @@ async function loadMonthlyChart() {
                         grid: { display: false },
                         ticks: {
                             color: textColor,
-                            font: { size: 11, weight: '500' }
+                            font: { size: 12, weight: '600' }
                         }
                     }
                 },
@@ -3439,6 +4131,648 @@ window.calculatePatrimony = calculatePatrimony;
 window.startPatrimonyAutoUpdate = startPatrimonyAutoUpdate;
 window.stopPatrimonyAutoUpdate = stopPatrimonyAutoUpdate;
 
+// ============================================
+// ✨ INSIGHTS IA (GEMINI - HORIZONTE 2 ITEM 2)
+// ============================================
+var AI_INSIGHTS_CLIENT_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas em cache local
+var AI_INSIGHTS_FETCH_TIMEOUT_MS = 35000;
+var AI_INSIGHTS_FAILURE_COOLDOWN_MS = 5 * 60 * 1000;
+var _aiInsightsFetchInFlight = false;
+var _aiInsightsRequestSeq = 0;
+var _aiInsightsAbortController = null;
+var _aiInsightsVisibilityTimer = null;
+
+function _escapeAiInsightHtml(str) {
+    if (typeof sanitizeString === 'function') {
+        return sanitizeString(String(str || ''));
+    }
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _resolveDesktopAiFailureMeta(meta) {
+    const reason = String(meta?.reason || '').toLowerCase();
+    switch (reason) {
+        case 'offline':
+            return {
+                badge: 'Offline',
+                text: 'Sem conexão no momento. O Diagnóstico 360º ao lado segue ativo.'
+            };
+        case 'no_token':
+        case 'unauthorized':
+            return {
+                badge: 'Sessão expirada',
+                text: 'Faça login novamente para atualizar os Insights IA.'
+            };
+        case 'api_key_invalid':
+        case 'not_configured':
+            return {
+                badge: 'Config. pendente',
+                text: meta?.errorMessage || 'Chave da API Gemini não configurada ou inválida no servidor.'
+            };
+        case 'edge_not_deployed':
+            return {
+                badge: 'Config. pendente',
+                text: 'Edge Function "insights" ainda não foi publicada no seu projeto Supabase.'
+            };
+        case 'quota_exceeded':
+        case 'rate_limit':
+            return {
+                badge: 'Limite atingido',
+                text: meta?.errorMessage || 'Cota de consultas IA atingida. Tente novamente mais tarde.'
+            };
+        case 'overloaded':
+            return {
+                badge: 'Alta demanda',
+                text: meta?.errorMessage || 'Os modelos de IA estão com alta demanda agora. Tente novamente em instantes.'
+            };
+        case 'timeout':
+            return {
+                badge: 'Tempo esgotado',
+                text: 'A IA demorou para responder. Clique no ícone de atualizar para tentar novamente.'
+            };
+        default:
+            return {
+                badge: 'Indisponível',
+                text: meta?.errorMessage || 'Insights IA indisponíveis no momento. O Diagnóstico 360º segue ativo.'
+            };
+    }
+}
+
+function _resolveDesktopInsightTopic(safeType, rawText) {
+    const normalized = String(rawText || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+    let iconClass = 'fas fa-compass';
+    let tag = 'Orientacao';
+    let fallbackTitle = 'Visao estrategica';
+
+    if (safeType === 'warning') {
+        iconClass = 'fas fa-triangle-exclamation';
+        tag = 'Atenção';
+        fallbackTitle = 'Ponto de atenção';
+    } else if (safeType === 'success') {
+        iconClass = 'fas fa-circle-check';
+        tag = 'Positivo';
+        fallbackTitle = 'Destaque positivo';
+    } else {
+        tag = 'Orientação';
+        fallbackTitle = 'Visão estratégica';
+    }
+
+    let title = fallbackTitle;
+    if (/atrasad|pendenc|contas? a pagar|vencid|fatura|quitacao|passivo/.test(normalized)) {
+        title = 'Prioridade de contas';
+    } else if (/consumo real|fluxo|saldo operacional|superavit|deficit|poupanca|poupou/.test(normalized)) {
+        title = 'Fluxo real do mês';
+    } else if (/invest|aporte|renda passiva|provento|dividend|reserva/.test(normalized)) {
+        title = 'Aportes e reservas';
+    } else if (/meta|objetivo|progresso/.test(normalized)) {
+        title = 'Avanço nas metas';
+    } else if (/concentra|centro de custo|categoria|emprest|maior gasto|orcamento/.test(normalized)) {
+        title = 'Foco nos gastos';
+    } else if (/receita|renda extra|bico|freela/.test(normalized)) {
+        title = 'Alavanca de renda';
+    }
+
+    return { iconClass, tag, title };
+}
+
+function _formatDesktopInsightRichHtml(rawText) {
+    const normalizedText = String(rawText || '').replace(
+        /(\d+(?:\.\d{3})*(?:,\d{1,2})?)\s+(?:reais|real)\b/gi,
+        (full, numStr) => {
+            const parsed = Number(String(numStr).replace(/\./g, '').replace(',', '.'));
+            if (!Number.isFinite(parsed) || parsed < 0) return full;
+            const fixed = parsed.toFixed(2).split('.');
+            const intPart = fixed[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return `R$ ${intPart},${fixed[1]}`;
+        }
+    );
+
+    const escaped = _escapeAiInsightHtml(normalizedText);
+    return escaped.replace(
+        /-?R\$\s*\d+(?:\.\d{3})*(?:,\d{1,2})?|-?R\$\s*\d+(?:,\d{1,2})?|\d+(?:[.,]\d+)?%/g,
+        (match) => `<strong class="ai-insight-num">${match}</strong>`
+    );
+}
+
+function renderAIInsights(insights, meta) {
+    const body = document.getElementById('aiInsightsBody');
+    if (!body) return;
+
+    const list = Array.isArray(insights) ? insights.slice(0, 3) : [];
+    const badgeEl = document.getElementById('aiInsightsSourceBadge');
+    if (badgeEl && meta && meta.source) {
+        badgeEl.textContent = meta.source === 'cache' || meta.source === 'session' ? '90d · Cache' : '90d · IA';
+    }
+
+    if (list.length === 0) {
+        const failure = _resolveDesktopAiFailureMeta(meta);
+        if (badgeEl) badgeEl.textContent = failure.badge;
+        body.innerHTML = `<div class="ai-insights-empty-wrap"><p class="ai-insights-empty">${_escapeAiInsightHtml(failure.text)}</p><button type="button" class="ai-insights-retry-btn"><i class="fas fa-sync-alt" aria-hidden="true"></i> Tentar novamente</button></div>`;
+        const retryBtn = body.querySelector('.ai-insights-retry-btn');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => loadAIInsights(true));
+        }
+        return;
+    }
+
+    body.innerHTML = `<div class="ai-insights-list">${list.map(item => {
+        const rawType = String(item?.type || 'info').toLowerCase().trim();
+        const safeType = (rawType === 'warning' || rawType === 'success' || rawType === 'info') ? rawType : 'info';
+        const rawText = String(item?.text || '');
+        const topic = _resolveDesktopInsightTopic(safeType, rawText);
+        const richHtml = _formatDesktopInsightRichHtml(rawText);
+        return `<div class="ai-insight-item ${safeType}"><span class="ai-insight-icon-wrap" aria-hidden="true"><i class="${topic.iconClass}"></i></span><div class="ai-insight-content"><div class="ai-insight-head"><span class="ai-insight-title">${_escapeAiInsightHtml(topic.title)}</span><span class="ai-insight-sep" aria-hidden="true">·</span><span class="ai-insight-tag">${_escapeAiInsightHtml(topic.tag)}</span></div><span class="ai-insight-text">${richHtml}</span></div></div>`;
+    }).join('')}</div>`;
+}
+
+function _getAiInsightsSessionKey(userId) {
+    return `tonu_ai_insights_v3_${userId || 'anon'}`;
+}
+
+function _getAiInsightsCooldownKey(userId) {
+    return `tonu_ai_insights_cd_v1_${userId || 'anon'}`;
+}
+
+function _readDesktopAiInsightsCache(userId) {
+    const key = _getAiInsightsSessionKey(userId);
+    for (const storage of [typeof sessionStorage !== 'undefined' ? sessionStorage : null, typeof localStorage !== 'undefined' ? localStorage : null]) {
+        if (!storage) continue;
+        try {
+            const raw = storage.getItem(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.insights) && parsed.insights.length > 0 && parsed.ts && (Date.now() - Number(parsed.ts)) < AI_INSIGHTS_CLIENT_TTL_MS) {
+                return parsed;
+            }
+        } catch (_) {}
+    }
+    return null;
+}
+
+function _writeDesktopAiInsightsCache(userId, payload) {
+    const key = _getAiInsightsSessionKey(userId);
+    const json = JSON.stringify(payload);
+    try { sessionStorage.setItem(key, json); } catch (_) {}
+    try { localStorage.setItem(key, json); } catch (_) {}
+    try { localStorage.removeItem(_getAiInsightsCooldownKey(userId)); } catch (_) {}
+}
+
+function _readDesktopAiInsightsCooldown(userId) {
+    try {
+        const raw = localStorage.getItem(_getAiInsightsCooldownKey(userId));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.ts && (Date.now() - Number(parsed.ts)) < AI_INSIGHTS_FAILURE_COOLDOWN_MS) {
+            return parsed;
+        }
+        localStorage.removeItem(_getAiInsightsCooldownKey(userId));
+    } catch (_) {}
+    return null;
+}
+
+function _writeDesktopAiInsightsCooldown(userId, failureMeta) {
+    const reason = String(failureMeta?.reason || '').toLowerCase();
+    if (!['quota_exceeded', 'rate_limit', 'overloaded', 'api_key_invalid', 'not_configured', 'edge_not_deployed'].includes(reason)) {
+        return;
+    }
+    try {
+        localStorage.setItem(_getAiInsightsCooldownKey(userId), JSON.stringify({
+            reason,
+            errorMessage: failureMeta?.errorMessage || '',
+            ts: Date.now()
+        }));
+    } catch (_) {}
+}
+
+function _isAiInsightsClientCacheExpired(userId) {
+    return !_readDesktopAiInsightsCache(userId) && !_readDesktopAiInsightsCooldown(userId);
+}
+
+function _buildDesktopClientSummary() {
+    try {
+        const txs = Array.isArray(_dashCache?.payload?.currentTxs) ? _dashCache.payload.currentTxs : (Array.isArray(allTransactions) ? allTransactions : []);
+        let totalIncome = 0;
+        let totalExpense = 0;
+        let pendingBillsCount = 0;
+        let pendingBillsTotal = 0;
+        const catTotals = new Map();
+
+        txs.forEach(t => {
+            if (!t) return;
+            const amt = Math.abs(Number(t.amount || 0));
+            if (!Number.isFinite(amt) || amt <= 0) return;
+            if (!isTxPaid(t)) {
+                if (t.type === 'expense') {
+                    pendingBillsCount += 1;
+                    pendingBillsTotal += amt;
+                }
+                return;
+            }
+            if (t.type === 'income') {
+                totalIncome += amt;
+            } else if (t.type === 'expense') {
+                totalExpense += amt;
+                const matchedCat = t.category_id && Array.isArray(categories)
+                    ? categories.find(c => String(c.id) === String(t.category_id))
+                    : null;
+                const catName = t.categories?.name || t.category || matchedCat?.name || 'Outros';
+                catTotals.set(catName, (catTotals.get(catName) || 0) + amt);
+            }
+        });
+
+        const topCategories = Array.from(catTotals.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([category, total]) => ({
+                category: String(category).slice(0, 40),
+                total: Math.round(total * 100) / 100,
+                pct_of_expenses: totalExpense > 0 ? Math.round((total / totalExpense) * 100) : 0,
+                ...(totalIncome > 0 ? { pct_of_income: Math.round((total / totalIncome) * 100) } : {})
+            }));
+
+        return {
+            total_income: Math.round(totalIncome * 100) / 100,
+            total_expense: Math.round(totalExpense * 100) / 100,
+            transactions_count: txs.length,
+            pending_bills_count: pendingBillsCount,
+            pending_bills_total: Math.round(pendingBillsTotal * 100) / 100,
+            top_categories: topCategories,
+            goals_count: 0,
+            goals_progress: []
+        };
+    } catch {
+        return null;
+    }
+}
+
+async function _resolveDesktopSupabaseAccessToken(forceRefreshSession) {
+    const client = (typeof window !== 'undefined' && window.supabaseClient)
+        || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+    if (!client?.auth) return '';
+
+    try {
+        if (!forceRefreshSession && typeof client.auth.getSession === 'function') {
+            const { data } = await client.auth.getSession();
+            if (data?.session?.access_token) {
+                return data.session.access_token;
+            }
+        }
+        if (typeof client.auth.refreshSession === 'function') {
+            const { data } = await client.auth.refreshSession();
+            if (data?.session?.access_token) {
+                return data.session.access_token;
+            }
+        }
+    } catch (_) {}
+    return '';
+}
+
+function _isDesktopStaticOnlyHost() {
+    if (typeof window === 'undefined' || !window.location) return false;
+    const proto = String(window.location.protocol || '').toLowerCase();
+    const host = String(window.location.hostname || '').toLowerCase();
+    return proto === 'file:' || host.endsWith('.github.io');
+}
+
+function _resolveDesktopInsightsSupabaseConfig() {
+    const url = String(
+        (typeof window !== 'undefined' && window.__TONU_CONFIG__?.supabaseUrl) ||
+        (typeof window !== 'undefined' && window.APP_CONFIG?.SUPABASE_URL) ||
+        (typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '') ||
+        ''
+    ).replace(/\/+$/, '');
+    const anonKey = String(
+        (typeof window !== 'undefined' && window.__TONU_CONFIG__?.supabaseAnonKey) ||
+        (typeof window !== 'undefined' && window.APP_CONFIG?.SUPABASE_ANON_KEY) ||
+        (typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : '') ||
+        ''
+    );
+    return { url, anonKey };
+}
+
+async function loadAIInsights(forceRefresh) {
+    const body = document.getElementById('aiInsightsBody');
+    if (!body) return;
+
+    const force = forceRefresh === true;
+    const uid = currentUser?.id;
+    if (!uid) {
+        renderAIInsights([], { reason: 'unauthorized' });
+        return;
+    }
+
+    if (!force) {
+        const cached = _readDesktopAiInsightsCache(uid);
+        if (cached) {
+            renderAIInsights(cached.insights, { source: 'session' });
+            return;
+        }
+        const cooldown = _readDesktopAiInsightsCooldown(uid);
+        if (cooldown) {
+            renderAIInsights([], cooldown);
+            return;
+        }
+    } else {
+        try { localStorage.removeItem(_getAiInsightsCooldownKey(uid)); } catch (_) {}
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        renderAIInsights([], { reason: 'offline' });
+        return;
+    }
+
+    if (_aiInsightsFetchInFlight && !force) return;
+    if (force && _aiInsightsAbortController) {
+        try { _aiInsightsAbortController.abort(); } catch (_) {}
+    }
+
+    const reqSeq = ++_aiInsightsRequestSeq;
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    _aiInsightsAbortController = controller;
+    let timedOut = false;
+    const abortTimer = controller ? setTimeout(() => {
+        timedOut = true;
+        try { controller.abort(); } catch (_) {}
+    }, AI_INSIGHTS_FETCH_TIMEOUT_MS) : null;
+
+    _aiInsightsFetchInFlight = true;
+
+    const refreshBtn = document.getElementById('aiInsightsRefreshBtn');
+    const refreshIcon = refreshBtn ? refreshBtn.querySelector('i') : null;
+    if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
+    if (force) {
+        body.innerHTML = '<p class="ai-insights-empty">Atualizando insights com IA...</p>';
+    }
+
+    try {
+        let token = await _resolveDesktopSupabaseAccessToken(false);
+        if (reqSeq !== _aiInsightsRequestSeq) return;
+        if (!token) {
+            renderAIInsights([], { reason: 'no_token' });
+            return;
+        }
+
+        const base = (typeof window.getBaseUrl === 'function')
+            ? String(window.getBaseUrl() || '').replace(/\/+$/, '')
+            : '';
+        const clientSummary = _buildDesktopClientSummary();
+        const isStaticHost = _isDesktopStaticOnlyHost();
+        const supaCfg = _resolveDesktopInsightsSupabaseConfig();
+
+        const postWithRetry = async (url, extraHeaders) => {
+            const send = (bearer) => fetch(url, {
+                method: 'POST',
+                headers: Object.assign({
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${bearer}`
+                }, extraHeaders || {}),
+                body: JSON.stringify({
+                    forceRefresh: force,
+                    clientSummary
+                }),
+                ...(controller ? { signal: controller.signal } : {})
+            });
+
+            const parseJsonSafe = async (response) => {
+                try {
+                    return await response.json();
+                } catch (_) {
+                    return null;
+                }
+            };
+
+            let res = await send(token);
+            if (reqSeq !== _aiInsightsRequestSeq) return { aborted: true };
+            let data = await parseJsonSafe(res);
+            if (reqSeq !== _aiInsightsRequestSeq) return { aborted: true };
+
+            if (res.status === 401 && data?.code !== 'INVALID_API_KEY') {
+                const refreshedToken = await _resolveDesktopSupabaseAccessToken(true);
+                if (reqSeq !== _aiInsightsRequestSeq) return { aborted: true };
+                if (refreshedToken && refreshedToken !== token) {
+                    token = refreshedToken;
+                    res = await send(token);
+                    if (reqSeq !== _aiInsightsRequestSeq) return { aborted: true };
+                    data = await parseJsonSafe(res);
+                    if (reqSeq !== _aiInsightsRequestSeq) return { aborted: true };
+                }
+            }
+
+            return { res, data };
+        };
+
+        let primaryFailure = null;
+        let shouldTryEdge = isStaticHost;
+
+        if (!isStaticHost) {
+            try {
+                const apiResult = await postWithRetry(`${base}/api/insights`);
+                if (apiResult.aborted) return;
+
+                const { res, data } = apiResult;
+                const insights = Array.isArray(data?.insights) ? data.insights : [];
+                if (res.ok && insights.length > 0) {
+                    _writeDesktopAiInsightsCache(uid, {
+                        insights,
+                        generated_at: data.generated_at || new Date().toISOString(),
+                        ts: Date.now()
+                    });
+                    renderAIInsights(insights, { source: data?.source || 'ai' });
+                    return;
+                }
+
+                if (res.status === 401 || res.status === 429) {
+                    console.warn('[Insights IA] HTTP error:', res.status, data?.code || '', data?.error || data?.message || data);
+                    const failureMeta = {
+                        reason: data?.reason || (res.status === 401 ? 'unauthorized' : 'rate_limit'),
+                        errorMessage: data?.error || ''
+                    };
+                    _writeDesktopAiInsightsCooldown(uid, failureMeta);
+                    renderAIInsights([], failureMeta);
+                    return;
+                }
+
+                primaryFailure = {
+                    status: res.status,
+                    reason: data?.reason || (data?.gemini_configured === false ? 'not_configured' : 'error'),
+                    errorMessage: data?.error || (res.status >= 500
+                        ? 'Servidor temporariamente indisponível. Clique em atualizar.'
+                        : (data === null ? 'Rota /api/insights não retornou JSON válido neste endereço.' : ''))
+                };
+                shouldTryEdge = (
+                    res.status === 404 ||
+                    res.status >= 500 ||
+                    data === null ||
+                    data?.reason === 'not_configured' ||
+                    data?.gemini_configured === false
+                );
+            } catch (apiErr) {
+                if (reqSeq !== _aiInsightsRequestSeq) return;
+                if (timedOut || apiErr?.name === 'AbortError') throw apiErr;
+                console.warn('[Insights IA] Backend local indisponível, tentando Supabase Edge Function:', apiErr);
+                shouldTryEdge = true;
+            }
+        }
+
+        if (shouldTryEdge && supaCfg.url) {
+            try {
+                // Projetos Supabase com chaves assimétricas/publishable rejeitam chaves legacy JWT no header apikey do Edge Gateway.
+                // Enviamos apikey apenas quando for sb_publishable_...; caso contrário, apenas Authorization: Bearer <userJwt>.
+                const edgeHeaders = (supaCfg.anonKey && supaCfg.anonKey.startsWith('sb_publishable_'))
+                    ? { apikey: supaCfg.anonKey }
+                    : {};
+                const edgeResult = await postWithRetry(
+                    `${supaCfg.url}/functions/v1/insights`,
+                    edgeHeaders
+                );
+                if (edgeResult.aborted) return;
+
+                const { res, data } = edgeResult;
+                const insights = Array.isArray(data?.insights) ? data.insights : [];
+                if (res.ok && insights.length > 0) {
+                    _writeDesktopAiInsightsCache(uid, {
+                        insights,
+                        generated_at: data.generated_at || new Date().toISOString(),
+                        ts: Date.now()
+                    });
+                    renderAIInsights(insights, { source: data?.source || 'ai' });
+                    return;
+                }
+
+                if (res.status === 404) {
+                    const failMeta = (primaryFailure && primaryFailure.status !== 404 && primaryFailure.errorMessage)
+                        ? primaryFailure
+                        : { reason: 'edge_not_deployed' };
+                    _writeDesktopAiInsightsCooldown(uid, failMeta);
+                    renderAIInsights([], failMeta);
+                    return;
+                }
+
+                console.warn('[Insights IA] Edge Function error:', res.status, data?.code || '', data?.error || data?.message || data);
+                const isInvalidApiKey = data?.code === 'INVALID_API_KEY';
+                const edgeFailureMeta = {
+                    reason: isInvalidApiKey
+                        ? 'not_configured'
+                        : (data?.reason || (res.status === 401 ? 'unauthorized' : (res.status === 503 ? 'overloaded' : (data?.gemini_configured === false ? 'not_configured' : 'error')))),
+                    errorMessage: data?.error || data?.message || (res.status >= 500 ? 'Edge Function temporariamente indisponível. Clique em atualizar.' : '')
+                };
+                _writeDesktopAiInsightsCooldown(uid, edgeFailureMeta);
+                renderAIInsights([], edgeFailureMeta);
+                return;
+            } catch (edgeErr) {
+                if (reqSeq !== _aiInsightsRequestSeq) return;
+                if (timedOut || edgeErr?.name === 'AbortError') throw edgeErr;
+                console.warn('[Insights IA] Falha ao chamar Edge Function:', edgeErr);
+                if (primaryFailure && primaryFailure.status !== 404 && primaryFailure.errorMessage) {
+                    _writeDesktopAiInsightsCooldown(uid, primaryFailure);
+                    renderAIInsights([], primaryFailure);
+                } else if (isStaticHost) {
+                    const failMeta = { reason: 'edge_not_deployed' };
+                    _writeDesktopAiInsightsCooldown(uid, failMeta);
+                    renderAIInsights([], failMeta);
+                } else {
+                    renderAIInsights([], { reason: 'error' });
+                }
+                return;
+            }
+        }
+
+        console.warn('[Insights IA] Falha:', primaryFailure);
+        if (primaryFailure) _writeDesktopAiInsightsCooldown(uid, primaryFailure);
+        renderAIInsights([], primaryFailure || { reason: 'error' });
+    } catch (err) {
+        if (reqSeq !== _aiInsightsRequestSeq) return;
+        console.warn('[Insights IA] Erro de rede:', err);
+        const isTimeout = timedOut || err?.name === 'AbortError' || err?.name === 'TimeoutError';
+        renderAIInsights([], {
+            reason: (typeof navigator !== 'undefined' && navigator.onLine === false)
+                ? 'offline'
+                : (isTimeout ? 'timeout' : 'error')
+        });
+    } finally {
+        if (abortTimer) clearTimeout(abortTimer);
+        if (_aiInsightsAbortController === controller) {
+            _aiInsightsAbortController = null;
+        }
+        if (reqSeq === _aiInsightsRequestSeq) {
+            _aiInsightsFetchInFlight = false;
+            if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+        }
+    }
+}
+
+function _bindDesktopInsightsInteractions() {
+    const aiBtn = document.getElementById('aiInsightsRefreshBtn');
+    if (aiBtn && !aiBtn.dataset.boundClick) {
+        aiBtn.dataset.boundClick = '1';
+        aiBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadAIInsights(true);
+        });
+    }
+    const diagBtn = document.getElementById('dashboardInsightsRefreshBtn');
+    if (diagBtn && !diagBtn.dataset.boundClick) {
+        diagBtn.dataset.boundClick = '1';
+        diagBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            generateDashboardInsights();
+        });
+    }
+    if (!document.body?.dataset?.dashInsightsDelegated) {
+        if (document.body) document.body.dataset.dashInsightsDelegated = '1';
+        document.addEventListener('click', (e) => {
+            const actionCard = e.target.closest?.('.action-card[data-href]');
+            if (actionCard) {
+                const href = actionCard.getAttribute('data-href');
+                if (href) window.location.href = href;
+                return;
+            }
+            const settingsLink = e.target.closest?.('[data-settings-tab]');
+            if (settingsLink) {
+                const tab = settingsLink.getAttribute('data-settings-tab');
+                if (tab) localStorage.setItem('tonu_settings_active_tab', tab);
+            }
+        });
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _bindDesktopInsightsInteractions);
+} else {
+    _bindDesktopInsightsInteractions();
+}
+
+function _debouncedRefreshAiInsightsOnResume() {
+    if (!currentUser?.id || !_isAiInsightsClientCacheExpired(currentUser.id)) return;
+    clearTimeout(_aiInsightsVisibilityTimer);
+    _aiInsightsVisibilityTimer = setTimeout(() => {
+        loadAIInsights(false).catch(() => {});
+    }, 800);
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        _debouncedRefreshAiInsightsOnResume();
+    }
+});
+
+window.addEventListener('focus', () => {
+    _debouncedRefreshAiInsightsOnResume();
+});
+
+window.loadAIInsights = loadAIInsights;
+window.renderAIInsights = renderAIInsights;
+
 console.log('✅ Dashboard.js carregado com sucesso!');
 
 // ============================================
@@ -3520,9 +4854,9 @@ window.DashboardWidgets = {
             case 'summary':
                 container.innerHTML = `
                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
-                        <div><span style="font-size:11px;color:#94a3b8;">Receitas</span><br><span style="font-size:18px;font-weight:700;color:#00b894;" id="wIncome">R$ 0,00</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Despesas</span><br><span style="font-size:18px;font-weight:700;color:#ff7675;" id="wExpense">R$ 0,00</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Saldo</span><br><span style="font-size:18px;font-weight:700;color:#6c5ce7;" id="wBalance">R$ 0,00</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Receitas</span><br><span style="font-size:18px;font-weight:700;color:#10B981;" id="wIncome">R$ 0,00</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Despesas</span><br><span style="font-size:18px;font-weight:700;color:#F43F5E;" id="wExpense">R$ 0,00</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Saldo</span><br><span style="font-size:18px;font-weight:700;color:#2563EB;" id="wBalance">R$ 0,00</span></div>
                     </div>
                 `;
                 setTimeout(() => {
@@ -3537,12 +4871,12 @@ window.DashboardWidgets = {
             case 'income':
                 container.innerHTML = `
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;border-radius:10px;background:#00b894;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:#10B981;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
                             <i class="fas fa-arrow-up"></i>
                         </div>
                         <div>
                             <div style="font-size:11px;color:#94a3b8;">Receitas</div>
-                            <div style="font-size:20px;font-weight:700;color:#00b894;" id="wIncomeOnly">R$ 0,00</div>
+                            <div style="font-size:20px;font-weight:700;color:#10B981;" id="wIncomeOnly">R$ 0,00</div>
                         </div>
                     </div>
                 `;
@@ -3554,12 +4888,12 @@ window.DashboardWidgets = {
             case 'expenses':
                 container.innerHTML = `
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;border-radius:10px;background:#ff7675;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:#F43F5E;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
                             <i class="fas fa-arrow-down"></i>
                         </div>
                         <div>
                             <div style="font-size:11px;color:#94a3b8;">Despesas</div>
-                            <div style="font-size:20px;font-weight:700;color:#ff7675;" id="wExpenseOnly">R$ 0,00</div>
+                            <div style="font-size:20px;font-weight:700;color:#F43F5E;" id="wExpenseOnly">R$ 0,00</div>
                         </div>
                     </div>
                 `;
@@ -3571,12 +4905,12 @@ window.DashboardWidgets = {
             case 'balance':
                 container.innerHTML = `
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;border-radius:10px;background:#6c5ce7;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#3730A3,#2563EB);color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
                             <i class="fas fa-wallet"></i>
                         </div>
                         <div>
                             <div style="font-size:11px;color:#94a3b8;">Saldo</div>
-                            <div style="font-size:20px;font-weight:700;color:#6c5ce7;" id="wBalanceOnly">R$ 0,00</div>
+                            <div style="font-size:20px;font-weight:700;color:#2563EB;" id="wBalanceOnly">R$ 0,00</div>
                         </div>
                     </div>
                 `;
@@ -3588,9 +4922,9 @@ window.DashboardWidgets = {
             case 'bills':
                 container.innerHTML = `
                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
-                        <div><span style="font-size:11px;color:#94a3b8;">Pendentes</span><br><span style="font-size:18px;font-weight:700;color:#fdcb6e;" id="wBillsPending">0</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Pagas</span><br><span style="font-size:18px;font-weight:700;color:#00b894;" id="wBillsPaid">0</span></div>
-                        <div><span style="font-size:11px;color:#94a3b8;">Total</span><br><span style="font-size:18px;font-weight:700;color:#6c5ce7;" id="wBillsTotal">R$ 0,00</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Pendentes</span><br><span style="font-size:18px;font-weight:700;color:#F59E0B;" id="wBillsPending">0</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Pagas</span><br><span style="font-size:18px;font-weight:700;color:#10B981;" id="wBillsPaid">0</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Total</span><br><span style="font-size:18px;font-weight:700;color:#2563EB;" id="wBillsTotal">R$ 0,00</span></div>
                     </div>
                 `;
                 setTimeout(() => {
@@ -3605,7 +4939,7 @@ window.DashboardWidgets = {
             case 'patrimony':
                 container.innerHTML = `
                     <div style="text-align:center;padding:8px 0;">
-                        <div style="font-size:28px;font-weight:800;color:#6c5ce7;" id="wPatrimony">R$ 0,00</div>
+                        <div style="font-size:28px;font-weight:800;color:#2563EB;" id="wPatrimony">R$ 0,00</div>
                         <div style="font-size:12px;color:#94a3b8;">Patrimônio Total</div>
                     </div>
                 `;

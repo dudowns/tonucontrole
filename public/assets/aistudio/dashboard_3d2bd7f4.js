@@ -1,0 +1,4287 @@
+// ============================================
+// DASHBOARD - TonuControle
+// ============================================
+
+console.log('📊 Dashboard.js carregado');
+
+// Aliases de helpers globais (definidos em js/core.js)
+var formatCurrency = window.formatCurrency;
+var formatDate = window.formatDate;
+var toggleTheme = window.toggleTheme;
+var colorTo15PercentAlpha = window.colorTo15PercentAlpha;
+var getToday = window.getToday;
+var sanitizeString = window.sanitizeString;
+
+const _dashCache = { key: null, ts: 0, payload: null };
+const DASH_CACHE_TTL_MS = 90 * 1000;
+
+// BRAPI_TOKEN
+var BRAPI_TOKEN = (typeof window !== 'undefined' && window.BRAPI_TOKEN)
+    || (window.__TONU_CONFIG__ && window.__TONU_CONFIG__.brapiToken)
+    || (window.APP_CONFIG && window.APP_CONFIG.BRAPI_TOKEN)
+    || '';
+if (typeof window !== 'undefined') window.BRAPI_TOKEN = BRAPI_TOKEN;
+
+// ============================================
+// VARIÁVEIS GLOBAIS
+// ============================================
+let categories = [];
+let currentUser = null;
+let categoryChart = null;
+let monthlyChart = null;
+let monthlyChartPeriod = 6;
+let monthlyChartMode = 'combo';
+let currentMonthOffset = 0;
+let patrimonyUpdateInterval = null;
+let allTransactions = [];
+let positions = [];
+let quotes = new Map();
+let isUsingRealQuotes = false;
+
+// ============================================
+// FUNÇÕES AUXILIARES
+// ============================================
+function getLastDayOfMonth(year, month) {
+    return new Date(year, month + 1, 0).getDate();
+}
+
+function formatDateKey(year, month, day) {
+    const m = String(month + 1).padStart(2, '0');
+    const d = String(day).padStart(2, '0');
+    return year + '-' + m + '-' + d;
+}
+
+function normalizeDateOnly(dateVal) {
+    if (!dateVal) return '';
+    const str = String(dateVal).trim();
+    // YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
+    const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) {
+        return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+    }
+    // DD/MM/YYYY
+    const brMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (brMatch) {
+        return `${brMatch[3]}-${brMatch[2].padStart(2, '0')}-${brMatch[1].padStart(2, '0')}`;
+    }
+    try {
+        const d = new Date(dateVal);
+        if (!isNaN(d.getTime())) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+    } catch {}
+    return str.substring(0, 10);
+}
+
+function isTransactionPaid(t) {
+    if (!t) return false;
+    if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+    if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+    return (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+}
+
+function isTxPaid(t) {
+    return isTransactionPaid(t);
+}
+
+function getMonthName(month) {
+    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    return months[month];
+}
+
+function parseBrazilianNumber(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return isNaN(value) ? 0 : value;
+
+    let str = String(value).trim();
+    str = str.replace(/[R$\s]/gi, '');
+
+    if (str.includes('.') && str.includes(',')) {
+        str = str.replace(/\./g, '').replace(',', '.');
+    } else if (str.includes(',')) {
+        str = str.replace(',', '.');
+    } else if (str.includes('.')) {
+        const parts = str.split('.');
+        if (parts.length > 2) {
+            str = parts.join('');
+        } else if (parts[1] && parts[1].length === 3 && Number(parts[0]) >= 1) {
+            str = parts[0] + parts[1];
+        }
+    }
+
+    const parsed = parseFloat(str);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+function stripHTML(str) {
+    if (!str) return '';
+    const temp = document.createElement('div');
+    temp.textContent = str;
+    return temp.innerHTML;
+}
+
+function updateMonthDisplay(elementId, offset) {
+    offset = offset || 0;
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + offset);
+    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.textContent = months[d.getMonth()] + ' ' + d.getFullYear();
+    }
+    return d;
+}
+
+// ============================================
+// ✨ FUNÇÃO DE SANITIZAÇÃO - VERSÃO DEFINITIVA
+// ============================================
+function sanitizeReportText(rawText) {
+    if (!rawText || typeof rawText !== 'string') return '';
+
+    let cleaned = rawText;
+
+    // 1. REMOVE TODOS OS CARACTERES ESTRANHOS QUE COMEÇAM COM "Ø"
+    cleaned = cleaned.replace(/Ø[=][^\s]{1,4}/g, '');
+    cleaned = cleaned.replace(/Ø[>][^\s]{1,4}/g, '');
+    cleaned = cleaned.replace(/Ø[=][^\\s]*/g, '');
+    cleaned = cleaned.replace(/Ø[>][^\\s]*/g, '');
+    cleaned = cleaned.replace(/�/g, '');
+    cleaned = cleaned.replace(/’┐Į/g, '');
+
+    // 2. REMOVE &¡, &lt;, &gt; e similares
+    cleaned = cleaned.replace(/&[a-z]{1,4};/gi, '');
+
+    // 3. REMOVE "(pago)"
+    cleaned = cleaned.replace(/\s*\(pago\)\s*/gi, '');
+
+    // 4. REMOVE ESPAÇOS DUPLOS
+    cleaned = cleaned.replace(/\s{2,}/g, ' ');
+
+    // 5. REMOVE PONTOS ESTRANHOS NO FINAL
+    cleaned = cleaned.replace(/[\.]+$/, '');
+
+    // 6. REMOVE CARACTERES NÃO IMPRIMÍVEIS (mantém acentos e caracteres especiais)
+    cleaned = cleaned.replace(/[^\x20-\x7EÀ-ž\r\n\t]/g, '');
+
+    // 7. REMOVE PADRÕES ESPECÍFICOS QUE APARECEM NO PDF
+    cleaned = cleaned.replace(/�\s*I�n�v�e�s�t�i�m�e�n�t�o�s/g, 'Investimentos');
+    cleaned = cleaned.replace(/�\s*C�a�r�t�ã�o�\s*�\s*d�e�\s*�\s*C�r�é�d�i�t�o/g, 'Cartão de Crédito');
+    cleaned = cleaned.replace(/�\s*C�o�n�t�a�s�\s*�\s*B�á�s�i�c�a�s/g, 'Contas Básicas');
+    cleaned = cleaned.replace(/�\s*E�m�p�r�é�s�t�i�m�o�s/g, 'Empréstimos');
+
+    // 8. LIMPEZA FINAL - REMOVE QUALQUER CARACTERE ESTRANHO QUE SOBROU
+    cleaned = cleaned.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)]/g, '');
+
+    return cleaned.trim();
+}
+
+// Lista de Units/Ações brasileiras que terminam em 11 (mas são AÇÕES, não FIIs)
+var KNOWN_STOCK_UNITS = (typeof window !== 'undefined' && window.KNOWN_STOCK_UNITS) || (typeof globalThis !== 'undefined' && globalThis.KNOWN_STOCK_UNITS) || new Set([
+    'TAEE11', 'SANB11', 'SAPR11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'CPLE11',
+    'SULA11', 'TIET11', 'BIDI11', 'RPMG11', 'MODL11', 'IGTI11', 'VVAR11', 'STBP11',
+    'AESB11', 'ELET11', 'PPLA11', 'ALLD11', 'ENEV11', 'BMEB11', 'BMGB11', 'BRAP11',
+    'CAMB11', 'CURY11', 'EMAE11', 'LCAM11', 'MOVI11', 'ODPV11', 'PARD11', 'RANI11',
+    'RAPT11', 'SIMH11', 'TRIS11', 'TUPY11', 'VAMO11', 'VBBR11', 'VULC11', 'WHRL11'
+]);
+
+// Lista de ETFs brasileiros negociados na B3 terminados em 11
+var KNOWN_ETFS = (typeof window !== 'undefined' && window.KNOWN_ETFS) || (typeof globalThis !== 'undefined' && globalThis.KNOWN_ETFS) || new Set([
+    'BOVA11', 'SMAL11', 'IVVB11', 'HASH11', 'XINA11', 'GOLD11', 'NASD11', 'SPXI11',
+    'WRLD11', 'DIVO11', 'MATB11', 'FIND11', 'BRAX11', 'PIBB11', 'ECOO11', 'ISUS11',
+    'GENB11', 'ACWI11', 'BBSD11', 'TECB11', 'DNAI11', 'MILL11', 'SHOT11', 'REVE11',
+    'BBOV11', 'USTK11', 'HTEK11', 'BDEF11', 'BDIV11', 'NSDV11', 'QETH11', 'QBTC11',
+    'CRPT11', 'DEFI11', 'WEB311', 'META11', 'NFTS11', 'BLOK11', 'ETHE11', 'BITH11'
+]);
+
+function inferClass(ticker) {
+    if (!ticker) return 'Acoes';
+    const raw = String(ticker).toUpperCase().trim();
+    const tk = raw.replace(/\.SA$/, '').replace(/F$/, '');
+
+    // 1. TAESA e Ações Units terminadas em 11 (ex: TAEE11, SANB11, SAPR11, KLBN11, ALUP11)
+    if (tk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(tk) || KNOWN_STOCK_UNITS.has(raw)) {
+        return 'Acoes';
+    }
+
+    // 2. ETFs
+    if (KNOWN_ETFS.has(tk) || KNOWN_ETFS.has(raw) || /^(IVVB|BOVA|SMAL|DIVO|HASH|GOLD|XINA|EURP|NASD|QQQ|SPXI|WRLD)/.test(tk)) {
+        return 'ETFs';
+    }
+
+    // 3. Tesouro Direto
+    if (/^(TESOURO|LFT|LTN|NTNB|NTNF|IPCA|PREFIXADO|SELIC)/.test(tk)) {
+        return 'Tesouro';
+    }
+
+    // 4. BDRs
+    if (tk.endsWith('34') || tk.endsWith('35')) {
+        return 'BDRs';
+    }
+
+    // 5. Ações padrão B3 (ON, PN com finais 2, 3, 4, 5, 6 ou fracionário F)
+    if (/^[A-Z]{4}[23456]$/.test(tk)) {
+        return 'Acoes';
+    }
+
+    // 6. FIIs (fundos imobiliários terminados em 11 ou 11B ou prefixos conhecidos)
+    if (/^(KN|HGLG|MXRF|GGRC|RZTR|XPLG|VISC|BTLG|CPTS|IRDM|BCFF|MALL|HFOF|XPML|KNSC|RECR|HGRE|TRXF|TGAR|VILG|RECT|RBRF|RBRP|MCCI|PVBI|VRTA|ALZR|LVBI|JSRE|PATL|DEVA|RBVA|HCTR|VINO|URPR|SNFF|BARI|HSAF|KORE|MCHF|VGIP|VGIR|RBRY|KNIP|KNRI|KNCR)/.test(tk) || tk.endsWith('11') || tk.endsWith('11B')) {
+        return 'FIIs';
+    }
+
+    if (/^[A-Z]{3,4}$/.test(tk) && !/^(FII|ETF|TESOURO)/.test(tk)) {
+        return 'Acoes';
+    }
+
+    return 'Acoes';
+}
+
+function normalizeClass(cls) {
+    if (!cls) return 'Acoes';
+    const upper = cls.toUpperCase().trim();
+    if (upper === 'FII' || upper === 'FIIS') return 'FIIs';
+    if (upper === 'ETF' || upper === 'ETFS') return 'ETFs';
+    if (upper === 'TESOURO' || upper === 'TESOURO DIRETO') return 'Tesouro';
+    if (upper === 'BDR' || upper === 'BDRS') return 'BDRs';
+    if (upper === 'ACAO' || upper === 'ACOES' || upper === 'AÇÕES' || upper === 'AÇÃO') return 'Acoes';
+    if (['Acoes', 'FIIs', 'ETFs', 'Tesouro', 'BDRs'].includes(cls)) return cls;
+    return 'Acoes';
+}
+
+// ============================================
+// GARANTIR PERFIL
+// ============================================
+async function ensureProfile(userId, fullName) {
+    try {
+        const { data: existing } = await supabaseClient
+            .from('profiles')
+            .select('id')
+            .eq('id', userId)
+            .single();
+
+        if (existing) return true;
+
+        await supabaseClient
+            .from('profiles')
+            .insert([{
+                id: userId,
+                full_name: fullName || 'Usuario',
+                currency: 'BRL'
+            }]);
+
+        console.log('✅ Perfil criado!');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao criar perfil:', error);
+        return false;
+    }
+}
+
+// ============================================
+// CARREGAR PERFIL
+// ============================================
+async function loadUserProfile() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('profiles')
+            .select('full_name')
+            .eq('id', currentUser.id)
+            .single();
+
+        let name = 'Usuario';
+        let avatarUrl = localStorage.getItem('tonu_avatar_' + currentUser.id) ||
+            currentUser.user_metadata?.avatar_url ||
+            null;
+
+        if (error || !data) {
+            const fullName = currentUser.user_metadata?.full_name ||
+                currentUser.email?.split('@')[0] ||
+                'Usuario';
+            await ensureProfile(currentUser.id, fullName);
+            name = fullName;
+        } else {
+            name = data.full_name || 'Usuario';
+            if (data.avatar_url && !avatarUrl) avatarUrl = data.avatar_url;
+        }
+
+        if (avatarUrl) {
+            localStorage.setItem('tonu_avatar_' + currentUser.id, avatarUrl);
+        }
+
+        const firstName = name.split(' ')[0];
+        const initial = name.charAt(0).toUpperCase();
+
+        const nameEl = document.getElementById('userName');
+        const avatarEl = document.getElementById('userAvatar');
+        if (nameEl) nameEl.textContent = firstName;
+        if (avatarEl) {
+            if (window.renderAvatarElement) window.renderAvatarElement(avatarEl, avatarUrl, initial);
+            else avatarEl.textContent = initial;
+        }
+
+        const sidebarNameEl = document.getElementById('sidebarUserName');
+        const sidebarAvatarEl = document.getElementById('sidebarUserAvatar');
+        const sidebarEmailEl = document.getElementById('sidebarUserEmail');
+        const greetingTitleEl = document.getElementById('desktopGreetingTitle');
+        const greetingTextEl = document.getElementById('desktopGreetingText');
+        if (greetingTextEl) {
+            greetingTextEl.textContent = `Olá, ${firstName} 👋`;
+        }
+        if (greetingTitleEl) {
+            greetingTitleEl.textContent = `Olá, ${firstName} 👋`;
+        }
+        if (sidebarNameEl) sidebarNameEl.textContent = name;
+        if (sidebarAvatarEl) {
+            if (window.renderAvatarElement) window.renderAvatarElement(sidebarAvatarEl, avatarUrl, initial);
+            else sidebarAvatarEl.textContent = initial;
+        }
+        if (sidebarEmailEl) sidebarEmailEl.textContent = currentUser.email || 'Configuracoes';
+
+    } catch (e) {
+        console.error('❌ Erro ao carregar perfil:', e);
+    }
+}
+
+// ============================================
+// CARREGAR CATEGORIAS
+// ============================================
+async function loadCategories() {
+    try {
+        const cached = await window.getCachedCategories?.(currentUser.id);
+        if (cached) {
+            categories = cached;
+            console.log('✅ Categorias carregadas do cache:', categories.length);
+            return;
+        }
+
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('name');
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            categories = data;
+        } else {
+            await window.createDefaultCategories(currentUser.id);
+            const { data: newData } = await supabaseClient
+                .from('categories')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('name');
+            categories = newData || [];
+        }
+
+        if (window.setCachedCategories) {
+            await window.setCachedCategories(currentUser.id, categories);
+        }
+
+        console.log('✅ Categorias carregadas do Supabase:', categories.length);
+    } catch (error) {
+        console.error('❌ Erro ao carregar categorias:', error);
+        categories = [];
+    }
+}
+
+// ============================================
+// INVESTIMENTOS
+// ============================================
+async function loadInvestmentTransactions() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('investments')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('date', { ascending: true });
+
+        if (error) throw error;
+        allTransactions = data || [];
+        console.log('📊 Transacoes carregadas:', allTransactions.length);
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar transacoes:', error);
+        allTransactions = [];
+    }
+}
+
+function buildPositions() {
+    const grouped = new Map();
+
+    const sortedTransactions = [...allTransactions]
+        .filter(tx => tx && tx.ticker)
+        .sort((a, b) => {
+            const da = new Date((a.date || '1970-01-01') + 'T12:00:00').getTime();
+            const db = new Date((b.date || '1970-01-01') + 'T12:00:00').getTime();
+            if (da !== db) return da - db;
+            const typeA = (a.type || '').toLowerCase();
+            const typeB = (b.type || '').toLowerCase();
+            const isBuyA = typeA === 'compra' || typeA === 'buy';
+            const isBuyB = typeB === 'compra' || typeB === 'buy';
+            if (isBuyA && !isBuyB) return -1;
+            if (!isBuyA && isBuyB) return 1;
+            return (a.created_at || '').localeCompare(b.created_at || '');
+        });
+
+    for (const tx of sortedTransactions) {
+        const ticker = tx.ticker?.toUpperCase().trim() || '';
+        if (!ticker) continue;
+
+        let rawCls = tx.asset_class;
+        const cleanTk = ticker.replace(/\.SA$/, '').replace(/F$/, '');
+        if (cleanTk.startsWith('TAEE') || KNOWN_STOCK_UNITS.has(cleanTk) || KNOWN_STOCK_UNITS.has(ticker)) {
+            rawCls = 'Acoes';
+        } else if (KNOWN_ETFS.has(cleanTk) || KNOWN_ETFS.has(ticker)) {
+            rawCls = 'ETFs';
+        }
+        const cls = normalizeClass(rawCls || inferClass(cleanTk) || 'Acoes');
+
+        if (!grouped.has(ticker)) {
+            grouped.set(ticker, {
+                ticker: ticker,
+                assetClass: cls,
+                quantity: 0,
+                costBasis: 0,
+                averageCost: 0,
+                realizedGain: 0,
+                transactions: []
+            });
+        }
+
+        const pos = grouped.get(ticker);
+        const qty = parseBrazilianNumber(tx.quantity);
+        let unit = parseBrazilianNumber(tx.unit_price);
+        let total = parseBrazilianNumber(tx.total_value);
+
+        if (total <= 0 && qty > 0 && unit > 0) {
+            total = qty * unit;
+        } else if (unit <= 0 && qty > 0 && total > 0) {
+            unit = total / qty;
+        }
+
+        const typeLower = (tx.type || '').toLowerCase();
+        const isBuy = typeLower === 'compra' || typeLower === 'buy';
+
+        pos.transactions.push(tx);
+
+        if (isBuy) {
+            pos.costBasis += total;
+            pos.quantity += qty;
+            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+        } else {
+            const sellQty = Math.min(qty, pos.quantity);
+            const avgCost = pos.averageCost || 0;
+            pos.realizedGain += (unit - avgCost) * sellQty;
+            pos.costBasis -= avgCost * sellQty;
+            pos.quantity -= sellQty;
+            if (pos.quantity <= 0.0000001) {
+                pos.quantity = 0;
+                pos.costBasis = 0;
+                pos.averageCost = 0;
+            } else {
+                pos.costBasis = Math.max(0, pos.costBasis);
+                pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+            }
+        }
+    }
+
+    positions = [...grouped.values()]
+        .filter(p => p.quantity > 0.0000001)
+        .map(p => ({
+            ...p,
+            costBasis: Math.max(0, Math.round(p.costBasis * 100) / 100),
+            averageCost: Math.round(p.averageCost * 100) / 100
+        }));
+
+    console.log('📊 Posicoes calculadas:', positions.length);
+}
+
+async function fetchQuotes() {
+    try {
+        const rawCache = localStorage.getItem('tonu_quotes_cache');
+        if (rawCache) {
+            const parsed = JSON.parse(rawCache);
+            if (parsed && parsed.quotes) {
+                for (const [k, v] of Object.entries(parsed.quotes)) {
+                    if (!quotes.has(k)) quotes.set(k, v);
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ Cache local de cotacoes:', e);
+    }
+
+    const tickers = positions.map(p => p.ticker);
+    if (!tickers.length) return;
+
+    const validTickers = tickers
+        .filter(t => t && t.length >= 3 && /^[A-Z0-9]{3,}$/.test(t))
+        .map(t => t.toUpperCase().trim());
+
+    if (validTickers.length === 0) return;
+
+    const unique = [...new Set(validTickers)];
+    console.log('📊 Buscando cotacoes para:', unique.join(', '));
+
+    try {
+        let allResults = [];
+        let foundCount = 0;
+
+        // 1. Prioridade: Buscar cotações diretamente na tabela asset_quotes do Supabase
+        const client = window.supabaseClient || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+        if (client) {
+            try {
+                const { data: dbQuotes, error: dbErr } = await client
+                    .from('asset_quotes')
+                    .select('ticker, price, change, change_value, previous_close, updated_at')
+                    .in('ticker', unique);
+
+                if (!dbErr && Array.isArray(dbQuotes) && dbQuotes.length > 0) {
+                    console.log(`✅ ${dbQuotes.length} cotações carregadas do Supabase (asset_quotes) no Dashboard`);
+                    for (const q of dbQuotes) {
+                        const rawTk = q.ticker?.toUpperCase().trim();
+                        if (!rawTk || !Number.isFinite(Number(q.price)) || Number(q.price) <= 0) continue;
+
+                        const cleanTk = rawTk.replace(/\.SA$/, '');
+                        const quoteObj = {
+                            price: Number(q.price),
+                            changePct: Number(q.change || 0),
+                            previousClose: Number(q.previous_close || q.price || 0),
+                            marketTime: q.updated_at || new Date().toISOString(),
+                            simulated: false,
+                            source: 'Supabase'
+                        };
+
+                        quotes.set(rawTk, quoteObj);
+                        quotes.set(cleanTk, quoteObj);
+                        quotes.set(`${cleanTk}.SA`, quoteObj);
+                        foundCount++;
+                    }
+                }
+            } catch (dbEx) {
+                console.warn('⚠️ Consulta a asset_quotes no Supabase:', dbEx);
+            }
+        }
+
+        const remainingTickers = unique.filter(t => !quotes.has(t) && !quotes.has(t.replace(/\.SA$/, '')));
+        if (remainingTickers.length === 0 && foundCount > 0) {
+            isUsingRealQuotes = true;
+            try {
+                const cacheObj = {};
+                for (const [k, v] of quotes.entries()) cacheObj[k] = v;
+                localStorage.setItem('tonu_quotes_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    quotes: cacheObj
+                }));
+            } catch (e) {}
+            console.log(`✅ Todas as ${foundCount} cotações carregadas do Supabase no Dashboard`);
+            return;
+        }
+
+        for (const ticker of remainingTickers) {
+            try {
+                const url = 'https://brapi.dev/api/quote/' + ticker;
+                const finalUrl = BRAPI_TOKEN && BRAPI_TOKEN !== 'SUA_CHAVE_AQUI' ?
+                    url + '?token=' + BRAPI_TOKEN :
+                    url;
+
+                const response = await fetch(finalUrl, {
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.results && data.results.length > 0) {
+                        allResults = allResults.concat(data.results);
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ Nao foi possivel buscar ' + ticker);
+            }
+        }
+
+        if (allResults.length > 0) {
+            isUsingRealQuotes = true;
+
+            for (const q of allResults) {
+                const tk = q.symbol?.toUpperCase().trim();
+                if (!tk || !Number.isFinite(Number(q.regularMarketPrice))) continue;
+
+                const quoteObj = {
+                    price: Number(q.regularMarketPrice),
+                    changePct: Number(q.regularMarketChangePercent || 0),
+                    previousClose: Number(q.regularMarketPreviousClose || q.regularMarketPrice || 0),
+                    marketTime: q.regularMarketTime || new Date().toISOString(),
+                    simulated: false,
+                    source: 'BRAPI'
+                };
+
+                const cleanTk = tk.replace(/\.SA$/, '');
+                quotes.set(tk, quoteObj);
+                quotes.set(cleanTk, quoteObj);
+                foundCount++;
+            }
+
+            try {
+                const cacheObj = {};
+                for (const [k, v] of quotes.entries()) {
+                    cacheObj[k] = v;
+                }
+                localStorage.setItem('tonu_quotes_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    quotes: cacheObj
+                }));
+            } catch (saveErr) {
+                console.warn('⚠️ Erro ao salvar cache de cotacoes:', saveErr);
+            }
+
+            console.log('✅ ' + foundCount + ' cotacoes reais carregadas');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao buscar cotacoes:', error.message);
+        if (quotes.size === 0) isUsingRealQuotes = false;
+    }
+}
+
+function decoratePositions() {
+    const totalValue = positions.reduce((s, p) => s + posValue(p), 0);
+
+    positions = positions.map(p => {
+        const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
+        const quote = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
+        const hasQuote = quote !== undefined && Number.isFinite(quote.price) && quote.price > 0;
+        const price = hasQuote ? quote.price : (p.averageCost || 0);
+        const changePct = hasQuote ? (quote.changePct || 0) : 0;
+        const simulated = !hasQuote;
+
+        const currentValue = Math.round((p.quantity * price) * 100) / 100;
+        const gain = Math.round((currentValue - p.costBasis) * 100) / 100;
+        const gainPct = p.costBasis > 0 ? Math.round(((gain / p.costBasis) * 100) * 100) / 100 : 0;
+        const portfolioPct = totalValue > 0 ? Math.round(((currentValue / totalValue) * 100) * 100) / 100 : 0;
+
+        return {
+            ...p,
+            quote: {
+                price: price,
+                changePct: changePct,
+                previousClose: hasQuote ? (quote.previousClose || price) : price,
+                simulated: simulated,
+                source: simulated ? 'Preco Medio' : 'BRAPI'
+            },
+            currentValue: currentValue,
+            gain: gain,
+            gainPct: gainPct,
+            portfolioPct: portfolioPct
+        };
+    });
+}
+
+function posValue(p) {
+    const cleanTicker = p.ticker?.toUpperCase().trim().replace(/\.SA$/, '');
+    const q = quotes.get(cleanTicker) || quotes.get(p.ticker) || quotes.get(`${cleanTicker}.SA`);
+    if (q && Number.isFinite(q.price) && q.price > 0) {
+        return p.quantity * q.price;
+    }
+    return p.quantity * (p.averageCost || 0);
+}
+
+async function calculatePatrimony() {
+    try {
+        await loadInvestmentTransactions();
+        buildPositions();
+        await fetchQuotes();
+        decoratePositions();
+
+        const total = positions.reduce((s, p) => s + p.currentValue, 0);
+        const result = Math.round(total * 100) / 100;
+
+        console.log('🏦 Patrimonio calculado:', result);
+        return result;
+
+    } catch (error) {
+        console.error('❌ Erro ao calcular patrimonio:', error);
+        return 0;
+    }
+}
+
+function startPatrimonyAutoUpdate() {
+    if (patrimonyUpdateInterval) {
+        clearInterval(patrimonyUpdateInterval);
+    }
+
+    patrimonyUpdateInterval = setInterval(async () => {
+        console.log('🔄 Atualizando patrimonio automaticamente...');
+        const patrimony = await calculatePatrimony();
+        updatePatrimonyUI(patrimony);
+    }, 300000);
+
+    console.log('⏰ Atualizacao automatica do patrimonio configurada (a cada 5 min)');
+}
+
+function stopPatrimonyAutoUpdate() {
+    if (patrimonyUpdateInterval) {
+        clearInterval(patrimonyUpdateInterval);
+        patrimonyUpdateInterval = null;
+        console.log('⏹️ Atualizacao automatica do patrimonio parada');
+    }
+}
+
+function updatePatrimonyUI(valor) {
+    const patrimonyEl = document.getElementById('patrimony');
+    const investedEl = document.getElementById('totalInvested');
+    if (patrimonyEl) {
+        patrimonyEl.textContent = formatCurrency(valor);
+        patrimonyEl.style.transition = 'all 0.3s ease';
+        patrimonyEl.style.transform = 'scale(1.1)';
+        patrimonyEl.style.color = '#00B894';
+        setTimeout(() => {
+            patrimonyEl.style.transform = 'scale(1)';
+            patrimonyEl.style.color = '';
+        }, 1000);
+    }
+    if (investedEl && Number(valor) > 0) {
+        investedEl.textContent = formatCurrency(valor);
+    }
+}
+
+// ============================================
+// VISIBILIDADE DE SALDO (PRIVACIDADE DESKTOP)
+// ============================================
+function updateBalanceVisibilityUI() {
+    const isHidden = localStorage.getItem('tonu_hide_balance') === 'true';
+    const topbarIcon = document.getElementById('toggleBalanceIcon');
+    const cardIcon = document.getElementById('cardBalanceIcon');
+    if (topbarIcon) topbarIcon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+    if (cardIcon) cardIcon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+
+    const topbarBtn = document.getElementById('toggleBalanceBtn');
+    if (topbarBtn) topbarBtn.title = isHidden ? 'Mostrar valores' : 'Ocultar valores';
+
+    const cardBtn = document.querySelector('.eye-toggle-btn');
+    if (cardBtn) cardBtn.title = isHidden ? 'Mostrar valores' : 'Ocultar valores';
+
+    const elementsToMask = [
+        'totalBalance',
+        'totalIncome',
+        'totalExpense',
+        'billsAmount',
+        'totalInvested'
+    ];
+
+    elementsToMask.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (isHidden) {
+            if (!el.dataset.realValue && !el.textContent.includes('•••')) {
+                el.dataset.realValue = el.textContent;
+            }
+            el.textContent = '••••••';
+        } else if (el.dataset.realValue) {
+            el.textContent = el.dataset.realValue;
+        }
+    });
+}
+
+function toggleBalanceVisibility() {
+    const isHidden = localStorage.getItem('tonu_hide_balance') === 'true';
+    localStorage.setItem('tonu_hide_balance', isHidden ? 'false' : 'true');
+    updateBalanceVisibilityUI();
+}
+window.toggleBalanceVisibility = toggleBalanceVisibility;
+window.updateBalanceVisibilityUI = updateBalanceVisibilityUI;
+
+async function loadInvestedSummary() {
+    try {
+        const investedEl = document.getElementById('totalInvested');
+        const countEl = document.getElementById('investedCount');
+        if (!investedEl) return;
+
+        await loadInvestmentTransactions();
+        buildPositions();
+
+        const totalInvested = positions.reduce((s, p) => s + (p.costBasis || 0), 0);
+        const activePositions = positions.filter(p => p.quantity > 0.0000001);
+        const activeCount = activePositions.length;
+
+        investedEl.textContent = formatCurrency(totalInvested);
+        investedEl.dataset.realValue = formatCurrency(totalInvested);
+        if (countEl) {
+            countEl.textContent = `${activeCount} ${activeCount === 1 ? 'ativo' : 'ativos'}`;
+        }
+
+        updateBalanceVisibilityUI();
+
+        // Atualização em background com cotações
+        if (activeCount > 0) {
+            fetchQuotes().then(() => {
+                decoratePositions();
+                const totalMarket = positions.reduce((s, p) => s + (p.currentValue || p.costBasis || 0), 0);
+                if (investedEl && totalMarket > 0) {
+                    investedEl.textContent = formatCurrency(totalMarket);
+                    investedEl.dataset.realValue = formatCurrency(totalMarket);
+                    updateBalanceVisibilityUI();
+                }
+            }).catch(e => {
+                console.log('Background quotes:', e);
+            });
+        }
+    } catch (err) {
+        console.warn('Erro ao carregar investimentos:', err);
+    }
+}
+
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Inicializando Dashboard...');
+
+    try {
+        updateMonthDisplay('selectedMonth', currentMonthOffset);
+    } catch (_) {}
+
+    const urlSearch = window.location.search || '';
+    const urlHash = window.location.hash || '';
+    const searchParams = new URLSearchParams(urlSearch);
+    const oauthCode = searchParams.get('code');
+    const hadOAuthParams = Boolean(oauthCode || urlHash.includes('access_token=') || searchParams.get('error'));
+
+    try {
+        let user = null;
+        if (window.getAuthenticatedUser) {
+            user = await window.getAuthenticatedUser();
+        } else if (window.supabaseOffline) {
+            user = await window.supabaseOffline.isAuthenticated();
+        }
+        if (!user && supabaseClient && supabaseClient.auth) {
+            try {
+                const { data: sessData } = await supabaseClient.auth.getSession();
+                user = sessData?.session?.user;
+                if (!user && oauthCode && supabaseClient.auth.exchangeCodeForSession) {
+                    const { data: exData } = await supabaseClient.auth.exchangeCodeForSession(oauthCode);
+                    user = exData?.user || exData?.session?.user;
+                }
+                if (!user) {
+                    const { data: userData } = await supabaseClient.auth.getUser();
+                    user = userData?.user;
+                }
+            } catch (_) {}
+        }
+        if (!user) {
+            try {
+                const s = sessionStorage.getItem('tonu_user');
+                if (s) { const p = JSON.parse(s); user = p.user || p; }
+            } catch (_) {}
+        }
+        if (!user) {
+            const offlineUser = localStorage.getItem('tonu_offline_session');
+            if (offlineUser) {
+                try {
+                    const parsed = JSON.parse(offlineUser);
+                    user = parsed.user || parsed;
+                } catch (_) {}
+            }
+        }
+        if (!user) {
+            window.TonuPostLoginTransition?.complete({ forceImmediate: true });
+            window.location.href = '../index.html';
+            return;
+        }
+        if (hadOAuthParams && window.history?.replaceState) {
+            try { window.history.replaceState({}, document.title, window.location.pathname); } catch (_) {}
+        }
+        currentUser = user;
+        window.TonuPostLoginTransition?.updateUser(currentUser);
+        window.TonuPostLoginTransition?.setStage('Sincronizando suas contas e lançamentos...');
+        console.log('✅ Usuario autenticado:', currentUser.email);
+    } catch (e) {
+        console.error('❌ Erro na autenticacao:', e);
+        const offlineUser = localStorage.getItem('tonu_offline_session');
+        if (offlineUser) {
+            try {
+                const parsed = JSON.parse(offlineUser);
+                currentUser = parsed.user || parsed;
+            } catch (_) {}
+        }
+        if (!currentUser) {
+            window.TonuPostLoginTransition?.complete({ forceImmediate: true });
+            window.location.href = '../index.html';
+            return;
+        }
+        window.TonuPostLoginTransition?.updateUser(currentUser);
+    }
+
+    try {
+        await loadUserProfile();
+        await loadCategories();
+        updateMonthDisplay('selectedMonth', currentMonthOffset);
+        await loadDashboard();
+        updateBalanceVisibilityUI();
+    } catch (err) {
+        console.warn('⚠️ Erro parcial ao carregar dashboard:', err);
+    } finally {
+        window.TonuPostLoginTransition?.complete();
+    }
+
+    // 🔥 LAZY LOADING DOS GRÁFICOS
+    loadChartsLazy();
+
+    await loadInsights();
+
+    console.log('✅ Dashboard inicializado!');
+});
+
+// ============================================
+// MÊS
+// ============================================
+function changeMonth(dir) {
+    currentMonthOffset += Number(dir) || 0;
+    updateMonthDisplay('selectedMonth', currentMonthOffset);
+    loadDashboard({ forceRefresh: true });
+    if (typeof loadCategoryChart === 'function') loadCategoryChart();
+    if (typeof loadMonthlyChart === 'function') loadMonthlyChart();
+    loadInsights();
+}
+
+function goToCurrentMonth() {
+    currentMonthOffset = 0;
+    updateMonthDisplay('selectedMonth', currentMonthOffset);
+    loadDashboard({ forceRefresh: true });
+    if (typeof loadCategoryChart === 'function') loadCategoryChart();
+    if (typeof loadMonthlyChart === 'function') loadMonthlyChart();
+    loadInsights();
+}
+
+window.changeMonth = changeMonth;
+window.goToCurrentMonth = goToCurrentMonth;
+
+// ============================================
+// AUXILIARES DE TRANSAÇÕES UNIFICADAS & SYNC
+// ============================================
+async function getUnifiedTransactions(startDate, endDate) {
+    const list = [];
+    const seenIds = new Set();
+    const seenSignatures = new Set();
+
+    const normStart = normalizeDateOnly(startDate);
+    const normEnd = normalizeDateOnly(endDate);
+
+    const checkAndAdd = (t) => {
+        if (!t || typeof t !== 'object') return false;
+        const key = t.id ? String(t.id) : null;
+        if (key && seenIds.has(key)) return false;
+
+        const amt = Math.abs(Number(t.amount || 0));
+        const desc = (t.description || '').trim().toLowerCase();
+        const dateStr = normalizeDateOnly(t.date);
+        const sig = `${desc}_${Math.round(amt * 100)}_${dateStr}_${t.type || 'expense'}`;
+
+        if (seenSignatures.has(sig)) return false;
+
+        // Verifica se a transação está dentro do período solicitado
+        if (dateStr) {
+            if (normStart && dateStr < normStart) return false;
+            if (normEnd && dateStr > normEnd) return false;
+        }
+
+        if (key) seenIds.add(key);
+        seenSignatures.add(sig);
+        list.push(t);
+        return true;
+    };
+
+    // 1. Supabase (se autenticado e online)
+    if (supabaseClient && currentUser && currentUser.id) {
+        try {
+            let { data, error } = await supabaseClient
+                .from('transactions')
+                .select('*, categories(id, name, icon, color)')
+                .eq('user_id', currentUser.id)
+                .gte('date', normStart)
+                .lte('date', normEnd);
+
+            if (error) {
+                // Fallback para select padrão se a relação de categorias falhar
+                const fallback = await supabaseClient
+                    .from('transactions')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .gte('date', normStart)
+                    .lte('date', normEnd);
+                if (!fallback.error && fallback.data) {
+                    data = fallback.data;
+                }
+            }
+
+            if (data && Array.isArray(data)) {
+                data.forEach(t => {
+                    checkAndAdd(t);
+                });
+                if (window.tonuSync && currentUser?.id) {
+                    window.tonuSync.setCachedTransactions(currentUser.id, data);
+                }
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao consultar transações no Supabase:', e);
+        }
+    }
+
+    // 2. Cache Canônico IndexedDB (com fallback e migração transparente de legado)
+    if (window.tonuSync && currentUser?.id) {
+        try {
+            const cached = await window.tonuSync.getCachedTransactions(currentUser.id);
+            if (Array.isArray(cached)) {
+                cached.forEach(t => {
+                    checkAndAdd(t);
+                });
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao ler cache canônico IndexedDB:', e);
+        }
+    }
+
+    // Migração de qualquer legado de localStorage para IndexedDB
+    if (currentUser?.id) {
+        try {
+            const localKey = 'tonu_transactions_' + currentUser.id;
+            const legacy = localStorage.getItem(localKey);
+            if (legacy) {
+                const parsed = JSON.parse(legacy);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    parsed.forEach(t => checkAndAdd(t));
+                    if (window.tonuSync) {
+                        await window.tonuSync.setCachedTransactions(currentUser.id, list);
+                    }
+                }
+                localStorage.removeItem(localKey);
+            }
+            localStorage.removeItem('tonu_transactions_offline_user');
+            localStorage.removeItem('tonu_transactions');
+        } catch (_) {}
+    }
+
+    // 3. Aplica desduplicação inteligente unificada (remove duplicatas, unifica 'pago' e parcelas)
+    if (window.TonuDeduplicate) {
+        const dedupResult = window.TonuDeduplicate.deduplicate(list, {
+            autoCleanRemote: true,
+            userId: currentUser?.id
+        });
+        return dedupResult.cleanList;
+    }
+
+    return list;
+}
+
+async function syncLocalTransactionsToSupabase() {
+    if (!currentUser || !currentUser.id) return;
+    try {
+        const localKey = 'tonu_transactions_' + currentUser.id;
+        const cached = localStorage.getItem(localKey);
+        if (!cached) return;
+        const list = JSON.parse(cached);
+        if (!Array.isArray(list) || list.length === 0) {
+            localStorage.removeItem(localKey);
+            return;
+        }
+
+        // Migra para o tonuSync (IndexedDB + Fila)
+        if (window.tonuSync) {
+            await window.tonuSync.setCachedTransactions(currentUser.id, list);
+            for (const t of list) {
+                if (t.is_bill) continue;
+                await window.tonuSync.enqueue('INSERT_TRANSACTION', t);
+            }
+        }
+        localStorage.removeItem(localKey);
+        console.log('✅ Transações legadas do localStorage migradas para o tonuSync.');
+    } catch (e) {
+        console.warn('Erro na migração de transações locais:', e);
+    }
+}
+
+// ============================================
+// CARREGAR DASHBOARD
+// ============================================
+function _applyDashboardSummaryCards(currentTxs, prevTxs) {
+    let currentIncome = 0;
+    let currentExpense = 0;
+    let prevIncome = 0;
+    let prevExpense = 0;
+    const bills = [];
+
+    (currentTxs || []).forEach(t => {
+        if (!t) return;
+        const amt = Math.abs(Number(t.amount || 0));
+        if (isNaN(amt) || amt <= 0) return;
+        const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+
+        if (t.type === 'income') {
+            if (isPaid) {
+                currentIncome += amt;
+            }
+        } else if (t.type === 'expense') {
+            if (isPaid) {
+                currentExpense += amt;
+            } else {
+                bills.push(t);
+            }
+        }
+    });
+
+    (prevTxs || []).forEach(t => {
+        if (!t) return;
+        const amt = Math.abs(Number(t.amount || 0));
+        if (isNaN(amt) || amt <= 0) return;
+        const isPaid = (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+
+        if (t.type === 'income') {
+            if (isPaid) prevIncome += amt;
+        } else if (t.type === 'expense' && isPaid) {
+            prevExpense += amt;
+        }
+    });
+
+    const balance = currentIncome - currentExpense;
+
+    // CALCULAR CONTAS A PAGAR DO MÊS
+    const billsCount = bills.length;
+    const billsTotal = bills.reduce((s, t) => s + (t ? Math.abs(Number(t.amount || 0)) : 0), 0);
+    const todayStr = getToday();
+    const overdueBills = bills.filter(b => b && b.date && normalizeDateOnly(b.date) < todayStr);
+    const overdueCount = overdueBills.length;
+
+    console.log(`📋 Resumo do mês: Receitas: R$ ${currentIncome} | Despesas: R$ ${currentExpense} | Saldo: R$ ${balance} | Contas a pagar: ${billsCount} (R$ ${billsTotal})`);
+
+    // ATUALIZAR CARDS
+    const incomeEl = document.getElementById('totalIncome');
+    const expenseEl = document.getElementById('totalExpense');
+    const balanceEl = document.getElementById('totalBalance') || document.getElementById('monthBalance');
+    const billsCountEl = document.getElementById('billsCount');
+    const billsAmountEl = document.getElementById('billsAmount');
+
+    if (incomeEl) {
+        incomeEl.textContent = formatCurrency(currentIncome);
+        incomeEl.dataset.realValue = formatCurrency(currentIncome);
+    }
+    if (expenseEl) {
+        expenseEl.textContent = formatCurrency(currentExpense);
+        expenseEl.dataset.realValue = formatCurrency(currentExpense);
+    }
+    if (balanceEl) {
+        balanceEl.textContent = formatCurrency(balance);
+        balanceEl.dataset.realValue = formatCurrency(balance);
+        balanceEl.style.color = balance >= 0 ? '#00B894' : '#FF7675';
+    }
+
+    // CARD CONTAS A PAGAR E INVESTIMENTOS
+    if (billsAmountEl) {
+        billsAmountEl.textContent = formatCurrency(billsTotal);
+        billsAmountEl.dataset.realValue = formatCurrency(billsTotal);
+        billsAmountEl.style.color = billsTotal > 0 ? (overdueCount > 0 ? '#FF7675' : '#F59E0B') : '#00B894';
+    }
+
+    if (billsCountEl) {
+        if (billsCount > 0) {
+            if (overdueCount > 0) {
+                billsCountEl.innerHTML = `<span style="color:#FF7675; font-weight:700;"><i class="fas fa-exclamation-circle"></i> ${overdueCount} atraso</span>`;
+            } else {
+                billsCountEl.innerHTML = `<span style="color:#F59E0B; font-weight:600;"><i class="fas fa-clock"></i> ${billsCount} pend.</span>`;
+            }
+        } else {
+            billsCountEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-check-circle"></i> Tudo pago</span>`;
+        }
+    }
+
+    // TENDÊNCIAS
+    const incomeTrend = prevIncome > 0 ? ((currentIncome - prevIncome) / prevIncome * 100) : 0;
+    const expenseTrend = prevExpense > 0 ? ((currentExpense - prevExpense) / prevExpense * 100) : 0;
+
+    const incomeTrendEl = document.getElementById('incomeTrend');
+    const expenseTrendEl = document.getElementById('expenseTrend');
+    const balanceStatusEl = document.getElementById('balanceStatus');
+
+    if (incomeTrendEl) {
+        if (prevIncome > 0) {
+            const sign = incomeTrend >= 0 ? '+' : '';
+            incomeTrendEl.textContent = sign + incomeTrend.toFixed(0) + '% vs anterior';
+            incomeTrendEl.className = 'stat-sub ' + (incomeTrend >= 0 ? 'text-success' : 'text-danger');
+        } else {
+            incomeTrendEl.textContent = 'Mês de referência';
+            incomeTrendEl.className = 'stat-sub';
+        }
+    }
+
+    const expensePendingSubEl = document.getElementById('expensePendingSub');
+    if (expenseTrendEl) {
+        const trendText = prevExpense > 0 
+            ? (expenseTrend >= 0 ? '+' : '') + expenseTrend.toFixed(0) + '% vs anterior'
+            : 'Mês de referência';
+        const trendClass = prevExpense > 0 
+            ? (expenseTrend <= 0 ? 'text-success' : 'text-danger')
+            : '';
+
+        if (expensePendingSubEl) {
+            const trendSpan = expenseTrendEl.querySelector('span');
+            if (trendSpan) {
+                trendSpan.textContent = trendText;
+                trendSpan.className = trendClass;
+            }
+            if (billsTotal > 0) {
+                expensePendingSubEl.innerHTML = `<i class="fas fa-clock" style="margin-right:2px;"></i> Falta pagar: <strong>${formatCurrency(billsTotal)}</strong>`;
+                expensePendingSubEl.style.color = '#F59E0B';
+            } else {
+                expensePendingSubEl.innerHTML = `<i class="fas fa-check-circle" style="margin-right:2px;"></i> Nenhuma pendência`;
+                expensePendingSubEl.style.color = '#00B894';
+            }
+        } else {
+            expenseTrendEl.textContent = trendText;
+            expenseTrendEl.className = 'stat-sub ' + trendClass;
+        }
+    }
+
+    if (balanceStatusEl) {
+        const projected = balance - billsTotal;
+        if (billsTotal > 0) {
+            balanceStatusEl.innerHTML = `<span>Previsto pós-contas: <strong style="color:${projected >= 0 ? '#00B894' : '#FF7675'}">${formatCurrency(projected)}</strong></span>`;
+        } else {
+            if (balance > 0) {
+                balanceStatusEl.innerHTML = `<span style="color:#00B894; font-weight:600;"><i class="fas fa-arrow-trend-up"></i> Positivo</span>`;
+            } else if (balance < 0) {
+                balanceStatusEl.innerHTML = `<span style="color:#FF7675; font-weight:600;"><i class="fas fa-arrow-trend-down"></i> Negativo</span>`;
+            } else {
+                balanceStatusEl.textContent = 'Zerado';
+            }
+        }
+    }
+}
+
+async function loadDashboard(options = {}) {
+    console.log('📊 Carregando dashboard...');
+
+    const force = options && options.forceRefresh === true;
+    const key = `${currentUser?.id || 'anon'}__${currentMonthOffset}`;
+    const isFresh = !force && _dashCache.key === key &&
+        (Date.now() - _dashCache.ts) < DASH_CACHE_TTL_MS &&
+        _dashCache.payload;
+
+    if (isFresh) {
+        const p = _dashCache.payload;
+        window.allInvestments = Array.isArray(p.investments) ? p.investments.slice() : [];
+        window.allDividends = Array.isArray(p.dividends) ? p.dividends.slice() : [];
+        _applyDashboardSummaryCards(p.currentTxs || [], p.prevTxs || []);
+        try {
+            await generateDashboardInsights();
+        } catch (_) {}
+        updateBalanceVisibilityUI();
+        loadAIInsights().catch(() => {});
+        return;
+    }
+
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + currentMonthOffset);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const lastDay = getLastDayOfMonth(year, month);
+    const firstDay = formatDateKey(year, month, 1);
+    const lastDayStr = formatDateKey(year, month, lastDay);
+
+    const dPrev = new Date();
+    dPrev.setDate(1);
+    dPrev.setMonth(dPrev.getMonth() + currentMonthOffset - 1);
+    const yearPrev = dPrev.getFullYear();
+    const monthPrev = dPrev.getMonth();
+    const lastDayPrev = getLastDayOfMonth(yearPrev, monthPrev);
+    const firstDayPrev = formatDateKey(yearPrev, monthPrev, 1);
+    const lastDayPrevStr = formatDateKey(yearPrev, monthPrev, lastDayPrev);
+
+    try {
+        // Dispara sincronização em segundo plano
+        syncLocalTransactionsToSupabase().catch(e => console.warn('Sync bg error:', e));
+
+        const currentTxs = (await getUnifiedTransactions(firstDay, lastDayStr)) || [];
+        const prevTxs = (await getUnifiedTransactions(firstDayPrev, lastDayPrevStr)) || [];
+
+        _applyDashboardSummaryCards(currentTxs, prevTxs);
+
+        // CARREGA INVESTIMENTOS NO CARD 4
+        try {
+            await loadInvestedSummary();
+        } catch (invErr) {
+            console.warn('Erro ao carregar resumo de investimentos:', invErr);
+        }
+
+        try {
+            await checkOverdueBills();
+        } catch (bErr) {
+            console.warn('Erro ao checar contas atrasadas:', bErr);
+        }
+
+        try {
+            await loadRecentTransactions();
+        } catch (rErr) {
+            console.warn('Erro ao carregar transações recentes:', rErr);
+        }
+
+        try {
+            await Promise.all([
+                loadInvestments(currentUser?.id),
+                loadDividends(currentUser?.id)
+            ]);
+            await generateDashboardInsights();
+        } catch (gErr) {
+            console.warn('Erro ao gerar insights:', gErr);
+        }
+
+        updateBalanceVisibilityUI();
+
+        loadAIInsights().catch(() => {});
+
+        if (typeof window.checkNotifications === 'function') {
+            window.checkNotifications();
+        }
+
+        _dashCache.key = key;
+        _dashCache.ts = Date.now();
+        _dashCache.payload = {
+            currentTxs: Array.isArray(currentTxs) ? currentTxs.slice() : [],
+            prevTxs: Array.isArray(prevTxs) ? prevTxs.slice() : [],
+            investments: Array.isArray(window.allInvestments) ? window.allInvestments.slice() : [],
+            dividends: Array.isArray(window.allDividends) ? window.allDividends.slice() : []
+        };
+
+        console.log('✅ Dashboard atualizado!');
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar dashboard:', error);
+    }
+}
+
+// ============================================
+// VERIFICAR CONTAS EM ATRASO
+// ============================================
+async function checkOverdueBills() {
+    try {
+        const today = getToday();
+        const { data, error } = await supabaseClient
+            .from('transactions')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .eq('type', 'expense')
+            .eq('paid', false)
+            .eq('is_bill', true)
+            .lt('date', today);
+
+        if (error) throw error;
+
+        const banner = document.getElementById('dueBillsWarningBanner');
+        if (!banner) return;
+
+        if (data && data.length > 0) {
+            banner.style.display = 'flex';
+            const titleEl = document.getElementById('dueBannerTitle');
+            const descEl = document.getElementById('dueBannerDesc');
+            if (titleEl) {
+                titleEl.textContent = `⚠️ Atenção: Você tem ${data.length} conta(s) em atraso!`;
+            }
+            if (descEl) {
+                const total = data.reduce((sum, b) => sum + Number(b.amount), 0);
+                descEl.textContent =
+                    `Total em atraso: ${formatCurrency(total)}. Acesse a lista e efetue o pagamento.`;
+            }
+        } else {
+            banner.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('❌ Erro ao verificar contas em atraso:', error);
+    }
+}
+
+// ============================================
+// TRANSAÇÕES RECENTES (MÊS SELECIONADO)
+// ============================================
+async function loadRecentTransactions() {
+    const container = document.getElementById('transactionsList');
+    if (!container) return;
+
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + currentMonthOffset);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const lastDay = getLastDayOfMonth(year, month);
+    const firstDay = formatDateKey(year, month, 1);
+    const lastDayStr = formatDateKey(year, month, lastDay);
+
+    try {
+        container.innerHTML = `
+            <div class="loading-transactions">
+                <span class="spinner"></span>
+                <p>Carregando transações...</p>
+            </div>
+        `;
+
+        const allTxs = (await getUnifiedTransactions(firstDay, lastDayStr)) || [];
+        // Filtra para exibir apenas transações já pagas/recebidas
+        const paidTxs = allTxs.filter(t => {
+            if (!t) return false;
+            if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+            if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+            return true;
+        });
+
+        // Ordena pela data mais recente de forma segura
+        paidTxs.sort((a, b) => {
+            const da = normalizeDateOnly(a?.date);
+            const db = normalizeDateOnly(b?.date);
+            if (da === db) return 0;
+            return da < db ? 1 : -1;
+        });
+
+        // 🔥 REMOVER DUPLICATAS USANDO O MOTOR INTELIGENTE
+        let uniqueTransactions = paidTxs;
+        if (window.TonuDeduplicate) {
+            uniqueTransactions = window.TonuDeduplicate.deduplicate(paidTxs, {
+                autoCleanRemote: true,
+                userId: currentUser?.id
+            }).cleanList;
+        }
+
+        const recentTransactions = uniqueTransactions.slice(0, 10);
+
+        const countEl = document.getElementById('txCountBadge') || document.getElementById('txCount');
+        if (countEl) {
+            countEl.textContent = recentTransactions.length;
+        }
+
+        if (recentTransactions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-transactions">
+                    <span class="empty-icon">📭</span>
+                    <h4>Nenhuma transação</h4>
+                    <p>Adicione sua primeira transação para começar a acompanhar suas finanças</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = recentTransactions.map(t => {
+            const isIncome = t.type === 'income';
+            const sign = isIncome ? '+' : '-';
+            const cls = isIncome ? 'income' : 'expense';
+
+            let category = null;
+            if (t.categories && typeof t.categories === 'object') {
+                category = t.categories;
+            } else if (t.category_id && categories && categories.length > 0) {
+                category = categories.find(c => c.id === t.category_id);
+            } else if (t.category && categories && categories.length > 0) {
+                category = categories.find(c => c.name === t.category);
+            }
+
+            const catIcon = category?.icon || (isIncome ? 'fa-arrow-down' : 'fa-tag');
+            const catColor = category?.color || (isIncome ? '#10B981' : '#EF4444');
+            const catName = category?.name || (isIncome ? 'Receita' : 'Despesa');
+
+            let displayDesc = window.TonuDeduplicate
+                ? window.TonuDeduplicate.cleanDisplayDescription(t.description || '')
+                : sanitizeReportText(t.description || '').replace(/\s*\(pago\)\s*/gi, '').trim();
+            displayDesc = displayDesc.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)\/]/g, '').trim();
+
+            return `
+                <div class="transaction-item">
+                    <div class="tx-left">
+                        <div class="tx-icon" style="background:${catColor}">
+                            <i class="fas ${catIcon}"></i>
+                        </div>
+                        <div class="tx-info">
+                            <strong>${stripHTML(displayDesc || catName)}</strong>
+                            <div class="tx-meta">
+                                <span>${formatDate(t.date)}</span>
+                                <span class="tx-category" style="color:${catColor};background:${catColor}15;">
+                                    <i class="fas ${catIcon}"></i>
+                                    ${stripHTML(catName)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="tx-amount ${cls}">${sign} ${formatCurrency(t.amount)}</span>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar transacoes recentes:', error);
+        container.innerHTML = `
+            <div class="empty-transactions">
+                <span class="empty-icon">⚠️</span>
+                <h4>Erro ao carregar</h4>
+                <p>Nao foi possivel carregar as transacoes. Tente novamente.</p>
+            </div>
+        `;
+    }
+}
+
+// ============================================
+// 📈 VARIÁVEIS GLOBAIS DE INVESTIMENTOS & INSIGHTS
+// ============================================
+window.allDividends = window.allDividends || [];
+window.allInvestments = window.allInvestments || [];
+window.extraIncome = 0;
+window.totalAportes = 0;
+window.totalDividends = 0;
+
+// ============================================
+// 📈 CARREGADORES DE INVESTIMENTOS & PROVENTOS
+// ============================================
+async function loadInvestments(userId = currentUser?.id) {
+    if (!userId && currentUser?.id) userId = currentUser.id;
+    let loaded = [];
+    if (typeof supabaseClient !== 'undefined' && supabaseClient && userId) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('investments')
+                .select('*')
+                .eq('user_id', userId)
+                .order('date', { ascending: true });
+            if (!error && data && Array.isArray(data)) {
+                loaded = data;
+                if (window.tonuSync) {
+                    window.tonuSync.setCachedInvestments(userId, data);
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao consultar investimentos do Supabase:', e);
+        }
+    }
+    if (loaded.length === 0 && userId && window.tonuSync) {
+        try {
+            const cachedInv = await window.tonuSync.getCachedInvestments(userId);
+            if (Array.isArray(cachedInv) && cachedInv.length > 0) {
+                loaded = cachedInv;
+            }
+        } catch (_) {}
+    }
+    if (loaded.length === 0) {
+        try {
+            const localKeys = [
+                `tonucontrole_investments_${userId}`,
+                `tonu_investments_${userId}`,
+                'tonucontrole_investments_demo',
+                'tonu_investments'
+            ];
+            for (const k of localKeys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+    window.allInvestments = loaded;
+    return loaded;
+}
+
+async function loadDividends(userId = currentUser?.id) {
+    if (!userId && currentUser?.id) userId = currentUser.id;
+    let loaded = [];
+    if (typeof supabaseClient !== 'undefined' && supabaseClient && userId) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('dividends')
+                .select('*')
+                .eq('user_id', userId)
+                .order('date', { ascending: false });
+            if (!error && data && Array.isArray(data)) {
+                loaded = data;
+                if (window.tonuSync) {
+                    window.tonuSync.setCachedDividends(userId, data);
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao consultar proventos do Supabase:', e);
+        }
+    }
+    if (loaded.length === 0 && userId && window.tonuSync) {
+        try {
+            const cachedDivs = await window.tonuSync.getCachedDividends(userId);
+            if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
+                loaded = cachedDivs;
+            }
+        } catch (_) {}
+    }
+    if (loaded.length === 0) {
+        try {
+            const localKeys = [
+                `tonucontrole_dividends_${userId}`,
+                `tonu_dividends_${userId}`,
+                'tonucontrole_dividends_demo',
+                'tonu_dividends'
+            ];
+            for (const k of localKeys) {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        loaded = parsed;
+                        break;
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+    window.allDividends = loaded;
+    return loaded;
+}
+
+// ============================================
+// 💼 CÁLCULO DO CUSTO DE CUSTÓDIA ATUAL (OPÇÃO A)
+// ============================================
+function calculateCurrentCustodyCost(investments = []) {
+    if (!Array.isArray(investments) || investments.length === 0) return 0;
+
+    const parseVal = (val) => {
+        if (val === null || val === undefined || val === '') return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        let s = String(val).replace(/[R$\s]/gi, '').trim();
+        if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
+        else if (s.includes(',')) s = s.replace(',', '.');
+        const n = parseFloat(s);
+        return isNaN(n) ? 0 : n;
+    };
+
+    const sorted = [...investments].sort((a, b) => {
+        const da = new Date((a.date || '1970-01-01') + 'T12:00:00').getTime();
+        const db = new Date((b.date || '1970-01-01') + 'T12:00:00').getTime();
+        if (da !== db) return da - db;
+        const typeA = (a.type || '').toLowerCase();
+        const typeB = (b.type || '').toLowerCase();
+        const prioA = typeA.includes('compra') || typeA.includes('buy') ? 1 : 2;
+        const prioB = typeB.includes('compra') || typeB.includes('buy') ? 1 : 2;
+        return prioA - prioB;
+    });
+
+    const positionsMap = new Map();
+
+    sorted.forEach(item => {
+        const ticker = (item.ticker || '').toUpperCase().trim();
+        if (!ticker) return;
+
+        if (!positionsMap.has(ticker)) {
+            positionsMap.set(ticker, {
+                quantity: 0,
+                costBasis: 0,
+                averageCost: 0
+            });
+        }
+
+        const pos = positionsMap.get(ticker);
+        const qty = parseVal(item.quantity);
+        let unit = parseVal(item.unit_price || item.price);
+        let total = parseVal(item.total_value || item.amount);
+        if (total <= 0 && qty > 0 && unit > 0) total = qty * unit;
+        if (unit <= 0 && qty > 0 && total > 0) unit = total / qty;
+
+        const type = (item.type || '').toLowerCase();
+        if (type.includes('compra') || type.includes('buy')) {
+            pos.costBasis += total;
+            pos.quantity += qty;
+            pos.averageCost = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+        } else if (type.includes('venda') || type.includes('sell')) {
+            const avg = pos.quantity > 0 ? pos.costBasis / pos.quantity : 0;
+            const sellQty = Math.min(qty, pos.quantity);
+            pos.costBasis = Math.max(0, pos.costBasis - (avg * sellQty));
+            pos.quantity = Math.max(0, pos.quantity - sellQty);
+            if (pos.quantity <= 0.0000001) {
+                pos.quantity = 0;
+                pos.costBasis = 0;
+                pos.averageCost = 0;
+            } else {
+                pos.averageCost = pos.costBasis / pos.quantity;
+            }
+        }
+    });
+
+    let totalCustody = 0;
+    for (const pos of positionsMap.values()) {
+        if (pos.quantity > 0.0000001) {
+            const cost = pos.quantity * (pos.averageCost || 0);
+            totalCustody += (cost > 0 ? cost : (pos.costBasis > 0 ? pos.costBasis : 0));
+        }
+    }
+
+    return Math.round(totalCustody * 100) / 100;
+}
+
+window.calculateCurrentCustodyCost = calculateCurrentCustodyCost;
+window.loadInvestments = loadInvestments;
+window.loadDividends = loadDividends;
+
+// ============================================
+// 💡 DIAGNÓSTICO FINANCEIRO 360º DO DASHBOARD (MÊS A MÊS - TODAS AS ABAS)
+// ============================================
+async function generateDashboardInsights() {
+    const container = document.getElementById('dashboardInsightsBody');
+    if (!container) return;
+
+    try {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() + currentMonthOffset);
+        const year = d.getFullYear();
+        const month = d.getMonth();
+        const mStr = String(month + 1).padStart(2, '0');
+        const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+        const firstDay = formatDateKey(year, month, 1);
+        const lastDayNum = getLastDayOfMonth(year, month);
+        const lastDayStr = formatDateKey(year, month, lastDayNum);
+        const todayStr = (typeof getToday === 'function') ? getToday() : new Date().toISOString().split('T')[0];
+
+        // Atualizar badge do mês no cabeçalho
+        const badgeEl = document.getElementById('insightsMonthBadge');
+        if (badgeEl) {
+            badgeEl.textContent = capitalizedMonth;
+        }
+
+        // 1. CARREGAR TRANSAÇÕES DO MÊS (Receitas, Despesas e Contas)
+        const allMonthTxs = (await getUnifiedTransactions(firstDay, lastDayStr)) || [];
+
+        const paidIncomeTxs = allMonthTxs.filter(t => t && t.type === 'income' && isTxPaid(t));
+        const totalIncome = paidIncomeTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+
+        const paidExpenseTxs = allMonthTxs.filter(t => t && t.type === 'expense' && isTxPaid(t));
+        const totalExpense = paidExpenseTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+
+        const netBalance = totalIncome - totalExpense;
+
+        // 1.0 ANÁLISE DE BICOS, EXTRAS E FREELAS (Renda Extra)
+        const isExtraIncomeTx = (t) => {
+            if (!t || t.type !== 'income') return false;
+            const desc = (t.description || '').toLowerCase();
+            const catName = (t.categories?.name || t.category || '').toLowerCase();
+            return (
+                catName.includes('bico') ||
+                catName.includes('extra') ||
+                catName.includes('freela') ||
+                catName.includes('bonificação') ||
+                catName.includes('bonificacao') ||
+                desc.includes('bico') ||
+                desc.includes('extra') ||
+                desc.includes('freela') ||
+                desc.includes('uber') ||
+                desc.includes('99') ||
+                desc.includes('ifood') ||
+                desc.includes('comissão') ||
+                desc.includes('comissao') ||
+                desc.includes('venda usada') ||
+                desc.includes('serviço extra') ||
+                desc.includes('servico extra')
+            );
+        };
+
+        const extraIncomeTxs = paidIncomeTxs.filter(isExtraIncomeTx);
+        const extraIncome = extraIncomeTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+        const totalExtraIncome = extraIncome;
+        window.extraIncome = extraIncome;
+        const extraIncomePct = totalIncome > 0 ? Math.round((extraIncome / totalIncome) * 100) : 0;
+
+        // 1.0.1 DETECÇÃO DE EMPRÉSTIMOS E DÍVIDAS NO MÊS
+        const isLoanOrDebtTx = (t) => {
+            if (!t) return false;
+            const desc = (t.description || '').toLowerCase();
+            const catName = (t.categories?.name || t.category || '').toLowerCase();
+            return (
+                catName.includes('empréstimo') ||
+                catName.includes('emprestimo') ||
+                catName.includes('financiamento') ||
+                catName.includes('dívida') ||
+                catName.includes('divida') ||
+                desc.includes('empréstimo') ||
+                desc.includes('emprestimo') ||
+                desc.includes('parcela empréstimo') ||
+                desc.includes('financiamento') ||
+                desc.includes('renegociação') ||
+                desc.includes('renegociacao')
+            );
+        };
+
+        const loanExpenseTxs = paidExpenseTxs.filter(isLoanOrDebtTx);
+        const totalLoansPaid = loanExpenseTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+
+        // Análise: Taxa de Poupança
+        let savingsRate = 0;
+        let savingsLabel = 'Sem receitas registradas';
+        let savingsClass = 'info';
+        let savingsBadge = 'Neutro';
+
+        if (totalIncome > 0) {
+            savingsRate = Math.round((netBalance / totalIncome) * 100);
+            if (savingsRate >= 20) {
+                savingsLabel = `${savingsRate}% da renda poupada`;
+                savingsClass = 'success';
+                savingsBadge = 'Excelente';
+            } else if (savingsRate > 0) {
+                savingsLabel = `${savingsRate}% da renda poupada`;
+                savingsClass = 'info';
+                savingsBadge = 'Moderado';
+            } else {
+                savingsLabel = `Déficit de ${Math.abs(savingsRate)}% da renda`;
+                savingsClass = 'danger';
+                savingsBadge = 'Déficit';
+            }
+        } else if (totalExpense > 0) {
+            savingsLabel = 'Apenas despesas registradas';
+            savingsClass = 'danger';
+            savingsBadge = 'Atenção';
+        }
+
+        // Análise: Maior Centro de Custo
+        const categoryMap = {};
+        paidExpenseTxs.forEach(t => {
+            const amt = Math.abs(Number(t.amount || 0));
+            const catName = t.categories?.name || 'Outros';
+            categoryMap[catName] = (categoryMap[catName] || 0) + amt;
+        });
+
+        let topCategory = 'Nenhuma';
+        let topCatAmount = 0;
+        let topCatPct = 0;
+        Object.entries(categoryMap).forEach(([cat, val]) => {
+            if (val > topCatAmount) {
+                topCatAmount = val;
+                topCategory = cat;
+            }
+        });
+        if (totalExpense > 0 && topCatAmount > 0) {
+            topCatPct = Math.round((topCatAmount / totalExpense) * 100);
+        }
+
+        // 2. CARREGAR CONTAS A PAGAR DO MÊS (Bills)
+        let monthBills = allMonthTxs.filter(t => t && t.is_bill && t.type === 'expense');
+        if (monthBills.length === 0 && currentUser && window.tonuSync) {
+            try {
+                const cachedBills = await window.tonuSync.getCachedBills(currentUser.id);
+                if (Array.isArray(cachedBills) && cachedBills.length > 0) {
+                    monthBills = cachedBills.filter(b => {
+                        const bDate = normalizeDateOnly(b.date);
+                        return bDate >= firstDay && bDate <= lastDayStr;
+                    });
+                }
+            } catch (_) {}
+        }
+
+        const totalBillsCount = monthBills.length;
+        const paidBills = monthBills.filter(b => isTxPaid(b));
+        const pendingBills = monthBills.filter(b => !isTxPaid(b));
+        const totalBillsAmount = monthBills.reduce((s, b) => s + Math.abs(Number(b.amount || 0)), 0);
+        const pendingBillsAmount = pendingBills.reduce((s, b) => s + Math.abs(Number(b.amount || 0)), 0);
+        const overdueBills = pendingBills.filter(b => {
+            const bDate = normalizeDateOnly(b.date);
+            return bDate && bDate < todayStr;
+        });
+
+        // 3. CARREGAR INVESTIMENTOS E PROVENTOS (CUSTÓDIA ATUAL E PROVENTOS DO MÊS)
+        if (!window.allInvestments || window.allInvestments.length === 0) {
+            await loadInvestments(currentUser?.id);
+        }
+        if (!window.allDividends || window.allDividends.length === 0) {
+            await loadDividends(currentUser?.id);
+        }
+
+        // Custo de Custódia Atual (Opção A: Valor Aplicado das posições ativas)
+        let totalAportes = calculateCurrentCustodyCost(window.allInvestments);
+        const uid = currentUser?.id || 'demo';
+        const savedInvested = parseFloat(localStorage.getItem('tonu_total_invested_' + uid) || '0');
+        if (totalAportes === 0 && savedInvested > 0) {
+            totalAportes = savedInvested;
+        }
+        window.totalAportes = totalAportes;
+
+        const monthDividends = (window.allDividends || []).filter(d => {
+            const dDate = normalizeDateOnly(d.payment_date || d.date);
+            return dDate >= firstDay && dDate <= lastDayStr && !d.is_demo && !String(d.id || '').startsWith('demo-');
+        });
+        const totalDividends = monthDividends.reduce((s, d) => {
+            const val = Number(d.total_value || d.net_value || d.amount || d.total_amount) || (Number(d.unit_value || 0) * Number(d.quantity || 0));
+            return s + (val > 0 ? val : 0);
+        }, 0);
+        window.totalDividends = totalDividends;
+
+        let passiveCoveragePct = 0;
+        if (totalBillsAmount > 0) {
+            passiveCoveragePct = Math.round((totalDividends / totalBillsAmount) * 100);
+        } else if (totalExpense > 0) {
+            passiveCoveragePct = Math.round((totalDividends / totalExpense) * 100);
+        }
+
+        // 4. CARREGAR METAS FINANCEIRAS (Goals)
+        let allGoals = [];
+        if (supabaseClient && currentUser) {
+            try {
+                const { data } = await supabaseClient
+                    .from('goals')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+                if (data && Array.isArray(data)) {
+                    allGoals = data;
+                    if (window.tonuSync) {
+                        window.tonuSync.setCachedGoals(currentUser.id, data);
+                    }
+                }
+            } catch (e) {
+                console.warn('Erro ao buscar metas:', e);
+            }
+        }
+        if (allGoals.length === 0 && currentUser && window.tonuSync) {
+            try {
+                const cachedGoals = await window.tonuSync.getCachedGoals(currentUser.id);
+                if (Array.isArray(cachedGoals) && cachedGoals.length > 0) {
+                    allGoals = cachedGoals;
+                }
+            } catch (_) {}
+        }
+
+        const activeGoals = allGoals.filter(g => !g.completed && (Number(g.current_amount) || 0) < (Number(g.target_amount) || 0));
+
+        let nearestGoal = null;
+        let highestProgress = -1;
+        activeGoals.forEach(g => {
+            const cur = Number(g.current_amount || 0);
+            const tgt = Number(g.target_amount || 0);
+            if (tgt > 0) {
+                const pct = (cur / tgt) * 100;
+                if (pct > highestProgress) {
+                    highestProgress = pct;
+                    nearestGoal = {
+                        title: g.title,
+                        current: cur,
+                        target: tgt,
+                        pct: Math.min(99, Math.round(pct)),
+                        remaining: Math.max(0, tgt - cur)
+                    };
+                }
+            }
+        });
+
+        // 5. CAPACIDADE LIVRE REAL PARA APORTE / RESERVA
+        const safeFreeCash = totalIncome - (totalExpense + pendingBillsAmount);
+
+        // 6. LIMITES ORÇAMENTÁRIOS (TonuBudget)
+        let budgetAlert = null;
+        if (window.TonuBudget && currentUser) {
+            try {
+                const budgetProgress = window.TonuBudget.calculateCategoryProgress(currentUser.id, allMonthTxs, categories || []);
+                const exceeded = budgetProgress.filter(b => b.isExceeded);
+                const warned = budgetProgress.filter(b => b.isWarning && !b.isExceeded);
+
+                if (exceeded.length > 0) {
+                    budgetAlert = {
+                        type: 'danger',
+                        text: `${exceeded.length} categoria(s) estouraram o teto (${exceeded.map(e => e.name).slice(0, 2).join(', ')})`,
+                        sub: 'Ajuste os tetos nas Configurações'
+                    };
+                } else if (warned.length > 0) {
+                    budgetAlert = {
+                        type: 'warning',
+                        text: `${warned.length} categoria(s) na margem preventiva`,
+                        sub: `Atenção com ${warned[0].name}`
+                    };
+                }
+            } catch (e) {
+                console.warn('Erro ao avaliar limites em insights:', e);
+            }
+        }
+
+        // 7. CÁLCULO DE AÇÕES ESTRATÉGICAS (Como diminuir gastos & investir mais)
+        const saving15 = topCatAmount > 0 ? Math.round(topCatAmount * 0.15) : 0;
+        const annualSaving = saving15 * 12;
+
+        let savingTipHTML = '';
+        if (topCatAmount > 0) {
+            const destination = nearestGoal ? `acelerar a meta de <strong>${stripHTML(nearestGoal.title)}</strong>` : 'aumentar seus aportes em investimentos';
+            savingTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-scissors" style="color:#ef4444;"></i>
+                    <div>
+                        <strong>Redução em ${stripHTML(topCategory)}:</strong>
+                        Economizar 15% nessa categoria libera <strong>${formatCurrency(saving15)}/mês</strong> (${formatCurrency(annualSaving)} ao ano) para ${destination}.
+                    </div>
+                </div>
+            `;
+        } else {
+            savingTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-receipt" style="color:#6c5ce7;"></i>
+                    <div>
+                        <strong>Controle de despesas:</strong>
+                        Cadastre suas despesas diárias para identificar os centros de custo com maior potencial de economia.
+                    </div>
+                </div>
+            `;
+        }
+
+        let capacityTipHTML = '';
+        if (safeFreeCash > 0) {
+            capacityTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-shield-alt" style="color:#10b981;"></i>
+                    <div>
+                        <strong>Capacidade livre para aporte:</strong>
+                        Após pagar e provisionar as contas (${formatCurrency(pendingBillsAmount)} pendentes), você tem <strong>${formatCurrency(safeFreeCash)} livres</strong> para investir com segurança.
+                    </div>
+                </div>
+            `;
+        } else if (pendingBillsAmount > 0) {
+            capacityTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-exclamation-circle" style="color:#f59e0b;"></i>
+                    <div>
+                        <strong>Atenção à liquidez:</strong>
+                        Suas contas a pagar somam <strong>${formatCurrency(pendingBillsAmount)}</strong> pendentes. Priorize quitar os vencimentos antes de realizar novas compras ou aportes.
+                    </div>
+                </div>
+            `;
+        } else {
+            capacityTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-wallet" style="color:#6c5ce7;"></i>
+                    <div>
+                        <strong>Fluxo equilibrado:</strong>
+                        Sem contas pendentes para o período. Mantenha os custos sob controle para preservar seu superávit.
+                    </div>
+                </div>
+            `;
+        }
+
+        let passiveTipHTML = '';
+        if (totalDividends > 0 && totalBillsAmount > 0) {
+            passiveTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-coins" style="color:#8b5cf6;"></i>
+                    <div>
+                        <strong>Liberdade Financeira:</strong>
+                        Seus proventos do mês cobrem <strong>${passiveCoveragePct}%</strong> das suas contas fixas. Reinvestir seus proventos acelerará a independência financeira.
+                    </div>
+                </div>
+            `;
+        } else if (totalDividends > 0) {
+            passiveTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-coins" style="color:#8b5cf6;"></i>
+                    <div>
+                        <strong>Renda Passiva ativa:</strong>
+                        Você recebeu <strong>${formatCurrency(totalDividends)}</strong> em proventos neste mês. Cada novo aporte amplia os rendimentos futuros.
+                    </div>
+                </div>
+            `;
+        } else {
+            passiveTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-chart-line" style="color:#00b894;"></i>
+                    <div>
+                        <strong>Construção de Renda Passiva:</strong>
+                        Adicione ativos geradores de renda (FIIs ou Ações pagadoras) na aba de Investimentos para começar a receber dividendos que ajudam a pagar suas contas.
+                    </div>
+                </div>
+            `;
+        }
+
+        // 8. DICAS ESTRATÉGICAS ESPECÍFICAS PARA BICOS E EXTRAS (O que fazer com o dinheiro)
+        let extraIncomeTipHTML = '';
+        if (totalExtraIncome > 0) {
+            const partAdiantar = Math.round(totalExtraIncome * 0.40);
+            const partFazerAlgo = Math.round(totalExtraIncome * 0.30);
+            const partGuardar = Math.round(totalExtraIncome * 0.30);
+
+            const loanAdvice = (totalLoansPaid > 0)
+                ? `adiantar parcelas de empréstimos/dívidas (economiza juros caros!)`
+                : `amortizar dívidas pendentes ou pagar contas fixas antecipadamente`;
+
+            const doingAdvice = nearestGoal
+                ? `investir em si mesmo, lazer consciente ou avançar a meta de <strong>${stripHTML(nearestGoal.title)}</strong>`
+                : `aproveitar para lazer com a família ou investir em ferramentas que aumentem sua renda`;
+
+            extraIncomeTipHTML = `
+                <div class="insight-strategy-item" style="background: rgba(234, 88, 12, 0.06); padding: 8px 10px; border-radius: 8px; border-left: 3px solid #ea580c;">
+                    <i class="fas fa-motorcycle" style="color:#ea580c; font-size:12px;"></i>
+                    <div>
+                        <strong style="color:#c2410c;">Estratégia para Bicos e Extras (${formatCurrency(totalExtraIncome)}):</strong>
+                        <div style="margin-top: 4px; display: flex; flex-direction: column; gap: 3px; font-size: 10.5px;">
+                            <span>• <strong>40% (${formatCurrency(partAdiantar)})</strong> ➔ <em>Adiantar empréstimos/dívidas:</em> ${loanAdvice}.</span>
+                            <span>• <strong>30% (${formatCurrency(partFazerAlgo)})</strong> ➔ <em>Fazer alguma coisa:</em> ${doingAdvice}.</span>
+                            <span>• <strong>30% (${formatCurrency(partGuardar)})</strong> ➔ <em>Guardar e investir:</em> aportar em reserva de emergência ou ativos geradores de renda.</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            extraIncomeTipHTML = `
+                <div class="insight-strategy-item">
+                    <i class="fas fa-plus-circle" style="color:#10b981;"></i>
+                    <div>
+                        <strong>Renda Extra & Bicos:</strong>
+                        Nenhuma receita de bico ou extra registrada este mês. Ao realizar freelas ou serviços extras, categorize como <em>"🛵 Bico / Extra"</em> para receber a distribuição inteligente de recursos.
+                    </div>
+                </div>
+            `;
+        }
+
+        // ============================================
+        // 9. CÁLCULO DO SCORE 360º (0 a 100) & REDISTRIBUIÇÃO DE PESOS
+        // ============================================
+        const scorePillars = [];
+
+        // Pilar 1: Equilíbrio Orçamentário (Peso base: 30%)
+        if (totalIncome > 0) {
+            let eqScore = 0;
+            if (savingsRate >= 20) eqScore = 100;
+            else if (savingsRate > 0) eqScore = Math.round((savingsRate / 20) * 100);
+            else if (savingsRate >= -10) eqScore = 25;
+            else eqScore = 0;
+            scorePillars.push({ name: 'Equilíbrio', weight: 30, score: eqScore });
+        }
+
+        // Pilar 2: Pontualidade & Contas (Peso base: 30%)
+        if (totalBillsCount > 0) {
+            let pontScore = 0;
+            if (overdueBills.length > 0) pontScore = Math.max(0, 100 - (overdueBills.length * 35));
+            else if (pendingBills.length === 0) pontScore = 100;
+            else if (safeFreeCash >= 0) pontScore = 90;
+            else pontScore = 60;
+            scorePillars.push({ name: 'Pontualidade', weight: 30, score: pontScore });
+        }
+
+        // Pilar 3: Endividamento & Dívidas (Peso base: 20%)
+        if (totalIncome > 0) {
+            const debtRatio = (totalLoansPaid / totalIncome) * 100;
+            let debtScore = 100;
+            if (debtRatio > 30) debtScore = Math.max(10, Math.round(50 - (debtRatio - 30) * 2));
+            else if (debtRatio > 15) debtScore = 65;
+            else if (debtRatio > 0) debtScore = 85;
+            scorePillars.push({ name: 'Endividamento', weight: 20, score: debtScore });
+        }
+
+        // Pilar 4: Futuros & Investimentos (Peso base: 20%)
+        let futScore = 0;
+        let futActive = false;
+        if (totalDividends > 0) { futScore += 40; futActive = true; }
+        if (nearestGoal && nearestGoal.pct > 0) { futScore += 30; futActive = true; }
+        if (totalAportes > 0) { futScore += 30; futActive = true; }
+        if (futActive) scorePillars.push({ name: 'Futuro', weight: 20, score: Math.min(100, futScore) });
+
+        // Redistribuição proporcional caso falte dados em algum pilar
+        const totalWeight = scorePillars.reduce((acc, p) => acc + p.weight, 0);
+        const finalScore = totalWeight > 0
+            ? Math.round(scorePillars.reduce((acc, p) => acc + (p.score * p.weight), 0) / totalWeight)
+            : 70;
+
+        let scoreBadge = { label: 'Bom', color: '#3B82F6', bg: '#EFF6FF' };
+        if (finalScore >= 80) scoreBadge = { label: 'Excelente', color: '#10B981', bg: '#ECFDF5' };
+        else if (finalScore < 40) scoreBadge = { label: 'Atenção', color: '#EF4444', bg: '#FEF2F2' };
+        else if (finalScore < 60) scoreBadge = { label: 'Regular', color: '#F59E0B', bg: '#FFFBEB' };
+
+        const circumference = 2 * Math.PI * 38;
+        const strokeOffset = circumference - (finalScore / 100) * circumference;
+
+        // ============================================
+        // 10. CHECKLIST DE AÇÕES RÁPIDAS ("O QUE FAZER HOJE?")
+        // ============================================
+        const actionCards = [];
+
+        // Ação 1: Contas vencendo em até 48h ou atrasadas (🔴 Pagar Agora)
+        const urgentBill = overdueBills[0] || pendingBills.find(b => {
+            const bDate = normalizeDateOnly(b.date);
+            if (!bDate) return false;
+            const diffDays = Math.ceil((new Date(bDate) - new Date(todayStr)) / (1000 * 60 * 60 * 24));
+            return diffDays >= 0 && diffDays <= 2;
+        });
+        if (urgentBill) {
+            const isOverdue = overdueBills.includes(urgentBill);
+            actionCards.push(`
+                <div class="action-card urgent" onclick="window.location.href='bills.html'" title="Ir para Contas a Pagar">
+                    <div class="action-icon" style="background:#fee2e2; color:#ef4444;"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="action-info">
+                        <strong>Pagar Agora: ${stripHTML(urgentBill.description || 'Conta')}</strong>
+                        <span>${isOverdue ? 'Conta atrasada' : 'Vencimento em até 48h'} • ${formatCurrency(urgentBill.amount)}</span>
+                    </div>
+                    <span class="action-btn-pill" style="background:#fee2e2; color:#b91c1c;">Pagar</span>
+                </div>
+            `);
+        }
+
+        // Ação 2: Teto orçamentário estourado ou maior gasto elevado (🟡 Ver Gastos)
+        if (budgetAlert && budgetAlert.type === 'danger') {
+            actionCards.push(`
+                <div class="action-card warning" onclick="window.location.href='transactions.html'" title="Ver Transações">
+                    <div class="action-icon" style="background:#fef3c7; color:#f59e0b;"><i class="fas fa-chart-pie"></i></div>
+                    <div class="action-info">
+                        <strong>Ver Gastos: Limite Estourado</strong>
+                        <span>${stripHTML(budgetAlert.text)}</span>
+                    </div>
+                    <span class="action-btn-pill" style="background:#fef3c7; color:#b45309;">Revisar</span>
+                </div>
+            `);
+        } else if (topCatPct > 35 && topCategory && topCategory !== 'Nenhuma') {
+            actionCards.push(`
+                <div class="action-card warning" onclick="window.location.href='transactions.html'" title="Ver Transações da Categoria">
+                    <div class="action-icon" style="background:#fef3c7; color:#f59e0b;"><i class="fas fa-fire"></i></div>
+                    <div class="action-info">
+                        <strong>Ver Gastos: ${stripHTML(topCategory)}</strong>
+                        <span>Consome ${topCatPct}% de todas as despesas do mês</span>
+                    </div>
+                    <span class="action-btn-pill" style="background:#fef3c7; color:#b45309;">Ver Gastos</span>
+                </div>
+            `);
+        }
+
+        // Checklist acionável limitado estritamente a "Pagar Agora" e "Ver Gastos"
+        const displayedActionCards = actionCards.slice(0, 2);
+
+        // RENDERIZAÇÃO DO CARD DEDICADO: "O QUE FAZER HOJE?" (DESKTOP)
+        const quickActionsBody = document.getElementById('dashboardQuickActionsBody');
+        const quickActionsBadge = document.getElementById('quickActionsBadge');
+        if (quickActionsBody) {
+            if (displayedActionCards.length > 0) {
+                if (quickActionsBadge) {
+                    quickActionsBadge.textContent = `${displayedActionCards.length} ${displayedActionCards.length === 1 ? 'pendência' : 'pendências'}`;
+                    quickActionsBadge.style.background = 'rgba(239, 68, 68, 0.12)';
+                    quickActionsBadge.style.color = '#DC2626';
+                }
+                quickActionsBody.innerHTML = `
+                    <div class="quick-actions-grid" style="display: flex; flex-direction: column; gap: 8px;">
+                        ${displayedActionCards.join('')}
+                    </div>
+                `;
+            } else {
+                if (quickActionsBadge) {
+                    quickActionsBadge.textContent = 'Em dia ✨';
+                    quickActionsBadge.style.background = 'rgba(16, 185, 129, 0.12)';
+                    quickActionsBadge.style.color = '#10B981';
+                }
+                quickActionsBody.innerHTML = `
+                    <div class="action-card all-good">
+                        <i class="fas fa-check-circle" style="color:#10b981; font-size:18px;"></i>
+                        <span>Tudo em dia! Suas contas estão pagas e o orçamento equilibrado. ✨</span>
+                    </div>
+                `;
+            }
+        }
+
+        // RENDERIZAÇÃO COMPLETA DO CARD DE SAÚDE FINANCEIRA (DIAGNÓSTICO 360º)
+        container.innerHTML = `
+            <!-- ANEL VELOCÍMETRO DO SCORE 360º -->
+            <div class="score-ring-card">
+                <div class="score-ring-wrap">
+                    <svg class="score-svg" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="38" class="score-ring-bg" />
+                        <circle cx="50" cy="50" r="38" class="score-ring-fg" stroke="${scoreBadge.color}" stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="${strokeOffset.toFixed(1)}" />
+                    </svg>
+                    <div class="score-text-inner">
+                        <span class="score-num">${finalScore}</span>
+                        <span class="score-total">/100</span>
+                    </div>
+                </div>
+                <div class="score-header-text">
+                    <div class="score-badge-pill" style="background:${scoreBadge.bg}; color:${scoreBadge.color};">${scoreBadge.label}</div>
+                    <h4 style="margin:4px 0 2px 0; font-size:15px; font-weight:700; color:var(--color-text,#1e293b);">Saúde Financeira 360º</h4>
+                    <p style="margin:0; font-size:12px; color:var(--color-text-muted,#64748b);">Equilíbrio • Pontualidade • Dívidas • Futuro</p>
+                </div>
+            </div>
+
+            ${!quickActionsBody ? `
+                <!-- FALLBACK CHECKLIST SE NÃO HOUVER CARD DEDICADO -->
+                <div class="quick-actions-section">
+                    <div class="quick-actions-title"><i class="fas fa-bolt" style="color:#f59e0b;"></i> O que fazer hoje?</div>
+                    <div class="quick-actions-grid">
+                        ${displayedActionCards.length > 0 ? displayedActionCards.join('') : `
+                            <div class="action-card all-good">
+                                <i class="fas fa-check-circle" style="color:#10b981; font-size:18px;"></i>
+                                <span>Tudo em dia! Suas contas estão pagas e o orçamento equilibrado. ✨</span>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- PILARES DO APLICATIVO -->
+            <div class="insight-pillars-list">
+                <!-- Pilar 1: Renda Poupada & Taxa de Poupança -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon ${savingsClass}">
+                            <i class="fas ${savingsClass === 'success' ? 'fa-piggy-bank' : (savingsClass === 'danger' ? 'fa-triangle-exclamation' : 'fa-chart-pie')}"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Renda Poupada (${capitalizedMonth})</span>
+                            <span class="val">${formatCurrency(netBalance)}</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge badge-${savingsClass}">${savingsLabel}</span>
+                </div>
+
+                <!-- Pilar 2: Maior Centro de Custo -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon ${topCatPct >= 40 ? 'warning' : 'info'}">
+                            <i class="fas fa-fire-flame-curved"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Maior Centro de Custo</span>
+                            <span class="val">${stripHTML(topCategory)} (${formatCurrency(topCatAmount)})</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge badge-muted">${topCatPct}% das saídas</span>
+                </div>
+
+                <!-- Pilar 3: Contas a Pagar do Mês -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon ${overdueBills.length > 0 ? 'danger' : (pendingBills.length === 0 && totalBillsCount > 0 ? 'success' : 'warning')}">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Contas a Pagar</span>
+                            <span class="val">${paidBills.length} de ${totalBillsCount} pagas (${formatCurrency(pendingBillsAmount)} pendentes)</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge ${overdueBills.length > 0 ? 'badge-danger' : (pendingBills.length === 0 && totalBillsCount > 0 ? 'badge-success' : 'badge-warning')}">
+                        ${overdueBills.length > 0 ? overdueBills.length + ' em atraso' : (pendingBills.length === 0 && totalBillsCount > 0 ? 'Todas pagas' : pendingBills.length + ' a vencer')}
+                    </span>
+                </div>
+
+                <!-- Pilar 4: Investimentos & Proventos -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon purple">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Investimentos & Renda Passiva</span>
+                            <span class="val">${formatCurrency(totalDividends)} proventos • ${formatCurrency(totalAportes)} aportes</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge badge-primary" style="font-size:10px;">
+                        ${passiveCoveragePct > 0 ? passiveCoveragePct + '% das contas' : (totalAportes > 0 ? 'Aporte ativo' : 'Sem proventos')}
+                    </span>
+                </div>
+
+                <!-- Pilar 5: Metas Financeiras -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon teal">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Metas Financeiras</span>
+                            <span class="val">${activeGoals.length} ativa(s) • ${nearestGoal ? stripHTML(nearestGoal.title) : 'Sem metas ativas'}</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge badge-muted">
+                        ${nearestGoal ? nearestGoal.pct + '% concluído' : (activeGoals.length > 0 ? 'Em andamento' : 'Definir')}
+                    </span>
+                </div>
+
+                <!-- Pilar 6: Bicos e Renda Extra -->
+                <div class="insight-metric-block">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon orange">
+                            <i class="fas fa-motorcycle"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Bicos & Renda Extra</span>
+                            <span class="val">${formatCurrency(totalExtraIncome)} (${extraIncomeTxs.length} lançamento${extraIncomeTxs.length === 1 ? '' : 's'})</span>
+                        </div>
+                    </div>
+                    <span class="insight-metric-badge badge ${totalExtraIncome > 0 ? 'badge-success' : 'badge-neutral'}">
+                        ${totalExtraIncome > 0 ? extraIncomePct + '% da renda' : 'Sem extras'}
+                    </span>
+                </div>
+            </div>
+
+            ${budgetAlert ? `
+                <!-- Alerta de Limite Orçamentário (se houver) -->
+                <div class="insight-metric-block" style="border-left: 3px solid ${budgetAlert.type === 'danger' ? '#EF4444' : '#F59E0B'};">
+                    <div class="insight-metric-left">
+                        <div class="insight-metric-icon ${budgetAlert.type}">
+                            <i class="fas fa-triangle-exclamation"></i>
+                        </div>
+                        <div class="insight-metric-text">
+                            <span class="label">Alerta de Tetos de Gastos</span>
+                            <span class="val" style="font-size: 12px;">${budgetAlert.text}</span>
+                        </div>
+                    </div>
+                    <a href="settings.html" onclick="localStorage.setItem('tonu_settings_active_tab', 'budgets');" class="btn btn-ghost-sm" style="font-size: 10px; text-decoration: none;" title="Gerenciar em Configurações">
+                        Ajustar
+                    </a>
+                </div>
+            ` : ''}
+
+            <!-- BLOCO ESTRATÉGICO: COMO DIMINUIR GASTOS & INVESTIR MAIS -->
+            <div class="insight-strategy-box">
+                <div class="insight-strategy-header">
+                    <i class="fas fa-bolt"></i>
+                    <span>Diagnóstico: Como Economizar e Investir Mais</span>
+                </div>
+                <div class="insight-strategy-items">
+                    ${extraIncomeTipHTML}
+                    ${savingTipHTML}
+                    ${capacityTipHTML}
+                    ${passiveTipHTML}
+                </div>
+            </div>
+
+            <!-- NAVEGAÇÃO RÁPIDA ENTRE ABAS -->
+            <div class="insight-quick-nav">
+                <span style="font-size:10.5px; color:var(--color-text-muted); font-weight:600; margin-right:2px;">Acesso:</span>
+                <a href="transactions.html"><i class="fas fa-exchange-alt"></i> Transações</a>
+                <a href="bills.html"><i class="fas fa-file-invoice"></i> Contas</a>
+                <a href="investments.html"><i class="fas fa-chart-line"></i> Investimentos</a>
+                <a href="goals.html"><i class="fas fa-bullseye"></i> Metas</a>
+                <a href="settings.html" onclick="localStorage.setItem('tonu_settings_active_tab', 'budgets');"><i class="fas fa-sliders-h"></i> Tetos</a>
+            </div>
+        `;
+
+    } catch (err) {
+        console.error('Erro ao gerar insights:', err);
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: var(--color-text-muted); font-size: 12px;">
+                <i class="fas fa-info-circle"></i> Registre movimentações para visualizar os diagnósticos financeiros.
+            </div>
+        `;
+    }
+}
+
+// ============================================
+// GRÁFICOS
+// ============================================
+async function loadCharts() {
+    try {
+        await loadCategoryChart();
+        await loadMonthlyChart();
+    } catch (err) {
+        console.error('❌ Erro ao carregar gráficos no dashboard:', err);
+        return false;
+    }
+}
+
+// ============================================
+// 🔥 LAZY LOADING DE GRÁFICOS
+// ============================================
+
+let chartsLoaded = false;
+let chartsLoading = false;
+
+function loadChartsLazy() {
+    const chartContainer = document.querySelector('.charts-grid');
+    if (!chartContainer) return;
+
+    if (chartsLoaded || chartsLoading) return;
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !chartsLoaded && !chartsLoading) {
+                chartsLoading = true;
+                console.log('📊 Carregando gráficos (lazy)...');
+
+                if (typeof loadCategoryChart === 'function') {
+                    loadCategoryChart();
+                }
+                if (typeof loadMonthlyChart === 'function') {
+                    loadMonthlyChart();
+                }
+
+                chartsLoaded = true;
+                chartsLoading = false;
+                observer.disconnect();
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: '50px'
+    });
+
+    observer.observe(chartContainer);
+}
+
+function getCategoryStyle(name, index, cat) {
+    if (typeof window !== 'undefined' && window.getBackendCategoryStyle) {
+        return window.getBackendCategoryStyle(name, cat);
+    }
+
+    if (cat && cat.color && typeof cat.color === 'string' && cat.color.startsWith('#')) {
+        return {
+            color: cat.color,
+            icon: cat.icon || 'fa-tag',
+            name: cat.name || name || 'Outros'
+        };
+    }
+
+    const n = (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+    if (n.includes('contas') || n.includes('basica') || n.includes('energia') || n.includes('luz') || n.includes('agua') || n.includes('gas') || n.includes('boleto')) {
+        return { color: '#0984E3', icon: 'fa-bolt', name: '⚡ Contas Básicas' };
+    }
+    if (n.includes('lazer') || n.includes('jogo') || n.includes('game') || n.includes('cinema') || n.includes('viagem') || n.includes('passeio') || n.includes('hotel') || n.includes('festa')) {
+        return { color: '#A29BFE', icon: 'fa-gamepad', name: '🎮 Lazer' };
+    }
+    if (n.includes('saude') || n.includes('farmacia') || n.includes('medic') || n.includes('hospital') || n.includes('drogaria') || n.includes('dentista') || n.includes('consulta')) {
+        return { color: '#FF6B6B', icon: 'fa-heartbeat', name: '❤️ Saúde' };
+    }
+    if (n.includes('educa') || n.includes('escola') || n.includes('faculdade') || n.includes('curso') || n.includes('livro') || n.includes('estudo')) {
+        return { color: '#0984E3', icon: 'fa-book', name: '📚 Educação' };
+    }
+    if (n.includes('emprestim') || n.includes('divida') || n.includes('financiamento') || n.includes('parcela')) {
+        return { color: '#D63031', icon: 'fa-hand-holding-usd', name: '🤝 Empréstimos' };
+    }
+    if (n.includes('cartao') || n.includes('credito') || n.includes('fatura') || n.includes('anuidade')) {
+        return { color: '#E17055', icon: 'fa-credit-card', name: '💳 Cartão de Crédito' };
+    }
+    if (n.includes('moradia') || n.includes('casa') || n.includes('aluguel') || n.includes('condominio') || n.includes('iptu')) {
+        return { color: '#E17055', icon: 'fa-home', name: '🏠 Moradia' };
+    }
+    if (n.includes('comunic') || n.includes('wifi') || n.includes('internet') || n.includes('celular') || n.includes('telefone') || n.includes('stream') || n.includes('assinat')) {
+        return { color: '#636E72', icon: 'fa-wifi', name: '📡 Comunicação' };
+    }
+    if (n.includes('aliment') || n.includes('comida') || n.includes('mercado') || n.includes('supermercado') || n.includes('restaurante') || n.includes('ifood') || n.includes('lanche')) {
+        return { color: '#FF6B6B', icon: 'fa-utensils', name: '🍔 Alimentação' };
+    }
+    if (n.includes('transport') || n.includes('uber') || n.includes('combustivel') || n.includes('gasolina') || n.includes('carro') || n.includes('onibus') || n.includes('veiculo')) {
+        return { color: '#FDCB6E', icon: 'fa-car', name: '🚗 Transporte' };
+    }
+    if (n.includes('salar') || n.includes('remuner') || n.includes('provento')) {
+        return { color: '#00B894', icon: 'fa-money-bill-wave', name: '💰 Salário' };
+    }
+    if (n.includes('invest') || n.includes('dividend') || n.includes('rendimento') || n.includes('acao') || n.includes('fii')) {
+        return { color: '#00CEC9', icon: 'fa-chart-line', name: '💼 Investimentos' };
+    }
+    if (n.includes('bico') || n.includes('extra') || n.includes('freela')) {
+        return { color: '#00B894', icon: 'fa-gift', name: '🛵 Bico / Extra' };
+    }
+
+    const defaultBackendColors = ['#0984E3', '#A29BFE', '#FF6B6B', '#FDCB6E', '#E17055', '#D63031', '#636E72', '#00B894', '#00CEC9', '#B2BEC3'];
+    return {
+        color: defaultBackendColors[(index || 0) % defaultBackendColors.length],
+        icon: 'fa-tag',
+        name: name || '📦 Outros'
+    };
+}
+
+// ============================================
+// GRÁFICO DE CATEGORIAS
+// ============================================
+async function loadCategoryChart() {
+    const canvas = document.getElementById('categoryChart');
+    const legendContainer = document.getElementById('expenseLegendCard');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + currentMonthOffset);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const lastDay = getLastDayOfMonth(year, month);
+    const firstDay = formatDateKey(year, month, 1);
+    const lastDayStr = formatDateKey(year, month, lastDay);
+
+    try {
+        const txs = await getUnifiedTransactions(firstDay, lastDayStr);
+        const data = (txs || []).filter(t => t && t.type === 'expense' && isTransactionPaid(t));
+
+        if (categoryChart) {
+            categoryChart.destroy();
+            categoryChart = null;
+        }
+
+        let cats = null;
+        if (supabaseClient && currentUser && currentUser.id) {
+            try {
+                const res = await supabaseClient
+                    .from('categories')
+                    .select('id, name, color, icon')
+                    .or(`user_id.eq.${currentUser.id},is_default.eq.true,user_id.is.null`);
+                cats = res.data;
+            } catch (_) {
+                try {
+                    const res2 = await supabaseClient
+                        .from('categories')
+                        .select('id, name, color, icon')
+                        .eq('user_id', currentUser.id);
+                    cats = res2.data;
+                } catch (_) {}
+            }
+        }
+        const categoryList = (cats && cats.length > 0) ? cats : (categories || []);
+
+        const categoryMap = {};
+        const categoryNameMap = {};
+        if (categoryList && categoryList.length > 0) {
+            categoryList.forEach(c => {
+                if (c) {
+                    if (c.id) categoryMap[c.id] = c;
+                    if (c.name) {
+                        const clean = c.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                        categoryNameMap[clean] = c;
+                        const noEmoji = clean.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+                        if (noEmoji) categoryNameMap[noEmoji] = c;
+                    }
+                }
+            });
+        }
+
+        const groups = {};
+
+        if (data && data.length > 0) {
+            data.forEach(t => {
+                const catId = t.category_id;
+                let cat = null;
+
+                if (catId && categoryMap[catId]) {
+                    cat = categoryMap[catId];
+                } else if (t.categories && typeof t.categories === 'object' && (t.categories.name || t.categories.color)) {
+                    cat = t.categories;
+                } else if (t.category) {
+                    const clean = t.category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                    cat = categoryNameMap[clean];
+                    if (!cat) {
+                        const noEmoji = clean.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+                        cat = categoryNameMap[noEmoji];
+                    }
+                }
+
+                const normalizeCatKey = (val) => {
+                    if (!val) return 'outros';
+                    const clean = String(val)
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+                        .trim();
+                    if (clean.includes('outro') || clean.includes('outra') || clean.includes('sem categoria') || clean === '' || clean === 'diversos' || clean === 'geral') {
+                        return 'outros';
+                    }
+                    return clean;
+                };
+
+                const rawName = cat?.name || t.category || (t.description ? t.description.substring(0, 20) : 'Outros');
+                const normKey = normalizeCatKey(rawName);
+                const displayName = normKey === 'outros' ? 'Outros' : rawName;
+
+                const style = getCategoryStyle(displayName, 0, cat);
+                const amt = Math.abs(Number(t.amount || 0));
+                if (isNaN(amt) || amt <= 0) return;
+
+                if (!groups[normKey]) {
+                    groups[normKey] = {
+                        total: 0,
+                        color: normKey === 'outros' ? '#94a3b8' : style.color,
+                        icon: normKey === 'outros' ? 'fa-ellipsis-h' : style.icon,
+                        name: displayName
+                    };
+                }
+                groups[normKey].total += amt;
+            });
+        }
+
+        const allCategories = Object.values(groups).sort((a, b) => b.total - a.total);
+
+        // OPÇÃO A: Se até 8 categorias, mostra TODAS no gráfico
+        let consolidatedEntries = [];
+        if (allCategories.length <= 8) {
+            consolidatedEntries = allCategories.map(item => [item.name, item]);
+        } else {
+            // Se > 8 categorias, top 8 + cauda em Outros
+            const regularCategories = allCategories.filter(item => item.name !== 'Outros' && !String(item.name).toLowerCase().includes('outro'));
+            const existingOutros = allCategories.find(item => item.name === 'Outros' || String(item.name).toLowerCase().includes('outro'));
+            const top8 = regularCategories.slice(0, 8);
+            const tail = regularCategories.slice(8);
+            const tailSum = tail.reduce((sum, item) => sum + item.total, 0);
+            const combinedOutrosTotal = (existingOutros ? existingOutros.total : 0) + tailSum;
+
+            consolidatedEntries = top8.map(item => [item.name, item]);
+            if (combinedOutrosTotal > 0) {
+                consolidatedEntries.push([
+                    'Outros',
+                    { total: combinedOutrosTotal, color: '#94a3b8', icon: 'fa-ellipsis-h', name: 'Outros' }
+                ]);
+            }
+        }
+
+        const labels = [];
+        const values = [];
+        const colors = [];
+        const icons = [];
+
+        consolidatedEntries.forEach(([key, valObj], idx) => {
+            const fallbackStyle = getCategoryStyle(key, idx);
+            labels.push(key);
+            values.push(valObj.total);
+            colors.push(valObj.color || fallbackStyle.color);
+            icons.push(valObj.icon || fallbackStyle.icon);
+        });
+
+        const total = values.reduce((a, b) => a + b, 0);
+
+        if (legendContainer) {
+            if (labels.length === 0) {
+                legendContainer.innerHTML = `
+                    <div style="text-align:center;color:var(--color-text-muted,#94a3b8);font-size:11px;padding:8px 0;">
+                        <i class="fas fa-inbox" style="font-size:16px;display:block;margin-bottom:4px;opacity:0.5;"></i>
+                        Nenhuma despesa
+                    </div>
+                `;
+            } else {
+                legendContainer.innerHTML = labels.map((label, idx) => {
+                    const val = values[idx];
+                    const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                    const color = colors[idx];
+                    const icon = icons[idx];
+
+                    return `
+                        <div style="display:flex;flex-direction:column;gap:3px;padding:4px 4px;font-size:11px;border-bottom:1px solid var(--color-border-light,#f1f5f9);">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                                <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                                    <span style="color:${color};font-size:10px;flex-shrink:0;width:14px;text-align:center;">
+                                        <i class="fas ${icon}"></i>
+                                    </span>
+                                    <span style="font-weight:600;color:var(--color-text,#1e293b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85px;font-size:11px;">${stripHTML(label)}</span>
+                                </div>
+                                <span style="font-weight:700;color:var(--color-text,#1e293b);font-size:11px;flex-shrink:0;">${pct}%</span>
+                            </div>
+                            <div style="width:100%;height:4px;background:rgba(148,163,184,0.18);border-radius:3px;overflow:hidden;">
+                                <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;transition:width 0.4s ease;"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        if (labels.length === 0) {
+            const isDark = document.body.classList.contains('dark-theme');
+            categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Sem despesas'],
+                    datasets: [{
+                        data: [1],
+                        backgroundColor: [isDark ? '#334155' : '#E2E8F0'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '62%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                },
+                plugins: [{
+                    id: 'emptyDonutCenter',
+                    afterDraw(chart) {
+                        const { ctx, chartArea: { top, bottom, left, right } } = chart;
+                        const centerX = (left + right) / 2;
+                        const centerY = (top + bottom) / 2;
+                        const isDarkTheme = document.body.classList.contains('dark-theme');
+
+                        ctx.save();
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+
+                        ctx.font = "800 18px 'Inter', sans-serif";
+                        ctx.fillStyle = isDarkTheme ? '#F8FAFC' : '#0F172A';
+                        ctx.fillText('R$ 0,00', centerX, centerY - 8);
+
+                        ctx.font = "500 11px 'Inter', sans-serif";
+                        ctx.fillStyle = isDarkTheme ? '#94A3B8' : '#64748B';
+                        ctx.fillText('Total Gasto', centerX, centerY + 12);
+
+                        ctx.restore();
+                    }
+                }]
+            });
+            return;
+        }
+
+        const customImageDonutPlugin = {
+            id: 'customImageDonutPlugin',
+            afterDraw(chart) {
+                const { ctx, chartArea: { top, bottom, left, right } } = chart;
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data || meta.data.length === 0) return;
+
+                const centerX = (left + right) / 2;
+                const centerY = (top + bottom) / 2;
+                const isDarkTheme = document.body.classList.contains('dark-theme');
+
+                const primaryTextColor = isDarkTheme ? '#F8FAFC' : '#0F172A';
+                const mutedTextColor = isDarkTheme ? '#94A3B8' : '#64748B';
+
+                const firstArc = meta.data[0];
+                const innerRadius = firstArc ? firstArc.innerRadius : 70;
+                const outerRadius = firstArc ? firstArc.outerRadius : 120;
+
+                ctx.save();
+
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const totalFormatted = formatCurrency(total);
+                const valueFontSize = Math.min(22, Math.max(15, Math.floor(innerRadius * 0.28)));
+                const labelFontSize = Math.min(13, Math.max(10, Math.floor(valueFontSize * 0.62)));
+
+                ctx.font = "800 " + valueFontSize + "px 'Inter', sans-serif";
+                ctx.fillStyle = primaryTextColor;
+                ctx.fillText(totalFormatted, centerX, centerY - labelFontSize * 0.7);
+
+                ctx.font = "500 " + labelFontSize + "px 'Inter', sans-serif";
+                ctx.fillStyle = mutedTextColor;
+                ctx.fillText('Total Gasto', centerX, centerY + valueFontSize * 0.75);
+
+                meta.data.forEach((element, i) => {
+                    const val = values[i];
+                    const pct = total > 0 ? (val / total) * 100 : 0;
+                    if (pct < 5.0) return;
+
+                    const startAngle = element.startAngle;
+                    const endAngle = element.endAngle;
+                    const midAngle = startAngle + (endAngle - startAngle) / 2;
+                    const midRadius = (innerRadius + outerRadius) / 2;
+
+                    const textX = centerX + Math.cos(midAngle) * midRadius;
+                    const textY = centerY + Math.sin(midAngle) * midRadius;
+
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#FFFFFF';
+
+                    const pctFontSize = Math.min(13, Math.max(10, Math.floor((outerRadius - innerRadius) *
+                        0.28)));
+                    const valFontSize = Math.max(8, Math.floor(pctFontSize * 0.78));
+
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                    ctx.shadowBlur = 4;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 1;
+
+                    if (pct >= 9 && (outerRadius - innerRadius) > 36) {
+                        ctx.font = "700 " + pctFontSize + "px 'Inter', sans-serif";
+                        ctx.fillText(Math.round(pct) + '%', textX, textY - valFontSize * 0.75);
+
+                        ctx.font = "600 " + valFontSize + "px 'Inter', sans-serif";
+                        ctx.fillText(formatCurrency(val), textX, textY + pctFontSize * 0.75);
+                    } else {
+                        ctx.font = "700 " + pctFontSize + "px 'Inter', sans-serif";
+                        ctx.fillText(Math.round(pct) + '%', textX, textY);
+                    }
+                    ctx.restore();
+                });
+
+                ctx.restore();
+            }
+        };
+
+        const isDark = document.body.classList.contains('dark-theme');
+        const sliceBorderColor = isDark ? '#1e293b' : '#ffffff';
+
+        categoryChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 3,
+                    borderColor: sliceBorderColor,
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                layout: {
+                    padding: {
+                        top: 20,
+                        bottom: 20,
+                        left: 30,
+                        right: 30
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.94)',
+                        titleFont: { size: 11, weight: '600' },
+                        bodyFont: { size: 10 },
+                        padding: 8,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function (context) {
+                                const totalVal = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = totalVal > 0 ? ((context.parsed / totalVal) * 100)
+                                    .toFixed(1) : 0;
+                                const label = context.label || 'Outros';
+                                return label + ': ' + formatCurrency(context.parsed) + ' (' + percentage +
+                                    '%)';
+                            }
+                        }
+                    }
+                },
+                animation: {
+                    animateRotate: true,
+                    duration: 600
+                }
+            },
+            plugins: [customImageDonutPlugin]
+        });
+
+        console.log('✅ Grafico de categorias renderizado com legenda reduzida!');
+
+    } catch (error) {
+        console.error('❌ Erro no grafico de categorias:', error);
+    }
+}
+
+// ============================================
+// CONTROLES DO GRÁFICO MENSAL (PERÍODO)
+// ============================================
+window.setMonthlyPeriod = function (period) {
+    monthlyChartPeriod = Number(period) || 6;
+
+    const btn6 = document.getElementById('btnPeriod6');
+    const btn12 = document.getElementById('btnPeriod12');
+    const badge = document.getElementById('monthlyPeriodBadge');
+
+    if (btn6 && btn12) {
+        if (monthlyChartPeriod === 6) {
+            btn6.style.background = '#6C5CE7';
+            btn6.style.color = '#ffffff';
+            btn6.style.fontWeight = '700';
+            btn12.style.background = 'transparent';
+            btn12.style.color = 'var(--color-text-muted, #64748b)';
+            btn12.style.fontWeight = '600';
+        } else {
+            btn12.style.background = '#6C5CE7';
+            btn12.style.color = '#ffffff';
+            btn12.style.fontWeight = '700';
+            btn6.style.background = 'transparent';
+            btn6.style.color = 'var(--color-text-muted, #64748b)';
+            btn6.style.fontWeight = '600';
+        }
+    }
+
+    if (badge) {
+        badge.textContent = `Últimos ${monthlyChartPeriod} meses`;
+    }
+
+    loadMonthlyChart();
+};
+
+window.setMonthlyMode = function (mode) {
+    // Compatibilidade caso seja chamado externamente; o gráfico agora foca exclusivamente em Despesas e Receitas
+    loadMonthlyChart();
+};
+
+// ============================================
+// GRÁFICO MENSAL - APENAS RECEITAS E DESPESAS
+// ============================================
+async function loadMonthlyChart() {
+    const canvas = document.getElementById('monthlyChart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const isDark = document.body.classList.contains('dark-theme');
+    const periodCount = monthlyChartPeriod || 6;
+
+    try {
+        const months = [];
+        const fullLabels = [];
+        const monthRanges = [];
+
+        for (let i = periodCount - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(1);
+            d.setMonth(d.getMonth() - i + currentMonthOffset);
+            const year = d.getFullYear();
+            const month = d.getMonth();
+            const lastDay = getLastDayOfMonth(year, month);
+            const firstDay = formatDateKey(year, month, 1);
+            const lastDayStr = formatDateKey(year, month, lastDay);
+
+            const shortMonth = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+            const capitalizedMonth = shortMonth.charAt(0).toUpperCase() + shortMonth.slice(1);
+            const yearSuffix = periodCount > 6 ? `/${String(year).slice(-2)}` : '';
+            months.push(capitalizedMonth + yearSuffix);
+
+            const monthFullName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            fullLabels.push(monthFullName.charAt(0).toUpperCase() + monthFullName.slice(1));
+
+            monthRanges.push({ firstDay, lastDayStr });
+        }
+
+        const minDate = monthRanges[0].firstDay;
+        const maxDate = monthRanges[monthRanges.length - 1].lastDayStr;
+        const periodTxs = await getUnifiedTransactions(minDate, maxDate);
+
+        const incomes = [];
+        const expenses = [];
+
+        monthRanges.forEach(({ firstDay, lastDayStr }) => {
+            let inc = 0;
+            let exp = 0;
+
+            (periodTxs || []).forEach(t => {
+                if (!t) return;
+                const tDate = normalizeDateOnly(t.date);
+                if (tDate && tDate >= firstDay && tDate <= lastDayStr) {
+                    const amt = Math.abs(Number(t.amount || 0));
+                    if (isNaN(amt) || amt <= 0) return;
+                    if (!isTransactionPaid(t)) return;
+
+                    if (t.type === 'income') {
+                        inc += amt;
+                    } else if (t.type === 'expense') {
+                        exp += amt;
+                    }
+                }
+            });
+
+            incomes.push(inc);
+            expenses.push(exp);
+        });
+
+        // ATUALIZA RESUMO NO CARD (APENAS RECEITAS E DESPESAS)
+        const totalInc = incomes.reduce((a, b) => a + b, 0);
+        const totalExp = expenses.reduce((a, b) => a + b, 0);
+        const avgInc = periodCount > 0 ? totalInc / periodCount : 0;
+        const avgExp = periodCount > 0 ? totalExp / periodCount : 0;
+
+        const totalPeriodIncEl = document.getElementById('totalPeriodIncomeVal');
+        const totalPeriodExpEl = document.getElementById('totalPeriodExpenseVal');
+        const avgIncEl = document.getElementById('avgIncomeVal');
+        const avgExpEl = document.getElementById('avgExpenseVal');
+
+        if (totalPeriodIncEl) totalPeriodIncEl.textContent = formatCurrency(totalInc);
+        if (totalPeriodExpEl) totalPeriodExpEl.textContent = formatCurrency(totalExp);
+        if (avgIncEl) avgIncEl.textContent = formatCurrency(avgInc);
+        if (avgExpEl) avgExpEl.textContent = formatCurrency(avgExp);
+
+        if (monthlyChart) {
+            monthlyChart.destroy();
+            monthlyChart = null;
+        }
+
+        // GRADIENTES MODERNOS PARA BARRAS
+        const height = canvas.clientHeight || 260;
+        const incomeGradient = ctx.createLinearGradient(0, 0, 0, height);
+        incomeGradient.addColorStop(0, '#10B981');
+        incomeGradient.addColorStop(1, 'rgba(16, 185, 129, 0.45)');
+
+        const expenseGradient = ctx.createLinearGradient(0, 0, 0, height);
+        expenseGradient.addColorStop(0, '#EF4444');
+        expenseGradient.addColorStop(1, 'rgba(239, 68, 68, 0.45)');
+
+        const chartDatasets = [
+            {
+                type: 'bar',
+                label: 'Receitas',
+                data: incomes,
+                backgroundColor: incomeGradient,
+                borderColor: '#10B981',
+                borderWidth: 1.5,
+                borderRadius: 6,
+                borderSkipped: false
+            },
+            {
+                type: 'bar',
+                label: 'Despesas',
+                data: expenses,
+                backgroundColor: expenseGradient,
+                borderColor: '#EF4444',
+                borderWidth: 1.5,
+                borderRadius: 6,
+                borderSkipped: false
+            }
+        ];
+
+        const textColor = isDark ? '#94A3B8' : '#64748B';
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)';
+
+        monthlyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: chartDatasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                categoryPercentage: 0.75,
+                barPercentage: 0.85,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                    axis: 'x'
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            color: textColor,
+                            font: { size: 11, weight: '600', family: "'Inter', sans-serif" },
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 14,
+                            boxWidth: 8,
+                            boxHeight: 8
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(30, 41, 59, 0.95)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#e2e8f0',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1,
+                        padding: 10,
+                        cornerRadius: 10,
+                        titleFont: { size: 12, weight: '700' },
+                        bodyFont: { size: 11 },
+                        callbacks: {
+                            title: function (items) {
+                                if (!items.length) return '';
+                                const idx = items[0].dataIndex;
+                                return fullLabels[idx] || items[0].label;
+                            },
+                            label: function (context) {
+                                const val = context.parsed.y !== undefined ? context.parsed.y : context.parsed;
+                                return ' ' + context.dataset.label + ': ' + formatCurrency(val);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: gridColor,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: textColor,
+                            font: { size: 10 },
+                            callback: function (value) {
+                                return formatCurrency(value);
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: textColor,
+                            font: { size: 11, weight: '500' }
+                        }
+                    }
+                },
+                animation: {
+                    duration: 600,
+                    easing: 'easeOutQuart'
+                }
+            }
+        });
+
+        console.log('✅ Gráfico de evolução mensal (Receitas e Despesas) atualizado com sucesso!');
+
+    } catch (error) {
+        console.error('❌ Erro no gráfico mensal:', error);
+    }
+}
+
+// ============================================
+// 📊 INSIGHTS
+// ============================================
+async function loadInsights() {
+    const container = document.getElementById('insightsContent');
+    if (!container) return;
+
+    container.innerHTML = '<p style="text-align:center;padding:12px 0;color:rgba(255,255,255,0.7);">🔍 Analisando...</p>';
+
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + currentMonthOffset);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const lastDay = getLastDayOfMonth(year, month);
+    const firstDay = formatDateKey(year, month, 1);
+    const lastDayStr = formatDateKey(year, month, lastDay);
+
+    try {
+        const rawData = await getUnifiedTransactions(firstDay, lastDayStr);
+        const data = (rawData || []).filter(t => t && isTransactionPaid(t));
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `
+                <div class="insight-item info">
+                    📝 Adicione transações este mês para receber insights personalizados
+                </div>
+            `;
+            return;
+        }
+
+        let income = 0,
+            expense = 0;
+        const categoriesObj = {};
+
+        data.forEach(t => {
+            const amt = Math.abs(Number(t.amount || 0));
+            if (t.type === 'income') {
+                income += amt;
+            } else {
+                expense += amt;
+                let name = 'Outros';
+                if (t.categories && typeof t.categories === 'object' && t.categories.name) {
+                    name = t.categories.name;
+                } else if (t.category) {
+                    name = t.category;
+                } else if (t.category_id && categories && categories.length > 0) {
+                    const match = categories.find(c => c.id === t.category_id);
+                    if (match) name = match.name;
+                }
+                categoriesObj[name] = (categoriesObj[name] || 0) + amt;
+            }
+        });
+
+        const balance = income - expense;
+        const sortedCats = Object.entries(categoriesObj).sort((a, b) => b[1] - a[1]);
+        const topCategory = sortedCats[0];
+
+        let html = '';
+
+        if (balance > 0) {
+            html += '<div class="insight-item success">✅ Saldo positivo: ' + formatCurrency(balance) + '</div>';
+        } else if (balance < 0) {
+            html += '<div class="insight-item danger">⚠️ Saldo negativo: ' + formatCurrency(Math.abs(balance)) + '</div>';
+        }
+
+        if (topCategory && expense > 0) {
+            const pct = (topCategory[1] / expense * 100).toFixed(0);
+            html += '<div class="insight-item info">📊 Maior gasto: "' + stripHTML(topCategory[0]) + '" (' + pct + '% das despesas)</div>';
+        }
+
+        if (expense > income && income > 0) {
+            const pct = ((expense - income) / income * 100).toFixed(0);
+            html += '<div class="insight-item danger">🚨 Gastos ' + pct + '% maiores que as receitas</div>';
+        }
+
+        if (income > 0 && balance > 0) {
+            const savings = ((balance / income) * 100).toFixed(0);
+            html += '<div class="insight-item success">💰 Você economizou ' + savings + '% da sua renda este mês</div>';
+        }
+
+        const txCount = data.length;
+        html += '<div class="insight-item info">📋 ' + txCount + ' transações registradas este mês</div>';
+
+        container.innerHTML = html;
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar insights:', error);
+        container.innerHTML = '<p style="text-align:center;padding:12px 0;color:rgba(255,255,255,0.7);">Erro ao carregar insights</p>';
+    }
+}
+
+// ============================================
+// SIDEBAR
+// ============================================
+window.toggleSidebar = function () {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const main = document.getElementById('mainContent');
+
+    if (!sidebar) return;
+
+    if (sidebar.classList.contains('hidden')) {
+        sidebar.classList.remove('hidden');
+        if (window.innerWidth <= 768 && overlay) {
+            overlay.classList.add('show');
+        }
+        if (main && window.innerWidth > 768) {
+            main.classList.remove('full');
+        }
+    } else {
+        sidebar.classList.add('hidden');
+        if (overlay) overlay.classList.remove('show');
+        if (main && window.innerWidth > 768) {
+            main.classList.add('full');
+        }
+    }
+};
+
+window.closeSidebar = function () {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const main = document.getElementById('mainContent');
+
+    if (sidebar) sidebar.classList.add('hidden');
+    if (overlay) overlay.classList.remove('show');
+    if (main && window.innerWidth > 768) {
+        main.classList.add('full');
+    }
+};
+
+document.addEventListener('click', function (e) {
+    if (e.target.classList.contains('sidebar-overlay')) {
+        closeSidebar();
+    }
+});
+
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+        closeSidebar();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    const main = document.getElementById('mainContent');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    if (window.innerWidth <= 768) {
+        if (main) main.classList.add('full');
+        if (sidebar) sidebar.classList.add('hidden');
+        if (overlay) overlay.classList.remove('show');
+    } else {
+        if (main) main.classList.remove('full');
+        if (sidebar) sidebar.classList.remove('hidden');
+    }
+});
+
+window.addEventListener('resize', function () {
+    const main = document.getElementById('mainContent');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    if (window.innerWidth <= 768) {
+        if (main) main.classList.add('full');
+        if (sidebar) sidebar.classList.add('hidden');
+        if (overlay) overlay.classList.remove('show');
+    } else {
+        if (main) main.classList.remove('full');
+        if (sidebar) sidebar.classList.remove('hidden');
+    }
+});
+
+// ============================================
+// 📄 EXPORTAR RELATÓRIO PDF - VERSÃO PREMIUM
+// ============================================
+async function exportarPDF() {
+    try {
+        showToast('📄 Gerando relatório detalhado...', 'info');
+
+        const d = new Date();
+        d.setMonth(d.getMonth() + currentMonthOffset);
+        const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+        const year = d.getFullYear();
+        const month = d.getMonth();
+        const firstDay = formatDateKey(year, month, 1);
+        const lastDayStr = formatDateKey(year, month, getLastDayOfMonth(year, month));
+
+        let transactions = [];
+        if (supabaseClient && currentUser) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('transactions')
+                    .select('*, categories(name)')
+                    .eq('user_id', currentUser.id)
+                    .eq('paid', true)
+                    .gte('date', firstDay)
+                    .lte('date', lastDayStr)
+                    .order('date', { ascending: false });
+                if (!error && data) transactions = data;
+            } catch (e) {
+                console.warn('Erro ao consultar Supabase para PDF:', e);
+            }
+        }
+
+        if (transactions.length === 0 && currentUser) {
+            try {
+                const localData = localStorage.getItem('tonu_transactions_' + currentUser.id);
+                if (localData) {
+                    const parsed = JSON.parse(localData);
+                    transactions = parsed.filter(t => t.paid && t.date >= firstDay && t.date <= lastDayStr);
+                }
+            } catch {}
+        }
+
+        // ============================================
+        // 🔥 FUNÇÃO DE LIMPEZA AGRESSIVA PARA O PDF
+        // ============================================
+        function cleanText(text) {
+            if (!text) return '';
+
+            let cleaned = String(text);
+
+            // REMOVE TODOS OS PADRÕES ESTRANHOS
+            cleaned = cleaned.replace(/Ø[=][^\s]{1,4}/g, '');
+            cleaned = cleaned.replace(/Ø[>][^\s]{1,4}/g, '');
+            cleaned = cleaned.replace(/Ø[=][^\\s]*/g, '');
+            cleaned = cleaned.replace(/Ø[>][^\\s]*/g, '');
+            cleaned = cleaned.replace(/&[a-z]{1,4};/gi, '');
+            cleaned = cleaned.replace(/�/g, '');
+            cleaned = cleaned.replace(/’┐Į/g, '');
+            cleaned = cleaned.replace(/[^\x20-\x7EÀ-ž]/g, '');
+            cleaned = cleaned.replace(/\s*\(pago\)\s*/gi, '');
+            cleaned = cleaned.replace(/\s{2,}/g, ' ');
+
+            // REMOVE PADRÕES ESPECÍFICOS
+            cleaned = cleaned.replace(/�\s*I�n�v�e�s�t�i�m�e�n�t�o�s/g, 'Investimentos');
+            cleaned = cleaned.replace(/�\s*C�a�r�t�ã�o�\s*�\s*d�e�\s*�\s*C�r�é�d�i�t�o/g, 'Cartão de Crédito');
+            cleaned = cleaned.replace(/�\s*C�o�n�t�a�s�\s*�\s*B�á�s�i�c�a�s/g, 'Contas Básicas');
+            cleaned = cleaned.replace(/�\s*E�m�p�r�é�s�t�i�m�o�s/g, 'Empréstimos');
+
+            // LIMPEZA FINAL
+            cleaned = cleaned.replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\-\.\,\(\)]/g, '');
+
+            return cleaned.trim();
+        }
+
+        function safeDescription(text) {
+            // 🔥 APLICA A LIMPEZA COMPLETA
+            let cleaned = cleanText(text);
+
+            // REMOVE "(pago)" novamente (segurança)
+            cleaned = cleaned.replace(/\s*\(pago\)\s*/gi, '').trim();
+
+            if (cleaned.length > 55) {
+                return cleaned.substring(0, 52) + '...';
+            }
+            return cleaned || 'Sem descricao';
+        }
+
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            showToast('Erro: Biblioteca jsPDF não encontrada', 'error');
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'pt', 'a4');
+
+        const COLOR_NAVY = [30, 41, 59];
+        const COLOR_PURPLE = [108, 92, 231];
+        const COLOR_GREEN = [16, 185, 129];
+        const COLOR_RED = [239, 68, 68];
+        const COLOR_TEXT = [30, 41, 59];
+        const COLOR_MUTED = [100, 116, 139];
+
+        // 1. HEADER EXECUTIVO
+        doc.setFillColor(...COLOR_NAVY);
+        doc.rect(0, 0, 595, 85, 'F');
+
+        // Faixa de destaque
+        doc.setFillColor(...COLOR_PURPLE);
+        doc.rect(0, 82, 595, 3, 'F');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        doc.setTextColor(255, 255, 255);
+        doc.text('TonuControle', 40, 42);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(203, 213, 225);
+        doc.text('Relatório Financeiro Executivo Mensal', 40, 60);
+
+        // Badge do Mês e Usuário no topo direito
+        doc.setFillColor(51, 65, 85);
+        doc.roundedRect(380, 22, 175, 45, 6, 6, 'F');
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(148, 163, 184);
+        doc.text('COMPETÊNCIA', 392, 38);
+
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text(monthName.toUpperCase(), 392, 54);
+
+        // 2. CALCULAR MÉTRICAS DO PERÍODO
+        let income = 0, expense = 0;
+        const categoryExpenses = {};
+
+        transactions?.forEach(t => {
+            const amt = Number(t.amount || 0);
+            if (t.type === 'income') {
+                income += amt;
+            } else if (t.type === 'expense') {
+                expense += amt;
+                let cName = cleanText(t.categories?.name || 'Geral');
+                categoryExpenses[cName] = (categoryExpenses[cName] || 0) + amt;
+            }
+        });
+        const balance = income - expense;
+        const savingsRate = income > 0 ? Math.round((balance / income) * 100) : 0;
+
+        // 3. CARDS DE KPIS (4 CARTÕES)
+        let currentY = 105;
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...COLOR_TEXT);
+        doc.text('Sumário do Mês', 40, currentY);
+
+        currentY += 12;
+        const cardWidth = 120;
+        const cardHeight = 48;
+        const cardGap = 12;
+
+        // Card 1: Receitas
+        doc.setFillColor(240, 253, 244);
+        doc.roundedRect(40, currentY, cardWidth, cardHeight, 6, 6, 'F');
+        doc.setDrawColor(187, 247, 208);
+        doc.roundedRect(40, currentY, cardWidth, cardHeight, 6, 6, 'S');
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...COLOR_GREEN);
+        doc.text('RECEITAS (+)', 48, currentY + 16);
+        doc.setFontSize(11);
+        doc.text(formatCurrency(income), 48, currentY + 34);
+
+        // Card 2: Despesas
+        const c2X = 40 + cardWidth + cardGap;
+        doc.setFillColor(254, 242, 242);
+        doc.roundedRect(c2X, currentY, cardWidth, cardHeight, 6, 6, 'F');
+        doc.setDrawColor(254, 202, 202);
+        doc.roundedRect(c2X, currentY, cardWidth, cardHeight, 6, 6, 'S');
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...COLOR_RED);
+        doc.text('DESPESAS (-)', c2X + 8, currentY + 16);
+        doc.setFontSize(11);
+        doc.text(formatCurrency(expense), c2X + 8, currentY + 34);
+
+        // Card 3: Saldo Líquido
+        const c3X = c2X + cardWidth + cardGap;
+        const isPos = balance >= 0;
+        doc.setFillColor(isPos ? 240 : 254, isPos ? 253 : 242, isPos ? 244 : 242);
+        doc.roundedRect(c3X, currentY, cardWidth, cardHeight, 6, 6, 'F');
+        doc.setDrawColor(isPos ? 187 : 254, isPos ? 247 : 202, isPos ? 208 : 202);
+        doc.roundedRect(c3X, currentY, cardWidth, cardHeight, 6, 6, 'S');
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(isPos ? COLOR_GREEN[0] : COLOR_RED[0], isPos ? COLOR_GREEN[1] : COLOR_RED[1], isPos ? COLOR_GREEN[2] : COLOR_RED[2]);
+        doc.text('SALDO FINAL', c3X + 8, currentY + 16);
+        doc.setFontSize(11);
+        doc.text(formatCurrency(balance), c3X + 8, currentY + 34);
+
+        // Card 4: Taxa de Poupança
+        const c4X = c3X + cardWidth + cardGap;
+        doc.setFillColor(245, 243, 255);
+        doc.roundedRect(c4X, currentY, cardWidth, cardHeight, 6, 6, 'F');
+        doc.setDrawColor(221, 214, 254);
+        doc.roundedRect(c4X, currentY, cardWidth, cardHeight, 6, 6, 'S');
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...COLOR_PURPLE);
+        doc.text('POUPANÇA / MARGEM', c4X + 8, currentY + 16);
+        doc.setFontSize(11);
+        doc.text(`${savingsRate}% da renda`, c4X + 8, currentY + 34);
+
+        currentY += cardHeight + 20;
+
+        // 4. TOP CATEGORIAS DE DESPESA (SE HOUVER)
+        const sortedCats = Object.entries(categoryExpenses).sort((a, b) => b[1] - a[1]).slice(0, 4);
+        if (sortedCats.length > 0 && expense > 0) {
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(...COLOR_TEXT);
+            doc.text('Distribuição das Maiores Despesas:', 40, currentY);
+            currentY += 12;
+
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(40, currentY, 515, 28, 4, 4, 'F');
+
+            let catX = 48;
+            sortedCats.forEach(([catName, val]) => {
+                const pct = Math.round((val / expense) * 100);
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(...COLOR_MUTED);
+                doc.text(`${catName.toUpperCase()}:`, catX, currentY + 12);
+
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(...COLOR_TEXT);
+                doc.text(`${formatCurrency(val)} (${pct}%)`, catX, currentY + 22);
+                catX += 124;
+            });
+            currentY += 40;
+        }
+
+        // 5. TABELA DE TRANSAÇÕES
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...COLOR_TEXT);
+        doc.text(`Movimentações Realizadas (${transactions?.length || 0})`, 40, currentY);
+
+        currentY += 10;
+        const tableHeaderY = currentY;
+        doc.setFillColor(241, 245, 249);
+        doc.rect(40, tableHeaderY, 515, 22, 'F');
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(71, 85, 105);
+        doc.text('DATA', 46, tableHeaderY + 14);
+        doc.text('DESCRIÇÃO', 115, tableHeaderY + 14);
+        doc.text('CATEGORIA', 320, tableHeaderY + 14);
+        doc.text('TIPO', 430, tableHeaderY + 14);
+        doc.text('VALOR', 548, tableHeaderY + 14, { align: 'right' });
+
+        let rowY = tableHeaderY + 22;
+        doc.setFont("helvetica", "normal");
+
+        if (transactions && transactions.length > 0) {
+            transactions.forEach((t, index) => {
+                if (rowY > 755) {
+                    doc.addPage();
+                    rowY = 50;
+                    doc.setFillColor(241, 245, 249);
+                    doc.rect(40, rowY, 515, 22, 'F');
+                    doc.setFontSize(8);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(71, 85, 105);
+                    doc.text('DATA', 46, rowY + 14);
+                    doc.text('DESCRIÇÃO', 115, rowY + 14);
+                    doc.text('CATEGORIA', 320, rowY + 14);
+                    doc.text('TIPO', 430, rowY + 14);
+                    doc.text('VALOR', 548, rowY + 14, { align: 'right' });
+                    rowY += 22;
+                }
+
+                if (index % 2 === 0) {
+                    doc.setFillColor(250, 250, 252);
+                    doc.rect(40, rowY, 515, 18, 'F');
+                }
+
+                const date = new Date(t.date).toLocaleDateString('pt-BR');
+                const desc = safeDescription(t.description || 'Sem descrição');
+
+                let cat = t.categories?.name || 'Geral';
+                cat = cleanText(cat);
+                if (!cat || cat.length === 0) cat = 'Geral';
+
+                const val = formatCurrency(t.amount);
+                const isIncome = t.type === 'income';
+
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(...COLOR_MUTED);
+                doc.text(date, 46, rowY + 12);
+
+                doc.setTextColor(...COLOR_TEXT);
+                let descDisplay = desc;
+                if (descDisplay.length > 40) {
+                    descDisplay = descDisplay.substring(0, 37) + '...';
+                }
+                doc.text(descDisplay, 115, rowY + 12);
+
+                doc.setTextColor(...COLOR_MUTED);
+                doc.text(cat, 320, rowY + 12);
+
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(isIncome ? COLOR_GREEN[0] : COLOR_RED[0], isIncome ? COLOR_GREEN[1] : COLOR_RED[1], isIncome ? COLOR_GREEN[2] : COLOR_RED[2]);
+                doc.text(isIncome ? 'Receita' : 'Despesa', 430, rowY + 12);
+                doc.text((isIncome ? '+ ' : '- ') + val, 548, rowY + 12, { align: 'right' });
+
+                rowY += 18;
+                doc.setDrawColor(241, 245, 249);
+                doc.line(40, rowY, 555, rowY);
+            });
+        } else {
+            doc.setFontSize(10);
+            doc.setTextColor(...COLOR_MUTED);
+            doc.text('Nenhuma movimentação encontrada para este período.', 40, rowY + 25);
+        }
+
+        // RODAPÉ
+        const pageCount = doc.internal.getNumberOfPages();
+        const emitTime = new Date().toLocaleString('pt-BR');
+
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setDrawColor(226, 232, 240);
+            doc.line(40, 805, 555, 805);
+
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(148, 163, 184);
+            doc.text(`TonuControle Gestão Financeira | Emitido em: ${emitTime}`, 40, 818);
+            doc.text(`Página ${i} de ${pageCount}`, 555, 818, { align: 'right' });
+        }
+
+        const fileName = `Tonu_Relatorio_Executivo_${year}_${String(month + 1).padStart(2, '0')}.pdf`;
+        doc.save(fileName);
+        showToast('✅ Relatório Executivo PDF gerado com sucesso!', 'success');
+
+    } catch (error) {
+        console.error('Erro ao gerar PDF:', error);
+        showToast('❌ Erro ao exportar PDF', 'error');
+    }
+}
+
+// ============================================
+// PROJEÇÃO DE FLUXO DE CAIXA
+// ============================================
+async function openCashFlowModal() {
+    if (!window.TonuCashFlow) {
+        showToast('Modulo de fluxo de caixa nao carregado.', 'warning');
+        return;
+    }
+
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) return;
+
+        const [txRes, billsRes] = await Promise.all([
+            supabaseClient.from('transactions').select('*').eq('user_id', user.id),
+            supabaseClient.from('bills').select('*').eq('user_id', user.id)
+        ]);
+
+        const txs = txRes.data || [];
+        const bills = billsRes.data || [];
+
+        const isTxPaid = t => {
+            if (!t) return false;
+            if (t.paid === false || t.paid === 'false' || t.paid === 0) return false;
+            if (t.is_bill && (t.paid !== true && t.paid !== 'true' && t.paid !== 1)) return false;
+            return (t.paid === true || t.paid === 'true' || t.paid === 1 || (t.paid === undefined && !t.is_bill));
+        };
+
+        const totalIncome = txs.filter(t => t.type === 'income' && isTxPaid(t)).reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const totalExpense = txs.filter(t => t.type === 'expense' && isTxPaid(t)).reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const currentBalance = totalIncome - totalExpense;
+
+        window.TonuCashFlow.showCashFlowModal(currentBalance, txs, bills);
+    } catch (err) {
+        console.error('❌ Erro ao abrir fluxo de caixa:', err);
+        showToast('Erro ao carregar dados do fluxo de caixa.', 'error');
+    }
+}
+
+// ============================================
+// EXPORTA FUNÇÕES GLOBAIS
+// ============================================
+window.changeMonth = changeMonth;
+window.goToCurrentMonth = goToCurrentMonth;
+window.changeMonthHandler = changeMonth;
+window.goToCurrentMonthHandler = goToCurrentMonth;
+window.exportarPDF = exportarPDF;
+window.openCashFlowModal = openCashFlowModal;
+window.loadCategoryChart = loadCategoryChart;
+window.loadMonthlyChart = loadMonthlyChart;
+window.loadDashboard = loadDashboard;
+window.loadInsights = loadInsights;
+window.generateDashboardInsights = generateDashboardInsights;
+window.loadRecentTransactions = loadRecentTransactions;
+window.loadCategories = loadCategories;
+window.checkOverdueBills = checkOverdueBills;
+window.calculatePatrimony = calculatePatrimony;
+window.startPatrimonyAutoUpdate = startPatrimonyAutoUpdate;
+window.stopPatrimonyAutoUpdate = stopPatrimonyAutoUpdate;
+
+// ============================================
+// ✨ INSIGHTS IA (GEMINI - HORIZONTE 2 ITEM 2)
+// ============================================
+var AI_INSIGHTS_CLIENT_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas em sessionStorage
+var _aiInsightsFetchInFlight = false;
+var _aiInsightsVisibilityTimer = null;
+
+function _escapeAiInsightHtml(str) {
+    if (typeof sanitizeString === 'function') {
+        return sanitizeString(String(str || ''));
+    }
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _resolveDesktopAiFailureMeta(meta) {
+    const reason = String(meta?.reason || '').toLowerCase();
+    switch (reason) {
+        case 'offline':
+            return {
+                badge: 'Offline',
+                text: 'Sem conexão no momento. O Diagnóstico 360º ao lado segue ativo.'
+            };
+        case 'no_token':
+        case 'unauthorized':
+            return {
+                badge: 'Sessão expirada',
+                text: 'Faça login novamente para atualizar os Insights IA.'
+            };
+        case 'api_key_invalid':
+        case 'not_configured':
+            return {
+                badge: 'Config. pendente',
+                text: meta?.errorMessage || 'Chave da API Gemini não configurada ou inválida no servidor.'
+            };
+        case 'quota_exceeded':
+        case 'rate_limit':
+            return {
+                badge: 'Limite atingido',
+                text: meta?.errorMessage || 'Cota de consultas IA atingida. Tente novamente mais tarde.'
+            };
+        case 'timeout':
+            return {
+                badge: 'Tempo esgotado',
+                text: 'A IA demorou para responder. Clique no ícone de atualizar para tentar novamente.'
+            };
+        default:
+            return {
+                badge: 'Indisponível',
+                text: meta?.errorMessage || 'Insights IA indisponíveis no momento. O Diagnóstico 360º segue ativo.'
+            };
+    }
+}
+
+function renderAIInsights(insights, meta) {
+    const body = document.getElementById('aiInsightsBody');
+    if (!body) return;
+
+    const list = Array.isArray(insights) ? insights.slice(0, 3) : [];
+    const badgeEl = document.getElementById('aiInsightsSourceBadge');
+    if (badgeEl && meta && meta.source) {
+        badgeEl.textContent = meta.source === 'cache' || meta.source === 'session' ? '90d • Cache' : '90d • IA';
+    }
+
+    if (list.length === 0) {
+        const failure = _resolveDesktopAiFailureMeta(meta);
+        if (badgeEl) badgeEl.textContent = failure.badge;
+        body.innerHTML = `<p class="ai-insights-empty">${_escapeAiInsightHtml(failure.text)}</p>`;
+        return;
+    }
+
+    const badgeMap = { warning: '⚠️', success: '✅', info: '💡' };
+    body.innerHTML = `<div class="ai-insights-list">${list.map(item => {
+        const rawType = String(item?.type || 'info').toLowerCase().trim();
+        const safeType = (rawType === 'warning' || rawType === 'success' || rawType === 'info') ? rawType : 'info';
+        const icon = badgeMap[safeType] || '💡';
+        const safeText = _escapeAiInsightHtml(item?.text || '');
+        return `<div class="insight-item ai-insight-item ${safeType}"><span class="ai-insight-icon" aria-hidden="true">${icon}</span><span class="ai-insight-text">${safeText}</span></div>`;
+    }).join('')}</div>`;
+}
+
+function _getAiInsightsSessionKey(userId) {
+    return `tonu_ai_insights_${userId || 'anon'}`;
+}
+
+function _isAiInsightsClientCacheExpired(userId) {
+    try {
+        const raw = sessionStorage.getItem(_getAiInsightsSessionKey(userId));
+        if (!raw) return true;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.insights) || parsed.insights.length === 0 || !parsed.ts) return true;
+        return (Date.now() - Number(parsed.ts)) >= AI_INSIGHTS_CLIENT_TTL_MS;
+    } catch {
+        return true;
+    }
+}
+
+async function loadAIInsights(forceRefresh) {
+    const body = document.getElementById('aiInsightsBody');
+    if (!body) return;
+
+    const force = forceRefresh === true;
+    const uid = currentUser?.id;
+    if (!uid) {
+        renderAIInsights([], { reason: 'unauthorized' });
+        return;
+    }
+
+    const sessionKey = _getAiInsightsSessionKey(uid);
+    if (!force) {
+        try {
+            const rawCached = sessionStorage.getItem(sessionKey);
+            if (rawCached) {
+                const cached = JSON.parse(rawCached);
+                if (cached && Array.isArray(cached.insights) && cached.insights.length > 0 && (Date.now() - Number(cached.ts || 0)) < AI_INSIGHTS_CLIENT_TTL_MS) {
+                    renderAIInsights(cached.insights, { source: 'session' });
+                    return;
+                }
+            }
+        } catch (_) {}
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        renderAIInsights([], { reason: 'offline' });
+        return;
+    }
+
+    if (_aiInsightsFetchInFlight && !force) return;
+    _aiInsightsFetchInFlight = true;
+
+    const refreshBtn = document.getElementById('aiInsightsRefreshBtn');
+    const refreshIcon = refreshBtn ? refreshBtn.querySelector('i') : null;
+    if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
+    if (force) {
+        body.innerHTML = '<p class="ai-insights-empty">Atualizando insights com IA...</p>';
+    }
+
+    try {
+        let token = '';
+        if (supabaseClient?.auth?.getSession) {
+            const { data } = await supabaseClient.auth.getSession();
+            token = data?.session?.access_token || '';
+        }
+        if (!token) {
+            renderAIInsights([], { reason: 'no_token' });
+            return;
+        }
+
+        const base = (typeof window.getBaseUrl === 'function')
+            ? String(window.getBaseUrl() || '').replace(/\/+$/, '')
+            : '';
+        const res = await fetch(`${base}/api/insights`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ forceRefresh: force })
+        });
+
+        let data = null;
+        try {
+            data = await res.json();
+        } catch (_) {
+            data = null;
+        }
+
+        if (!res.ok) {
+            renderAIInsights([], {
+                reason: data?.reason || (res.status === 401 ? 'unauthorized' : 'error'),
+                errorMessage: data?.error || ''
+            });
+            return;
+        }
+
+        const insights = Array.isArray(data?.insights) ? data.insights : [];
+        if (insights.length > 0) {
+            try {
+                sessionStorage.setItem(sessionKey, JSON.stringify({
+                    insights,
+                    generated_at: data.generated_at || new Date().toISOString(),
+                    ts: Date.now()
+                }));
+            } catch (_) {}
+            renderAIInsights(insights, { source: data?.source || 'ai' });
+            return;
+        }
+
+        renderAIInsights([], {
+            reason: data?.reason || (data?.gemini_configured === false ? 'not_configured' : 'error'),
+            errorMessage: data?.error || ''
+        });
+    } catch (_) {
+        renderAIInsights([], { reason: (typeof navigator !== 'undefined' && navigator.onLine === false) ? 'offline' : 'error' });
+    } finally {
+        _aiInsightsFetchInFlight = false;
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+    }
+}
+
+function _debouncedRefreshAiInsightsOnResume() {
+    if (!currentUser?.id || !_isAiInsightsClientCacheExpired(currentUser.id)) return;
+    clearTimeout(_aiInsightsVisibilityTimer);
+    _aiInsightsVisibilityTimer = setTimeout(() => {
+        loadAIInsights(false).catch(() => {});
+    }, 800);
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        _debouncedRefreshAiInsightsOnResume();
+    }
+});
+
+window.addEventListener('focus', () => {
+    _debouncedRefreshAiInsightsOnResume();
+});
+
+window.loadAIInsights = loadAIInsights;
+window.renderAIInsights = renderAIInsights;
+
+console.log('✅ Dashboard.js carregado com sucesso!');
+
+// ============================================
+// DASHBOARD WIDGETS
+// ============================================
+window.DashboardWidgets = {
+    initialized: false,
+    widgets: [],
+    layout: null,
+
+    init() {
+        if (this.initialized) return;
+        this.loadLayout();
+        this.renderWidgets();
+        this.initialized = true;
+        console.log('✅ Dashboard Widgets inicializados');
+    },
+
+    loadLayout() {
+        try {
+            const saved = localStorage.getItem('tonu_dashboard_layout');
+            this.layout = saved ? JSON.parse(saved) : null;
+        } catch (e) {
+            this.layout = null;
+        }
+    },
+
+    saveLayout() {
+        localStorage.setItem('tonu_dashboard_layout', JSON.stringify(this.layout));
+    },
+
+    renderWidgets() {
+        const grid = document.getElementById('dashboardGrid');
+        if (!grid) return;
+
+        const availableWidgets = [
+            { id: 'summary', title: '📊 Resumo', icon: 'fa-chart-pie' },
+            { id: 'income', title: '💰 Receitas', icon: 'fa-arrow-up' },
+            { id: 'expenses', title: '📉 Despesas', icon: 'fa-arrow-down' },
+            { id: 'balance', title: '💼 Saldo', icon: 'fa-wallet' },
+            { id: 'bills', title: '📅 Contas', icon: 'fa-file-invoice' },
+            { id: 'patrimony', title: '🏦 Patrimônio', icon: 'fa-coins' },
+            { id: 'chart', title: '📊 Gráfico', icon: 'fa-chart-pie' },
+            { id: 'transactions', title: '📋 Transações', icon: 'fa-list' },
+            { id: 'insights', title: '💡 Insights', icon: 'fa-lightbulb' }
+        ];
+
+        const activeIds = this.layout?.widgets || ['summary', 'income', 'expenses', 'balance', 'bills', 'chart', 'transactions'];
+        const activeWidgets = availableWidgets.filter(w => activeIds.includes(w.id));
+
+        grid.innerHTML = activeWidgets.map(w => `
+            <div class="widget" data-widget="${w.id}">
+                <div class="widget-header">
+                    <h3><i class="fas ${w.icon}"></i> ${w.title}</h3>
+                    <button class="widget-close" onclick="window.DashboardWidgets.removeWidget('${w.id}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="widget-body" id="widget-${w.id}">
+                    <div class="widget-loading">Carregando...</div>
+                </div>
+            </div>
+        `).join('');
+
+        activeWidgets.forEach(w => this.initWidget(w.id));
+
+        grid.insertAdjacentHTML('beforeend', `
+            <div class="widget widget-add" onclick="window.DashboardWidgets.showAddMenu()">
+                <button><i class="fas fa-plus"></i> Adicionar</button>
+            </div>
+        `);
+    },
+
+    initWidget(id) {
+        const container = document.getElementById(`widget-${id}`);
+        if (!container) return;
+
+        switch (id) {
+            case 'summary':
+                container.innerHTML = `
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
+                        <div><span style="font-size:11px;color:#94a3b8;">Receitas</span><br><span style="font-size:18px;font-weight:700;color:#00b894;" id="wIncome">R$ 0,00</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Despesas</span><br><span style="font-size:18px;font-weight:700;color:#ff7675;" id="wExpense">R$ 0,00</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Saldo</span><br><span style="font-size:18px;font-weight:700;color:#6c5ce7;" id="wBalance">R$ 0,00</span></div>
+                    </div>
+                `;
+                setTimeout(() => {
+                    const income = document.getElementById('totalIncome');
+                    const expense = document.getElementById('totalExpense');
+                    const balance = document.getElementById('totalBalance');
+                    if (income) document.getElementById('wIncome').textContent = income.textContent;
+                    if (expense) document.getElementById('wExpense').textContent = expense.textContent;
+                    if (balance) document.getElementById('wBalance').textContent = balance.textContent;
+                }, 500);
+                break;
+            case 'income':
+                container.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:#00b894;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:11px;color:#94a3b8;">Receitas</div>
+                            <div style="font-size:20px;font-weight:700;color:#00b894;" id="wIncomeOnly">R$ 0,00</div>
+                        </div>
+                    </div>
+                `;
+                setTimeout(() => {
+                    const income = document.getElementById('totalIncome');
+                    if (income) document.getElementById('wIncomeOnly').textContent = income.textContent;
+                }, 500);
+                break;
+            case 'expenses':
+                container.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:#ff7675;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:11px;color:#94a3b8;">Despesas</div>
+                            <div style="font-size:20px;font-weight:700;color:#ff7675;" id="wExpenseOnly">R$ 0,00</div>
+                        </div>
+                    </div>
+                `;
+                setTimeout(() => {
+                    const expense = document.getElementById('totalExpense');
+                    if (expense) document.getElementById('wExpenseOnly').textContent = expense.textContent;
+                }, 500);
+                break;
+            case 'balance':
+                container.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:#6c5ce7;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:11px;color:#94a3b8;">Saldo</div>
+                            <div style="font-size:20px;font-weight:700;color:#6c5ce7;" id="wBalanceOnly">R$ 0,00</div>
+                        </div>
+                    </div>
+                `;
+                setTimeout(() => {
+                    const balance = document.getElementById('totalBalance');
+                    if (balance) document.getElementById('wBalanceOnly').textContent = balance.textContent;
+                }, 500);
+                break;
+            case 'bills':
+                container.innerHTML = `
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
+                        <div><span style="font-size:11px;color:#94a3b8;">Pendentes</span><br><span style="font-size:18px;font-weight:700;color:#fdcb6e;" id="wBillsPending">0</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Pagas</span><br><span style="font-size:18px;font-weight:700;color:#00b894;" id="wBillsPaid">0</span></div>
+                        <div><span style="font-size:11px;color:#94a3b8;">Total</span><br><span style="font-size:18px;font-weight:700;color:#6c5ce7;" id="wBillsTotal">R$ 0,00</span></div>
+                    </div>
+                `;
+                setTimeout(() => {
+                    const pending = document.getElementById('pendingBills');
+                    const paid = document.getElementById('paidBills');
+                    const total = document.getElementById('totalAmount');
+                    if (pending) document.getElementById('wBillsPending').textContent = pending.textContent;
+                    if (paid) document.getElementById('wBillsPaid').textContent = paid.textContent;
+                    if (total) document.getElementById('wBillsTotal').textContent = total.textContent;
+                }, 500);
+                break;
+            case 'patrimony':
+                container.innerHTML = `
+                    <div style="text-align:center;padding:8px 0;">
+                        <div style="font-size:28px;font-weight:800;color:#6c5ce7;" id="wPatrimony">R$ 0,00</div>
+                        <div style="font-size:12px;color:#94a3b8;">Patrimônio Total</div>
+                    </div>
+                `;
+                setTimeout(() => {
+                    const patrimony = document.getElementById('patrimony');
+                    if (patrimony) document.getElementById('wPatrimony').textContent = patrimony.textContent;
+                }, 500);
+                break;
+            case 'chart':
+                container.innerHTML = `<canvas id="wCategoryChart" style="height:160px;"></canvas>`;
+                setTimeout(() => {
+                    if (typeof window.loadCategoryChart === 'function') {
+                        setTimeout(() => window.loadCategoryChart(), 300);
+                    }
+                }, 500);
+                break;
+            case 'transactions':
+                container.innerHTML = `<div id="wTransactionsList" style="max-height:200px;overflow-y:auto;"></div>`;
+                setTimeout(() => {
+                    const list = document.getElementById('transactionsList');
+                    if (list) {
+                        document.getElementById('wTransactionsList').innerHTML = list.innerHTML;
+                    }
+                }, 500);
+                break;
+            case 'insights':
+                container.innerHTML = `<div id="wInsights"></div>`;
+                setTimeout(() => {
+                    const insights = document.getElementById('insightsContent');
+                    if (insights) {
+                        document.getElementById('wInsights').innerHTML = insights.innerHTML;
+                    }
+                }, 500);
+                break;
+        }
+    },
+
+    removeWidget(id) {
+        const grid = document.getElementById('dashboardGrid');
+        if (!grid) return;
+
+        const activeIds = this.layout?.widgets || ['summary', 'income', 'expenses', 'balance', 'bills', 'chart', 'transactions'];
+        const index = activeIds.indexOf(id);
+        if (index > -1) {
+            activeIds.splice(index, 1);
+            this.layout = { widgets: activeIds };
+            this.saveLayout();
+            this.renderWidgets();
+        }
+    },
+
+    showAddMenu() {
+        const available = ['summary', 'income', 'expenses', 'balance', 'bills', 'patrimony', 'chart', 'transactions', 'insights'];
+        const activeIds = this.layout?.widgets || ['summary', 'income', 'expenses', 'balance', 'bills', 'chart', 'transactions'];
+        const toAdd = available.filter(id => !activeIds.includes(id));
+
+        if (toAdd.length === 0) {
+            if (typeof showToast === 'function') {
+                showToast('Todos os widgets já estão adicionados!', 'info');
+            }
+            return;
+        }
+
+        const first = toAdd[0];
+        activeIds.push(first);
+        this.layout = { widgets: activeIds };
+        this.saveLayout();
+        this.renderWidgets();
+
+        if (typeof showToast === 'function') {
+            showToast('✅ Widget adicionado!', 'success');
+        }
+    }
+};
+
+// Inicializar widgets após carregar o dashboard
+document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(() => {
+        if (window.DashboardWidgets) {
+            window.DashboardWidgets.init();
+        }
+    }, 1500);
+});
