@@ -160,26 +160,6 @@
 
             <!-- CONTENT CENTRALIZADO (CLEAN VERTICAL STACK) -->
             <div class="content dashboard-content">
-                <!-- BANNER DE CONTAS ATRASADAS -->
-                <div id="dueBillsWarningBanner" class="due-bills-banner" style="display:none;">
-                    <div class="due-banner-left">
-                        <div class="due-banner-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                        <div class="due-banner-info">
-                            <h4 id="dueBannerTitle">⚠️ Atenção: Você tem contas em atraso!</h4>
-                            <p id="dueBannerDesc">Acesse a lista e efetue o pagamento para regularizar suas contas.</p>
-                        </div>
-                    </div>
-                    <div class="due-banner-actions">
-                        <button class="btn btn-danger btn-sm" onclick="window.location.href='bills.html'">
-                            <i class="fas fa-file-invoice-dollar"></i> Ver Contas
-                        </button>
-                        <button class="btn btn-ghost btn-sm"
-                            onclick="document.getElementById('dueBillsWarningBanner').style.display='none'">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-
                 <!-- SELETOR UNIFICADO DE MÊS E ANO -->
                 <div class="global-period-bar">
                     <div class="month-selector month-selector-capsule" role="group" aria-label="Selecionar mês e ano de referência">
@@ -208,7 +188,26 @@
                             <div class="months-grid-12" id="monthsGrid12"></div>
                         </div>
                     </div>
-                    <button type="button" class="month-today-chip" id="goCurrentMonthBtn" title="Voltar para o mês atual">Mês atual</button>
+                </div>
+
+                <!-- BANNER DE CONTAS ATRASADAS -->
+                <div id="dueBillsWarningBanner" class="due-bills-banner" style="display:none;">
+                    <div class="due-banner-left">
+                        <div class="due-banner-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="due-banner-info">
+                            <h4 id="dueBannerTitle">⚠️ Atenção: Você tem contas em atraso!</h4>
+                            <p id="dueBannerDesc">Acesse a lista e efetue o pagamento para regularizar suas contas.</p>
+                        </div>
+                    </div>
+                    <div class="due-banner-actions">
+                        <button class="btn btn-danger btn-sm" onclick="window.location.href='bills.html'">
+                            <i class="fas fa-file-invoice-dollar"></i> Ver Contas
+                        </button>
+                        <button class="btn btn-ghost btn-sm"
+                            onclick="document.getElementById('dueBillsWarningBanner').style.display='none'">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 1. CARD DE SALDO (HERO AZUL-ÍNDIGO CENTRALIZADO) -->
