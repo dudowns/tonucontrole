@@ -36,6 +36,7 @@
     <link rel="stylesheet" href="../css/sync-status.css?v=3.2.3">
     <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.37">
     <link rel="stylesheet" href="../css/post-login-transition.css?v=3.2.9">
+    <link rel="stylesheet" href="../css/transactions-redesign.css?v=1.0.0">
 
     <!-- Device Router & Anti-flicker Theme Init -->
     <script src="../js/device-router.js"></script>
@@ -101,7 +102,7 @@
     <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
 
     <div class="app-shell">
-        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button"
+        <div class="sidebar-overlay" id="sidebarOverlay" role="button"
             aria-label="Fechar menu"></div>
 
         <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
@@ -145,7 +146,7 @@
                     </div>
                     <i class="fas fa-cog sidebar-user-icon" aria-hidden="true"></i>
                 </a>
-                <button class="btn-sair" onclick="logout()" aria-label="Sair da conta">
+                <button class="btn-sair" aria-label="Sair da conta">
                     <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair
                 </button>
             </div>
@@ -153,7 +154,7 @@
 
         <main class="main-content full" id="mainContent" id="main-content">
             <header class="topbar" role="banner">
-                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu" aria-expanded="false">
+                <button class="menu-toggle" aria-label="Abrir menu" aria-expanded="false">
                     <i class="fas fa-bars" aria-hidden="true"></i>
                 </button>
                 <div class="topbar-title">
@@ -161,27 +162,25 @@
                     <h1>Transações</h1>
                 </div>
                 <div class="topbar-actions">
-                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro"
+                    <button class="theme-toggle-btn" title="Alternar Modo Escuro / Claro"
                         aria-label="Alternar tema">
                         <i class="fas fa-moon" aria-hidden="true"></i>
                     </button>
                     <button id="notifBellBtn" class="notif-bell-btn" type="button"
-                        onclick="window.toggleNotificationDropdown(event)" title="Lembretes e Notificações de Contas"
+                        title="Lembretes e Notificações de Contas"
                         aria-label="Notificações">
                         <i class="fas fa-bell" aria-hidden="true"></i>
                         <span class="notif-badge hidden" id="notifBadgeCount">0</span>
                     </button>
                     <button class="btn btn-outline"
-                        onclick="window.TonuBankImporterInstance.selectAndImportFile(loadTransactions)"
                         title="Importar arquivo CSV ou OFX de extrato bancário" aria-label="Importar extrato bancário">
                         <i class="fas fa-file-import" aria-hidden="true"></i> Importar Extrato
                     </button>
                     <button class="btn btn-outline"
-                        onclick="window.exportTransactionsCSV && window.exportTransactionsCSV()"
                         title="Exportar transações filtradas para CSV" aria-label="Exportar transações para CSV">
                         <i class="fas fa-file-export" aria-hidden="true"></i> Exportar CSV
                     </button>
-                    <button class="btn btn-primary" onclick="openModal()" aria-label="Nova transação">
+                    <button class="btn btn-primary" aria-label="Nova transação">
                         <i class="fas fa-plus" aria-hidden="true"></i> Nova
                     </button>
                 </div>
@@ -224,14 +223,14 @@
 
                 <div class="month-selector-container">
                     <div class="month-selector" role="group" aria-label="Selecionar mês">
-                        <button type="button" class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior" title="Mês anterior">
+                        <button type="button" class="month-nav" aria-label="Mês anterior" title="Mês anterior">
                             <i class="fas fa-chevron-left" aria-hidden="true"></i>
                         </button>
                         <div class="month-label-wrap">
                             <i class="far fa-calendar-alt month-label-icon" aria-hidden="true"></i>
                             <span class="month-label" id="selectedMonth">Carregando...</span>
                         </div>
-                        <button type="button" class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês" title="Próximo mês">
+                        <button type="button" class="month-nav" aria-label="Próximo mês" title="Próximo mês">
                             <i class="fas fa-chevron-right" aria-hidden="true"></i>
                         </button>
                     </div>
@@ -241,23 +240,23 @@
                     <div class="search-box" style="min-width: 220px; flex: 1;">
                         <i class="fas fa-search" aria-hidden="true"></i>
                         <input type="text" id="searchInput" class="form-control"
-                            placeholder="Buscar por descrição ou #tag..." oninput="window._debouncedFilterTransactions ? window._debouncedFilterTransactions() : filterTransactions()"
+                            placeholder="Buscar por descrição ou #tag..."
                             aria-label="Buscar transações">
                     </div>
-                    <select id="filterStatus" class="form-control" onchange="filterTransactions()" style="width: auto; font-weight: 600;"
+                    <select id="filterStatus" class="form-control" style="width: auto; font-weight: 600;"
                         aria-label="Filtrar por status de pagamento">
                         <option value="paid" selected>✅ Apenas Pagas</option>
                         <option value="all">📋 Todas as transações</option>
                         <option value="pending">⏳ Apenas Pendentes</option>
                     </select>
-                    <select id="filterType" class="form-control" onchange="filterTransactions()" style="width: auto;"
+                    <select id="filterType" class="form-control" style="width: auto;"
                         aria-label="Filtrar por tipo">
                         <option value="all">Todos os tipos</option>
                         <option value="income">Receitas</option>
                         <option value="expense">Despesas</option>
                         <option value="anticipation">⚡ Antecipações</option>
                     </select>
-                    <select id="filterRecurrence" class="form-control" onchange="filterTransactions()" style="width: auto;"
+                    <select id="filterRecurrence" class="form-control" style="width: auto;"
                         aria-label="Filtrar por forma de pagamento">
                         <option value="all">Todas as formas</option>
                         <option value="installments">📦 Parceladas (Faltam parcelas)</option>
@@ -265,11 +264,11 @@
                         <option value="single">⚡ Pagamento Único</option>
                         <option value="anticipation">⚡ Antecipações</option>
                     </select>
-                    <select id="filterCategory" class="form-control" onchange="filterTransactions()"
+                    <select id="filterCategory" class="form-control"
                         style="width: auto;" aria-label="Filtrar por categoria">
                         <option value="all">Todas categorias</option>
                     </select>
-                    <button type="button" class="btn btn-outline btn-sm" onclick="toggleAdvancedFilters()"
+                    <button type="button" class="btn btn-outline btn-sm"
                         id="btnToggleAdvFilters" title="Filtros avançados" aria-label="Alternar filtros avançados">
                         <i class="fas fa-sliders-h" aria-hidden="true"></i> Avançado
                     </button>
@@ -281,33 +280,31 @@
                         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <strong style="font-size: 13px;"><i class="fas fa-filter" aria-hidden="true"></i> Filtro
                             Avançado</strong>
-                        <button type="button" class="btn btn-ghost btn-sm" onclick="clearAdvancedFilters()"
+                        <button type="button" class="btn btn-ghost btn-sm"
                             style="font-size: 12px; color: var(--color-danger);">Limpar Filtros</button>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
                         <div>
                             <label style="font-size: 11px; color: var(--color-text-muted);">De:</label>
-                            <input type="date" id="filterDateStart" class="form-control"
-                                onchange="filterTransactions()">
+                            <input type="date" id="filterDateStart" class="form-control">
                         </div>
                         <div>
                             <label style="font-size: 11px; color: var(--color-text-muted);">Até:</label>
-                            <input type="date" id="filterDateEnd" class="form-control" onchange="filterTransactions()">
+                            <input type="date" id="filterDateEnd" class="form-control">
                         </div>
                         <div>
                             <label style="font-size: 11px; color: var(--color-text-muted);">Valor Mín (R$):</label>
                             <input type="number" id="filterMinAmount" class="form-control" placeholder="0,00"
-                                step="0.01" oninput="window._debouncedFilterTransactions ? window._debouncedFilterTransactions() : filterTransactions()">
+                                step="0.01">
                         </div>
                         <div>
                             <label style="font-size: 11px; color: var(--color-text-muted);">Valor Máx (R$):</label>
                             <input type="number" id="filterMaxAmount" class="form-control" placeholder="Sem limite"
-                                step="0.01" oninput="window._debouncedFilterTransactions ? window._debouncedFilterTransactions() : filterTransactions()">
+                                step="0.01">
                         </div>
                         <div>
                             <label style="font-size: 11px; color: var(--color-text-muted);">Tag (#):</label>
-                            <input type="text" id="filterTag" class="form-control" placeholder="Ex: #viagem"
-                                oninput="window._debouncedFilterTransactions ? window._debouncedFilterTransactions() : filterTransactions()">
+                            <input type="text" id="filterTag" class="form-control" placeholder="Ex: #viagem">
                         </div>
                     </div>
                 </div>
@@ -338,7 +335,7 @@
     <!-- ==========================================
     MODAL DE TRANSAÇÃO (NOVA / EDITAR)
     ========================================== -->
-    <div class="modal-overlay" id="modalOverlay" onclick="if(event.target === this) closeModal()" role="dialog"
+    <div class="modal-overlay" id="modalOverlay" role="dialog"
         aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal hidden" id="transactionModal">
             <div class="modal-header">
@@ -346,11 +343,11 @@
                     <div class="sub"><i class="fas fa-arrow-right-arrow-left" style="margin-right:4px;"></i> Transação</div>
                     <h3 id="modalTitle">Nova Transação</h3>
                 </div>
-                <button type="button" class="modal-close" onclick="closeModal()" aria-label="Fechar modal">
+                <button type="button" class="modal-close" aria-label="Fechar modal">
                     <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
-            <form id="transactionForm" onsubmit="saveTransaction(event)" novalidate>
+            <form id="transactionForm" novalidate>
                 <input type="hidden" id="editId">
                 <input type="hidden" id="csrfToken" name="_csrf">
                 <div class="modal-body">
@@ -383,7 +380,7 @@
                         <div class="form-group">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
                                 <label for="tCategory" style="margin-bottom:0;">Categoria *</label>
-                                <button type="button" onclick="window.TonuCategoryManagerInstance?.showManagerModal(loadCategories)" title="Gerenciar Categorias" style="background:none; border:none; color:var(--color-primary,#4338CA); font-size:10px; font-weight:600; cursor:pointer; padding:0; display:flex; align-items:center; gap:3px;">
+                                <button type="button" title="Gerenciar Categorias" style="background:none; border:none; color:var(--color-primary,#4338CA); font-size:10px; font-weight:600; cursor:pointer; padding:0; display:flex; align-items:center; gap:3px;">
                                     <i class="fas fa-cog"></i> Ajustar
                                 </button>
                             </div>
@@ -464,11 +461,11 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger btn-sm hidden" id="btnDelete"
-                        onclick="deleteTransaction()" aria-label="Excluir transação">
+                        aria-label="Excluir transação">
                         <i class="fas fa-trash-can" aria-hidden="true"></i> Excluir
                     </button>
                     <div style="flex:1;"></div>
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="button" class="btn btn-secondary">Cancelar</button>
                     <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Salvar</button>
                 </div>
             </form>

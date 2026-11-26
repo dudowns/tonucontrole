@@ -15,6 +15,8 @@
     let currentMonthOffset = 0;
     let _userSelectedCategory = false;
     let _settingCategoryProgrammatically = false;
+    let _uiListenersBound = false;
+    let _filterListenersBound = false;
 
     const MONTH_NAMES = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -189,6 +191,9 @@
             currentUser = user;
             console.log('✅ Transações: Usuário autenticado:', currentUser.email);
 
+            setupStaticUIListeners();
+            setupFilterListeners();
+
             if (window.loadGlobalUserProfile) {
                 await window.loadGlobalUserProfile();
             }
@@ -196,7 +201,6 @@
             updateMonthDisplay();
             await loadCategories();
             await loadTransactions();
-            setupFilterListeners();
 
             // Vincular controles de parcelamento e recorrência
             if (window.TonuInstallments) {
@@ -517,7 +521,7 @@
                         <p style="color:var(--color-text-muted,#94a3b8);font-size:14px;margin-bottom:16px;">
                             Não foram encontradas transações ${statusLabel} para este mês ou com os filtros aplicados.
                         </p>
-                        <button class="btn btn-primary" onclick="openModal()">
+                        <button type="button" class="btn btn-primary" data-tx-action="new">
                             <i class="fas fa-plus"></i> Nova Transação
                         </button>
                     </div>
@@ -593,16 +597,16 @@
                 html += `
                     <div class="swipe-row-wrap" data-swipe-row data-swipe-width="136">
                         <div class="swipe-actions-tray">
-                            <button type="button" class="swipe-action-btn swipe-action-edit" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); openModal('${safeId}')" aria-label="Editar transação">
+                            <button type="button" class="swipe-action-btn swipe-action-edit" data-tx-action="edit" data-tx-id="${safeId}" aria-label="Editar transação">
                                 <i class="fas fa-pencil-alt" aria-hidden="true"></i>
                                 <span>Editar</span>
                             </button>
-                            <button type="button" class="swipe-action-btn swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteTransaction('${safeId}')" aria-label="Apagar transação">
+                            <button type="button" class="swipe-action-btn swipe-action-delete" data-tx-action="delete" data-tx-id="${safeId}" aria-label="Apagar transação">
                                 <i class="fas fa-trash-alt" aria-hidden="true"></i>
                                 <span>Apagar</span>
                             </button>
                         </div>
-                        <div class="transaction-card clean-list-card compact-tx-card" data-swipe-content onclick="openModal('${safeId}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('${safeId}');}">
+                        <div class="transaction-card clean-list-card compact-tx-card" data-swipe-content data-tx-action="edit" data-tx-id="${safeId}" role="button" tabindex="0">
                             <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catInfo.color};" title="${sanitize(cleanCatName)}">
                                 <i class="fas ${catInfo.icon}" aria-hidden="true"></i>
                             </div>
@@ -613,7 +617,7 @@
                                         <span class="clean-card-amount ${isIncome ? 'income' : 'expense'}">
                                             ${amountPrefix}${formatBRL(t.amount)}
                                         </span>
-                                        <button type="button" class="clean-card-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${safeId}')" title="Excluir" aria-label="Excluir transação">
+                                        <button type="button" class="clean-card-delete-btn" data-tx-action="delete" data-tx-id="${safeId}" title="Excluir" aria-label="Excluir transação">
                                             <i class="fas fa-trash-alt" aria-hidden="true"></i>
                                         </button>
                                     </div>
@@ -641,9 +645,51 @@
         html += '</div>';
 
         container.innerHTML = html;
+        bindTransactionListDelegation(container);
         if (typeof window.TonuSetupSwipe === 'function') {
             window.TonuSetupSwipe();
         }
+    }
+
+    function bindTransactionListDelegation(container) {
+        if (!container || container.dataset.txDelegated === '1') return;
+        container.dataset.txDelegated = '1';
+
+        container.addEventListener('click', (e) => {
+            const actionEl = e.target?.closest?.('[data-tx-action]');
+            if (!actionEl || !container.contains(actionEl)) return;
+
+            const action = actionEl.dataset.txAction;
+            const txId = actionEl.dataset.txId;
+
+            if (action === 'new') {
+                openModal();
+                return;
+            }
+            if (action === 'delete') {
+                e.stopPropagation();
+                if (actionEl.classList.contains('swipe-action-delete') && window.TonuCloseSwipeRows) {
+                    window.TonuCloseSwipeRows();
+                }
+                if (txId) deleteTransaction(txId);
+                return;
+            }
+            if (action === 'edit') {
+                if (actionEl.classList.contains('swipe-action-edit')) {
+                    e.stopPropagation();
+                    if (window.TonuCloseSwipeRows) window.TonuCloseSwipeRows();
+                }
+                if (txId) openModal(txId);
+            }
+        });
+
+        container.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const cardEl = e.target?.closest?.('.transaction-card[data-tx-id]');
+            if (!cardEl || e.target !== cardEl) return;
+            e.preventDefault();
+            if (cardEl.dataset.txId) openModal(cardEl.dataset.txId);
+        });
     }
 
     // Update summary metrics
@@ -684,14 +730,142 @@
         }
     }
 
+    function setupStaticUIListeners() {
+        if (_uiListenersBound) return;
+        _uiListenersBound = true;
+
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', () => {
+                if (typeof window.closeSidebar === 'function') window.closeSidebar();
+            });
+        }
+
+        const logoutBtn = document.querySelector('.sidebar-footer .btn-sair');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                if (typeof window.logout === 'function') window.logout();
+            });
+        }
+
+        const menuToggleBtn = document.querySelector('.topbar .menu-toggle');
+        if (menuToggleBtn) {
+            menuToggleBtn.addEventListener('click', () => {
+                if (typeof window.toggleSidebar === 'function') window.toggleSidebar();
+            });
+        }
+
+        const themeToggleBtn = document.querySelector('.topbar .theme-toggle-btn');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                if (typeof window.toggleTheme === 'function') window.toggleTheme();
+            });
+        }
+
+        const notifBellBtn = document.getElementById('notifBellBtn');
+        if (notifBellBtn) {
+            notifBellBtn.addEventListener('click', (e) => {
+                if (typeof window.toggleNotificationDropdown === 'function') {
+                    window.toggleNotificationDropdown(e);
+                }
+            });
+        }
+
+        const importBtn = document.querySelector('.topbar-actions button[aria-label="Importar extrato bancário"]');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                window.TonuBankImporterInstance?.selectAndImportFile(loadTransactions);
+            });
+        }
+
+        const exportBtn = document.querySelector('.topbar-actions button[aria-label="Exportar transações para CSV"]');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                exportTransactionsCSV();
+            });
+        }
+
+        const newTxBtn = document.querySelector('.topbar-actions button[aria-label="Nova transação"]');
+        if (newTxBtn) {
+            newTxBtn.addEventListener('click', () => openModal());
+        }
+
+        const prevMonthBtn = document.querySelector('.month-selector .month-nav[aria-label="Mês anterior"]');
+        if (prevMonthBtn) {
+            prevMonthBtn.addEventListener('click', () => changeMonth(-1));
+        }
+
+        const nextMonthBtn = document.querySelector('.month-selector .month-nav[aria-label="Próximo mês"]');
+        if (nextMonthBtn) {
+            nextMonthBtn.addEventListener('click', () => changeMonth(1));
+        }
+
+        const advBtn = document.getElementById('btnToggleAdvFilters');
+        if (advBtn) {
+            advBtn.addEventListener('click', () => toggleAdvancedFilters());
+        }
+
+        const clearAdvBtn = document.querySelector('#advancedFiltersPanel .btn-ghost');
+        if (clearAdvBtn) {
+            clearAdvBtn.addEventListener('click', () => clearAdvancedFilters());
+        }
+
+        const modalOverlay = document.getElementById('modalOverlay');
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) closeModal();
+            });
+        }
+
+        const modalCloseBtn = document.querySelector('#transactionModal .modal-close');
+        if (modalCloseBtn) {
+            modalCloseBtn.addEventListener('click', () => closeModal());
+        }
+
+        const modalCancelBtn = document.querySelector('#transactionModal .modal-footer .btn-secondary');
+        if (modalCancelBtn) {
+            modalCancelBtn.addEventListener('click', () => closeModal());
+        }
+
+        const btnDelete = document.getElementById('btnDelete');
+        if (btnDelete) {
+            btnDelete.addEventListener('click', () => deleteTransaction());
+        }
+
+        const txForm = document.getElementById('transactionForm');
+        if (txForm) {
+            txForm.addEventListener('submit', saveTransaction);
+        }
+
+        const manageCatBtn = document.querySelector('#transactionForm button[title="Gerenciar Categorias"]');
+        if (manageCatBtn) {
+            manageCatBtn.addEventListener('click', () => {
+                window.TonuCategoryManagerInstance?.showManagerModal(loadCategories);
+            });
+        }
+
+        const container = document.getElementById('transactionsList') || document.getElementById('transactionsContainer');
+        if (container) {
+            bindTransactionListDelegation(container);
+        }
+    }
+
     // Filters
     function setupFilterListeners() {
+        if (_filterListenersBound) return;
+        _filterListenersBound = true;
+
         const searchInput = document.getElementById('searchInput') || document.getElementById('filterSearch');
         const typeSelect = document.getElementById('filterType');
         const recSelect = document.getElementById('filterRecurrence');
         const catSelect = document.getElementById('filterCategory');
         const statusSelect = document.getElementById('filterStatus');
         const monthInput = document.getElementById('filterMonth');
+        const dateStartInput = document.getElementById('filterDateStart');
+        const dateEndInput = document.getElementById('filterDateEnd');
+        const minAmountInput = document.getElementById('filterMinAmount');
+        const maxAmountInput = document.getElementById('filterMaxAmount');
+        const tagInput = document.getElementById('filterTag');
 
         const apply = () => filterTransactions();
 
@@ -706,6 +880,11 @@
         if (catSelect) catSelect.addEventListener('change', apply);
         if (statusSelect) statusSelect.addEventListener('change', apply);
         if (monthInput) monthInput.addEventListener('change', apply);
+        if (dateStartInput) dateStartInput.addEventListener('change', apply);
+        if (dateEndInput) dateEndInput.addEventListener('change', apply);
+        if (minAmountInput) minAmountInput.addEventListener('input', debouncedApply);
+        if (maxAmountInput) maxAmountInput.addEventListener('input', debouncedApply);
+        if (tagInput) tagInput.addEventListener('input', debouncedApply);
 
         const typeFormSelect = document.getElementById('tType');
         if (typeFormSelect) {
