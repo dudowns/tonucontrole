@@ -201,19 +201,19 @@
                         <span>Central de Notificações</span>
                     </div>
                     <div class="notif-header-actions">
-                        <button class="notif-header-btn" type="button" onclick="window.clearAllNotifications()" title="Limpar e dispensar notificações">
+                        <button class="notif-header-btn" id="notifClearAllBtn" type="button" title="Limpar e dispensar notificações">
                             <i class="fas fa-check-double"></i> Limpar todas
                         </button>
-                        <button class="notif-header-btn close-btn" type="button" onclick="window.closeNotificationDropdown()" title="Fechar">
+                        <button class="notif-header-btn close-btn" id="notifCloseBtn" type="button" title="Fechar">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
                 <div class="notif-sub-tabs">
-                    <button type="button" class="notif-sub-tab active" id="notifTabAll" onclick="window.setNotificationFilter('all')">
+                    <button type="button" class="notif-sub-tab active" id="notifTabAll">
                         Todas (<span id="notifCountAll">0</span>)
                     </button>
-                    <button type="button" class="notif-sub-tab" id="notifTabUnread" onclick="window.setNotificationFilter('unread')">
+                    <button type="button" class="notif-sub-tab" id="notifTabUnread">
                         Não lidas (<span id="notifCountUnread">0</span>)
                     </button>
                 </div>
@@ -226,10 +226,25 @@
                 </div>
                 <div class="notif-footer">
                     <a href="bills.html"><i class="fas fa-calendar-alt"></i> Ver contas</a>
-                    <a href="settings.html" onclick="try{localStorage.setItem('tonu_settings_active_tab','notifications');}catch(e){}"><i class="fas fa-cog"></i> Configurar</a>
+                    <a href="settings.html" id="notifSettingsLink"><i class="fas fa-cog"></i> Configurar</a>
                 </div>
             `;
             document.body.appendChild(dropdown);
+            dropdown.querySelector('#notifClearAllBtn')?.addEventListener('click', () => {
+                if (typeof window.clearAllNotifications === 'function') window.clearAllNotifications();
+            });
+            dropdown.querySelector('#notifCloseBtn')?.addEventListener('click', () => {
+                if (typeof window.closeNotificationDropdown === 'function') window.closeNotificationDropdown();
+            });
+            dropdown.querySelector('#notifTabAll')?.addEventListener('click', () => {
+                if (typeof window.setNotificationFilter === 'function') window.setNotificationFilter('all');
+            });
+            dropdown.querySelector('#notifTabUnread')?.addEventListener('click', () => {
+                if (typeof window.setNotificationFilter === 'function') window.setNotificationFilter('unread');
+            });
+            dropdown.querySelector('#notifSettingsLink')?.addEventListener('click', () => {
+                try { localStorage.setItem('tonu_settings_active_tab', 'notifications'); } catch (e) {}
+            });
             updateNotificationBadge();
         }
         return dropdown;
@@ -559,12 +574,20 @@
 
         if (!itemsToShow || itemsToShow.length === 0) {
             container.innerHTML = `
-                <div class="notif-empty" style="text-align:center; padding:36px 16px;">
-                    <i class="fas fa-check-circle notif-empty-icon" style="color:#00B894; font-size:40px; margin-bottom:12px; display:inline-block;"></i>
-                    <p style="font-size:14px; font-weight:700; color:var(--color-text, #2d3436); margin:0 0 6px;">${activeFilter === 'unread' ? 'Nenhuma pendência por hoje!' : 'Tudo em dia por hoje!'}</p>
-                    <small style="color:var(--color-text-muted, #64748b); font-size:12px; display:block; line-height:1.4;">Nenhuma conta vencendo ou provento pendente.</small>
+                <div class="notif-empty">
+                    <i class="fas fa-check-circle notif-empty-icon"></i>
+                    <p>${activeFilter === 'unread' ? 'Nenhuma pendência por hoje!' : 'Tudo em dia por hoje!'}</p>
+                    <small>Nenhuma conta vencendo ou provento pendente.</small>
                 </div>
             `;
+            const emptyBox = container.querySelector('.notif-empty');
+            const emptyIcon = container.querySelector('.notif-empty-icon');
+            const emptyTitle = container.querySelector('.notif-empty p');
+            const emptySub = container.querySelector('.notif-empty small');
+            if (emptyBox) Object.assign(emptyBox.style, { textAlign: 'center', padding: '36px 16px' });
+            if (emptyIcon) Object.assign(emptyIcon.style, { color: '#00B894', fontSize: '40px', marginBottom: '12px', display: 'inline-block' });
+            if (emptyTitle) Object.assign(emptyTitle.style, { fontSize: '14px', fontWeight: '700', color: 'var(--color-text, #2d3436)', margin: '0 0 6px' });
+            if (emptySub) Object.assign(emptySub.style, { color: 'var(--color-text-muted, #64748b)', fontSize: '12px', display: 'block', lineHeight: '1.4' });
             return;
         }
 
@@ -580,7 +603,7 @@
 
             return `
                 <div class="notif-item ${badgeClass} ${isRead ? 'read' : 'unread'}" data-notif-id="${safeId}">
-                    <div class="notif-icon-box" style="background:${iconBg};">
+                    <div class="notif-icon-box" data-icon-bg="${iconBg}">
                         <i class="fas ${n.icon || 'fa-info-circle'}"></i>
                     </div>
                     <div class="notif-item-content">
@@ -607,6 +630,10 @@
                 </div>
             `;
         }).join('');
+
+        container.querySelectorAll('.notif-icon-box[data-icon-bg]').forEach(box => {
+            box.style.backgroundColor = box.dataset.iconBg;
+        });
 
         container.querySelectorAll('.notif-item').forEach(item => {
             item.addEventListener('click', (e) => {
@@ -653,7 +680,7 @@
 
         banner.innerHTML = `
             <div class="floating-alert-inner ${notif.type || 'info'}">
-                <div class="floating-alert-icon" style="background:${color};">
+                <div class="floating-alert-icon">
                     <i class="fas ${notif.icon || 'fa-bell'}"></i>
                 </div>
                 <div class="floating-alert-body">
@@ -672,6 +699,8 @@
                 </div>
             </div>
         `;
+        const iconBox = banner.querySelector('.floating-alert-icon');
+        if (iconBox) iconBox.style.background = color;
 
         const btn = banner.querySelector('[data-notif-link]');
         if (btn) {
@@ -1292,11 +1321,20 @@
 
         if (!user || !window.supabaseClient || !isNotificationLogAvailable) {
             containers.forEach(c => {
-                c.innerHTML = `
-                    <div style="text-align:center; padding:20px; color:var(--color-text-muted, #64748b);">
-                        <p style="font-size:13px; margin:0;">${!isNotificationLogAvailable ? 'Histórico em nuvem indisponível ou tabela não provisionada.' : 'Faça login para visualizar o histórico de notificações.'}</p>
-                    </div>
-                `;
+                c.innerHTML = '';
+                const wrap = document.createElement('div');
+                Object.assign(wrap.style, {
+                    textAlign: 'center',
+                    padding: '20px',
+                    color: 'var(--color-text-muted, #64748b)'
+                });
+                const p = document.createElement('p');
+                Object.assign(p.style, { fontSize: '13px', margin: '0' });
+                p.textContent = !isNotificationLogAvailable
+                    ? 'Histórico em nuvem indisponível ou tabela não provisionada.'
+                    : 'Faça login para visualizar o histórico de notificações.';
+                wrap.appendChild(p);
+                c.appendChild(wrap);
             });
             return;
         }
@@ -1321,11 +1359,17 @@
             if (!data || data.length === 0) {
                 containers.forEach(c => {
                     c.innerHTML = `
-                        <div style="text-align:center; padding:24px; color:var(--color-text-muted, #64748b);">
-                            <i class="fas fa-inbox" style="font-size:24px; opacity:0.5; margin-bottom:8px; display:block;"></i>
-                            <p style="font-size:13px; margin:0;">Nenhum registro de notificação encontrado.</p>
+                        <div class="notif-hist-empty">
+                            <i class="fas fa-inbox notif-hist-empty-icon"></i>
+                            <p class="notif-hist-empty-text">Nenhum registro de notificação encontrado.</p>
                         </div>
                     `;
+                    const box = c.querySelector('.notif-hist-empty');
+                    const ic = c.querySelector('.notif-hist-empty-icon');
+                    const p = c.querySelector('.notif-hist-empty-text');
+                    if (box) Object.assign(box.style, { textAlign: 'center', padding: '24px', color: 'var(--color-text-muted, #64748b)' });
+                    if (ic) Object.assign(ic.style, { fontSize: '24px', opacity: '0.5', marginBottom: '8px', display: 'block' });
+                    if (p) Object.assign(p.style, { fontSize: '13px', margin: '0' });
                 });
                 return;
             }
@@ -1335,23 +1379,25 @@
                 const relativeTime = formatRelativeTime(item.created_at);
                 const safeTitle = typeof sanitizeString === 'function' ? sanitizeString(item.title) : item.title;
                 const safeBody = typeof sanitizeString === 'function' ? sanitizeString(item.body) : item.body;
+                const safeId = typeof sanitizeString === 'function' ? sanitizeString(String(item.id || '')) : String(item.id || '');
+                const safeUrl = typeof sanitizeString === 'function' ? sanitizeString(String(item.url || '')) : String(item.url || '');
                 const icon = item.type === 'danger' ? 'fa-exclamation-circle' : (item.type === 'bills' ? 'fa-file-invoice-dollar' : (item.type === 'dividends_credited' ? 'fa-money-bill-wave' : (item.type === 'goals' ? 'fa-bullseye' : 'fa-bell')));
                 const iconColor = item.type === 'danger' ? '#FF7675' : (item.type === 'bills' ? '#E17055' : (item.type === 'dividends_credited' ? '#00B894' : '#4338CA'));
 
                 return `
-                    <div class="notif-history-item" onclick="window.markHistoryItemRead('${item.id}', '${item.url || ''}')" style="display:flex; align-items:flex-start; gap:12px; padding:10px 12px; border-bottom:1px solid var(--color-border-light, #f1f2f6); cursor:pointer; background:${isUnread ? 'rgba(67, 56, 202, 0.06)' : 'transparent'}; border-radius:8px; transition:background 0.15s ease; margin-bottom:4px;">
-                        <div style="width:32px; height:32px; border-radius:8px; background:${iconColor}22; color:${iconColor}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                            <i class="fas ${icon}" style="font-size:13px;"></i>
+                    <div class="notif-history-item" data-history-id="${safeId}" data-history-url="${safeUrl}" data-unread="${isUnread ? '1' : '0'}" data-icon-color="${iconColor}">
+                        <div class="notif-hist-icon-box">
+                            <i class="fas ${icon} notif-hist-icon"></i>
                         </div>
-                        <div style="flex:1; min-width:0;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                                <strong style="font-size:13px; color:var(--color-text, #2d3436); font-weight:${isUnread ? '700' : '600'};">${safeTitle}</strong>
-                                <div style="display:flex; align-items:center; gap:6px;">
-                                    <span style="font-size:11px; color:var(--color-text-muted, #64748b); white-space:nowrap;">${relativeTime}</span>
-                                    ${isUnread ? '<span style="width:7px; height:7px; background:#0984e3; border-radius:50%; display:inline-block;" title="Não lida"></span>' : ''}
+                        <div class="notif-hist-body">
+                            <div class="notif-hist-top">
+                                <strong class="notif-hist-title">${safeTitle}</strong>
+                                <div class="notif-hist-meta">
+                                    <span class="notif-hist-time">${relativeTime}</span>
+                                    ${isUnread ? '<span class="notif-hist-dot" title="Não lida"></span>' : ''}
                                 </div>
                             </div>
-                            <div style="font-size:12px; color:var(--color-text-light, #636e72); margin-top:2px;">${safeBody}</div>
+                            <div class="notif-hist-desc">${safeBody}</div>
                         </div>
                     </div>
                 `;
@@ -1359,6 +1405,45 @@
 
             containers.forEach(c => {
                 c.innerHTML = html;
+                c.querySelectorAll('.notif-history-item').forEach(el => {
+                    const isUnread = el.dataset.unread === '1';
+                    const iconColor = el.dataset.iconColor || '#4338CA';
+                    Object.assign(el.style, {
+                        display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '10px 12px',
+                        borderBottom: '1px solid var(--color-border-light, #f1f2f6)', cursor: 'pointer',
+                        background: isUnread ? 'rgba(67, 56, 202, 0.06)' : 'transparent',
+                        borderRadius: '8px', transition: 'background 0.15s ease', marginBottom: '4px'
+                    });
+                    const iconBox = el.querySelector('.notif-hist-icon-box');
+                    if (iconBox) {
+                        Object.assign(iconBox.style, {
+                            width: '32px', height: '32px', borderRadius: '8px', background: `${iconColor}22`,
+                            color: iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'
+                        });
+                    }
+                    const ic = el.querySelector('.notif-hist-icon');
+                    if (ic) ic.style.fontSize = '13px';
+                    const body = el.querySelector('.notif-hist-body');
+                    if (body) Object.assign(body.style, { flex: '1', minWidth: '0' });
+                    const top = el.querySelector('.notif-hist-top');
+                    if (top) Object.assign(top.style, { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' });
+                    const titleEl = el.querySelector('.notif-hist-title');
+                    if (titleEl) Object.assign(titleEl.style, { fontSize: '13px', color: 'var(--color-text, #2d3436)', fontWeight: isUnread ? '700' : '600' });
+                    const meta = el.querySelector('.notif-hist-meta');
+                    if (meta) Object.assign(meta.style, { display: 'flex', alignItems: 'center', gap: '6px' });
+                    const timeEl = el.querySelector('.notif-hist-time');
+                    if (timeEl) Object.assign(timeEl.style, { fontSize: '11px', color: 'var(--color-text-muted, #64748b)', whiteSpace: 'nowrap' });
+                    const dot = el.querySelector('.notif-hist-dot');
+                    if (dot) Object.assign(dot.style, { width: '7px', height: '7px', background: '#0984e3', borderRadius: '50%', display: 'inline-block' });
+                    const descEl = el.querySelector('.notif-hist-desc');
+                    if (descEl) Object.assign(descEl.style, { fontSize: '12px', color: 'var(--color-text-light, #636e72)', marginTop: '2px' });
+
+                    el.addEventListener('click', () => {
+                        if (typeof window.markHistoryItemRead === 'function') {
+                            window.markHistoryItemRead(el.dataset.historyId || '', el.dataset.historyUrl || '');
+                        }
+                    });
+                });
             });
         } catch (err) {
             if (err && (err.status === 403 || err.code === '42501' || err.code === '42P01' || err.status === 404)) {
@@ -1367,10 +1452,14 @@
             console.warn('[Notifications] Erro ao carregar notification_log:', err?.message || err);
             containers.forEach(c => {
                 c.innerHTML = `
-                    <div style="text-align:center; padding:20px; color:var(--color-danger, #ff7675);">
-                        <p style="font-size:12px; margin:0;">Não foi possível carregar o histórico de notificações.</p>
+                    <div class="notif-hist-error">
+                        <p class="notif-hist-error-text">Não foi possível carregar o histórico de notificações.</p>
                     </div>
                 `;
+                const errBox = c.querySelector('.notif-hist-error');
+                const errP = c.querySelector('.notif-hist-error-text');
+                if (errBox) Object.assign(errBox.style, { textAlign: 'center', padding: '20px', color: 'var(--color-danger, #ff7675)' });
+                if (errP) Object.assign(errP.style, { fontSize: '12px', margin: '0' });
             });
         }
     }

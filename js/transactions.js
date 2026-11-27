@@ -288,9 +288,9 @@
         const container = document.getElementById('transactionsList') || document.getElementById('transactionsContainer');
         if (container) {
             container.innerHTML = `
-                <div style="text-align:center;padding:40px 16px;">
-                    <span class="spinner" style="width:32px;height:32px;border-width:3px;margin-bottom:12px;"></span>
-                    <p style="color:var(--color-text-muted,#94a3b8);">Carregando transações...</p>
+                <div class="tx-loading-box">
+                    <span class="spinner tx-loading-spinner"></span>
+                    <p class="tx-loading-text">Carregando transações...</p>
                 </div>
             `;
         }
@@ -371,7 +371,7 @@
             console.error('❌ Erro ao carregar transações:', err);
             if (container) {
                 container.innerHTML = `
-                    <div style="text-align:center;padding:30px;color:var(--color-danger,#ff7675);">
+                    <div class="tx-error-box">
                         <p>Erro ao carregar transações. Verifique sua conexão.</p>
                     </div>
                 `;
@@ -515,10 +515,10 @@
             const statusLabel = statusVal === 'paid' ? 'pagas' : (statusVal === 'pending' ? 'pendentes' : '');
             container.innerHTML = `
                 <div class="card">
-                    <div class="empty-state" style="text-align:center;padding:48px 16px;">
-                        <div style="font-size:48px;margin-bottom:12px;">📅</div>
-                        <h3 style="font-size:18px;font-weight:600;margin-bottom:6px;">Nenhuma transação ${statusLabel} em ${monthName} de ${yearNum}</h3>
-                        <p style="color:var(--color-text-muted,#94a3b8);font-size:14px;margin-bottom:16px;">
+                    <div class="empty-state tx-empty-state">
+                        <div class="tx-empty-emoji">📅</div>
+                        <h3 class="tx-empty-title">Nenhuma transação ${statusLabel} em ${monthName} de ${yearNum}</h3>
+                        <p class="tx-empty-desc">
                             Não foram encontradas transações ${statusLabel} para este mês ou com os filtros aplicados.
                         </p>
                         <button type="button" class="btn btn-primary" data-tx-action="new">
@@ -607,7 +607,7 @@
                             </button>
                         </div>
                         <div class="transaction-card clean-list-card compact-tx-card" data-swipe-content data-tx-action="edit" data-tx-id="${safeId}" role="button" tabindex="0">
-                            <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catInfo.color};" title="${sanitize(cleanCatName)}">
+                            <div class="mobile-icon-squircle" data-bg="${sanitize(squircleBg)}" data-color="${sanitize(catInfo.color)}" title="${sanitize(cleanCatName)}">
                                 <i class="fas ${catInfo.icon}" aria-hidden="true"></i>
                             </div>
                             <div class="clean-card-body">
@@ -627,8 +627,8 @@
                                     ${badge}
                                     ${instInfo && instInfo.badgeHtml ? instInfo.badgeHtml : ''}
                                     <span class="clean-card-meta-dates">
-                                        <span><i class="far fa-calendar-alt" style="margin-right:3px;" aria-hidden="true"></i>${formatDateDisplay(effectiveDate)}</span>
-                                        ${(t.due_date && t.due_date !== effectiveDate) ? `<span><i class="far fa-clock" style="margin-right:3px;" aria-hidden="true"></i>Venc: ${formatDateDisplay(t.due_date)}</span>` : ''}
+                                        <span><i class="far fa-calendar-alt tx-meta-icon" aria-hidden="true"></i>${formatDateDisplay(effectiveDate)}</span>
+                                        ${(t.due_date && t.due_date !== effectiveDate) ? `<span><i class="far fa-clock tx-meta-icon" aria-hidden="true"></i>Venc: ${formatDateDisplay(t.due_date)}</span>` : ''}
                                     </span>
                                 </div>
                             </div>
@@ -645,6 +645,10 @@
         html += '</div>';
 
         container.innerHTML = html;
+        container.querySelectorAll('.mobile-icon-squircle').forEach(el => {
+            if (el.dataset.bg) el.style.backgroundColor = el.dataset.bg;
+            if (el.dataset.color) el.style.color = el.dataset.color;
+        });
         bindTransactionListDelegation(container);
         if (typeof window.TonuSetupSwipe === 'function') {
             window.TonuSetupSwipe();
@@ -763,7 +767,7 @@
         }
 
         const notifBellBtn = document.getElementById('notifBellBtn');
-        if (notifBellBtn) {
+        if (notifBellBtn && typeof notifBellBtn.onclick !== 'function') {
             notifBellBtn.addEventListener('click', (e) => {
                 if (typeof window.toggleNotificationDropdown === 'function') {
                     window.toggleNotificationDropdown(e);

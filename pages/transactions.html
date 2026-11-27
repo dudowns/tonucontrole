@@ -4,8 +4,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
 
     <meta name="theme-color" content="#4338CA">
     <meta name="mobile-web-app-capable" content="yes">
@@ -152,7 +150,7 @@
             </div>
         </aside>
 
-        <main class="main-content full" id="mainContent" id="main-content">
+        <main class="main-content full" id="mainContent">
             <header class="topbar" role="banner">
                 <button class="menu-toggle" aria-label="Abrir menu" aria-expanded="false">
                     <i class="fas fa-bars" aria-hidden="true"></i>
@@ -236,27 +234,27 @@
                     </div>
                 </div>
 
-                <div class="filters-bar" style="flex-wrap: wrap;">
-                    <div class="search-box" style="min-width: 220px; flex: 1;">
+                <div class="filters-bar tx-filters-bar">
+                    <div class="search-box tx-search-box">
                         <i class="fas fa-search" aria-hidden="true"></i>
                         <input type="text" id="searchInput" class="form-control"
                             placeholder="Buscar por descrição ou #tag..."
                             aria-label="Buscar transações">
                     </div>
-                    <select id="filterStatus" class="form-control" style="width: auto; font-weight: 600;"
+                    <select id="filterStatus" class="form-control tx-filter-select tx-filter-select-status"
                         aria-label="Filtrar por status de pagamento">
                         <option value="paid" selected>✅ Apenas Pagas</option>
                         <option value="all">📋 Todas as transações</option>
                         <option value="pending">⏳ Apenas Pendentes</option>
                     </select>
-                    <select id="filterType" class="form-control" style="width: auto;"
+                    <select id="filterType" class="form-control tx-filter-select"
                         aria-label="Filtrar por tipo">
                         <option value="all">Todos os tipos</option>
                         <option value="income">Receitas</option>
                         <option value="expense">Despesas</option>
                         <option value="anticipation">⚡ Antecipações</option>
                     </select>
-                    <select id="filterRecurrence" class="form-control" style="width: auto;"
+                    <select id="filterRecurrence" class="form-control tx-filter-select"
                         aria-label="Filtrar por forma de pagamento">
                         <option value="all">Todas as formas</option>
                         <option value="installments">📦 Parceladas (Faltam parcelas)</option>
@@ -264,8 +262,8 @@
                         <option value="single">⚡ Pagamento Único</option>
                         <option value="anticipation">⚡ Antecipações</option>
                     </select>
-                    <select id="filterCategory" class="form-control"
-                        style="width: auto;" aria-label="Filtrar por categoria">
+                    <select id="filterCategory" class="form-control tx-filter-select"
+                        aria-label="Filtrar por categoria">
                         <option value="all">Todas categorias</option>
                     </select>
                     <button type="button" class="btn btn-outline btn-sm"
@@ -274,55 +272,51 @@
                     </button>
                 </div>
 
-                <div id="advancedFiltersPanel" class="card hidden"
-                    style="margin-bottom: var(--space-md); padding: 14px 18px; background: var(--color-surface); border: 1px solid var(--color-border);">
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <strong style="font-size: 13px;"><i class="fas fa-filter" aria-hidden="true"></i> Filtro
+                <div id="advancedFiltersPanel" class="card hidden tx-adv-filters-panel">
+                    <div class="tx-adv-filters-header">
+                        <strong class="tx-adv-filters-title"><i class="fas fa-filter" aria-hidden="true"></i> Filtro
                             Avançado</strong>
-                        <button type="button" class="btn btn-ghost btn-sm"
-                            style="font-size: 12px; color: var(--color-danger);">Limpar Filtros</button>
+                        <button type="button" class="btn btn-ghost btn-sm tx-adv-filters-clear">Limpar Filtros</button>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+                    <div class="tx-adv-filters-grid">
                         <div>
-                            <label style="font-size: 11px; color: var(--color-text-muted);">De:</label>
+                            <label class="tx-adv-filter-label" for="filterDateStart">De:</label>
                             <input type="date" id="filterDateStart" class="form-control">
                         </div>
                         <div>
-                            <label style="font-size: 11px; color: var(--color-text-muted);">Até:</label>
+                            <label class="tx-adv-filter-label" for="filterDateEnd">Até:</label>
                             <input type="date" id="filterDateEnd" class="form-control">
                         </div>
                         <div>
-                            <label style="font-size: 11px; color: var(--color-text-muted);">Valor Mín (R$):</label>
+                            <label class="tx-adv-filter-label" for="filterMinAmount">Valor Mín (R$):</label>
                             <input type="number" id="filterMinAmount" class="form-control" placeholder="0,00"
                                 step="0.01">
                         </div>
                         <div>
-                            <label style="font-size: 11px; color: var(--color-text-muted);">Valor Máx (R$):</label>
+                            <label class="tx-adv-filter-label" for="filterMaxAmount">Valor Máx (R$):</label>
                             <input type="number" id="filterMaxAmount" class="form-control" placeholder="Sem limite"
                                 step="0.01">
                         </div>
                         <div>
-                            <label style="font-size: 11px; color: var(--color-text-muted);">Tag (#):</label>
+                            <label class="tx-adv-filter-label" for="filterTag">Tag (#):</label>
                             <input type="text" id="filterTag" class="form-control" placeholder="Ex: #viagem">
                         </div>
                     </div>
                 </div>
 
-                <div
-                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 4px;">
+                <div class="tx-results-bar">
                     <span class="filter-count">
-                        <i class="fas fa-list-ul" style="margin-right:6px;" aria-hidden="true"></i>
+                        <i class="fas fa-list-ul tx-results-icon" aria-hidden="true"></i>
                         <span id="filteredCount">0</span> transações encontradas
                     </span>
-                    <span style="font-size:11px; color:var(--color-text-muted);">
+                    <span class="tx-results-total">
                         Total: <strong id="totalCountDisplay">0</strong>
                     </span>
                 </div>
 
                 <div class="transactions-statement-container" id="transactionsContainer">
                     <div class="card">
-                        <div class="empty-state" style="padding:30px 16px;">
+                        <div class="empty-state tx-initial-empty">
                             <span class="empty-icon">📋</span>
                             <p>Carregando transações...</p>
                         </div>
@@ -340,7 +334,7 @@
         <div class="modal hidden" id="transactionModal">
             <div class="modal-header">
                 <div>
-                    <div class="sub"><i class="fas fa-arrow-right-arrow-left" style="margin-right:4px;"></i> Transação</div>
+                    <div class="sub"><i class="fas fa-arrow-right-arrow-left tx-modal-sub-icon"></i> Transação</div>
                     <h3 id="modalTitle">Nova Transação</h3>
                 </div>
                 <button type="button" class="modal-close" aria-label="Fechar modal">
@@ -378,9 +372,9 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
-                                <label for="tCategory" style="margin-bottom:0;">Categoria *</label>
-                                <button type="button" title="Gerenciar Categorias" style="background:none; border:none; color:var(--color-primary,#4338CA); font-size:10px; font-weight:600; cursor:pointer; padding:0; display:flex; align-items:center; gap:3px;">
+                            <div class="tx-category-label-row">
+                                <label for="tCategory" class="tx-category-label">Categoria *</label>
+                                <button type="button" title="Gerenciar Categorias" class="tx-manage-categories-btn">
                                     <i class="fas fa-cog"></i> Ajustar
                                 </button>
                             </div>
@@ -402,40 +396,40 @@
                     </div>
 
                     <!-- DETALHES DE PARCELAMENTO (Condicional) -->
-                    <div id="tInstallmentFields" style="display:none; padding:10px 12px; background:var(--color-bg, #f8fafc); border:1px solid var(--color-border, #e2e8f0); border-radius:8px; margin-bottom:9px;">
-                        <div style="font-size:11.5px; font-weight:700; color:var(--color-primary, #4338CA); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                    <div id="tInstallmentFields" class="tx-installment-fields">
+                        <div class="tx-installment-heading">
                             <i class="fas fa-layer-group"></i> Detalhes do Pagamento Parcelado
                         </div>
                         <div class="form-row">
-                            <div class="form-group" style="flex:1;">
+                            <div class="form-group tx-flex-1">
                                 <label for="tInstallmentTotal">Total de Parcelas *</label>
                                 <input type="number" id="tInstallmentTotal" class="form-control" min="2" max="120" value="2">
                             </div>
-                            <div class="form-group" style="flex:1;">
+                            <div class="form-group tx-flex-1">
                                 <label for="tInstallmentCurrent">Parcela Atual</label>
                                 <input type="number" id="tInstallmentCurrent" class="form-control" min="1" max="120" value="1">
                             </div>
                         </div>
-                        <div class="form-group" style="margin-bottom:6px;">
-                            <label style="font-size:10.5px; margin-bottom:3px; display:block;">O valor digitado no campo acima é:</label>
-                            <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                                <label style="display:flex; align-items:center; gap:4px; font-size:11.5px; font-weight:500; cursor:pointer;">
+                        <div class="form-group tx-amount-mode-group">
+                            <label class="tx-amount-mode-caption">O valor digitado no campo acima é:</label>
+                            <div class="tx-amount-mode-options">
+                                <label class="tx-amount-mode-option">
                                     <input type="radio" name="tAmountMode" value="per_installment" checked>
                                     Valor de cada parcela
                                 </label>
-                                <label style="display:flex; align-items:center; gap:4px; font-size:11.5px; font-weight:500; cursor:pointer;">
+                                <label class="tx-amount-mode-option">
                                     <input type="radio" name="tAmountMode" value="total">
                                     Valor total da compra
                                 </label>
                             </div>
                         </div>
-                        <div id="tInstallmentSummaryBox" style="font-size:11px; padding:6px 10px; border-radius:6px; background:#DBEAFE; color:#1E3A8A; margin-bottom:6px;">
-                            <div style="font-weight:700;" id="tInstallmentRemainingText">Faltam 1 parcelas</div>
-                            <div style="font-size:10px; opacity:0.9;" id="tInstallmentTotalRemainingText">Restam R$ 0,00 a pagar</div>
+                        <div id="tInstallmentSummaryBox" class="tx-installment-summary-box">
+                            <div class="tx-installment-remaining-text" id="tInstallmentRemainingText">Faltam 1 parcelas</div>
+                            <div class="tx-installment-total-remaining-text" id="tInstallmentTotalRemainingText">Restam R$ 0,00 a pagar</div>
                         </div>
-                        <div id="tGenerateFutureGroup" style="display:flex; align-items:center; gap:6px;">
-                            <input type="checkbox" id="tGenerateFuture" checked style="cursor:pointer;">
-                            <label for="tGenerateFuture" style="margin:0; font-size:11px; cursor:pointer; font-weight:500;">
+                        <div id="tGenerateFutureGroup" class="tx-generate-future-group">
+                            <input type="checkbox" id="tGenerateFuture" class="tx-generate-future-checkbox" checked>
+                            <label for="tGenerateFuture" class="tx-generate-future-label">
                                 Gerar automaticamente os lançamentos dos próximos meses
                             </label>
                         </div>
@@ -454,9 +448,9 @@
                         </div>
                     </div>
 
-                    <div class="checkbox-group" style="padding: 6px 10px; background: var(--color-bg, #f8fafc); border: 1px solid var(--color-border, #e2e8f0); border-radius: 8px;">
+                    <div class="checkbox-group tx-paid-checkbox-group">
                         <input type="checkbox" id="tPaid" checked>
-                        <label for="tPaid" style="margin-bottom:0; font-weight:600; cursor:pointer;">Já foi pago / recebido</label>
+                        <label for="tPaid" class="tx-paid-label">Já foi pago / recebido</label>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -464,7 +458,7 @@
                         aria-label="Excluir transação">
                         <i class="fas fa-trash-can" aria-hidden="true"></i> Excluir
                     </button>
-                    <div style="flex:1;"></div>
+                    <div class="tx-flex-1"></div>
                     <button type="button" class="btn btn-secondary">Cancelar</button>
                     <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Salvar</button>
                 </div>

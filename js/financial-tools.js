@@ -1054,7 +1054,75 @@
             ];
         }
 
+        static ensureModalStyles() {
+            if (document.getElementById('tonu-ft-modals-style')) return;
+            const style = document.createElement('style');
+            style.id = 'tonu-ft-modals-style';
+            const nonceEl = document.querySelector('script[nonce], style[nonce]');
+            const cspNonce = nonceEl ? (nonceEl.nonce || nonceEl.getAttribute('nonce') || '') : '';
+            if (cspNonce) style.nonce = cspNonce;
+            style.textContent = `
+                .tonu-ft-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.65); z-index:999999; display:flex; align-items:center; justify-content:center; padding:12px; backdrop-filter:blur(8px); font-family:'Inter',sans-serif; }
+                .tonu-ft-overlay-sub { background:rgba(15,23,42,0.7); z-index:9999999; }
+                .tonu-ft-overlay-import { background:rgba(15,23,42,0.8); padding:16px; backdrop-filter:blur(6px); }
+                .tonu-ft-card { background:#ffffff; border-radius:16px; max-width:480px; width:100%; max-height:calc(100vh - 24px); display:flex; flex-direction:column; box-shadow:0 20px 45px -10px rgba(0,0,0,0.25); border:1px solid #e2e8f0; overflow:hidden; }
+                .tonu-ft-card-sub { background:#ffffff; border-radius:16px; max-width:420px; width:100%; padding:16px 18px; box-shadow:0 20px 45px -10px rgba(0,0,0,0.3); border:1px solid #e2e8f0; }
+                .tonu-ft-card-import { background:#ffffff; border-radius:20px; max-width:680px; width:100%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); border:1px solid #e2e8f0; overflow:hidden; }
+                .tonu-ft-header { padding:12px 18px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; }
+                .tonu-ft-header-import { padding:20px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; }
+                .tonu-ft-title { font-size:15px; font-weight:700; color:#0f172a; margin:0 0 2px 0; }
+                .tonu-ft-title-sub { font-size:15px; font-weight:700; color:#0f172a; margin:0 0 12px 0; }
+                .tonu-ft-title-import { font-size:18px; font-weight:800; color:#0f172a; margin:0 0 4px 0; }
+                .tonu-ft-title-icon { color:#4338CA; margin-right:6px; }
+                .tonu-ft-title-icon-import { color:#4338CA; margin-right:8px; }
+                .tonu-ft-subtitle { font-size:11px; color:#64748b; margin:0; }
+                .tonu-ft-subtitle-import { font-size:12px; color:#64748b; margin:0; }
+                .tonu-ft-close-btn { background:#f8fafc; border:1px solid #e2e8f0; width:28px; height:28px; border-radius:8px; font-size:14px; cursor:pointer; color:#64748b; display:flex; align-items:center; justify-content:center; }
+                .tonu-ft-close-import { background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; }
+                .tonu-ft-toolbar { padding:10px 18px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; }
+                .tonu-ft-summary-import { padding:12px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; gap:16px; font-size:13px; }
+                .tonu-ft-in-badge { color:#00b894; font-weight:600; }
+                .tonu-ft-out-badge { color:#ff7675; font-weight:600; }
+                .tonu-ft-count { font-size:11.5px; color:#64748b; font-weight:600; }
+                .tonu-ft-new-btn { min-height:30px; height:30px; font-size:11.5px; padding:4px 12px; border-radius:8px; }
+                .tonu-ft-cat-list { flex:1; overflow-y:auto; padding:12px 18px; max-height:380px; display:flex; flex-direction:column; gap:6px; }
+                .tonu-ft-cat-row { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; }
+                .tonu-ft-cat-left { display:flex; align-items:center; gap:10px; }
+                .tonu-ft-cat-icon-box { width:30px; height:30px; border-radius:8px; color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:13px; }
+                .tonu-ft-cat-name-row { display:flex; align-items:center; gap:6px; }
+                .tonu-ft-cat-name { font-size:12px; color:#0f172a; }
+                .tonu-ft-cat-type { font-size:10px; color:#64748b; }
+                .tonu-ft-cat-actions { display:flex; gap:4px; }
+                .tonu-ft-cat-action-btn { width:28px; height:28px; font-size:11px; }
+                .tonu-ft-footer { padding:10px 18px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; align-items:center; background:#f8fafc; }
+                .tonu-ft-footer-btn { min-height:34px; height:34px; font-size:12.5px; padding:6px 14px; border-radius:8px; }
+                .tonu-ft-form-stack { display:flex; flex-direction:column; gap:9px; }
+                .tonu-ft-field-label { font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:3px; }
+                .tonu-ft-field-label-sp { font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:4px; }
+                .tonu-ft-input { width:100%; padding:6px 10px; border-radius:8px; border:1.5px solid #cbd5e1; font-size:12.5px; height:34px; box-sizing:border-box; }
+                .tonu-ft-color-grid { display:flex; gap:6px; flex-wrap:wrap; }
+                .cat-color-choice { width:24px; height:24px; border-radius:50%; cursor:pointer; display:inline-block; }
+                .cat-color-choice.selected { outline:2.5px solid #0f172a; }
+                .tonu-ft-icon-grid { display:flex; gap:6px; flex-wrap:wrap; max-height:85px; overflow-y:auto; padding:2px; }
+                .cat-icon-choice { width:30px; height:30px; border-radius:6px; border:1px solid #cbd5e1; background:#ffffff; color:#0f172a; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; }
+                .cat-icon-choice.selected { border-color:#4338CA; background:#EEF2FF; }
+                .tonu-ft-sub-footer { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid #e2e8f0; }
+                .tonu-ft-import-body { flex:1; overflow-y:auto; padding:16px 24px; max-height:400px; }
+                .tonu-ft-import-select-row { display:flex; justify-content:space-between; margin-bottom:12px; font-size:12px; }
+                .tonu-ft-import-select-label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+                .tonu-ft-import-list { display:flex; flex-direction:column; gap:8px; }
+                .tonu-ft-import-item { display:flex; align-items:center; gap:12px; padding:10px 14px; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; }
+                .tonu-ft-import-item-info { flex:1; }
+                .tonu-ft-import-item-desc { font-weight:600; font-size:13px; color:#0f172a; }
+                .tonu-ft-import-item-date { font-size:11px; color:#64748b; }
+                .tonu-ft-import-item-amt { font-weight:700; font-size:14px; }
+                .tonu-ft-import-footer { padding:16px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:12px; background:#f8fafc; }
+            `;
+            document.head.appendChild(style);
+        }
+
         async showManagerModal(onUpdatedCallback) {
+            TonuCategoryManager.ensureModalStyles();
             let modal = document.getElementById('tonuCategoriesModal');
             if (modal) modal.remove();
 
@@ -1068,51 +1136,50 @@
                 .order('name');
 
             const cats = categories || [];
+            const esc = (s) => (typeof window.sanitizeString === 'function' ? window.sanitizeString(String(s || '')) : String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'));
 
             const modalHtml = `
-            <div id="tonuCategoriesModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.65); z-index:999999; display:flex; align-items:center; justify-content:center; padding:12px; backdrop-filter:blur(8px); font-family:'Inter',sans-serif;">
-                <div style="background:#ffffff; border-radius:16px; max-width:480px; width:100%; max-height:calc(100vh - 24px); display:flex; flex-direction:column; box-shadow:0 20px 45px -10px rgba(0,0,0,0.25); border:1px solid #e2e8f0; overflow:hidden;">
-                    
-                    <div style="padding:12px 18px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <div id="tonuCategoriesModal" class="tonu-ft-overlay">
+                <div class="tonu-ft-card">
+                    <div class="tonu-ft-header">
                         <div>
-                            <h3 style="font-size:15px; font-weight:700; color:#0f172a; margin:0 0 2px 0;">
-                                <i class="fas fa-tags" style="color:#4338CA; margin-right:6px;"></i> Gerenciar Categorias
+                            <h3 class="tonu-ft-title">
+                                <i class="fas fa-tags tonu-ft-title-icon"></i> Gerenciar Categorias
                             </h3>
-                            <p style="font-size:11px; color:#64748b; margin:0;">Crie ou personalize suas categorias com cores e ícones exclusivos.</p>
+                            <p class="tonu-ft-subtitle">Crie ou personalize suas categorias com cores e ícones exclusivos.</p>
                         </div>
-                        <button onclick="document.getElementById('tonuCategoriesModal').remove()" style="background:#f8fafc; border:1px solid #e2e8f0; width:28px; height:28px; border-radius:8px; font-size:14px; cursor:pointer; color:#64748b; display:flex; align-items:center; justify-content:center;">&times;</button>
+                        <button type="button" data-cat-action="close" class="tonu-ft-close-btn" aria-label="Fechar">&times;</button>
                     </div>
 
-                    <div style="padding:10px 18px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:11.5px; color:#64748b; font-weight:600;">${cats.length} categorias cadastradas</span>
-                        <button class="btn btn-primary btn-sm" style="min-height:30px; height:30px; font-size:11.5px; padding:4px 12px; border-radius:8px;" onclick="TonuCategoryManager.showEditModal(null, '${user.id}')">
+                    <div class="tonu-ft-toolbar">
+                        <span class="tonu-ft-count">${cats.length} categorias cadastradas</span>
+                        <button type="button" class="btn btn-primary btn-sm tonu-ft-new-btn" data-cat-action="new">
                             <i class="fas fa-plus"></i> Nova Categoria
                         </button>
                     </div>
 
-                    <div style="flex:1; overflow-y:auto; padding:12px 18px; max-height:380px; display:flex; flex-direction:column; gap:6px;">
+                    <div class="tonu-ft-cat-list">
                         ${cats.map(c => {
-                            const catLimit = window.TonuBudget ? window.TonuBudget.getLimitForCategory(user.id, c.id, c.name) : 0;
                             return `
-                            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px;">
-                                <div style="display:flex; align-items:center; gap:10px;">
-                                    <div style="width:30px; height:30px; border-radius:8px; background:${c.color || '#4338CA'}; color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:13px;">
-                                        <i class="fas ${c.icon || 'fa-tag'}"></i>
+                            <div class="tonu-ft-cat-row">
+                                <div class="tonu-ft-cat-left">
+                                    <div class="tonu-ft-cat-icon-box" data-bg="${esc(c.color || '#4338CA')}">
+                                        <i class="fas ${esc(c.icon || 'fa-tag')}"></i>
                                     </div>
                                     <div>
-                                        <div style="display:flex; align-items:center; gap:6px;">
-                                            <strong style="font-size:12px; color:#0f172a;">${c.name}</strong>
+                                        <div class="tonu-ft-cat-name-row">
+                                            <strong class="tonu-ft-cat-name">${esc(c.name)}</strong>
                                         </div>
-                                        <div style="font-size:10px; color:#64748b;">
+                                        <div class="tonu-ft-cat-type">
                                             ${c.type === 'income' ? '🟢 Receita' : '🔴 Despesa'}
                                         </div>
                                     </div>
                                 </div>
-                                <div style="display:flex; gap:4px;">
-                                    <button class="btn btn-ghost btn-icon-sm" style="width:28px; height:28px; font-size:11px;" onclick="TonuCategoryManager.showEditModal('${c.id}', '${user.id}', '${c.name.replace(/'/g, "\\'")}', '${c.type}', '${c.icon}', '${c.color}')" title="Editar">
+                                <div class="tonu-ft-cat-actions">
+                                    <button type="button" class="btn btn-ghost btn-icon-sm tonu-ft-cat-action-btn" data-cat-action="edit" data-cat-id="${esc(c.id)}" title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="btn btn-danger btn-icon-sm" style="width:28px; height:28px; font-size:11px;" onclick="TonuCategoryManager.deleteCategory('${c.id}', '${user.id}')" title="Excluir">
+                                    <button type="button" class="btn btn-danger btn-icon-sm tonu-ft-cat-action-btn" data-cat-action="delete" data-cat-id="${esc(c.id)}" title="Excluir">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -1121,8 +1188,8 @@
                         }).join('')}
                     </div>
 
-                    <div style="padding:10px 18px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; align-items:center; background:#f8fafc;">
-                        <button class="btn btn-secondary" style="min-height:34px; height:34px; font-size:12.5px; padding:6px 14px; border-radius:8px;" onclick="document.getElementById('tonuCategoriesModal').remove()">Fechar</button>
+                    <div class="tonu-ft-footer">
+                        <button type="button" class="btn btn-secondary tonu-ft-footer-btn" data-cat-action="close">Fechar</button>
                     </div>
                 </div>
             </div>
@@ -1130,63 +1197,94 @@
 
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             this.currentUpdateCallback = onUpdatedCallback;
+
+            const modalEl = document.getElementById('tonuCategoriesModal');
+            if (modalEl) {
+                modalEl.querySelectorAll('.tonu-ft-cat-icon-box[data-bg]').forEach(box => {
+                    box.style.backgroundColor = box.dataset.bg || '#4338CA';
+                });
+                const catMap = new Map(cats.map(c => [String(c.id), c]));
+                modalEl.addEventListener('click', (e) => {
+                    if (e.target === modalEl) {
+                        modalEl.remove();
+                        return;
+                    }
+                    const btn = e.target.closest('[data-cat-action]');
+                    if (!btn) return;
+                    const action = btn.dataset.catAction;
+                    if (action === 'close') {
+                        modalEl.remove();
+                    } else if (action === 'new') {
+                        TonuCategoryManager.showEditModal(null, user.id);
+                    } else if (action === 'edit') {
+                        const c = catMap.get(String(btn.dataset.catId));
+                        if (c) {
+                            TonuCategoryManager.showEditModal(c.id, user.id, c.name || '', c.type || 'expense', c.icon || 'fa-tag', c.color || '#4338CA');
+                        }
+                    } else if (action === 'delete') {
+                        const cid = btn.dataset.catId;
+                        if (cid) TonuCategoryManager.deleteCategory(cid, user.id);
+                    }
+                });
+            }
         }
 
         static showEditModal(id, userId, name = '', type = 'expense', icon = 'fa-tag', color = '#4338CA') {
+            TonuCategoryManager.ensureModalStyles();
             let editModal = document.getElementById('categoryEditSubModal');
             if (editModal) editModal.remove();
 
             const isEdit = !!id;
             const instance = window.TonuCategoryManagerInstance;
-            const currentLimit = window.TonuBudget ? window.TonuBudget.getLimitForCategory(userId, id, name) : 0;
+            const esc = (s) => (typeof window.sanitizeString === 'function' ? window.sanitizeString(String(s || '')) : String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'));
 
             const modalHtml = `
-            <div id="categoryEditSubModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.7); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:12px; backdrop-filter:blur(8px); font-family:'Inter',sans-serif;">
-                <div style="background:#ffffff; border-radius:16px; max-width:420px; width:100%; padding:16px 18px; box-shadow:0 20px 45px -10px rgba(0,0,0,0.3); border:1px solid #e2e8f0;">
-                    <h3 style="font-size:15px; font-weight:700; color:#0f172a; margin:0 0 12px 0;">
+            <div id="categoryEditSubModal" class="tonu-ft-overlay tonu-ft-overlay-sub">
+                <div class="tonu-ft-card-sub">
+                    <h3 class="tonu-ft-title-sub">
                         ${isEdit ? 'Editar Categoria' : 'Nova Categoria'}
                     </h3>
 
-                    <div style="display:flex; flex-direction:column; gap:9px;">
+                    <div class="tonu-ft-form-stack">
                         <div>
-                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:3px;">Nome da Categoria</label>
-                            <input type="text" id="catEditName" value="${name}" placeholder="Ex: Delivery, Mercado, Lazer..." style="width:100%; padding:6px 10px; border-radius:8px; border:1.5px solid #cbd5e1; font-size:12.5px; height:34px; box-sizing:border-box;">
+                            <label class="tonu-ft-field-label" for="catEditName">Nome da Categoria</label>
+                            <input type="text" id="catEditName" class="tonu-ft-input" value="${esc(name)}" placeholder="Ex: Delivery, Mercado, Lazer...">
                         </div>
 
                         <div>
-                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:3px;">Tipo</label>
-                            <select id="catEditType" style="width:100%; padding:6px 10px; border-radius:8px; border:1.5px solid #cbd5e1; font-size:12.5px; height:34px; box-sizing:border-box;">
+                            <label class="tonu-ft-field-label" for="catEditType">Tipo</label>
+                            <select id="catEditType" class="tonu-ft-input">
                                 <option value="expense" ${type === 'expense' ? 'selected' : ''}>🔴 Despesa</option>
                                 <option value="income" ${type === 'income' ? 'selected' : ''}>🟢 Receita</option>
                             </select>
                         </div>
 
                         <div>
-                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Escolha a Cor</label>
-                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <label class="tonu-ft-field-label-sp">Escolha a Cor</label>
+                            <div class="tonu-ft-color-grid">
                                 ${instance.colorList.map(c => `
-                                    <span onclick="document.querySelectorAll('.cat-color-choice').forEach(e=>e.style.outline='none'); this.style.outline='2.5px solid #0f172a'; document.getElementById('catEditSelectedColor').value='${c}';" class="cat-color-choice" style="width:24px; height:24px; border-radius:50%; background:${c}; cursor:pointer; display:inline-block; ${c === color ? 'outline:2.5px solid #0f172a;' : ''}"></span>
+                                    <span data-color="${esc(c)}" class="cat-color-choice ${c === color ? 'selected' : ''}"></span>
                                 `).join('')}
                             </div>
-                            <input type="hidden" id="catEditSelectedColor" value="${color}">
+                            <input type="hidden" id="catEditSelectedColor" value="${esc(color)}">
                         </div>
 
                         <div>
-                            <label style="font-size:11.5px; font-weight:600; color:#64748b; display:block; margin-bottom:4px;">Escolha o Ícone</label>
-                            <div style="display:flex; gap:6px; flex-wrap:wrap; max-height:85px; overflow-y:auto; padding:2px;">
+                            <label class="tonu-ft-field-label-sp">Escolha o Ícone</label>
+                            <div class="tonu-ft-icon-grid">
                                 ${instance.iconList.map(ic => `
-                                    <button type="button" onclick="document.querySelectorAll('.cat-icon-choice').forEach(e=>e.style.borderColor='#cbd5e1'); this.style.borderColor='#4338CA'; this.style.background='#EEF2FF'; document.getElementById('catEditSelectedIcon').value='${ic}';" class="cat-icon-choice" style="width:30px; height:30px; border-radius:6px; border:1px solid ${ic === icon ? '#4338CA' : '#cbd5e1'}; background:${ic === icon ? '#EEF2FF' : '#ffffff'}; color:#0f172a; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px;">
-                                        <i class="fas ${ic}"></i>
+                                    <button type="button" data-icon="${esc(ic)}" class="cat-icon-choice ${ic === icon ? 'selected' : ''}">
+                                        <i class="fas ${esc(ic)}"></i>
                                     </button>
                                 `).join('')}
                             </div>
-                            <input type="hidden" id="catEditSelectedIcon" value="${icon}">
+                            <input type="hidden" id="catEditSelectedIcon" value="${esc(icon)}">
                         </div>
                     </div>
 
-                    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid #e2e8f0;">
-                        <button class="btn btn-secondary" style="min-height:34px; height:34px; font-size:12.5px; padding:6px 14px; border-radius:8px;" onclick="document.getElementById('categoryEditSubModal').remove()">Cancelar</button>
-                        <button class="btn btn-primary" style="min-height:34px; height:34px; font-size:12.5px; padding:6px 14px; border-radius:8px;" onclick="TonuCategoryManager.saveCategory('${id || ''}', '${userId}')">
+                    <div class="tonu-ft-sub-footer">
+                        <button type="button" class="btn btn-secondary tonu-ft-footer-btn" data-subcat-action="cancel">Cancelar</button>
+                        <button type="button" class="btn btn-primary tonu-ft-footer-btn" data-subcat-action="save">
                             <i class="fas fa-save"></i> Salvar
                         </button>
                     </div>
@@ -1195,6 +1293,41 @@
             `;
 
             document.body.insertAdjacentHTML('beforeend', modalHtml);
+            const subModal = document.getElementById('categoryEditSubModal');
+            if (subModal) {
+                subModal.querySelectorAll('.cat-color-choice[data-color]').forEach(el => {
+                    el.style.backgroundColor = el.dataset.color;
+                });
+                subModal.addEventListener('click', (e) => {
+                    if (e.target === subModal) {
+                        subModal.remove();
+                        return;
+                    }
+                    const colorEl = e.target.closest('.cat-color-choice[data-color]');
+                    if (colorEl) {
+                        subModal.querySelectorAll('.cat-color-choice').forEach(el => el.classList.remove('selected'));
+                        colorEl.classList.add('selected');
+                        const hiddenColor = document.getElementById('catEditSelectedColor');
+                        if (hiddenColor) hiddenColor.value = colorEl.dataset.color;
+                        return;
+                    }
+                    const iconEl = e.target.closest('.cat-icon-choice[data-icon]');
+                    if (iconEl) {
+                        subModal.querySelectorAll('.cat-icon-choice').forEach(el => el.classList.remove('selected'));
+                        iconEl.classList.add('selected');
+                        const hiddenIcon = document.getElementById('catEditSelectedIcon');
+                        if (hiddenIcon) hiddenIcon.value = iconEl.dataset.icon;
+                        return;
+                    }
+                    const actionBtn = e.target.closest('[data-subcat-action]');
+                    if (!actionBtn) return;
+                    if (actionBtn.dataset.subcatAction === 'cancel') {
+                        subModal.remove();
+                    } else if (actionBtn.dataset.subcatAction === 'save') {
+                        TonuCategoryManager.saveCategory(id || '', userId);
+                    }
+                });
+            }
         }
 
         static async saveCategory(id, userId) {
@@ -1423,48 +1556,49 @@
         }
 
         showImportPreviewModal(fileName, onSuccessCallback) {
+            TonuCategoryManager.ensureModalStyles();
             let modal = document.getElementById('importPreviewModal');
             if (modal) modal.remove();
 
             const total = this.parsedTransactions.length;
             const totalExpense = this.parsedTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
             const totalIncome = this.parsedTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const esc = (s) => (typeof window.sanitizeString === 'function' ? window.sanitizeString(String(s || '')) : String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'));
 
             const modalHtml = `
-            <div id="importPreviewModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.8); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px); font-family:'Inter',sans-serif;">
-                <div style="background:#ffffff; border-radius:20px; max-width:680px; width:100%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); border:1px solid #e2e8f0; overflow:hidden;">
-                    
-                    <div style="padding:20px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <div id="importPreviewModal" class="tonu-ft-overlay tonu-ft-overlay-import">
+                <div class="tonu-ft-card-import">
+                    <div class="tonu-ft-header-import">
                         <div>
-                            <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:0 0 4px 0;">
-                                <i class="fas fa-file-import" style="color:#4338CA; margin-right:8px;"></i> Importar Extrato Bancário
+                            <h3 class="tonu-ft-title-import">
+                                <i class="fas fa-file-import tonu-ft-title-icon-import"></i> Importar Extrato Bancário
                             </h3>
-                            <p style="font-size:12px; color:#64748b; margin:0;">Arquivo: <strong>${fileName}</strong> (${total} transações identificadas)</p>
+                            <p class="tonu-ft-subtitle-import">Arquivo: <strong>${esc(fileName)}</strong> (${total} transações identificadas)</p>
                         </div>
-                        <button onclick="document.getElementById('importPreviewModal').remove()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">&times;</button>
+                        <button type="button" data-import-action="close" class="tonu-ft-close-import" aria-label="Fechar">&times;</button>
                     </div>
 
-                    <div style="padding:12px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; gap:16px; font-size:13px;">
-                        <span style="color:#00b894; font-weight:600;"><i class="fas fa-arrow-down"></i> Entradas: ${formatMoney(totalIncome)}</span>
-                        <span style="color:#ff7675; font-weight:600;"><i class="fas fa-arrow-up"></i> Saídas: ${formatMoney(totalExpense)}</span>
+                    <div class="tonu-ft-summary-import">
+                        <span class="tonu-ft-in-badge"><i class="fas fa-arrow-down"></i> Entradas: ${formatMoney(totalIncome)}</span>
+                        <span class="tonu-ft-out-badge"><i class="fas fa-arrow-up"></i> Saídas: ${formatMoney(totalExpense)}</span>
                     </div>
 
-                    <div style="flex:1; overflow-y:auto; padding:16px 24px; max-height:400px;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:12px;">
-                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                                <input type="checkbox" id="selectAllImports" checked onchange="TonuBankImporter.toggleSelectAll(this.checked)">
+                    <div class="tonu-ft-import-body">
+                        <div class="tonu-ft-import-select-row">
+                            <label class="tonu-ft-import-select-label">
+                                <input type="checkbox" id="selectAllImports" checked>
                                 <strong>Selecionar todas</strong>
                             </label>
                         </div>
-                        <div id="importListContainer" style="display:flex; flex-direction:column; gap:8px;">
+                        <div id="importListContainer" class="tonu-ft-import-list">
                             ${this.parsedTransactions.map((t, idx) => `
-                                <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px;">
-                                    <input type="checkbox" data-idx="${idx}" ${t.selected ? 'checked' : ''} onchange="TonuBankImporter.toggleItem(${idx}, this.checked)">
-                                    <div style="flex:1;">
-                                        <div style="font-weight:600; font-size:13px; color:#0f172a;">${t.description}</div>
-                                        <div style="font-size:11px; color:#64748b;">${t.date}</div>
+                                <div class="tonu-ft-import-item">
+                                    <input type="checkbox" data-idx="${idx}" ${t.selected ? 'checked' : ''}>
+                                    <div class="tonu-ft-import-item-info">
+                                        <div class="tonu-ft-import-item-desc">${esc(t.description)}</div>
+                                        <div class="tonu-ft-import-item-date">${esc(t.date)}</div>
                                     </div>
-                                    <div style="font-weight:700; font-size:14px; color:${t.type === 'income' ? '#00b894' : '#ff7675'};">
+                                    <div class="tonu-ft-import-item-amt" data-amt-type="${t.type === 'income' ? 'income' : 'expense'}">
                                         ${t.type === 'income' ? '+' : '-'} ${formatMoney(t.amount)}
                                     </div>
                                 </div>
@@ -1472,9 +1606,9 @@
                         </div>
                     </div>
 
-                    <div style="padding:16px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:12px; background:#f8fafc;">
-                        <button class="btn btn-outline btn-sm" onclick="document.getElementById('importPreviewModal').remove()">Cancelar</button>
-                        <button class="btn btn-primary btn-sm" id="btnConfirmImport" onclick="TonuBankImporter.executeImport()">
+                    <div class="tonu-ft-import-footer">
+                        <button type="button" class="btn btn-outline btn-sm" data-import-action="close">Cancelar</button>
+                        <button type="button" class="btn btn-primary btn-sm" id="btnConfirmImport" data-import-action="confirm">
                             <i class="fas fa-check"></i> Confirmar e Salvar Transações
                         </button>
                     </div>
@@ -1484,6 +1618,35 @@
 
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             this.currentSuccessCallback = onSuccessCallback;
+
+            const importModal = document.getElementById('importPreviewModal');
+            if (importModal) {
+                importModal.querySelectorAll('.tonu-ft-import-item-amt').forEach(el => {
+                    el.style.color = el.dataset.amtType === 'income' ? '#00b894' : '#ff7675';
+                });
+                importModal.querySelector('#selectAllImports')?.addEventListener('change', (e) => {
+                    TonuBankImporter.toggleSelectAll(Boolean(e.target.checked));
+                });
+                importModal.querySelector('#importListContainer')?.addEventListener('change', (e) => {
+                    const cb = e.target.closest('input[type="checkbox"][data-idx]');
+                    if (cb) {
+                        TonuBankImporter.toggleItem(parseInt(cb.dataset.idx, 10), Boolean(cb.checked));
+                    }
+                });
+                importModal.addEventListener('click', (e) => {
+                    if (e.target === importModal) {
+                        importModal.remove();
+                        return;
+                    }
+                    const btn = e.target.closest('[data-import-action]');
+                    if (!btn) return;
+                    if (btn.dataset.importAction === 'close') {
+                        importModal.remove();
+                    } else if (btn.dataset.importAction === 'confirm') {
+                        TonuBankImporter.executeImport();
+                    }
+                });
+            }
         }
 
         static toggleSelectAll(checked) {

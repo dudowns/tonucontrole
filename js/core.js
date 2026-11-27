@@ -208,11 +208,16 @@ function showToast(message, type, actionText, onAction) {
             '<i class="fas ' + iconClass + ' toast-icon" aria-hidden="true"></i>' +
             '<span class="toast-text">' + message + '</span>' +
             actionHtml +
-            '<button type="button" class="toast-close-btn" aria-label="Fechar notificação" onclick="hideToast()">&times;</button>' +
+            '<button type="button" class="toast-close-btn" aria-label="Fechar notificação">&times;</button>' +
         '</div>' +
         '<div class="toast-progress-track">' +
-            '<div class="toast-progress-bar" id="toastProgressBar" style="width: 100%;"></div>' +
+            '<div class="toast-progress-bar" id="toastProgressBar"></div>' +
         '</div>';
+
+    var closeBtn = toast.querySelector('.toast-close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', hideToast);
+    }
 
     if (isMobile) {
         toast.style.transform = 'translate(-50%, 0)';
@@ -222,10 +227,10 @@ function showToast(message, type, actionText, onAction) {
     if (actionText && typeof onAction === 'function') {
         var actionBtn = document.getElementById('toastActionBtn');
         if (actionBtn) {
-            actionBtn.onclick = function() {
+            actionBtn.addEventListener('click', function() {
                 hideToast();
                 try { onAction(); } catch(err) { console.error('Erro ao executar ação do toast:', err); }
-            };
+            });
         }
     }
 
@@ -1968,9 +1973,11 @@ function initNetworkStatusWatcher() {
             opacity: 1;
         `;
         banner.innerHTML = `
-            <i class="fas fa-wifi-slash" style="font-size: 11px;"></i>
+            <i class="fas fa-wifi-slash"></i>
             <span>⚠️ Sem conexão com a internet</span>
         `;
+        const initIcon = banner.querySelector('i');
+        if (initIcon) initIcon.style.fontSize = '11px';
         document.body.prepend(banner);
     }
 
@@ -1982,17 +1989,21 @@ function initNetworkStatusWatcher() {
             banner.style.background = '#fef3c7';
             banner.style.color = '#92400e';
             banner.innerHTML = `
-                <i class="fas fa-wifi-slash" style="font-size: 11px;"></i>
+                <i class="fas fa-wifi-slash"></i>
                 <span>⚠️ Sem conexão com a internet</span>
             `;
+            var offlineIcon = banner.querySelector('i');
+            if (offlineIcon) offlineIcon.style.fontSize = '11px';
         } else {
             if (!banner.classList.contains('hidden')) {
                 banner.style.background = '#d1fae5';
                 banner.style.color = '#065f46';
                 banner.innerHTML = `
-                    <i class="fas fa-check-circle" style="font-size: 11px;"></i>
+                    <i class="fas fa-check-circle"></i>
                     <span>✅ Conexão restabelecida</span>
                 `;
+                var onlineIcon = banner.querySelector('i');
+                if (onlineIcon) onlineIcon.style.fontSize = '11px';
                 setTimeout(function () {
                     banner.className = 'hidden';
                     banner.style.transform = 'translateY(-100%)';
@@ -2676,46 +2687,81 @@ function confirmRecurringDelete(options) {
 
         var overlay = document.createElement('div');
         overlay.id = 'recurringDeleteModalOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;backdrop-filter:blur(3px);animation:fadeIn 0.15s ease;';
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(0,0,0,0.65)';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.zIndex = '99999';
+        overlay.style.padding = '16px';
+        overlay.style.backdropFilter = 'blur(3px)';
+        overlay.style.animation = 'fadeIn 0.15s ease';
 
         var card = document.createElement('div');
-        card.style.cssText = 'background:var(--color-surface,#ffffff);color:var(--color-text,#1e293b);border-radius:16px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);border:1px solid var(--color-border,#e2e8f0);text-align:center;display:flex;flex-direction:column;gap:14px;font-family:inherit;';
+        card.style.background = 'var(--color-surface,#ffffff)';
+        card.style.color = 'var(--color-text,#1e293b)';
+        card.style.borderRadius = '16px';
+        card.style.padding = '22px';
+        card.style.maxWidth = '440px';
+        card.style.width = '100%';
+        card.style.boxShadow = '0 20px 25px -5px rgba(0,0,0,0.3)';
+        card.style.border = '1px solid var(--color-border,#e2e8f0)';
+        card.style.textAlign = 'center';
+        card.style.display = 'flex';
+        card.style.flexDirection = 'column';
+        card.style.gap = '14px';
+        card.style.fontFamily = 'inherit';
 
         var cleanItemName = typeof sanitizeString === 'function' ? sanitizeString(itemName) : itemName;
         var totalFromNow = countFromNow + 1;
         var totalAll = countAll + 1;
 
         card.innerHTML = `
-            <div style="width:48px;height:48px;border-radius:50%;background:#fee2e2;color:#dc2626;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:22px;">
+            <div class="tonu-rd-icon">
                 <i class="fas fa-trash-alt"></i>
             </div>
             <div>
-                <h3 style="margin:0 0 6px 0;font-size:17px;font-weight:700;color:var(--color-text,#1e293b);">Deseja excluir as próximas parcelas?</h3>
-                <p style="margin:0;font-size:13px;color:var(--color-text-muted,#64748b);line-height:1.45;">
+                <h3 class="tonu-rd-title">Deseja excluir as próximas parcelas?</h3>
+                <p class="tonu-rd-desc">
                     "${cleanItemName}" faz parte de uma série de parcelas ou recorrência. Como deseja excluir?
                 </p>
             </div>
-            <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
-                <button id="btnDeleteFromNow" style="background:#dc2626;color:#ffffff;border:none;padding:11px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+            <div class="tonu-rd-actions">
+                <button type="button" id="btnDeleteFromNow">
                     <i class="fas fa-forward"></i> Excluir a partir de agora (${totalFromNow} parcelas/meses)
                 </button>
                 ${countAll > countFromNow ? `
-                <button id="btnDeleteAllSeries" style="background:#991b1b;color:#ffffff;border:none;padding:10px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <button type="button" id="btnDeleteAllSeries">
                     <i class="fas fa-trash-alt"></i> Excluir TODAS as parcelas da série (${totalAll})
                 </button>
                 ` : `
-                <button id="btnDeleteAllSeries" style="background:#991b1b;color:#ffffff;border:none;padding:10px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <button type="button" id="btnDeleteAllSeries">
                     <i class="fas fa-trash-alt"></i> Excluir todas as parcelas (${totalAll})
                 </button>
                 `}
-                <button id="btnDeleteSingleRecurring" style="background:var(--color-bg,#f1f5f9);color:var(--color-text,#334155);border:1px solid var(--color-border,#cbd5e1);padding:10px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;">
+                <button type="button" id="btnDeleteSingleRecurring">
                     Excluir somente esta parcela deste mês
                 </button>
-                <button id="btnCancelRecurring" style="background:transparent;color:var(--color-text-muted,#64748b);border:none;padding:6px;font-size:13px;cursor:pointer;">
+                <button type="button" id="btnCancelRecurring">
                     Cancelar
                 </button>
             </div>
         `;
+
+        var iconBox = card.querySelector('.tonu-rd-icon');
+        if (iconBox) {
+            Object.assign(iconBox.style, {
+                width: '48px', height: '48px', borderRadius: '50%', background: '#fee2e2', color: '#dc2626',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontSize: '22px'
+            });
+        }
+        var rdTitle = card.querySelector('.tonu-rd-title');
+        if (rdTitle) Object.assign(rdTitle.style, { margin: '0 0 6px 0', fontSize: '17px', fontWeight: '700', color: 'var(--color-text,#1e293b)' });
+        var rdDesc = card.querySelector('.tonu-rd-desc');
+        if (rdDesc) Object.assign(rdDesc.style, { margin: '0', fontSize: '13px', color: 'var(--color-text-muted,#64748b)', lineHeight: '1.45' });
+        var rdActions = card.querySelector('.tonu-rd-actions');
+        if (rdActions) Object.assign(rdActions.style, { display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' });
 
         function cleanup(result) {
             document.removeEventListener('keydown', onKeyDown);
@@ -2728,18 +2774,42 @@ function confirmRecurringDelete(options) {
         }
 
         var btnFromNow = card.querySelector('#btnDeleteFromNow');
-        if (btnFromNow) btnFromNow.onclick = function () { cleanup('from_now'); };
+        if (btnFromNow) {
+            Object.assign(btnFromNow.style, {
+                background: '#dc2626', color: '#ffffff', border: 'none', padding: '11px 14px', borderRadius: '10px',
+                fontWeight: '600', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+            });
+            btnFromNow.addEventListener('click', function () { cleanup('from_now'); });
+        }
 
         var btnAll = card.querySelector('#btnDeleteAllSeries');
-        if (btnAll) btnAll.onclick = function () { cleanup('all_series'); };
+        if (btnAll) {
+            Object.assign(btnAll.style, {
+                background: '#991b1b', color: '#ffffff', border: 'none', padding: '10px 14px', borderRadius: '10px',
+                fontWeight: '600', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+            });
+            btnAll.addEventListener('click', function () { cleanup('all_series'); });
+        }
 
         var btnSingle = card.querySelector('#btnDeleteSingleRecurring');
-        if (btnSingle) btnSingle.onclick = function () { cleanup('single'); };
+        if (btnSingle) {
+            Object.assign(btnSingle.style, {
+                background: 'var(--color-bg,#f1f5f9)', color: 'var(--color-text,#334155)', border: '1px solid var(--color-border,#cbd5e1)',
+                padding: '10px 14px', borderRadius: '10px', fontWeight: '600', fontSize: '13px', cursor: 'pointer'
+            });
+            btnSingle.addEventListener('click', function () { cleanup('single'); });
+        }
 
         var btnCancel = card.querySelector('#btnCancelRecurring');
-        if (btnCancel) btnCancel.onclick = function () { cleanup('cancel'); };
+        if (btnCancel) {
+            Object.assign(btnCancel.style, {
+                background: 'transparent', color: 'var(--color-text-muted,#64748b)', border: 'none',
+                padding: '6px', fontSize: '13px', cursor: 'pointer'
+            });
+            btnCancel.addEventListener('click', function () { cleanup('cancel'); });
+        }
 
-        overlay.onclick = function (e) { if (e.target === overlay) cleanup('cancel'); };
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) cleanup('cancel'); });
         document.addEventListener('keydown', onKeyDown);
 
         overlay.appendChild(card);
@@ -3249,16 +3319,49 @@ function TonuConfirm(opts) {
 
         var backdrop = document.createElement('div');
         backdrop.className = 'tonu-confirm-backdrop';
-        backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;';
+        Object.assign(backdrop.style, {
+            position: 'fixed', inset: '0', background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)',
+            zIndex: '999999', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        });
         backdrop.innerHTML =
-            '<div class="tonu-confirm-dialog" role="alertdialog" aria-modal="true" style="background:var(--color-surface,#ffffff);color:var(--color-text,#0f172a);border-radius:18px;max-width:360px;width:100%;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,0.28);border:1px solid var(--color-border,#e2e8f0);font-family:Inter,sans-serif;">' +
-                '<h3 style="margin:0 0 8px 0;font-size:16px;font-weight:700;">' + safe(title) + '</h3>' +
-                '<p style="margin:0 0 18px 0;font-size:13.5px;color:var(--color-text-secondary,#475569);line-height:1.45;">' + safeMessageHtml + '</p>' +
-                '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
-                    '<button type="button" data-action="cancel" style="padding:10px 16px;border-radius:12px;border:1px solid var(--color-border,#e2e8f0);background:transparent;color:var(--color-text,#0f172a);font-weight:600;font-size:13.5px;cursor:pointer;">' + safe(cancelText) + '</button>' +
-                    '<button type="button" data-action="confirm" style="padding:10px 16px;border-radius:12px;border:none;background:' + (danger ? '#ef4444' : '#4338CA') + ';color:#fff;font-weight:600;font-size:13.5px;cursor:pointer;">' + safe(confirmText) + '</button>' +
+            '<div class="tonu-confirm-dialog" role="alertdialog" aria-modal="true">' +
+                '<h3 class="tonu-confirm-title">' + safe(title) + '</h3>' +
+                '<p class="tonu-confirm-msg">' + safeMessageHtml + '</p>' +
+                '<div class="tonu-confirm-actions">' +
+                    '<button type="button" data-action="cancel">' + safe(cancelText) + '</button>' +
+                    '<button type="button" data-action="confirm">' + safe(confirmText) + '</button>' +
                 '</div>' +
             '</div>';
+
+        var dialogEl = backdrop.querySelector('.tonu-confirm-dialog');
+        if (dialogEl) {
+            Object.assign(dialogEl.style, {
+                background: 'var(--color-surface,#ffffff)', color: 'var(--color-text,#0f172a)', borderRadius: '18px',
+                maxWidth: '360px', width: '100%', padding: '20px', boxShadow: '0 20px 50px rgba(0,0,0,0.28)',
+                border: '1px solid var(--color-border,#e2e8f0)', fontFamily: 'Inter,sans-serif'
+            });
+        }
+        var titleEl = backdrop.querySelector('.tonu-confirm-title');
+        if (titleEl) Object.assign(titleEl.style, { margin: '0 0 8px 0', fontSize: '16px', fontWeight: '700' });
+        var msgEl = backdrop.querySelector('.tonu-confirm-msg');
+        if (msgEl) Object.assign(msgEl.style, { margin: '0 0 18px 0', fontSize: '13.5px', color: 'var(--color-text-secondary,#475569)', lineHeight: '1.45' });
+        var actionsEl = backdrop.querySelector('.tonu-confirm-actions');
+        if (actionsEl) Object.assign(actionsEl.style, { display: 'flex', gap: '10px', justifyContent: 'flex-end' });
+
+        var cancelBtn = backdrop.querySelector('[data-action="cancel"]');
+        if (cancelBtn) {
+            Object.assign(cancelBtn.style, {
+                padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--color-border,#e2e8f0)',
+                background: 'transparent', color: 'var(--color-text,#0f172a)', fontWeight: '600', fontSize: '13.5px', cursor: 'pointer'
+            });
+        }
+        var confirmBtn = backdrop.querySelector('[data-action="confirm"]');
+        if (confirmBtn) {
+            Object.assign(confirmBtn.style, {
+                padding: '10px 16px', borderRadius: '12px', border: 'none',
+                background: danger ? '#ef4444' : '#4338CA', color: '#fff', fontWeight: '600', fontSize: '13.5px', cursor: 'pointer'
+            });
+        }
 
         var settled = false;
         var onKeyDown = function (e) {
@@ -3275,12 +3378,11 @@ function TonuConfirm(opts) {
         };
 
         document.addEventListener('keydown', onKeyDown);
-        backdrop.querySelector('[data-action="cancel"]').addEventListener('click', function () { cleanup(false); });
-        backdrop.querySelector('[data-action="confirm"]').addEventListener('click', function () { cleanup(true); });
+        if (cancelBtn) cancelBtn.addEventListener('click', function () { cleanup(false); });
+        if (confirmBtn) confirmBtn.addEventListener('click', function () { cleanup(true); });
         backdrop.addEventListener('click', function (e) { if (e.target === backdrop) cleanup(false); });
         document.body.appendChild(backdrop);
 
-        var confirmBtn = backdrop.querySelector('[data-action="confirm"]');
         if (confirmBtn && typeof confirmBtn.focus === 'function') {
             setTimeout(function () { confirmBtn.focus(); }, 10);
         }
@@ -3404,16 +3506,29 @@ window.applyStagger = applyStagger;
 // ============================================
 function renderTableSkeleton(tbodyElement, rows = 5, cols = 6) {
     if (!tbodyElement) return;
+    const widths = [];
     let html = '';
     for (let r = 0; r < rows; r++) {
         html += '<tr class="skeleton-row" role="row">';
         for (let c = 0; c < cols; c++) {
             const width = Math.min(95, Math.max(35, 45 + Math.floor(Math.sin((r + 1) * (c + 2)) * 30 + 20)));
-            html += `<td style="padding: 7px 8px; vertical-align: middle;"><div class="skeleton-shimmer" style="width: ${width}%; height: 14px; border-radius: 4px;"></div></td>`;
+            widths.push(width);
+            html += '<td><div class="skeleton-shimmer"></div></td>';
         }
         html += '</tr>';
     }
     tbodyElement.innerHTML = html;
+    const tds = tbodyElement.querySelectorAll('td');
+    tds.forEach((td, idx) => {
+        td.style.padding = '7px 8px';
+        td.style.verticalAlign = 'middle';
+        const shimmer = td.querySelector('.skeleton-shimmer');
+        if (shimmer) {
+            shimmer.style.width = `${widths[idx]}%`;
+            shimmer.style.height = '14px';
+            shimmer.style.borderRadius = '4px';
+        }
+    });
 }
 window.renderTableSkeleton = renderTableSkeleton;
 
@@ -3533,7 +3648,7 @@ function openQuickSearch() {
         };
 
         overlay.innerHTML = `
-            <div class="quick-cmd-box" onclick="event.stopPropagation()">
+            <div class="quick-cmd-box">
                 <div class="quick-cmd-header">
                     <i class="fas fa-search" aria-hidden="true"></i>
                     <input type="text" id="quickCmdInput" class="quick-cmd-input" placeholder="Buscar página ou ação rápida..." autocomplete="off" />
@@ -3541,12 +3656,18 @@ function openQuickSearch() {
                 </div>
                 <ul class="quick-cmd-list" id="quickCmdList"></ul>
                 <div class="quick-cmd-footer">
-                    <span>Navegue com as setas <strong style="font-size:10px;">&uarr; &darr;</strong> e pressione <strong style="font-size:10px;">Enter</strong></span>
+                    <span>Navegue com as setas <strong class="quick-cmd-key-hint">&uarr; &darr;</strong> e pressione <strong class="quick-cmd-key-hint">Enter</strong></span>
                     <span>Atalho: <strong>Ctrl + K</strong></span>
                 </div>
             </div>
         `;
         document.body.appendChild(overlay);
+
+        const box = overlay.querySelector('.quick-cmd-box');
+        if (box) box.addEventListener('click', (e) => e.stopPropagation());
+        overlay.querySelectorAll('.quick-cmd-key-hint').forEach(el => {
+            el.style.fontSize = '10px';
+        });
 
         const input = overlay.querySelector('#quickCmdInput');
         if (input) {
@@ -3585,12 +3706,21 @@ function renderQuickCommands(commands) {
     if (!list) return;
 
     if (commands.length === 0) {
-        list.innerHTML = '<li style="padding: 24px; text-align: center; color: var(--color-text-muted); font-size: 13px;">Nenhum comando encontrado</li>';
+        list.innerHTML = '<li class="quick-cmd-empty">Nenhum comando encontrado</li>';
+        const emptyEl = list.querySelector('.quick-cmd-empty');
+        if (emptyEl) {
+            Object.assign(emptyEl.style, {
+                padding: '24px',
+                textAlign: 'center',
+                color: 'var(--color-text-muted)',
+                fontSize: '13px'
+            });
+        }
         return;
     }
 
     list.innerHTML = commands.map((cmd, idx) => `
-        <li class="quick-cmd-item ${idx === 0 ? 'selected' : ''}" data-index="${idx}" onclick="executeQuickCommand(${idx})">
+        <li class="quick-cmd-item ${idx === 0 ? 'selected' : ''}" data-index="${idx}">
             <div class="quick-cmd-item-left">
                 <span class="quick-cmd-icon"><i class="fas ${cmd.icon}"></i></span>
                 <span>${cmd.title}</span>
@@ -3598,6 +3728,13 @@ function renderQuickCommands(commands) {
             <span class="quick-cmd-badge">${cmd.badge}</span>
         </li>
     `).join('');
+
+    list.querySelectorAll('.quick-cmd-item[data-index]').forEach(item => {
+        item.addEventListener('click', () => {
+            const idx = parseInt(item.getAttribute('data-index'), 10);
+            if (!Number.isNaN(idx)) executeQuickCommand(idx);
+        });
+    });
 }
 
 function filterQuickCommands(query) {

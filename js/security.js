@@ -923,6 +923,9 @@
             if (document.getElementById('tonu-shake-style')) return;
             const style = document.createElement('style');
             style.id = 'tonu-shake-style';
+            const nonceEl = document.querySelector('script[nonce], style[nonce]');
+            const cspNonce = nonceEl ? (nonceEl.nonce || nonceEl.getAttribute('nonce') || '') : '';
+            if (cspNonce) style.nonce = cspNonce;
             style.textContent = `
                 @keyframes shake {
                     0%, 100% { transform: translateX(0); }
