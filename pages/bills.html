@@ -51,7 +51,7 @@
 <body>
 
     <div class="app-shell">
-        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button" aria-label="Fechar menu"></div>
+        <div class="sidebar-overlay" id="sidebarOverlay" role="button" aria-label="Fechar menu"></div>
 
         <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
             <div class="sidebar-brand">
@@ -88,7 +88,7 @@
                     </div>
                     <i class="fas fa-cog sidebar-user-icon" aria-hidden="true"></i>
                 </a>
-                <button class="btn-sair" onclick="logout()" aria-label="Sair da conta">
+                <button class="btn-sair" aria-label="Sair da conta">
                     <i class="fas fa-sign-out-alt"></i> Sair
                 </button>
             </div>
@@ -96,7 +96,7 @@
 
         <main class="main-content full" id="mainContent">
             <header class="topbar">
-                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu">
+                <button class="menu-toggle" aria-label="Abrir menu">
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="topbar-title">
@@ -104,17 +104,17 @@
                     <h1>Contas & Boletos</h1>
                 </div>
                 <div class="topbar-actions">
-                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro">
+                    <button class="theme-toggle-btn" title="Alternar Modo Escuro">
                         <i class="fas fa-moon"></i>
                     </button>
-                    <button id="notifBellBtn" class="notif-bell-btn" onclick="window.toggleNotificationDropdown(event)" title="Notificações">
+                    <button id="notifBellBtn" class="notif-bell-btn" title="Notificações">
                         <i class="fas fa-bell"></i>
                         <span class="notif-badge hidden" id="notifBadgeCount">0</span>
                     </button>
-                    <button class="btn btn-outline" id="btnToggleSelectBills" onclick="toggleBillSelectionMode()" title="Selecionar múltiplas contas">
+                    <button class="btn btn-outline" id="btnToggleSelectBills" title="Selecionar múltiplas contas">
                         <i class="fas fa-check-square"></i> <span id="btnSelectLabel">Selecionar</span>
                     </button>
-                    <button class="btn btn-primary" onclick="openBillModal()">
+                    <button class="btn btn-primary" data-bill-action="new">
                         <i class="fas fa-plus"></i> Nova Conta
                     </button>
                 </div>
@@ -123,14 +123,14 @@
             <div class="content" style="padding:20px;">
                 <!-- SELETOR DE MÊS -->
                 <div class="month-selector" role="group" aria-label="Selecionar mês">
-                    <button type="button" class="month-nav" onclick="changeMonth(-1)" aria-label="Mês anterior" title="Mês anterior">
+                    <button type="button" class="month-nav" aria-label="Mês anterior" title="Mês anterior">
                         <i class="fas fa-chevron-left" aria-hidden="true"></i>
                     </button>
                     <div class="month-label-wrap">
                         <i class="far fa-calendar-alt month-label-icon" aria-hidden="true"></i>
                         <span class="month-label" id="currentMonthLabel">Carregando...</span>
                     </div>
-                    <button type="button" class="month-nav" onclick="changeMonth(1)" aria-label="Próximo mês" title="Próximo mês">
+                    <button type="button" class="month-nav" aria-label="Próximo mês" title="Próximo mês">
                         <i class="fas fa-chevron-right" aria-hidden="true"></i>
                     </button>
                 </div>
@@ -231,7 +231,7 @@
                             </div>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-outline btn-sm" onclick="filterByInstallmentsOnly()" style="font-size:11px; padding:4px 10px; font-weight:600;">
+                    <button type="button" class="btn btn-outline btn-sm" data-bill-action="filter-installments" style="font-size:11px; padding:4px 10px; font-weight:600;">
                         <i class="fas fa-filter"></i> Filtrar Parceladas
                     </button>
                 </div>
@@ -243,9 +243,9 @@
                             <i class="fas fa-list" style="color:var(--color-primary);"></i> Contas do Período
                         </h3>
                         <div class="status-tab-group">
-                            <button type="button" class="tab-status-btn active" id="tabStatusPending" data-status="pending" onclick="setStatusTab('pending')">Pendentes</button>
-                            <button type="button" class="tab-status-btn" id="tabStatusPaid" data-status="paid" onclick="setStatusTab('paid')">Pagas ✅</button>
-                            <button type="button" class="tab-status-btn" id="tabStatusAll" data-status="all" onclick="setStatusTab('all')">Todas</button>
+                            <button type="button" class="tab-status-btn active" id="tabStatusPending" data-status="pending">Pendentes</button>
+                            <button type="button" class="tab-status-btn" id="tabStatusPaid" data-status="paid">Pagas ✅</button>
+                            <button type="button" class="tab-status-btn" id="tabStatusAll" data-status="all">Todas</button>
                         </div>
                     </div>
                     <span id="billsCountBadge" style="font-size:12px; color:var(--color-text-muted,#94a3b8);">0 registros</span>
@@ -262,7 +262,7 @@
                     <span style="color:var(--color-text-muted,#94a3b8);">·</span>
                     <span style="color:var(--color-text,#2d3436);">Total: <strong id="selectedBillsTotalText" style="color:var(--color-primary,#4338CA); font-size:16px;">R$ 0,00</strong></span>
                 </div>
-                <button type="button" class="btn btn-outline btn-sm" onclick="cancelBillSelection()" style="border-radius:999px; padding:4px 12px; font-size:12px; font-weight:600;">
+                <button type="button" class="btn btn-outline btn-sm" data-bill-action="cancel-selection" style="border-radius:999px; padding:4px 12px; font-size:12px; font-weight:600;">
                     <i class="fas fa-times"></i> Cancelar
                 </button>
             </div>
@@ -270,18 +270,18 @@
     </div>
 
     <!-- MODAL DE CONTA (NOVA / EDITAR) CENTRALIZADO -->
-    <div class="modal-overlay" id="billModalOverlay" onclick="if(event.target === this) closeBillModal()" role="dialog" aria-modal="true" aria-labelledby="billModalTitle">
+    <div class="modal-overlay" id="billModalOverlay" role="dialog" aria-modal="true" aria-labelledby="billModalTitle">
         <div class="modal hidden" id="billModal">
             <div class="modal-header">
                 <div>
                     <div class="sub"><i class="fas fa-file-invoice-dollar" style="margin-right:4px;"></i> Contas & Boletos</div>
                     <h3 id="billModalTitle">Nova Conta</h3>
                 </div>
-                <button type="button" class="modal-close" onclick="closeBillModal()" aria-label="Fechar modal">
+                <button type="button" class="modal-close" aria-label="Fechar modal">
                     <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
-            <form id="billForm" onsubmit="saveBill(event)" novalidate>
+            <form id="billForm" novalidate>
                 <input type="hidden" id="billEditId">
                 <div class="modal-body">
                     <div class="form-group">
@@ -370,11 +370,11 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-danger btn-sm hidden" id="btnDeleteBill" onclick="deleteBill()">
+                    <button type="button" class="btn btn-danger btn-sm hidden" id="btnDeleteBill">
                         <i class="fas fa-trash-can"></i> Excluir
                     </button>
                     <div style="flex:1;"></div>
-                    <button type="button" class="btn btn-secondary" onclick="closeBillModal()">Cancelar</button>
+                    <button type="button" class="btn btn-secondary" data-bill-action="close-modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary" id="btnSaveBill"><i class="fas fa-check"></i> Salvar Conta</button>
                 </div>
             </form>

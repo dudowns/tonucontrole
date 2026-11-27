@@ -21,6 +21,10 @@
     let selectedBillIds = new Set();
     let currentFilteredBillsList = [];
 
+    // Guardas para evitar listeners duplicados
+    let _uiListenersBound = false;
+    let _filterListenersBound = false;
+
     const MONTH_NAMES = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -144,6 +148,9 @@
             if (typeof window !== 'undefined') window.currentUser = user;
             console.log('✅ Contas: Usuário autenticado:', currentUser.email);
 
+            setupStaticUIListeners();
+            setupFilters();
+
             if (window.loadGlobalUserProfile) {
                 await window.loadGlobalUserProfile();
             }
@@ -151,7 +158,6 @@
             updateMonthHeader();
             await loadCategories();
             await loadBills();
-            setupFilters();
 
             // Vincular controles dinâmicos de parcelamento e recorrência
             if (window.TonuInstallments) {
@@ -327,9 +333,10 @@
                     <div style="text-align:center;padding:30px;color:var(--color-danger,#ff7675);">
                         <i class="fas fa-exclamation-triangle" style="font-size:28px;margin-bottom:8px;"></i>
                         <p>Erro ao conectar com o banco de dados de contas.</p>
-                        <button class="btn btn-outline btn-sm" onclick="loadBills()" style="margin-top:8px;">Tentar Novamente</button>
+                        <button type="button" class="btn btn-outline btn-sm" data-bill-action="retry" style="margin-top:8px;">Tentar Novamente</button>
                     </div>
                 `;
+                bindBillsContainerDelegation(container);
             }
         }
     }
@@ -483,9 +490,181 @@
     }
 
     // ============================================
+    // LISTENERS ESTÁTICOS E DELEGAÇÃO (CSP-SAFE)
+    // ============================================
+    function bindBillsContainerDelegation(container) {
+        if (!container || container.dataset.billsDelegated === '1') return;
+        container.dataset.billsDelegated = '1';
+
+        container.addEventListener('click', (e) => {
+            const actionEl = e.target?.closest?.('[data-bill-action]');
+            if (!actionEl || !container.contains(actionEl)) return;
+
+            const action = actionEl.dataset.billAction;
+            const billId = actionEl.dataset.billId;
+
+            if (action === 'retry') {
+                loadBills();
+                return;
+            }
+            if (action === 'new') {
+                openBillModal();
+                return;
+            }
+            if (action === 'toggle-paid' && billId) {
+                toggleBillPaid(billId);
+                return;
+            }
+            if (action === 'anticipate' && billId) {
+                openAnticipationModal(billId);
+                return;
+            }
+            if (action === 'edit' && billId) {
+                openBillModal(billId);
+                return;
+            }
+            if (action === 'delete' && billId) {
+                if (actionEl.classList.contains('swipe-action-delete')) {
+                    e.stopPropagation();
+                    if (typeof window.TonuCloseSwipeRows === 'function') {
+                        window.TonuCloseSwipeRows();
+                    }
+                }
+                deleteBill(billId);
+            }
+        });
+
+        container.addEventListener('change', (e) => {
+            const checkbox = e.target?.closest?.('.bill-checkbox');
+            if (!checkbox || !container.contains(checkbox)) return;
+            const billId = checkbox.dataset.id;
+            if (billId) {
+                toggleSelectBill(billId, checkbox.checked);
+            }
+        });
+    }
+
+    function setupStaticUIListeners() {
+        if (_uiListenersBound) return;
+        _uiListenersBound = true;
+
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', () => {
+                if (typeof window.closeSidebar === 'function') window.closeSidebar();
+            });
+        }
+
+        const logoutBtn = document.querySelector('.sidebar-footer .btn-sair');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                if (typeof window.logout === 'function') window.logout();
+            });
+        }
+
+        const menuToggleBtn = document.querySelector('.topbar .menu-toggle');
+        if (menuToggleBtn) {
+            menuToggleBtn.addEventListener('click', () => {
+                if (typeof window.toggleSidebar === 'function') window.toggleSidebar();
+            });
+        }
+
+        const themeToggleBtn = document.querySelector('.topbar .theme-toggle-btn');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                if (typeof window.toggleTheme === 'function') window.toggleTheme();
+            });
+        }
+
+        const notifBellBtn = document.getElementById('notifBellBtn');
+        if (notifBellBtn && typeof notifBellBtn.onclick !== 'function') {
+            notifBellBtn.addEventListener('click', (e) => {
+                if (typeof window.toggleNotificationDropdown === 'function') {
+                    window.toggleNotificationDropdown(e);
+                }
+            });
+        }
+
+        const btnToggleSelect = document.getElementById('btnToggleSelectBills');
+        if (btnToggleSelect) {
+            btnToggleSelect.addEventListener('click', () => toggleBillSelectionMode());
+        }
+
+        const newBillBtn = document.querySelector('.topbar-actions [data-bill-action="new"]');
+        if (newBillBtn) {
+            newBillBtn.addEventListener('click', () => openBillModal());
+        }
+
+        const prevMonthBtn = document.querySelector('.month-selector .month-nav[aria-label="Mês anterior"]');
+        if (prevMonthBtn) {
+            prevMonthBtn.addEventListener('click', () => changeMonth(-1));
+        }
+
+        const nextMonthBtn = document.querySelector('.month-selector .month-nav[aria-label="Próximo mês"]');
+        if (nextMonthBtn) {
+            nextMonthBtn.addEventListener('click', () => changeMonth(1));
+        }
+
+        const filterInstBtn = document.querySelector('#billsInstallmentBanner [data-bill-action="filter-installments"]');
+        if (filterInstBtn) {
+            filterInstBtn.addEventListener('click', () => {
+                if (typeof window.filterByInstallmentsOnly === 'function') window.filterByInstallmentsOnly();
+            });
+        }
+
+        document.querySelectorAll('.tab-status-btn[data-status]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (typeof window.setStatusTab === 'function' && btn.dataset.status) {
+                    window.setStatusTab(btn.dataset.status);
+                }
+            });
+        });
+
+        const cancelSelBtn = document.querySelector('#billsSelectionFooter [data-bill-action="cancel-selection"]');
+        if (cancelSelBtn) {
+            cancelSelBtn.addEventListener('click', () => cancelBillSelection());
+        }
+
+        const billModalOverlay = document.getElementById('billModalOverlay');
+        if (billModalOverlay) {
+            billModalOverlay.addEventListener('click', (e) => {
+                if (e.target === billModalOverlay) closeBillModal();
+            });
+        }
+
+        const billModalCloseBtn = document.querySelector('#billModal .modal-close');
+        if (billModalCloseBtn) {
+            billModalCloseBtn.addEventListener('click', () => closeBillModal());
+        }
+
+        const billModalCancelBtn = document.querySelector('#billModal [data-bill-action="close-modal"]');
+        if (billModalCancelBtn) {
+            billModalCancelBtn.addEventListener('click', () => closeBillModal());
+        }
+
+        const btnDeleteBill = document.getElementById('btnDeleteBill');
+        if (btnDeleteBill) {
+            btnDeleteBill.addEventListener('click', () => deleteBill());
+        }
+
+        const billForm = document.getElementById('billForm');
+        if (billForm) {
+            billForm.addEventListener('submit', saveBill);
+        }
+
+        const billsContainer = document.getElementById('billsContainer');
+        if (billsContainer) {
+            bindBillsContainerDelegation(billsContainer);
+        }
+    }
+
+    // ============================================
     // FILTROS E RENDERIZAÇÃO
     // ============================================
     function setupFilters() {
+        if (_filterListenersBound) return;
+        _filterListenersBound = true;
+
         const searchInput = document.getElementById('billFilterSearch');
         const statusSelect = document.getElementById('billFilterStatus');
         const recSelect = document.getElementById('billFilterRecurrence');
@@ -615,11 +794,12 @@
                     <p style="color:var(--color-text-muted,#94a3b8);font-size:13px;margin:0 auto 16px auto;max-width:360px;">
                         Não há contas cadastradas para este filtro no mês de ${MONTH_NAMES[currentMonth]}.
                     </p>
-                    <button class="btn btn-primary btn-sm" onclick="openBillModal()">
+                    <button type="button" class="btn btn-primary btn-sm" data-bill-action="new">
                         <i class="fas fa-plus"></i> Adicionar Conta
                     </button>
                 </div>
             `;
+            bindBillsContainerDelegation(container);
             return;
         }
 
@@ -726,14 +906,14 @@
 
                 html += `
                     <div class="bill-swipe-row" data-swipe-row data-swipe-width="84">
-                        <button type="button" class="swipe-action-delete" onclick="event.stopPropagation(); window.TonuCloseSwipeRows && window.TonuCloseSwipeRows(); deleteBill('${safeBillId}')" aria-label="Excluir conta">
+                        <button type="button" class="swipe-action-delete" data-bill-action="delete" data-bill-id="${safeBillId}" aria-label="Excluir conta">
                             <i class="fas fa-trash-alt" aria-hidden="true"></i>
                             <span>Excluir</span>
                         </button>
                         <div class="bill-card clean-list-card ${isOverdue ? 'overdue' : ''} ${isSelected ? 'selected' : ''}" id="bill_item_${safeBillId}" data-swipe-content>
                             ${isSelectionMode ? `
                                 <div class="bill-select-box" style="margin-top:6px; display:flex; align-items:center;">
-                                    <input type="checkbox" class="bill-checkbox" data-id="${safeBillId}" ${isSelected ? 'checked' : ''} onchange="toggleSelectBill('${safeBillId}', this.checked)" style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary,#4338CA);">
+                                    <input type="checkbox" class="bill-checkbox" data-id="${safeBillId}" ${isSelected ? 'checked' : ''} style="width:20px; height:20px; cursor:pointer; accent-color:var(--color-primary,#4338CA);">
                                 </div>
                             ` : ''}
                             <div class="mobile-icon-squircle" style="background:${squircleBg}; color:${catColor};" title="${sanitize(cleanCatName)}">
@@ -747,28 +927,28 @@
                                             ${formatCurrency(b.amount)}
                                         </span>
                                         ${isPaid ? `
-                                            <button class="btn-paid" onclick="toggleBillPaid('${safeBillId}')" title="Conta Paga! Clique para marcar como pendente">
+                                            <button type="button" class="btn-paid" data-bill-action="toggle-paid" data-bill-id="${safeBillId}" title="Conta Paga! Clique para marcar como pendente">
                                                 <i class="fas fa-check-double"></i> Paga
                                             </button>
                                         ` : (isOverdue ? `
-                                            <button class="btn-pay btn-pay-overdue" onclick="toggleBillPaid('${safeBillId}')" title="Conta Atrasada! Clique para pagar">
+                                            <button type="button" class="btn-pay btn-pay-overdue" data-bill-action="toggle-paid" data-bill-id="${safeBillId}" title="Conta Atrasada! Clique para pagar">
                                                 <i class="fas fa-check"></i> Pagar
                                             </button>
                                         ` : `
-                                            <button class="btn-pay btn-pay-pending" onclick="toggleBillPaid('${safeBillId}')" title="Clique para pagar esta conta">
+                                            <button type="button" class="btn-pay btn-pay-pending" data-bill-action="toggle-paid" data-bill-id="${safeBillId}" title="Clique para pagar esta conta">
                                                 <i class="fas fa-check"></i> Pagar
                                             </button>
                                         `)}
                                         <div class="bill-actions">
                                             ${(parseInt(b.installments, 10) > 1 || (b.description && /\(\d+\/\d+\)/.test(b.description))) ? `
-                                                <button class="btn-icon-sm" onclick="openAnticipationModal('${safeBillId}')" title="Antecipar / Quitar Parcelas Futuras">
+                                                <button type="button" class="btn-icon-sm" data-bill-action="anticipate" data-bill-id="${safeBillId}" title="Antecipar / Quitar Parcelas Futuras">
                                                     <i class="fas fa-forward-step" style="color:#0284c7;"></i>
                                                 </button>
                                             ` : ''}
-                                            <button class="btn-icon-sm" onclick="openBillModal('${safeBillId}')" title="Editar conta">
+                                            <button type="button" class="btn-icon-sm" data-bill-action="edit" data-bill-id="${safeBillId}" title="Editar conta">
                                                 <i class="fas fa-pencil-alt" style="color:var(--color-primary,#4338CA);"></i>
                                             </button>
-                                            <button class="btn-icon-sm text-danger" onclick="deleteBill('${safeBillId}')" title="Excluir conta">
+                                            <button type="button" class="btn-icon-sm text-danger" data-bill-action="delete" data-bill-id="${safeBillId}" title="Excluir conta">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </div>
@@ -800,6 +980,7 @@
 
         html += '</div>';
         container.innerHTML = html;
+        bindBillsContainerDelegation(container);
         if (typeof window.TonuSetupSwipe === 'function') {
             window.TonuSetupSwipe();
         }
