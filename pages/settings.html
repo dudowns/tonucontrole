@@ -4,8 +4,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:;">
 
     <meta name="theme-color" content="#4338CA">
     <meta name="mobile-web-app-capable" content="yes">
@@ -35,6 +33,7 @@
     <link rel="stylesheet" href="../css/sync-status.css?v=3.2.33">
     <link rel="stylesheet" href="../css/dark-theme.css?v=3.2.37">
     <link rel="stylesheet" href="../css/post-login-transition.css?v=3.2.33">
+    <link rel="stylesheet" href="../css/settings-redesign.css?v=1.0.0">
 
     <!-- Device Router & Anti-flicker Theme Init -->
     <script src="../js/device-router.js"></script>
@@ -91,7 +90,7 @@
     <a href="#mainContent" class="skip-link">Pular para o conteúdo principal</a>
 
     <div class="app-shell">
-        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()" role="button"
+        <div class="sidebar-overlay" id="sidebarOverlay" role="button"
             aria-label="Fechar menu"></div>
 
         <aside class="sidebar hidden" id="sidebar" role="navigation" aria-label="Menu principal">
@@ -130,7 +129,7 @@
                     </div>
                     <i class="fas fa-cog sidebar-user-icon" aria-hidden="true"></i>
                 </a>
-                <button class="btn-sair" onclick="logout()" aria-label="Sair da conta">
+                <button type="button" class="btn-sair" data-settings-action="logout" aria-label="Sair da conta">
                     <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair
                 </button>
             </div>
@@ -138,7 +137,7 @@
 
         <main class="main-content full" id="mainContent">
             <header class="topbar" role="banner">
-                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu" aria-expanded="false">
+                <button type="button" class="menu-toggle" data-settings-action="toggle-sidebar" aria-label="Abrir menu" aria-expanded="false">
                     <i class="fas fa-bars" aria-hidden="true"></i>
                 </button>
                 <div class="topbar-title">
@@ -146,11 +145,11 @@
                     <h1>Configurações</h1>
                 </div>
                 <div class="topbar-actions">
-                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema">
+                    <button type="button" class="theme-toggle-btn" data-settings-action="toggle-theme" title="Alternar Modo Escuro / Claro" aria-label="Alternar tema">
                         <i class="fas fa-moon" aria-hidden="true"></i>
                     </button>
                     <button id="notifBellBtn" class="notif-bell-btn" type="button"
-                        onclick="window.toggleNotificationDropdown(event)" title="Lembretes e Notificações de Contas"
+                        title="Lembretes e Notificações de Contas"
                         aria-label="Notificações">
                         <i class="fas fa-bell" aria-hidden="true"></i>
                         <span class="notif-badge hidden" id="notifBadgeCount">0</span>
@@ -165,7 +164,7 @@
                     <section class="settings-profile-hero" id="profileHero" aria-label="Perfil da conta">
                         <div class="profile-hero-top">
                             <div class="profile-user-summary">
-                                <div class="avatar-large-container" onclick="triggerAvatarUpload()"
+                                <div class="avatar-large-container" data-settings-action="trigger-avatar-upload"
                                     title="Clique para alterar a foto de perfil" role="button" tabindex="0"
                                     aria-label="Alterar foto de perfil">
                                     <div class="avatar-large" id="avatarLarge">U</div>
@@ -175,7 +174,7 @@
                                 </div>
                                 <input type="file" id="avatarFileInput"
                                     accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;"
-                                    onchange="handleAvatarFileSelect(event)" aria-label="Selecionar foto de perfil">
+                                    aria-label="Selecionar foto de perfil">
                                 <div class="profile-meta">
                                     <div class="profile-name" id="profileName">Usuário</div>
                                     <div class="profile-email" id="profileEmail">email@exemplo.com</div>
@@ -186,13 +185,13 @@
                                 </div>
                             </div>
                             <div class="profile-actions">
-                                <button class="btn btn-primary btn-sm" onclick="triggerAvatarUpload()" aria-label="Alterar foto">
+                                <button type="button" class="btn btn-primary btn-sm" data-settings-action="trigger-avatar-upload" aria-label="Alterar foto">
                                     <i class="fas fa-camera" aria-hidden="true"></i> Alterar Foto
                                 </button>
-                                <button class="btn btn-outline btn-sm hidden" id="btnRemoveAvatar" onclick="removeAvatar()" aria-label="Remover foto">
+                                <button type="button" class="btn btn-outline btn-sm hidden" id="btnRemoveAvatar" data-settings-action="remove-avatar" aria-label="Remover foto">
                                     <i class="fas fa-trash-alt" aria-hidden="true"></i> Remover
                                 </button>
-                                <button class="btn btn-outline btn-sm" onclick="editProfile()" aria-label="Editar nome">
+                                <button type="button" class="btn btn-outline btn-sm" data-settings-action="edit-profile" aria-label="Editar nome">
                                     <i class="fas fa-pen" aria-hidden="true"></i> Editar Nome
                                 </button>
                             </div>
@@ -251,7 +250,7 @@
                                     <small>Interface de alto contraste para pouca luz.</small>
                                 </div>
                                 <label class="custom-toggle">
-                                    <input type="checkbox" id="desktopThemeToggle" onchange="toggleTheme()" aria-label="Alternar modo escuro">
+                                    <input type="checkbox" id="desktopThemeToggle" aria-label="Alternar modo escuro">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
@@ -262,7 +261,7 @@
                                     <small>Símbolo e formatação de valores e projeções.</small>
                                 </div>
                                 <select id="currencySelect" class="form-control setting-control-select"
-                                    onchange="changeCurrency(); updateCurrencyBadge();" aria-label="Selecionar moeda">
+                                    aria-label="Selecionar moeda">
                                     <option value="BRL">R$ Real (BRL)</option>
                                     <option value="USD">$ Dólar (USD)</option>
                                     <option value="EUR">€ Euro (EUR)</option>
@@ -275,7 +274,7 @@
                                     <small>Exibir desdobramentos e bonificações em Investimentos.</small>
                                 </div>
                                 <label class="custom-toggle">
-                                    <input type="checkbox" id="toggleCorpEventsPref" onchange="toggleCorporateEventsPref(this.checked)" aria-label="Ativar eventos corporativos">
+                                    <input type="checkbox" id="toggleCorpEventsPref" aria-label="Ativar eventos corporativos">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
@@ -286,13 +285,13 @@
                                     <small>Personalize categorias ou gere o resumo dos últimos 7 dias.</small>
                                 </div>
                                 <div class="setting-row-actions">
-                                    <button class="btn btn-primary btn-sm" onclick="openCategoriesManager()" aria-label="Gerenciar categorias">
+                                    <button type="button" class="btn btn-primary btn-sm" data-settings-action="open-categories" aria-label="Gerenciar categorias">
                                         <i class="fas fa-tags" aria-hidden="true"></i> Categorias
                                     </button>
-                                    <button class="btn btn-outline btn-sm" onclick="TonuWeeklyReport.showWeeklySummaryModal()" aria-label="Visualizar resumo semanal">
+                                    <button type="button" class="btn btn-outline btn-sm" data-settings-action="show-weekly-summary" aria-label="Visualizar resumo semanal">
                                         <i class="fas fa-chart-pie" aria-hidden="true"></i> Resumo
                                     </button>
-                                    <button class="btn btn-outline btn-sm" onclick="TonuWeeklyReport.sendWeeklyEmail()" aria-label="Enviar resumo por e-mail" title="Enviar resumo semanal por e-mail">
+                                    <button type="button" class="btn btn-outline btn-sm" data-settings-action="send-weekly-email" aria-label="Enviar resumo por e-mail" title="Enviar resumo semanal por e-mail">
                                         <i class="fas fa-paper-plane" aria-hidden="true"></i>
                                     </button>
                                 </div>
@@ -320,7 +319,7 @@
                                     <small id="pinSubText">Exigido ao abrir o app ou retornar da tela bloqueada.</small>
                                 </div>
                                 <div id="pinActionContainer">
-                                    <button class="btn btn-outline btn-sm" onclick="handleConfigurePin()" aria-label="Configurar PIN">
+                                    <button type="button" class="btn btn-outline btn-sm" data-settings-action="configure-pin" aria-label="Configurar PIN">
                                         <i class="fas fa-plus" aria-hidden="true"></i> Ativar PIN
                                     </button>
                                 </div>
@@ -332,7 +331,7 @@
                                     <small>Tempo sem uso até solicitar desbloqueio.</small>
                                 </div>
                                 <select id="selectInactivityTimeout" class="form-control setting-control-select"
-                                    onchange="handleInactivityChange(this.value)" aria-label="Tempo de inatividade">
+                                    aria-label="Tempo de inatividade">
                                     <option value="0">Nunca</option>
                                     <option value="2">Após 2 min</option>
                                     <option value="5" selected>Após 5 min</option>
@@ -347,8 +346,8 @@
                                     <small id="biometricsSubText">Verificando disponibilidade no dispositivo...</small>
                                 </div>
                                 <div id="biometricsActionContainer">
-                                    <button class="btn btn-outline btn-sm" id="btnRegisterBiometrics"
-                                        onclick="handleRegisterBiometrics()" aria-label="Ativar biometria">
+                                    <button type="button" class="btn btn-outline btn-sm" id="btnRegisterBiometrics"
+                                        data-settings-action="register-biometrics" aria-label="Ativar biometria">
                                         <i class="fas fa-fingerprint" aria-hidden="true"></i> Ativar
                                     </button>
                                 </div>
@@ -360,7 +359,7 @@
                                     <small id="twoFactorSubText">Camada adicional de proteção via código OTP.</small>
                                 </div>
                                 <div id="twoFactorActionContainer">
-                                    <button class="btn btn-outline btn-sm" onclick="handleToggle2FA()" aria-label="Configurar 2FA">
+                                    <button type="button" class="btn btn-outline btn-sm" data-settings-action="toggle-2fa" aria-label="Configurar 2FA">
                                         <i class="fas fa-shield-alt" aria-hidden="true"></i> Configurar
                                     </button>
                                 </div>
@@ -372,45 +371,62 @@
 
                     <!-- 3. LIMITES & TETOS DE GASTOS -->
                     <section class="settings-card settings-section" id="section-budgets">
-                        <div class="settings-card-header">
-                            <div class="settings-card-title-group">
-                                <div class="settings-card-icon info"><i class="fas fa-bullseye" aria-hidden="true"></i></div>
-                                <div class="settings-card-header-content">
-                                    <h3>Limites & Tetos por Categoria</h3>
-                                    <p>Defina o teto mensal de gastos e receba alertas antes de estourar o orçamento.</p>
+                        <details class="settings-accordion budgets-main-accordion" id="budgetsAccordion">
+                            <summary class="budgets-accordion-summary">
+                                <div class="settings-card-title-group">
+                                    <div class="settings-card-icon info"><i class="fas fa-bullseye" aria-hidden="true"></i></div>
+                                    <div class="settings-card-header-content">
+                                        <h3>Limites & Tetos por Categoria</h3>
+                                        <p>Defina o teto mensal de gastos e receba alertas antes de estourar o orçamento.</p>
+                                    </div>
+                                </div>
+                                <div class="budgets-summary-right">
+                                    <div class="budgets-summary-badges" id="budgetAccordionSummary" aria-live="polite">
+                                        <span class="budget-summary-pill budget-summary-pill-muted">Carregando limites...</span>
+                                    </div>
+                                    <span class="budgets-accordion-toggle-pill">
+                                        <span class="budgets-toggle-label-closed">Gerenciar</span>
+                                        <span class="budgets-toggle-label-open">Recolher</span>
+                                        <i class="fas fa-chevron-down settings-accordion-chevron" aria-hidden="true"></i>
+                                    </span>
+                                </div>
+                            </summary>
+
+                            <div class="settings-accordion-body budgets-accordion-body">
+                                <div class="budgets-body-toolbar-row">
+                                    <div class="budget-toolbar">
+                                        <input type="text" id="budgetCategorySearch" class="form-control" placeholder="Buscar categoria..."
+                                            style="width:170px; font-size:12.5px; padding:6px 10px;">
+                                        <button type="button" class="btn btn-outline btn-sm" data-settings-action="open-budget-modal" aria-label="Teto mensal geral">
+                                            <i class="fas fa-wallet" aria-hidden="true"></i> Teto Geral
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-sm" data-settings-action="save-all-budgets" id="saveAllBudgetsBtn">
+                                            <i class="fas fa-save" aria-hidden="true"></i> Salvar Limites
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="budget-threshold-bar">
+                                    <div class="budget-threshold-bar-text">
+                                        <strong>Margem de Alerta Preventivo</strong>
+                                        <small>Notificar no sininho e nos insights quando o consumo atingir este percentual:</small>
+                                    </div>
+                                    <select id="budgetWarningThresholdSelect" class="form-control setting-control-select"
+                                        aria-label="Margem de alerta preventivo">
+                                        <option value="70">70% do teto</option>
+                                        <option value="80" selected>80% do teto (Recomendado)</option>
+                                        <option value="90">90% do teto</option>
+                                        <option value="100">100% (Ao estourar)</option>
+                                    </select>
+                                </div>
+
+                                <div id="settingsBudgetListContainer" class="settings-budget-list">
+                                    <div style="text-align:center; padding:20px; color:var(--color-text-muted); font-size:13px;">
+                                        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Carregando categorias e limites...
+                                    </div>
                                 </div>
                             </div>
-                            <div class="budget-toolbar">
-                                <input type="text" id="budgetCategorySearch" class="form-control" placeholder="Buscar categoria..."
-                                    style="width:170px; font-size:12.5px; padding:6px 10px;" oninput="window.filterBudgetCategories(this.value)">
-                                <button class="btn btn-outline btn-sm" onclick="openBudgetLimitsModal()" aria-label="Teto mensal geral">
-                                    <i class="fas fa-wallet" aria-hidden="true"></i> Teto Geral
-                                </button>
-                                <button class="btn btn-primary btn-sm" onclick="window.saveAllSettingsBudgets()" id="saveAllBudgetsBtn">
-                                    <i class="fas fa-save" aria-hidden="true"></i> Salvar Limites
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="budget-threshold-bar">
-                            <div class="budget-threshold-bar-text">
-                                <strong>Margem de Alerta Preventivo</strong>
-                                <small>Notificar no sininho e nos insights quando o consumo atingir este percentual:</small>
-                            </div>
-                            <select id="budgetWarningThresholdSelect" class="form-control setting-control-select"
-                                onchange="window.updateBudgetWarningThreshold(this.value)" aria-label="Margem de alerta preventivo">
-                                <option value="70">70% do teto</option>
-                                <option value="80" selected>80% do teto (Recomendado)</option>
-                                <option value="90">90% do teto</option>
-                                <option value="100">100% (Ao estourar)</option>
-                            </select>
-                        </div>
-
-                        <div id="settingsBudgetListContainer" class="settings-budget-list">
-                            <div style="text-align:center; padding:20px; color:var(--color-text-muted); font-size:13px;">
-                                <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Carregando categorias e limites...
-                            </div>
-                        </div>
+                        </details>
                     </section>
 
                     <!-- 4. NOTIFICAÇÕES & LEMBRETES -->
@@ -427,13 +443,13 @@
                                 </div>
                             </div>
                             <div class="setting-row-actions">
-                                <button class="btn btn-outline btn-sm" onclick="window.registerPushSubscription()" aria-label="Ativar Push">
+                                <button type="button" class="btn btn-outline btn-sm" data-settings-action="register-push" aria-label="Ativar Push">
                                     <i class="fas fa-bell" aria-hidden="true"></i> Ativar Push
                                 </button>
-                                <button class="btn btn-outline btn-sm" onclick="testPushNotificationFromSettings()" aria-label="Testar push">
+                                <button type="button" class="btn btn-outline btn-sm" data-settings-action="test-push" aria-label="Testar push">
                                     <i class="fas fa-paper-plane" aria-hidden="true"></i> Testar
                                 </button>
-                                <button class="btn btn-outline btn-sm" onclick="checkBillsFromSettings()" aria-label="Verificar contas">
+                                <button type="button" class="btn btn-outline btn-sm" data-settings-action="check-bills" aria-label="Verificar contas">
                                     <i class="fas fa-sync-alt" aria-hidden="true"></i> Verificar Contas
                                 </button>
                             </div>
@@ -445,7 +461,7 @@
                                 <small id="notifPermStatusText">Verificando status de permissão...</small>
                             </div>
                             <label class="custom-toggle">
-                                <input type="checkbox" id="togglePushEnabled" onchange="togglePushNotifications()">
+                                <input type="checkbox" id="togglePushEnabled">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -455,7 +471,7 @@
                                 <strong>Permissão no navegador pendente</strong>
                                 <small>Autorize alertas sonoros e notificações no sistema.</small>
                             </div>
-                            <button class="btn btn-primary btn-sm" onclick="requestPushPermissionFromSettings()" aria-label="Permitir notificações">
+                            <button type="button" class="btn btn-primary btn-sm" data-settings-action="request-push-permission" aria-label="Permitir notificações">
                                 <i class="fas fa-shield-alt" aria-hidden="true"></i> Permitir Notificações
                             </button>
                         </div>
@@ -466,12 +482,12 @@
                                 <small>Escolha em quais dias antes do vencimento deseja ser avisado:</small>
                             </div>
                             <div class="days-chips-group">
-                                <div class="day-chip" id="chipDay0" onclick="toggleReminderDay(0)" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> No dia</div>
-                                <div class="day-chip" id="chipDay1" onclick="toggleReminderDay(1)" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> 1 dia antes</div>
-                                <div class="day-chip" id="chipDay2" onclick="toggleReminderDay(2)" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> 2 dias antes</div>
-                                <div class="day-chip" id="chipDay3" onclick="toggleReminderDay(3)" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> 3 dias antes</div>
-                                <div class="day-chip" id="chipDay5" onclick="toggleReminderDay(5)" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> 5 dias antes</div>
-                                <div class="day-chip" id="chipDay7" onclick="toggleReminderDay(7)" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> 7 dias antes</div>
+                                <div class="day-chip" id="chipDay0" data-day="0" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> No dia</div>
+                                <div class="day-chip" id="chipDay1" data-day="1" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> 1 dia antes</div>
+                                <div class="day-chip" id="chipDay2" data-day="2" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> 2 dias antes</div>
+                                <div class="day-chip" id="chipDay3" data-day="3" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> 3 dias antes</div>
+                                <div class="day-chip" id="chipDay5" data-day="5" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> 5 dias antes</div>
+                                <div class="day-chip" id="chipDay7" data-day="7" role="button" tabindex="0"><i class="fas fa-check" aria-hidden="true"></i> 7 dias antes</div>
                             </div>
                         </div>
 
@@ -481,7 +497,7 @@
                                 <small>Lembrar caso existam contas pendentes após a data de vencimento.</small>
                             </div>
                             <label class="custom-toggle">
-                                <input type="checkbox" id="toggleRemindOverdue" onchange="updateNotificationSettings()">
+                                <input type="checkbox" id="toggleRemindOverdue">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -492,7 +508,7 @@
                                 <small>Tocar tom suave e vibrar ao disparar notificações.</small>
                             </div>
                             <label class="custom-toggle">
-                                <input type="checkbox" id="toggleNotifSound" onchange="updateNotificationSettings()">
+                                <input type="checkbox" id="toggleNotifSound">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -512,7 +528,7 @@
                                         <small>Aviso matinal de contas vencendo hoje ou em atraso.</small>
                                     </div>
                                     <label class="custom-toggle">
-                                        <input type="checkbox" id="togglePushBills" onchange="updatePushGranularSettings()" checked>
+                                        <input type="checkbox" id="togglePushBills" checked>
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
@@ -522,7 +538,7 @@
                                         <small>Aviso quando dividendos ou JCP caírem na conta.</small>
                                     </div>
                                     <label class="custom-toggle">
-                                        <input type="checkbox" id="togglePushDivsCredited" onchange="updatePushGranularSettings()" checked>
+                                        <input type="checkbox" id="togglePushDivsCredited" checked>
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
@@ -532,7 +548,7 @@
                                         <small>Lembrete prévio de rendimentos agendados.</small>
                                     </div>
                                     <label class="custom-toggle">
-                                        <input type="checkbox" id="togglePushDivsUpcoming" onchange="updatePushGranularSettings()" checked>
+                                        <input type="checkbox" id="togglePushDivsUpcoming" checked>
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
@@ -542,7 +558,7 @@
                                         <small>Alerta comemorativo ao concluir o objetivo de uma meta.</small>
                                     </div>
                                     <label class="custom-toggle">
-                                        <input type="checkbox" id="togglePushGoals" onchange="updatePushGranularSettings()" checked>
+                                        <input type="checkbox" id="togglePushGoals" checked>
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
@@ -552,7 +568,7 @@
                                         <small>Aviso imediato se uma categoria ultrapassar o teto mensal.</small>
                                     </div>
                                     <label class="custom-toggle">
-                                        <input type="checkbox" id="togglePushBudgets" onchange="updatePushGranularSettings()" checked>
+                                        <input type="checkbox" id="togglePushBudgets" checked>
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
@@ -572,10 +588,10 @@
                                 <div class="notif-history-toolbar">
                                     <span style="font-size:12px; color:var(--color-text-light);">Últimas 50 notificações registradas</span>
                                     <div class="setting-row-actions">
-                                        <button class="btn btn-outline btn-sm" onclick="window.markAllHistoryRead()">
+                                        <button type="button" class="btn btn-outline btn-sm" data-settings-action="mark-all-history-read">
                                             <i class="fas fa-check-double" aria-hidden="true"></i> Marcar lidas
                                         </button>
-                                        <button class="btn btn-outline btn-sm" onclick="window.clearNotificationHistory()">
+                                        <button type="button" class="btn btn-outline btn-sm" data-settings-action="clear-notif-history">
                                             <i class="fas fa-trash-alt" aria-hidden="true"></i> Limpar histórico
                                         </button>
                                     </div>
@@ -599,8 +615,8 @@
                                     <p>Exporte cópias de segurança, sincronize pendências offline ou gerencie suas sessões.</p>
                                 </div>
                             </div>
-                            <button class="btn btn-outline btn-sm"
-                                onclick="if(window.tonuSync){ window.tonuSync.flushQueue(); }"
+                            <button type="button" class="btn btn-outline btn-sm"
+                                data-settings-action="flush-sync"
                                 aria-label="Forçar sincronização">
                                 <i class="fas fa-sync-alt" aria-hidden="true"></i> Sincronizar Agora
                             </button>
@@ -612,13 +628,13 @@
                                 <small>Salve todas as suas finanças em JSON estruturado ou exporte transações em CSV.</small>
                             </div>
                             <div class="setting-row-actions">
-                                <button class="btn btn-primary btn-sm" onclick="window.TonuBackupInstance.exportFullBackup()" aria-label="Fazer backup completo">
+                                <button type="button" class="btn btn-primary btn-sm" data-settings-action="export-full-backup" aria-label="Fazer backup completo">
                                     <i class="fas fa-file-export" aria-hidden="true"></i> Backup JSON
                                 </button>
-                                <button class="btn btn-outline btn-sm" onclick="window.TonuBackupInstance.selectAndRestoreBackup(loadStats)" aria-label="Restaurar backup">
+                                <button type="button" class="btn btn-outline btn-sm" data-settings-action="restore-backup" aria-label="Restaurar backup">
                                     <i class="fas fa-file-import" aria-hidden="true"></i> Restaurar
                                 </button>
-                                <button class="btn btn-outline btn-sm" onclick="exportData()" aria-label="Exportar CSV">
+                                <button type="button" class="btn btn-outline btn-sm" data-settings-action="export-csv" aria-label="Exportar CSV">
                                     <i class="fas fa-file-csv" aria-hidden="true"></i> CSV
                                 </button>
                                 <a href="/api/download-zip" download="tonucontrole-source-code.zip" class="btn btn-outline btn-sm"
@@ -634,10 +650,10 @@
                                 <small>Limpe caches temporários do navegador ou desconecte outros aparelhos conectados.</small>
                             </div>
                             <div class="setting-row-actions">
-                                <button id="btnClearLocalCache" class="btn btn-outline btn-sm" onclick="clearLocalCache()" aria-label="Limpar Cache Local">
+                                <button type="button" id="btnClearLocalCache" class="btn btn-outline btn-sm" data-settings-action="clear-local-cache" aria-label="Limpar Cache Local">
                                     <i class="fas fa-broom" aria-hidden="true"></i> Limpar Cache
                                 </button>
-                                <button class="btn btn-outline btn-sm" onclick="logoutAllDevices()" aria-label="Sair de todos os dispositivos">
+                                <button type="button" class="btn btn-outline btn-sm" data-settings-action="logout-all-devices" aria-label="Sair de todos os dispositivos">
                                     <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair de Todos
                                 </button>
                             </div>
@@ -648,7 +664,7 @@
                                 <strong>Limpeza Completa do Navegador</strong>
                                 <small>Apaga IndexedDB, fila offline e preferências locais. Seus dados na nuvem permanecem preservados.</small>
                             </div>
-                            <button class="btn btn-danger btn-sm" onclick="openRiskZoneModalPC()" aria-label="Limpar dados locais">
+                            <button type="button" class="btn btn-danger btn-sm" data-settings-action="open-risk-zone" aria-label="Limpar dados locais">
                                 <i class="fas fa-trash-alt" aria-hidden="true"></i> Limpar Dados Locais
                             </button>
                         </div>
@@ -666,14 +682,14 @@
     </div>
 
     <!-- MODAL CONFIRMAÇÃO: LIMPEZA LOCAL -->
-    <div class="modal-overlay" id="riskZoneModalPC" onclick="if(event.target===this) closeRiskZoneModalPC()">
+    <div class="modal-overlay" id="riskZoneModalPC">
         <div class="modal" style="max-width:480px;">
             <div class="modal-header">
                 <div>
                     <div class="sub" style="color:#E11D48; font-weight:700;"><i class="fas fa-shield-alt"></i> Segurança & Dados Locais</div>
                     <h3 style="margin:0;">Confirmar Limpeza Local</h3>
                 </div>
-                <button class="modal-close" onclick="closeRiskZoneModalPC()">&times;</button>
+                <button type="button" class="modal-close" data-settings-action="close-risk-zone">&times;</button>
             </div>
             <div class="modal-body" style="padding:16px 20px;">
                 <p style="font-size:14px; color:var(--color-text,#333); line-height:1.5; margin-bottom:12px;">
@@ -685,13 +701,13 @@
                 <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--color-text-muted,#64748b);">
                     Para confirmar, digite <span style="color:#E11D48; font-weight:800; user-select:all;">APAGAR</span> abaixo:
                 </label>
-                <input type="text" id="confirmDeleteInputPC" placeholder="APAGAR" oninput="checkDeleteConfirmationPC(this.value)"
+                <input type="text" id="confirmDeleteInputPC" placeholder="APAGAR"
                     autocomplete="off" autocapitalize="characters" class="form-control"
                     style="width:100%; font-weight:700; text-transform:uppercase; font-size:15px; margin-bottom:16px; letter-spacing:1px;">
             </div>
             <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; padding:12px 20px;">
-                <button type="button" class="btn btn-outline" onclick="closeRiskZoneModalPC()">Cancelar</button>
-                <button type="button" id="btnConfirmDeletePC" class="btn btn-danger" onclick="executeLocalDataWipePC()" disabled style="opacity:0.4; cursor:not-allowed;">
+                <button type="button" class="btn btn-outline" data-settings-action="close-risk-zone">Cancelar</button>
+                <button type="button" id="btnConfirmDeletePC" class="btn btn-danger" data-settings-action="execute-local-wipe" disabled style="opacity:0.4; cursor:not-allowed;">
                     <i class="fas fa-trash-alt"></i> Limpar Dados Locais
                 </button>
             </div>
@@ -721,6 +737,7 @@
                 badge.textContent = map[sel.value] || sel.value;
             }
         }
+        window.updateCurrencyBadge = updateCurrencyBadge;
 
         function syncDesktopThemeSwitch(theme) {
             const isDark = theme ? (theme === 'dark') : (localStorage.getItem('tonu_theme') === 'dark' || document.body.classList.contains('dark-theme'));
@@ -763,6 +780,10 @@
                     if (requestedSection === 'notifications') {
                         const histAcc = document.getElementById('accordionNotifHistory');
                         if (histAcc) histAcc.open = true;
+                    }
+                    if (requestedSection === 'budgets') {
+                        const budAcc = document.getElementById('budgetsAccordion');
+                        if (budAcc) budAcc.open = true;
                     }
                     setTimeout(() => targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
                 }

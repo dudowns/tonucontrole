@@ -9,11 +9,14 @@ console.log('⚙️ Settings.js carregado');
 // ============================================
 let currentUser = null;
 let isProcessing = false;
+let _settingsUIListenersBound = false;
 
 // ============================================
 // INICIALIZAÇÃO
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
+    setupSettingsUIListeners();
+
     try {
         let user = null;
         if (window.getAuthenticatedUser) user = await window.getAuthenticatedUser();
@@ -146,8 +149,8 @@ function renderPinSettingsUI() {
             if (pinActionContainer) {
                 pinActionContainer.innerHTML = `
                     <div style="display:flex; gap:8px;">
-                        <button class="btn btn-outline btn-sm" onclick="handleConfigurePin()">Alterar PIN</button>
-                        <button class="btn btn-danger btn-sm" onclick="handleRemovePin()">Remover</button>
+                        <button type="button" class="btn btn-outline btn-sm" data-settings-action="configure-pin">Alterar PIN</button>
+                        <button type="button" class="btn btn-danger btn-sm" data-settings-action="remove-pin">Remover</button>
                     </div>
                 `;
             }
@@ -156,7 +159,7 @@ function renderPinSettingsUI() {
             if (pinSubText) pinSubText.textContent = 'Exigido ao abrir o aplicativo ou retornar da tela bloqueada.';
             if (pinActionContainer) {
                 pinActionContainer.innerHTML = `
-                    <button class="btn btn-primary btn-sm" onclick="handleConfigurePin()">
+                    <button type="button" class="btn btn-primary btn-sm" data-settings-action="configure-pin">
                         <i class="fas fa-plus"></i> Ativar PIN
                     </button>
                 `;
@@ -173,12 +176,12 @@ function renderPinSettingsUI() {
             if (is2FA) {
                 twoFactorSubText.innerHTML = '<span style="color:#00b894;"><i class="fas fa-check-circle"></i> 2FA Ativo</span> via código OTP';
                 twoFactorAction.innerHTML = `
-                    <button class="btn btn-danger btn-sm" onclick="handleToggle2FA()">Desativar 2FA</button>
+                    <button type="button" class="btn btn-danger btn-sm" data-settings-action="toggle-2fa">Desativar 2FA</button>
                 `;
             } else {
                 twoFactorSubText.textContent = 'Camada adicional de proteção via código de uso único.';
                 twoFactorAction.innerHTML = `
-                    <button class="btn btn-outline btn-sm" onclick="handleToggle2FA()">
+                    <button type="button" class="btn btn-outline btn-sm" data-settings-action="toggle-2fa">
                         <i class="fas fa-shield-alt"></i> Ativar 2FA
                     </button>
                 `;
@@ -299,10 +302,10 @@ async function renderBiometricsSettingsUI() {
             subText.textContent = 'Você pode fazer login com Face ID ou Impressão Digital na tela inicial.';
             actionContainer.innerHTML = `
                 <div style="display:flex; gap:8px; align-items:center;">
-                    <button class="btn btn-outline btn-sm" onclick="testBiometrics()">
+                    <button type="button" class="btn btn-outline btn-sm" data-settings-action="test-biometrics">
                         <i class="fas fa-fingerprint"></i> Testar
                     </button>
-                    <button class="btn btn-danger btn-sm" onclick="disableBiometrics()">
+                    <button type="button" class="btn btn-danger btn-sm" data-settings-action="disable-biometrics">
                         <i class="fas fa-times"></i> Desativar
                     </button>
                 </div>
@@ -311,7 +314,7 @@ async function renderBiometricsSettingsUI() {
             statusText.innerHTML = 'Biometria Disponível';
             subText.textContent = 'Sensor biométrico detectado. Ative para entrar com um toque sem digitar sua senha.';
             actionContainer.innerHTML = `
-                <button class="btn btn-primary btn-sm" onclick="handleRegisterBiometrics()">
+                <button type="button" class="btn btn-primary btn-sm" data-settings-action="register-biometrics">
                     <i class="fas fa-fingerprint"></i> Ativar Agora
                 </button>
             `;
@@ -374,7 +377,7 @@ function showIframeBiometricsHelp() {
                 Abra o TonuControle diretamente em uma <strong>nova aba do navegador</strong> ou instale-o como <strong>PWA</strong> para registrar e usar sua biometria com segurança total!
             </p>
             <div style="display:flex; gap:10px; justify-content:center;">
-                <button class="btn btn-outline btn-sm" onclick="document.getElementById('iframeBioModal').remove()">Fechar</button>
+                <button type="button" class="btn btn-outline btn-sm" data-settings-action="close-iframe-bio-modal">Fechar</button>
                 <a href="${currentUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none;">
                     <i class="fas fa-external-link-alt"></i> Abrir em Nova Aba
                 </a>
@@ -1258,9 +1261,9 @@ function showReportModal() {
                 <h3 style="font-size:18px;font-weight:800;color:#0f172a;margin:0;">
                     <i class="fas fa-file-alt" style="color:#4338CA;"></i> Relatório
                 </h3>
-                <button onclick="document.getElementById('reportModal').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;">&times;</button>
+                <button type="button" data-settings-action="close-report-modal" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;" aria-label="Fechar">&times;</button>
             </div>
-            <form id="reportForm" onsubmit="event.preventDefault(); window.generateReportFromModal();">
+            <form id="reportForm">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                     <div>
                         <label style="font-size:12px;font-weight:600;color:#64748b;">Data Início</label>
@@ -1283,7 +1286,7 @@ function showReportModal() {
                     </div>
                 </div>
                 <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">
-                    <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('reportModal').remove()">Cancelar</button>
+                    <button type="button" class="btn btn-outline btn-sm" data-settings-action="close-report-modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary btn-sm">
                         <i class="fas fa-file-export"></i> Gerar
                     </button>
@@ -1292,6 +1295,17 @@ function showReportModal() {
         </div>
     `;
     document.body.appendChild(modal);
+
+    const reportForm = modal.querySelector('#reportForm');
+    if (reportForm) {
+        reportForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            generateReportFromModal();
+        });
+    }
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
 }
 
 async function generateReportFromModal() {
@@ -1425,9 +1439,9 @@ function showEmailSettings() {
                 <h3 style="font-size:18px;font-weight:800;color:#0f172a;margin:0;">
                     <i class="fas fa-envelope" style="color:#4338CA;"></i> E-mail Semanal
                 </h3>
-                <button onclick="document.getElementById('emailSettingsModal').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;">&times;</button>
+                <button type="button" data-settings-action="close-email-modal" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;" aria-label="Fechar">&times;</button>
             </div>
-            <form id="emailSettingsForm" onsubmit="event.preventDefault(); window.saveEmailSettings();">
+            <form id="emailSettingsForm">
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;">
                     <div>
                         <strong style="font-size:13px;color:#0f172a;">Ativar envio</strong>
@@ -1435,7 +1449,7 @@ function showEmailSettings() {
                     </div>
                     <label style="position:relative;display:inline-block;width:44px;height:24px;">
                         <input type="checkbox" id="emailEnabled" ${settings.enabled ? 'checked' : ''} style="opacity:0;width:0;height:0;">
-                        <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#cbd5e1;transition:0.25s;border-radius:24px;" onclick="this.previousElementSibling.checked = !this.previousElementSibling.checked;"></span>
+                        <span class="email-enabled-toggle-track" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#cbd5e1;transition:0.25s;border-radius:24px;"></span>
                     </label>
                 </div>
                 <div style="margin-top:12px;">
@@ -1455,7 +1469,7 @@ function showEmailSettings() {
                     </select>
                 </div>
                 <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">
-                    <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('emailSettingsModal').remove()">Cancelar</button>
+                    <button type="button" class="btn btn-outline btn-sm" data-settings-action="close-email-modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary btn-sm">
                         <i class="fas fa-save"></i> Salvar
                     </button>
@@ -1465,13 +1479,25 @@ function showEmailSettings() {
     `;
     document.body.appendChild(modal);
 
-    const toggle = modal.querySelector('span[onclick]');
-    const input = modal.querySelector('#emailEnabled');
-    if (toggle && input) {
-        toggle.onclick = () => {
-            input.checked = !input.checked;
-        };
+    const emailForm = modal.querySelector('#emailSettingsForm');
+    if (emailForm) {
+        emailForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveEmailSettings();
+        });
     }
+
+    const toggleTrack = modal.querySelector('.email-enabled-toggle-track');
+    const input = modal.querySelector('#emailEnabled');
+    if (toggleTrack && input) {
+        toggleTrack.addEventListener('click', () => {
+            input.checked = !input.checked;
+        });
+    }
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
 }
 
 function saveEmailSettings() {
@@ -1640,16 +1666,153 @@ async function renderSettingsBudgets() {
         }
 
         renderSettingsBudgetListHtml(settingsBudgetData);
+        _updateBudgetAccordionSummary(settingsBudgetData);
 
     } catch (err) {
         console.error('Erro ao carregar limites em configurações:', err);
         container.innerHTML = '<div style="padding:16px; color:#ef4444; font-size:12px;">Não foi possível carregar as categorias para limites.</div>';
+        _updateBudgetAccordionSummary([]);
     }
+}
+
+function _parseSettingsBudgetNumeric(raw) {
+    if (raw === null || raw === undefined) return 0;
+    const cleaned = String(raw).trim().replace(/\./g, '').replace(',', '.');
+    const num = parseFloat(cleaned);
+    return (!isNaN(num) && num > 0) ? num : 0;
+}
+
+function _formatSettingsBudgetMoney(val) {
+    const num = Number(val) || 0;
+    if (typeof formatCurrency === 'function') {
+        return formatCurrency(num);
+    }
+    try {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num).replace(/\u00A0/g, ' ');
+    } catch (_) {
+        return `R$ ${num.toFixed(2).replace('.', ',')}`;
+    }
+}
+
+function _formatSettingsSliderCap(val) {
+    const num = Math.max(0, Number(val) || 0);
+    try {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num).replace(/\u00A0/g, ' ');
+    } catch (_) {
+        return `R$ ${Math.round(num)}`;
+    }
+}
+
+function _computeBudgetSliderMax(value) {
+    const num = Math.max(0, Number(value) || 0);
+    if (num <= 10000) return 10000;
+    return Math.max(10000, Math.ceil((num * 1.15) / 5000) * 5000);
+}
+
+function _updateBudgetAccordionSummary(items) {
+    const summaryEl = document.getElementById('budgetAccordionSummary');
+    if (!summaryEl) return;
+
+    const list = Array.isArray(items) ? items : [];
+    const configured = list.filter(c => (Number(c.limit) || 0) > 0);
+    const totalLimit = configured.reduce((sum, c) => sum + (Number(c.limit) || 0), 0);
+    const exceededCount = list.filter(c => c.isExceeded).length;
+    const warningCount = list.filter(c => c.isWarning).length;
+
+    const selectEl = document.getElementById('budgetWarningThresholdSelect');
+    const threshold = selectEl ? (parseInt(selectEl.value, 10) || 80) : 80;
+
+    const pills = [];
+    if (configured.length > 0) {
+        pills.push(`<span class="budget-summary-pill budget-summary-pill-active">${configured.length} de ${list.length} com teto</span>`);
+        pills.push(`<span class="budget-summary-pill">Total: ${_formatSettingsBudgetMoney(totalLimit)}</span>`);
+    } else {
+        pills.push(`<span class="budget-summary-pill budget-summary-pill-muted">Nenhum teto definido</span>`);
+    }
+
+    pills.push(`<span class="budget-summary-pill budget-summary-pill-muted">Alerta ${threshold}%</span>`);
+
+    if (exceededCount > 0) {
+        pills.push(`<span class="budget-summary-pill budget-summary-pill-danger">${exceededCount} estourado${exceededCount > 1 ? 's' : ''}</span>`);
+    } else if (warningCount > 0) {
+        pills.push(`<span class="budget-summary-pill budget-summary-pill-warning">${warningCount} em atenção</span>`);
+    }
+
+    summaryEl.innerHTML = pills.join('');
+}
+
+function _applySliderVisualState(row, numVal, maxScale) {
+    if (!row) return;
+    const sliderEl = row.querySelector('.budget-range-slider');
+    const valueLabel = row.querySelector('.budget-slider-value');
+    const maxLabel = row.querySelector('.budget-slider-max-label');
+
+    const safeVal = Math.max(0, Number(numVal) || 0);
+    const safeMax = Math.max(10000, Number(maxScale) || 10000);
+    const pct = safeMax > 0 ? Math.min(100, Math.max(0, (safeVal / safeMax) * 100)) : 0;
+
+    if (sliderEl) {
+        if (String(sliderEl.max) !== String(safeMax)) {
+            sliderEl.max = String(safeMax);
+        }
+        sliderEl.value = String(safeVal);
+        sliderEl.style.setProperty('--slider-pct', `${pct.toFixed(2)}%`);
+        sliderEl.setAttribute('aria-valuenow', String(safeVal));
+        sliderEl.setAttribute('aria-valuemax', String(safeMax));
+    }
+
+    if (valueLabel) {
+        valueLabel.textContent = safeVal > 0 ? _formatSettingsBudgetMoney(safeVal) : 'Sem limite';
+        valueLabel.classList.toggle('is-empty', safeVal <= 0);
+    }
+
+    if (maxLabel) {
+        maxLabel.textContent = _formatSettingsSliderCap(safeMax);
+    }
+}
+
+function _bindSettingsBudgetSliderEvents(container) {
+    if (!container || container.dataset.budgetSliderBound === '1') return;
+    container.dataset.budgetSliderBound = '1';
+
+    container.addEventListener('input', function (event) {
+        const target = event.target;
+        if (!target || !target.classList) return;
+
+        if (target.classList.contains('budget-range-slider')) {
+            const row = target.closest('.settings-budget-item');
+            if (!row) return;
+
+            const num = Math.max(0, parseFloat(target.value) || 0);
+            const currentMax = Math.max(10000, parseFloat(target.max) || 10000);
+            const inputEl = row.querySelector('.budget-input-field');
+
+            if (inputEl) {
+                inputEl.value = num > 0 ? num.toFixed(2).replace('.', ',') : '';
+            }
+
+            _applySliderVisualState(row, num, currentMax);
+            return;
+        }
+
+        if (target.classList.contains('budget-input-field')) {
+            handleBudgetInputChange(target);
+        }
+    });
+
+    container.addEventListener('focusin', function (event) {
+        const target = event.target;
+        if (target && target.classList && target.classList.contains('budget-input-field')) {
+            target.select();
+        }
+    });
 }
 
 function renderSettingsBudgetListHtml(items) {
     const container = document.getElementById('settingsBudgetListContainer');
     if (!container) return;
+
+    _bindSettingsBudgetSliderEvents(container);
 
     if (!items || items.length === 0) {
         container.innerHTML = `
@@ -1662,11 +1825,14 @@ function renderSettingsBudgetListHtml(items) {
     }
 
     container.innerHTML = items.map(cat => {
-        const spentFormatted = typeof formatCurrency === 'function' ? formatCurrency(cat.spent || 0) : `R$ ${(cat.spent || 0).toFixed(2)}`;
-        const limitVal = cat.limit > 0 ? cat.limit.toFixed(2).replace('.', ',') : '';
+        const spentFormatted = _formatSettingsBudgetMoney(cat.spent || 0);
+        const numericLimit = Math.max(0, Number(cat.limit) || 0);
+        const limitVal = numericLimit > 0 ? numericLimit.toFixed(2).replace('.', ',') : '';
+        const sliderMax = _computeBudgetSliderMax(numericLimit);
+        const limitDisplay = numericLimit > 0 ? _formatSettingsBudgetMoney(numericLimit) : 'Sem limite';
         const pct = Math.min(100, Math.round(cat.percentage || 0));
         const statusCls = cat.isExceeded ? 'danger' : (cat.isWarning ? 'warning' : 'normal');
-        const statusLabel = cat.isExceeded ? 'Estourado' : (cat.isWarning ? 'Atenção' : (cat.limit > 0 ? 'Normal' : 'Sem limite'));
+        const statusLabel = cat.isExceeded ? 'Estourado' : (cat.isWarning ? 'Atenção' : (numericLimit > 0 ? 'Normal' : 'Sem limite'));
 
         return `
             <div class="settings-budget-item" data-cat-id="${cat.categoryId}" data-cat-name="${(cat.name || '').toLowerCase()}">
@@ -1683,14 +1849,14 @@ function renderSettingsBudgetListHtml(items) {
                 <div class="budget-progress-col">
                     <div class="budget-progress-labels">
                         <span style="color:var(--color-text-muted); font-size:11px;">
-                            ${cat.limit > 0 ? `${pct}% consumido` : 'Sem teto definido'}
+                            ${numericLimit > 0 ? `${pct}% consumido` : 'Sem teto definido'}
                         </span>
                         <span class="badge ${cat.isExceeded ? 'badge-danger' : (cat.isWarning ? 'badge-warning' : 'badge-success')}" style="font-size:10px; padding:1px 6px;">
                             ${statusLabel}
                         </span>
                     </div>
                     <div class="budget-progress-track">
-                        <div class="budget-progress-fill ${statusCls}" style="width: ${cat.limit > 0 ? Math.max(3, pct) : 0}%;"></div>
+                        <div class="budget-progress-fill ${statusCls}" style="width: ${numericLimit > 0 ? Math.max(3, pct) : 0}%;"></div>
                     </div>
                 </div>
 
@@ -1702,18 +1868,50 @@ function renderSettingsBudgetListHtml(items) {
                         value="${limitVal}"
                         data-cat-id="${cat.categoryId}"
                         data-cat-name="${cat.name}"
-                        oninput="window.handleBudgetInputChange(this)"
-                        onfocus="this.select()"
                         title="Digite o teto mensal para ${cat.name}" />
+                </div>
+
+                <div class="budget-slider-row">
+                    <span class="budget-slider-bound">R$ 0</span>
+                    <input type="range"
+                        class="budget-range-slider"
+                        min="0"
+                        max="${sliderMax}"
+                        step="10"
+                        value="${numericLimit}"
+                        data-cat-id="${cat.categoryId}"
+                        aria-label="Ajustar limite mensal de ${cat.name}"
+                        aria-valuemin="0"
+                        aria-valuemax="${sliderMax}"
+                        aria-valuenow="${numericLimit}" />
+                    <span class="budget-slider-bound budget-slider-max-label">${_formatSettingsSliderCap(sliderMax)}</span>
+                    <span class="budget-slider-value ${numericLimit <= 0 ? 'is-empty' : ''}">${limitDisplay}</span>
                 </div>
             </div>
         `;
     }).join('');
+
+    container.querySelectorAll('.settings-budget-item').forEach(row => {
+        const sliderEl = row.querySelector('.budget-range-slider');
+        const inputEl = row.querySelector('.budget-input-field');
+        const num = _parseSettingsBudgetNumeric(inputEl ? inputEl.value : (sliderEl ? sliderEl.value : 0));
+        const maxScale = _computeBudgetSliderMax(num);
+        _applySliderVisualState(row, num, maxScale);
+    });
 }
 
 function handleBudgetInputChange(inputEl) {
     let val = inputEl.value.replace(/[^0-9,\.]/g, '');
-    inputEl.value = val;
+    if (inputEl.value !== val) {
+        inputEl.value = val;
+    }
+
+    const row = inputEl.closest('.settings-budget-item');
+    if (row) {
+        const num = _parseSettingsBudgetNumeric(val);
+        const nextMax = _computeBudgetSliderMax(num);
+        _applySliderVisualState(row, num, nextMax);
+    }
 }
 
 function _applyFilterBudgetCategories(term) {
@@ -1809,6 +2007,277 @@ async function saveAllSettingsBudgets() {
 }
 
 // ============================================
+// REGISTRO CENTRALIZADO DE LISTENERS (CSP-SAFE)
+// ============================================
+function handleSettingsAction(action, triggerEl) {
+    switch (action) {
+        case 'logout':
+            if (typeof window.logout === 'function') window.logout();
+            break;
+        case 'toggle-sidebar':
+            if (typeof window.toggleSidebar === 'function') window.toggleSidebar();
+            break;
+        case 'toggle-theme':
+            if (typeof window.toggleTheme === 'function') window.toggleTheme();
+            break;
+        case 'trigger-avatar-upload':
+            triggerAvatarUpload();
+            break;
+        case 'remove-avatar':
+            removeAvatar();
+            break;
+        case 'edit-profile':
+            editProfile();
+            break;
+        case 'open-categories':
+            openCategoriesManager();
+            break;
+        case 'show-weekly-summary':
+            if (window.TonuWeeklyReport && typeof window.TonuWeeklyReport.showWeeklySummaryModal === 'function') {
+                window.TonuWeeklyReport.showWeeklySummaryModal();
+            }
+            break;
+        case 'send-weekly-email':
+            if (window.TonuWeeklyReport && typeof window.TonuWeeklyReport.sendWeeklyEmail === 'function') {
+                window.TonuWeeklyReport.sendWeeklyEmail();
+            }
+            break;
+        case 'configure-pin':
+            handleConfigurePin();
+            break;
+        case 'remove-pin':
+            handleRemovePin();
+            break;
+        case 'toggle-2fa':
+            handleToggle2FA();
+            break;
+        case 'register-biometrics':
+            handleRegisterBiometrics();
+            break;
+        case 'test-biometrics':
+            testBiometrics();
+            break;
+        case 'disable-biometrics':
+            disableBiometrics();
+            break;
+        case 'open-budget-modal':
+            openBudgetLimitsModal();
+            break;
+        case 'save-all-budgets':
+            saveAllSettingsBudgets();
+            break;
+        case 'register-push':
+            if (typeof window.registerPushSubscription === 'function') window.registerPushSubscription();
+            break;
+        case 'test-push':
+            testPushNotificationFromSettings();
+            break;
+        case 'check-bills':
+            checkBillsFromSettings();
+            break;
+        case 'request-push-permission':
+            requestPushPermissionFromSettings();
+            break;
+        case 'mark-all-history-read':
+            if (typeof window.markAllHistoryRead === 'function') window.markAllHistoryRead();
+            break;
+        case 'clear-notif-history':
+            if (typeof window.clearNotificationHistory === 'function') window.clearNotificationHistory();
+            break;
+        case 'flush-sync':
+            if (window.tonuSync && typeof window.tonuSync.flushQueue === 'function') {
+                window.tonuSync.flushQueue();
+            }
+            break;
+        case 'export-full-backup':
+            if (window.TonuBackupInstance && typeof window.TonuBackupInstance.exportFullBackup === 'function') {
+                window.TonuBackupInstance.exportFullBackup();
+            }
+            break;
+        case 'restore-backup':
+            if (window.TonuBackupInstance && typeof window.TonuBackupInstance.selectAndRestoreBackup === 'function') {
+                window.TonuBackupInstance.selectAndRestoreBackup(loadStats);
+            }
+            break;
+        case 'export-csv':
+            exportData();
+            break;
+        case 'clear-local-cache':
+            clearLocalCache();
+            break;
+        case 'logout-all-devices':
+            if (typeof window.logoutAllDevices === 'function') window.logoutAllDevices();
+            break;
+        case 'open-risk-zone':
+            if (typeof window.openRiskZoneModalPC === 'function') window.openRiskZoneModalPC();
+            break;
+        case 'close-risk-zone':
+            if (typeof window.closeRiskZoneModalPC === 'function') window.closeRiskZoneModalPC();
+            break;
+        case 'execute-local-wipe':
+            if (typeof window.executeLocalDataWipePC === 'function') window.executeLocalDataWipePC();
+            break;
+        case 'close-iframe-bio-modal':
+            document.getElementById('iframeBioModal')?.remove();
+            break;
+        case 'close-report-modal':
+            document.getElementById('reportModal')?.remove();
+            break;
+        case 'close-email-modal':
+            document.getElementById('emailSettingsModal')?.remove();
+            break;
+        default:
+            break;
+    }
+}
+
+function setupSettingsUIListeners() {
+    if (_settingsUIListenersBound) return;
+    _settingsUIListenersBound = true;
+
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', () => {
+            if (typeof window.closeSidebar === 'function') window.closeSidebar();
+        });
+    }
+
+    const notifBellBtn = document.getElementById('notifBellBtn');
+    if (notifBellBtn && typeof notifBellBtn.onclick !== 'function') {
+        notifBellBtn.addEventListener('click', (e) => {
+            if (typeof window.toggleNotificationDropdown === 'function') {
+                window.toggleNotificationDropdown(e);
+            }
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        const target = e.target;
+        if (!target) return;
+
+        if (target.id === 'riskZoneModalPC' && typeof window.closeRiskZoneModalPC === 'function') {
+            window.closeRiskZoneModalPC();
+            return;
+        }
+
+        if (target.id === 'iframeBioModal') {
+            target.remove();
+            return;
+        }
+
+        const chip = target.closest?.('.day-chip[data-day]');
+        if (chip) {
+            const day = parseInt(chip.dataset.day, 10);
+            if (!isNaN(day)) {
+                toggleReminderDay(day);
+            }
+            return;
+        }
+
+        const actionEl = target.closest?.('[data-settings-action]');
+        if (actionEl) {
+            handleSettingsAction(actionEl.dataset.settingsAction, actionEl);
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const target = e.target;
+        if (!target) return;
+
+        const chip = target.closest?.('.day-chip[data-day]');
+        if (chip) {
+            e.preventDefault();
+            const day = parseInt(chip.dataset.day, 10);
+            if (!isNaN(day)) toggleReminderDay(day);
+            return;
+        }
+
+        const avatarBtn = target.closest?.('.avatar-large-container[data-settings-action="trigger-avatar-upload"]');
+        if (avatarBtn) {
+            e.preventDefault();
+            triggerAvatarUpload();
+        }
+    });
+
+    const avatarFileInput = document.getElementById('avatarFileInput');
+    if (avatarFileInput) {
+        avatarFileInput.addEventListener('change', (e) => handleAvatarFileSelect(e));
+    }
+
+    const desktopThemeToggle = document.getElementById('desktopThemeToggle');
+    if (desktopThemeToggle) {
+        desktopThemeToggle.addEventListener('change', () => {
+            if (typeof window.toggleTheme === 'function') window.toggleTheme();
+        });
+    }
+
+    const currencySelect = document.getElementById('currencySelect');
+    if (currencySelect) {
+        currencySelect.addEventListener('change', async () => {
+            await changeCurrency();
+            if (typeof window.updateCurrencyBadge === 'function') {
+                window.updateCurrencyBadge();
+            }
+        });
+    }
+
+    const toggleCorpEventsPref = document.getElementById('toggleCorpEventsPref');
+    if (toggleCorpEventsPref) {
+        toggleCorpEventsPref.addEventListener('change', (e) => {
+            if (typeof window.toggleCorporateEventsPref === 'function') {
+                window.toggleCorporateEventsPref(e.target.checked);
+            }
+        });
+    }
+
+    const selectInactivityTimeout = document.getElementById('selectInactivityTimeout');
+    if (selectInactivityTimeout) {
+        selectInactivityTimeout.addEventListener('change', (e) => handleInactivityChange(e.target.value));
+    }
+
+    const budgetCategorySearch = document.getElementById('budgetCategorySearch');
+    if (budgetCategorySearch) {
+        budgetCategorySearch.addEventListener('input', (e) => filterBudgetCategories(e.target.value));
+    }
+
+    const budgetWarningThresholdSelect = document.getElementById('budgetWarningThresholdSelect');
+    if (budgetWarningThresholdSelect) {
+        budgetWarningThresholdSelect.addEventListener('change', (e) => updateBudgetWarningThreshold(e.target.value));
+    }
+
+    const togglePushEnabled = document.getElementById('togglePushEnabled');
+    if (togglePushEnabled) {
+        togglePushEnabled.addEventListener('change', () => togglePushNotifications());
+    }
+
+    ['toggleRemindOverdue', 'toggleNotifSound'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => updateNotificationSettings());
+    });
+
+    [
+        'togglePushBills',
+        'togglePushDivsCredited',
+        'togglePushDivsUpcoming',
+        'togglePushGoals',
+        'togglePushBudgets'
+    ].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => updatePushGranularSettings());
+    });
+
+    const confirmDeleteInputPC = document.getElementById('confirmDeleteInputPC');
+    if (confirmDeleteInputPC) {
+        confirmDeleteInputPC.addEventListener('input', (e) => {
+            if (typeof window.checkDeleteConfirmationPC === 'function') {
+                window.checkDeleteConfirmationPC(e.target.value);
+            }
+        });
+    }
+}
+
+// ============================================
 // EXPORTAR FUNÇÕES GLOBAIS
 // ============================================
 
@@ -1822,3 +2291,5 @@ window.saveAllSettingsBudgets = saveAllSettingsBudgets;
 window.updateBudgetWarningThreshold = updateBudgetWarningThreshold;
 window.filterBudgetCategories = filterBudgetCategories;
 window.handleBudgetInputChange = handleBudgetInputChange;
+window.setupSettingsUIListeners = setupSettingsUIListeners;
+
